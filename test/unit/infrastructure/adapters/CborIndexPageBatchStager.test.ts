@@ -51,6 +51,25 @@ describe('CborIndexPageBatchStager', () => {
       code: 'E_INDEX_INVALID_STORAGE',
     });
   });
+
+  it('rejects a sparse batch without appending malformed members', async () => {
+    const handles: string[] = [];
+    handles.length = 2;
+    handles[0] = 'test:first-page';
+    const stager = new CborIndexPageBatchStager(
+      stagingWith(vi.fn(async () => handles)),
+      1024,
+    );
+    const members: Array<[string, string]> = [];
+    await stager.append('first.cbor', Uint8Array.of(1), members);
+    await stager.append('second.cbor', Uint8Array.of(2), members);
+
+    await expect(stager.flush(members)).rejects.toMatchObject({
+      code: 'E_INDEX_INVALID_STORAGE',
+      context: { expected: 2, actual: 2, index: 1 },
+    });
+    expect(members).toEqual([]);
+  });
 });
 
 function stagingWith(
