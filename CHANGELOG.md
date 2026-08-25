@@ -23,7 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   treated as host noise rather than an improvement. Every run retained the
   exact semantic fingerprint and `65 / 0 / 5` replay evidence. The v19 storage
   format and publication authority are unchanged, so existing repositories
-  require no migration.
+  require no migration. A counterbalanced five-run hosted comparison against
+  current `main` independently reproduced `50 / 25 / 60` commands, down from
+  `781 / 30 / 372`; hosted CPU medians fell by `65.6%` cold and `48.7%`
+  incremental while the unchanged warm path moved by `4.5%`. The reviewed
+  command ceilings are now `60 / 30 / 72`.
 - Retained trie flushes now stage leaf pages, leaf bundles, and branch bundles
   through ordered git-cas write waves instead of one storage operation per
   trie page. The domain boundary caps each serialized leaf wave at 256 items

@@ -225,17 +225,17 @@ describe('v19 performance workflow', () => {
       suffixPatchCount: 5,
     });
     expect(calibration.environment).toMatchObject({
-      gitCas: '6.5.8',
+      gitCas: '6.5.10',
       node: 'v22.23.2',
       platform: 'linux',
       runner: 'github-hosted',
     });
     expect(calibration.localCalibration.environment.gitCas).toBe('6.5.10');
     expect(calibration.sourceCommit)
-      .toBe('84a33e7163ea6fe028383bb02f8bda6e6fae5905');
+      .toBe('cf90510f316f97fa0e18562f99ece63f428d2b68');
     expect(calibration.evidence).toEqual({
-      artifact: 'v19-performance-2a45bb6722d3b14035dc1069c83e09f96db2bde8',
-      run: 'https://github.com/git-stunts/git-warp/actions/runs/32752394842',
+      artifact: 'v19-performance-b0ec5f722c1b63c96c685cfd0afeee9c33cdb922',
+      run: 'https://github.com/git-stunts/git-warp/actions/runs/32792226931',
     });
     expect(() => CalibrationSchema.parse({
       ...calibration,

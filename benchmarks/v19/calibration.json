@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "84a33e7163ea6fe028383bb02f8bda6e6fae5905",
-  "generatedAt": "2026-08-24T16:46:03.007Z",
+  "sourceCommit": "cf90510f316f97fa0e18562f99ece63f428d2b68",
+  "generatedAt": "2026-08-25T00:09:57.875Z",
   "evidence": {
-    "artifact": "v19-performance-2a45bb6722d3b14035dc1069c83e09f96db2bde8",
-    "run": "https://github.com/git-stunts/git-warp/actions/runs/32752394842"
+    "artifact": "v19-performance-b0ec5f722c1b63c96c685cfd0afeee9c33cdb922",
+    "run": "https://github.com/git-stunts/git-warp/actions/runs/32792226931"
   },
   "environment": {
     "architecture": "x64",
     "cpuCount": 4,
-    "cpuModel": "Intel(R) Xeon(R) 6973P-C",
+    "cpuModel": "AMD EPYC 7763 64-Core Processor",
     "git": "git version 2.55.0",
-    "gitCas": "6.5.8",
+    "gitCas": "6.5.10",
     "node": "v22.23.2",
     "platform": "linux",
     "runner": "github-hosted"
@@ -26,35 +26,35 @@
     "warmupRuns": 1
   },
   "observed": {
-    "cold-materialize": {
-      "cpuTotalMedianMs": 1220,
-      "cpuTotalMadMs": 20,
-      "maximumRssBytes": 137572352,
-      "maximumHeapUsedBytes": 47838520,
-      "gitCommandMedian": 139,
+      "cold-materialize": {
+        "cpuTotalMedianMs": 1560,
+        "cpuTotalMadMs": 39.99999999999977,
+        "maximumRssBytes": 136548352,
+        "maximumHeapUsedBytes": 45629624,
+        "gitCommandMedian": 50,
       "gitCommandMadCount": 0
     },
-    "warm-materialize": {
-      "cpuTotalMedianMs": 620,
-      "cpuTotalMadMs": 0,
-      "maximumRssBytes": 129302528,
-      "maximumHeapUsedBytes": 42633352,
+      "warm-materialize": {
+        "cpuTotalMedianMs": 1069.9999999999998,
+        "cpuTotalMadMs": 10.000000000000227,
+        "maximumRssBytes": 132730880,
+        "maximumHeapUsedBytes": 43966376,
       "gitCommandMedian": 25,
       "gitCommandMadCount": 0
     },
-    "incremental-materialize": {
-      "cpuTotalMedianMs": 1160.0000000000002,
-      "cpuTotalMadMs": 19.999999999999773,
-      "maximumRssBytes": 139124736,
-      "maximumHeapUsedBytes": 48074080,
-      "gitCommandMedian": 149,
+      "incremental-materialize": {
+        "cpuTotalMedianMs": 1430.0000000000002,
+        "cpuTotalMadMs": 0,
+        "maximumRssBytes": 134307840,
+        "maximumHeapUsedBytes": 45864032,
+        "gitCommandMedian": 60,
       "gitCommandMadCount": 0
     },
     "streaming": {
-      "generationMaximumRssBytes": 199516160,
-      "generationPeakHeapUsedBytes": 44912968,
-      "maximumRssBytes": 153808896,
-      "peakHeapUsedBytes": 37329648
+      "generationMaximumRssBytes": 195440640,
+      "generationPeakHeapUsedBytes": 44626520,
+      "maximumRssBytes": 148381696,
+      "peakHeapUsedBytes": 38051056
     }
   },
   "localCalibration": {
@@ -114,10 +114,10 @@
     "note": "CI-runner measurements are primary. Noise floors cover hosted-runner MAD; absolute materialization and streaming ceilings retain reviewed headroom while blocking gross regressions.",
     "gitCommandRegressionRatio": 1.05,
     "gitCommandMedian": {
-      "cold-materialize": 160,
+      "cold-materialize": 60,
       "warm-materialize": 30,
-      "incremental-materialize": 175
+      "incremental-materialize": 72
     },
-    "gitCommandNote": "Git command counts are structural, not timing. The hosted write-wave calibration recorded 139 / 25 / 149 commands. A counterbalanced five-run local arm64 comparison of the bounded compound workspace path from public git-cas 6.5.10 recorded 50 / 25 / 60 in every sample (MAD 0), with exact semantic and replay evidence. The existing 160 / 30 / 175 ceilings remain tied to the hosted calibration until CI independently confirms the compound topology; a follow-up calibration may then tighten them to 60 / 30 / 72. Hosted CI remains the authority for CPU and memory envelopes. Prior hosted evidence: https://github.com/git-stunts/git-warp/actions/runs/32752394842"
+    "gitCommandNote": "Git command counts are structural, not timing. Five counterbalanced hosted samples at cf90510f316f97fa0e18562f99ece63f428d2b68 confirmed 50 / 25 / 60 commands with MAD 0, exact semantic fingerprints, an exact warm hit, and a compatible incremental predecessor hit. The reviewed 60 / 30 / 72 ceilings retain 20% headroom around cold and incremental publication while preserving the existing warm allowance. The same run measured current main at 781 / 30 / 372. Hosted CI remains the authority for CPU and memory envelopes. Evidence: https://github.com/git-stunts/git-warp/actions/runs/32792226931"
   }
 }
