@@ -2,6 +2,23 @@
 # Smoke the actual npm tarball in a clean consumer fixture.
 set -euo pipefail
 
+ARTIFACTS_PREPARED=0
+case "${1:-}" in
+  "") ;;
+  --prepared-artifacts)
+    ARTIFACTS_PREPARED=1
+    shift
+    ;;
+  *)
+    echo "smoke-packed-artifact: unknown argument: $1" >&2
+    exit 2
+    ;;
+esac
+if [ "$#" -ne 0 ]; then
+  echo "smoke-packed-artifact: unexpected arguments" >&2
+  exit 2
+fi
+
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/git-warp-packed-smoke.XXXXXX")
 PACK_DIR="$TMP_ROOT/pack"
@@ -15,7 +32,9 @@ trap cleanup EXIT
 mkdir -p "$PACK_DIR" "$FIXTURE_DIR"
 
 cd "$ROOT"
-npm run build --silent
+if [ "$ARTIFACTS_PREPARED" -eq 0 ]; then
+  npm run build --silent
+fi
 TARBALL_NAME=$(npm pack --pack-destination "$PACK_DIR" --ignore-scripts 2>/dev/null | tail -n 1)
 TARBALL_PATH="$PACK_DIR/$TARBALL_NAME"
 
