@@ -7,6 +7,7 @@ import {
   intentSequenceFromPatch,
   MAX_ATOMIC_WRITE_OPERATIONS,
 } from '../../../src/domain/api/IntentSequenceRuntime.ts';
+import Patch from '../../../src/domain/types/Patch.ts';
 import { createPatchBuilder } from './services/PatchBuilderTestHarness.ts';
 
 describe('IntentSequenceRuntime', () => {
@@ -52,6 +53,19 @@ describe('IntentSequenceRuntime', () => {
 
     expect(() => applyIntentSequenceToPatch(sequence, builder)).toThrowError(
       expect.objectContaining({ code: 'E_INTENT_SEQUENCE_OPERATIONS' }),
+    );
+  });
+
+  it('rejects a retained patch with no operations', () => {
+    const empty = new Patch({
+      writer: 'agent-1',
+      lamport: 1,
+      context: {},
+      ops: [],
+    });
+
+    expect(() => intentSequenceFromPatch(empty)).toThrowError(
+      expect.objectContaining({ code: 'E_DRAFT_INTENT_HYDRATION' }),
     );
   });
 });

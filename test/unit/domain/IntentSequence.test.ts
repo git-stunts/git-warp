@@ -33,6 +33,9 @@ describe('IntentSequence', () => {
   });
 
   it('rejects empty and malformed arrays before delegation', () => {
+    expect(() => IntentSequence.from({ kind: 'node.add' } as never)).toThrowError(
+      expect.objectContaining({ code: 'E_INTENT_SEQUENCE_INPUT' }),
+    );
     expect(() => IntentSequence.from([])).toThrowError(
       expect.objectContaining({ code: 'E_INTENT_SEQUENCE_EMPTY' }),
     );

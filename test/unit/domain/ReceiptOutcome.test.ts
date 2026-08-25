@@ -262,6 +262,38 @@ describe('receipt outcomes', () => {
     );
   });
 
+  it('rejects ambiguous or malformed plural occurrence fields', () => {
+    const entityIntent = intent.entity.add({
+      subject: 'entry:1',
+      properties: { kind: 'capture' },
+    });
+    const occurrence = entityOccurrence(entityIntent);
+    const fields = {
+      lane: 'events',
+      writer: 'agent-1',
+      intent: entityIntent,
+      outcome: projectAdmissionOutcome(
+        testDerivedIntentAdmissionReceipt('manual-occurrence-fields').outcome,
+        EVIDENCE.basis,
+      ),
+      evidence: EVIDENCE,
+    };
+
+    expect(() => new WriteReceipt({
+      ...fields,
+      occurrence,
+      occurrences: [occurrence],
+    })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
+    expect(() => new WriteReceipt({
+      ...fields,
+      // @ts-expect-error Exercise the JavaScript boundary.
+      occurrences: {},
+    })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
+    expect(() => new WriteReceipt(null)).toThrowError(
+      expect.objectContaining({ code: 'E_WRITE_RECEIPT_OPTIONS' }),
+    );
+  });
+
   it('distinguishes the causal coordinate writer from the receipt writer', () => {
     const entityIntent = intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } });
     const occurrence = entityOccurrence(entityIntent, {
