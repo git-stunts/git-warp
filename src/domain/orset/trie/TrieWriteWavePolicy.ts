@@ -8,7 +8,7 @@ export function shouldFlushLeafWriteWave(options: Readonly<{
   nextByteLength: number;
 }>): boolean {
   return options.itemCount > 0 && (
-    options.itemCount === TRIE_LEAF_WRITE_WAVE_MAX_ITEMS ||
+    options.itemCount >= TRIE_LEAF_WRITE_WAVE_MAX_ITEMS ||
     options.byteLength + options.nextByteLength > TRIE_LEAF_WRITE_WAVE_MAX_BYTES
   );
 }
@@ -20,6 +20,6 @@ export function shouldFlushBranchWriteWave(options: Readonly<{
 }>): boolean {
   return options.depth !== -1 && (
     options.nextDepth !== options.depth ||
-    options.itemCount === TRIE_BRANCH_WRITE_WAVE_MAX_ITEMS
+    options.itemCount >= TRIE_BRANCH_WRITE_WAVE_MAX_ITEMS
   );
 }
