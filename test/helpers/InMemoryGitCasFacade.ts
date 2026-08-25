@@ -27,6 +27,11 @@ import {
   parseInMemoryApplicationHandle as parseApplicationHandle,
 } from './InMemoryGitCasApplicationHandle.ts';
 import InMemoryGitCasWorkspaceRegistry from './InMemoryGitCasWorkspaceRegistry.ts';
+import {
+  type InMemoryBundlePlan,
+  planInMemoryBundle,
+  planInMemoryBundleBatch,
+} from './InMemoryGitCasBundleBatch.ts';
 
 type PublicationHistory = {
   readRef(ref: string): Promise<string | null>;
@@ -39,13 +44,6 @@ type PublicationHistory = {
 
 type FixtureAssetReader = (oid: string) => Promise<Uint8Array | null>;
 
-const BUNDLE_LIMITS = Object.freeze({
-  maxMembers: 100_000,
-  maxMemberPathBytes: 4_096,
-  maxDescriptorBytes: 16_777_216,
-  maxFanoutEntries: 1_024,
-  maxFanoutDepth: 16,
-});
 const ENCRYPTED_ASSET_MAGIC = new Uint8Array([0x47, 0x57, 0x45, 0x43]);
 const ENCRYPTED_ASSET_NONCE_BYTES = 12;
 
@@ -121,7 +119,7 @@ export default class InMemoryGitCasFacade {
       open: (request) => this.#openAsset(request),
     });
     this.bundles = Object.freeze({
-      putOrdered: async (request) => await this.#putBundle(request.members),
+      putOrdered: async (request) => await this.#putBundle(request.members, request.limits),
       putOrderedBatch: async (request) => await this.#putBundleBatch(request),
       getMember: async (request) => await this.#getBundleMember(request.handle, request.path),
       getMemberReference: async (request) => (
@@ -272,15 +270,13 @@ export default class InMemoryGitCasFacade {
 
   async #putBundle(
     members: Parameters<BundleCapability['putOrdered']>[0]['members'],
+    limits?: Parameters<BundleCapability['putOrdered']>[0]['limits'],
   ): Promise<StagedBundle> {
-    const lines: string[] = [];
-    const recordedMembers: Array<[string, string]> = [];
-    for await (const [path, member] of members) {
-      const token = String(member);
-      lines.push(`${path}\0${token}`);
-      recordedMembers.push([path, token]);
-    }
-    const descriptorOid = await this.#history.writeBlob(lines.join('\n'));
+    return await this.#writeBundlePlan(await planInMemoryBundle(members, limits));
+  }
+
+  async #writeBundlePlan(plan: InMemoryBundlePlan): Promise<StagedBundle> {
+    const descriptorOid = await this.#history.writeBlob(plan.descriptor);
     const oid = await this.#history.writeTree([
       `100644 blob ${descriptorOid}\tbundle.members`,
     ]);
@@ -289,13 +285,13 @@ export default class InMemoryGitCasFacade {
       hashAlgorithm: oid.length === 64 ? 'sha256' : 'sha1',
       oid,
     });
-    this.#bundleMembers.set(handle.toString(), Object.freeze(recordedMembers));
+    this.#bundleMembers.set(handle.toString(), plan.members);
     return new StagedBundle({
       handle,
-      memberCount: lines.length,
-      indexDepth: 1,
-      descriptorBytes: lines.join('\n').length,
-      limits: BUNDLE_LIMITS,
+      memberCount: plan.members.length,
+      indexDepth: plan.indexDepth,
+      descriptorBytes: plan.descriptorBytes,
+      limits: plan.limits,
       observedAt: new Date(0).toISOString(),
     });
   }
@@ -303,9 +299,10 @@ export default class InMemoryGitCasFacade {
   async #putBundleBatch(
     request: Parameters<BundleCapability['putOrderedBatch']>[0],
   ): Promise<Awaited<ReturnType<BundleCapability['putOrderedBatch']>>> {
+    const plans = await planInMemoryBundleBatch(request);
     const staged: StagedBundle[] = [];
-    for (const bundle of request.bundles) {
-      staged.push(await this.#putBundle(bundle.members));
+    for (const plan of plans) {
+      staged.push(await this.#writeBundlePlan(plan));
     }
     return Object.freeze(staged);
   }

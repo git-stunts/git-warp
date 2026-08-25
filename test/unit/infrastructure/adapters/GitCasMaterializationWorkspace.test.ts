@@ -54,7 +54,7 @@ describe('GitCasMaterializationWorkspace', () => {
     ], {
       maxBatchBundles: 2,
       maxBatchMembers: 2,
-      maxBatchObjects: 4,
+      maxBatchObjects: 8,
       maxBatchBytes: 1024,
     });
 
@@ -81,7 +81,7 @@ describe('GitCasMaterializationWorkspace', () => {
       ], {
         maxBatchBundles: 2,
         maxBatchMembers: 2,
-        maxBatchObjects: 4,
+        maxBatchObjects: 8,
         maxBatchBytes: 1024,
       });
       return bundles[1]!.toString();
