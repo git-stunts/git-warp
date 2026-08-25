@@ -67,6 +67,7 @@
     "access": "public"
   },
   "scripts": {
+    "audit:locked": "npm audit --audit-level=low",
     "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.publish.json",
     "generate:vocabulary-ir": "node scripts/GenerateV19VocabularyIr.ts",
     "check:vocabulary-ir": "node scripts/GenerateV19VocabularyIr.ts --check",

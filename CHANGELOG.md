@@ -226,6 +226,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   expected Deno `v2.6.7` installed before proof. Classified transport and
   bootstrap failures receive at most three attempts; deterministic package
   validation failures remain single-attempt failures.
+- The locked development-tool graph now resolves fixed `brace-expansion`,
+  `js-yaml`, `nanoid`, `dompurify`, and `mermaid` releases. A full-graph npm
+  audit is now a required CI and release gate instead of a runtime-only
+  advisory, while the published runtime graph remains unchanged.
 - Docker-backed tests now build from the invoking checkout root instead of a
   parent context with a literal `git-warp/` source path. `npm test` and the
   Node/Bun/Deno matrix therefore test linked worktrees rather than silently
