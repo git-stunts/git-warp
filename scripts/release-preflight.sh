@@ -185,7 +185,7 @@ if bash scripts/smoke-packed-artifact.sh --prepared-artifacts; then
 else
   fail "packed artifact smoke failed"
 fi
-if npx -y jsr publish --dry-run --allow-dirty 2>/dev/null; then
+if npm run jsr:publish -- --dry-run --allow-dirty 2>/dev/null; then
   pass "JSR publish dry-run"
 else
   fail "JSR publish dry-run failed"

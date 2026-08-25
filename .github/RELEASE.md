@@ -311,6 +311,13 @@ use `--ignore-scripts`, and the packed-artifact smoke consumes that prepared
 output. A maintainer's standalone `npm pack` or `npm publish` still runs the
 package `prepack` lifecycle as a separate safety boundary.
 
+JSR validation and publication run through `scripts/run-jsr-publish.sh`. The
+npm wrapper is locked to `jsr@0.14.3`, and publication workflows install its
+expected Deno `v2.6.7` before invoking the proof. The wrapper makes at most
+three attempts for named transport or bootstrap failures such as resets and
+timeouts. Package validation failures do not match that classifier and return
+after their first attempt.
+
 ## Idempotency
 
 Release workflows must be safe to rerun for an existing public tag.

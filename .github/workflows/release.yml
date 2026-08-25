@@ -41,6 +41,11 @@ jobs:
           node-version: '22'
           cache: npm
 
+      - name: Setup Deno 2.6.7
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
+        with:
+          deno-version: 'v2.6.7'
+
       - name: Install
         run: npm ci
 
@@ -202,7 +207,7 @@ jobs:
         run: npm pack --dry-run --ignore-scripts
 
       - name: Verify JSR publishability
-        run: npx -y jsr publish --dry-run
+        run: npm run jsr:publish -- --dry-run
 
   publish_npm:
     name: Publish npm (OIDC trusted publishing)
@@ -304,6 +309,11 @@ jobs:
           node-version: '22'
           cache: npm
 
+      - name: Setup Deno 2.6.7
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
+        with:
+          deno-version: 'v2.6.7'
+
       - name: Install
         run: npm ci
 
@@ -326,9 +336,11 @@ jobs:
           process.stdout.write(`@jsr/${scope}__${pkg}`);
           NODE
           )
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "npm_name=$NPM_NAME" >> "$GITHUB_OUTPUT"
+          {
+            echo "name=$NAME"
+            echo "version=$VERSION"
+            echo "npm_name=$NPM_NAME"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Skip if JSR version already exists
         id: jsr_exists
@@ -345,14 +357,10 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Publish JSR (retry x3)
+      - name: Publish JSR
         id: jsr_publish
         if: ${{ steps.jsr_exists.outputs.skip != 'true' }}
-        uses: ./.github/actions/retry
-        with:
-          attempts: '3'
-          delay_seconds: '15'
-          command: npx -y jsr publish
+        run: npm run jsr:publish
 
       - name: Report JSR publish status
         id: jsr_result
