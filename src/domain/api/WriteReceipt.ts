@@ -7,7 +7,10 @@ import { requireIssuedEntityOccurrence } from './EntityOccurrenceRuntime.ts';
 import type Evidence from './Evidence.ts';
 import { freezeEvidence } from './EvidenceRuntime.ts';
 import type Intent from './Intent.ts';
-import IntentSequence, { type WriteIntentInput } from './IntentSequence.ts';
+import IntentSequence, {
+  type NormalizedWriteIntentInput,
+  type WriteIntentInput,
+} from './IntentSequence.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
 
 type WriteReceiptFields<TIntent extends WriteIntentInput> = {
@@ -38,7 +41,7 @@ export type WriteReceiptOptions<TIntent extends WriteIntentInput = Intent> =
 
 export default class WriteReceipt<TIntent extends WriteIntentInput = Intent> {
   readonly evidence: Evidence;
-  readonly intent: TIntent;
+  readonly intent: NormalizedWriteIntentInput<TIntent>;
   readonly intents: readonly Intent[];
   readonly operation: 'write' = 'write';
   readonly outcome: AdmissionOutcome;
@@ -55,7 +58,7 @@ export default class WriteReceipt<TIntent extends WriteIntentInput = Intent> {
 
     this.lane = fields.lane;
     this.writer = fields.writer;
-    this.intent = receiptIntentSnapshot(sequence);
+    this.intent = IntentSequence.snapshot(fields.intent);
     this.intents = sequence.intents;
     this.outcome = fields.outcome;
     this.evidence = freezeEvidence(fields.evidence, 'writeReceipt.evidence');
@@ -171,12 +174,6 @@ function validateWriteReceiptFields<TIntent extends WriteIntentInput>(
   requireNonEmptyString(fields.writer, 'writeReceipt.writer');
   requireAdmissionOutcome(fields.outcome);
   return IntentSequence.from(fields.intent);
-}
-
-function receiptIntentSnapshot<TIntent extends WriteIntentInput>(
-  sequence: IntentSequence,
-): TIntent {
-  return sequence.input as TIntent;
 }
 
 function occurrenceError(message: string): WarpError {

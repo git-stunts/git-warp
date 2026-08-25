@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the journal can publish it. A mismatched, truncated, or appended operation
   sequence therefore fails without advancing the target ref or losing the
   write receipt after durable publication.
+- `WriteReceipt.intent` now types every array input as the immutable normalized
+  snapshot the runtime actually retains, even when the caller supplied a
+  mutable array.
 
 ### Compatibility
 

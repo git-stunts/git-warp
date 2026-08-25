@@ -8,6 +8,8 @@ export const MAX_ATOMIC_WRITE_DESCRIPTOR_BYTES = 16 * 1024 * 1024;
 
 export type AtomicIntentArray = readonly [Intent, ...Intent[]];
 export type WriteIntentInput = Intent | readonly Intent[];
+export type NormalizedWriteIntentInput<TInput extends WriteIntentInput> =
+  TInput extends Intent ? Intent : AtomicIntentArray;
 
 export type AtomicIntentDescriptor = Readonly<{
   readonly kind: 'intent.sequence';
@@ -49,6 +51,14 @@ export default class IntentSequence {
     const sequence = new IntentSequence(input);
     normalizedSequences.set(sequence.input, sequence);
     return sequence;
+  }
+
+  /** Copies and freezes array inputs while preserving their normalized public type. */
+  static snapshot<TInput extends WriteIntentInput>(
+    input: TInput,
+  ): NormalizedWriteIntentInput<TInput>;
+  static snapshot(input: WriteIntentInput): Intent | AtomicIntentArray {
+    return IntentSequence.from(input).input;
   }
 
   get atomic(): boolean {

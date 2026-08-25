@@ -39,6 +39,9 @@ const write: WriteReceipt = await lane.write(intent);
 const intents: Intent[] = [intent, intent];
 const atomicWrite = await lane.write(intents);
 const atomicIntentCount: number = atomicWrite.intents.length;
+declare const normalizedArrayReceipt: WriteReceipt<Intent[]>;
+// @ts-expect-error WriteReceipt retains an immutable normalized array snapshot.
+normalizedArrayReceipt.intent.push(intent);
 const writeInput: WriteIntentInput = intents;
 const genericWrite = await lane.write(writeInput);
 const admission: AdmissionOutcome = write.outcome;
