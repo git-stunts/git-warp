@@ -61,7 +61,17 @@ def require_equal(actual, expected, contract):
     if actual != expected:
         raise AssertionError(f"{contract}: expected {expected!r}, got {actual!r}")
 
+def require_handle(value, contract):
+    require(isinstance(value, dict), f"{contract}: expected an evidence handle object")
+    require(isinstance(value.get("id"), str) and len(value["id"]) > 0, f"{contract}: expected a non-empty evidence id")
+
 require_equal(receipt["intent"]["namespace"], "workspace-session-event", "write receipt preserves the application namespace")
+require_equal(receipt["lane"], "events", "write receipt identifies the authoritative worldline")
+require_equal(receipt["writer"], "leased-agent", "write receipt identifies the leased writer")
+require_equal(receipt["outcome"]["kind"], "derived", "direct entity admission is derived")
+require_handle(receipt["evidence"]["basis"], "direct write receipt carries a basis")
+require_equal(len(receipt["evidence"]["support"]), 1, "direct entity admission carries one patch support witness")
+require_handle(receipt["evidence"]["support"][0], "direct entity admission carries one patch support witness")
 require_equal(properties, {
     "eventIntentId": "intent:direct-close",
     "workspaceSessionId": "workspace-session:direct",
@@ -73,11 +83,13 @@ require_equal(json.loads(bytes.fromhex(os.environ["EVENT_BYTES"])), {
     "eventIntentId": "intent:direct-close",
     "schema": "example/workspace-session-event/v1",
     "workspaceSessionId": "workspace-session:direct",
-}, "canonical bytes carry the complete direct event")
+}, "opaque consumer bytes carry the complete direct event")
 require(occurrence["id"].startswith("occurrence:"), "receipt carries substrate occurrence identity")
 require(occurrence["subject"].startswith("workspace-session-event:"), "receipt carries graph subject identity")
-require(occurrence["id"] not in properties.values(), "occurrence identity remains distinct from application identities")
-require(occurrence["subject"] not in properties.values(), "graph subject remains distinct from application identities")
+require(occurrence["id"] != properties["eventIntentId"], "occurrence identity remains distinct from application intent identity")
+require(occurrence["id"] != properties["workspaceSessionId"], "occurrence identity remains distinct from application subject identity")
+require(occurrence["subject"] != properties["eventIntentId"], "graph subject remains distinct from application intent identity")
+require(occurrence["subject"] != properties["workspaceSessionId"], "graph subject remains distinct from application subject identity")
 require_equal(observation["readings"][0]["value"], os.environ["EVENT_BYTES"], "subject recovers exact event bytes after restart")
 require_equal(observation["receipt"]["status"], "completed", "event read completes under a bounded observation")
 basis_id = observation["readings"][0]["coordinate"]["basis"]["id"]
@@ -257,6 +269,18 @@ def require_handles(values, contract):
 
 require_equal(a_receipt["intent"]["namespace"], "workspace-session-event", "candidate A receipt preserves the application namespace")
 require_equal(b_receipt["intent"]["namespace"], "workspace-session-event", "candidate B receipt preserves the application namespace")
+require_equal(a_receipt["lane"], "events", "candidate A receipt identifies its parent worldline")
+require_equal(b_receipt["lane"], "events", "candidate B receipt identifies its parent worldline")
+require_equal(a_receipt["writer"], "writer-a", "candidate A receipt identifies its writer")
+require_equal(b_receipt["writer"], "writer-b", "candidate B receipt identifies its writer")
+require_equal(a_receipt["outcome"]["kind"], "derived", "candidate A entity admission is derived")
+require_equal(b_receipt["outcome"]["kind"], "derived", "candidate B entity admission is derived")
+require_handle(a_receipt["evidence"]["basis"], "candidate A write receipt carries a basis")
+require_handle(b_receipt["evidence"]["basis"], "candidate B write receipt carries a basis")
+require_equal(len(a_receipt["evidence"]["support"]), 1, "candidate A entity admission carries one patch support witness")
+require_equal(len(b_receipt["evidence"]["support"]), 1, "candidate B entity admission carries one patch support witness")
+require_handle(a_receipt["evidence"]["support"][0], "candidate A entity admission carries one patch support witness")
+require_handle(b_receipt["evidence"]["support"][0], "candidate B entity admission carries one patch support witness")
 require_equal(a_receipt["intent"]["properties"], {
     "eventIntentId": "intent:candidate-a-close",
     "workspaceSessionId": "workspace-session:shared",
@@ -274,19 +298,21 @@ require_equal(json.loads(bytes.fromhex(os.environ["COMPLETED_BYTES"])), {
     "eventIntentId": "intent:candidate-a-close",
     "schema": "example/workspace-session-event/v1",
     "workspaceSessionId": "workspace-session:shared",
-}, "canonical bytes carry the complete candidate A event")
+}, "opaque consumer bytes carry the complete candidate A event")
 require_equal(json.loads(bytes.fromhex(os.environ["CRASHED_BYTES"])), {
     "closeReason": "crashed",
     "eventIntentId": "intent:candidate-b-close",
     "schema": "example/workspace-session-event/v1",
     "workspaceSessionId": "workspace-session:shared",
-}, "canonical bytes carry the complete candidate B event")
+}, "opaque consumer bytes carry the complete candidate B event")
 require(a_receipt["occurrence"]["id"] != b_receipt["occurrence"]["id"], "candidate admissions retain distinct occurrence identities")
 require(a_receipt["occurrence"]["subject"] != b_receipt["occurrence"]["subject"], "candidate events retain distinct graph subjects")
 
 require_equal(a_preview["outcome"]["kind"], "derived", "candidate A is derivable at its unchanged fork basis")
 require_equal(a_settlement["outcome"]["kind"], "derived", "candidate A settlement is admitted")
 require_equal(a_settlement["plan"], a_preview["plan"], "settlement applies the exact reviewed plan")
+require_equal(a_settlement["source"], {"kind": "strand", "name": "candidate-a"}, "candidate A settlement identifies its source Strand")
+require_equal(a_settlement["target"], {"kind": "worldline", "name": "events"}, "candidate A settlement identifies its target worldline")
 require_handle(a_settlement["evidence"]["basis"], "settlement receipt carries a basis")
 require_handles(a_settlement["evidence"]["support"], "settlement receipt carries supporting evidence")
 require_handle(a_settlement["outcome"]["witness"]["admittedSuffix"], "derived settlement witnesses its admitted suffix")
@@ -305,6 +331,8 @@ require_handles(b_preview["outcome"]["witness"]["requiredEvidence"], "candidate 
 require_handle(b_preview["outcome"]["witness"]["failedCondition"], "candidate B obstruction identifies its failed condition")
 require_equal(b_settlement["plan"], b_preview["plan"], "candidate B settlement applies the exact obstructed plan")
 require_equal(b_settlement["outcome"]["kind"], "obstruction", "candidate B settlement remains obstructed")
+require_equal(b_settlement["source"], {"kind": "strand", "name": "candidate-b"}, "candidate B settlement identifies its source Strand")
+require_equal(b_settlement["target"], {"kind": "worldline", "name": "events"}, "candidate B settlement identifies its target worldline")
 require_equal(b_settlement["outcome"]["witness"]["reason"], b_preview["outcome"]["witness"]["reason"], "candidate B settlement preserves the common-basis reason")
 require_equal(b_settlement["outcome"]["witness"]["retry"], b_preview["outcome"]["witness"]["retry"], "candidate B settlement preserves the retry disposition")
 require_handle(b_settlement["evidence"]["basis"], "candidate B settlement receipt carries a basis")
@@ -313,6 +341,7 @@ require_handles(b_settlement["evidence"]["support"], "candidate B settlement rec
 require_equal(a_parent["readings"][0]["value"], os.environ["COMPLETED_BYTES"], "settlement preserves candidate A subject and exact bytes in the parent")
 require_handle(a_parent["readings"][0]["coordinate"]["basis"], "settled candidate A remains basis-bound in the parent reading")
 require(b_parent["readings"][0]["value"] is False, "obstructed candidate B remains absent from the parent")
+require_handle(b_parent["readings"][0]["coordinate"]["basis"], "obstructed candidate B absence remains basis-bound in the parent reading")
 require_equal(a_strand["readings"][0]["value"], os.environ["COMPLETED_BYTES"], "settled candidate A remains recoverable in its source Strand")
 require_handle(a_strand["readings"][0]["coordinate"]["basis"], "settled candidate A remains basis-bound in its source Strand")
 require_equal(b_strand["readings"][0]["value"], os.environ["CRASHED_BYTES"], "obstructed candidate B remains recoverable in its source Strand")
