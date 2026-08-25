@@ -8,7 +8,7 @@ import type Intent from './Intent.ts';
 
 type EntityOccurrenceReceiptBinding = {
   readonly evidence: Evidence;
-  readonly intent: Intent;
+  readonly intents: readonly Intent[];
   readonly lane: string;
   readonly writer: string;
 };

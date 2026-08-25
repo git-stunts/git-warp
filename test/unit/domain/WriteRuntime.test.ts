@@ -206,6 +206,58 @@ describe('WriteRuntime admission classification', () => {
     ).rejects.toMatchObject({ code: 'E_WRITE_ENTITY_OCCURRENCE' });
   });
 
+  it('refuses an atomic publication whose later edit changed', async () => {
+    await expect(
+      executeIntentWrite({
+        runtime: createRuntime(),
+        context: createContext().context,
+        intent: [
+          intent.node.add({ subject: 'entry:1' }),
+          intent.node.add({ subject: 'entry:2' }),
+          intent.edge.add({ from: 'entry:1', to: 'entry:2', label: 'precedes' }),
+        ],
+        commit: async (build) => {
+          const capture = committableBuilder();
+          await build(capture);
+          const publication = await capture.commitWithEvidence();
+          const second = requireNodeAdd(publication.patch.ops[1]);
+          const operations = [...publication.patch.ops];
+          operations[1] = new NodeAdd('entry:substituted', second.dot);
+          return Object.freeze({
+            ...publication,
+            patch: patchWithOps(publication.patch, operations),
+          });
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'E_WRITE_INTENT_PUBLICATION' });
+  });
+
+  it('refuses operations appended outside the requested atomic sequence', async () => {
+    await expect(
+      executeIntentWrite({
+        runtime: createRuntime(),
+        context: createContext().context,
+        intent: [
+          intent.node.add({ subject: 'entry:1' }),
+          intent.node.add({ subject: 'entry:2' }),
+        ],
+        commit: async (build) => {
+          const capture = committableBuilder();
+          await build(capture);
+          const publication = await capture.commitWithEvidence();
+          const operations = [
+            ...publication.patch.ops,
+            new NodeAdd('entry:extra', Dot.create('agent-1', 3)),
+          ];
+          return Object.freeze({
+            ...publication,
+            patch: patchWithOps(publication.patch, operations),
+          });
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'E_WRITE_INTENT_PUBLICATION' });
+  });
+
   it('classifies writer CAS races as stale-basis obstructions', async () => {
     const { context, provenance } = createContext();
     const receipt = await executeIntentWrite({

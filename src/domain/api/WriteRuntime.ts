@@ -11,19 +11,16 @@ import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
 import { projectAdmissionOutcome } from './AdmissionOutcomeRuntime.ts';
 import type Evidence from './Evidence.ts';
 import { createWriteEvidence, createWriteRecoveryEvidence } from './EvidenceRuntime.ts';
-import type Intent from './Intent.ts';
-import { applyIntentToPatch, intentFromPatch } from './IntentRuntime.ts';
+import IntentSequence, { type WriteIntentInput } from './IntentSequence.ts';
+import { applyIntentSequenceToPatch } from './IntentSequenceRuntime.ts';
+import { inspectPublishedIntentSequence } from './PublishedIntentSequence.ts';
 import type { RepairHint } from './ReceiptSupport.ts';
 import WriteReceipt from './WriteReceipt.ts';
 import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
 import type AdmissionEvaluation from '../admission/AdmissionEvaluation.ts';
 import type EntityOccurrence from './EntityOccurrence.ts';
 import { createEntityOccurrence } from './EntityOccurrenceRuntime.ts';
-import { Dot } from '../crdt/Dot.ts';
-import NodeAdd from '../types/ops/NodeAdd.ts';
 import { EventId } from '../utils/EventId.ts';
-import { entityCapturePayloadsEqual } from '../types/EntityCapturePayload.ts';
-import { allocateEntitySubject } from '../services/PatchBuilderEntity.ts';
 import {
   createDerivedWriteAdmission,
   createObstructedWriteAdmission,
@@ -33,11 +30,15 @@ import {
 
 type IntentCommit = (build: WarpWorldlinePatchBuild) => Promise<PatchCommitResult>;
 
-type IntentWriteFields = {
+type IntentWriteRequestFields = {
   readonly runtime: WarpWorldline;
   readonly context: ApiRuntimeContext;
-  readonly intent: Intent;
+  readonly intent: WriteIntentInput;
   readonly commit: IntentCommit;
+};
+
+type IntentWriteFields = Omit<IntentWriteRequestFields, 'intent'> & {
+  readonly sequence: IntentSequence;
 };
 
 type PublishedWriteFields = Omit<IntentWriteFields, 'commit'> & {
@@ -74,8 +75,11 @@ const MATERIALIZE_HINT = Object.freeze([
     message: 'Materialize the timeline before retrying this state-dependent intent.',
   }),
 ]);
-export async function executeIntentWrite(fields: IntentWriteFields): Promise<WriteReceipt> {
-  const { runtime, context, intent } = fields;
+export async function executeIntentWrite(
+  request: IntentWriteRequestFields,
+): Promise<WriteReceipt<WriteIntentInput>> {
+  const fields = normalizeIntentWrite(request);
+  const { runtime, context, sequence } = fields;
   const recoveryEvidence = await createWriteRecoveryEvidence(runtime, context);
   const attempt: WriteAttempt = {};
   let publication: PatchCommitResult;
@@ -91,10 +95,19 @@ export async function executeIntentWrite(fields: IntentWriteFields): Promise<Wri
   return await derivedWriteReceipt({
     runtime,
     context,
-    intent,
+    sequence,
     publication,
     recoveryEvidence,
     ...prepared,
+  });
+}
+
+function normalizeIntentWrite(request: IntentWriteRequestFields): IntentWriteFields {
+  return Object.freeze({
+    runtime: request.runtime,
+    context: request.context,
+    commit: request.commit,
+    sequence: IntentSequence.from(request.intent),
   });
 }
 
@@ -105,11 +118,13 @@ async function publishIntentWrite(
   return await fields.commit(async (patch) => {
     attempt.basis = readPatchBuilderCausalBasis(patch);
     attempt.evaluation = await prepareWriteAdmission({ ...fields, basis: attempt.basis });
-    applyIntentToPatch(fields.intent, patch);
+    applyIntentSequenceToPatch(fields.sequence, patch);
   });
 }
 
-async function obstructedWriteReceipt(fields: FailedWriteFields): Promise<WriteReceipt> {
+async function obstructedWriteReceipt(
+  fields: FailedWriteFields,
+): Promise<WriteReceipt<WriteIntentInput>> {
   const { write, attempt, recoveryEvidence, error } = fields;
   const failure = operationalWriteFailure(error);
   if (failure === null) {
@@ -126,18 +141,20 @@ async function obstructedWriteReceipt(fields: FailedWriteFields): Promise<WriteR
   return receipt;
 }
 
-async function createObstructionReceipt(fields: ObstructionReceiptFields): Promise<WriteReceipt> {
+async function createObstructionReceipt(
+  fields: ObstructionReceiptFields,
+): Promise<WriteReceipt<WriteIntentInput>> {
   const { write, prepared, recoveryEvidence, obstruction } = fields;
-  const { runtime, context, intent } = write;
+  const { runtime, context, sequence } = write;
   return new WriteReceipt({
     lane: runtime.worldlineName,
     writer: runtime.writerId,
-    intent,
+    intent: sequence.input,
     outcome: projectAdmissionOutcome(
       await createObstructedWriteAdmission({
         runtime,
         context,
-        intent,
+        sequence,
         recoveryEvidence,
         obstruction,
         ...prepared,
@@ -171,98 +188,41 @@ async function derivedWriteReceipt(
     readonly basis: PatchBuilderCausalBasis;
     readonly evaluation: AdmissionEvaluation;
   }
-): Promise<WriteReceipt> {
-  const { runtime, context, intent, publication } = fields;
+): Promise<WriteReceipt<WriteIntentInput>> {
+  const { runtime, context, sequence, publication } = fields;
   const evidence = await committedWriteEvidence(fields);
-  const occurrence = publishedEntityOccurrence(fields, evidence);
+  const occurrences = publishedEntityOccurrences(fields, evidence);
   const receipt = new WriteReceipt({
     lane: runtime.worldlineName,
     writer: runtime.writerId,
-    intent,
+    intent: sequence.input,
     outcome: projectAdmissionOutcome(createDerivedWriteAdmission(fields), evidence.basis),
     evidence,
-    ...(occurrence === undefined ? {} : { occurrence }),
+    ...(occurrences.length === 0 ? {} : { occurrences }),
   });
   context.bindReceipt(receipt, { operation: 'write', patchSha: publication.sha });
   return receipt;
 }
 
-function publishedEntityOccurrence(
+function publishedEntityOccurrences(
   fields: PublishedWriteFields,
-  evidence: Evidence
-): EntityOccurrence | undefined {
-  if (fields.intent.kind !== 'entity.add') {
-    return undefined;
-  }
+  evidence: Evidence,
+): readonly EntityOccurrence[] {
   const { patch, sha } = fields.publication;
-  const leading = patch.ops[0];
-  if (!(leading instanceof NodeAdd) || !(leading.dot instanceof Dot)) {
-    throw entityOccurrenceError(
-      'Published entity write does not begin with a causally identified NodeAdd'
-    );
-  }
-  const subject = publishedEntitySubject(fields.intent, publishedEntityIntent(patch), leading.dot);
-  return createEntityOccurrence({
-    context: patch.context,
-    dot: leading.dot,
-    evidence,
-    eventId: new EventId(patch.lamport, patch.writer, sha, 0),
-    intent: fields.intent,
-    receiptWriter: fields.runtime.writerId,
-    subject,
-    worldline: fields.runtime.worldlineName,
-  });
-}
-
-function publishedEntitySubject(requested: Intent, published: Intent, dot: Dot): string {
-  const publishedDescriptor = publishedEntityDescriptor(published);
-  const requestedDescriptor = requestedEntityDescriptor(requested);
-  requirePublishedEntityPayload(requestedDescriptor, publishedDescriptor);
-  const expectedSubject =
-    'subject' in requestedDescriptor
-      ? requestedDescriptor.subject
-      : allocateEntitySubject(requestedDescriptor.namespace, dot);
-  if (publishedDescriptor.subject !== expectedSubject) {
-    throw entityOccurrenceError('Published entity write does not match the requested entity');
-  }
-  return publishedDescriptor.subject;
-}
-
-function publishedEntityDescriptor(published: Intent) {
-  const { descriptor } = published;
-  if (descriptor.kind !== 'entity.add' || !('subject' in descriptor)) {
-    throw entityOccurrenceError('Published entity write is not an entity capture');
-  }
-  return descriptor;
-}
-
-function requestedEntityDescriptor(requested: Intent) {
-  const { descriptor } = requested;
-  if (descriptor.kind !== 'entity.add') {
-    throw entityOccurrenceError('Requested write is not an entity capture');
-  }
-  return descriptor;
-}
-
-function requirePublishedEntityPayload(
-  requested: ReturnType<typeof requestedEntityDescriptor>,
-  published: ReturnType<typeof publishedEntityDescriptor>
-): void {
-  if (!entityCapturePayloadsEqual(requested.properties, published.properties)) {
-    throw entityOccurrenceError('Published entity write does not match the requested payload');
-  }
-}
-
-function publishedEntityIntent(patch: PublishedWriteFields['publication']['patch']): Intent {
-  try {
-    return intentFromPatch(patch);
-  } catch {
-    throw entityOccurrenceError('Published entity write is not a complete entity capture');
-  }
-}
-
-function entityOccurrenceError(message: string): WarpError {
-  return new WarpError(message, 'E_WRITE_ENTITY_OCCURRENCE');
+  return Object.freeze(
+    inspectPublishedIntentSequence(fields.sequence, patch).map((coordinate) =>
+      createEntityOccurrence({
+        context: patch.context,
+        dot: coordinate.dot,
+        evidence,
+        eventId: new EventId(patch.lamport, patch.writer, sha, coordinate.opIndex),
+        intent: coordinate.intent,
+        receiptWriter: fields.runtime.writerId,
+        subject: coordinate.subject,
+        worldline: fields.runtime.worldlineName,
+      }),
+    ),
+  );
 }
 
 async function committedWriteEvidence(fields: PublishedWriteFields): Promise<Evidence> {

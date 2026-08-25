@@ -21,6 +21,7 @@ import {
   type SettlementReceipt,
   type SupportReport,
   type Tick,
+  type WriteIntentInput,
   type WriteReceipt,
 } from '../../index.ts';
 import { users } from '../fixtures/generated-sdk/users.generated.ts';
@@ -35,8 +36,11 @@ const intent: Intent = users.intents.assignRole({
   role: 'admin',
 });
 const write: WriteReceipt = await lane.write(intent);
-// @ts-expect-error RED: v19 lost the public atomic-array overload.
-const atomicWrite = await lane.write([intent, intent] as const);
+const intents: Intent[] = [intent, intent];
+const atomicWrite = await lane.write(intents);
+const atomicIntentCount: number = atomicWrite.intents.length;
+const writeInput: WriteIntentInput = intents;
+const genericWrite = await lane.write(writeInput);
 const admission: AdmissionOutcome = write.outcome;
 const writeEvidence: Evidence = write.evidence;
 const writeLane: string = write.lane;
@@ -107,6 +111,7 @@ void laneName(strand.descriptor);
 void writeEvidence;
 void writeLane;
 void atomicWrite;
+void atomicIntentCount;
 void readingTick;
 void emitted.coordinate;
 void emitted.witnessRefs;

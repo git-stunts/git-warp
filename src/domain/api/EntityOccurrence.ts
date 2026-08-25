@@ -10,7 +10,7 @@ export type EntityCausalRelation = 'same' | 'before' | 'after' | 'concurrent';
 
 type EntityOccurrenceReceiptBinding = {
   readonly evidence: Evidence;
-  readonly intent: Intent;
+  readonly intents: readonly Intent[];
   readonly lane: string;
   readonly writer: string;
 };
@@ -71,7 +71,7 @@ export default class EntityOccurrence {
   ): EntityOccurrence {
     const issued = EntityOccurrence.#requireIssued(occurrence);
     requireReceiptBinding(issued.#evidence === receipt.evidence);
-    requireReceiptBinding(issued.#intent === receipt.intent);
+    requireReceiptBinding(receipt.intents.includes(issued.#intent));
     requireReceiptBinding(issued.#worldline === receipt.lane);
     requireReceiptBinding(issued.#receiptWriter === receipt.writer);
     return issued;
