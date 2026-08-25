@@ -4,12 +4,14 @@ import Intent from '../../../src/domain/api/Intent.ts';
 import IntentSequence from '../../../src/domain/api/IntentSequence.ts';
 import { inspectPublishedIntentSequence } from '../../../src/domain/api/PublishedIntentSequence.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
+import { allocateEntitySubject } from '../../../src/domain/services/PatchBuilderEntity.ts';
 import Patch from '../../../src/domain/types/Patch.ts';
 import EdgeAdd from '../../../src/domain/types/ops/EdgeAdd.ts';
 import EdgeRemove from '../../../src/domain/types/ops/EdgeRemove.ts';
 import NodeAdd from '../../../src/domain/types/ops/NodeAdd.ts';
 import NodePropSet from '../../../src/domain/types/ops/NodePropSet.ts';
 import NodeRemove from '../../../src/domain/types/ops/NodeRemove.ts';
+import PropSet from '../../../src/domain/types/ops/PropSet.ts';
 import type { PatchOp } from '../../../src/domain/types/ops/unions.ts';
 
 describe('PublishedIntentSequence', () => {
@@ -75,6 +77,52 @@ describe('PublishedIntentSequence', () => {
     )).toThrowError(expect.objectContaining({ code: 'E_WRITE_INTENT_PUBLICATION' }));
   });
 
+  it('returns coordinates for supplied and auto-allocated entity births', () => {
+    const supplied = Intent.addEntity({
+      subject: 'capture:supplied',
+      properties: { body: 'one' },
+    });
+    const allocated = Intent.addEntityAuto({
+      namespace: 'capture',
+      properties: { body: 'two' },
+    });
+    const suppliedDot = Dot.create('agent-1', 1);
+    const allocatedDot = Dot.create('agent-1', 2);
+    const allocatedSubject = allocateEntitySubject('capture', allocatedDot);
+    const published = patch([
+      new NodeAdd('capture:supplied', suppliedDot),
+      new PropSet('capture:supplied', 'body', 'one'),
+      new NodeAdd(allocatedSubject, allocatedDot),
+      new NodePropSet(allocatedSubject, 'body', 'two'),
+    ]);
+
+    expect(inspectPublishedIntentSequence(
+      IntentSequence.from([supplied, allocated]),
+      published,
+    )).toEqual([
+      { dot: suppliedDot, intent: supplied, opIndex: 0, subject: 'capture:supplied' },
+      { dot: allocatedDot, intent: allocated, opIndex: 2, subject: allocatedSubject },
+    ]);
+  });
+
+  it('rejects missing or trailing operations', () => {
+    const sequence = IntentSequence.from([
+      Intent.addNode({ subject: 'capture:first' }),
+      Intent.addNode({ subject: 'capture:second' }),
+    ]);
+
+    expect(() => inspectPublishedIntentSequence(sequence, patch([
+      new NodeAdd('capture:first', Dot.create('agent-1', 1)),
+    ]))).toThrowError(expect.objectContaining({ code: 'E_WRITE_INTENT_PUBLICATION' }));
+    expect(() => inspectPublishedIntentSequence(
+      IntentSequence.from([Intent.addNode({ subject: 'capture:first' })]),
+      patch([
+        new NodeAdd('capture:first', Dot.create('agent-1', 1)),
+        new NodeAdd('capture:second', Dot.create('agent-1', 2)),
+      ]),
+    )).toThrowError(expect.objectContaining({ code: 'E_WRITE_INTENT_PUBLICATION' }));
+  });
+
   it.each([
     {
       name: 'node addition',
@@ -133,12 +181,44 @@ describe('PublishedIntentSequence', () => {
       code: 'E_WRITE_INTENT_PUBLICATION',
     },
     {
+      name: 'property value',
+      requested: Intent.setProperty({
+        subject: 'capture:first',
+        key: 'body',
+        value: 'one',
+      }),
+      operations: [new NodePropSet('capture:first', 'body', 'two')],
+      code: 'E_WRITE_INTENT_PUBLICATION',
+    },
+    {
+      name: 'invalid property value',
+      requested: Intent.setProperty({
+        subject: 'capture:first',
+        key: 'body',
+        value: 'one',
+      }),
+      operations: [new NodePropSet('capture:first', 'body', undefined)],
+      code: 'E_WRITE_INTENT_PUBLICATION',
+    },
+    {
       name: 'entity leading operation',
       requested: Intent.addEntity({
         subject: 'capture:first',
         properties: { body: 'one' },
       }),
       operations: [new NodePropSet('capture:first', 'body', 'one')],
+      code: 'E_WRITE_ENTITY_OCCURRENCE',
+    },
+    {
+      name: 'entity subject',
+      requested: Intent.addEntity({
+        subject: 'capture:first',
+        properties: { body: 'one' },
+      }),
+      operations: [
+        new NodeAdd('capture:other', Dot.create('agent-1', 1)),
+        new NodePropSet('capture:other', 'body', 'one'),
+      ],
       code: 'E_WRITE_ENTITY_OCCURRENCE',
     },
     {

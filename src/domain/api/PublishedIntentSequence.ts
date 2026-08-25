@@ -1,4 +1,4 @@
-import { Dot } from '../crdt/Dot.ts';
+import type { Dot } from '../crdt/Dot.ts';
 import WarpError from '../errors/WarpError.ts';
 import { allocateEntitySubject } from '../services/PatchBuilderEntity.ts';
 import type { EntityCapturePayload } from '../types/EntityCapturePayload.ts';
@@ -12,7 +12,7 @@ import NodeRemove from '../types/ops/NodeRemove.ts';
 import PropSet from '../types/ops/PropSet.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
 import type Intent from './Intent.ts';
-import type { IntentDescriptor, IntentKind } from './Intent.ts';
+import type { IntentDescriptor } from './Intent.ts';
 import type IntentSequence from './IntentSequence.ts';
 
 export type PublishedEntityCoordinate = Readonly<{
@@ -66,23 +66,21 @@ class PublicationCursor {
   }
 }
 
-type IntentInspector = (cursor: PublicationCursor, intent: Intent) => void;
+type NodeAddIntentDescriptor = Extract<IntentDescriptor, { readonly kind: 'node.add' }>;
+type NodeRemoveIntentDescriptor = Extract<IntentDescriptor, { readonly kind: 'node.remove' }>;
+type NodeIntentDescriptor = NodeAddIntentDescriptor | NodeRemoveIntentDescriptor;
+type EdgeAddIntentDescriptor = Extract<IntentDescriptor, { readonly kind: 'edge.add' }>;
+type EdgeRemoveIntentDescriptor = Extract<IntentDescriptor, { readonly kind: 'edge.remove' }>;
+type EdgeIntentDescriptor = EdgeAddIntentDescriptor | EdgeRemoveIntentDescriptor;
+type PropertyIntentDescriptor = Extract<IntentDescriptor, { readonly kind: 'property.set' }>;
 type EntityIntentDescriptor = Extract<IntentDescriptor, { readonly kind: 'entity.add' }>;
+type PayloadIntentDescriptor = PropertyIntentDescriptor | EntityIntentDescriptor;
 type EntityPropertiesInspection = Readonly<{
   readonly cursor: PublicationCursor;
   readonly intent: Intent;
   readonly properties: EntityCapturePayload;
   readonly subject: string;
 }>;
-
-const inspectors: ReadonlyMap<IntentKind, IntentInspector> = new Map([
-  ['node.add', inspectNodeAdd],
-  ['node.remove', inspectNodeRemove],
-  ['edge.add', inspectEdgeAdd],
-  ['edge.remove', inspectEdgeRemove],
-  ['property.set', inspectPropertySet],
-  ['entity.add', inspectEntityAdd],
-]);
 
 /** Validates that the published patch is the exact ordered write request. */
 export function inspectPublishedIntentSequence(
@@ -91,37 +89,64 @@ export function inspectPublishedIntentSequence(
 ): readonly PublishedEntityCoordinate[] {
   const cursor = new PublicationCursor(patch.ops);
   for (const intent of sequence.intents) {
-    const inspector = inspectors.get(intent.kind);
-    if (inspector === undefined) {
-      throw publicationError(intent, 'Published write contains an unsupported Intent');
-    }
-    inspector(cursor, intent);
+    inspectIntent(cursor, intent);
   }
   cursor.requireComplete();
   return cursor.entities;
 }
 
-function inspectNodeAdd(cursor: PublicationCursor, intent: Intent): void {
+function inspectIntent(cursor: PublicationCursor, intent: Intent): void {
   const { descriptor } = intent;
-  if (descriptor.kind !== 'node.add') {
-    throw publicationError(intent, 'Published node addition received a mismatched Intent');
+  if (isNodeIntentDescriptor(descriptor)) {
+    inspectNodeIntent(cursor, intent, descriptor);
+    return;
   }
+  if (isEdgeIntentDescriptor(descriptor)) {
+    inspectEdgeIntent(cursor, intent, descriptor);
+    return;
+  }
+  inspectPayloadIntent(cursor, intent, descriptor);
+}
+
+function inspectNodeIntent(
+  cursor: PublicationCursor,
+  intent: Intent,
+  descriptor: NodeIntentDescriptor,
+): void {
+  if (descriptor.kind === 'node.add') {
+    inspectNodeAdd(cursor, intent, descriptor);
+    return;
+  }
+  inspectNodeRemove(cursor, intent, descriptor);
+}
+
+function inspectNodeAdd(
+  cursor: PublicationCursor,
+  intent: Intent,
+  descriptor: NodeAddIntentDescriptor,
+): void {
   const operation = cursor.take(intent);
   if (!(operation instanceof NodeAdd) || operation.node !== descriptor.subject) {
     throw publicationError(intent, 'Published node addition does not match its requested subject');
   }
 }
 
-function inspectNodeRemove(cursor: PublicationCursor, intent: Intent): void {
-  const { descriptor } = intent;
-  if (descriptor.kind !== 'node.remove') {
-    throw publicationError(intent, 'Published node removal received a mismatched Intent');
-  }
+function inspectNodeRemove(
+  cursor: PublicationCursor,
+  intent: Intent,
+  descriptor: NodeRemoveIntentDescriptor,
+): void {
   consumeCascadingEdgeRemovals(cursor, intent, descriptor.subject);
   const operation = cursor.take(intent);
   if (!(operation instanceof NodeRemove) || operation.node !== descriptor.subject) {
     throw publicationError(intent, 'Published node removal does not match its requested subject');
   }
+}
+
+function isNodeIntentDescriptor(
+  descriptor: IntentDescriptor,
+): descriptor is NodeIntentDescriptor {
+  return descriptor.kind === 'node.add' || descriptor.kind === 'node.remove';
 }
 
 function consumeCascadingEdgeRemovals(
@@ -144,26 +169,44 @@ function touchesSubject(
   return operation.from === subject || operation.to === subject;
 }
 
-function inspectEdgeAdd(cursor: PublicationCursor, intent: Intent): void {
-  const { descriptor } = intent;
-  if (descriptor.kind !== 'edge.add') {
-    throw publicationError(intent, 'Published edge addition received a mismatched Intent');
+function inspectEdgeIntent(
+  cursor: PublicationCursor,
+  intent: Intent,
+  descriptor: EdgeIntentDescriptor,
+): void {
+  if (descriptor.kind === 'edge.add') {
+    inspectEdgeAdd(cursor, intent, descriptor);
+    return;
   }
+  inspectEdgeRemove(cursor, intent, descriptor);
+}
+
+function inspectEdgeAdd(
+  cursor: PublicationCursor,
+  intent: Intent,
+  descriptor: EdgeAddIntentDescriptor,
+): void {
   const operation = cursor.take(intent);
   if (!(operation instanceof EdgeAdd) || !edgeFieldsMatch(operation, descriptor)) {
     throw publicationError(intent, 'Published edge addition does not match its requested edge');
   }
 }
 
-function inspectEdgeRemove(cursor: PublicationCursor, intent: Intent): void {
-  const { descriptor } = intent;
-  if (descriptor.kind !== 'edge.remove') {
-    throw publicationError(intent, 'Published edge removal received a mismatched Intent');
-  }
+function inspectEdgeRemove(
+  cursor: PublicationCursor,
+  intent: Intent,
+  descriptor: EdgeRemoveIntentDescriptor,
+): void {
   const operation = cursor.take(intent);
   if (!(operation instanceof EdgeRemove) || !edgeFieldsMatch(operation, descriptor)) {
     throw publicationError(intent, 'Published edge removal does not match its requested edge');
   }
+}
+
+function isEdgeIntentDescriptor(
+  descriptor: IntentDescriptor,
+): descriptor is EdgeIntentDescriptor {
+  return descriptor.kind === 'edge.add' || descriptor.kind === 'edge.remove';
 }
 
 function edgeFieldsMatch(
@@ -177,11 +220,23 @@ function edgeFieldsMatch(
   );
 }
 
-function inspectPropertySet(cursor: PublicationCursor, intent: Intent): void {
-  const { descriptor } = intent;
-  if (descriptor.kind !== 'property.set') {
-    throw publicationError(intent, 'Published property write received a mismatched Intent');
+function inspectPayloadIntent(
+  cursor: PublicationCursor,
+  intent: Intent,
+  descriptor: PayloadIntentDescriptor,
+): void {
+  if (descriptor.kind === 'property.set') {
+    inspectPropertySet(cursor, intent, descriptor);
+    return;
   }
+  inspectEntityAdd(cursor, intent, descriptor);
+}
+
+function inspectPropertySet(
+  cursor: PublicationCursor,
+  intent: Intent,
+  descriptor: PropertyIntentDescriptor,
+): void {
   requirePropertyOperation(cursor.take(intent), intent, {
     key: descriptor.key,
     subject: descriptor.subject,
@@ -189,14 +244,14 @@ function inspectPropertySet(cursor: PublicationCursor, intent: Intent): void {
   });
 }
 
-function inspectEntityAdd(cursor: PublicationCursor, intent: Intent): void {
-  const { descriptor } = intent;
-  if (descriptor.kind !== 'entity.add') {
-    throw publicationError(intent, 'Published entity addition received a mismatched Intent');
-  }
+function inspectEntityAdd(
+  cursor: PublicationCursor,
+  intent: Intent,
+  descriptor: EntityIntentDescriptor,
+): void {
   const opIndex = cursor.position;
   const leading = cursor.take(intent);
-  if (!(leading instanceof NodeAdd) || !(leading.dot instanceof Dot)) {
+  if (!(leading instanceof NodeAdd)) {
     throw publicationError(intent, 'Published entity does not begin with a causal NodeAdd');
   }
   const subject = requestedEntitySubject(descriptor, leading.dot);
@@ -231,20 +286,20 @@ function requirePropertyOperation(
   if (!isNodePropertyOperation(operation) || !isPropValue(operation.value)) {
     throw publicationError(intent, 'Published property write is not a node property operation');
   }
-  if (!propertyOperationMatches(operation, expected)) {
+  if (!propertyOperationMatches(operation, operation.value, expected)) {
     throw publicationError(intent, 'Published property write does not match its request');
   }
 }
 
 function propertyOperationMatches(
   operation: NodePropSet | PropSet,
+  value: PropValue,
   expected: Readonly<{ key: string; subject: string; value: PropValue }>,
 ): boolean {
   return (
     operation.node === expected.subject &&
     operation.key === expected.key &&
-    isPropValue(operation.value) &&
-    propValuesEqual(operation.value, expected.value)
+    propValuesEqual(value, expected.value)
   );
 }
 
