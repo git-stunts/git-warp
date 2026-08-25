@@ -262,6 +262,28 @@ describe('receipt outcomes', () => {
     );
   });
 
+  it('copies caller-owned intent arrays into the receipt', () => {
+    const intents = [
+      intent.node.add({ subject: 'entry:1' }),
+      intent.node.add({ subject: 'entry:2' }),
+    ];
+    const receipt = new WriteReceipt({
+      lane: 'events',
+      writer: 'agent-1',
+      intent: intents,
+      outcome: projectAdmissionOutcome(
+        testDerivedIntentAdmissionReceipt('manual-atomic-copy').outcome,
+        EVIDENCE.basis,
+      ),
+      evidence: EVIDENCE,
+    });
+
+    expect(receipt.intent).not.toBe(intents);
+    expect(receipt.intent).toEqual(intents);
+    expect(Object.isFrozen(receipt.intent)).toBe(true);
+    expect(Object.isFrozen(intents)).toBe(false);
+  });
+
   it('rejects ambiguous or malformed plural occurrence fields', () => {
     const entityIntent = intent.entity.add({
       subject: 'entry:1',
