@@ -5,7 +5,7 @@ load helpers/setup.bash
 # Size: medium. These tests use local Git and bounded CLI subprocesses, never the network.
 # Oracles: the public Receipt envelope plus the exact-frontier Settlement contract in
 # docs/migrations/v19/README.md and docs/topics/strands.md.
-# The application property names and canonical bytes are opaque consumer fixtures;
+# The application property names and event bytes are opaque consumer fixtures;
 # Git WARP must preserve them without acquiring their semantic vocabulary.
 
 setup() {
@@ -67,7 +67,7 @@ def require_handle(value, contract):
 
 require_equal(receipt["intent"]["namespace"], "workspace-session-event", "write receipt preserves the application namespace")
 require_equal(receipt["lane"], "events", "write receipt identifies the authoritative worldline")
-require_equal(receipt["writer"], "leased-agent", "write receipt identifies the leased writer")
+require_equal(receipt["writer"], "leased-agent", "write receipt preserves the supplied direct writer identity")
 require_equal(receipt["outcome"]["kind"], "derived", "direct entity admission is derived")
 require_handle(receipt["evidence"]["basis"], "direct write receipt carries a basis")
 require_equal(len(receipt["evidence"]["support"]), 1, "direct entity admission carries one patch support witness")
