@@ -2,7 +2,7 @@
  * Tests that LogicalBitmapIndexBuilder.yieldShards() produces
  * IndexShard instances that can be piped through the encode pipeline.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import LogicalBitmapIndexBuilder from '../../../../src/domain/services/index/LogicalBitmapIndexBuilder.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import { IndexShardEncodeTransform } from '../../../../src/infrastructure/adapters/IndexShardEncodeTransform.ts';
@@ -41,8 +41,13 @@ describe('LogicalBitmapIndexBuilder.yieldShards() — IndexShard records', () =>
 
   it('reports the exact emitted shard count without consuming the stream', () => {
     const builder = buildTestIndex();
+    const yieldShards = vi.spyOn(builder, 'yieldShards');
 
-    expect(builder.shardCount()).toBe([...builder.yieldShards()].length);
+    const count = builder.shardCount();
+
+    expect(yieldShards).not.toHaveBeenCalled();
+    yieldShards.mockRestore();
+    expect(count).toBe([...builder.yieldShards()].length);
   });
 
   it('produces MetaShard, LabelShard, EdgeShard, ReceiptShard', () => {
