@@ -166,7 +166,7 @@ function buildPatchFrames(entries: Array<{ patch: Patch; sha: string }>): PatchF
  */
 export function attachReceipts(patchFrames: PatchFrame[]): void {
   const reduced = reducePatches(
-    patchFrames.map(({ patch, sha }) => ({ patch, sha })) as Parameters<typeof reducePatches>[0],
+    patchFrames.map(({ patch, sha }) => ({ patch, sha })),
     undefined,
     { receipts: true },
   ) as { receipts: TickReceipt[] };

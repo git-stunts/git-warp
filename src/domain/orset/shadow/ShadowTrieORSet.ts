@@ -5,6 +5,7 @@ import type ORSetElementState from "../ORSetElementState.ts";
 import TrieCursor from "../trie/TrieCursor.ts";
 import TrieFlusher from "../trie/TrieFlusher.ts";
 import type FlushResult from "../trie/FlushResult.ts";
+import type ArtifactStagingPort from "../../../ports/ArtifactStagingPort.ts";
 
 export interface ShadowTrieORSetInit {
   readonly cursor: TrieCursor;
@@ -80,8 +81,8 @@ export default class ShadowTrieORSet {
     return this.#cursor.dirtyPageCount();
   }
 
-  async prepareFlush(): Promise<FlushResult> {
-    return await this.#flusher.flush(this.#cursor.snapshot());
+  async prepareFlush(staging?: ArtifactStagingPort): Promise<FlushResult> {
+    return await this.#flusher.flush(this.#cursor.snapshot(), staging);
   }
 
   acceptFlush(result: FlushResult): void {

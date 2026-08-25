@@ -18,7 +18,12 @@ const root = process.cwd();
  * malformed one should fail loudly here instead of silently satisfying a cast.
  */
 const ObservedCountsSchema = z.object({
+  cpuTotalMadMs: z.number().nonnegative(),
+  cpuTotalMedianMs: z.number().nonnegative(),
   gitCommandMedian: z.number().int().nonnegative(),
+  gitCommandMadCount: z.number().int().nonnegative(),
+  maximumHeapUsedBytes: z.number().int().positive(),
+  maximumRssBytes: z.number().int().positive(),
 });
 
 /**
@@ -34,24 +39,65 @@ const ScenarioCountsSchema = z.object({
   'warm-materialize': ObservedCountsSchema,
 });
 
+const ScenarioCommandCeilingsSchema = z.object({
+  'cold-materialize': z.number().int().positive(),
+  'incremental-materialize': z.number().int().positive(),
+  'warm-materialize': z.number().int().positive(),
+});
+
+const CalibrationEnvironmentSchema = z.object({
+  architecture: z.string().min(1),
+  cpuCount: z.number().int().positive(),
+  cpuModel: z.string().min(1),
+  git: z.string().min(1),
+  gitCas: z.string().min(1),
+  node: z.string().min(1),
+  platform: z.string().min(1),
+});
+
+const StreamingCalibrationSchema = z.object({
+  generationMaximumRssBytes: z.number().int().positive(),
+  generationPeakHeapUsedBytes: z.number().int().positive(),
+  maximumRssBytes: z.number().int().positive(),
+  peakHeapUsedBytes: z.number().int().positive(),
+});
+
 const CalibrationSchema = z.object({
-  corpus: z.object({
-    baseNodeCount: z.number(),
-    suffixNodeCount: z.number(),
+  schemaVersion: z.literal(1),
+  sourceCommit: z.string().regex(/^[0-9a-f]{40}$/u),
+  generatedAt: z.string().datetime(),
+  evidence: z.object({
+    artifact: z.string().min(1),
+    run: z.string().url(),
   }),
-  environment: z.object({
-    gitCas: z.string(),
-    node: z.string(),
-    platform: z.string(),
-    runner: z.string(),
+  corpus: z.object({
+    baseNodeCount: z.number().int().positive(),
+    basePatchCount: z.number().int().positive(),
+    measuredRuns: z.number().int().positive(),
+    propertyBytesPerNode: z.number().int().positive(),
+    suffixNodeCount: z.number().int().positive(),
+    suffixPatchCount: z.number().int().positive(),
+    warmupRuns: z.number().int().nonnegative(),
+  }),
+  environment: CalibrationEnvironmentSchema.extend({
+    runner: z.literal('github-hosted'),
   }),
   localCalibration: z.object({
+    environment: CalibrationEnvironmentSchema,
+    measuredRuns: z.number().int().positive(),
     observed: ScenarioCountsSchema,
+    warmupRuns: z.number().int().nonnegative(),
   }),
-  observed: ScenarioCountsSchema,
+  observed: ScenarioCountsSchema.extend({
+    streaming: StreamingCalibrationSchema,
+  }),
   policyRationale: z.object({
+    cpuNoiseFloorMs: ScenarioCommandCeilingsSchema,
     cpuRegressionRatio: z.number(),
     gitCommandRegressionRatio: z.number(),
+    gitCommandMedian: ScenarioCommandCeilingsSchema,
+    gitCommandNote: z.string().min(1),
+    note: z.string().min(1),
     streamingMaxRssBytes: z.number(),
     streamingPeakHeapUsedBytes: z.number(),
   }),
@@ -82,8 +128,29 @@ const releaseWorkflow = readFileSync(
   resolve(root, '.github/workflows/release.yml'),
   'utf8',
 );
+const performanceRunner = readFileSync(
+  resolve(root, 'scripts/performance/RunPerformance.ts'),
+  'utf8',
+);
+const comparisonRunner = readFileSync(
+  resolve(root, 'scripts/performance/RunPerformanceComparison.ts'),
+  'utf8',
+);
+const performanceReadme = readFileSync(
+  resolve(root, 'benchmarks/v19/README.md'),
+  'utf8',
+);
 
 describe('v19 performance workflow', () => {
+  it.each(['calibration.json', 'policy.json'])(
+    'keeps %s in canonical two-space JSON form',
+    (name) => {
+      const text = readFileSync(resolve(root, `benchmarks/v19/${name}`), 'utf8');
+      const parsed: unknown = JSON.parse(text);
+      expect(text).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+    },
+  );
+
   it('runs exact base/head refs in one bounded pinned-toolchain job', () => {
     expect(workflow).toContain('name: Performance');
     expect(workflow).toContain('pull_request:');
@@ -120,6 +187,24 @@ describe('v19 performance workflow', () => {
     ])).toThrow('ABBA');
   });
 
+  it('requires the checked-in comparison to exercise a checkpointed patch chain', () => {
+    expect(performanceRunner).toContain('GIT_WARP_PERF_BASE_PATCHES');
+    expect(performanceRunner).toContain('GIT_WARP_PERF_INCREMENTAL_PATCHES');
+    expect(comparisonRunner).toContain('const CI_BASE_PATCHES = 65;');
+    expect(comparisonRunner).toContain('const CI_INCREMENTAL_PATCHES = 5;');
+    expect(comparisonRunner).toContain('GIT_WARP_PERF_BASE_PATCHES');
+    expect(comparisonRunner).toContain('GIT_WARP_PERF_INCREMENTAL_PATCHES');
+  });
+
+  it('documents the incremental scenario as a suffix patch chain', () => {
+    expect(performanceReadme).toContain(
+      'A retained base plus a bounded suffix patch chain',
+    );
+    expect(performanceReadme).not.toContain(
+      'A retained base plus one bounded suffix patch',
+    );
+  });
+
   it('publishes summaries and raw commit-addressed evidence', () => {
     expect(workflow).toContain('RunPerformanceComparison.js');
     expect(workflow).toContain('--comparison performance-results/comparison.json');
@@ -143,18 +228,33 @@ describe('v19 performance workflow', () => {
       peakHeapUsedBytes: 96 * 1024 * 1024,
     });
     expect(calibration.corpus).toMatchObject({
-      baseNodeCount: 25,
+      baseNodeCount: 65,
+      basePatchCount: 65,
       suffixNodeCount: 5,
+      suffixPatchCount: 5,
     });
     expect(calibration.environment).toMatchObject({
-      gitCas: '6.5.7',
+      gitCas: '6.5.10',
       node: 'v22.23.2',
       platform: 'linux',
       runner: 'github-hosted',
     });
+    expect(calibration.localCalibration.environment.gitCas).toBe('6.5.10');
+    expect(calibration.sourceCommit)
+      .toBe('cf90510f316f97fa0e18562f99ece63f428d2b68');
+    expect(calibration.evidence).toEqual({
+      artifact: 'v19-performance-b0ec5f722c1b63c96c685cfd0afeee9c33cdb922',
+      run: 'https://github.com/git-stunts/git-warp/actions/runs/32792226931',
+    });
+    expect(() => CalibrationSchema.parse({
+      ...calibration,
+      sourceCommit: undefined,
+    })).toThrow();
     expect(calibration.policyRationale.cpuRegressionRatio).toBe(1.15);
     expect(calibration.policyRationale.gitCommandRegressionRatio)
       .toBe(policy.relative.gitCommandRegressionRatio);
+    expect(calibration.policyRationale.gitCommandMedian)
+      .toEqual(policy.absolute.gitCommandMedian);
     expect(calibration.policyRationale.streamingMaxRssBytes)
       .toBe(policy.streaming.maxRssBytes);
     expect(calibration.policyRationale.streamingPeakHeapUsedBytes)

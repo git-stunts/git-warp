@@ -1,6 +1,6 @@
 # Node 22 (LTS active) test image.
 # Runs: unit tests + API integration tests + BATS CLI tests.
-# Build context is the parent monorepo directory (context: ..).
+# Build context is the current checkout root.
 FROM node:22-slim
 # bats: CLI integration tests; python3: JSON assertions in BATS;
 # make/g++: native module compilation (roaring bitmaps).
@@ -12,11 +12,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY git-warp/package*.json ./
-COPY git-warp/scripts ./scripts
-COPY git-warp/patches ./patches
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+COPY package*.json ./
+COPY scripts ./scripts
+COPY patches ./patches
 RUN npm ci
-COPY git-warp .
+COPY . .
 RUN npm run build --silent
 # Init a git repo so plumbing operations work inside the container.
 RUN git init -q \

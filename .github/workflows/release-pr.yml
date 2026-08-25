@@ -20,6 +20,11 @@ jobs:
           node-version: "22"
           cache: npm
 
+      - name: Setup Deno 2.6.7
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
+        with:
+          deno-version: 'v2.6.7'
+
       - name: Install
         run: npm ci
 
@@ -39,10 +44,10 @@ jobs:
         run: npm run test:local --if-present
 
       - name: npm pack dry-run
-        run: npm pack --dry-run
+        run: npm pack --dry-run --ignore-scripts
 
       - name: JSR dry-run
-        run: npx -y jsr publish --dry-run
+        run: npm run jsr:publish -- --dry-run
 
       - name: Compute predicted dist-tag from package version
         id: predict

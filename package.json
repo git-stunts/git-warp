@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/git-warp",
-  "version": "19.0.2",
+  "version": "19.1.0",
   "description": "Git-native causal history runtime for intent writes, timeline reads, and receipts.",
   "type": "module",
   "license": "Apache-2.0",
@@ -67,6 +67,7 @@
     "access": "public"
   },
   "scripts": {
+    "audit:locked": "npm audit --audit-level=low",
     "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.publish.json",
     "generate:vocabulary-ir": "node scripts/GenerateV19VocabularyIr.ts",
     "check:vocabulary-ir": "node scripts/GenerateV19VocabularyIr.ts --check",
@@ -118,6 +119,7 @@
     "release:prep": "bash scripts/release-preflight.sh --stage prep-pr",
     "release:preflight": "bash scripts/release-preflight.sh --stage final-local",
     "issue:triage": "node scripts/issue-triage-report.ts",
+    "jsr:publish": "bash scripts/run-jsr-publish.sh",
     "issue:dead-exports": "node scripts/dead-export-report.ts",
     "upgrade": "npm run build --silent && node dist/scripts/upgrade-v16-to-v17.js",
     "install:git-warp": "bash scripts/install-git-warp.sh",
@@ -143,8 +145,8 @@
     "@flyingrobots/bijou-node": "^7.2.0",
     "@flyingrobots/bijou-tui": "^7.2.0",
     "@git-stunts/alfred": "^0.10.4",
-    "@git-stunts/git-cas": "^6.5.7",
-    "@git-stunts/plumbing": "^3.2.0",
+    "@git-stunts/git-cas": "^6.5.10",
+    "@git-stunts/plumbing": "^3.3.0",
     "@git-stunts/trailer-codec": "^2.1.1",
     "@noble/hashes": "^2.2.0",
     "boxen": "^7.1.1",
@@ -170,6 +172,7 @@
     "eslint-plugin-jsdoc": "^62.8.1",
     "fast-check": "^4.5.3",
     "jiti": "^2.6.1",
+    "jsr": "0.14.3",
     "markdownlint-cli": "^0.49.0",
     "patch-package": "^8.0.0",
     "prettier": "^3.4.2",

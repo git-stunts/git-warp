@@ -6,6 +6,8 @@ import StateSession from "../../../../../src/domain/orset/session/StateSession.t
 import type StateSessionCloseResult from "../../../../../src/domain/orset/session/StateSessionCloseResult.ts";
 import StateSessionError from "../../../../../src/domain/errors/StateSessionError.ts";
 import TrieGeometry from "../../../../../src/domain/orset/trie/TrieGeometry.ts";
+import { TRIE_FLUSH_MAX_OPERATIONS_PER_DIRTY_PAGE }
+  from "../../../../../src/domain/orset/trie/TrieFlushAdmissionPolicy.ts";
 import cborCodec from "../../../../../src/infrastructure/codecs/CborCodec.ts";
 import { InMemoryTrieStore } from "../../../../helpers/trieHelpers.ts";
 import MaterializationWorkspacePort, {
@@ -16,6 +18,10 @@ import StorageRetentionWitness, {
   StorageRetentionRoot,
 } from "../../../../../src/domain/storage/StorageRetentionWitness.ts";
 import { workspaceRetentionWitness } from "../../../../helpers/InMemoryMaterializationStore.ts";
+import type {
+  DependentArtifactAdmissionOptions,
+  DependentArtifactOperation,
+} from "../../../../../src/ports/ArtifactStagingPort.ts";
 
 const GEOMETRY = TrieGeometry.default16way();
 
@@ -285,6 +291,26 @@ describe("StateSession", () => {
     });
   });
 
+  describe("dependent artifact admission", () => {
+    it("flushes node and edge tries through one bounded workspace admission", async () => {
+      const workspace = new CompoundRecordingWorkspace();
+      const { session } = await openSession({ workspace });
+      await session.addNode("node:compound", new Dot("alice", 1));
+      await session.addEdge("edge:compound", new Dot("alice", 2));
+      const expectedOperationBound = session.dirtyPageCount() *
+        TRIE_FLUSH_MAX_OPERATIONS_PER_DIRTY_PAGE;
+
+      const prepared = await session.prepareClose();
+
+      expect(workspace.operationBounds).toEqual([expectedOperationBound]);
+      expect(workspace.retainedHandles).toEqual([[
+        prepared.roots.nodeAliveRootOid,
+        prepared.roots.edgeAliveRootOid,
+      ].filter((root) => root !== null)]);
+      prepared.accept(finalRetentionWitness(prepared.roots));
+    });
+  });
+
   describe("edge cases", () => {
     it("keeps nodeAlive and edgeAlive independent inside one session", async () => {
       const { session } = await openSession();
@@ -465,6 +491,22 @@ class RecordingWorkspace extends MaterializationWorkspacePort {
 
   override promote(): Promise<never> {
     return Promise.reject(new Error("StateSession tests do not promote materializations"));
+  }
+}
+
+class CompoundRecordingWorkspace extends RecordingWorkspace {
+  readonly operationBounds: number[] = [];
+  readonly retainedHandles: (readonly string[])[] = [];
+  readonly #scoped = new RecordingWorkspace();
+
+  override async admitDependentArtifacts<T>(
+    operation: DependentArtifactOperation<T>,
+    options: DependentArtifactAdmissionOptions<T>,
+  ): Promise<T> {
+    this.operationBounds.push(options.maxOperations);
+    const result = await operation(this.#scoped);
+    this.retainedHandles.push(Object.freeze([...(options.retain?.(result) ?? [])]));
+    return result;
   }
 }
 

@@ -10,11 +10,12 @@ import {
   type PerformanceFixtureManifest,
 } from './PerformanceFixture.ts';
 import type {
-  MaterializationEvidence,
   PerformanceSample,
   PerformanceScenarioName,
   SemanticObservation,
 } from './PerformanceModel.ts';
+import { assertMaterializationEvidence }
+  from './PerformanceMaterializationEvidence.ts';
 import { openPerformanceRuntime } from './PerformanceRuntime.ts';
 
 const RESULT_PREFIX = 'GIT_WARP_PERFORMANCE_SAMPLE=';
@@ -72,7 +73,7 @@ export async function runPerformanceWorker(
       ...opened.materializationEvidence(),
       replayedPatches,
     });
-    assertReuseEvidence(options.scenario, evidence);
+    assertMaterializationEvidence(evidence, options.scenario, manifest.corpus);
     return Object.freeze({
       cpuSystemMs: cpu.system / 1000,
       cpuTotalMs: (cpu.user + cpu.system) / 1000,
@@ -139,24 +140,6 @@ function assertSemanticCompletion(
     || observation.targetPropertyBytes !== manifest.expectedPropertyBytes
   ) {
     throw new Error('Performance materialization did not produce the expected corpus');
-  }
-}
-
-function assertReuseEvidence(
-  scenario: PerformanceScenarioName,
-  evidence: MaterializationEvidence,
-): void {
-  if (
-    scenario === 'warm-materialize'
-    && (evidence.exactHits === 0 || evidence.replayedPatches !== 0)
-  ) {
-    throw new Error('Warm performance scenario did not hit exact git-cas state');
-  }
-  if (
-    scenario === 'incremental-materialize'
-    && (evidence.predecessorHits === 0 || evidence.replayedPatches === 0)
-  ) {
-    throw new Error('Incremental scenario did not resume git-cas state');
   }
 }
 

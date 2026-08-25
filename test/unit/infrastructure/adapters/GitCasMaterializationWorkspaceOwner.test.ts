@@ -99,10 +99,30 @@ function createWorkspace(
 
 function stagingWorkspace(release: () => Promise<void>): GitCasStagingWorkspace {
   return {
-    pages: { put: vi.fn(), putBatch: vi.fn() },
-    bundles: { putOrdered: vi.fn() },
-    checkpoint: vi.fn(),
-    promoteToCache: vi.fn(),
-    release,
-  } as unknown as GitCasStagingWorkspace;
+    assets: {
+      put: async () => unavailableWorkspaceOperation(),
+      putBatch: async () => unavailableWorkspaceOperation(),
+      adopt: async () => unavailableWorkspaceOperation(),
+    },
+    pages: {
+      put: async () => unavailableWorkspaceOperation(),
+      putBatch: async () => unavailableWorkspaceOperation(),
+    },
+    bundles: {
+      put: async () => unavailableWorkspaceOperation(),
+      putOrdered: async () => unavailableWorkspaceOperation(),
+      putOrderedBatch: async () => unavailableWorkspaceOperation(),
+    },
+    batch: async () => unavailableWorkspaceOperation(),
+    checkpoint: async () => unavailableWorkspaceOperation(),
+    promoteToCache: async () => unavailableWorkspaceOperation(),
+    release: async () => {
+      await release();
+      return Object.freeze({ changed: true, ref: 'refs/git-cas/test', generation: null });
+    },
+  };
+}
+
+function unavailableWorkspaceOperation(): never {
+  throw new Error('operation is outside this workspace ownership test');
 }

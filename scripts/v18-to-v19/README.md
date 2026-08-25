@@ -25,7 +25,7 @@ Stop every process that can write to the repository and make a normal backup.
 After installing v19 without starting the application, run the migration:
 
 ```bash
-npm exec --package=@git-stunts/git-warp@19.0.2 -- git-warp-v18-to-v19 \
+npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \
   --graph <graph-name>
 ```
@@ -72,7 +72,7 @@ public API, and validates its receipt.
 Use `--dry-run` only when you explicitly want a disposable rehearsal:
 
 ```bash
-npm exec --package=@git-stunts/git-warp@19.0.2 -- git-warp-v18-to-v19 \
+npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \
   --graph <graph-name> \
   --dry-run

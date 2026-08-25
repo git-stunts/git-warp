@@ -2,6 +2,7 @@ node_modules
 npm-debug.log
 deno.lock
 .gitignore
+.git
 *.md
 !README.md
 .DS_Store

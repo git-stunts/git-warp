@@ -46,23 +46,35 @@ It lets you:
 
 ## Latest release
 
-`v19.0.2` is the current release. It keeps the public runtime boundary
-introduced in v19.0.0—open `Runtime`, address causal `Lane`s, write validated
-`Intent`s, consume bounded `Observation` streams of `Reading`s, and retain
-`Receipt`s—and includes the safe retained-state migrator introduced in v19.0.1.
-The patch publishes per-commit progress during long inventory and rewrite
-phases and prints durable completion and recovery evidence after the TUI exits.
-Existing repositories with retained v18 state require the v19.0.2 one-shot
-migration below before any v19 process opens them. Do not use the v19.0.0
-migrator on an authoritative repository.
+`v19.1.0` is the current release. It preserves the v19 Runtime, Lane, Intent,
+Observer, Observation, Reading, and Receipt grammar while replacing
+per-commit and per-artifact Git process storms with bounded history reads,
+persistent object sessions, ordered trie write waves, and compound git-cas
+workspace admission.
 
-The v19.0.1 merged-main release gate's representative migrated-v18 retained
-scan was 31.1% faster cold, 32.1% faster warm, used 20.1–21.3% less operation
-CPU, and issued 46.6% fewer Git commands than published v18.2.1. These
-measurements cover the bounded 16-property fixture workload; they are not a
-universal workload claim.
+On the final hosted 65-patch base plus five-patch suffix corpus, cold Git
+commands fell from `781` to `50` and incremental commands from `372` to
+`60`; CPU medians fell by `67.4%` and `48.3%`. Warm materialization moved
+from `30` to `25` commands with a deliberately modest `2.0%` CPU change.
+Every result retained the exact semantic fingerprint and `65 / 0 / 5` replay
+evidence.
 
-See [CHANGELOG.md](CHANGELOG.md) for the full in-repository release notes.
+Existing v19 repositories require no migration. An omitted
+`checkpointPolicy` now defaults to `{ every: 64 }`; pass
+`checkpointPolicy: null` to opt out explicitly. The package also contains an
+**unofficial, unstable** `entity.add` / `EntityOccurrence` preview. Think
+does not adopt that preview in this release campaign, and exhaustive
+TypeScript switches over `Intent['kind']` must account for the new preview
+member.
+
+Repositories with retained v18 state still require the safe one-shot migrator
+introduced in v19.0.2 before any v19 process opens them. Do not use the
+v19.0.0 migrator on an authoritative repository.
+
+Read the deeply illustrated
+[v19.1.0 architecture and performance release witness](docs/topics/v19-1-performance-architecture-witness.md)
+or [CHANGELOG.md](CHANGELOG.md) for the complete evidence and compatibility
+notes.
 
 ## v19 First-Use API
 
@@ -75,7 +87,7 @@ domain modules provide the validated intents and observers for an application.
 > starting the application, and run the confirmed migration:
 >
 > ```bash
-> npm exec --package=@git-stunts/git-warp@19.0.2 -- \
+> npm exec --package=@git-stunts/git-warp@19.1.0 -- \
 >   git-warp-v18-to-v19 \
 >   --repo /path/to/repository \
 >   --graph <graph-name>

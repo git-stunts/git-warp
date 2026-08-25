@@ -15,7 +15,7 @@ import CasContentEncryptionPolicy, {
 } from './CasContentEncryptionPolicy.ts';
 
 export type GitCasAssetFacade = {
-  readonly assets: AssetCapability;
+  readonly assets: Pick<AssetCapability, 'put' | 'open'>;
 };
 
 /** Delegates immutable asset lifecycle to the high-level git-cas asset API. */

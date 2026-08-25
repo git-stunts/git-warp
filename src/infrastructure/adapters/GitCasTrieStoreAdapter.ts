@@ -1,18 +1,25 @@
 import {
   BundleHandle,
-  type BundleCapability,
   type BundleMemberReference,
-  type PageCapability,
 } from '@git-stunts/git-cas';
 import TrieStoreError from '../../domain/errors/TrieStoreError.ts';
 import type { TrieBranchEntries } from '../../domain/orset/trie/TrieBranchEntries.ts';
 import type TrieStorePort from '../../domain/orset/trie/TrieStorePort.ts';
 import type ArtifactStagingPort from '../../ports/ArtifactStagingPort.ts';
+import {
+  tryWriteBranchWave,
+  tryWriteLeafWave,
+  type GitCasTrieFacade,
+} from './GitCasTrieWriteBatcher.ts';
+import {
+  GIT_CAS_TRIE_LEAF_MAX_BYTES,
+  GIT_CAS_TRIE_LEAF_PATH,
+} from './GitCasTrieStorageProfile.ts';
 import { parseNibbleName } from './trieNibbleName.ts';
 
+export type { GitCasTrieFacade } from './GitCasTrieWriteBatcher.ts';
+
 const BRANCH_PREFIX = 'children/';
-const LEAF_PATH = 'leaf/data';
-const MAX_TRIE_LEAF_BYTES = 16 * 1024 * 1024;
 
 const E_TRIE_STORE_READ = 'E_TRIE_STORE_READ';
 const E_TRIE_STORE_WRITE = 'E_TRIE_STORE_WRITE';
@@ -24,14 +31,6 @@ const MISSING_CODES = new Set([
   'HANDLE_TARGET_MISSING',
   'OBJECT_NOT_FOUND',
 ]);
-
-export type GitCasTrieFacade = {
-  readonly bundles: Pick<
-    BundleCapability,
-    'getMemberReference' | 'iterateMemberReferences' | 'putOrdered'
-  >;
-  readonly pages: Pick<PageCapability, 'get' | 'put'>;
-};
 
 /** Stores trie leaves and branches as composable git-cas bundle graphs. */
 export default class GitCasTrieStoreAdapter implements TrieStorePort {
@@ -55,7 +54,7 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
     try {
       member = await this.#cas.bundles.getMemberReference({
         handle: bundle,
-        path: LEAF_PATH,
+        path: GIT_CAS_TRIE_LEAF_PATH,
       });
     } catch (raw) {
       throw readFailure(raw, 'read leaf bundle', root);
@@ -69,7 +68,7 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
     try {
       return await this.#cas.pages.get({
         handle: member.handle,
-        maxBytes: MAX_TRIE_LEAF_BYTES,
+        maxBytes: GIT_CAS_TRIE_LEAF_MAX_BYTES,
       });
     } catch (raw) {
       throw readFailure(raw, 'read leaf page', root);
@@ -97,18 +96,34 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
       const pageHandle = staging === undefined
         ? (await this.#cas.pages.put({
           source: data,
-          maxBytes: MAX_TRIE_LEAF_BYTES,
+          maxBytes: GIT_CAS_TRIE_LEAF_MAX_BYTES,
         })).handle.toString()
-        : await staging.stagePage(data, { maxBytes: MAX_TRIE_LEAF_BYTES });
+        : await staging.stagePage(data, { maxBytes: GIT_CAS_TRIE_LEAF_MAX_BYTES });
       if (staging !== undefined) {
-        return (await staging.stageOrderedBundle([[LEAF_PATH, pageHandle]])).toString();
+        return (await staging.stageOrderedBundle([
+          [GIT_CAS_TRIE_LEAF_PATH, pageHandle],
+        ])).toString();
       }
       const bundle = await this.#cas.bundles.putOrdered({
-        members: [[LEAF_PATH, pageHandle]],
+        members: [[GIT_CAS_TRIE_LEAF_PATH, pageHandle]],
       });
       return bundle.handle.toString();
     } catch (raw) {
       throw writeFailure(raw, 'write leaf');
+    }
+  }
+
+  async writeLeaves(
+    leaves: readonly Uint8Array[],
+    staging?: ArtifactStagingPort,
+  ): Promise<readonly string[]> {
+    if (leaves.length === 0) { return Object.freeze([]); }
+    try {
+      const batched = await tryWriteLeafWave(leaves, this.#cas, staging);
+      if (batched !== null) { return batched; }
+      return await this.#writeLeavesIndividually(leaves, staging);
+    } catch (raw) {
+      throw writeFailure(raw, 'write leaf wave');
     }
   }
 
@@ -126,6 +141,39 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
     } catch (raw) {
       throw writeFailure(raw, 'write branch');
     }
+  }
+
+  async writeBranches(
+    branches: readonly TrieBranchEntries[],
+    staging?: ArtifactStagingPort,
+  ): Promise<readonly string[]> {
+    if (branches.length === 0) { return Object.freeze([]); }
+    try {
+      const groups = branches.map(branchMembers);
+      const batched = await tryWriteBranchWave(groups, this.#cas, staging);
+      if (batched !== null) { return batched; }
+      return await this.#writeBranchesIndividually(branches, staging);
+    } catch (raw) {
+      throw writeFailure(raw, 'write branch wave');
+    }
+  }
+
+  async #writeLeavesIndividually(
+    leaves: readonly Uint8Array[],
+    staging?: ArtifactStagingPort,
+  ): Promise<readonly string[]> {
+    const roots: string[] = [];
+    for (const leaf of leaves) { roots.push(await this.writeLeaf(leaf, staging)); }
+    return Object.freeze(roots);
+  }
+
+  async #writeBranchesIndividually(
+    branches: readonly TrieBranchEntries[],
+    staging?: ArtifactStagingPort,
+  ): Promise<readonly string[]> {
+    const roots: string[] = [];
+    for (const branch of branches) { roots.push(await this.writeBranch(branch, staging)); }
+    return Object.freeze(roots);
   }
 }
 

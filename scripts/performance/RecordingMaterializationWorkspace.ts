@@ -1,6 +1,13 @@
 import type MaterializationHandle
   from '../../src/domain/materialization/MaterializationHandle.ts';
-import type { StagePagesOptions }
+import type BundleHandle from '../../src/domain/storage/BundleHandle.ts';
+import type {
+  DependentArtifactAdmissionOptions,
+  DependentArtifactOperation,
+  StageOrderedBundleRequest,
+  StageOrderedBundlesOptions,
+  StagePagesOptions,
+}
   from '../../src/ports/ArtifactStagingPort.ts';
 import MaterializationWorkspacePort, {
   type MaterializationWorkspaceRoots,
@@ -26,6 +33,16 @@ export default class RecordingMaterializationWorkspace
     return this.#delegate.checkpoint(roots);
   }
 
+  override admitDependentArtifacts<T>(
+    operation: DependentArtifactOperation<T>,
+    options: DependentArtifactAdmissionOptions<T>,
+  ): Promise<T> {
+    if (this.#delegate.admitDependentArtifacts === undefined) {
+      throw new Error('Performance runtime requires dependent artifact admission');
+    }
+    return this.#delegate.admitDependentArtifacts(operation, options);
+  }
+
   override stagePage(
     ...args: Parameters<MaterializationWorkspacePort['stagePage']>
   ): ReturnType<MaterializationWorkspacePort['stagePage']> {
@@ -47,6 +64,17 @@ export default class RecordingMaterializationWorkspace
     ...args: Parameters<MaterializationWorkspacePort['stageOrderedBundle']>
   ): ReturnType<MaterializationWorkspacePort['stageOrderedBundle']> {
     return this.#delegate.stageOrderedBundle(...args);
+  }
+
+  override stageOrderedBundles(
+    bundles: readonly StageOrderedBundleRequest[],
+    options: StageOrderedBundlesOptions,
+  ): Promise<readonly BundleHandle[]> {
+    const stageOrderedBundles = this.#delegate.stageOrderedBundles;
+    if (stageOrderedBundles === undefined) {
+      throw new Error('Performance runtime requires batched materialization bundle staging');
+    }
+    return stageOrderedBundles.call(this.#delegate, bundles, options);
   }
 
   override promote(

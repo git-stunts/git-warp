@@ -75,7 +75,84 @@ declare var Deno: typeof Deno | undefined;
 /* ------------------------------------------------------------------ */
 
 declare module '@git-stunts/plumbing' {
-  const Plumbing: any;
+  export type GitObjectInfo = Readonly<{
+    oid: string;
+    size: number;
+    type: string;
+  }>;
+
+  export type GitObjectRead = GitObjectInfo &
+    Readonly<{
+      content: Uint8Array;
+    }>;
+
+  export type GitTreeEntry = Readonly<{
+    mode: string;
+    name: string;
+    oid: string;
+    type: string;
+  }>;
+
+  export class GitCatFileSession {
+    close(): Promise<void>;
+    info(_objectName: string): Promise<GitObjectInfo>;
+    infoMany(_objectNames: string[]): Promise<ReadonlyArray<GitObjectInfo>>;
+    read(_objectName: string, _options?: { maxBytes?: number }): Promise<GitObjectRead>;
+    readMany(
+      _objectNames: string[],
+      _options?: { maxBytes?: number }
+    ): Promise<ReadonlyArray<GitObjectRead>>;
+    terminate(): Promise<void>;
+  }
+
+  export class GitFastImportSession {
+    abort(): Promise<void>;
+    checkpoint(): Promise<void>;
+    close(): Promise<void>;
+    writeBlob(_content: string | Uint8Array): Promise<string>;
+    writeBlobs(
+      _contents: Array<string | Uint8Array>,
+      _options?: { maxBytes?: number }
+    ): Promise<ReadonlyArray<string>>;
+  }
+
+  export class GitMktreeSession {
+    close(): Promise<void>;
+    terminate(): Promise<void>;
+    write(_entries: Iterable<GitTreeEntry> | AsyncIterable<GitTreeEntry>): Promise<string>;
+    writeMany(
+      _trees: Array<Iterable<GitTreeEntry> | AsyncIterable<GitTreeEntry>>
+    ): Promise<ReadonlyArray<string>>;
+  }
+
+  export class GitUpdateRefSession {
+    close(): Promise<void>;
+    terminate(): Promise<void>;
+    update(
+      _options: Readonly<{
+        expectedOldOid?: string | null;
+        newOid: string;
+        noDeref?: boolean;
+        ref: string;
+      }>
+    ): Promise<void>;
+  }
+
+  export interface PlumbingCollectableStream extends AsyncIterable<Uint8Array> {
+    collect(_options?: { asString?: boolean; maxBytes?: number }): Promise<Buffer | string>;
+  }
+
+  class Plumbing {
+    static createDefault(_options: { cwd: string }): Promise<Plumbing>;
+    readonly emptyTree: string;
+    execute(_options: { args: string[]; input?: string | Buffer }): Promise<string>;
+    executeStream(_options: { args: string[] }): Promise<PlumbingCollectableStream>;
+    openCatFileSession(): Promise<GitCatFileSession>;
+    openFastImportSession(): Promise<GitFastImportSession>;
+    openMktreeSession(): Promise<GitMktreeSession>;
+    openUpdateRefSession(): Promise<GitUpdateRefSession>;
+  }
+
   export const ShellRunnerFactory: any;
   export default Plumbing;
 }

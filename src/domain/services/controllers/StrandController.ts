@@ -71,7 +71,7 @@ export default class StrandController {
   }
 
   async getStrandPatches(strandId: string, options?: { ceiling?: number | null }): Promise<Array<{ patch: Patch; sha: string }>> {
-    return await this._strandService.getPatchEntries(strandId, options) as Array<{ patch: Patch; sha: string }>;
+    return await this._strandService.getPatchEntries(strandId, options);
   }
 
   async getStrandOverlayPatches(strandId: string): Promise<Array<{ patch: Patch; sha: string }>> {

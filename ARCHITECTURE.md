@@ -10,16 +10,26 @@ If you are learning the product for the first time, start with:
 
 ## Release posture
 
-`v19.0.2` is the current release. Applications open a `Runtime`, address causal
+`v19.1.0` is the current release. Applications open a `Runtime`, address causal
 `Lane`s, write validated `Intent`s, consume bounded `Observation` streams of
-`Reading`s, and keep `Receipt`s. The patch makes the safe one-shot retained-v18
-migration observable at per-commit granularity and durable after the TUI exits,
-without changing the v19 application grammar. Git history and git-cas remain
-separate infrastructure concerns composed behind the Runtime.
+`Reading`s, and keep `Receipt`s. Patch-chain metadata now crosses Git through
+one bounded first-parent history stream per chain; retained trie leaves and
+same-depth branches publish through bounded ordered waves; dependent state,
+index, support, descriptor, and terminal materialization artifacts may share
+one bounded git-cas workspace generation.
 
-The longer release notes live in [CHANGELOG.md](CHANGELOG.md). The runtime
-architecture below describes current implementation boundaries, not aspirational
-roadmap state.
+Those physical batches do not collapse patch, trie-page, index-root, or
+materialization identity. Existing v19 storage remains readable without a
+migration. Omitted checkpoint policy now defaults to `{ every: 64 }`, while
+`null` remains the explicit opt-out. The merged Entity surface is present only
+as an unofficial preview and is not part of the stable application vocabulary.
+
+The [v19.1.0 release witness](docs/topics/v19-1-performance-architecture-witness.md)
+traces the route-key bytes, trie splits, structural sharing, write-wave limits,
+compound retention, performance corpus, audit findings, and compatibility
+matrix. The longer release notes live in [CHANGELOG.md](CHANGELOG.md). The
+runtime architecture below describes current implementation boundaries, not
+aspirational roadmap state.
 
 ## System map
 

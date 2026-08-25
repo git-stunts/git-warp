@@ -7,8 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.1.0] - 2026-08-25
+
+### Release notes
+
+`v19.1.0` turns the retained materialization path from a storm of
+per-commit, per-page, per-bundle, and per-ref Git crossings into bounded
+history reads, persistent object sessions, ordered trie dependency waves, and
+compound git-cas workspace admissions. On the final hosted 65-patch base plus
+five-patch suffix corpus, cold Git commands fell from `781` to `50` and
+incremental commands from `372` to `60`; CPU medians fell by `67.4%` and
+`48.3%`. Warm materialization remained deliberately modest at `30` to
+`25` commands and `2.0%` CPU improvement. Every scenario preserved the
+same semantic fingerprint and exact `65 / 0 / 5` replay evidence.
+
+The v19 patch, trie, and retained-materialization storage representations are
+unchanged. Existing v19 repositories require no migration. Repositories that
+still contain retained v18 state continue to require the established one-shot
+v18-to-v19 migration before any v19 process opens them.
+
+Two compatibility notes are explicit:
+
+- An omitted `checkpointPolicy` now means `{ every: 64 }`; use
+  `checkpointPolicy: null` for the existing explicit opt-out.
+- The already-merged `entity.add` and `EntityOccurrence` surface ships as
+  an **unofficial, unstable preview**. It is not adopted by Think in this
+  release campaign. TypeScript consumers that exhaustively switch on
+  `Intent['kind']` must add an `entity.add` arm or stop treating the preview
+  union as closed.
+
+The deeply source-anchored architecture, trie-byte topology, benchmark method,
+Code Lawyer audit, compatibility matrix, and reproduction commands live in the
+[v19.1.0 release witness](docs/topics/v19-1-performance-architecture-witness.md).
+
 ### Performance
 
+- Retained materialization now joins dependent trie pages and bundles, derived
+  index shards and roots, workspace roots, replay/provenance support, the
+  descriptor, and the terminal materialization bundle through bounded
+  git-cas compound admissions. Logical artifact identity and causal replay
+  evidence are unchanged; the optimization amortizes workspace publication
+  without turning the physical batch into a domain transaction. In a
+  counterbalanced five-run local arm64 comparison against the same git-warp
+  commit on the previous git-cas 6.5.9 singleton path, cold Git commands fell
+  from `139` to `50` and incremental commands from `149` to `60`; CPU medians
+  fell by `35.5%` and `40.6%`, and wall medians by `52.2%` and `49.9%`.
+  Warm materialization remained at `25` commands; its small timing movement is
+  treated as host noise rather than an improvement. Every run retained the
+  exact semantic fingerprint and `65 / 0 / 5` replay evidence. The v19 storage
+  format and publication authority are unchanged, so existing repositories
+  require no migration. A counterbalanced five-run hosted comparison against
+  current `main` independently reproduced `50 / 25 / 60` commands, down from
+  `781 / 30 / 372`; hosted CPU medians fell by `67.4%` cold and `48.3%`
+  incremental while the warm path moved by `2.0%`. The reviewed
+  command ceilings are now `60 / 30 / 72`.
+- Retained trie flushes now stage leaf pages, leaf bundles, and branch bundles
+  through ordered git-cas write waves instead of one storage operation per
+  trie page. The domain boundary caps each serialized leaf wave at 256 items
+  and 32 MiB and each same-depth branch wave at 64 items before the Git adapter
+  applies its tighter member, object, and byte limits. Stores without the
+  optional batch capabilities retain the existing ordered singleton fallback.
+  Root identity, publication authority, and the v19 storage format are
+  unchanged; existing v19 repositories require no migration. On the hosted
+  reference runner, cold/warm/incremental Git commands fell from
+  `781 / 30 / 372` to `139 / 25 / 149`; CPU medians fell by
+  `57.9% / 1.6% / 32.9%`. A five-run local arm64 comparison reproduced the
+  exact command counts and measured CPU improvements of
+  `66.4% / 8.0% / 41.3%`. Both comparisons retained exact `65 / 0 / 5`
+  replay evidence and identical semantic fingerprints.
 - Patch-chain traversal (`PatchDiscovery.loadPatchChainFromSha`,
   `PatchDiscovery.discoverTicks`) now reads chain metadata with a single bulk
   `logNodesStream` history read per chain instead of one `getNodeInfo` call per
@@ -39,10 +105,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.7. Because
+- The minimum `@git-stunts/plumbing` runtime dependency is now 3.3.0. The
+  performance harness requires its persistent `update-ref` session and carries
+  concrete protocol-session types instead of accepting opaque session values.
+- The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.10. Because
   git-cas includes its package version in newly written manifest metadata, the
   verified v17 migration-reading fixture's content handle advances with the
-  dependency while its legacy equivalence facts remain unchanged.
+  dependency while its legacy equivalence facts remain unchanged. Versions
+  6.5.8 and 6.5.10 supply the ordered write-wave and bounded compound workspace
+  APIs used by retained trie and materialization publication; previously
+  written manifests remain readable.
 - `LogNodesOptions` gains `firstParent` and `stopAt`. Chain readers advance by
   first parent and stop at a known boundary, so the history read is now
   constrained the same way: a merge's side branch is never streamed, and the
@@ -51,13 +123,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The materialization performance harness accepts a version 2 corpus with
+  independent base and suffix patch counts. Version 2 results must replay the
+  exact declared patch count, so increasing node payload volume can no longer
+  impersonate causal-chain depth. The checked-in comparison now uses 65 base
+  nodes across 65 patches and five suffix nodes across five patches. That
+  crosses the default 64-patch checkpoint interval and makes the incremental
+  scenario exercise a bounded tail. Version 1 remains accepted for historical
+  and ad hoc fixtures.
 - The v19 performance gate now blocks on Git command counts as well as CPU.
   `benchmarks/v19/policy.json` gains `absolute.gitCommandMedian` per scenario and
   `relative.gitCommandRegressionRatio`, and the gate summary reports head and base
   counts. The benchmark plumbing delegates and counts persistent `cat-file`,
   `mktree`, and `fast-import` sessions, so instrumentation preserves the same
   session topology as production instead of degrading a session-capable adapter
-  into one-shot commands. Command counts are structural: they are decided by
+  into one-shot commands. Persistent `update-ref` sessions are delegated and
+  counted by the same wrapper. Command counts are structural: they are decided by
   which code paths run, not by how fast the runner is. This is measured rather
   than assumed: the ubuntu-24.04 reference runner and a local arm64 machine report
   identical counts per scenario (1521 / 30 / 1409) despite differing in
@@ -71,11 +152,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   2758 / 543 / 2788 to 1521 / 30 / 1409 and CPU medians by
   28.4% / 59.0% / 33.5%. Together the gates catch a subprocess-count regression
   that leaves the CPU envelope untouched.
-  Scope, stated plainly: the current corpus writes each segment as a single
-  patch, so every scenario replays a one-patch chain. These counts therefore
-  gate object and payload traffic, not chain-traversal depth, and they would not
-  by themselves have caught the per-commit walk fixed above. Giving the fixture a
-  multi-patch chain is tracked separately.
+  Those before/after numbers belong to the preceding one-patch version 1
+  compatibility corpus: they measure object and payload traffic, not traversal
+  depth, and would not by themselves have caught the per-commit walk fixed
+  above. The version 2 release gate adds the independently calibrated 65-patch
+  base and five-patch suffix. The first calibrated reference run reported
+  `781 / 30 / 372` cold, warm, and incremental Git commands. Ordered retained
+  write waves reduce those counts to `139 / 25 / 149`; reviewed ceilings of
+  `160 / 30 / 175` preserve about 15% structural headroom. Raw absolute counts
+  are not compared across different corpus versions.
 - `intent.entity.add({ subject, properties })` creates one entity occurrence and
   its initial payload in a single patch. The lowered patch declares an empty
   read set and exactly one subject write. That declaration describes the
@@ -148,6 +233,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   policy: such graphs will begin writing checkpoint commits
   once their replay depth reaches or exceeds 64 patches. State hashes are
   unaffected — a checkpoint is a snapshot, not a semantic change.
+
 - Repository lint now rejects personal-home and Darwin temporary absolute
   paths in tracked or unignored text and binary files, and the pre-commit hook
   inspects exact staged additions and modifications rather than mutable
@@ -165,6 +251,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release preflight now suppresses npm lifecycle scripts during validation-only
+  pack dry-runs and reuses its prepared `dist` tree for the packed-artifact
+  smoke. The coverage, lint, unit, and consumer-type gates no longer rerun
+  through `prepack`; standalone `npm pack` and `npm publish` retain the full
+  lifecycle safety gate.
+- JSR validation and publication now use a locked `jsr@0.14.3` wrapper with its
+  expected Deno `v2.6.7` installed before proof. Classified transport and
+  bootstrap failures receive at most three attempts; deterministic package
+  validation failures remain single-attempt failures.
+- The locked development-tool graph now resolves fixed `brace-expansion`,
+  `js-yaml`, `nanoid`, `dompurify`, and `mermaid` releases. A full-graph npm
+  audit is now a required CI and release gate instead of a runtime-only
+  advisory, while the published runtime graph remains unchanged.
+- Docker-backed tests now build from the invoking checkout root instead of a
+  parent context with a literal `git-warp/` source path. `npm test` and the
+  Node/Bun/Deno matrix therefore test linked worktrees rather than silently
+  substituting a sibling checkout. Git metadata is excluded before container
+  repository seeding, test images skip unused Puppeteer browser downloads, and
+  the default Node image installs the exact lockfile with `npm ci`.
 - Content attachment now rechecks the builder lifecycle after asynchronous
   asset staging. Publication that overtakes staging can no longer be followed
   by late property operations or attachment handles on an already committed
@@ -223,7 +328,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Invalid Dot counters now report the enforced positive-safe-integer constraint
   instead of describing the weaker integer-only rule.
 
-### Breaking
+### Unofficial preview compatibility
 
 - **`entity.add` widens the `Intent` discriminated union.** `IntentKind` and
   `IntentDescriptor` are not exported by name, but both are structurally
@@ -239,7 +344,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The runtime surface is purely additive, and this repository's own consumer
   contract (`test/type-check`) still compiles because it does not switch
   exhaustively. The type-level break is nonetheless real for any consumer that
-  opted into exhaustiveness checking, so this release targets **20.0.0**.
+  opted into exhaustiveness checking. By explicit maintainer decision, the
+  already-merged surface ships in v19.1.0 as an **unofficial, unstable
+  preview**, outside the stable application vocabulary. Consumers should not
+  build authority-sensitive production semantics on it yet.
 
   Migration: add a `case 'entity.add':` arm, or stop treating the union as
   closed.
