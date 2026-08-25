@@ -142,6 +142,15 @@ const performanceReadme = readFileSync(
 );
 
 describe('v19 performance workflow', () => {
+  it.each(['calibration.json', 'policy.json'])(
+    'keeps %s in canonical two-space JSON form',
+    (name) => {
+      const text = readFileSync(resolve(root, `benchmarks/v19/${name}`), 'utf8');
+      const parsed: unknown = JSON.parse(text);
+      expect(text).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+    },
+  );
+
   it('runs exact base/head refs in one bounded pinned-toolchain job', () => {
     expect(workflow).toContain('name: Performance');
     expect(workflow).toContain('pull_request:');

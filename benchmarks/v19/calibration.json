@@ -26,28 +26,28 @@
     "warmupRuns": 1
   },
   "observed": {
-      "cold-materialize": {
-        "cpuTotalMedianMs": 1560,
-        "cpuTotalMadMs": 39.99999999999977,
-        "maximumRssBytes": 136548352,
-        "maximumHeapUsedBytes": 45629624,
-        "gitCommandMedian": 50,
+    "cold-materialize": {
+      "cpuTotalMedianMs": 1560,
+      "cpuTotalMadMs": 39.99999999999977,
+      "maximumRssBytes": 136548352,
+      "maximumHeapUsedBytes": 45629624,
+      "gitCommandMedian": 50,
       "gitCommandMadCount": 0
     },
-      "warm-materialize": {
-        "cpuTotalMedianMs": 1069.9999999999998,
-        "cpuTotalMadMs": 10.000000000000227,
-        "maximumRssBytes": 132730880,
-        "maximumHeapUsedBytes": 43966376,
+    "warm-materialize": {
+      "cpuTotalMedianMs": 1069.9999999999998,
+      "cpuTotalMadMs": 10.000000000000227,
+      "maximumRssBytes": 132730880,
+      "maximumHeapUsedBytes": 43966376,
       "gitCommandMedian": 25,
       "gitCommandMadCount": 0
     },
-      "incremental-materialize": {
-        "cpuTotalMedianMs": 1430.0000000000002,
-        "cpuTotalMadMs": 0,
-        "maximumRssBytes": 134307840,
-        "maximumHeapUsedBytes": 45864032,
-        "gitCommandMedian": 60,
+    "incremental-materialize": {
+      "cpuTotalMedianMs": 1430.0000000000002,
+      "cpuTotalMadMs": 0,
+      "maximumRssBytes": 134307840,
+      "maximumHeapUsedBytes": 45864032,
+      "gitCommandMedian": 60,
       "gitCommandMadCount": 0
     },
     "streaming": {
