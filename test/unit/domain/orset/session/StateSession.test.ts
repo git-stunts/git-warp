@@ -303,6 +303,10 @@ describe("StateSession", () => {
       const prepared = await session.prepareClose();
 
       expect(workspace.operationBounds).toEqual([expectedOperationBound]);
+      expect(workspace.retainedHandles).toEqual([[
+        prepared.roots.nodeAliveRootOid,
+        prepared.roots.edgeAliveRootOid,
+      ].filter((root) => root !== null)]);
       prepared.accept(finalRetentionWitness(prepared.roots));
     });
   });
@@ -492,6 +496,7 @@ class RecordingWorkspace extends MaterializationWorkspacePort {
 
 class CompoundRecordingWorkspace extends RecordingWorkspace {
   readonly operationBounds: number[] = [];
+  readonly retainedHandles: (readonly string[])[] = [];
   readonly #scoped = new RecordingWorkspace();
 
   override async admitDependentArtifacts<T>(
@@ -499,7 +504,9 @@ class CompoundRecordingWorkspace extends RecordingWorkspace {
     options: DependentArtifactAdmissionOptions<T>,
   ): Promise<T> {
     this.operationBounds.push(options.maxOperations);
-    return await operation(this.#scoped);
+    const result = await operation(this.#scoped);
+    this.retainedHandles.push(Object.freeze([...(options.retain?.(result) ?? [])]));
+    return result;
   }
 }
 

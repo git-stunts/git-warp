@@ -295,7 +295,10 @@ export default class StateSession {
     ) {
       return await this.#workspace.admitDependentArtifacts(
         async (staging) => await this.#prepareFlushWithStaging(staging),
-        { maxOperations: admissionOperations },
+        {
+          maxOperations: admissionOperations,
+          retain: preparedSessionRootHandles,
+        },
       );
     }
     return await this.#prepareFlushWithStaging();
@@ -333,6 +336,17 @@ export default class StateSession {
       );
     }
   }
+}
+
+function preparedSessionRootHandles(prepared: PreparedSessionFlush): readonly string[] {
+  const handles: string[] = [];
+  if (prepared.roots.nodeAliveRootOid !== null) {
+    handles.push(prepared.roots.nodeAliveRootOid);
+  }
+  if (prepared.roots.edgeAliveRootOid !== null) {
+    handles.push(prepared.roots.edgeAliveRootOid);
+  }
+  return Object.freeze(handles);
 }
 
 function validateRootOid(name: string, rootOid: string | null): void {
