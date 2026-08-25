@@ -180,6 +180,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release preflight now suppresses npm lifecycle scripts during validation-only
+  pack dry-runs and reuses its prepared `dist` tree for the packed-artifact
+  smoke. The coverage, lint, unit, and consumer-type gates no longer rerun
+  through `prepack`; standalone `npm pack` and `npm publish` retain the full
+  lifecycle safety gate.
+- JSR validation and publication now use a locked `jsr@0.14.3` wrapper with its
+  expected Deno `v2.6.7` installed before proof. Classified transport and
+  bootstrap failures receive at most three attempts; deterministic package
+  validation failures remain single-attempt failures.
 - Docker-backed tests now build from the invoking checkout root instead of a
   parent context with a literal `git-warp/` source path. `npm test` and the
   Node/Bun/Deno matrix therefore test linked worktrees rather than silently

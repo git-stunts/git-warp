@@ -174,18 +174,18 @@ fi
 
 # ── 8. Pack dry-runs ─────────────────────────────────────────────────────────
 echo "Pack:"
-PACK_OUTPUT=$(npm pack --dry-run 2>&1 || true)
+PACK_OUTPUT=$(npm pack --dry-run --ignore-scripts 2>&1 || true)
 if printf '%s\n' "$PACK_OUTPUT" | grep -q "total files"; then
   pass "npm pack dry-run"
 else
   fail "npm pack dry-run failed"
 fi
-if bash scripts/smoke-packed-artifact.sh; then
+if bash scripts/smoke-packed-artifact.sh --prepared-artifacts; then
   pass "packed artifact smoke"
 else
   fail "packed artifact smoke failed"
 fi
-if npx -y jsr publish --dry-run --allow-dirty 2>/dev/null; then
+if npm run jsr:publish -- --dry-run --allow-dirty 2>/dev/null; then
   pass "JSR publish dry-run"
 else
   fail "JSR publish dry-run failed"
