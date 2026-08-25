@@ -15,8 +15,8 @@ services:
   # Node 20 (LTS maintenance): unit + API integration + BATS CLI
   test-node20:
     build:
-      context: ../..
-      dockerfile: git-warp/docker/Dockerfile.node20
+      context: ..
+      dockerfile: docker/Dockerfile.node20
     environment:
       - GIT_STUNTS_DOCKER=1
     command: ["sh", "-c", "npx vitest run test/unit test/integration && bats test/bats/"]
@@ -25,8 +25,8 @@ services:
   # Node 22 (LTS active): unit + API integration + BATS CLI
   test-node22:
     build:
-      context: ../..
-      dockerfile: git-warp/docker/Dockerfile.node22
+      context: ..
+      dockerfile: docker/Dockerfile.node22
     environment:
       - GIT_STUNTS_DOCKER=1
     command: ["sh", "-c", "npx vitest run test/unit test/integration && bats test/bats/"]
@@ -37,8 +37,8 @@ services:
   # V8 C++ API, incompatible with Bun's JSC runtime).
   test-bun:
     build:
-      context: ../..
-      dockerfile: git-warp/docker/Dockerfile.bun
+      context: ..
+      dockerfile: docker/Dockerfile.bun
     environment:
       - GIT_STUNTS_DOCKER=1
     command: bunx vitest run test/integration/api/
@@ -47,8 +47,8 @@ services:
   # Deno: API integration tests via Deno.test() wrappers
   test-deno:
     build:
-      context: ../..
-      dockerfile: git-warp/docker/Dockerfile.deno
+      context: ..
+      dockerfile: docker/Dockerfile.deno
     environment:
       - GIT_STUNTS_DOCKER=1
     # Keep allow-scripts package names aligned with package.json dependencies.
