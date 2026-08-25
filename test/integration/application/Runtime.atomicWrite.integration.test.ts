@@ -92,13 +92,18 @@ describe('Runtime atomic intent-array writes', () => {
     try {
       const lane = await runtime.lane(LANE);
 
-      const receipt = await lane.write([
-        intent.node.add({ subject: 'capture:would-have-existed' }),
-        intent.node.remove({ subject: 'capture:missing' }),
-      ]);
-
-      expect(receipt.outcome.kind).toBe('obstruction');
-      expect(receipt.reason).toBe('git-warp.write.missing-bounded-basis');
+      await expect(
+        lane.write([
+          intent.entity.add({
+            subject: 'capture:would-have-existed',
+            properties: { body: 'first lowering succeeds' },
+          }),
+          intent.entity.add({
+            subject: 'capture:would-have-existed',
+            properties: { body: 'later lowering fails' },
+          }),
+        ]),
+      ).rejects.toMatchObject({ code: 'E_PATCH_ENTITY_EXISTS' });
       expect(await repository.persistence.readRef(WRITER_REF)).toBeNull();
     } finally {
       await runtime.close();
