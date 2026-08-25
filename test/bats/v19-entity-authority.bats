@@ -148,14 +148,23 @@ PY
   assert_success
   candidate_a_settlement="$output"
 
+  candidate_b_plan_file="${BATS_TEST_TMPDIR}/candidate-b-settlement.json"
   run "${CLI[@]}" settle preview \
     --writer settler \
     --json \
     --source events \
     --strand candidate-b \
-    --target events
+    --target events \
+    --out "$candidate_b_plan_file"
   assert_success
   candidate_b_preview="$output"
+
+  run "${CLI[@]}" settle apply \
+    --writer settler \
+    --json \
+    --plan "$candidate_b_plan_file"
+  assert_success
+  candidate_b_settlement="$output"
 
   run "${CLI[@]}" repair \
     --lane events \
@@ -197,6 +206,7 @@ PY
   CANDIDATE_A_PREVIEW="$candidate_a_preview" \
   CANDIDATE_A_SETTLEMENT="$candidate_a_settlement" \
   CANDIDATE_B_PREVIEW="$candidate_b_preview" \
+  CANDIDATE_B_SETTLEMENT="$candidate_b_settlement" \
   CANDIDATE_A_PARENT_OBSERVATION="$candidate_a_parent_observation" \
   CANDIDATE_B_PARENT_OBSERVATION="$candidate_b_parent_observation" \
   CANDIDATE_B_STRAND_OBSERVATION="$candidate_b_strand_observation" \
@@ -211,6 +221,7 @@ b_receipt = json.loads(os.environ["CANDIDATE_B_RECEIPT"])
 a_preview = json.loads(os.environ["CANDIDATE_A_PREVIEW"])
 a_settlement = json.loads(os.environ["CANDIDATE_A_SETTLEMENT"])
 b_preview = json.loads(os.environ["CANDIDATE_B_PREVIEW"])
+b_settlement = json.loads(os.environ["CANDIDATE_B_SETTLEMENT"])
 a_parent = json.loads(os.environ["CANDIDATE_A_PARENT_OBSERVATION"])
 b_parent = json.loads(os.environ["CANDIDATE_B_PARENT_OBSERVATION"])
 b_strand = json.loads(os.environ["CANDIDATE_B_STRAND_OBSERVATION"])
@@ -280,6 +291,12 @@ require_equal(b_preview["outcome"]["witness"]["retry"], {
 require_handles(b_preview["outcome"]["witness"]["suppliedEvidence"], "candidate B obstruction identifies supplied evidence")
 require_handles(b_preview["outcome"]["witness"]["requiredEvidence"], "candidate B obstruction identifies required evidence")
 require_handle(b_preview["outcome"]["witness"]["failedCondition"], "candidate B obstruction identifies its failed condition")
+require_equal(b_settlement["plan"], b_preview["plan"], "candidate B settlement applies the exact obstructed plan")
+require_equal(b_settlement["outcome"]["kind"], "obstruction", "candidate B settlement remains obstructed")
+require_equal(b_settlement["outcome"]["witness"]["reason"], b_preview["outcome"]["witness"]["reason"], "candidate B settlement preserves the common-basis reason")
+require_equal(b_settlement["outcome"]["witness"]["retry"], b_preview["outcome"]["witness"]["retry"], "candidate B settlement preserves the retry disposition")
+require_handle(b_settlement["evidence"]["basis"], "candidate B settlement receipt carries a basis")
+require_handles(b_settlement["evidence"]["support"], "candidate B settlement receipt carries supporting evidence")
 
 require_equal(a_parent["readings"][0]["value"], os.environ["COMPLETED_BYTES"], "settlement preserves candidate A subject and exact bytes in the parent")
 require_handle(a_parent["readings"][0]["coordinate"]["basis"], "settled candidate A remains basis-bound in the parent reading")
