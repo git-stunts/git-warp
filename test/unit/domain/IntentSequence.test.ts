@@ -33,7 +33,10 @@ describe('IntentSequence', () => {
   });
 
   it('rejects empty and malformed arrays before delegation', () => {
-    expect(() => IntentSequence.from({ kind: 'node.add' } as never)).toThrowError(
+    expect(() => IntentSequence.from(
+      // @ts-expect-error Exercise the JavaScript boundary.
+      { kind: 'node.add' },
+    )).toThrowError(
       expect.objectContaining({ code: 'E_INTENT_SEQUENCE_INPUT' }),
     );
     expect(() => IntentSequence.from([])).toThrowError(
