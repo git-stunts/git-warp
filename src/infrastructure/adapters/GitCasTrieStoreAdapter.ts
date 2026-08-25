@@ -11,13 +11,15 @@ import {
   tryWriteLeafWave,
   type GitCasTrieFacade,
 } from './GitCasTrieWriteBatcher.ts';
+import {
+  GIT_CAS_TRIE_LEAF_MAX_BYTES,
+  GIT_CAS_TRIE_LEAF_PATH,
+} from './GitCasTrieStorageProfile.ts';
 import { parseNibbleName } from './trieNibbleName.ts';
 
 export type { GitCasTrieFacade } from './GitCasTrieWriteBatcher.ts';
 
 const BRANCH_PREFIX = 'children/';
-const LEAF_PATH = 'leaf/data';
-const MAX_TRIE_LEAF_BYTES = 16 * 1024 * 1024;
 
 const E_TRIE_STORE_READ = 'E_TRIE_STORE_READ';
 const E_TRIE_STORE_WRITE = 'E_TRIE_STORE_WRITE';
@@ -52,7 +54,7 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
     try {
       member = await this.#cas.bundles.getMemberReference({
         handle: bundle,
-        path: LEAF_PATH,
+        path: GIT_CAS_TRIE_LEAF_PATH,
       });
     } catch (raw) {
       throw readFailure(raw, 'read leaf bundle', root);
@@ -66,7 +68,7 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
     try {
       return await this.#cas.pages.get({
         handle: member.handle,
-        maxBytes: MAX_TRIE_LEAF_BYTES,
+        maxBytes: GIT_CAS_TRIE_LEAF_MAX_BYTES,
       });
     } catch (raw) {
       throw readFailure(raw, 'read leaf page', root);
@@ -94,14 +96,16 @@ export default class GitCasTrieStoreAdapter implements TrieStorePort {
       const pageHandle = staging === undefined
         ? (await this.#cas.pages.put({
           source: data,
-          maxBytes: MAX_TRIE_LEAF_BYTES,
+          maxBytes: GIT_CAS_TRIE_LEAF_MAX_BYTES,
         })).handle.toString()
-        : await staging.stagePage(data, { maxBytes: MAX_TRIE_LEAF_BYTES });
+        : await staging.stagePage(data, { maxBytes: GIT_CAS_TRIE_LEAF_MAX_BYTES });
       if (staging !== undefined) {
-        return (await staging.stageOrderedBundle([[LEAF_PATH, pageHandle]])).toString();
+        return (await staging.stageOrderedBundle([
+          [GIT_CAS_TRIE_LEAF_PATH, pageHandle],
+        ])).toString();
       }
       const bundle = await this.#cas.bundles.putOrdered({
-        members: [[LEAF_PATH, pageHandle]],
+        members: [[GIT_CAS_TRIE_LEAF_PATH, pageHandle]],
       });
       return bundle.handle.toString();
     } catch (raw) {

@@ -10,9 +10,11 @@ import {
 } from '../../domain/orset/trie/TrieWriteWavePolicy.ts';
 import type ArtifactStagingPort from '../../ports/ArtifactStagingPort.ts';
 import type { StageOrderedBundleRequest } from '../../ports/ArtifactStagingPort.ts';
+import {
+  GIT_CAS_TRIE_LEAF_MAX_BYTES,
+  GIT_CAS_TRIE_LEAF_PATH,
+} from './GitCasTrieStorageProfile.ts';
 
-const LEAF_PATH = 'leaf/data';
-const MAX_TRIE_LEAF_BYTES = 16 * 1024 * 1024;
 const MAX_BUNDLE_BATCH_MEMBERS = 8_192;
 const MAX_BUNDLE_BATCH_OBJECTS = 256;
 const MAX_BUNDLE_BATCH_BYTES = 64 * 1024 * 1024;
@@ -111,7 +113,7 @@ async function stagePageWaves(
   const handles: string[] = [];
   for (const wave of leafPageWaves(leaves)) {
     const staged = await staging.stagePages(wave, {
-      maxBytes: MAX_TRIE_LEAF_BYTES,
+      maxBytes: GIT_CAS_TRIE_LEAF_MAX_BYTES,
       maxBatchBytes: TRIE_LEAF_WRITE_WAVE_MAX_BYTES,
       maxBatchPages: TRIE_LEAF_WRITE_WAVE_MAX_ITEMS,
     });
@@ -128,7 +130,7 @@ async function putPageWaves(
   const handles: string[] = [];
   for (const wave of leafPageWaves(leaves)) {
     const staged = await pages.putBatch({
-      pages: wave.map((source) => ({ source, maxBytes: MAX_TRIE_LEAF_BYTES })),
+      pages: wave.map((source) => ({ source, maxBytes: GIT_CAS_TRIE_LEAF_MAX_BYTES })),
       maxBatchBytes: TRIE_LEAF_WRITE_WAVE_MAX_BYTES,
       maxBatchPages: TRIE_LEAF_WRITE_WAVE_MAX_ITEMS,
     });
@@ -164,7 +166,7 @@ function exceedsPageBytes(
 }
 
 function leafBundleRequests(pages: readonly string[]): OrderedBundleRequest[] {
-  return pages.map((page) => ({ members: [[LEAF_PATH, page]] }));
+  return pages.map((page) => ({ members: [[GIT_CAS_TRIE_LEAF_PATH, page]] }));
 }
 
 async function stageBundleWaves(
