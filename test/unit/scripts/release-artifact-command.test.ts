@@ -76,6 +76,19 @@ function packEntryPath(line: string): string | null {
   return match?.[1] ?? null;
 }
 
+function isSupportedV18ToV19Artifact(path: string): boolean {
+  const prefix = 'dist/scripts/v18-to-v19/';
+  if (!path.startsWith(prefix)) {
+    return false;
+  }
+  const relativePath = path.slice(prefix.length);
+  return (
+    relativePath.startsWith('adapters/') ||
+    (!relativePath.includes('/') &&
+      (relativePath.endsWith('.js') || relativePath.endsWith('.d.ts')))
+  );
+}
+
 function successfulSpawnResult(stdout: string): SpawnSyncReturns<string> {
   return {
     pid: 0,
@@ -128,8 +141,22 @@ describe('release artifact command evidence', () => {
   it('dry-runs the packed npm artifact and exposes the compiled public surface', () => {
     const entries = packEntries(runNpmPackDryRun());
 
+    const compiledTests = [...entries].filter((entry) => entry.startsWith('dist/test/'));
+    const unrelatedCompiledScripts = [...entries].filter(
+      (entry) =>
+        entry.startsWith('dist/scripts/') &&
+        !isSupportedV18ToV19Artifact(entry) &&
+        !entry.startsWith('dist/scripts/migrations/v17.0.0/') &&
+        entry !== 'dist/scripts/formatFailure.js' &&
+        entry !== 'dist/scripts/formatFailure.d.ts' &&
+        entry !== 'dist/scripts/upgrade-v16-to-v17.js' &&
+        entry !== 'dist/scripts/upgrade-v16-to-v17.d.ts'
+    );
+
     expect(entries.has('dist/index.js')).toBe(true);
     expect(entries.has('dist/index.d.ts')).toBe(true);
+    expect(entries.has('dist/scripts/upgrade-v16-to-v17.js')).toBe(true);
+    expect(entries.has('dist/scripts/upgrade-v16-to-v17.d.ts')).toBe(true);
     expect(entries.has('dist/browser.js')).toBe(false);
     expect(entries.has('dist/browser.d.ts')).toBe(false);
     expect(entries.has('dist/legacy.js')).toBe(false);
@@ -145,8 +172,14 @@ describe('release artifact command evidence', () => {
     expect(entries.has('docs/topics/README.md')).toBe(true);
     expect(entries.has('docs/topics/api/README.md')).toBe(true);
     expect(entries.has('docs/topics/getting-started.md')).toBe(true);
+    expect(entries.has('docs/READINGS_AND_OPTICS.md')).toBe(true);
+    expect(entries.has('docs/operations/package-payload.md')).toBe(true);
     expect(entries.has('CHANGELOG.md')).toBe(true);
     expect(entries.has('LICENSE')).toBe(true);
+    expect(compiledTests).toEqual([]);
+    expect(unrelatedCompiledScripts).toEqual([]);
+    expect(entries.has('docs/ANTI_SLUDGE_POLICY.md')).toBe(false);
+    expect(entries.has('docs/plans/streaming-indexed-recursive-warp.md')).toBe(false);
     expect(entries.has('docs/GUIDE.md')).toBe(false);
     expect(entries.has('src/domain/RuntimeHost.ts')).toBe(false);
     expect(entries.has('.github/maintainers')).toBe(false);

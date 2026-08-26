@@ -21,8 +21,9 @@ reported:
 - 2,351 files;
 - 1,496,506 compressed bytes;
 - 6,982,433 unpacked bytes;
-- 252 compiled `dist/scripts/` files outside the supported v18-to-v19
-  migrator;
+- 252 compiled `dist/scripts/` files outside the v18-to-v19 directory, of
+  which the packed-consumer proof later identified 20 as required migration
+  support and 232 as unrelated maintainer code;
 - two compiled `dist/test/` fixture files; and
 - 28 files under the undifferentiated `docs/` package path.
 
@@ -34,19 +35,22 @@ the artifact inventory independently of the export map.
 
 The package may contain only these path classes:
 
-| Path class | Publication reason |
-| --- | --- |
-| `package.json` | npm metadata and the public export/bin maps |
-| `README.md`, `CHANGELOG.md`, `LICENSE`, `NOTICE` | User orientation, compatibility history, and legal notices |
-| `dist/{index,advanced,diagnostics,charts,testing}.{js,d.ts}` | Supported JavaScript and declaration entrypoints |
-| `dist/src/**` | Transitive runtime implementation required by supported entrypoints |
-| `dist/bin/**`, `bin/git-warp` | Supported `git-warp` executable implementation and launcher |
-| `dist/scripts/v18-to-v19/**` | Supported `git-warp-v18-to-v19` migration executable |
-| `scripts/hooks/post-merge.sh` | Runtime asset required by CLI hook installation and diagnostics |
-| `scripts/{install-git-warp,uninstall-git-warp}.sh` | Existing explicit bootstrap and removal command surfaces |
-| `docs/topics/**` | Curated public learning shelf linked from the README |
-| `docs/operations/**` | Curated operator procedures linked from the README |
-| `docs/migrations/v19/**` | Safety-critical guide for the supported migration executable |
+| Path class                                                                   | Publication reason                                                  |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `package.json`                                                               | npm metadata and the public export/bin maps                         |
+| `README.md`, `CHANGELOG.md`, `LICENSE`, `NOTICE`                             | User orientation, compatibility history, and legal notices          |
+| `dist/{index,advanced,diagnostics,charts,testing}.{js,d.ts}`                 | Supported JavaScript and declaration entrypoints                    |
+| `dist/src/**`                                                                | Transitive runtime implementation required by supported entrypoints |
+| `dist/bin/**`, `bin/git-warp`                                                | Supported `git-warp` executable implementation and launcher         |
+| `dist/scripts/v18-to-v19/*.{js,d.ts}`, `adapters/**`                        | Supported `git-warp-v18-to-v19` migration executable                |
+| `dist/scripts/upgrade-v16-to-v17.{js,d.ts}`                                 | Supported legacy `npm run upgrade` operator command                 |
+| `dist/scripts/migrations/v17.0.0/**`, `dist/scripts/formatFailure.{js,d.ts}` | Private implementation required by supported migration commands     |
+| `scripts/hooks/post-merge.sh`                                                | Runtime asset required by CLI hook installation and diagnostics     |
+| `scripts/{install-git-warp,uninstall-git-warp}.sh`                           | Existing explicit bootstrap and removal command surfaces            |
+| `docs/topics/**`                                                             | Curated public learning shelf linked from the README                |
+| `docs/operations/**`                                                         | Curated operator procedures linked from the README                  |
+| `docs/migrations/v19/**`                                                     | Safety-critical guide for the supported migration executable        |
+| `docs/READINGS_AND_OPTICS.md`                                                | Runtime guidance named by public reading-basis errors               |
 
 Repository policy, tests, fixtures, plans, maintainer utilities, performance
 drivers, generators, audit scripts, and release machinery do not belong in the
@@ -56,17 +60,19 @@ npm artifact. Maintainers use those files from the reviewed source checkout.
 
 The boundary has four independent witnesses:
 
-1. `tsconfig.publish.json` names supported compile roots. TypeScript follows
-   their imports and emits the required transitive implementation without
-   compiling every repository script or test fixture.
+1. `tsconfig.publish.json` compiles supported package entrypoints and their
+   transitive implementation. `tsconfig.maintainer.json` extends that build
+   graph for performance and operator programs without publishing them.
 2. `package.json#files` names the only source and build path classes npm may
    consider.
-3. The package-payload gate inventories `npm pack --dry-run --json`, rejects
-   every unrecognized path, and enforces reviewed ceilings for compressed
-   bytes, unpacked bytes, and entry count.
-4. The packed-artifact smoke installs the produced tarball into a clean
-   external consumer and exercises every supported export, package metadata,
-   CLI executable, migration executable, and private-subpath firewall.
+3. The package-payload gate inventories both `npm pack --dry-run --json` and
+   the tarball produced for the external smoke. It rejects every unrecognized
+   path and enforces reviewed ceilings for compressed bytes, unpacked bytes,
+   and entry count in both modes.
+4. The packed-artifact smoke installs that policy-conforming tarball into a
+   clean external consumer and exercises every supported export, package
+   metadata, CLI executable, migration executable, and private-subpath
+   firewall.
 
 The allowlist and ceilings are release law. A legitimate new public entrypoint,
 runtime asset, migration, or documentation path must update this contract and

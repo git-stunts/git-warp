@@ -204,7 +204,7 @@ jobs:
           fi
 
       - name: Verify published files
-        run: npm pack --dry-run --ignore-scripts
+        run: npm run check:package-payload
 
       - name: Verify JSR publishability
         run: npm run jsr:publish -- --dry-run
