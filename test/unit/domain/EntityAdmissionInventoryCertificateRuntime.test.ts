@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import EntityAdmissionInventoryCertificate from '../../../src/domain/api/EntityAdmissionInventoryCertificate.ts';
-import { bindEntityAdmissionInventoryCertificate }
-  from '../../../src/domain/api/EntityAdmissionInventoryCertificateRuntime.ts';
+import {
+  bindEntityAdmissionInventoryCertificate,
+  findEntityAdmissionInventoryCertificate,
+} from '../../../src/domain/api/EntityAdmissionInventoryCertificateRuntime.ts';
+import ObservationReceipt from '../../../src/domain/api/ObservationReceipt.ts';
+import Observer from '../../../src/domain/api/Observer.ts';
 
 const EVIDENCE = Object.freeze({
   basis: Object.freeze({ id: 'basis:inventory' }),
@@ -19,14 +23,104 @@ describe('EntityAdmissionInventoryCertificate runtime binding', () => {
       },
     });
 
-    expect(() => bindEntityAdmissionInventoryCertificate(
-      // @ts-expect-error Exercise the JavaScript boundary.
-      forgedReceipt,
-      certificate(),
-    )).toThrow(expect.objectContaining({
-      code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
-    }));
+    expect(() =>
+      bindEntityAdmissionInventoryCertificate(
+        // @ts-expect-error Exercise the JavaScript boundary.
+        forgedReceipt,
+        certificate()
+      )
+    ).toThrow(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
+      })
+    );
     expect(statusRead).toBe(false);
+  });
+
+  it('requires constructor options and a safe non-negative count', () => {
+    expect(() => new EntityAdmissionInventoryCertificate(null)).toThrowError(
+      expect.objectContaining({ code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE' })
+    );
+    expect(
+      () =>
+        new EntityAdmissionInventoryCertificate({
+          admissionCount: -1,
+          basisId: 'basis:inventory',
+          causalDomainId: 'domain:inventory',
+          evidence: EVIDENCE,
+          lane: { kind: 'worldline', name: 'captures' },
+          selectorDigest: 'selector:inventory',
+          streamDigest: 'stream:inventory',
+        })
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
+      })
+    );
+  });
+
+  it('rejects malformed Lane references', () => {
+    expect(
+      () =>
+        new EntityAdmissionInventoryCertificate({
+          admissionCount: 0,
+          basisId: 'basis:inventory',
+          causalDomainId: 'domain:inventory',
+          evidence: EVIDENCE,
+          lane: { kind: 'worldline', name: '' },
+          selectorDigest: 'selector:inventory',
+          streamDigest: 'stream:inventory',
+        })
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
+      })
+    );
+  });
+
+  it('rejects unresolved receipts, forged certificates, duplicate binding, and forged lookup', () => {
+    const unresolved = new ObservationReceipt({
+      lane: 'captures',
+      observer: observer(),
+      reason: 'not-complete',
+      status: 'obstructed',
+      writer: 'reader',
+    });
+    expect(() => bindEntityAdmissionInventoryCertificate(unresolved, certificate())).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
+      })
+    );
+
+    const receipt = completedReceipt();
+    expect(() =>
+      bindEntityAdmissionInventoryCertificate(
+        receipt,
+        // @ts-expect-error Exercise the JavaScript boundary.
+        {}
+      )
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
+      })
+    );
+
+    bindEntityAdmissionInventoryCertificate(receipt, certificate());
+    expect(() => bindEntityAdmissionInventoryCertificate(receipt, certificate())).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
+      })
+    );
+    expect(() =>
+      findEntityAdmissionInventoryCertificate(
+        // @ts-expect-error Exercise the JavaScript boundary.
+        {}
+      )
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
+      })
+    );
   });
 });
 
@@ -39,5 +133,23 @@ function certificate(): EntityAdmissionInventoryCertificate {
     lane: { kind: 'worldline', name: 'captures' },
     selectorDigest: 'selector:inventory',
     streamDigest: 'stream:inventory',
+  });
+}
+
+function completedReceipt(): ObservationReceipt {
+  return new ObservationReceipt({
+    evidence: EVIDENCE,
+    lane: 'captures',
+    observer: observer(),
+    status: 'completed',
+    writer: 'reader',
+  });
+}
+
+function observer(): Observer {
+  return new Observer({
+    cardinality: 'many',
+    decode: (value) => value,
+    id: 'inventory',
   });
 }

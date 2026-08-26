@@ -12,7 +12,40 @@ describe('EntityAdmissionInventoryBasis', () => {
       worldlineName: 'captures',
     });
 
-    expect(basis.frontierEntries.map(({ writerId }) => writerId))
-      .toEqual(['Z', 'a']);
+    expect(basis.frontierEntries.map(({ writerId }) => writerId)).toEqual(['Z', 'a']);
+  });
+
+  it('requires options and non-empty worldline identity', () => {
+    expect(() => new EntityAdmissionInventoryBasis(null)).toThrowError(
+      expect.objectContaining({ code: 'E_ENTITY_ADMISSION_INVENTORY_BASIS' })
+    );
+    expect(
+      () =>
+        new EntityAdmissionInventoryBasis({
+          frontier: new Map(),
+          worldlineName: '',
+        })
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_BASIS',
+      })
+    );
+  });
+
+  it.each([
+    { writerId: '', patchSha: 'patch-a' },
+    { writerId: 'writer-a', patchSha: '' },
+  ])('rejects an incomplete frontier entry %#', ({ writerId, patchSha }) => {
+    expect(
+      () =>
+        new EntityAdmissionInventoryBasis({
+          frontier: new Map([[writerId, patchSha]]),
+          worldlineName: 'captures',
+        })
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_BASIS',
+      })
+    );
   });
 });
