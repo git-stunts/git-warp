@@ -67,11 +67,7 @@ export default class EntityAdmission {
 function snapshotProperties(
   properties: EntityCapturePayload,
 ): EntityAdmissionInitialProperties {
-  const snapshot: { [key: string]: ReadingValue } = {};
-  for (const [key, value] of Object.entries(properties)) {
-    snapshot[key] = snapshotPropertyValue(value);
-  }
-  return Object.freeze(snapshot);
+  return snapshotPropertyRecord(properties);
 }
 
 function snapshotPropertyValue(value: PropValue): ReadingValue {
