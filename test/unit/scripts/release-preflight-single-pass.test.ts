@@ -13,7 +13,7 @@ function matchingLines(source: string, pattern: RegExp): readonly string[] {
 }
 
 describe('single-pass release preflight', () => {
-  it('runs each expensive validation gate once before lifecycle-free packing', async () => {
+  it('runs each expensive validation gate once before nested pack validation', async () => {
     const [preflight, smoke, packagePayload, packageJsonText] = await Promise.all([
       repositoryText('scripts/release-preflight.sh'),
       repositoryText('scripts/smoke-packed-artifact.sh'),
@@ -38,7 +38,7 @@ describe('single-pass release preflight', () => {
     );
   });
 
-  it('suppresses lifecycle scripts in every validation-only pack dry-run', async () => {
+  it('requests recursive lifecycle suppression for every validation pack', async () => {
     const [packagePayload, releasePr, release] = await Promise.all([
       repositoryText('scripts/package-payload/CheckPackagePayload.ts'),
       repositoryText('.github/workflows/release-pr.yml'),

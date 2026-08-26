@@ -64,10 +64,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   operator workflows without making those outputs part of the npm artifact.
 - Release and standalone prepack gates now inspect the actual npm inventory,
   reject every unrecognized path, and enforce reviewed ceilings of 1,700
-  files, 1,200,000 compressed bytes, and 4,900,000 unpacked bytes. The clean
-  external-consumer smoke imports every supported subpath and package metadata,
-  starts both executables, verifies required hook/bootstrap assets, and keeps
-  the private storage subpath inaccessible.
+  files, 1,200,000 compressed bytes, and 4,900,000 unpacked bytes. The typed
+  inventory boundary tolerates npm 10 prepare output only before a terminal
+  schema-valid JSON frame. The clean external-consumer smoke imports every
+  supported subpath and package metadata, starts both executables, verifies
+  required hook/bootstrap assets, and keeps the private storage subpath
+  inaccessible.
 
 ## [19.1.0] - 2026-08-25
 

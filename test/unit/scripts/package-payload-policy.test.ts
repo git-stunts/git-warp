@@ -109,8 +109,25 @@ describe('npm pack inventory boundary', () => {
     expect(decoded.entries.map((entry) => entry.path)).toEqual(['README.md', 'LICENSE']);
   });
 
+  it('accepts a terminal npm inventory after npm 10 prepare output', () => {
+    const decoded = decodeNpmPackInventory(
+      'prepare output\n[{' +
+        '"size":1,"unpackedSize":1,"entryCount":1,' +
+        '"files":[{"path":"README.md","size":1}]}]\n'
+    );
+
+    expect(decoded.entries.map((entry) => entry.path)).toEqual(['README.md']);
+  });
+
   it('rejects malformed JSON and inconsistent npm counts', () => {
     expect(() => decodeNpmPackInventory('not-json')).toThrow(PackagePayloadError);
+    expect(() =>
+      decodeNpmPackInventory(
+        'prepare output\n' +
+          '[{"size":1,"unpackedSize":1,"entryCount":1,' +
+          '"files":[{"path":"README.md","size":1}]}]\ntrailing output'
+      )
+    ).toThrow(PackagePayloadError);
     expect(() =>
       decodeNpmPackInventory(
         '[{"size":1,"unpackedSize":1,"entryCount":2,"files":[{"path":"README.md","size":1}]}]'

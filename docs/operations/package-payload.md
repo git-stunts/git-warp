@@ -74,6 +74,12 @@ The boundary has four independent witnesses:
    metadata, CLI executable, migration executable, and private-subpath
    firewall.
 
+npm 10 may prefix `--json` output with `prepare` output even when the nested
+pack requests `--ignore-scripts`. The inventory adapter therefore accepts a
+schema-valid JSON array only when it is the terminal stdout frame. Arbitrary
+prefix text may describe that npm lifecycle defect; malformed JSON or any
+non-whitespace suffix still fails closed.
+
 The allowlist and ceilings are release law. A legitimate new public entrypoint,
 runtime asset, migration, or documentation path must update this contract and
 its executable policy in the same reviewed change. Raising a ceiling requires
