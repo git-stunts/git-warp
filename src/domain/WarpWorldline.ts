@@ -28,7 +28,7 @@ import {
   createWorldlineDraft,
   openWorldlineDraftCoordinate,
 } from './WarpWorldlineDraftStorage.ts';
-import PatchJournalEntityAdmissionInventoryAdapter from '../infrastructure/adapters/PatchJournalEntityAdmissionInventoryAdapter.ts';
+import PatchJournalEntityAdmissionInventory from './entity/PatchJournalEntityAdmissionInventory.ts';
 import { bindEntityAdmissionInventoryRuntime } from './entity/EntityAdmissionInventoryRuntime.ts';
 
 export type { WarpStrandOpticBasis } from './WarpStrandOpticBasis.ts';
@@ -372,7 +372,7 @@ function createWarpWorldline(worldlineName: string, graph: RuntimeGraph): WarpWo
   });
   bindEntityAdmissionInventoryRuntime(worldline, {
     getFrontier: async () => await graph.getFrontier(),
-    inventory: new PatchJournalEntityAdmissionInventoryAdapter({ journal: graph._patchJournal }),
+    inventory: new PatchJournalEntityAdmissionInventory({ journal: graph._patchJournal }),
   });
   return worldline;
 }

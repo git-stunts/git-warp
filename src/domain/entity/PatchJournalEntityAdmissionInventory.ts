@@ -1,12 +1,11 @@
-import type PatchEntry from '../../domain/artifacts/PatchEntry.ts';
-import { entityAdmissionsFromPatch } from '../../domain/entity/EntityAdmissionPatchReader.ts';
-import type RetainedEntityAdmission from '../../domain/entity/RetainedEntityAdmission.ts';
-import WarpStream from '../../domain/stream/WarpStream.ts';
-import WarpError from '../../domain/errors/WarpError.ts';
-import type EntityAdmissionInventoryBasis from '../../domain/entity/EntityAdmissionInventoryBasis.ts';
 import EntityAdmissionInventoryPort from '../../ports/EntityAdmissionInventoryPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
-import { requireAdapterDependency } from './AdapterDependencyGuard.ts';
+import type PatchEntry from '../artifacts/PatchEntry.ts';
+import WarpError from '../errors/WarpError.ts';
+import WarpStream from '../stream/WarpStream.ts';
+import type EntityAdmissionInventoryBasis from './EntityAdmissionInventoryBasis.ts';
+import { entityAdmissionsFromPatch } from './EntityAdmissionPatchReader.ts';
+import type RetainedEntityAdmission from './RetainedEntityAdmission.ts';
 
 type AdmissionCursor = {
   readonly iterator: AsyncIterator<RetainedEntityAdmission>;
@@ -14,13 +13,18 @@ type AdmissionCursor = {
 };
 
 /** Retained-patch implementation of exact-basis entity admission inventory. */
-export default class PatchJournalEntityAdmissionInventoryAdapter
+export default class PatchJournalEntityAdmissionInventory
 extends EntityAdmissionInventoryPort {
   readonly #journal: PatchJournalPort;
 
   constructor(options: { readonly journal: PatchJournalPort }) {
     super();
-    requireAdapterDependency(options.journal, 'journal');
+    if (options.journal === null || options.journal === undefined) {
+      throw new WarpError(
+        'Entity admission inventory requires a patch journal',
+        'E_ENTITY_ADMISSION_INVENTORY_JOURNAL',
+      );
+    }
     this.#journal = options.journal;
   }
 
