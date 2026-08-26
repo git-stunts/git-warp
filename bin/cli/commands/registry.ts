@@ -10,7 +10,20 @@ import handleRepair from './repair.ts';
 import handleSettle from './settle.ts';
 import handleWrite from './write.ts';
 
-export type CommandHandlerResult = object | undefined;
+export type CommandOutputValue = object | string | number | boolean | null;
+
+export type CommandOutputLines =
+  | readonly CommandOutputValue[]
+  | AsyncIterable<CommandOutputValue>;
+
+export interface CommandHandlerResult {
+  readonly payload: CommandOutputValue | undefined;
+  readonly human?: string | undefined;
+  readonly lines?: CommandOutputLines | undefined;
+  readonly exitCode?: number | undefined;
+  readonly close?: (() => Promise<void>) | undefined;
+  readonly completion?: Promise<void> | undefined;
+}
 
 export type CommandHandler = (options: {
   readonly options: CliOptions;
