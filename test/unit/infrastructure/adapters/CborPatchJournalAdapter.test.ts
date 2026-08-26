@@ -30,6 +30,7 @@ function createFixture() {
     codec: new CborCodec(),
     commitReader: history,
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+    graph: 'test',
   });
   return { history, assets, cas, journal };
 }
@@ -168,6 +169,7 @@ describe('CborPatchJournalAdapter semantic publication', () => {
       codec: new CborCodec(),
       commitReader: history,
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+      graph: 'test',
     });
 
     await expect(journal.appendPatch({
@@ -217,5 +219,21 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     });
     await expect(journal.scanPatchRange('alice', first.sha, nonPatch).collect())
       .rejects.toBeInstanceOf(SyncError);
+  });
+
+  it('refuses retained history that crosses into another graph', async () => {
+    const { journal } = createFixture();
+    const foreign = await journal.appendPatch({
+      patch: createPatch(1, 'node:foreign'),
+      graph: 'other-graph',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+    });
+
+    await expect(journal.scanPatchHistory('alice', foreign.sha).collect())
+      .rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
   });
 });

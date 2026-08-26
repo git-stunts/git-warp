@@ -26,6 +26,7 @@ import { DEFAULT_COMMIT_MESSAGE_CODEC } from './TrailerCommitMessageCodecAdapter
 import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import { requireAdapterDependency } from './AdapterDependencyGuard.ts';
 import { readGitCasErrorCode } from './GitCasErrorCode.ts';
+import { requireNonEmptyString } from '../../domain/utils/scalarValidation.ts';
 
 type CommitInfo = {
   sha: string;
@@ -52,6 +53,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   readonly #commitMessageCodec: CommitMessageCodecPort;
   readonly #commitReader: CommitReader;
   readonly #encrypted: boolean;
+  readonly #graph: string;
 
   constructor(options: {
     readonly assetStorage: AssetStoragePort;
@@ -60,18 +62,21 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     readonly commitReader: CommitReader;
     readonly commitMessageCodec?: CommitMessageCodecPort;
     readonly encrypted?: boolean;
+    readonly graph: string;
   }) {
     super();
     requireAdapterDependency(options.assetStorage, 'assetStorage');
     requireAdapterDependency(options.cas, 'cas');
     requireAdapterDependency(options.codec, 'codec');
     requireAdapterDependency(options.commitReader, 'commitReader');
+    requireNonEmptyString(options.graph, 'patchJournal.graph');
     this.#assetStorage = options.assetStorage;
     this.#cas = options.cas;
     this.#codec = options.codec;
     this.#commitReader = options.commitReader;
     this.#commitMessageCodec = options.commitMessageCodec ?? DEFAULT_COMMIT_MESSAGE_CODEC;
     this.#encrypted = options.encrypted ?? false;
+    this.#graph = options.graph;
   }
 
   override async appendPatch(request: AppendPatchRequest): Promise<PublishedPatch> {
@@ -146,7 +151,9 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
         if (adapter.#commitMessageCodec.detectKind(node.message) !== 'patch') {
           break;
         }
-        stack.push({ sha: current, message: adapter.#commitMessageCodec.decodePatch(node.message) });
+        const message = adapter.#commitMessageCodec.decodePatch(node.message);
+        requirePatchMessageIdentity(message, adapter.#graph, writerId);
+        stack.push({ sha: current, message });
         current = node.parents[0] ?? null;
       }
       if (fromSha !== null && current !== fromSha) {
@@ -180,16 +187,32 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
           );
         }
         const message = adapter.#commitMessageCodec.decodePatch(node.message);
-        if (message.writer !== writerId) {
-          throw new SyncError(
-            `Entity admission history crossed writer identity for ${writerId}`,
-            { code: 'E_SYNC_PATCH_HISTORY', context: { writerId } },
-          );
-        }
+        requirePatchMessageIdentity(message, adapter.#graph, writerId);
         yield new PatchEntry({ patch: await adapter.readPatch(message), sha: current });
         current = node.parents[0] ?? null;
       }
     })());
+  }
+}
+
+function requirePatchMessageIdentity(
+  message: PatchCommitMessage,
+  graph: string,
+  writerId: string,
+): void {
+  if (message.graph !== graph || message.writer !== writerId) {
+    throw new SyncError(
+      `Patch history crossed its graph or writer identity for ${graph}/${writerId}`,
+      {
+        code: 'E_SYNC_PATCH_HISTORY',
+        context: {
+          actualGraph: message.graph,
+          actualWriter: message.writer,
+          graph,
+          writerId,
+        },
+      },
+    );
   }
 }
 
