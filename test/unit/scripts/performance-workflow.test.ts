@@ -12,6 +12,22 @@ import { validatePerformanceExecutionOrder }
 
 const root = process.cwd();
 
+type MaintainerPerformanceScriptName =
+  | 'performance:measure'
+  | 'performance:compare'
+  | 'performance:gate'
+  | 'performance:streaming'
+  | 'performance:migrated-read';
+
+const MAINTAINER_PERFORMANCE_SCRIPT_NAMES: readonly MaintainerPerformanceScriptName[] =
+  Object.freeze([
+    'performance:measure',
+    'performance:compare',
+    'performance:gate',
+    'performance:streaming',
+    'performance:migrated-read',
+  ]);
+
 /**
  * The calibration record, validated rather than asserted.
  *
@@ -174,13 +190,7 @@ describe('v19 performance workflow', () => {
     expect(workflow).toContain('npm --prefix head run build:maintainer --silent');
     expect(workflow).toContain('npm --prefix head run build --silent');
     expect(packageJson.scripts['build:maintainer']).toContain('tsconfig.maintainer.json');
-    for (const scriptName of [
-      'performance:measure',
-      'performance:compare',
-      'performance:gate',
-      'performance:streaming',
-      'performance:migrated-read',
-    ] as const) {
+    for (const scriptName of MAINTAINER_PERFORMANCE_SCRIPT_NAMES) {
       expect(packageJson.scripts[scriptName]).toContain('npm run build:maintainer --silent');
     }
   });
