@@ -25,12 +25,12 @@ installDefaultRuntimeHostNodePorts();
 const hasJsonFlag = process.argv.includes('--json');
 const hasJsonlFlag = process.argv.includes('--jsonl');
 
-interface NormalizedCommandResult {
+type NormalizedCommandResult = Readonly<{
   readonly payload: CommandOutputValue | undefined;
   readonly human: string | undefined;
   readonly lines: CommandOutputLines | undefined;
   readonly exitCode: number;
-}
+}>;
 
 /** Normalizes any handler return shape into { payload, exitCode }. */
 function normalizeResult(result: CommandHandlerResult): NormalizedCommandResult {

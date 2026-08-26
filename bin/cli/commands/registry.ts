@@ -16,14 +16,14 @@ export type CommandOutputLines =
   | readonly CommandOutputValue[]
   | AsyncIterable<CommandOutputValue>;
 
-export interface CommandHandlerResult {
+export type CommandHandlerResult = Readonly<{
   readonly payload: CommandOutputValue | undefined;
   readonly human?: string | undefined;
   readonly lines?: CommandOutputLines | undefined;
   readonly exitCode?: number | undefined;
   readonly close?: (() => Promise<void>) | undefined;
   readonly completion?: Promise<void> | undefined;
-}
+}>;
 
 export type CommandHandler = (options: {
   readonly options: CliOptions;

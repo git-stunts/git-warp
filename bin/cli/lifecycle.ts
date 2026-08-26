@@ -2,11 +2,11 @@ type CloseResource = () => Promise<void>;
 
 type InstallShutdown = (closeCommand: CloseResource) => CloseResource;
 
-interface EmitWithCommandShutdownOptions {
+type EmitWithCommandShutdownOptions = Readonly<{
   readonly closeCommand: CloseResource | undefined;
   readonly emit: () => Promise<void>;
   readonly installShutdown: InstallShutdown;
-}
+}>;
 
 /** Installs command cleanup before output consumption can fail or be interrupted. */
 export async function emitWithCommandShutdown(

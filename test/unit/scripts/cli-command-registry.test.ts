@@ -55,6 +55,10 @@ const COMMAND_REGISTRY_SOURCE = readFileSync(
   new URL('../../../bin/cli/commands/registry.ts', import.meta.url),
   'utf8',
 );
+const CLI_LIFECYCLE_SOURCE = readFileSync(
+  new URL('../../../bin/cli/lifecycle.ts', import.meta.url),
+  'utf8',
+);
 
 describe('v19 CLI command registry', () => {
   it('is generated-contract complete', () => {
@@ -102,7 +106,20 @@ describe('v19 CLI command registry', () => {
 
   it('keeps streamed output behind a concrete command-result boundary', () => {
     expect(COMMAND_REGISTRY_SOURCE).toContain(
-      'export interface CommandHandlerResult',
+      'export type CommandHandlerResult = Readonly<{',
+    );
+    expect(CLI_ENTRYPOINT_SOURCE).toContain(
+      'type NormalizedCommandResult = Readonly<{',
+    );
+    expect(CLI_LIFECYCLE_SOURCE).toContain(
+      'type EmitWithCommandShutdownOptions = Readonly<{',
+    );
+    expect([
+      COMMAND_REGISTRY_SOURCE,
+      CLI_ENTRYPOINT_SOURCE,
+      CLI_LIFECYCLE_SOURCE,
+    ].join('\n')).not.toMatch(
+      /\binterface (?:CommandHandlerResult|NormalizedCommandResult|EmitWithCommandShutdownOptions)\b/u,
     );
     expect(CLI_ENTRYPOINT_SOURCE).not.toContain(
       'readonly lines: readonly unknown[] | AsyncIterable<unknown>',
