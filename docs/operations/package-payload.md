@@ -42,7 +42,7 @@ The package may contain only these path classes:
 | `dist/{index,advanced,diagnostics,charts,testing}.{js,d.ts}`                 | Supported JavaScript and declaration entrypoints                    |
 | `dist/src/**`                                                                | Transitive runtime implementation required by supported entrypoints |
 | `dist/bin/**`, `bin/git-warp`                                                | Supported `git-warp` executable implementation and launcher         |
-| `dist/scripts/v18-to-v19/*.{js,d.ts}`, `adapters/**`                        | Supported `git-warp-v18-to-v19` migration executable                |
+| `dist/scripts/v18-to-v19/*.{js,d.ts}`, `dist/scripts/v18-to-v19/adapters/**` | Supported `git-warp-v18-to-v19` migration executable               |
 | `dist/scripts/upgrade-v16-to-v17.{js,d.ts}`                                 | Supported legacy `npm run upgrade` operator command                 |
 | `dist/scripts/migrations/v17.0.0/**`, `dist/scripts/formatFailure.{js,d.ts}` | Private implementation required by supported migration commands     |
 | `scripts/hooks/post-merge.sh`                                                | Runtime asset required by CLI hook installation and diagnostics     |
