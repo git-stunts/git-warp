@@ -59,7 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Runtime implementation, supported migration commands, hook, bootstrap,
   legal, topic, operations, and runtime-linked reading guidance while
   excluding compiled tests, fixtures, maintainers' utilities, performance
-  drivers, policy documents, and plans. Repository builds continue compiling
+  drivers, maintainer-only policy documents, and plans. Repository builds
+  continue compiling
   maintainer programs through a separate build profile for their own CI and
   operator workflows without making those outputs part of the npm artifact.
 - Release and standalone prepack gates now inspect the actual npm inventory,
