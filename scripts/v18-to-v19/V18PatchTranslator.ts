@@ -3,7 +3,8 @@ import ContentAddressableStore, {
   CborCodec as GitCasCborCodec,
 } from '@git-stunts/git-cas';
 
-import { hydrateDecodedPatch } from '../../src/domain/services/PatchHydrator.ts';
+import { hydratePatchAtDecodeBoundary }
+  from '../../src/infrastructure/adapters/PatchHydrationAdapter.ts';
 import AssetHandle from '../../src/domain/storage/AssetHandle.ts';
 import {
   createGitCasPatchStorage,
@@ -74,7 +75,7 @@ export default class V18PatchTranslator {
     const source = await this.#readLegacyPatch(patch);
     const decoded = requireRecord(warpCborCodec.decode(source), 'patch root');
     const rewritten = await this.#rewriteContentHandles(decoded, patch.storage.encrypted);
-    hydrateDecodedPatch(rewritten.patch);
+    hydratePatchAtDecodeBoundary(rewritten.patch);
     const encoded = warpCborCodec.encode(rewritten.patch);
     const stagedPatch = await this.#cas.assets.put({
       source: singleChunk(encoded),

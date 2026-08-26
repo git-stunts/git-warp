@@ -11,7 +11,6 @@ import type { Dot } from '../../domain/crdt/Dot.ts';
 import defaultCborCodec from '../codecs/CborCodec.ts';
 import type Patch from '../../domain/types/Patch.ts';
 import type { PatchOp } from '../../domain/types/ops/unions.ts';
-import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
 import type { PatchEntry } from '../../domain/services/provenance/BoundaryTransitionProvenance.ts';
 import type {
   BtrCanonicalPatch,
@@ -23,6 +22,7 @@ import type {
   BtrWireProvenanceEntry,
 } from './BtrWireProvenanceEntry.ts';
 import type { BtrWireRecord, BtrWireSigningEnvelope } from './BtrWireRecord.ts';
+import { hydratePatchAtDecodeBoundary } from './PatchHydrationAdapter.ts';
 
 const BTR_RECORD_LABEL = 'BoundaryTransitionRecord';
 
@@ -79,7 +79,7 @@ function readBytes(source: Record<string, unknown>, field: string, label: string
 function readProvenanceEntry(value: unknown, label: string): PatchEntry {
   const source = readObject(value, label);
   return {
-    patch: hydrateDecodedPatch(source['patch']),
+    patch: hydratePatchAtDecodeBoundary(source['patch']),
     sha: readString(source, 'sha', label),
   };
 }

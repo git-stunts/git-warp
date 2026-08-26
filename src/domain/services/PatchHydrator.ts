@@ -3,10 +3,7 @@ import { Dot } from '../crdt/Dot.ts';
 import PatchError from '../errors/PatchError.ts';
 import Patch from '../types/Patch.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
-import EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
-import EntityAdmissionOrigin, {
-  type EntityAdmissionOriginKind,
-} from '../types/EntityAdmissionOrigin.ts';
+import type EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
 import type { OpLike } from './OpLike.ts'; // nosemgrep: ts-no-like-types -- 0025C
 import { hydrateKnownDecodedOp } from './OpNormalizer.ts';
 
@@ -335,80 +332,10 @@ function readOps(value: unknown): PatchOp[] { // nosemgrep: ts-no-unknown-outsid
   return normalized;
 }
 
-function readEntityAdmissions(
-  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-): readonly EntityAdmissionBoundary[] | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  return expectArray(value, 'entityAdmissions').map((entry, index) =>
-    readEntityAdmission(entry, index));
-}
-
-function readEntityAdmission(
-  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  index: number,
-): EntityAdmissionBoundary {
-  const label = `entityAdmissions[${String(index)}]`;
-  const record = expectRecord(value, label);
-  return new EntityAdmissionBoundary({
-    operationIndex: readRequiredInteger(record['operationIndex'], `${label}.operationIndex`),
-    operationCount: readRequiredInteger(record['operationCount'], `${label}.operationCount`),
-    origin: readEntityAdmissionOrigin(record['origin'], `${label}.origin`),
-  });
-}
-
-function readEntityAdmissionOrigin(
-  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  label: string,
-): EntityAdmissionOrigin {
-  const record = expectRecord(value, label);
-  const kind = readEntityAdmissionOriginKind(record['kind'], label);
-  if (kind === 'allocated') {
-    return EntityAdmissionOrigin.allocated(
-      readRequiredString(record['namespace'], `${label}.namespace`),
-      normalizeDot(record['allocationDot'], `${label}.allocationDot`),
-    );
-  }
-  requireAbsentOriginAllocation(record, label);
-  return kind === 'supplied-subject'
-    ? EntityAdmissionOrigin.suppliedSubject()
-    : EntityAdmissionOrigin.legacyUnrecorded();
-}
-
-function readEntityAdmissionOriginKind(
-  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  label: string,
-): EntityAdmissionOriginKind {
-  if (
-    value !== 'allocated'
-    && value !== 'supplied-subject'
-    && value !== 'legacy-unrecorded'
-  ) {
-    failPatch(`${label}.kind is unsupported`, { label, actual: typeof value });
-  }
-  return value;
-}
-
-function requireAbsentOriginAllocation(
-  record: DecodedRecord,
-  label: string,
-): void {
-  if (
-    record['namespace'] !== null
-    && record['namespace'] !== undefined
-  ) {
-    failPatch(`${label}.namespace belongs only to allocated admissions`, { label });
-  }
-  if (
-    record['allocationDot'] !== null
-    && record['allocationDot'] !== undefined
-  ) {
-    failPatch(`${label}.allocationDot belongs only to allocated admissions`, { label });
-  }
-}
-
-export function hydrateDecodedPatch(decoded: unknown): Patch { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+export function hydrateDecodedPatch(
+  decoded: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  entityAdmissions: readonly EntityAdmissionBoundary[] | undefined,
+): Patch {
   const record = expectRecord(decoded, 'root');
   const { schema } = record;
   const { writer } = record;
@@ -422,6 +349,6 @@ export function hydrateDecodedPatch(decoded: unknown): Patch { // nosemgrep: ts-
     ops: readOps(record['ops']),
     reads: readStringArray(record['reads'], 'reads'),
     writes: readStringArray(record['writes'], 'writes'),
-    entityAdmissions: readEntityAdmissions(record['entityAdmissions']),
+    entityAdmissions,
   });
 }

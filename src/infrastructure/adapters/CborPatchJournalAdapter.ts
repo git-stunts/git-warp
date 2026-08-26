@@ -6,7 +6,6 @@ import PatchEntry from '../../domain/artifacts/PatchEntry.ts';
 import PatchError from '../../domain/errors/PatchError.ts';
 import PatchPublicationConflictError from '../../domain/errors/PatchPublicationConflictError.ts';
 import SyncError from '../../domain/errors/SyncError.ts';
-import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
 import type AssetHandle from '../../domain/storage/AssetHandle.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
@@ -28,6 +27,7 @@ import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import { requireAdapterDependency } from './AdapterDependencyGuard.ts';
 import { readGitCasErrorCode } from './GitCasErrorCode.ts';
 import { requireNonEmptyString } from '../../domain/utils/scalarValidation.ts';
+import { hydratePatchAtDecodeBoundary } from './PatchHydrationAdapter.ts';
 
 type CommitInfo = {
   sha: string;
@@ -137,7 +137,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   override async readPatch(message: PatchCommitMessage): Promise<Patch> {
     const handle = message.patchHandle;
     const bytes = await collectAsyncIterable(this.#assetStorage.open(handle));
-    return hydrateDecodedPatch(this.#codec.decode(bytes));
+    return hydratePatchAtDecodeBoundary(this.#codec.decode(bytes));
   }
 
   override scanPatchRange(
