@@ -27,11 +27,16 @@ export default class EntityAdmissionInventoryCertificate {
   readonly coveredDomain = 'retained-entity-add-admissions' as const;
   readonly evidence: Evidence;
   readonly lane: LaneReference;
-  readonly ordering = Object.freeze({
+  readonly ordering: Readonly<{
+    readonly semantics: 'deterministic-non-causal';
+    readonly direction: 'descending';
+  }> = Object.freeze({
     semantics: 'deterministic-non-causal' as const,
     direction: 'descending' as const,
   });
-  readonly selector = Object.freeze({ kind: 'lane' as const });
+  readonly selector: Readonly<{ readonly kind: 'lane' }> = Object.freeze({
+    kind: 'lane' as const,
+  });
   readonly selectorDigest: string;
   readonly streamDigest: string;
 
