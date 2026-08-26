@@ -164,10 +164,10 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
         );
       }
       for (let index = stack.length - 1; index >= 0; index--) {
-      const entry = stack[index];
-      if (entry !== undefined) {
+        const entry = stack[index];
+        if (entry !== undefined) {
           yield await adapter.#historyEntry(entry.sha, entry.message, writerId);
-      }
+        }
       }
     })());
   }
