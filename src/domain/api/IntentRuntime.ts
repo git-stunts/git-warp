@@ -4,6 +4,7 @@ import { isPropValue, type PropValue } from '../types/PropValue.ts';
 import Intent, { type IntentDescriptor, type IntentKind } from './Intent.ts';
 import WarpError from '../errors/WarpError.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
+import type EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
 import type EntityAdmissionOrigin from '../types/EntityAdmissionOrigin.ts';
 import { findRetainedEntityIntentOrigin } from './RetainedEntityIntentRuntime.ts';
 import { intentFromEntityAdmissionBoundary } from '../entity/EntityAdmissionBoundaryIntent.ts';
@@ -108,14 +109,23 @@ function entityIntent(patch: Patch): Intent | null {
 }
 
 function markedWholePatchEntityIntent(patch: Patch): Intent | null {
-  const boundary = patch.entityAdmissions?.[0];
-  if (boundary === undefined || patch.entityAdmissions?.length !== 1) {
-    return null;
-  }
-  if (boundary.operationIndex !== 0 || boundary.operationCount !== patch.ops.length) {
+  const boundary = soleEntityAdmissionBoundary(patch);
+  if (boundary === null || !coversWholePatch(boundary, patch.ops.length)) {
     return null;
   }
   return intentFromEntityAdmissionBoundary(patch, boundary).intent;
+}
+
+function soleEntityAdmissionBoundary(patch: Patch): EntityAdmissionBoundary | null {
+  const boundaries = patch.entityAdmissions;
+  if (boundaries === undefined || boundaries.length !== 1) {
+    return null;
+  }
+  return boundaries[0] ?? null;
+}
+
+function coversWholePatch(boundary: EntityAdmissionBoundary, operationCount: number): boolean {
+  return boundary.operationIndex === 0 && boundary.operationCount === operationCount;
 }
 
 function entityIntentFor(
