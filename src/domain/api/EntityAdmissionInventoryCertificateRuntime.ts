@@ -11,6 +11,9 @@ export function bindEntityAdmissionInventoryCertificate(
   receipt: ObservationReceipt,
   certificate: EntityAdmissionInventoryCertificate,
 ): void {
+  if (!(receipt instanceof ObservationReceipt)) {
+    throw certificateError('Inventory certificate binding requires an ObservationReceipt');
+  }
   if (receipt.status !== 'completed') {
     throw certificateError('Only a completed Observation can carry an inventory certificate');
   }
