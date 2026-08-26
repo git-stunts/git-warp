@@ -82,6 +82,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
 
   override async appendPatch(request: AppendPatchRequest): Promise<PublishedPatch> {
     requireBoundGraph(request.graph, this.#graph);
+    requirePatchWriter(request.patch, request.writer);
     const stagedPatch = await this.#assetStorage.stage(WarpStream.from([
       this.#codec.encode(request.patch),
     ]), {
@@ -216,6 +217,18 @@ function requireBoundGraph(graph: string, boundGraph: string): void {
       {
         code: 'E_PATCH_GRAPH_MISMATCH',
         context: { boundGraph, graph },
+      },
+    );
+  }
+}
+
+function requirePatchWriter(patch: Patch, writer: string): void {
+  if (patch.writer !== writer) {
+    throw new PatchError(
+      `Patch writer ${patch.writer} cannot publish as ${writer}`,
+      {
+        code: 'E_PATCH_WRITER_MISMATCH',
+        context: { patchWriter: patch.writer, writer },
       },
     );
   }

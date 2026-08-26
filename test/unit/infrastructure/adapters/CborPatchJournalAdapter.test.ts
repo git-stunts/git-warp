@@ -35,13 +35,17 @@ function createFixture() {
   return { history, assets, cas, journal };
 }
 
-function createPatch(lamport: number, nodeId: string): Patch {
+function createPatch(
+  lamport: number,
+  nodeId: string,
+  writer = 'alice',
+): Patch {
   return new Patch({
     schema: 3,
-    writer: 'alice',
+    writer,
     lamport,
-    context: { alice: lamport - 1 },
-    ops: [new NodeAdd(nodeId, new Dot('alice', lamport))],
+    context: { [writer]: lamport - 1 },
+    ops: [new NodeAdd(nodeId, new Dot(writer, lamport))],
     reads: [],
     writes: [nodeId],
   });
@@ -169,6 +173,20 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     })).rejects.toMatchObject({ code: 'E_PATCH_GRAPH_MISMATCH' });
   });
 
+  it('refuses publication under a writer that contradicts the patch payload', async () => {
+    const { journal } = createFixture();
+
+    await expect(journal.appendPatch({
+      patch: createPatch(1, 'node:bob', 'bob'),
+      graph: 'test',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+    })).rejects.toMatchObject({ code: 'E_PATCH_WRITER_MISMATCH' });
+  });
+
   it('maps provider publication conflicts to a typed domain error', async () => {
     const { history, assets, cas } = createFixture();
     const providerFailure = Object.assign(new Error('conflict'), {
@@ -290,7 +308,7 @@ describe('CborPatchJournalAdapter semantic publication', () => {
   });
 
   it('refuses retained history whose patch payload contradicts its trailer', async () => {
-    const { journal } = createFixture();
+    const { history, journal } = createFixture();
     const mismatched = new Patch({
       schema: 3,
       writer: 'bob',
@@ -302,14 +320,23 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     const published = await journal.appendPatch({
       patch: mismatched,
       graph: 'test',
-      writer: 'alice',
+      writer: 'bob',
       targetRef: TARGET_REF,
       expectedHead: null,
       parent: null,
       attachments: [],
     });
+    const commit = await history.getNodeInfo(published.sha);
+    const message = DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch(commit.message);
+    const forged = await history.commitNode({
+      message: DEFAULT_COMMIT_MESSAGE_CODEC.encodePatch({
+        ...message,
+        writer: 'alice',
+      }),
+      parents: [],
+    });
 
-    await expect(journal.scanPatchHistory('alice', published.sha).collect())
+    await expect(journal.scanPatchHistory('alice', forged).collect())
       .rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
   });
 });
