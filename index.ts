@@ -48,6 +48,15 @@ export type {
   default as EntityOccurrence,
   EntityCausalRelation,
 } from './src/domain/api/EntityOccurrence.ts';
+export type {
+  default as EntityAdmission,
+  EntityAdmissionInitialProperties,
+  EntityAdmissionOccurrenceReference,
+  EntityAdmissionOrdering,
+  EntityAdmissionOriginReading,
+  EntityAdmissionRepresentationReference,
+} from './src/domain/api/EntityAdmission.ts';
+export type { default as EntityAdmissionInventoryCertificate } from './src/domain/api/EntityAdmissionInventoryCertificate.ts';
 export type { AdmissionOutcome } from './src/domain/api/AdmissionOutcome.ts';
 export type { Receipt } from './src/domain/api/PublicReceipt.ts';
 export type { RepairHint } from './src/domain/api/ReceiptSupport.ts';

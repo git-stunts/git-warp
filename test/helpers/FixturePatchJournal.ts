@@ -81,4 +81,32 @@ export default class FixturePatchJournal extends PatchJournalPort {
       }
     })());
   }
+
+  override scanPatchHistory(
+    writerId: string,
+    fromSha: string,
+  ): WarpStream<PatchEntry> {
+    const journal = this;
+    return WarpStream.from((async function* (): AsyncGenerator<PatchEntry> {
+      let current: string | null = fromSha;
+      while (current !== null) {
+        const commit = journal.#commits[current];
+        if (commit === undefined) {
+          throw new Error(`Fixture commit not found: ${current}`);
+        }
+        if (journal.#messageCodec.detectKind(commit.message) !== 'patch') {
+          throw new Error(`Fixture history reached non-patch commit: ${current}`);
+        }
+        const message = journal.#messageCodec.decodePatch(commit.message);
+        if (message.writer !== writerId) {
+          throw new Error(`Fixture history crossed writer identity: ${writerId}`);
+        }
+        yield new PatchEntry({
+          patch: await journal.readPatch(message),
+          sha: current,
+        });
+        current = commit.parents[0] ?? null;
+      }
+    })());
+  }
 }

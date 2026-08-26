@@ -11,6 +11,13 @@ const ROOT_TYPE_EXPORTS = [
   'CoordinateReference',
   'Evidence',
   'EvidenceHandle',
+  'EntityAdmission',
+  'EntityAdmissionInitialProperties',
+  'EntityAdmissionInventoryCertificate',
+  'EntityAdmissionOccurrenceReference',
+  'EntityAdmissionOrdering',
+  'EntityAdmissionOriginReading',
+  'EntityAdmissionRepresentationReference',
   'EntityCausalRelation',
   'EntityOccurrence',
   'Intent',
@@ -205,10 +212,12 @@ describe('v19 public API boundary', () => {
         'Coordinate',
         'Optic',
         'captureCoordinate',
+        'createEntityAdmissionInventoryObserver',
         'createManyObserver',
         'createObserver',
         'intent',
         'reading',
+        'requireEntityAdmissionInventoryCertificate',
       ])
     );
     expect(surface.typeExports).toEqual(

@@ -15,6 +15,8 @@ export {
   createManyObserver,
   createObserver,
 } from './src/domain/api/ObserverRuntime.ts';
+export { createEntityAdmissionInventoryObserver } from './src/domain/api/EntityAdmissionInventoryObserverRuntime.ts';
+export { requireEntityAdmissionInventoryCertificate } from './src/domain/api/EntityAdmissionInventoryCertificateRuntime.ts';
 export type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';
 export type { NeighborhoodOpticReadOptions } from './src/domain/services/optic/NeighborhoodOptic.ts';
 export type {

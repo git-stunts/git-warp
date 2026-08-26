@@ -154,6 +154,12 @@ Patches without this metadata are handled conservatively:
   admission; and
 - no operation-shape guess can earn a completeness certificate.
 
+New v19.2 patches persist the metadata field even when its boundary list is
+empty. That empty marker proves the writer classified the patch and found no
+`entity.add`; it prevents a manual atomic `[node.add, property.set]` sequence
+from falling through to the legacy whole-patch decoder. Only an absent field
+selects the legacy rule.
+
 This is backward compatible with released v19.1 repositories and requires no
 repository migration. The array overload is not yet in a published release,
 so v19.2 can establish its retained intent boundaries before consumers rely on

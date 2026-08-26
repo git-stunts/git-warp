@@ -12,6 +12,8 @@
 
 import VersionVector from '../crdt/VersionVector.ts';
 import PatchError from '../errors/PatchError.ts';
+import type EntityAdmissionBoundary from './EntityAdmissionBoundary.ts';
+import { freezeEntityAdmissionBoundaries } from './EntityAdmissionBoundaryRuntime.ts';
 import type { PatchOp } from './ops/unions.ts';
 
 function assertMetadataEntry(value: string): void {
@@ -137,10 +139,13 @@ export default class Patch {
    */
   writes: string[] | undefined;
 
+  /** Exact retained spans for entity admissions lowered into this patch. */
+  entityAdmissions?: readonly EntityAdmissionBoundary[];
+
   /**
    * Creates a Patch.
    */
-  constructor({ schema = 2, writer, lamport, context, ops, reads, writes }: {
+  constructor({ schema = 2, writer, lamport, context, ops, reads, writes, entityAdmissions }: {
     schema?: 2 | 3;
     writer: string;
     lamport: number;
@@ -148,6 +153,7 @@ export default class Patch {
     ops: PatchOp[];
     reads?: string[] | undefined;
     writes?: string[] | undefined;
+    entityAdmissions?: readonly EntityAdmissionBoundary[] | undefined;
   }) {
     validateSchema(schema);
     validateWriter(writer);
@@ -161,6 +167,10 @@ export default class Patch {
     this.ops = [...ops];
     this.reads = _nonEmpty(reads);
     this.writes = _nonEmpty(writes);
+    const boundaries = freezeEntityAdmissionBoundaries(entityAdmissions, this.ops);
+    if (boundaries !== undefined) {
+      this.entityAdmissions = boundaries;
+    }
     Object.freeze(this);
   }
 }

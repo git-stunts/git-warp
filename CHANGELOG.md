@@ -29,6 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `entity.add` member. The legacy `WriteReceipt.occurrence` convenience remains
   populated only when exactly one entity birth exists, so multiple graph
   subjects are never collapsed into one occurrence.
+- The advanced API and CLI now expose a basis-bound entity admission
+  inventory. It streams every retained `entity.add` birth exactly once with
+  distinct occurrence and representation-subject references, complete initial
+  properties, allocation origin, opaque support, and deterministic non-causal
+  ordering. A terminal certificate is available only after complete stream
+  consumption and binds the Lane, basis, count, selector, and stream digest.
+  Empty Lanes certify zero; cancellation, unavailable support, and Strand
+  overlays fail closed without a completeness certificate.
 
 ### Fixed
 
@@ -43,15 +51,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Compatibility
 
 - Singular `Lane.write(intent)` behavior and its admission-law/digest path are
-  unchanged. Atomic arrays reuse the existing Patch representation and writer
-  publication mechanism, so existing v19 repositories require no retained-data
-  migration. Reopened multi-operation Strands recover their ordered primitive
-  graph transformation from the retained patch; no caller-owned JavaScript
-  array or new Patch wire field is persisted. Because the Patch stores graph
-  operations rather than call syntax, reopen cannot distinguish a canonical
-  single-Intent patch created by `write(intent)` from one created by
-  `write([intent])`; its graph transformation and one-patch boundary remain
-  intact.
+  unchanged. Atomic arrays reuse the existing writer publication mechanism, so
+  existing v19 repositories require no retained-data migration. New patches
+  persist an optional, bounded entity-admission classification field. An empty
+  field distinguishes a classified manual operation array from a legacy entity
+  birth, while an absent field retains the exact v19.1 whole-patch decoder.
+  Reopened multi-operation Strands recover their ordered primitive graph
+  transformation from the retained patch; no caller-owned JavaScript array is
+  persisted. Because the Patch stores graph operations rather than call syntax,
+  reopen cannot distinguish a canonical single-Intent patch created by
+  `write(intent)` from one created by `write([intent])`; its graph
+  transformation and one-patch boundary remain intact.
 
 ### Packaging
 

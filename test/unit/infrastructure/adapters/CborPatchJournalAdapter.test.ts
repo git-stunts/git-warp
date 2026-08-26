@@ -5,6 +5,9 @@ import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 import Patch from '../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
+import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
+import EntityAdmissionBoundary from '../../../../src/domain/types/EntityAdmissionBoundary.ts';
+import EntityAdmissionOrigin from '../../../../src/domain/types/EntityAdmissionOrigin.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
@@ -106,6 +109,49 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     expect(loaded.lamport).toBe(1);
     expect(loaded.ops[0]).toBeInstanceOf(NodeAdd);
     expect((loaded.ops[0] as NodeAdd).node).toBe('node:a');
+  });
+
+  it('round-trips exact entity admission boundaries with the retained patch', async () => {
+    const { history, journal } = createFixture();
+    const original = new Patch({
+      writer: 'alice',
+      lamport: 1,
+      context: {},
+      ops: [
+        new NodeAdd('capture:1', new Dot('alice', 1)),
+        new PropSet('capture:1', 'body', 'hello'),
+      ],
+      writes: ['capture:1'],
+      entityAdmissions: [new EntityAdmissionBoundary({
+        operationIndex: 0,
+        operationCount: 2,
+        origin: EntityAdmissionOrigin.suppliedSubject(),
+      })],
+    });
+    const published = await journal.appendPatch({
+      patch: original,
+      graph: 'test',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+    });
+    const commit = await history.getNodeInfo(published.sha);
+
+    const loaded = await journal.readPatch(
+      DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch(commit.message),
+    );
+
+    expect(loaded.entityAdmissions).toEqual([
+      expect.objectContaining({
+        operationIndex: 0,
+        operationCount: 2,
+        origin: expect.objectContaining({ kind: 'supplied-subject', namespace: null }),
+      }),
+    ]);
+    expect(loaded.entityAdmissions?.[0]).toBeInstanceOf(EntityAdmissionBoundary);
+    expect(loaded.entityAdmissions?.[0]?.origin).toBeInstanceOf(EntityAdmissionOrigin);
   });
 
   it('maps provider publication conflicts to a typed domain error', async () => {

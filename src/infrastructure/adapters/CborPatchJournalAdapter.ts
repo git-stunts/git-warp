@@ -163,6 +163,34 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
       }
     })());
   }
+
+  override scanPatchHistory(
+    writerId: string,
+    fromSha: string,
+  ): WarpStream<PatchEntry> {
+    const adapter = this;
+    return WarpStream.from((async function* (): AsyncGenerator<PatchEntry> {
+      let current: string | null = fromSha;
+      while (current !== null) {
+        const node = await adapter.#commitReader.getNodeInfo(current);
+        if (adapter.#commitMessageCodec.detectKind(node.message) !== 'patch') {
+          throw new SyncError(
+            `Entity admission history reached a non-patch commit for writer ${writerId}`,
+            { code: 'E_SYNC_PATCH_HISTORY', context: { writerId } },
+          );
+        }
+        const message = adapter.#commitMessageCodec.decodePatch(node.message);
+        if (message.writer !== writerId) {
+          throw new SyncError(
+            `Entity admission history crossed writer identity for ${writerId}`,
+            { code: 'E_SYNC_PATCH_HISTORY', context: { writerId } },
+          );
+        }
+        yield new PatchEntry({ patch: await adapter.readPatch(message), sha: current });
+        current = node.parents[0] ?? null;
+      }
+    })());
+  }
 }
 
 function patchBundleMembers(

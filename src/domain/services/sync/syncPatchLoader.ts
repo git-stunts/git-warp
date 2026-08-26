@@ -17,6 +17,7 @@ import type { PatchOp } from '../../types/ops/unions.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
+import type EntityAdmissionBoundary from '../../types/EntityAdmissionBoundary.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,6 +31,7 @@ export interface DecodedPatch {
   schema?: 2 | 3;
   reads?: string[] | undefined;
   writes?: string[] | undefined;
+  entityAdmissions?: readonly EntityAdmissionBoundary[] | undefined;
 }
 
 export interface LoadPatchRangeOptions {
@@ -62,6 +64,7 @@ export function normalizePatch(patch: DecodedPatch): DecodedPatch {
     ops: patch.ops,
     reads: patch.reads,
     writes: patch.writes,
+    entityAdmissions: patch.entityAdmissions,
   };
   if (patch.schema === undefined) {
     return new Patch(patchInput);

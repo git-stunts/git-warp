@@ -193,6 +193,14 @@ class StreamingPatchJournal extends PatchJournalPort {
   scanPatchRange(writerId: string, _fromSha: string | null, _toSha: string): WarpStream<PatchEntry> {
     return WarpStream.from(this._entries.filter((entry) => entry.patch.writer === writerId));
   }
+
+  scanPatchHistory(writerId: string, _fromSha: string): WarpStream<PatchEntry> {
+    return WarpStream.from(
+      [...this._entries]
+        .filter((entry) => entry.patch.writer === writerId)
+        .reverse(),
+    );
+  }
 }
 
 class UnusedPersistence extends CommitPort {

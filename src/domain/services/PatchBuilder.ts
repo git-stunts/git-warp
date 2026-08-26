@@ -29,6 +29,8 @@ import type { ContentInput, ContentMetadataInput } from './PatchBuilderContent.t
 import { allocateEntityCapture, planEntityCapturePayload } from './PatchBuilderEntity.ts';
 import PatchBuilderPropertyRuntime from './PatchBuilderPropertyRuntime.ts';
 import type { EntityCapturePayload } from '../types/EntityCapturePayload.ts';
+import EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
+import EntityAdmissionOrigin from '../types/EntityAdmissionOrigin.ts';
 import { capturePatchBuilderCausalBasis } from './admission/PatchBuilderCausalBasis.ts';
 import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
 import { commitPatch } from './PatchCommitter.ts';
@@ -82,6 +84,7 @@ export class PatchBuilder {
   private readonly _edgesAdded = new Set<string>();
   private readonly _observedOperands = new Set<string>();
   private readonly _writes = new Set<string>();
+  private readonly _entityAdmissions: EntityAdmissionBoundary[] = [];
   private _snapshotState: WarpState | null | undefined = undefined;
   private _committed = false;
   private _committing = false;
@@ -156,8 +159,14 @@ export class PatchBuilder {
     this._assertNotCommitted();
     const scope = { added: this._nodesAdded, state: this._getSnapshotState() };
     const payload = planEntityCapturePayload(nodeId, properties, scope);
+    const operationIndex = this._ops.length;
     this.addNode(nodeId);
     this._ops.push(...payload);
+    this._entityAdmissions.push(new EntityAdmissionBoundary({
+      operationCount: 1 + payload.length,
+      operationIndex,
+      origin: EntityAdmissionOrigin.suppliedSubject(),
+    }));
     return this;
   }
   addEntityAuto(namespace: string, properties: EntityCapturePayload): PatchBuilder {
@@ -169,9 +178,15 @@ export class PatchBuilder {
       writerId: this._writerId,
       versionVector: this._vv,
     });
+    const operationIndex = this._ops.length;
     this._ops.push(new NodeAdd(capture.nodeId, capture.dot), ...capture.payload);
     this._nodesAdded.add(capture.nodeId);
     this._writes.add(capture.nodeId);
+    this._entityAdmissions.push(new EntityAdmissionBoundary({
+      operationCount: 1 + capture.payload.length,
+      operationIndex,
+      origin: EntityAdmissionOrigin.allocated(namespace),
+    }));
     return this;
   }
   removeNode(nodeId: string): PatchBuilder {
@@ -347,6 +362,7 @@ export class PatchBuilder {
       ops: rawOps,
       reads: [...this._observedOperands].sort(),
       writes: [...this._writes].sort(),
+      entityAdmissions: this._entityAdmissions,
     });
   }
 
@@ -368,6 +384,7 @@ export class PatchBuilder {
         ops: this._ops,
         observedOperands: this._observedOperands,
         writes: this._writes,
+        entityAdmissions: this._entityAdmissions,
         hasEdgeProps: this._properties.hasEdgeProperties,
         expectedParentSha: this._expectedParentSha,
         targetRefPath: this._targetRefPath,

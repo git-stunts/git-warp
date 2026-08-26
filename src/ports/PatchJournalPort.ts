@@ -38,4 +38,10 @@ export default abstract class PatchJournalPort {
     _fromSha: string | null,
     _toSha: string,
   ): WarpStream<PatchEntry>;
+
+  /** Streams one writer history newest-first with bounded working memory. */
+  abstract scanPatchHistory(
+    _writerId: string,
+    _fromSha: string,
+  ): WarpStream<PatchEntry>;
 }

@@ -17,6 +17,8 @@ import type {
   BtrCanonicalPatch,
   BtrWireContext,
   BtrWireDot,
+  BtrWireEntityAdmissionBoundary,
+  BtrWireEntityAdmissionOrigin,
   BtrWireOperation,
   BtrWireProvenanceEntry,
 } from './BtrWireProvenanceEntry.ts';
@@ -207,9 +209,34 @@ function sortedStrings(values: readonly string[] | undefined): readonly string[]
   return values === undefined ? undefined : [...values].sort();
 }
 
+function toBtrEntityAdmissionOrigin(
+  origin: NonNullable<Patch['entityAdmissions']>[number]['origin'],
+): BtrWireEntityAdmissionOrigin {
+  if (origin.kind === 'allocated') {
+    if (origin.namespace === null) {
+      throw new MessageCodecError('Allocated entity admission omitted its namespace', {
+        code: 'E_BTR_WIRE_ENTITY_ADMISSION',
+      });
+    }
+    return { kind: origin.kind, namespace: origin.namespace };
+  }
+  return { kind: origin.kind, namespace: null };
+}
+
+function toBtrEntityAdmissionBoundary(
+  boundary: NonNullable<Patch['entityAdmissions']>[number],
+): BtrWireEntityAdmissionBoundary {
+  return {
+    operationIndex: boundary.operationIndex,
+    operationCount: boundary.operationCount,
+    origin: toBtrEntityAdmissionOrigin(boundary.origin),
+  };
+}
+
 function toBtrCanonicalPatch(patch: Patch): BtrCanonicalPatch {
   const reads = sortedStrings(patch.reads);
   const writes = sortedStrings(patch.writes);
+  const entityAdmissions = patch.entityAdmissions?.map(toBtrEntityAdmissionBoundary);
   return {
     schema: patch.schema,
     writer: patch.writer,
@@ -218,6 +245,7 @@ function toBtrCanonicalPatch(patch: Patch): BtrCanonicalPatch {
     ops: patch.ops.map(toBtrCanonicalOperation),
     ...(reads === undefined ? {} : { reads }),
     ...(writes === undefined ? {} : { writes }),
+    ...(entityAdmissions === undefined ? {} : { entityAdmissions }),
   };
 }
 

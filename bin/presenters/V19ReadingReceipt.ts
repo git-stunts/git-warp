@@ -13,6 +13,8 @@ import { settlementPlanFields } from '../cli/v19/V19SettlementReview.ts';
 import { stableStringify } from './json.ts';
 import { toMcpJson } from './V19Json.ts';
 import WarpError from '../../src/domain/errors/WarpError.ts';
+import type EntityAdmissionInventoryCertificate from '../../src/domain/api/EntityAdmissionInventoryCertificate.ts';
+import { findEntityAdmissionInventoryCertificate } from '../../src/domain/api/EntityAdmissionInventoryCertificateRuntime.ts';
 
 export type V19Receipt =
   | WriteReceipt<WriteIntentInput>
@@ -82,6 +84,7 @@ function isIntentArray(input: WriteIntentInput): input is readonly Intent[] {
 }
 
 function observationReceiptEnvelope(receipt: ObservationReceipt): McpJsonValue {
+  const inventory = findEntityAdmissionInventoryCertificate(receipt);
   return Object.freeze({
     type: 'Receipt',
     operation: receipt.operation,
@@ -95,6 +98,28 @@ function observationReceiptEnvelope(receipt: ObservationReceipt): McpJsonValue {
     reason: receipt.reason ?? null,
     evidence: receipt.evidence === undefined ? null : evidenceEnvelope(receipt.evidence),
     repairHints: toMcpJson([...receipt.repairHints]),
+    ...(inventory === null
+      ? {}
+      : { inventoryCertificate: inventoryCertificateEnvelope(inventory) }),
+  });
+}
+
+function inventoryCertificateEnvelope(
+  certificate: EntityAdmissionInventoryCertificate,
+): McpJsonValue {
+  return Object.freeze({
+    schema: certificate.schema,
+    admissionCount: certificate.admissionCount,
+    basis: toMcpJson(certificate.basis),
+    causalDomain: toMcpJson(certificate.causalDomain),
+    completeness: certificate.completeness,
+    coveredDomain: certificate.coveredDomain,
+    evidence: evidenceEnvelope(certificate.evidence),
+    lane: toMcpJson(certificate.lane),
+    ordering: toMcpJson(certificate.ordering),
+    selector: toMcpJson(certificate.selector),
+    selectorDigest: certificate.selectorDigest,
+    streamDigest: certificate.streamDigest,
   });
 }
 

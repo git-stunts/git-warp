@@ -146,6 +146,13 @@ export class RecordingPatchJournal extends PatchJournalPort {
   ): WarpStream<PatchEntry> {
     return WarpStream.from([]);
   }
+
+  override scanPatchHistory(
+    _writerId: string,
+    _fromSha: string,
+  ): WarpStream<PatchEntry> {
+    return WarpStream.from([]);
+  }
 }
 
 export class RecordingAssetStorage extends AssetStoragePort {
