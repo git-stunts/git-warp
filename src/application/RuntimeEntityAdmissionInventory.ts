@@ -37,7 +37,6 @@ import type { RuntimeActivityLease } from './RuntimeActivity.ts';
 
 type ReceiptSettlement = Readonly<{
   promise: Promise<ObservationReceipt>;
-  reject(reason: unknown): void;
   resolve(receipt: ObservationReceipt): void;
 }>;
 
@@ -121,7 +120,8 @@ async function* streamInventory<TValue extends ReadingValue>(
     yield* inventoryReadings(options);
     terminal = true;
   } catch (error) {
-    options.settlement.resolve(inventoryFailureReceipt(options, error));
+    const failure = error instanceof WarpError ? error : null;
+    options.settlement.resolve(inventoryFailureReceipt(options, failure));
     terminal = true;
   } finally {
     if (!terminal) {
@@ -311,11 +311,9 @@ function inventoryFailureReceipt<TValue extends ReadingValue>(
     readonly tick: Tick;
     readonly timeline: Timeline;
   },
-  error: unknown,
+  error: WarpError | null,
 ): ObservationReceipt {
-  const reason = error instanceof WarpError
-    ? error.code
-    : 'entity_admission_inventory_failed';
+  const reason = error?.code ?? 'entity_admission_inventory_failed';
   return new ObservationReceipt({
     evidence: tickEvidence(options.tick),
     lane: options.timeline.name,
@@ -367,11 +365,9 @@ function tickEvidence(tick: Tick) {
 }
 
 function createReceiptSettlement(): ReceiptSettlement {
-  const settlement = Promise.withResolvers<ObservationReceipt>();
-  void settlement.promise.catch(() => undefined);
+  const { promise, resolve } = Promise.withResolvers<ObservationReceipt>();
   return Object.freeze({
-    promise: settlement.promise,
-    reject: settlement.reject,
-    resolve: settlement.resolve,
+    promise,
+    resolve,
   });
 }
