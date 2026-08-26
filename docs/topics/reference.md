@@ -191,20 +191,20 @@ RuntimeHarnessOptions @ testing.ts#L27
 
 | Command | Handler | Source |
 | --- | --- | --- |
-| `write` | `handleWrite` | `bin/cli/commands/registry.ts#L24` |
-| `observe` | `handleObserve` | `bin/cli/commands/registry.ts#L25` |
-| `fork` | `handleFork` | `bin/cli/commands/registry.ts#L26` |
-| `settle` | `handleSettle` | `bin/cli/commands/registry.ts#L27` |
-| `receipt` | `handleReceipt` | `bin/cli/commands/registry.ts#L28` |
-| `doctor` | `handleDoctor` | `bin/cli/commands/registry.ts#L29` |
-| `repair` | `handleRepair` | `bin/cli/commands/registry.ts#L30` |
-| `audit` | `handleAudit` | `bin/cli/commands/registry.ts#L31` |
-| `mcp` | `handleMcp` | `bin/cli/commands/registry.ts#L32` |
+| `write` | `handleWrite` | `bin/cli/commands/registry.ts#L37` |
+| `observe` | `handleObserve` | `bin/cli/commands/registry.ts#L38` |
+| `fork` | `handleFork` | `bin/cli/commands/registry.ts#L39` |
+| `settle` | `handleSettle` | `bin/cli/commands/registry.ts#L40` |
+| `receipt` | `handleReceipt` | `bin/cli/commands/registry.ts#L41` |
+| `doctor` | `handleDoctor` | `bin/cli/commands/registry.ts#L42` |
+| `repair` | `handleRepair` | `bin/cli/commands/registry.ts#L43` |
+| `audit` | `handleAudit` | `bin/cli/commands/registry.ts#L44` |
+| `mcp` | `handleMcp` | `bin/cli/commands/registry.ts#L45` |
 
 Structured CLI errors for `--json` and `--jsonl` use the payload shape
 `{ error: { code, message, cause? } }` from the CLI entry point.
 
-Source: `bin/git-warp.ts#L228`.
+Source: `bin/git-warp.ts#L187`.
 
 ## Public error classes
 
