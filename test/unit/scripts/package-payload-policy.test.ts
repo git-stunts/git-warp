@@ -42,6 +42,18 @@ const REQUIRED_PATHS = Object.freeze([
   'docs/READINGS_AND_OPTICS.md',
 ]);
 
+const OPTIONAL_ALLOWED_PATHS: readonly string[] = Object.freeze([
+  'dist/src/RuntimeHelper.js',
+  'dist/bin/RuntimeHelper.js',
+  'dist/scripts/migrations/v17.0.0/RuntimeHelper.js',
+  'dist/scripts/v18-to-v19/adapters/RuntimeAdapter.js',
+  'docs/topics/runtime.md',
+  'docs/operations/runtime.md',
+  'docs/migrations/v19/runtime.md',
+  'dist/scripts/v18-to-v19/RuntimeCommand.js',
+  'dist/scripts/v18-to-v19/RuntimeCommand.d.ts',
+]);
+
 function inventory(paths: readonly string[], packedBytes = 100): PackagePayloadInventory {
   const entries = paths.map((path) => new PackagePayloadEntry(path, 1));
   return new PackagePayloadInventory(packedBytes, entries.length, entries);
@@ -50,6 +62,15 @@ function inventory(paths: readonly string[], packedBytes = 100): PackagePayloadI
 describe('package payload policy', () => {
   it('accepts the complete supported artifact within its reviewed ceilings', () => {
     const assessment = new PackagePayloadPolicy().assess(inventory(REQUIRED_PATHS));
+
+    expect(assessment.isAccepted()).toBe(true);
+    expect(assessment.violations).toEqual([]);
+  });
+
+  it.each(OPTIONAL_ALLOWED_PATHS)('accepts supported optional path %s', (path) => {
+    const assessment = new PackagePayloadPolicy().assess(
+      inventory([...REQUIRED_PATHS, path])
+    );
 
     expect(assessment.isAccepted()).toBe(true);
     expect(assessment.violations).toEqual([]);
