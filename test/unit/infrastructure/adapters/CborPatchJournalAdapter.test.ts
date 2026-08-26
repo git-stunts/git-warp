@@ -266,4 +266,28 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     await expect(journal.scanPatchHistory('alice', nonLinear).collect())
       .rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
   });
+
+  it('refuses retained history whose patch payload contradicts its trailer', async () => {
+    const { journal } = createFixture();
+    const mismatched = new Patch({
+      schema: 3,
+      writer: 'bob',
+      lamport: 1,
+      context: {},
+      ops: [new NodeAdd('node:mismatch', Dot.create('bob', 1))],
+      writes: ['node:mismatch'],
+    });
+    const published = await journal.appendPatch({
+      patch: mismatched,
+      graph: 'test',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+    });
+
+    await expect(journal.scanPatchHistory('alice', published.sha).collect())
+      .rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
+  });
 });

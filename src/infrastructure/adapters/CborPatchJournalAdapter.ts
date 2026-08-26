@@ -164,10 +164,10 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
         );
       }
       for (let index = stack.length - 1; index >= 0; index--) {
-        const entry = stack[index];
-        if (entry !== undefined) {
-          yield new PatchEntry({ patch: await adapter.readPatch(entry.message), sha: entry.sha });
-        }
+      const entry = stack[index];
+      if (entry !== undefined) {
+          yield await adapter.#historyEntry(entry.sha, entry.message, writerId);
+      }
       }
     })());
   }
@@ -190,10 +190,20 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
         }
         const message = adapter.#commitMessageCodec.decodePatch(node.message);
         requirePatchMessageIdentity(message, adapter.#graph, writerId);
-        yield new PatchEntry({ patch: await adapter.readPatch(message), sha: current });
+        yield await adapter.#historyEntry(current, message, writerId);
         current = node.parents[0] ?? null;
       }
     })());
+  }
+
+  async #historyEntry(
+    sha: string,
+    message: PatchCommitMessage,
+    writerId: string,
+  ): Promise<PatchEntry> {
+    const patch = await this.readPatch(message);
+    requirePatchPayloadIdentity(patch, message, this.#graph, writerId);
+    return new PatchEntry({ patch, sha });
   }
 }
 
@@ -229,6 +239,28 @@ function requirePatchMessageIdentity(
           graph,
           writerId,
         },
+      },
+    );
+  }
+}
+
+function requirePatchPayloadIdentity(
+  patch: Patch,
+  message: PatchCommitMessage,
+  graph: string,
+  writerId: string,
+): void {
+  if (
+    patch.writer !== message.writer
+    || patch.writer !== writerId
+    || patch.lamport !== message.lamport
+    || patch.schema !== message.schema
+  ) {
+    throw new SyncError(
+      `Retained patch payload contradicts its history trailer for ${graph}/${writerId}`,
+      {
+        code: 'E_SYNC_PATCH_HISTORY',
+        context: { graph, writerId },
       },
     );
   }
