@@ -204,7 +204,7 @@ RuntimeHarnessOptions @ testing.ts#L27
 Structured CLI errors for `--json` and `--jsonl` use the payload shape
 `{ error: { code, message, cause? } }` from the CLI entry point.
 
-Source: `bin/git-warp.ts#L211`.
+Source: `bin/git-warp.ts#L228`.
 
 ## Public error classes
 
