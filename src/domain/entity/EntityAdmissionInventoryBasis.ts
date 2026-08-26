@@ -25,11 +25,18 @@ function freezeFrontier(
   frontier: ReadonlyMap<string, string>,
 ): readonly WarpWorldlineCoordinateFrontierEntry[] {
   return Object.freeze([...frontier.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => compareCodeUnits(left, right))
     .map(([writerId, patchSha]) => Object.freeze({
       patchSha: requireIdentity(patchSha, 'patchSha'),
       writerId: requireIdentity(writerId, 'writerId'),
     })));
+}
+
+function compareCodeUnits(left: string, right: string): number {
+  if (left === right) {
+    return 0;
+  }
+  return left < right ? -1 : 1;
 }
 
 function requireIdentity(value: string, field: string): string {
