@@ -218,6 +218,18 @@ describe('PatchHydrator', () => {
     })).toThrow("Decoded op requires string 'type'");
   });
 
+  it('rejects explicit null entity admission metadata', () => {
+    expect(() => hydrateDecodedPatch({
+      writer: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'capture:1', dot: ['alice', 1] },
+        { type: 'NodePropSet', node: 'capture:1', key: 'body', value: 'retained' },
+      ],
+      entityAdmissions: null,
+    })).toThrow("Decoded patch field 'entityAdmissions' must be an array");
+  });
+
   it('rejects malformed observedDots after decode normalization', () => {
     expect(() => hydrateDecodedPatch({
       writer: 'alice',

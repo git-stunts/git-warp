@@ -338,7 +338,7 @@ function readOps(value: unknown): PatchOp[] { // nosemgrep: ts-no-unknown-outsid
 function readEntityAdmissions(
   value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 ): readonly EntityAdmissionBoundary[] | undefined {
-  if (value === null || value === undefined) {
+  if (value === undefined) {
     return undefined;
   }
   return expectArray(value, 'entityAdmissions').map((entry, index) =>
