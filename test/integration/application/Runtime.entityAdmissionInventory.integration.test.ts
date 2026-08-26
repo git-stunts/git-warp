@@ -13,6 +13,7 @@ import {
   requireEntityAdmissionInventoryCertificate,
 } from '../../../advanced.ts';
 import handleObserve from '../../../bin/cli/commands/observe.ts';
+import type { McpJsonValue } from '../../../bin/cli/commands/mcp/McpJsonValue.ts';
 import type { CliOptions } from '../../../bin/cli/types.ts';
 import { receiptEnvelope } from '../../../bin/presenters/V19ReadingReceipt.ts';
 import { createTestRepo } from '../api/helpers/setup.ts';
@@ -242,15 +243,21 @@ describe('Runtime entity admission inventory', () => {
       ],
     });
 
-    expect(result.lines).toHaveLength(2);
-    expect(result.lines[0]).toMatchObject({
+    expect(Symbol.asyncIterator in result.lines).toBe(true);
+    const lines: McpJsonValue[] = [];
+    for await (const line of result.lines) {
+      lines.push(line);
+    }
+
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatchObject({
       type: 'Reading',
       value: {
         representation: { subject: 'capture:cli' },
         initialProperties: { body: 'capture:cli' },
       },
     });
-    expect(result.lines[1]).toMatchObject({
+    expect(lines[1]).toMatchObject({
       type: 'Receipt',
       operation: 'observe',
       status: 'completed',

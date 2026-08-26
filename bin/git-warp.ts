@@ -20,7 +20,7 @@ const hasJsonlFlag = process.argv.includes('--jsonl');
 interface NormalizedCommandResult {
   readonly payload: unknown;
   readonly human: string | undefined;
-  readonly lines: readonly unknown[] | undefined;
+  readonly lines: readonly unknown[] | AsyncIterable<unknown> | undefined;
   readonly exitCode: number;
 }
 
@@ -28,7 +28,7 @@ interface NormalizedCommandResult {
 function hasPayload(value: unknown): value is {
   payload: unknown;
   human?: string;
-  lines?: readonly unknown[];
+  lines?: unknown;
   exitCode?: number;
 } {
   return typeof value === 'object' && value !== null && 'payload' in value;
@@ -57,7 +57,7 @@ function normalizeResult(result: unknown): NormalizedCommandResult {
     return {
       payload: result.payload,
       human: typeof result.human === 'string' ? result.human : undefined,
-      lines: Array.isArray(result.lines) ? result.lines : undefined,
+      lines: commandLines(result.lines),
       exitCode: typeof result.exitCode === 'number' ? result.exitCode : EXIT_CODES.OK,
     };
   }
@@ -67,6 +67,23 @@ function normalizeResult(result: unknown): NormalizedCommandResult {
     lines: undefined,
     exitCode: EXIT_CODES.OK,
   };
+}
+
+function commandLines(
+  value: unknown,
+): readonly unknown[] | AsyncIterable<unknown> | undefined {
+  if (Array.isArray(value)) {
+    return value as readonly unknown[];
+  }
+  return isAsyncIterable(value) ? value : undefined;
+}
+
+function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const candidate = value as { readonly [Symbol.asyncIterator]?: unknown };
+  return typeof candidate[Symbol.asyncIterator] === 'function';
 }
 
 type ParsedInvocation = ReturnType<typeof parseArgs>;
@@ -132,15 +149,15 @@ async function finishCompletedCommand(
 }
 
 /** Writes canonical machine output or the shared human rendering. */
-function emitResult(
+async function emitResult(
   result: NormalizedCommandResult,
   options: ParsedInvocation['options'],
-): void {
+): Promise<void> {
   if (options.jsonl) {
     const lines = result.lines ?? (
       result.payload === undefined ? [] : [result.payload]
     );
-    for (const line of lines) {
+    for await (const line of lines) {
       process.stdout.write(`${compactStringify(line)}\n`);
     }
     return;
@@ -181,7 +198,7 @@ async function main(): Promise<void> {
 
   const result = await handler({ args: commandArgs, options });
   const normalized = normalizeResult(result);
-  emitResult(normalized, options);
+  await emitResult(normalized, options);
 
   // Long-running commands may return a `close` function.
   // Wait for normal completion or SIGINT/SIGTERM instead of exiting immediately.
