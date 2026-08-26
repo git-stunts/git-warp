@@ -3,10 +3,7 @@ import { Dot } from '../crdt/Dot.ts';
 import PatchError from '../errors/PatchError.ts';
 import Patch from '../types/Patch.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
-import EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
-import EntityAdmissionOrigin, {
-  type EntityAdmissionOriginKind,
-} from '../types/EntityAdmissionOrigin.ts';
+import type EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
 import type { OpLike } from './OpLike.ts'; // nosemgrep: ts-no-like-types -- 0025C
 import { hydrateKnownDecodedOp } from './OpNormalizer.ts';
 
@@ -31,10 +28,13 @@ function failPatch(message: string, context?: DecodedRecord): never {
 }
 
 function isRecord(value: unknown): value is DecodedRecord {
-  return value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value);
+  return (
+    value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value)
+  );
 }
 
-function isUnknownArray(value: unknown): value is readonly unknown[] { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function isUnknownArray(value: unknown): value is readonly unknown[] {
+  // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return Array.isArray(value);
 }
 
@@ -58,7 +58,8 @@ function isDecodedOpType(value: unknown): value is DecodedOpType {
   return isString(value) && Object.hasOwn(OP_NORMALIZERS, value);
 }
 
-function expectRecord(value: unknown, label: string): DecodedRecord { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function expectRecord(value: unknown, label: string): DecodedRecord {
+  // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!isRecord(value)) {
     failPatch(`Decoded patch ${label} must be an object`, {
       label,
@@ -68,7 +69,8 @@ function expectRecord(value: unknown, label: string): DecodedRecord { // nosemgr
   return value;
 }
 
-function expectArray(value: unknown, field: string): readonly unknown[] { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function expectArray(value: unknown, field: string): readonly unknown[] {
+  // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!isUnknownArray(value)) {
     failPatch(`Decoded patch field '${field}' must be an array`, {
       field,
@@ -83,7 +85,8 @@ function readOptionalString(record: DecodedRecord, field: string): string | unde
   return isString(value) ? value : undefined;
 }
 
-function readRequiredString(value: unknown, field: string): string { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function readRequiredString(value: unknown, field: string): string {
+  // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!isString(value)) {
     failPatch(`Decoded patch requires string '${field}'`, {
       field,
@@ -93,7 +96,8 @@ function readRequiredString(value: unknown, field: string): string { // nosemgre
   return value;
 }
 
-function readRequiredInteger(value: unknown, field: string): number { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function readRequiredInteger(value: unknown, field: string): number {
+  // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (!isInteger(value)) {
     failPatch(`Decoded patch requires integer '${field}'`, {
       field,
@@ -103,7 +107,8 @@ function readRequiredInteger(value: unknown, field: string): number { // nosemgr
   return value;
 }
 
-function readStringArray(value: unknown, field: string): string[] | undefined { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function readStringArray(value: unknown, field: string): string[] | undefined {
+  // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (value === null || value === undefined) {
     return undefined;
   }
@@ -116,7 +121,8 @@ function readStringArray(value: unknown, field: string): string[] | undefined { 
   return [...value];
 }
 
-function readContextFromMap(context: ReadonlyMap<unknown, unknown>): Record<string, number> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function readContextFromMap(context: ReadonlyMap<unknown, unknown>): Record<string, number> {
+  // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const normalized: Record<string, number> = {};
   for (const [key, value] of context) {
     if (!isString(key) || !isInteger(value)) {
@@ -144,7 +150,8 @@ function readContextFromRecord(context: DecodedRecord): Record<string, number> {
   return normalized;
 }
 
-function readContext(value: unknown): ContextValue { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function readContext(value: unknown): ContextValue {
+  // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (value === null || value === undefined) {
     return {};
   }
@@ -187,7 +194,8 @@ function readDotCounter(dot: DecodedRecord, opType: string): number {
   });
 }
 
-function readTupleDot(dot: readonly unknown[], opType: string): Dot { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function readTupleDot(dot: readonly unknown[], opType: string): Dot {
+  // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const [writerId, counter] = dot;
   if (dot.length !== 2 || !isString(writerId) || !isInteger(counter)) {
     failPatch(`${opType} dot tuple must be [writerId, counter]`, {
@@ -202,7 +210,8 @@ function readRecordDot(dot: DecodedRecord, opType: string): Dot {
   return new Dot(readDotWriterId(dot, opType), readDotCounter(dot, opType));
 }
 
-function normalizeDot(dot: unknown, opType: string): Dot { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function normalizeDot(dot: unknown, opType: string): Dot {
+  // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (isUnknownArray(dot)) {
     return readTupleDot(dot, opType);
   }
@@ -217,7 +226,8 @@ function readObservedDots(record: DecodedRecord): Iterable<string> | undefined {
   return undefined;
 }
 
-function normalizeDecodedNodeAdd(record: DecodedRecord): OpLike { // nosemgrep: ts-no-like-types -- 0025C
+function normalizeDecodedNodeAdd(record: DecodedRecord): OpLike {
+  // nosemgrep: ts-no-like-types -- 0025C
   const node = readOptionalString(record, 'node') ?? readOptionalString(record, 'id');
   return {
     type: 'NodeAdd',
@@ -226,7 +236,8 @@ function normalizeDecodedNodeAdd(record: DecodedRecord): OpLike { // nosemgrep: 
   };
 }
 
-function normalizeDecodedEdgeAdd(record: DecodedRecord): OpLike { // nosemgrep: ts-no-like-types -- 0025C
+function normalizeDecodedEdgeAdd(record: DecodedRecord): OpLike {
+  // nosemgrep: ts-no-like-types -- 0025C
   const from = readOptionalString(record, 'from');
   const to = readOptionalString(record, 'to');
   const label = readOptionalString(record, 'label');
@@ -239,7 +250,8 @@ function normalizeDecodedEdgeAdd(record: DecodedRecord): OpLike { // nosemgrep: 
   };
 }
 
-function normalizeDecodedNodeRemove(record: DecodedRecord): OpLike { // nosemgrep: ts-no-like-types -- 0025C
+function normalizeDecodedNodeRemove(record: DecodedRecord): OpLike {
+  // nosemgrep: ts-no-like-types -- 0025C
   const node = readOptionalString(record, 'node');
   const observedDots = readObservedDots(record);
   return {
@@ -249,7 +261,8 @@ function normalizeDecodedNodeRemove(record: DecodedRecord): OpLike { // nosemgre
   };
 }
 
-function normalizeDecodedEdgeRemove(record: DecodedRecord): OpLike { // nosemgrep: ts-no-like-types -- 0025C
+function normalizeDecodedEdgeRemove(record: DecodedRecord): OpLike {
+  // nosemgrep: ts-no-like-types -- 0025C
   const from = readOptionalString(record, 'from');
   const to = readOptionalString(record, 'to');
   const label = readOptionalString(record, 'label');
@@ -263,7 +276,8 @@ function normalizeDecodedEdgeRemove(record: DecodedRecord): OpLike { // nosemgre
   };
 }
 
-function normalizeDecodedPropSet(record: DecodedRecord): OpLike { // nosemgrep: ts-no-like-types -- 0025C
+function normalizeDecodedPropSet(record: DecodedRecord): OpLike {
+  // nosemgrep: ts-no-like-types -- 0025C
   const node = readOptionalString(record, 'node');
   const key = readOptionalString(record, 'key');
   return {
@@ -274,7 +288,8 @@ function normalizeDecodedPropSet(record: DecodedRecord): OpLike { // nosemgrep: 
   };
 }
 
-function normalizeDecodedNodePropSet(record: DecodedRecord): OpLike { // nosemgrep: ts-no-like-types -- 0025C
+function normalizeDecodedNodePropSet(record: DecodedRecord): OpLike {
+  // nosemgrep: ts-no-like-types -- 0025C
   const node = readOptionalString(record, 'node');
   const key = readOptionalString(record, 'key');
   return {
@@ -285,7 +300,8 @@ function normalizeDecodedNodePropSet(record: DecodedRecord): OpLike { // nosemgr
   };
 }
 
-function normalizeDecodedEdgePropSet(record: DecodedRecord): OpLike { // nosemgrep: ts-no-like-types -- 0025C
+function normalizeDecodedEdgePropSet(record: DecodedRecord): OpLike {
+  // nosemgrep: ts-no-like-types -- 0025C
   const from = readOptionalString(record, 'from');
   const to = readOptionalString(record, 'to');
   const label = readOptionalString(record, 'label');
@@ -300,7 +316,8 @@ function normalizeDecodedEdgePropSet(record: DecodedRecord): OpLike { // nosemgr
   };
 }
 
-function normalizeDecodedBlobValue(record: DecodedRecord): OpLike { // nosemgrep: ts-no-like-types -- 0025C
+function normalizeDecodedBlobValue(record: DecodedRecord): OpLike {
+  // nosemgrep: ts-no-like-types -- 0025C
   const node = readOptionalString(record, 'node');
   const oid = readOptionalString(record, 'oid');
   return {
@@ -321,12 +338,14 @@ function readDecodedOpType(record: DecodedRecord): DecodedOpType {
   return type;
 }
 
-function normalizeDecodedOp(rawOp: unknown): OpLike { // nosemgrep: ts-no-like-types -- 0025C; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function normalizeDecodedOp(rawOp: unknown): OpLike {
+  // nosemgrep: ts-no-like-types -- 0025C; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const record = expectRecord(rawOp, 'op');
   return OP_NORMALIZERS[readDecodedOpType(record)](record);
 }
 
-function readOps(value: unknown): PatchOp[] { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function readOps(value: unknown): PatchOp[] {
+  // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   const ops = expectArray(value, 'ops');
   const normalized: PatchOp[] = [];
   for (const rawOp of ops) {
@@ -335,80 +354,10 @@ function readOps(value: unknown): PatchOp[] { // nosemgrep: ts-no-unknown-outsid
   return normalized;
 }
 
-function readEntityAdmissions(
-  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-): readonly EntityAdmissionBoundary[] | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  return expectArray(value, 'entityAdmissions').map((entry, index) =>
-    readEntityAdmission(entry, index));
-}
-
-function readEntityAdmission(
-  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  index: number,
-): EntityAdmissionBoundary {
-  const label = `entityAdmissions[${String(index)}]`;
-  const record = expectRecord(value, label);
-  return new EntityAdmissionBoundary({
-    operationIndex: readRequiredInteger(record['operationIndex'], `${label}.operationIndex`),
-    operationCount: readRequiredInteger(record['operationCount'], `${label}.operationCount`),
-    origin: readEntityAdmissionOrigin(record['origin'], `${label}.origin`),
-  });
-}
-
-function readEntityAdmissionOrigin(
-  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  label: string,
-): EntityAdmissionOrigin {
-  const record = expectRecord(value, label);
-  const kind = readEntityAdmissionOriginKind(record['kind'], label);
-  if (kind === 'allocated') {
-    return EntityAdmissionOrigin.allocated(
-      readRequiredString(record['namespace'], `${label}.namespace`),
-      normalizeDot(record['allocationDot'], `${label}.allocationDot`),
-    );
-  }
-  requireAbsentOriginAllocation(record, label);
-  return kind === 'supplied-subject'
-    ? EntityAdmissionOrigin.suppliedSubject()
-    : EntityAdmissionOrigin.legacyUnrecorded();
-}
-
-function readEntityAdmissionOriginKind(
-  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  label: string,
-): EntityAdmissionOriginKind {
-  if (
-    value !== 'allocated'
-    && value !== 'supplied-subject'
-    && value !== 'legacy-unrecorded'
-  ) {
-    failPatch(`${label}.kind is unsupported`, { label, actual: typeof value });
-  }
-  return value;
-}
-
-function requireAbsentOriginAllocation(
-  record: DecodedRecord,
-  label: string,
-): void {
-  if (
-    record['namespace'] !== null
-    && record['namespace'] !== undefined
-  ) {
-    failPatch(`${label}.namespace belongs only to allocated admissions`, { label });
-  }
-  if (
-    record['allocationDot'] !== null
-    && record['allocationDot'] !== undefined
-  ) {
-    failPatch(`${label}.allocationDot belongs only to allocated admissions`, { label });
-  }
-}
-
-export function hydrateDecodedPatch(decoded: unknown): Patch { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+export function hydrateDecodedPatch(
+  decoded: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  entityAdmissions: readonly EntityAdmissionBoundary[] | undefined
+): Patch {
   const record = expectRecord(decoded, 'root');
   const { schema } = record;
   const { writer } = record;
@@ -422,6 +371,6 @@ export function hydrateDecodedPatch(decoded: unknown): Patch { // nosemgrep: ts-
     ops: readOps(record['ops']),
     reads: readStringArray(record['reads'], 'reads'),
     writes: readStringArray(record['writes'], 'writes'),
-    entityAdmissions: readEntityAdmissions(record['entityAdmissions']),
+    entityAdmissions,
   });
 }

@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';
-import { hydrateDecodedPatch } from '../../../../src/domain/services/PatchHydrator.ts';
+import { hydrateDecodedPatch as hydrateDomainPatch } from '../../../../src/domain/services/PatchHydrator.ts';
 import Patch from '../../../../src/domain/types/Patch.ts';
+import EntityAdmissionBoundary from '../../../../src/domain/types/EntityAdmissionBoundary.ts';
+import EntityAdmissionOrigin from '../../../../src/domain/types/EntityAdmissionOrigin.ts';
 import BlobValue from '../../../../src/domain/types/ops/BlobValue.ts';
 import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import EdgePropSet from '../../../../src/domain/types/ops/EdgePropSet.ts';
@@ -25,7 +27,13 @@ describe('PatchHydrator', () => {
       writes: ['user:alice', 'edge:friend'],
       ops: [
         { type: 'NodeAdd', id: 'user:alice', dot: ['alice', 1] },
-        { type: 'EdgeAdd', from: 'user:alice', to: 'user:bob', label: 'friend', dot: { writer: 'alice', seq: 2 } },
+        {
+          type: 'EdgeAdd',
+          from: 'user:alice',
+          to: 'user:bob',
+          label: 'friend',
+          dot: { writer: 'alice', seq: 2 },
+        },
         { type: 'NodeRemove', node: 'user:charlie', observedDots: ['alice:1'] },
         {
           type: 'EdgeRemove',
@@ -54,16 +62,8 @@ describe('PatchHydrator', () => {
     expect(patch.reads).toEqual(['user:alice']);
     expect(patch.writes).toEqual(['user:alice', 'edge:friend']);
 
-    const [
-      nodeAdd,
-      edgeAdd,
-      nodeRemove,
-      edgeRemove,
-      propSet,
-      nodePropSet,
-      edgePropSet,
-      blobValue,
-    ] = patch.ops;
+    const [nodeAdd, edgeAdd, nodeRemove, edgeRemove, propSet, nodePropSet, edgePropSet, blobValue] =
+      patch.ops;
 
     expect(nodeAdd).toBeInstanceOf(NodeAdd);
     expect(edgeAdd).toBeInstanceOf(EdgeAdd);
@@ -123,118 +123,157 @@ describe('PatchHydrator', () => {
     expect(patch.context).toEqual({});
   });
 
+  it('accepts typed entity admission boundaries from its decode adapter', () => {
+    const boundary = new EntityAdmissionBoundary({
+      operationIndex: 0,
+      operationCount: 2,
+      origin: EntityAdmissionOrigin.suppliedSubject(),
+    });
+    const patch = hydrateDomainPatch(
+      {
+        writer: 'alice',
+        lamport: 1,
+        ops: [
+          { type: 'NodeAdd', node: 'capture:1', dot: ['alice', 1] },
+          { type: 'NodePropSet', node: 'capture:1', key: 'body', value: 'retained' },
+        ],
+      },
+      [boundary]
+    );
+
+    expect(patch.entityAdmissions).toEqual([boundary]);
+  });
+
   it('rejects unknown op types', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 'alice',
-      lamport: 1,
-      ops: [{ type: 'BogusOp' }],
-    })).toThrow(PatchError);
+    expect(() =>
+      hydrateDecodedPatch({
+        writer: 'alice',
+        lamport: 1,
+        ops: [{ type: 'BogusOp' }],
+      })
+    ).toThrow(PatchError);
   });
 
   it('rejects non-string writers', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 7,
-      lamport: 1,
-      ops: [],
-    })).toThrow("Decoded patch requires string 'writer'");
+    expect(() =>
+      hydrateDecodedPatch({
+        writer: 7,
+        lamport: 1,
+        ops: [],
+      })
+    ).toThrow("Decoded patch requires string 'writer'");
   });
 
   it('rejects non-object patch roots', () => {
-    expect(() => hydrateDecodedPatch('not-a-patch')).toThrow('Decoded patch root must be an object');
+    expect(() => hydrateDecodedPatch('not-a-patch')).toThrow(
+      'Decoded patch root must be an object'
+    );
   });
 
   it('rejects non-integer lamports', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 'alice',
-      lamport: 1.5,
-      ops: [],
-    })).toThrow("Decoded patch requires integer 'lamport'");
+    expect(() =>
+      hydrateDecodedPatch({
+        writer: 'alice',
+        lamport: 1.5,
+        ops: [],
+      })
+    ).toThrow("Decoded patch requires integer 'lamport'");
   });
 
   it('rejects non-array ops fields', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 'alice',
-      lamport: 1,
-      ops: 'nope',
-    })).toThrow("Decoded patch field 'ops' must be an array");
+    expect(() =>
+      hydrateDecodedPatch({
+        writer: 'alice',
+        lamport: 1,
+        ops: 'nope',
+      })
+    ).toThrow("Decoded patch field 'ops' must be an array");
   });
 
   it('rejects invalid string array fields', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 'alice',
-      lamport: 1,
-      reads: ['ok', 7],
-      ops: [],
-    })).toThrow("Decoded patch field 'reads' must be an array of strings");
+    expect(() =>
+      hydrateDecodedPatch({
+        writer: 'alice',
+        lamport: 1,
+        reads: ['ok', 7],
+        ops: [],
+      })
+    ).toThrow("Decoded patch field 'reads' must be an array of strings");
   });
 
   it('rejects malformed context entries', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 'alice',
-      lamport: 1,
-      context: { alice: 'nope' },
-      ops: [],
-    })).toThrow("Decoded patch context 'alice' must be a number");
+    expect(() =>
+      hydrateDecodedPatch({
+        writer: 'alice',
+        lamport: 1,
+        context: { alice: 'nope' },
+        ops: [],
+      })
+    ).toThrow("Decoded patch context 'alice' must be a number");
   });
 
   it('rejects malformed context maps', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 'alice',
-      lamport: 1,
-      context: new Map([[7, 'nope']]),
-      ops: [],
-    })).toThrow('Decoded patch context Map must contain string -> number entries');
+    expect(() =>
+      hydrateDecodedPatch({
+        writer: 'alice',
+        lamport: 1,
+        context: new Map([[7, 'nope']]),
+        ops: [],
+      })
+    ).toThrow('Decoded patch context Map must contain string -> number entries');
   });
 
   it('rejects malformed dot tuples', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 'alice',
-      lamport: 1,
-      ops: [{ type: 'NodeAdd', node: 'user:alice', dot: ['alice'] }],
-    })).toThrow('NodeAdd dot tuple must be [writerId, counter]');
+    expect(() =>
+      hydrateDecodedPatch({
+        writer: 'alice',
+        lamport: 1,
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: ['alice'] }],
+      })
+    ).toThrow('NodeAdd dot tuple must be [writerId, counter]');
   });
 
   it('rejects malformed dot objects', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 'alice',
-      lamport: 1,
-      ops: [{ type: 'EdgeAdd', from: 'a', to: 'b', label: 'x', dot: { writerId: 'alice' } }],
-    })).toThrow('EdgeAdd dot requires integer counter/seq');
+    expect(() =>
+      hydrateDecodedPatch({
+        writer: 'alice',
+        lamport: 1,
+        ops: [{ type: 'EdgeAdd', from: 'a', to: 'b', label: 'x', dot: { writerId: 'alice' } }],
+      })
+    ).toThrow('EdgeAdd dot requires integer counter/seq');
   });
 
   it('rejects missing dot writer aliases', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 'alice',
-      lamport: 1,
-      ops: [{ type: 'NodeAdd', node: 'user:alice', dot: { counter: 1 } }],
-    })).toThrow('NodeAdd dot requires writerId/writer');
+    expect(() =>
+      hydrateDecodedPatch({
+        writer: 'alice',
+        lamport: 1,
+        ops: [{ type: 'NodeAdd', node: 'user:alice', dot: { counter: 1 } }],
+      })
+    ).toThrow('NodeAdd dot requires writerId/writer');
   });
 
   it('rejects ops without a string type discriminator', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 'alice',
-      lamport: 1,
-      ops: [{ node: 'user:alice' }],
-    })).toThrow("Decoded op requires string 'type'");
-  });
-
-  it('rejects explicit null entity admission metadata', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 'alice',
-      lamport: 1,
-      ops: [
-        { type: 'NodeAdd', node: 'capture:1', dot: ['alice', 1] },
-        { type: 'NodePropSet', node: 'capture:1', key: 'body', value: 'retained' },
-      ],
-      entityAdmissions: null,
-    })).toThrow("Decoded patch field 'entityAdmissions' must be an array");
+    expect(() =>
+      hydrateDecodedPatch({
+        writer: 'alice',
+        lamport: 1,
+        ops: [{ node: 'user:alice' }],
+      })
+    ).toThrow("Decoded op requires string 'type'");
   });
 
   it('rejects malformed observedDots after decode normalization', () => {
-    expect(() => hydrateDecodedPatch({
-      writer: 'alice',
-      lamport: 1,
-      ops: [{ type: 'NodeRemove', node: 'user:alice', observedDots: [7] }],
-    })).toThrow("NodeRemove op requires 'observedDots' to be iterable");
+    expect(() =>
+      hydrateDecodedPatch({
+        writer: 'alice',
+        lamport: 1,
+        ops: [{ type: 'NodeRemove', node: 'user:alice', observedDots: [7] }],
+      })
+    ).toThrow("NodeRemove op requires 'observedDots' to be iterable");
   });
 });
+
+function hydrateDecodedPatch(decoded: unknown): Patch {
+  return hydrateDomainPatch(decoded, undefined);
+}
