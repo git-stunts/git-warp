@@ -5,6 +5,7 @@ import type EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
 import type Patch from '../types/Patch.ts';
 import { isPropValue, type PropValue } from '../types/PropValue.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
+import { allocateEntitySubject } from '../services/PatchBuilderEntity.ts';
 
 export type RetainedEntityBoundaryIntent = Readonly<{
   dot: Extract<PatchOp, { readonly type: 'NodeAdd' }>['dot'];
@@ -18,6 +19,7 @@ export function intentFromEntityAdmissionBoundary(
   boundary: EntityAdmissionBoundary,
 ): RetainedEntityBoundaryIntent {
   const leading = requireLeadingNode(patch.ops[boundary.operationIndex]);
+  requireAllocationOrigin(boundary, leading);
   const end = boundary.operationIndex + boundary.operationCount;
   const properties = propertiesFrom(
     leading.node,
@@ -28,6 +30,24 @@ export function intentFromEntityAdmissionBoundary(
     properties,
   }), boundary.origin);
   return Object.freeze({ dot: leading.dot, intent, subject: leading.node });
+}
+
+function requireAllocationOrigin(
+  boundary: EntityAdmissionBoundary,
+  leading: Extract<PatchOp, { readonly type: 'NodeAdd' }>,
+): void {
+  if (boundary.origin.kind !== 'allocated') {
+    return;
+  }
+  const { namespace } = boundary.origin;
+  if (
+    namespace === null
+    || allocateEntitySubject(namespace, leading.dot) !== leading.node
+  ) {
+    throw retainedBoundaryError(
+      'Allocated entity admission subject does not match its namespace and dot',
+    );
+  }
 }
 
 function propertiesFrom(
