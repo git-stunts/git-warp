@@ -61,6 +61,7 @@ export default class FixturePatchJournal extends PatchJournalPort {
         if (commit === undefined) {
           throw new Error(`Fixture commit not found: ${current}`);
         }
+        requireLinearHistory(commit, current);
         if (journal.#messageCodec.detectKind(commit.message) !== 'patch') {
           break;
         }
@@ -94,6 +95,7 @@ export default class FixturePatchJournal extends PatchJournalPort {
         if (commit === undefined) {
           throw new Error(`Fixture commit not found: ${current}`);
         }
+        requireLinearHistory(commit, current);
         if (journal.#messageCodec.detectKind(commit.message) !== 'patch') {
           throw new Error(`Fixture history reached non-patch commit: ${current}`);
         }
@@ -108,5 +110,14 @@ export default class FixturePatchJournal extends PatchJournalPort {
         current = commit.parents[0] ?? null;
       }
     })());
+  }
+}
+
+function requireLinearHistory(
+  commit: FixturePatchCommit,
+  sha: string,
+): void {
+  if (commit.parents.length > 1) {
+    throw new Error(`Fixture history is non-linear: ${sha}`);
   }
 }
