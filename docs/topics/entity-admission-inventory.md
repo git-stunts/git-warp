@@ -65,6 +65,10 @@ available only from a completed inventory receipt. Early cancellation,
 missing retained support, corrupt patches, or an unavailable basis cannot
 produce one.
 
+Its public schema is `warp/entity-admission-inventory@1`. The storage-neutral
+token deliberately omits Git, ref, patch, and CAS vocabulary even though the
+current runtime implementation reads retained Git WARP patch history.
+
 The CLI uses the same Observer rather than introducing an unrelated scan
 command:
 

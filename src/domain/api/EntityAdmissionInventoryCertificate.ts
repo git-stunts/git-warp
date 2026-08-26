@@ -15,7 +15,7 @@ type EntityAdmissionInventoryCertificateOptions = Readonly<{
 }>;
 
 export const ENTITY_ADMISSION_INVENTORY_SCHEMA =
-  'git-warp/entity-admission-inventory@1' as const;
+  'warp/entity-admission-inventory@1' as const;
 
 /** Terminal proof that one exact-basis admission inventory was fully consumed. */
 export default class EntityAdmissionInventoryCertificate {
