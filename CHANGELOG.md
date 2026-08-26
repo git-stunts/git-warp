@@ -48,8 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   snapshot the runtime actually retains, even when the caller supplied a
   mutable array.
 - Retained atomic sequence replay now preserves entity-admission boundaries
-  and allocation origins instead of degrading each entity into primitive node
-  and property edits. A classified empty boundary list likewise keeps a manual
+  and original allocation witnesses instead of degrading each entity into
+  primitive node and property edits. Auto-allocated subjects therefore remain
+  verifiable after Strand settlement gives the target admission a new causal
+  dot. A classified empty boundary list likewise keeps a manual
   node-plus-property array from being reinterpreted as an entity birth after
   reopen or Strand settlement.
 

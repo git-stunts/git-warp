@@ -203,7 +203,7 @@ export class PatchBuilder {
     this._entityAdmissions.push(new EntityAdmissionBoundary({
       operationCount: 1 + capture.payload.length,
       operationIndex,
-      origin: EntityAdmissionOrigin.allocated(namespace),
+      origin: EntityAdmissionOrigin.allocated(namespace, capture.dot),
     }));
     return this;
   }

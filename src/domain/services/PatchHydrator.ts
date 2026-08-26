@@ -367,9 +367,10 @@ function readEntityAdmissionOrigin(
   if (kind === 'allocated') {
     return EntityAdmissionOrigin.allocated(
       readRequiredString(record['namespace'], `${label}.namespace`),
+      normalizeDot(record['allocationDot'], `${label}.allocationDot`),
     );
   }
-  requireAbsentOriginNamespace(record['namespace'], label);
+  requireAbsentOriginAllocation(record, label);
   return kind === 'supplied-subject'
     ? EntityAdmissionOrigin.suppliedSubject()
     : EntityAdmissionOrigin.legacyUnrecorded();
@@ -389,12 +390,21 @@ function readEntityAdmissionOriginKind(
   return value;
 }
 
-function requireAbsentOriginNamespace(
-  value: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function requireAbsentOriginAllocation(
+  record: DecodedRecord,
   label: string,
 ): void {
-  if (value !== null && value !== undefined) {
+  if (
+    record['namespace'] !== null
+    && record['namespace'] !== undefined
+  ) {
     failPatch(`${label}.namespace belongs only to allocated admissions`, { label });
+  }
+  if (
+    record['allocationDot'] !== null
+    && record['allocationDot'] !== undefined
+  ) {
+    failPatch(`${label}.allocationDot belongs only to allocated admissions`, { label });
   }
 }
 

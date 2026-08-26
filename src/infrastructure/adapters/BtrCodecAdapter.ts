@@ -213,14 +213,18 @@ function toBtrEntityAdmissionOrigin(
   origin: NonNullable<Patch['entityAdmissions']>[number]['origin'],
 ): BtrWireEntityAdmissionOrigin {
   if (origin.kind === 'allocated') {
-    if (origin.namespace === null) {
+    if (origin.namespace === null || origin.allocationDot === null) {
       throw new MessageCodecError('Allocated entity admission omitted its namespace', {
         code: 'E_BTR_WIRE_ENTITY_ADMISSION',
       });
     }
-    return { kind: origin.kind, namespace: origin.namespace };
+    return {
+      kind: origin.kind,
+      namespace: origin.namespace,
+      allocationDot: toBtrCanonicalDot(origin.allocationDot),
+    };
   }
-  return { kind: origin.kind, namespace: null };
+  return { kind: origin.kind, namespace: null, allocationDot: null };
 }
 
 function toBtrEntityAdmissionBoundary(

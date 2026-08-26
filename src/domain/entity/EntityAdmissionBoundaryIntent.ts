@@ -40,9 +40,11 @@ function requireAllocationOrigin(
     return;
   }
   const { namespace } = boundary.origin;
+  const { allocationDot } = boundary.origin;
   if (
     namespace === null
-    || allocateEntitySubject(namespace, leading.dot) !== leading.node
+    || allocationDot === null
+    || allocateEntitySubject(namespace, allocationDot) !== leading.node
   ) {
     throw retainedBoundaryError(
       'Allocated entity admission subject does not match its namespace and dot',

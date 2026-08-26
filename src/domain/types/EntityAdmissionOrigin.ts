@@ -1,4 +1,5 @@
 import PatchError from '../errors/PatchError.ts';
+import { Dot } from '../crdt/Dot.ts';
 
 export type EntityAdmissionOriginKind =
   | 'allocated'
@@ -6,12 +7,13 @@ export type EntityAdmissionOriginKind =
   | 'legacy-unrecorded';
 
 export type EntityAdmissionOriginOptions =
-  | Readonly<{ kind: 'allocated'; namespace: string }>
+  | Readonly<{ kind: 'allocated'; namespace: string; allocationDot: Dot }>
   | Readonly<{ kind: 'supplied-subject' }>
   | Readonly<{ kind: 'legacy-unrecorded' }>;
 
 /** Immutable disclosure of how one entity representation subject was chosen. */
 export default class EntityAdmissionOrigin {
+  readonly allocationDot: Dot | null;
   readonly kind: EntityAdmissionOriginKind;
   readonly namespace: string | null;
 
@@ -21,11 +23,12 @@ export default class EntityAdmissionOrigin {
     }
     this.kind = requireOriginKind(options.kind);
     this.namespace = requireOriginNamespace(options);
+    this.allocationDot = requireOriginAllocationDot(options);
     Object.freeze(this);
   }
 
-  static allocated(namespace: string): EntityAdmissionOrigin {
-    return new EntityAdmissionOrigin({ kind: 'allocated', namespace });
+  static allocated(namespace: string, allocationDot: Dot): EntityAdmissionOrigin {
+    return new EntityAdmissionOrigin({ kind: 'allocated', namespace, allocationDot });
   }
 
   static suppliedSubject(): EntityAdmissionOrigin {
@@ -49,16 +52,36 @@ function requireOriginKind(kind: EntityAdmissionOriginKind): EntityAdmissionOrig
 }
 
 function requireOriginNamespace(options: EntityAdmissionOriginOptions): string | null {
-  if (options.kind !== 'allocated') {
-    if ('namespace' in options) {
-      throw originError('Only allocated entity admissions carry a namespace');
-    }
-    return null;
+  if (options.kind === 'allocated') {
+    return requireAllocatedNamespace(options.namespace);
   }
-  if (typeof options.namespace !== 'string' || options.namespace.trim().length === 0) {
+  requireNoAllocationFields(options);
+  return null;
+}
+
+function requireAllocatedNamespace(namespace: string): string {
+  if (typeof namespace !== 'string' || namespace.trim().length === 0) {
     throw originError('Allocated entity admission origin requires a namespace');
   }
-  return options.namespace;
+  return namespace;
+}
+
+function requireNoAllocationFields(
+  options: Exclude<EntityAdmissionOriginOptions, { readonly kind: 'allocated' }>,
+): void {
+  if ('namespace' in options || 'allocationDot' in options) {
+    throw originError('Only allocated entity admissions carry allocation metadata');
+  }
+}
+
+function requireOriginAllocationDot(options: EntityAdmissionOriginOptions): Dot | null {
+  if (options.kind !== 'allocated') {
+    return null;
+  }
+  if (!(options.allocationDot instanceof Dot)) {
+    throw originError('Allocated entity admission origin requires its allocation Dot');
+  }
+  return options.allocationDot;
 }
 
 function originError(message: string): PatchError {

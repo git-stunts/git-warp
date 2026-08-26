@@ -143,6 +143,7 @@ v19.2 therefore persists a bounded entity-admission boundary for each
 operation index
 operation count
 allocation origin
+original allocation dot, for allocated subjects only
 ```
 
 The boundary does not duplicate property values or application descriptors.
@@ -150,6 +151,14 @@ The referenced operations remain the canonical initial envelope. Patch
 construction and hydration validate that every boundary starts at one
 `NodeAdd`, covers one or more unique property writes to that subject, stays
 inside the patch, and does not overlap another boundary.
+
+The allocation dot witnesses how the representation subject was originally
+minted. It is not required to equal the causal dot of every later admission:
+Strand settlement lawfully re-admits the retained subject under a new target
+dot. Replay preserves the original allocation witness so restart validation
+can still prove the subject/namespace relationship. This witness remains
+inside retained patch metadata; public inventory Readings expose the namespace
+but do not expose dots.
 
 Patches without this metadata are handled conservatively:
 

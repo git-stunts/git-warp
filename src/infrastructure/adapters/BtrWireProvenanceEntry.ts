@@ -62,10 +62,12 @@ type BtrWireEntityAdmissionOrigin =
   | {
       readonly kind: 'allocated';
       readonly namespace: string;
+      readonly allocationDot: BtrWireDot;
     }
   | {
       readonly kind: 'supplied-subject' | 'legacy-unrecorded';
       readonly namespace: null;
+      readonly allocationDot: null;
     };
 
 type BtrWireEntityAdmissionBoundary = {

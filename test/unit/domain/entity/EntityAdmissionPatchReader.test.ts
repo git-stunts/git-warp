@@ -67,7 +67,10 @@ describe('EntityAdmissionPatchReader', () => {
       entityAdmissions: [new EntityAdmissionBoundary({
         operationIndex: 0,
         operationCount: 2,
-        origin: EntityAdmissionOrigin.allocated('capture'),
+        origin: EntityAdmissionOrigin.allocated(
+          'capture',
+          Dot.create('writer-a', 1),
+        ),
       })],
     });
 

@@ -224,6 +224,30 @@ describe('Runtime entity admission inventory', () => {
     }
   });
 
+  it('recovers an auto-allocated admission after Strand settlement', async () => {
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
+    try {
+      const parent = await runtime.lane(LANE);
+      const strand = await runtime.fork(parent, { name: 'candidate' });
+      await strand.write(intent.entity.addAuto({
+        namespace: 'capture',
+        properties: { body: 'settled' },
+      }));
+
+      const preview = await runtime.previewSettlement({ source: strand, target: parent });
+      await runtime.settle(preview.plan);
+      const inventory = await consumeInventory(parent);
+
+      expect(inventory.admissions).toHaveLength(1);
+      expect(inventory.admissions[0]?.origin).toEqual({
+        kind: 'allocated',
+        namespace: 'capture',
+      });
+    } finally {
+      await runtime.close();
+    }
+  });
+
   it('exposes the same streamed records and certificate through the CLI', async () => {
     const writer = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
     try {
