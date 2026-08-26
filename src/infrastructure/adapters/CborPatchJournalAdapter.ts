@@ -148,6 +148,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
       let current: string | null = toSha;
       while (current !== null && current !== fromSha) {
         const node = await adapter.#commitReader.getNodeInfo(current);
+        requireLinearPatchNode(node, adapter.#graph, writerId);
         if (adapter.#commitMessageCodec.detectKind(node.message) !== 'patch') {
           break;
         }
@@ -180,6 +181,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
       let current: string | null = fromSha;
       while (current !== null) {
         const node = await adapter.#commitReader.getNodeInfo(current);
+        requireLinearPatchNode(node, adapter.#graph, writerId);
         if (adapter.#commitMessageCodec.detectKind(node.message) !== 'patch') {
           throw new SyncError(
             `Entity admission history reached a non-patch commit for writer ${writerId}`,
@@ -192,6 +194,22 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
         current = node.parents[0] ?? null;
       }
     })());
+  }
+}
+
+function requireLinearPatchNode(
+  node: CommitInfo,
+  graph: string,
+  writerId: string,
+): void {
+  if (node.parents.length > 1) {
+    throw new SyncError(
+      `Patch history is non-linear for ${graph}/${writerId}`,
+      {
+        code: 'E_SYNC_PATCH_HISTORY',
+        context: { graph, parentCount: node.parents.length, writerId },
+      },
+    );
   }
 }
 

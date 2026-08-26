@@ -236,4 +236,34 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     await expect(journal.scanPatchHistory('alice', foreign.sha).collect())
       .rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
   });
+
+  it('refuses retained patch history with more than one parent', async () => {
+    const { history, journal } = createFixture();
+    const left = await journal.appendPatch({
+      patch: createPatch(1, 'node:left'),
+      graph: 'test',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+    });
+    const right = await journal.appendPatch({
+      patch: createPatch(2, 'node:right'),
+      graph: 'test',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: left.sha,
+      parent: left.sha,
+      attachments: [],
+    });
+    const rightCommit = await history.getNodeInfo(right.sha);
+    const nonLinear = await history.commitNode({
+      message: rightCommit.message,
+      parents: [right.sha, left.sha],
+    });
+
+    await expect(journal.scanPatchHistory('alice', nonLinear).collect())
+      .rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
+  });
 });
