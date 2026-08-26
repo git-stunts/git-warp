@@ -186,9 +186,10 @@ describe('v19 performance workflow', () => {
   });
 
   it('builds maintainer performance programs without broadening the package build', () => {
-    expect(workflow).toContain('npm --prefix base run build --silent');
+    expect(workflow).toContain('npm --prefix base run build:maintainer --silent');
     expect(workflow).toContain('npm --prefix head run build:maintainer --silent');
-    expect(workflow).toContain('npm --prefix head run build --silent');
+    expect(workflow).not.toContain('npm --prefix base run build --silent');
+    expect(workflow).not.toContain('npm --prefix head run build --silent');
     expect(packageJson.scripts['build:maintainer']).toContain('tsconfig.maintainer.json');
     for (const scriptName of MAINTAINER_PERFORMANCE_SCRIPT_NAMES) {
       expect(packageJson.scripts[scriptName]).toContain('npm run build:maintainer --silent');
