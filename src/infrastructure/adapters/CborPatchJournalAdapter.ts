@@ -3,6 +3,7 @@ import type {
   PublicationCapability,
 } from '@git-stunts/git-cas';
 import PatchEntry from '../../domain/artifacts/PatchEntry.ts';
+import PatchError from '../../domain/errors/PatchError.ts';
 import PatchPublicationConflictError from '../../domain/errors/PatchPublicationConflictError.ts';
 import SyncError from '../../domain/errors/SyncError.ts';
 import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
@@ -80,6 +81,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   }
 
   override async appendPatch(request: AppendPatchRequest): Promise<PublishedPatch> {
+    requireBoundGraph(request.graph, this.#graph);
     const stagedPatch = await this.#assetStorage.stage(WarpStream.from([
       this.#codec.encode(request.patch),
     ]), {
@@ -204,6 +206,18 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
     const patch = await this.readPatch(message);
     requirePatchPayloadIdentity(patch, message, this.#graph, writerId);
     return new PatchEntry({ patch, sha });
+  }
+}
+
+function requireBoundGraph(graph: string, boundGraph: string): void {
+  if (graph !== boundGraph) {
+    throw new PatchError(
+      `Patch journal for ${boundGraph} cannot publish graph ${graph}`,
+      {
+        code: 'E_PATCH_GRAPH_MISMATCH',
+        context: { boundGraph, graph },
+      },
+    );
   }
 }
 

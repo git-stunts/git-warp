@@ -155,6 +155,20 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     expect(loaded.entityAdmissions?.[0]?.origin).toBeInstanceOf(EntityAdmissionOrigin);
   });
 
+  it('refuses publication through a journal bound to another graph', async () => {
+    const { journal } = createFixture();
+
+    await expect(journal.appendPatch({
+      patch: createPatch(1, 'node:foreign'),
+      graph: 'other-graph',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+    })).rejects.toMatchObject({ code: 'E_PATCH_GRAPH_MISMATCH' });
+  });
+
   it('maps provider publication conflicts to a typed domain error', async () => {
     const { history, assets, cas } = createFixture();
     const providerFailure = Object.assign(new Error('conflict'), {
@@ -222,8 +236,16 @@ describe('CborPatchJournalAdapter semantic publication', () => {
   });
 
   it('refuses retained history that crosses into another graph', async () => {
-    const { journal } = createFixture();
-    const foreign = await journal.appendPatch({
+    const { history, assets, cas, journal } = createFixture();
+    const foreignJournal = new CborPatchJournalAdapter({
+      assetStorage: assets,
+      cas,
+      codec: new CborCodec(),
+      commitReader: history,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+      graph: 'other-graph',
+    });
+    const foreign = await foreignJournal.appendPatch({
       patch: createPatch(1, 'node:foreign'),
       graph: 'other-graph',
       writer: 'alice',
