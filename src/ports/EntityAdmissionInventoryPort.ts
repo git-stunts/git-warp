@@ -4,6 +4,9 @@ import type WarpStream from '../domain/stream/WarpStream.ts';
 
 /** Storage-neutral source of retained entity births at one exact coordinate. */
 export default abstract class EntityAdmissionInventoryPort {
+  /**
+   * Streams births in descending `RetainedEntityAdmission.compare()` order.
+   */
   abstract scan(
     _basis: EntityAdmissionInventoryBasis,
   ): WarpStream<RetainedEntityAdmission>;

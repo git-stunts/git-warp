@@ -164,6 +164,11 @@ describe('Runtime entity admission inventory', () => {
       expect(atF2.admissions.map(({ representation }) => representation.subject))
         .toContain('capture:after-f');
 
+      const repeatedAtF2 = await consumeInventory(laneA);
+      expect(repeatedAtF2.admissions).toEqual(atF2.admissions);
+      expect(repeatedAtF2.certificate.streamDigest)
+        .toBe(atF2.certificate.streamDigest);
+
       await writerB.close();
       await writerA.close();
       const reopened = await Runtime.open({ at: repository.tempDir, writer: 'reader' });
