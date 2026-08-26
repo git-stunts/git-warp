@@ -14,18 +14,19 @@ import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
 import { canonicalStringify } from '../utils/canonicalStringify.ts';
 import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
 import type Evidence from './Evidence.ts';
-import type Intent from './Intent.ts';
 import type { IntentKind } from './Intent.ts';
+import type IntentSequence from './IntentSequence.ts';
 
 const classifier = new AdmissionClassifier();
 const GRAPH_INTENT_ADMISSION_LAW = 'git-warp:admission-law/graph-intent/v1';
+const ATOMIC_INTENT_ADMISSION_LAW = 'git-warp:admission-law/atomic-intent-sequence/v1';
 const TIMELINE_WRITE_ADMISSION_PROFILE = 'git-warp:admission-profile/timeline-write/v1';
 const BASIS_INDEPENDENT_INTENT_KINDS: ReadonlySet<IntentKind> = new Set(['node.add', 'edge.add']);
 
 type WriteAdmissionFields = {
   readonly runtime: WarpWorldline;
   readonly context: ApiRuntimeContext;
-  readonly intent: Intent;
+  readonly sequence: IntentSequence;
   readonly basis: PatchBuilderCausalBasis;
 };
 
@@ -68,9 +69,9 @@ export async function createObstructedWriteAdmission(
 ): Promise<ObstructedAdmission> {
   const evaluation = evaluationAtDestination(fields);
   const failedConditionRef = await fields.context.createOpaqueId('admission', [
-    'failed-condition',
-    fields.obstruction.condition,
-    canonicalStringify(fields.intent.descriptor),
+      'failed-condition',
+      fields.obstruction.condition,
+      canonicalStringify(fields.sequence.descriptor),
   ]);
   const requiredEvidenceRef = await fields.context.createOpaqueId('admission', [
     'required-evidence',
@@ -102,13 +103,9 @@ export async function prepareWriteAdmission(
   const [proposalDigest, lawDigest, profileDigest] = await Promise.all([
     fields.context.createOpaqueId('admission', [
       'proposal',
-      canonicalStringify(fields.intent.descriptor),
+      canonicalStringify(fields.sequence.descriptor),
     ]),
-    fields.context.createOpaqueId('admission', [
-      'law',
-      GRAPH_INTENT_ADMISSION_LAW,
-      fields.intent.kind,
-    ]),
+    fields.context.createOpaqueId('admission', writeLawParts(fields.sequence)),
     fields.context.createOpaqueId('admission', ['profile', TIMELINE_WRITE_ADMISSION_PROFILE]),
   ]);
   return new AdmissionEvaluation({
@@ -130,10 +127,21 @@ function resolveEvaluationCoordinateRef(
   if (fields.basis.evaluationCoordinateRef !== null) {
     return fields.basis.evaluationCoordinateRef;
   }
-  if (BASIS_INDEPENDENT_INTENT_KINDS.has(fields.intent.kind)) {
+  if (fields.sequence.intents.every(isBasisIndependentIntent)) {
     return sourceBasisRef;
   }
   return missingBoundedBasisCoordinateRef(fields.runtime.worldlineName);
+}
+
+function writeLawParts(sequence: IntentSequence): readonly string[] {
+  if (!sequence.atomic) {
+    return ['law', GRAPH_INTENT_ADMISSION_LAW, sequence.intents[0].kind];
+  }
+  return ['law', ATOMIC_INTENT_ADMISSION_LAW, ...sequence.kinds];
+}
+
+function isBasisIndependentIntent(intent: { readonly kind: IntentKind }): boolean {
+  return BASIS_INDEPENDENT_INTENT_KINDS.has(intent.kind);
 }
 
 function evaluationAtDestination(fields: ObstructedWriteAdmissionFields): AdmissionEvaluation {

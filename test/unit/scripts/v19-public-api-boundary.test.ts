@@ -38,6 +38,7 @@ const ROOT_TYPE_EXPORTS = [
   'SupportReport',
   'Tick',
   'WitnessReference',
+  'WriteIntentInput',
   'WriteReceipt',
 ] as const;
 

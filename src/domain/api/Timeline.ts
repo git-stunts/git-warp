@@ -2,6 +2,7 @@ import WarpError from '../errors/WarpError.ts';
 import { assertTimelineNameIdentity, assertWriterIdentity } from './assertIdentity.ts';
 import DraftTimeline from './DraftTimeline.ts';
 import Intent from './Intent.ts';
+import IntentSequence, { type WriteIntentInput } from './IntentSequence.ts';
 import type JoinResult from './JoinResult.ts';
 import Reading from './Reading.ts';
 import type { default as ReadingResult, ReadingValue } from './ReadingResult.ts';
@@ -35,7 +36,7 @@ type CaptureTick = () => Promise<Tick>;
 type OpenDraft = (name: string) => Promise<DraftTimeline>;
 type OpenView = (tick: Tick) => TimelineView;
 type ReadReading = (reading: Reading) => Promise<ReadingResult>;
-type WriteIntent = (intent: Intent) => Promise<WriteReceipt>;
+type WriteIntent = (intent: WriteIntentInput) => Promise<WriteReceipt<WriteIntentInput>>;
 type TimelinePortErrorCode =
   | 'E_TIMELINE_JOINER'
   | 'E_TIMELINE_TICK_READER'
@@ -161,12 +162,15 @@ export default class Timeline {
     return result.value;
   }
 
-  async write(intent: Intent): Promise<WriteReceipt> {
-    assertIntentInstance(intent);
+  write(intent: Intent): Promise<WriteReceipt>;
+  write(intents: readonly Intent[]): Promise<WriteReceipt<readonly Intent[]>>;
+  write(intent: WriteIntentInput): Promise<WriteReceipt<WriteIntentInput>>;
+  async write(intent: WriteIntentInput): Promise<WriteReceipt<WriteIntentInput>> {
+    assertIntentInput(intent);
     if (this.#writeIntent === null) {
       throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');
     }
-    return await this.#writeIntent(intent);
+    return await this.#writeIntent(IntentSequence.from(intent).input);
   }
 }
 
@@ -185,8 +189,8 @@ function assertReadingInstance(reading: Reading): void {
   }
 }
 
-function assertIntentInstance(intent: Intent): void {
-  if (!(intent instanceof Intent)) {
+function assertIntentInput(intent: WriteIntentInput): void {
+  if (!(intent instanceof Intent) && !Array.isArray(intent)) {
     throw new WarpError('Timeline.write requires an Intent', 'E_TIMELINE_WRITE_INTENT');
   }
 }

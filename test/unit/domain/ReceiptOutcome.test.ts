@@ -215,6 +215,112 @@ describe('receipt outcomes', () => {
     expect(requireIssuedEntityOccurrence(occurrence, receipt)).toBe(occurrence);
   });
 
+  it('binds ordered plural occurrences to their entity Intents', () => {
+    const firstIntent = intent.entity.add({
+      subject: 'entry:1',
+      properties: { kind: 'capture' },
+    });
+    const secondIntent = intent.entity.add({
+      subject: 'entry:2',
+      properties: { kind: 'capture' },
+    });
+    const first = entityOccurrence(firstIntent, {
+      counter: 1,
+      opIndex: 0,
+      subject: 'entry:1',
+    });
+    const second = entityOccurrence(secondIntent, {
+      counter: 3,
+      opIndex: 3,
+      subject: 'entry:2',
+    });
+    const fields = {
+      lane: 'events',
+      writer: 'agent-1',
+      intent: [
+        firstIntent,
+        intent.edge.add({ from: 'entry:1', to: 'entry:2', label: 'precedes' }),
+        secondIntent,
+      ],
+      outcome: projectAdmissionOutcome(
+        testDerivedIntentAdmissionReceipt('manual-atomic-entities').outcome,
+        EVIDENCE.basis,
+      ),
+      evidence: EVIDENCE,
+    };
+
+    const receipt = new WriteReceipt({ ...fields, occurrences: [first, second] });
+
+    expect(receipt.occurrence).toBeUndefined();
+    expect(receipt.occurrences).toEqual([first, second]);
+    expect(receipt.intents).toEqual(fields.intent);
+    expect(() => new WriteReceipt({ ...fields, occurrences: [second, first] })).toThrowError(
+      expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_RECEIPT_MISMATCH' }),
+    );
+    expect(() => new WriteReceipt({ ...fields, occurrences: [first] })).toThrowError(
+      expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }),
+    );
+    const sparseOccurrences = new Array<EntityOccurrence>(2);
+    sparseOccurrences[0] = first;
+    expect(() => new WriteReceipt({ ...fields, occurrences: sparseOccurrences })).toThrowError(
+      expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }),
+    );
+  });
+
+  it('copies caller-owned intent arrays into the receipt', () => {
+    const intents = [
+      intent.node.add({ subject: 'entry:1' }),
+      intent.node.add({ subject: 'entry:2' }),
+    ];
+    const receipt = new WriteReceipt({
+      lane: 'events',
+      writer: 'agent-1',
+      intent: intents,
+      outcome: projectAdmissionOutcome(
+        testDerivedIntentAdmissionReceipt('manual-atomic-copy').outcome,
+        EVIDENCE.basis,
+      ),
+      evidence: EVIDENCE,
+    });
+
+    expect(receipt.intent).not.toBe(intents);
+    expect(receipt.intent).toEqual(intents);
+    expect(Object.isFrozen(receipt.intent)).toBe(true);
+    expect(Object.isFrozen(intents)).toBe(false);
+  });
+
+  it('rejects ambiguous or malformed plural occurrence fields', () => {
+    const entityIntent = intent.entity.add({
+      subject: 'entry:1',
+      properties: { kind: 'capture' },
+    });
+    const occurrence = entityOccurrence(entityIntent);
+    const fields = {
+      lane: 'events',
+      writer: 'agent-1',
+      intent: entityIntent,
+      outcome: projectAdmissionOutcome(
+        testDerivedIntentAdmissionReceipt('manual-occurrence-fields').outcome,
+        EVIDENCE.basis,
+      ),
+      evidence: EVIDENCE,
+    };
+
+    expect(() => new WriteReceipt({
+      ...fields,
+      occurrence,
+      occurrences: [occurrence],
+    })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
+    expect(() => new WriteReceipt({
+      ...fields,
+      // @ts-expect-error Exercise the JavaScript boundary.
+      occurrences: {},
+    })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
+    expect(() => new WriteReceipt(null)).toThrowError(
+      expect.objectContaining({ code: 'E_WRITE_RECEIPT_OPTIONS' }),
+    );
+  });
+
   it('distinguishes the causal coordinate writer from the receipt writer', () => {
     const entityIntent = intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } });
     const occurrence = entityOccurrence(entityIntent, {
@@ -353,19 +459,23 @@ describe('receipt outcomes', () => {
 function entityOccurrence(
   entityIntent = intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } }),
   writers: {
+    readonly counter?: number;
     readonly coordinateWriter?: string;
+    readonly opIndex?: number;
     readonly receiptWriter?: string;
+    readonly subject?: string;
   } = {}
 ) {
   const coordinateWriter = writers.coordinateWriter ?? 'agent-1';
+  const counter = writers.counter ?? 1;
   return createEntityOccurrence({
-    context: { 'agent-1': 1 },
-    dot: Dot.create(coordinateWriter, 1),
+    context: { [coordinateWriter]: counter },
+    dot: Dot.create(coordinateWriter, counter),
     evidence: EVIDENCE,
-    eventId: new EventId(1, coordinateWriter, 'aaaa', 0),
+    eventId: new EventId(1, coordinateWriter, 'aaaa', writers.opIndex ?? 0),
     intent: entityIntent,
     receiptWriter: writers.receiptWriter ?? coordinateWriter,
-    subject: 'entry:1',
+    subject: writers.subject ?? 'entry:1',
     worldline: 'events',
   });
 }

@@ -82,6 +82,19 @@ git warp write \
 
 The CLI JSON envelope exposes only `occurrence.subject` and the opaque
 `occurrence.id`; JSON has no comparison methods.
+
+The occurrence fields report how many entity births the admitted write
+contains:
+
+- Zero entity births emit `occurrence: null` and omit `occurrences`.
+- Exactly one entity birth emits an `occurrence` object and omits
+  `occurrences`.
+- Two or more entity births emit `occurrence: null` and an ordered
+  `occurrences` array.
+
+The `occurrences` order follows the requested Intent array. It is receipt
+ordering, not a new claim about causal or application chronology.
+
 The in-process TypeScript `EntityOccurrence` additionally provides `relationTo`
 for causal partial-order questions within a worldline; occurrences from
 independent worldlines are concurrent. Its `compare` method orders the worldline

@@ -2,6 +2,8 @@ import type ObservedReading from '../../src/domain/api/ObservedReading.ts';
 import type ObservationReceipt from '../../src/domain/api/ObservationReceipt.ts';
 import type SettlementReceipt from '../../src/domain/api/SettlementReceipt.ts';
 import type WriteReceipt from '../../src/domain/api/WriteReceipt.ts';
+import type Intent from '../../src/domain/api/Intent.ts';
+import type { WriteIntentInput } from '../../src/domain/api/IntentSequence.ts';
 import type Evidence from '../../src/domain/api/Evidence.ts';
 import type RetentionEvidence from '../../src/domain/api/RetentionEvidence.ts';
 import type { ReadingValue } from '../../src/domain/api/ReadingValue.ts';
@@ -12,7 +14,10 @@ import { stableStringify } from './json.ts';
 import { toMcpJson } from './V19Json.ts';
 import WarpError from '../../src/domain/errors/WarpError.ts';
 
-export type V19Receipt = WriteReceipt | ObservationReceipt | SettlementReceipt;
+export type V19Receipt =
+  | WriteReceipt<WriteIntentInput>
+  | ObservationReceipt
+  | SettlementReceipt;
 
 export function readingEnvelope(reading: ObservedReading): McpJsonValue {
   return Object.freeze({
@@ -34,13 +39,13 @@ export function receiptEnvelope(receipt: V19Receipt): McpJsonValue {
   return settlementReceiptEnvelope(receipt);
 }
 
-function writeReceiptEnvelope(receipt: WriteReceipt): McpJsonValue {
+function writeReceiptEnvelope(receipt: WriteReceipt<WriteIntentInput>): McpJsonValue {
   return Object.freeze({
     type: 'Receipt',
     operation: receipt.operation,
     lane: receipt.lane,
     writer: receipt.writer,
-    intent: toMcpJson(receipt.intent.descriptor),
+    ...writeIntentEnvelope(receipt),
     outcome: toMcpJson(receipt.outcome),
     reason: receipt.reason ?? null,
     occurrence:
@@ -50,9 +55,30 @@ function writeReceiptEnvelope(receipt: WriteReceipt): McpJsonValue {
             id: receipt.occurrence.id,
             subject: receipt.occurrence.subject,
           }),
+    ...(receipt.occurrences.length < 2
+      ? {}
+      : {
+          occurrences: Object.freeze(
+            receipt.occurrences.map(({ id, subject }) => Object.freeze({ id, subject })),
+          ),
+        }),
     evidence: evidenceEnvelope(receipt.evidence),
     repairHints: toMcpJson([...receipt.repairHints]),
   });
+}
+
+function writeIntentEnvelope(
+  receipt: WriteReceipt<WriteIntentInput>,
+): Readonly<{ intent: McpJsonValue } | { intents: McpJsonValue }> {
+  if (!isIntentArray(receipt.intent)) {
+    return Object.freeze({ intent: toMcpJson(receipt.intent.descriptor) });
+  }
+  const descriptors = receipt.intents.map(({ descriptor }) => descriptor);
+  return Object.freeze({ intents: toMcpJson(descriptors) });
+}
+
+function isIntentArray(input: WriteIntentInput): input is readonly Intent[] {
+  return Array.isArray(input);
 }
 
 function observationReceiptEnvelope(receipt: ObservationReceipt): McpJsonValue {

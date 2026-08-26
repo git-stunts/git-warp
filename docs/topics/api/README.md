@@ -433,6 +433,49 @@ transport framing.
 
 ## Admission Outcomes, Evidence, And Receipts
 
+`Lane.write()` accepts either one validated Intent or one non-empty ordered
+array of validated Intents. An array is one admission request:
+
+```typescript
+const receipt = await lane.write([
+  users.intents.registerUser({ subject: 'user:alice' }),
+  users.intents.assignRole({ subject: 'user:alice', role: 'admin' }),
+]);
+```
+
+The runtime copies and freezes the array, lowers every member in order through
+one internal patch construction, and publishes exactly one patch. The result
+is one outcome, one `WriteReceipt`, and one target-ref advancement. A
+validation or lowering failure publishes no patch. Several calls to
+`Lane.write()` remain several independent admissions; the overload is not a
+transaction object, cross-Lane atomicity promise, or physical admission
+window.
+
+The fail-closed limits are 50,000 Intents, 16 MiB for the canonical sequence
+descriptor, and 50,000 lowered patch operations. A one-member array remains an
+atomic-sequence request and therefore has a different proposal and law digest
+from the legacy singular call, even though both publish one patch.
+
+`WriteReceipt.intents` preserves normalized member order.
+`WriteReceipt.occurrences` preserves the order of every `entity.add` birth in
+the published patch. `WriteReceipt.occurrence` remains the singular convenience
+only when exactly one entity birth exists. Neither field substitutes the graph
+subject for causal occurrence identity.
+
+Retained patches store graph operations and their one-patch boundary, not the
+caller's JavaScript array object or request envelope. Strand reopen hydrates a
+deterministic primitive Intent sequence when the retained operations do not
+already have one canonical singular-Intent interpretation, then replays that
+transformation through one patch publication. This preserves the ordered graph
+transformation and atomic boundary without adding a Patch schema or
+retained-data migration.
+
+The unchanged Patch format cannot prove whether a canonical single-Intent
+shape originally came from `write(intent)` or `write([intent])`. The original
+write Receipt and admission evaluation retain that request-time distinction;
+reopen and settlement preserve the graph transformation and one-patch boundary
+without inventing caller syntax that was never retained.
+
 Admission classifies how a well-formed proposed history relates to the
 destination history under an explicit basis and law. The admission outcome
 algebra is exactly:

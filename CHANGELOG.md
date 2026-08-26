@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Lane.write()` now accepts a non-empty ordered array of validated Intents.
+  The complete array lowers through one `PatchBuilder`, publishes exactly one
+  patch, advances the target publication ref once, and returns one admission
+  outcome and one `WriteReceipt`. Validation or lowering failure publishes
+  none of the edits.
+  Worldline and Strand Lanes share the same contract, including retained
+  Strand reopen and settlement. Several `Lane.write()` calls remain several
+  independently admitted patches; the overload is not a transaction object or
+  admission-window API.
+- Atomic array requests are bounded to 50,000 Intents, a 16 MiB canonical
+  sequence descriptor, and 50,000 lowered patch operations. The runtime copies
+  and freezes caller arrays, binds proposal and law digests to the ordered
+  sequence, rejects substituted or appended publication operations, and
+  rehydrates retained patches without a canonical singular-Intent
+  interpretation as one deterministic primitive sequence.
+- `WriteReceipt.intents` exposes every normalized member in lowering order and
+  `WriteReceipt.occurrences` exposes one causal occurrence per admitted
+  `entity.add` member. The legacy `WriteReceipt.occurrence` convenience remains
+  populated only when exactly one entity birth exists, so multiple graph
+  subjects are never collapsed into one occurrence.
+
+### Fixed
+
+- Intent publication validation now runs against the fully built patch before
+  the journal can publish it. A mismatched, truncated, or appended operation
+  sequence therefore fails without advancing the target ref or losing the
+  write receipt after durable publication.
+- `WriteReceipt.intent` now types every array input as the immutable normalized
+  snapshot the runtime actually retains, even when the caller supplied a
+  mutable array.
+
+### Compatibility
+
+- Singular `Lane.write(intent)` behavior and its admission-law/digest path are
+  unchanged. Atomic arrays reuse the existing Patch representation and writer
+  publication mechanism, so existing v19 repositories require no retained-data
+  migration. Reopened multi-operation Strands recover their ordered primitive
+  graph transformation from the retained patch; no caller-owned JavaScript
+  array or new Patch wire field is persisted. Because the Patch stores graph
+  operations rather than call syntax, reopen cannot distinguish a canonical
+  single-Intent patch created by `write(intent)` from one created by
+  `write([intent])`; its graph transformation and one-patch boundary remain
+  intact.
+
 ## [19.1.0] - 2026-08-25
 
 ### Release notes

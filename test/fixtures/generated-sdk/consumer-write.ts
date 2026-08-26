@@ -33,16 +33,18 @@ const runtime = await Runtime.open({
 
 try {
   const lane = await runtime.lane('users');
-  await lane.write(users.intents.registerUser({ subject: 'user:alice' }));
-  await lane.write(users.intents.assignRole({
-    subject: 'user:alice',
-    role: 'admin',
-  }));
-  await lane.write(users.intents.registerUser({ subject: 'user:bob' }));
-  await lane.write(users.intents.assignRole({
-    subject: 'user:bob',
-    role: 'editor',
-  }));
+  await lane.write([
+    users.intents.registerUser({ subject: 'user:alice' }),
+    users.intents.assignRole({
+      subject: 'user:alice',
+      role: 'admin',
+    }),
+    users.intents.registerUser({ subject: 'user:bob' }),
+    users.intents.assignRole({
+      subject: 'user:bob',
+      role: 'editor',
+    }),
+  ]);
 } finally {
   await runtime.close();
 }

@@ -49,6 +49,41 @@ describe('Lane', () => {
     expect(writeIntent).toHaveBeenCalledWith(intent);
   });
 
+  it('delegates a non-empty intent array as one atomic write request', async () => {
+    const lane = new Lane({
+      descriptor: { kind: 'worldline', name: 'events' },
+      startObserver,
+      writeIntent,
+      writer: 'agent-1',
+    });
+    const intents = [
+      Intent.addNode({ subject: 'user:alice' }),
+      Intent.addNode({ subject: 'team:ops' }),
+      Intent.addEdge({ from: 'user:alice', to: 'team:ops', label: 'memberOf' }),
+    ] as const;
+
+    await lane.write(intents);
+
+    expect(writeIntent).toHaveBeenCalledTimes(1);
+    expect(writeIntent.mock.calls[0]?.[0]).not.toBe(intents);
+    expect(writeIntent.mock.calls[0]?.[0]).toEqual(intents);
+    expect(Object.isFrozen(writeIntent.mock.calls[0]?.[0])).toBe(true);
+  });
+
+  it('rejects an empty intent array before invoking the writer', async () => {
+    const lane = new Lane({
+      descriptor: { kind: 'worldline', name: 'events' },
+      startObserver,
+      writeIntent,
+      writer: 'agent-1',
+    });
+
+    await expect(lane.write([])).rejects.toMatchObject({
+      code: 'E_INTENT_SEQUENCE_EMPTY',
+    });
+    expect(writeIntent).not.toHaveBeenCalled();
+  });
+
   it('rejects invalid observers and descriptor shapes', () => {
     const lane = new Lane({
       descriptor: { kind: 'worldline', name: 'events' },

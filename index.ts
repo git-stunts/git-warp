@@ -19,6 +19,7 @@ export type {
 } from './src/application/Runtime.ts';
 export type { default as Evidence, EvidenceHandle } from './src/domain/api/Evidence.ts';
 export type { default as Intent } from './src/domain/api/Intent.ts';
+export type { WriteIntentInput } from './src/domain/api/IntentSequence.ts';
 export type { default as Lane } from './src/domain/api/Lane.ts';
 export type {
   CoordinateReference,

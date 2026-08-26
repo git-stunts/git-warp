@@ -1,6 +1,7 @@
 import WarpError from '../errors/WarpError.ts';
 import { assertTimelineNameIdentity, assertWriterIdentity } from './assertIdentity.ts';
 import Intent from './Intent.ts';
+import IntentSequence, { type WriteIntentInput } from './IntentSequence.ts';
 import type WriteReceipt from './WriteReceipt.ts';
 
 type DraftTimelineConstructionOptions = {
@@ -10,7 +11,7 @@ type DraftTimelineConstructionOptions = {
   readonly writeDraft?: WriteDraft;
 };
 
-type WriteDraft = (intent: Intent) => Promise<WriteReceipt>;
+type WriteDraft = (intent: WriteIntentInput) => Promise<WriteReceipt<WriteIntentInput>>;
 
 export default class DraftTimeline {
   readonly #name: string;
@@ -51,14 +52,17 @@ export default class DraftTimeline {
     return this.#writer;
   }
 
-  async write(intent: Intent): Promise<WriteReceipt> {
-    if (!(intent instanceof Intent)) {
+  write(intent: Intent): Promise<WriteReceipt>;
+  write(intents: readonly Intent[]): Promise<WriteReceipt<readonly Intent[]>>;
+  write(intent: WriteIntentInput): Promise<WriteReceipt<WriteIntentInput>>;
+  async write(intent: WriteIntentInput): Promise<WriteReceipt<WriteIntentInput>> {
+    if (!(intent instanceof Intent) && !Array.isArray(intent)) {
       throw new WarpError('DraftTimeline.write requires an Intent', 'E_DRAFT_WRITE_INTENT');
     }
     if (this.#writeDraft === null) {
       throw new WarpError('DraftTimeline was not opened by Timeline.draft', 'E_DRAFT_RUNTIME_UNAVAILABLE');
     }
-    return await this.#writeDraft(intent);
+    return await this.#writeDraft(IntentSequence.from(intent).input);
   }
 }
 

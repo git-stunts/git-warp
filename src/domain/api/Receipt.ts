@@ -1,5 +1,6 @@
 import type JoinReceipt from './JoinReceipt.ts';
 import type ReadReceipt from './ReadReceipt.ts';
+import type { WriteIntentInput } from './IntentSequence.ts';
 import type WriteReceipt from './WriteReceipt.ts';
 
-export type Receipt = WriteReceipt | ReadReceipt | JoinReceipt;
+export type Receipt = WriteReceipt<WriteIntentInput> | ReadReceipt | JoinReceipt;

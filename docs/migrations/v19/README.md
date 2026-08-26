@@ -557,6 +557,24 @@ const receipt = await events.write(
 );
 ```
 
+When one application operation requires several generated graph edits, use one
+array write rather than several sequential writes:
+
+```typescript
+const receipt = await events.write([
+  users.intents.registerUser({ subject: 'user:alice' }),
+  users.intents.assignRole({
+    subject: 'user:alice',
+    role: 'admin',
+  }),
+]);
+```
+
+That array is one ordered admission, one patch, and one Receipt. Separate
+`events.write(...)` calls are separate causal admissions and can become visible
+independently. Arrays must be non-empty and remain subject to the documented
+Intent, descriptor-byte, and lowered-operation limits.
+
 Write admission is a closed, witnessed causal classification:
 
 ```typescript

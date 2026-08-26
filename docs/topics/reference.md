@@ -36,41 +36,42 @@ Runtime @ index.ts#L13
 
 ### Type exports
 
-Source: `index.ts`. Count: 32.
+Source: `index.ts`. Count: 33.
 
 ```text
-AdmissionOutcome @ index.ts#L50
-CoordinateReference @ index.ts#L24
-EntityCausalRelation @ index.ts#L48
-EntityOccurrence @ index.ts#L47
+AdmissionOutcome @ index.ts#L51
+CoordinateReference @ index.ts#L25
+EntityCausalRelation @ index.ts#L49
+EntityOccurrence @ index.ts#L48
 Evidence @ index.ts#L20
 EvidenceHandle @ index.ts#L20
 Intent @ index.ts#L21
-Lane @ index.ts#L22
-LaneDescriptor @ index.ts#L25
-LaneKind @ index.ts#L26
-LaneReference @ index.ts#L27
-Observation @ index.ts#L29
-ObservationReceipt @ index.ts#L30
-ObservationStatus @ index.ts#L31
-Observer @ index.ts#L32
-ObserverCardinality @ index.ts#L33
-Reading @ index.ts#L34
-ReadingCoordinate @ index.ts#L36
-ReadingValue @ index.ts#L37
-Receipt @ index.ts#L51
-RepairHint @ index.ts#L52
+Lane @ index.ts#L23
+LaneDescriptor @ index.ts#L26
+LaneKind @ index.ts#L27
+LaneReference @ index.ts#L28
+Observation @ index.ts#L30
+ObservationReceipt @ index.ts#L31
+ObservationStatus @ index.ts#L32
+Observer @ index.ts#L33
+ObserverCardinality @ index.ts#L34
+Reading @ index.ts#L35
+ReadingCoordinate @ index.ts#L37
+ReadingValue @ index.ts#L38
+Receipt @ index.ts#L52
+RepairHint @ index.ts#L53
 RuntimeForkOptions @ index.ts#L15
 RuntimeOpenOptions @ index.ts#L16
 RuntimeSettlementOptions @ index.ts#L17
 RuntimeStrandOptions @ index.ts#L18
-SettlementPlan @ index.ts#L44
-SettlementPreview @ index.ts#L42
-SettlementReceipt @ index.ts#L43
-SupportReport @ index.ts#L38
-Tick @ index.ts#L41
-WitnessReference @ index.ts#L39
-WriteReceipt @ index.ts#L45
+SettlementPlan @ index.ts#L45
+SettlementPreview @ index.ts#L43
+SettlementReceipt @ index.ts#L44
+SupportReport @ index.ts#L39
+Tick @ index.ts#L42
+WitnessReference @ index.ts#L40
+WriteIntentInput @ index.ts#L22
+WriteReceipt @ index.ts#L46
 ```
 
 ## Advanced export surface

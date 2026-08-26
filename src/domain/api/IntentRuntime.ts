@@ -145,7 +145,7 @@ function isNodePropertyOperation(
   return operation.type === 'NodePropSet' || operation.type === 'PropSet';
 }
 
-function intentFromOperation(operation: PatchOp): Intent {
+export function intentFromOperation(operation: PatchOp): Intent {
   const node = nodeIntent(operation);
   if (node !== null) {
     return node;
