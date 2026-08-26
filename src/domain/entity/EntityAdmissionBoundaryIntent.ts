@@ -59,7 +59,7 @@ function propertiesFrom(
   const properties = new Map<string, PropValue>();
   for (const operation of operations) {
     const property = requirePropertyForSubject(operation, subject);
-    if (!isEntityPropertyValue(property.value)) {
+    if (!isPropValue(property.value)) {
       throw retainedBoundaryError('Entity admission payload has an invalid property value');
     }
     properties.set(property.key, property.value);
@@ -87,10 +87,6 @@ function requirePropertyForSubject(
     throw retainedBoundaryError('Entity admission boundary crossed its created subject');
   }
   return operation;
-}
-
-function isEntityPropertyValue(value: unknown): value is PropValue {
-  return isPropValue(value);
 }
 
 function retainedBoundaryError(message: string): WarpError {
