@@ -11,7 +11,10 @@ import {
   type CommandOutputValue,
 } from './cli/commands/registry.ts';
 import { closeCliStorages } from './cli/shared.ts';
-import { closeCommandResources } from './cli/lifecycle.ts';
+import {
+  closeCommandResources,
+  emitWithCommandShutdown,
+} from './cli/lifecycle.ts';
 
 installDefaultRuntimeHostNodePorts();
 
@@ -151,12 +154,15 @@ async function main(): Promise<void> {
 
   const result = await handler({ args: commandArgs, options });
   const normalized = normalizeResult(result);
-  await emitResult(normalized, options);
+  const shutdown = await emitWithCommandShutdown({
+    closeCommand: result.close,
+    emit: async () => await emitResult(normalized, options),
+    installShutdown: installShutdownHandlers,
+  });
 
   // Long-running commands may return a `close` function.
   // Wait for normal completion or SIGINT/SIGTERM instead of exiting immediately.
-  if (result.close !== undefined) {
-    const shutdown = installShutdownHandlers(result.close);
+  if (shutdown !== undefined) {
     if (result.completion !== undefined) {
       await finishCompletedCommand(result.completion, shutdown);
       process.exit(normalized.exitCode);

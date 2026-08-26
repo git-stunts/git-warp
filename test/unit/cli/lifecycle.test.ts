@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { closeCommandResources } from '../../../bin/cli/lifecycle.ts';
+import {
+  closeCommandResources,
+  emitWithCommandShutdown,
+} from '../../../bin/cli/lifecycle.ts';
 
 describe('CLI long-running command lifecycle', () => {
   it('drains the command before closing its storage', async () => {
@@ -37,5 +40,30 @@ describe('CLI long-running command lifecycle', () => {
       errors: [commandFailure, storageFailure],
     });
     expect(closeStorage).toHaveBeenCalledTimes(1);
+  });
+
+  it('installs shutdown before consuming output and cleans up a rejected stream', async () => {
+    const streamFailure = new Error('stream failed');
+    const events: string[] = [];
+    const closeCommand = vi.fn(async () => {
+      events.push('close');
+    });
+    const installShutdown = vi.fn(() => {
+      events.push('install');
+      return closeCommand;
+    });
+    const emit = vi.fn(async () => {
+      events.push('emit');
+      throw streamFailure;
+    });
+
+    await expect(emitWithCommandShutdown({
+      closeCommand,
+      emit,
+      installShutdown,
+    })).rejects.toBe(streamFailure);
+
+    expect(events).toEqual(['install', 'emit', 'close']);
+    expect(closeCommand).toHaveBeenCalledTimes(1);
   });
 });
