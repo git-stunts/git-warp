@@ -11,6 +11,7 @@ import type { Dot } from '../../domain/crdt/Dot.ts';
 import defaultCborCodec from '../codecs/CborCodec.ts';
 import type Patch from '../../domain/types/Patch.ts';
 import type { PatchOp } from '../../domain/types/ops/unions.ts';
+import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
 import type { PatchEntry } from '../../domain/services/provenance/BoundaryTransitionProvenance.ts';
 import type {
   BtrCanonicalPatch,
@@ -22,7 +23,6 @@ import type {
   BtrWireProvenanceEntry,
 } from './BtrWireProvenanceEntry.ts';
 import type { BtrWireRecord, BtrWireSigningEnvelope } from './BtrWireRecord.ts';
-import { hydratePatchAtDecodeBoundary } from './PatchHydrationAdapter.ts';
 
 const BTR_RECORD_LABEL = 'BoundaryTransitionRecord';
 
@@ -31,12 +31,7 @@ function decodeErrorReason(error: unknown): string {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  if (
-    typeof value !== 'object' ||
-    value === null ||
-    Array.isArray(value) ||
-    value instanceof Uint8Array
-  ) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value) || value instanceof Uint8Array) {
     return false;
   }
   return true;
@@ -84,7 +79,7 @@ function readBytes(source: Record<string, unknown>, field: string, label: string
 function readProvenanceEntry(value: unknown, label: string): PatchEntry {
   const source = readObject(value, label);
   return {
-    patch: hydratePatchAtDecodeBoundary(source['patch']),
+    patch: hydrateDecodedPatch(source['patch']),
     sha: readString(source, 'sha', label),
   };
 }
@@ -123,8 +118,9 @@ function decodeBtrWireRecord(value: unknown): DecodedBtrWireRecord {
 }
 
 function toBtrCanonicalContext(context: Patch['context']): BtrWireContext {
-  const entries =
-    context instanceof VersionVector ? [...context.entries()] : Object.entries(context);
+  const entries = context instanceof VersionVector
+    ? [...context.entries()]
+    : Object.entries(context);
   const canonicalContext: { [writerId: string]: number } = {};
   for (const [writerId, counter] of entries.sort(([left], [right]) => left.localeCompare(right))) {
     canonicalContext[writerId] = counter;
@@ -214,7 +210,7 @@ function sortedStrings(values: readonly string[] | undefined): readonly string[]
 }
 
 function toBtrEntityAdmissionOrigin(
-  origin: NonNullable<Patch['entityAdmissions']>[number]['origin']
+  origin: NonNullable<Patch['entityAdmissions']>[number]['origin'],
 ): BtrWireEntityAdmissionOrigin {
   if (origin.kind === 'allocated') {
     if (origin.namespace === null || origin.allocationDot === null) {
@@ -232,7 +228,7 @@ function toBtrEntityAdmissionOrigin(
 }
 
 function toBtrEntityAdmissionBoundary(
-  boundary: NonNullable<Patch['entityAdmissions']>[number]
+  boundary: NonNullable<Patch['entityAdmissions']>[number],
 ): BtrWireEntityAdmissionBoundary {
   return {
     operationIndex: boundary.operationIndex,

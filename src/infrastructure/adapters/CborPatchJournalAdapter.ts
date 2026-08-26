@@ -1,8 +1,12 @@
-import type { BundleCapability, PublicationCapability } from '@git-stunts/git-cas';
+import type {
+  BundleCapability,
+  PublicationCapability,
+} from '@git-stunts/git-cas';
 import PatchEntry from '../../domain/artifacts/PatchEntry.ts';
 import PatchError from '../../domain/errors/PatchError.ts';
 import PatchPublicationConflictError from '../../domain/errors/PatchPublicationConflictError.ts';
 import SyncError from '../../domain/errors/SyncError.ts';
+import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
 import type AssetHandle from '../../domain/storage/AssetHandle.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
@@ -24,7 +28,6 @@ import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import { requireAdapterDependency } from './AdapterDependencyGuard.ts';
 import { readGitCasErrorCode } from './GitCasErrorCode.ts';
 import { requireNonEmptyString } from '../../domain/utils/scalarValidation.ts';
-import { hydratePatchAtDecodeBoundary } from './PatchHydrationAdapter.ts';
 
 type CommitInfo = {
   sha: string;
@@ -80,13 +83,12 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   override async appendPatch(request: AppendPatchRequest): Promise<PublishedPatch> {
     requireBoundGraph(request.graph, this.#graph);
     requirePatchWriter(request.patch, request.writer);
-    const stagedPatch = await this.#assetStorage.stage(
-      WarpStream.from([this.#codec.encode(request.patch)]),
-      {
-        slug: `patch-${request.writer}-${request.patch.lamport}`,
-        filename: 'patch.cbor',
-      }
-    );
+    const stagedPatch = await this.#assetStorage.stage(WarpStream.from([
+      this.#codec.encode(request.patch),
+    ]), {
+      slug: `patch-${request.writer}-${request.patch.lamport}`,
+      filename: 'patch.cbor',
+    });
     const bundle = await this.#cas.bundles.putOrdered({
       members: patchBundleMembers(stagedPatch.handle, request.attachments),
     });
@@ -111,7 +113,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   async #publishBundle(
     root: Parameters<PublicationCapability['commit']>[0]['root'],
     message: string,
-    request: AppendPatchRequest
+    request: AppendPatchRequest,
   ): Promise<Awaited<ReturnType<PublicationCapability['commit']>>> {
     try {
       return await this.#cas.publications.commit({
@@ -126,80 +128,81 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
       if (readGitCasErrorCode(error) !== 'PUBLICATION_CONFLICT') {
         throw error;
       }
-      throw new PatchPublicationConflictError(error instanceof Error ? error : undefined);
+      throw new PatchPublicationConflictError(
+        error instanceof Error ? error : undefined,
+      );
     }
   }
 
   override async readPatch(message: PatchCommitMessage): Promise<Patch> {
     const handle = message.patchHandle;
     const bytes = await collectAsyncIterable(this.#assetStorage.open(handle));
-    return hydratePatchAtDecodeBoundary(this.#codec.decode(bytes));
+    return hydrateDecodedPatch(this.#codec.decode(bytes));
   }
 
   override scanPatchRange(
     writerId: string,
     fromSha: string | null,
-    toSha: string
+    toSha: string,
   ): WarpStream<PatchEntry> {
     const adapter = this;
-    return WarpStream.from(
-      (async function* (): AsyncGenerator<PatchEntry> {
-        const stack: Array<{ sha: string; message: PatchCommitMessage }> = [];
-        let current: string | null = toSha;
-        while (current !== null && current !== fromSha) {
-          const node = await adapter.#commitReader.getNodeInfo(current);
-          requireLinearPatchNode(node, adapter.#graph, writerId);
-          if (adapter.#commitMessageCodec.detectKind(node.message) !== 'patch') {
-            break;
-          }
-          const message = adapter.#commitMessageCodec.decodePatch(node.message);
-          requirePatchMessageIdentity(message, adapter.#graph, writerId);
-          stack.push({ sha: current, message });
-          current = node.parents[0] ?? null;
+    return WarpStream.from((async function* (): AsyncGenerator<PatchEntry> {
+      const stack: Array<{ sha: string; message: PatchCommitMessage }> = [];
+      let current: string | null = toSha;
+      while (current !== null && current !== fromSha) {
+        const node = await adapter.#commitReader.getNodeInfo(current);
+        requireLinearPatchNode(node, adapter.#graph, writerId);
+        if (adapter.#commitMessageCodec.detectKind(node.message) !== 'patch') {
+          break;
         }
-        if (fromSha !== null && current !== fromSha) {
-          throw new SyncError(
-            `Divergence detected: ${toSha} does not descend from ${fromSha} for writer ${writerId}`,
-            { code: 'E_SYNC_DIVERGENCE', context: { writerId, fromSha, toSha } }
-          );
+        const message = adapter.#commitMessageCodec.decodePatch(node.message);
+        requirePatchMessageIdentity(message, adapter.#graph, writerId);
+        stack.push({ sha: current, message });
+        current = node.parents[0] ?? null;
+      }
+      if (fromSha !== null && current !== fromSha) {
+        throw new SyncError(
+          `Divergence detected: ${toSha} does not descend from ${fromSha} for writer ${writerId}`,
+          { code: 'E_SYNC_DIVERGENCE', context: { writerId, fromSha, toSha } },
+        );
+      }
+      for (let index = stack.length - 1; index >= 0; index--) {
+        const entry = stack[index];
+        if (entry !== undefined) {
+          yield await adapter.#historyEntry(entry.sha, entry.message, writerId);
         }
-        for (let index = stack.length - 1; index >= 0; index--) {
-          const entry = stack[index];
-          if (entry !== undefined) {
-            yield await adapter.#historyEntry(entry.sha, entry.message, writerId);
-          }
-        }
-      })()
-    );
+      }
+    })());
   }
 
-  override scanPatchHistory(writerId: string, fromSha: string): WarpStream<PatchEntry> {
+  override scanPatchHistory(
+    writerId: string,
+    fromSha: string,
+  ): WarpStream<PatchEntry> {
     const adapter = this;
-    return WarpStream.from(
-      (async function* (): AsyncGenerator<PatchEntry> {
-        let current: string | null = fromSha;
-        while (current !== null) {
-          const node = await adapter.#commitReader.getNodeInfo(current);
-          requireLinearPatchNode(node, adapter.#graph, writerId);
-          if (adapter.#commitMessageCodec.detectKind(node.message) !== 'patch') {
-            throw new SyncError(
-              `Entity admission history reached a non-patch commit for writer ${writerId}`,
-              { code: 'E_SYNC_PATCH_HISTORY', context: { writerId } }
-            );
-          }
-          const message = adapter.#commitMessageCodec.decodePatch(node.message);
-          requirePatchMessageIdentity(message, adapter.#graph, writerId);
-          yield await adapter.#historyEntry(current, message, writerId);
-          current = node.parents[0] ?? null;
+    return WarpStream.from((async function* (): AsyncGenerator<PatchEntry> {
+      let current: string | null = fromSha;
+      while (current !== null) {
+        const node = await adapter.#commitReader.getNodeInfo(current);
+        requireLinearPatchNode(node, adapter.#graph, writerId);
+        if (adapter.#commitMessageCodec.detectKind(node.message) !== 'patch') {
+          throw new SyncError(
+            `Entity admission history reached a non-patch commit for writer ${writerId}`,
+            { code: 'E_SYNC_PATCH_HISTORY', context: { writerId } },
+          );
         }
-      })()
-    );
+        const message = adapter.#commitMessageCodec.decodePatch(node.message);
+        requirePatchMessageIdentity(message, adapter.#graph, writerId);
+        yield await adapter.#historyEntry(current, message, writerId);
+        current = node.parents[0] ?? null;
+      }
+    })());
   }
 
   async #historyEntry(
     sha: string,
     message: PatchCommitMessage,
-    writerId: string
+    writerId: string,
   ): Promise<PatchEntry> {
     const patch = await this.readPatch(message);
     requirePatchPayloadIdentity(patch, message, this.#graph, writerId);
@@ -209,35 +212,48 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
 
 function requireBoundGraph(graph: string, boundGraph: string): void {
   if (graph !== boundGraph) {
-    throw new PatchError(`Patch journal for ${boundGraph} cannot publish graph ${graph}`, {
-      code: 'E_PATCH_GRAPH_MISMATCH',
-      context: { boundGraph, graph },
-    });
+    throw new PatchError(
+      `Patch journal for ${boundGraph} cannot publish graph ${graph}`,
+      {
+        code: 'E_PATCH_GRAPH_MISMATCH',
+        context: { boundGraph, graph },
+      },
+    );
   }
 }
 
 function requirePatchWriter(patch: Patch, writer: string): void {
   if (patch.writer !== writer) {
-    throw new PatchError(`Patch writer ${patch.writer} cannot publish as ${writer}`, {
-      code: 'E_PATCH_WRITER_MISMATCH',
-      context: { patchWriter: patch.writer, writer },
-    });
+    throw new PatchError(
+      `Patch writer ${patch.writer} cannot publish as ${writer}`,
+      {
+        code: 'E_PATCH_WRITER_MISMATCH',
+        context: { patchWriter: patch.writer, writer },
+      },
+    );
   }
 }
 
-function requireLinearPatchNode(node: CommitInfo, graph: string, writerId: string): void {
+function requireLinearPatchNode(
+  node: CommitInfo,
+  graph: string,
+  writerId: string,
+): void {
   if (node.parents.length > 1) {
-    throw new SyncError(`Patch history is non-linear for ${graph}/${writerId}`, {
-      code: 'E_SYNC_PATCH_HISTORY',
-      context: { graph, parentCount: node.parents.length, writerId },
-    });
+    throw new SyncError(
+      `Patch history is non-linear for ${graph}/${writerId}`,
+      {
+        code: 'E_SYNC_PATCH_HISTORY',
+        context: { graph, parentCount: node.parents.length, writerId },
+      },
+    );
   }
 }
 
 function requirePatchMessageIdentity(
   message: PatchCommitMessage,
   graph: string,
-  writerId: string
+  writerId: string,
 ): void {
   if (message.graph !== graph || message.writer !== writerId) {
     throw new SyncError(
@@ -250,7 +266,7 @@ function requirePatchMessageIdentity(
           graph,
           writerId,
         },
-      }
+      },
     );
   }
 }
@@ -259,27 +275,27 @@ function requirePatchPayloadIdentity(
   patch: Patch,
   message: PatchCommitMessage,
   graph: string,
-  writerId: string
+  writerId: string,
 ): void {
   if (
-    patch.writer !== message.writer ||
-    patch.writer !== writerId ||
-    patch.lamport !== message.lamport ||
-    patch.schema !== message.schema
+    patch.writer !== message.writer
+    || patch.writer !== writerId
+    || patch.lamport !== message.lamport
+    || patch.schema !== message.schema
   ) {
     throw new SyncError(
       `Retained patch payload contradicts its history trailer for ${graph}/${writerId}`,
       {
         code: 'E_SYNC_PATCH_HISTORY',
         context: { graph, writerId },
-      }
+      },
     );
   }
 }
 
 function patchBundleMembers(
   patch: AssetHandle,
-  attachments: readonly AssetHandle[]
+  attachments: readonly AssetHandle[],
 ): WarpStream<[string, string]> {
   const members: Array<[string, string]> = [];
   const unique = [...new Set(attachments.map((handle) => handle.toString()))].sort();

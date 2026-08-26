@@ -3,11 +3,15 @@ import ContentAddressableStore, {
   CborCodec as GitCasCborCodec,
 } from '@git-stunts/git-cas';
 
-import { hydratePatchAtDecodeBoundary } from '../../src/infrastructure/adapters/PatchHydrationAdapter.ts';
+import { hydrateDecodedPatch } from '../../src/domain/services/PatchHydrator.ts';
 import AssetHandle from '../../src/domain/storage/AssetHandle.ts';
-import { createGitCasPatchStorage } from '../../src/ports/CommitMessageCodecPort.ts';
+import {
+  createGitCasPatchStorage,
+} from '../../src/ports/CommitMessageCodecPort.ts';
 import warpCborCodec from '../../src/infrastructure/codecs/CborCodec.ts';
-import { TrailerCommitMessageCodecAdapter } from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import {
+  TrailerCommitMessageCodecAdapter,
+} from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import type { V18PatchCommit } from './V18PatchCommit.ts';
 import { runV18MigrationGit, v18MigrationGitText } from './V18MigrationGit.ts';
 import type { V18MigrationGitObjectReader } from './V18MigrationGitObjectReader.ts';
@@ -36,7 +40,7 @@ export default class V18PatchTranslator {
     repositoryPath: string,
     cas: ContentAddressableStore,
     objectReader: V18MigrationGitObjectReader,
-    passphrase: string | null
+    passphrase: string | null,
   ) {
     this.#repositoryPath = repositoryPath;
     this.#cas = cas;
@@ -44,13 +48,11 @@ export default class V18PatchTranslator {
     this.#passphrase = passphrase;
   }
 
-  static async open(
-    options: Readonly<{
-      objectReader: V18MigrationGitObjectReader;
-      passphrase?: string;
-      repositoryPath: string;
-    }>
-  ): Promise<V18PatchTranslator> {
+  static async open(options: Readonly<{
+    objectReader: V18MigrationGitObjectReader;
+    passphrase?: string;
+    repositoryPath: string;
+  }>): Promise<V18PatchTranslator> {
     const cas = await ContentAddressableStore.open({
       cwd: options.repositoryPath,
       codec: new GitCasCborCodec(),
@@ -60,7 +62,7 @@ export default class V18PatchTranslator {
       options.repositoryPath,
       cas,
       options.objectReader,
-      options.passphrase ?? null
+      options.passphrase ?? null,
     );
   }
 
@@ -72,7 +74,7 @@ export default class V18PatchTranslator {
     const source = await this.#readLegacyPatch(patch);
     const decoded = requireRecord(warpCborCodec.decode(source), 'patch root');
     const rewritten = await this.#rewriteContentHandles(decoded, patch.storage.encrypted);
-    hydratePatchAtDecodeBoundary(rewritten.patch);
+    hydrateDecodedPatch(rewritten.patch);
     const encoded = warpCborCodec.encode(rewritten.patch);
     const stagedPatch = await this.#cas.assets.put({
       source: singleChunk(encoded),
@@ -116,15 +118,17 @@ export default class V18PatchTranslator {
     const translated = new Set(
       [false, true]
         .map((encrypted) => this.#contentHandles.get(contentCacheKey(reference, encrypted)))
-        .filter((handle): handle is string => handle !== undefined)
+        .filter((handle): handle is string => handle !== undefined),
     );
     if (translated.size === 0) {
       throw new Error(
-        `legacy checkpoint content ${reference} was not translated from writer history`
+        `legacy checkpoint content ${reference} was not translated from writer history`,
       );
     }
     if (translated.size > 1) {
-      throw new Error(`legacy checkpoint content ${reference} has ambiguous encryption modes`);
+      throw new Error(
+        `legacy checkpoint content ${reference} has ambiguous encryption modes`,
+      );
     }
     return [...translated][0] as string;
   }
@@ -137,23 +141,19 @@ export default class V18PatchTranslator {
       throw new Error(`commit ${patch.commit.sha} is already current`);
     }
     const adopted = await this.#cas.assets.adopt({ treeOid: patch.storage.oid });
-    return await collectChunks(
-      this.#cas.assets.open({
-        handle: adopted.handle,
-        ...this.#decryptionOptions(patch.storage.encrypted),
-      })
-    );
+    return await collectChunks(this.#cas.assets.open({
+      handle: adopted.handle,
+      ...this.#decryptionOptions(patch.storage.encrypted),
+    }));
   }
 
   async #rewriteContentHandles(
     patch: DecodedRecord,
-    encrypted: boolean
-  ): Promise<
-    Readonly<{
-      attachmentHandles: ReadonlySet<string>;
-      patch: DecodedRecord;
-    }>
-  > {
+    encrypted: boolean,
+  ): Promise<Readonly<{
+    attachmentHandles: ReadonlySet<string>;
+    patch: DecodedRecord;
+  }>> {
     const ops = requireArray(patch['ops'], 'patch ops');
     const attachmentHandles = new Set<string>();
     const rewrittenOps: DecodedRecord[] = [];
@@ -170,7 +170,7 @@ export default class V18PatchTranslator {
   async #rewriteOperation(
     op: DecodedRecord,
     encrypted: boolean,
-    attachmentHandles: Set<string>
+    attachmentHandles: Set<string>,
   ): Promise<DecodedRecord> {
     const type = op['type'];
     if (op['key'] === '_content') {
@@ -200,31 +200,31 @@ export default class V18PatchTranslator {
     if (existing !== undefined) {
       return existing;
     }
-    const objectType = await v18MigrationGitText(this.#repositoryPath, [
-      'cat-file',
-      '-t',
-      reference,
-    ]);
-    const handle =
-      objectType === 'tree'
-        ? await this.#adoptContentTree(reference, encrypted)
-        : await this.#stageContentBlob(reference, objectType, encrypted);
+    const objectType = await v18MigrationGitText(
+      this.#repositoryPath,
+      ['cat-file', '-t', reference],
+    );
+    const handle = objectType === 'tree'
+      ? await this.#adoptContentTree(reference, encrypted)
+      : await this.#stageContentBlob(reference, objectType, encrypted);
     this.#contentHandles.set(cacheKey, handle);
     return handle;
   }
 
   async #adoptContentTree(treeOid: string, encrypted: boolean): Promise<string> {
     const adopted = await this.#cas.assets.adopt({ treeOid });
-    await drain(
-      this.#cas.assets.open({
-        handle: adopted.handle,
-        ...this.#decryptionOptions(encrypted),
-      })
-    );
+    await drain(this.#cas.assets.open({
+      handle: adopted.handle,
+      ...this.#decryptionOptions(encrypted),
+    }));
     return adopted.handle.toString();
   }
 
-  async #stageContentBlob(oid: string, objectType: string, encrypted: boolean): Promise<string> {
+  async #stageContentBlob(
+    oid: string,
+    objectType: string,
+    encrypted: boolean,
+  ): Promise<string> {
     if (objectType !== 'blob') {
       throw new Error(`legacy content ${oid} has unsupported Git object type ${objectType}`);
     }
@@ -241,7 +241,7 @@ export default class V18PatchTranslator {
   #requirePassphrase(patch: V18PatchCommit): void {
     if (patch.storage.encrypted && this.#passphrase === null) {
       throw new Error(
-        `encrypted commit ${patch.commit.sha} requires GIT_WARP_MIGRATION_PASSPHRASE`
+        `encrypted commit ${patch.commit.sha} requires GIT_WARP_MIGRATION_PASSPHRASE`,
       );
     }
   }
