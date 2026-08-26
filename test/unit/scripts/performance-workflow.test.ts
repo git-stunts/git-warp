@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import z from 'zod';
+import packageJson from '../../../package.json' with { type: 'json' };
 import { PerformancePolicySchema }
   from '../../../scripts/performance/GatePerformance.ts';
 import { PERFORMANCE_SCENARIOS }
@@ -10,6 +11,22 @@ import { validatePerformanceExecutionOrder }
   from '../../../scripts/performance/PerformanceComparisonModel.ts';
 
 const root = process.cwd();
+
+type MaintainerPerformanceScriptName =
+  | 'performance:measure'
+  | 'performance:compare'
+  | 'performance:gate'
+  | 'performance:streaming'
+  | 'performance:migrated-read';
+
+const MAINTAINER_PERFORMANCE_SCRIPT_NAMES: readonly MaintainerPerformanceScriptName[] =
+  Object.freeze([
+    'performance:measure',
+    'performance:compare',
+    'performance:gate',
+    'performance:streaming',
+    'performance:migrated-read',
+  ]);
 
 /**
  * The calibration record, validated rather than asserted.
@@ -166,6 +183,16 @@ describe('v19 performance workflow', () => {
       'actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e',
     );
     expect(workflow).not.toContain('continue-on-error');
+  });
+
+  it('builds maintainer performance programs without broadening the package build', () => {
+    expect(workflow).toContain('npm --prefix base run build --silent');
+    expect(workflow).toContain('npm --prefix head run build:maintainer --silent');
+    expect(workflow).toContain('npm --prefix head run build --silent');
+    expect(packageJson.scripts['build:maintainer']).toContain('tsconfig.maintainer.json');
+    for (const scriptName of MAINTAINER_PERFORMANCE_SCRIPT_NAMES) {
+      expect(packageJson.scripts[scriptName]).toContain('npm run build:maintainer --silent');
+    }
   });
 
   it('requires complete counterbalanced execution evidence', () => {

@@ -35,11 +35,12 @@ cd "$ROOT"
 if [ "$ARTIFACTS_PREPARED" -eq 0 ]; then
   npm run build --silent
 fi
-TARBALL_NAME=$(npm pack --pack-destination "$PACK_DIR" --ignore-scripts 2>/dev/null | tail -n 1)
-TARBALL_PATH="$PACK_DIR/$TARBALL_NAME"
+node scripts/package-payload/CheckPackagePayload.ts --pack-destination "$PACK_DIR"
+set -- "$PACK_DIR"/*.tgz
+TARBALL_PATH="${1:-}"
 
-if [ ! -f "$TARBALL_PATH" ]; then
-  echo "npm pack did not produce a tarball at $TARBALL_PATH" >&2
+if [ "$#" -ne 1 ] || [ ! -f "$TARBALL_PATH" ]; then
+  echo "package payload gate did not produce exactly one tarball in $PACK_DIR" >&2
   exit 1
 fi
 
@@ -75,10 +76,42 @@ if (storageSubpathImported) {
   throw new PackedArtifactSmokeError('storage subpath remained publicly importable');
 }
 
+const expectedSubpathExports = new Map([
+  ['@git-stunts/git-warp/advanced', ['Coordinate', 'Optic', 'captureCoordinate', 'intent', 'reading']],
+  ['@git-stunts/git-warp/diagnostics', ['inspectReceipt']],
+  ['@git-stunts/git-warp/charts', ['GraphNeighborhoodChart', 'GraphNeighborhoodEdge', 'graph']],
+  ['@git-stunts/git-warp/testing', ['createRuntimeHarness', 'createRuntimeHarnessWithHost']],
+]);
+
+for (const [specifier, expectedNames] of expectedSubpathExports) {
+  const subpath = await import(specifier);
+  for (const expectedName of expectedNames) {
+    if (!(expectedName in subpath)) {
+      throw new PackedArtifactSmokeError(`${specifier} is missing ${expectedName}`);
+    }
+  }
+}
+
+const { createRequire } = await import('node:module');
+const require = createRequire(import.meta.url);
+const metadata = require('@git-stunts/git-warp/package.json');
+if (metadata.name !== '@git-stunts/git-warp' || typeof metadata.version !== 'string') {
+  throw new PackedArtifactSmokeError('package metadata export is malformed');
+}
+
 NODE
 
 test ! -e node_modules/.bin/warp-graph
 test -x node_modules/.bin/git-warp
+test -x node_modules/.bin/git-warp-v18-to-v19
 npx --no-install git-warp --help >/dev/null
+npx --no-install git-warp-v18-to-v19 --help >/dev/null
+
+PACKAGE_DIR="$FIXTURE_DIR/node_modules/@git-stunts/git-warp"
+node "$PACKAGE_DIR/dist/scripts/upgrade-v16-to-v17.js" --help >/dev/null
+test -f "$PACKAGE_DIR/scripts/hooks/post-merge.sh"
+test -f "$PACKAGE_DIR/docs/READINGS_AND_OPTICS.md"
+bash "$PACKAGE_DIR/scripts/install-git-warp.sh" --help >/dev/null
+bash "$PACKAGE_DIR/scripts/uninstall-git-warp.sh" --help >/dev/null
 
 echo "packed artifact smoke passed"

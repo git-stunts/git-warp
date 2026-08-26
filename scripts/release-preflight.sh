@@ -174,11 +174,10 @@ fi
 
 # ── 8. Pack dry-runs ─────────────────────────────────────────────────────────
 echo "Pack:"
-PACK_OUTPUT=$(npm pack --dry-run --ignore-scripts 2>&1 || true)
-if printf '%s\n' "$PACK_OUTPUT" | grep -q "total files"; then
-  pass "npm pack dry-run"
+if npm run check:package-payload; then
+  pass "npm package payload"
 else
-  fail "npm pack dry-run failed"
+  fail "npm package payload failed"
 fi
 if bash scripts/smoke-packed-artifact.sh --prepared-artifacts; then
   pass "packed artifact smoke"
