@@ -22,6 +22,7 @@ describe('pathMatchesPublicationGlob', () => {
   it('matches recursive wildcards at the root and in nested directories', () => {
     expect(pathMatchesPublicationGlob('docs/README.md', 'docs/**/*.md')).toBe(true);
     expect(pathMatchesPublicationGlob('docs/topics/README.md', 'docs/**/*.md')).toBe(true);
+    expect(pathMatchesPublicationGlob('docs/topics/README.md', 'docs/**')).toBe(true);
   });
 });
 
