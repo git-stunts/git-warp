@@ -47,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `WriteReceipt.intent` now types every array input as the immutable normalized
   snapshot the runtime actually retains, even when the caller supplied a
   mutable array.
+- Retained atomic sequence replay now preserves entity-admission boundaries
+  and allocation origins instead of degrading each entity into primitive node
+  and property edits. A classified empty boundary list likewise keeps a manual
+  node-plus-property array from being reinterpreted as an entity birth after
+  reopen or Strand settlement.
 
 ### Compatibility
 

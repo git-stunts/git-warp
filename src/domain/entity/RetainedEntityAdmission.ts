@@ -1,7 +1,6 @@
 import VersionVector from '../crdt/VersionVector.ts';
 import { Dot } from '../crdt/Dot.ts';
 import WarpError from '../errors/WarpError.ts';
-import type { EntityCapturePayload } from '../types/EntityCapturePayload.ts';
 import EntityAdmissionOrigin from '../types/EntityAdmissionOrigin.ts';
 import { compareEventIds, EventId } from '../utils/EventId.ts';
 import Intent from '../api/Intent.ts';
@@ -10,8 +9,8 @@ type RetainedEntityAdmissionOptions = Readonly<{
   context: VersionVector | Readonly<Record<string, number>>;
   dot: Dot;
   eventId: EventId;
+  intent: Intent;
   origin: EntityAdmissionOrigin;
-  properties: EntityCapturePayload;
   subject: string;
 }>;
 
@@ -31,10 +30,7 @@ export default class RetainedEntityAdmission {
     this.context = VersionVector.from(required.context);
     this.dot = required.dot;
     this.eventId = required.eventId;
-    this.intent = Intent.addEntity({
-      subject: required.subject,
-      properties: required.properties,
-    });
+    this.intent = requireEntityIntent(required.intent, required.subject);
     this.origin = required.origin;
     this.subject = required.subject;
     Object.freeze(this);
@@ -74,6 +70,17 @@ function requireAdmissionOrigin(options: RetainedEntityAdmissionOptions): void {
   if (!(options.origin instanceof EntityAdmissionOrigin)) {
     throw retainedError('Retained entity admission requires an allocation origin');
   }
+}
+
+function requireEntityIntent(intent: Intent, subject: string): Intent {
+  if (!(intent instanceof Intent) || intent.kind !== 'entity.add') {
+    throw retainedError('Retained entity admission requires an entity Intent');
+  }
+  const { descriptor } = intent;
+  if ('subject' in descriptor && descriptor.subject !== subject) {
+    throw retainedError('Retained entity admission Intent has another subject');
+  }
+  return intent;
 }
 
 function retainedError(message: string): WarpError {

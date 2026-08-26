@@ -59,6 +59,48 @@ describe('IntentSequenceRuntime', () => {
     expect(replayBuilder.build()).toEqual(retained);
   });
 
+  it('replays an allocated entity at its retained subject and allocation origin', () => {
+    const original = IntentSequence.from(Intent.addEntityAuto({
+      namespace: 'capture',
+      properties: { body: 'one' },
+    }));
+    const firstBuilder = createPatchBuilder({ graphName: 'captures', writerId: 'agent-1' });
+    applyIntentSequenceToPatch(original, firstBuilder);
+    const retained = firstBuilder.build();
+
+    const recovered = intentSequenceFromPatch(retained);
+    const replayBuilder = createPatchBuilder({ graphName: 'captures', writerId: 'agent-1' });
+    applyIntentSequenceToPatch(recovered, replayBuilder);
+
+    expect(replayBuilder.build()).toEqual(retained);
+    expect(replayBuilder.build().entityAdmissions?.[0]?.origin).toMatchObject({
+      kind: 'allocated',
+      namespace: 'capture',
+    });
+  });
+
+  it('keeps a classified manual node-property array primitive', () => {
+    const original = IntentSequence.from([
+      Intent.addNode({ subject: 'capture:manual' }),
+      Intent.setProperty({
+        subject: 'capture:manual',
+        key: 'body',
+        value: 'not an entity admission',
+      }),
+    ]);
+    const firstBuilder = createPatchBuilder({ graphName: 'captures', writerId: 'agent-1' });
+    applyIntentSequenceToPatch(original, firstBuilder);
+    const retained = firstBuilder.build();
+
+    const recovered = intentSequenceFromPatch(retained);
+    const replayBuilder = createPatchBuilder({ graphName: 'captures', writerId: 'agent-1' });
+    applyIntentSequenceToPatch(recovered, replayBuilder);
+
+    expect(retained.entityAdmissions).toEqual([]);
+    expect(recovered.kinds).toEqual(['node.add', 'property.set']);
+    expect(replayBuilder.build()).toEqual(retained);
+  });
+
   it('rejects a sequence whose lowering exceeds the operation limit', () => {
     const properties = Object.fromEntries(
       Array.from({ length: MAX_ATOMIC_WRITE_OPERATIONS }, (_, index) => [

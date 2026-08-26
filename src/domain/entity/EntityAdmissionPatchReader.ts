@@ -1,14 +1,14 @@
 import type PatchEntry from '../artifacts/PatchEntry.ts';
 import WarpError from '../errors/WarpError.ts';
-import Intent, { type IntentDescriptor } from '../api/Intent.ts';
+import type { default as Intent, IntentDescriptor } from '../api/Intent.ts';
 import { intentFromPatch } from '../api/IntentRuntime.ts';
-import type { EntityCapturePayload } from '../types/EntityCapturePayload.ts';
+import { bindRetainedEntityIntent } from '../api/RetainedEntityIntentRuntime.ts';
 import type EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
 import EntityAdmissionOrigin from '../types/EntityAdmissionOrigin.ts';
 import type Patch from '../types/Patch.ts';
-import { isPropValue, type PropValue } from '../types/PropValue.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
 import { EventId } from '../utils/EventId.ts';
+import { intentFromEntityAdmissionBoundary } from './EntityAdmissionBoundaryIntent.ts';
 import RetainedEntityAdmission from './RetainedEntityAdmission.ts';
 
 type SuppliedEntityDescriptor = Extract<
@@ -33,21 +33,14 @@ function admissionFromBoundary(
   entry: PatchEntry,
   boundary: EntityAdmissionBoundary,
 ): RetainedEntityAdmission {
-  const leading = entry.patch.ops[boundary.operationIndex];
-  if (leading?.type !== 'NodeAdd') {
-    throw retainedError('Validated entity boundary lost its NodeAdd');
-  }
-  const end = boundary.operationIndex + boundary.operationCount;
+  const retained = intentFromEntityAdmissionBoundary(entry.patch, boundary);
   return retainedAdmission({
+    dot: retained.dot,
     entry,
+    intent: retained.intent,
     operationIndex: boundary.operationIndex,
     origin: boundary.origin,
-    properties: propertiesFrom(
-      leading.node,
-      entry.patch.ops.slice(boundary.operationIndex + 1, end),
-    ),
-    subject: leading.node,
-    dot: leading.dot,
+    subject: retained.subject,
   });
 }
 
@@ -59,12 +52,15 @@ function legacyEntityAdmission(entry: PatchEntry): RetainedEntityAdmission | nul
   const descriptor = requireSuppliedEntityDescriptor(intent.descriptor);
   const leading = requireLegacyLeadingNode(entry.patch.ops[0]);
   return retainedAdmission({
+    dot: leading.dot,
     entry,
+    intent: bindRetainedEntityIntent(
+      intent,
+      EntityAdmissionOrigin.legacyUnrecorded(),
+    ),
     operationIndex: 0,
     origin: EntityAdmissionOrigin.legacyUnrecorded(),
-    properties: descriptor.properties,
     subject: descriptor.subject,
-    dot: leading.dot,
   });
 }
 
@@ -123,52 +119,13 @@ function requireLegacyLeadingNode(
   return operation;
 }
 
-function propertiesFrom(
-  subject: string,
-  operations: readonly PatchOp[],
-): EntityCapturePayload {
-  const properties = new Map<string, PropValue>();
-  for (const operation of operations) {
-    const property = requirePropertyForSubject(operation, subject);
-    if (!isEntityPropertyValue(property.value)) {
-      throw retainedError('Entity admission payload contains an invalid property value');
-    }
-    properties.set(property.key, property.value);
-  }
-  const { descriptor } = Intent.addEntity({
-    subject,
-    properties: Object.fromEntries(properties),
-  });
-  if (descriptor.kind !== 'entity.add') {
-    throw retainedError('Entity admission payload did not construct an entity Intent');
-  }
-  return descriptor.properties;
-}
-
-function requirePropertyForSubject(
-  operation: PatchOp,
-  subject: string,
-): Extract<PatchOp, { readonly type: 'NodePropSet' | 'PropSet' }> {
-  if (operation.type !== 'NodePropSet' && operation.type !== 'PropSet') {
-    throw retainedError('Entity admission boundary contains an invalid payload operation');
-  }
-  if (operation.node !== subject) {
-    throw retainedError('Entity admission boundary contains an invalid payload operation');
-  }
-  return operation;
-}
-
-function isEntityPropertyValue(value: unknown): value is PropValue {
-  return isPropValue(value);
-}
-
 function retainedAdmission(options: {
+  readonly dot: Extract<PatchOp, { readonly type: 'NodeAdd' }>['dot'];
   readonly entry: PatchEntry;
+  readonly intent: Intent;
   readonly operationIndex: number;
   readonly origin: EntityAdmissionOrigin;
-  readonly properties: EntityCapturePayload;
   readonly subject: string;
-  readonly dot: Extract<PatchOp, { readonly type: 'NodeAdd' }>['dot'];
 }): RetainedEntityAdmission {
   const { entry } = options;
   return new RetainedEntityAdmission({
@@ -180,8 +137,8 @@ function retainedAdmission(options: {
       entry.sha,
       options.operationIndex,
     ),
+    intent: options.intent,
     origin: options.origin,
-    properties: options.properties,
     subject: options.subject,
   });
 }

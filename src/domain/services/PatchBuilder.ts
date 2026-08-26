@@ -156,7 +156,25 @@ export class PatchBuilder {
 
   /** Creates one entity and its initial payload in a single-subject patch. */
   addEntity(nodeId: string, properties: EntityCapturePayload): PatchBuilder {
+    return this.addRetainedEntity(
+      nodeId,
+      properties,
+      EntityAdmissionOrigin.suppliedSubject(),
+    );
+  }
+
+  /** Replays one trusted retained entity without discarding its birth origin. */
+  addRetainedEntity(
+    nodeId: string,
+    properties: EntityCapturePayload,
+    origin: EntityAdmissionOrigin,
+  ): PatchBuilder {
     this._assertNotCommitted();
+    if (!(origin instanceof EntityAdmissionOrigin)) {
+      throw new PatchError('Retained entity requires an admission origin', {
+        code: 'E_PATCH_ENTITY_ADMISSION_ORIGIN',
+      });
+    }
     const scope = { added: this._nodesAdded, state: this._getSnapshotState() };
     const payload = planEntityCapturePayload(nodeId, properties, scope);
     const operationIndex = this._ops.length;
@@ -165,7 +183,7 @@ export class PatchBuilder {
     this._entityAdmissions.push(new EntityAdmissionBoundary({
       operationCount: 1 + payload.length,
       operationIndex,
-      origin: EntityAdmissionOrigin.suppliedSubject(),
+      origin,
     }));
     return this;
   }
