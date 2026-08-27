@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { completeWithCleanup } from '../../../../src/infrastructure/adapters/OperationCleanup.ts';
+import {
+  completeCleanupSteps,
+  completeWithCleanup,
+} from '../../../../src/infrastructure/adapters/OperationCleanup.ts';
 
 describe('completeWithCleanup', () => {
   it('returns the operation value after cleanup', async () => {
@@ -54,5 +57,31 @@ describe('completeWithCleanup', () => {
       message: 'both failed',
       errors: [operationFailure, cleanupFailure],
     });
+  });
+});
+
+describe('completeCleanupSteps', () => {
+  it('attempts every step in order and preserves failure order', async () => {
+    const firstFailure = new Error('first cleanup failed');
+    const secondFailure = new Error('second cleanup failed');
+    const events: string[] = [];
+
+    await expect(completeCleanupSteps([
+      async () => {
+        events.push('first');
+        throw firstFailure;
+      },
+      async () => {
+        events.push('second');
+        throw secondFailure;
+      },
+      async () => {
+        events.push('third');
+      },
+    ], 'cleanup failed')).rejects.toMatchObject({
+      errors: [firstFailure, secondFailure],
+    });
+
+    expect(events).toEqual(['first', 'second', 'third']);
   });
 });

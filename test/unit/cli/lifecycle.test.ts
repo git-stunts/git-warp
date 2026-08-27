@@ -9,6 +9,10 @@ const LIFECYCLE_SOURCE = readFileSync(
   new URL('../../../bin/cli/lifecycle.ts', import.meta.url),
   'utf8',
 );
+const OBSERVE_SOURCE = readFileSync(
+  new URL('../../../bin/cli/commands/observe.ts', import.meta.url),
+  'utf8',
+);
 
 describe('CLI long-running command lifecycle', () => {
   it('drains the command before closing its storage', async () => {
@@ -64,6 +68,13 @@ describe('CLI long-running command lifecycle', () => {
   it('does not retain CLI failures in explicit unknown bags', () => {
     expect(LIFECYCLE_SOURCE).not.toContain('operationFailure: unknown');
     expect(LIFECYCLE_SOURCE).not.toContain('failures: unknown[]');
+  });
+
+  it('keeps observation cleanup behind the shared ordered lifecycle', () => {
+    expect(OBSERVE_SOURCE).not.toContain('operationFailure: unknown');
+    expect(OBSERVE_SOURCE).not.toContain('failures: unknown[]');
+    expect(OBSERVE_SOURCE).not.toContain('recordCleanupFailure');
+    expect(OBSERVE_SOURCE).toContain('completeCleanupSteps');
   });
 
   it('propagates arbitrary failures as promise rejections', () => {

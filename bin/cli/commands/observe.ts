@@ -17,6 +17,10 @@ import type Observation from '../../../src/domain/api/Observation.ts';
 import type Reading from '../../../src/domain/api/ObservedReading.ts';
 import type Observer from '../../../src/domain/api/Observer.ts';
 import type { ReadingValue } from '../../../src/domain/api/ReadingValue.ts';
+import {
+  completeCleanupSteps,
+  completeWithCleanup,
+} from '../../../src/infrastructure/adapters/OperationCleanup.ts';
 
 const OBSERVE_OPTIONS = {
   observer: { type: 'string' },
@@ -90,8 +94,8 @@ implements AsyncIterable<McpJsonValue>, AsyncIterator<McpJsonValue> {
   readonly #observation: Observation<ReadingValue>;
   readonly #readings: AsyncIterator<Reading<ReadingValue>>;
   readonly #runtime: Runtime;
+  #closePromise: Promise<void> | null = null;
   #receiptEmitted = false;
-  #resourcesClosed = false;
 
   constructor(runtime: Runtime, observation: Observation<ReadingValue>) {
     this.#runtime = runtime;
@@ -107,77 +111,53 @@ implements AsyncIterable<McpJsonValue>, AsyncIterator<McpJsonValue> {
     if (this.#receiptEmitted) {
       return { done: true, value: undefined };
     }
+    let receipt: McpJsonValue;
     try {
       const reading = await this.#readings.next();
       if (reading.done !== true) {
         return { done: false, value: readingEnvelope(reading.value) };
       }
-      const receipt = receiptEnvelope(await this.#observation.receipt);
-      await this.#closeResources(false);
-      this.#receiptEmitted = true;
-      return { done: false, value: receipt };
+      receipt = receiptEnvelope(await this.#observation.receipt);
     } catch (error) {
       return await this.#fail(error);
     }
+    this.#receiptEmitted = true;
+    await this.#closeResources(false);
+    return { done: false, value: receipt };
   }
 
   async return(): Promise<IteratorResult<McpJsonValue>> {
-    await this.#closeResources(true);
     this.#receiptEmitted = true;
+    await this.#closeResources(true);
     return { done: true, value: undefined };
   }
 
-  async #fail(operationFailure: unknown): Promise<never> {
-    try {
-      await this.#closeResources(true);
-    } catch (cleanupFailure) {
-      throw new AggregateError(
-        [operationFailure, cleanupFailure],
-        'CLI observation and cleanup both failed',
-      );
-    }
-    throw operationFailure;
+  async #fail<Failure>(operationFailure: Failure): Promise<never> {
+    return await completeWithCleanup(
+      async () => await Promise.reject(operationFailure),
+      async () => await this.#closeResources(true),
+      'CLI observation and cleanup both failed',
+    );
   }
 
   async #closeResources(cancelReadings: boolean): Promise<void> {
-    if (this.#resourcesClosed) {
-      return;
-    }
-    const failures: unknown[] = [];
+    this.#closePromise ??= this.#beginClose(cancelReadings);
+    return await this.#closePromise;
+  }
+
+  async #beginClose(cancelReadings: boolean): Promise<void> {
     const cancel = this.#readings.return?.bind(this.#readings);
-    if (cancelReadings && cancel !== undefined) {
-      await recordCleanupFailure(failures, async () => {
-        await cancel();
-      });
-    }
-    await recordCleanupFailure(failures, async () => {
-      await this.#observation.receipt;
-    });
-    await recordCleanupFailure(failures, async () => {
-      await this.#runtime.close();
-    });
-    this.#resourcesClosed = true;
-    throwCleanupFailures(failures);
-  }
-}
-
-async function recordCleanupFailure(
-  failures: unknown[],
-  operation: () => Promise<void>,
-): Promise<void> {
-  try {
-    await operation();
-  } catch (error) {
-    failures.push(error);
-  }
-}
-
-function throwCleanupFailures(failures: readonly unknown[]): void {
-  if (failures.length === 1) {
-    throw failures[0];
-  }
-  if (failures.length > 1) {
-    throw new AggregateError(failures, 'CLI observation cleanup failed');
+    await completeCleanupSteps([
+      async () => {
+        if (cancelReadings && cancel !== undefined) {
+          await cancel();
+        }
+      },
+      async () => {
+        await this.#observation.receipt;
+      },
+      async () => await this.#runtime.close(),
+    ], 'CLI observation cleanup failed');
   }
 }
 
@@ -202,19 +182,15 @@ async function streamLaneObservation(
   }
 }
 
-async function closeStreamingOpenFailure(
+async function closeStreamingOpenFailure<Failure>(
   runtime: Runtime,
-  openFailure: unknown,
+  openFailure: Failure,
 ): Promise<never> {
-  try {
-    await runtime.close();
-  } catch (closeFailure) {
-    throw new AggregateError(
-      [openFailure, closeFailure],
-      'CLI observation open and cleanup both failed',
-    );
-  }
-  throw openFailure;
+  return await completeWithCleanup(
+    async () => await Promise.reject(openFailure),
+    async () => await runtime.close(),
+    'CLI observation open and cleanup both failed',
+  );
 }
 
 async function observeLane(

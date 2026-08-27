@@ -17,3 +17,27 @@ export async function completeWithCleanup<T>(
   }
   return result.value;
 }
+
+/** Attempts every cleanup step in declaration order and preserves failure order. */
+export async function completeCleanupSteps(
+  steps: readonly (() => Promise<void>)[],
+  aggregateMessage: string,
+): Promise<void> {
+  const failures: PromiseRejectedResult[] = [];
+  for (const step of steps) {
+    const [result] = await Promise.allSettled([Promise.resolve().then(step)]);
+    if (result?.status === 'rejected') {
+      failures.push(result);
+    }
+  }
+  const first = failures[0];
+  if (failures.length === 1 && first !== undefined) {
+    return await Promise.reject(first.reason);
+  }
+  if (failures.length > 1) {
+    throw new AggregateError(
+      failures.map(({ reason }) => reason),
+      aggregateMessage,
+    );
+  }
+}
