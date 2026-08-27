@@ -59,6 +59,39 @@ describe('PatchJournalEntityAdmissionInventory', () => {
     })).toBe(true);
     expect(second.map(eventIdentity)).toEqual(first.map(eventIdentity));
   });
+
+  it('preserves open and cursor cleanup failures in deterministic order', async () => {
+    const openFailure = new Error('writer-c open failed');
+    const writerACleanup = new Error('writer-a cleanup failed');
+    const writerBCleanup = new Error('writer-b cleanup failed');
+    const inventory = new PatchJournalEntityAdmissionInventory({
+      journal: new FailingInventoryJournal(new Map([
+        ['writer-a', failingReturnHistory(
+          entityEntry('writer-a', 1, 'a001', 'capture:a1'),
+          writerACleanup,
+        )],
+        ['writer-b', failingReturnHistory(
+          entityEntry('writer-b', 2, 'b002', 'capture:b2'),
+          writerBCleanup,
+        )],
+        ['writer-c', failingOpenHistory(openFailure)],
+      ])),
+    });
+    const basis = new EntityAdmissionInventoryBasis({
+      frontier: new Map([
+        ['writer-a', 'a001'],
+        ['writer-b', 'b002'],
+        ['writer-c', 'c003'],
+      ]),
+      worldlineName: 'captures',
+    });
+
+    const iterator = inventory.scan(basis)[Symbol.asyncIterator]();
+
+    await expect(iterator.next()).rejects.toMatchObject({
+      errors: [openFailure, writerACleanup, writerBCleanup],
+    });
+  });
 });
 
 class InventoryJournal extends PatchJournalPort {
@@ -91,6 +124,70 @@ class InventoryJournal extends PatchJournalPort {
     }
     return WarpStream.from(history);
   }
+}
+
+class FailingInventoryJournal extends PatchJournalPort {
+  readonly #histories: ReadonlyMap<string, AsyncIterable<PatchEntry>>;
+
+  constructor(histories: ReadonlyMap<string, AsyncIterable<PatchEntry>>) {
+    super();
+    this.#histories = histories;
+  }
+
+  override appendPatch(_request: AppendPatchRequest): Promise<PublishedPatch> {
+    throw new Error('FailingInventoryJournal does not publish patches');
+  }
+
+  override readPatch(_message: PatchCommitMessage): Promise<Patch> {
+    throw new Error('FailingInventoryJournal reads through scanPatchHistory');
+  }
+
+  override scanPatchRange(): WarpStream<PatchEntry> {
+    throw new Error('FailingInventoryJournal scans retained history only');
+  }
+
+  override scanPatchHistory(writerId: string): WarpStream<PatchEntry> {
+    const history = this.#histories.get(writerId);
+    if (history === undefined) {
+      throw new Error(`FailingInventoryJournal has no writer ${writerId}`);
+    }
+    return WarpStream.from(history);
+  }
+}
+
+function failingReturnHistory(
+  retained: PatchEntry,
+  failure: Error,
+): AsyncIterable<PatchEntry> {
+  return {
+    [Symbol.asyncIterator](): AsyncIterator<PatchEntry> {
+      let emitted = false;
+      return {
+        async next(): Promise<IteratorResult<PatchEntry>> {
+          if (emitted) {
+            return { done: true, value: undefined };
+          }
+          emitted = true;
+          return { done: false, value: retained };
+        },
+        async return(): Promise<IteratorResult<PatchEntry>> {
+          throw failure;
+        },
+      };
+    },
+  };
+}
+
+function failingOpenHistory(failure: Error): AsyncIterable<PatchEntry> {
+  return {
+    [Symbol.asyncIterator](): AsyncIterator<PatchEntry> {
+      return {
+        async next(): Promise<IteratorResult<PatchEntry>> {
+          throw failure;
+        },
+      };
+    },
+  };
 }
 
 function entityEntry(

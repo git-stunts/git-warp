@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Retained patches carrying an entity-admission marker now rehydrate a
   cascading node deletion as the original singular `node.remove` Intent rather
   than exposing its generated edge removals as an atomic public Intent array.
+- Entity admission inventory now closes writer cursors in deterministic
+  frontier order and preserves a primary open or scan failure before every
+  cursor-cleanup failure instead of exposing a timing-dependent rejection.
 - Intent publication validation now runs against the fully built patch before
   the journal can publish it. A mismatched, truncated, or appended operation
   sequence therefore fails without advancing the target ref or losing the

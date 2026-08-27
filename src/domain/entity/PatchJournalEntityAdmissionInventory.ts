@@ -3,6 +3,10 @@ import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type PatchEntry from '../artifacts/PatchEntry.ts';
 import WarpError from '../errors/WarpError.ts';
 import WarpStream from '../stream/WarpStream.ts';
+import {
+  completeCleanupSteps,
+  failWithCleanupSteps,
+} from '../utils/OperationCleanup.ts';
 import type EntityAdmissionInventoryBasis from './EntityAdmissionInventoryBasis.ts';
 import { entityAdmissionsFromPatch } from './EntityAdmissionPatchReader.ts';
 import type RetainedEntityAdmission from './RetainedEntityAdmission.ts';
@@ -44,6 +48,7 @@ extends EntityAdmissionInventoryPort {
     basis: EntityAdmissionInventoryBasis,
   ): AsyncIterable<RetainedEntityAdmission> {
     const cursors = await this.#openCursors(basis);
+    let operationFailed = false;
     try {
       while (cursors.length > 0) {
         const selected = latestCursorIndex(cursors);
@@ -62,8 +67,17 @@ extends EntityAdmissionInventoryPort {
           cursor.current = next.value;
         }
       }
+    } catch (error) {
+      operationFailed = true;
+      await failWithCleanupSteps(
+        error,
+        cursorCleanupSteps(cursors),
+        'Entity admission inventory scan and cursor cleanup failed',
+      );
     } finally {
-      await closeCursors(cursors);
+      if (!operationFailed) {
+        await closeCursors(cursors);
+      }
     }
   }
 
@@ -81,8 +95,11 @@ extends EntityAdmissionInventoryPort {
       }
       return cursors;
     } catch (error) {
-      await closeCursors(cursors);
-      throw error;
+      return await failWithCleanupSteps(
+        error,
+        cursorCleanupSteps(cursors),
+        'Entity admission inventory open and cursor cleanup failed',
+      );
     }
   }
 
@@ -113,5 +130,16 @@ function latestCursorIndex(cursors: readonly AdmissionCursor[]): number {
 }
 
 async function closeCursors(cursors: readonly AdmissionCursor[]): Promise<void> {
-  await Promise.all(cursors.map(async ({ iterator }) => await iterator.return?.()));
+  await completeCleanupSteps(
+    cursorCleanupSteps(cursors),
+    'Entity admission inventory cursor cleanup failed',
+  );
+}
+
+function cursorCleanupSteps(
+  cursors: readonly AdmissionCursor[],
+): readonly (() => Promise<void>)[] {
+  return cursors.map(({ iterator }) => async () => {
+    await iterator.return?.();
+  });
 }
