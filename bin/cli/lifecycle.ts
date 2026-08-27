@@ -38,7 +38,7 @@ async function failAfterShutdown<Failure>(
       'CLI output and shutdown both failed',
     );
   }
-  throw operationFailure;
+  return await Promise.reject(operationFailure);
 }
 
 /** Drains a long-running command before releasing the storage it may still use. */
@@ -55,9 +55,10 @@ export async function closeCommandResources(
     );
   }
   if (command.status === 'rejected') {
-    throw command.reason;
+    return await Promise.reject(command.reason);
   }
   if (storage.status === 'rejected') {
-    throw storage.reason;
+    return await Promise.reject(storage.reason);
   }
+  return undefined;
 }

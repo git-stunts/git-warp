@@ -66,6 +66,12 @@ describe('CLI long-running command lifecycle', () => {
     expect(LIFECYCLE_SOURCE).not.toContain('failures: unknown[]');
   });
 
+  it('propagates arbitrary failures as promise rejections', () => {
+    expect(LIFECYCLE_SOURCE).not.toMatch(
+      /\bthrow (?:operationFailure|command\.reason|storage\.reason);/u,
+    );
+  });
+
   it('installs shutdown before consuming output and cleans up a rejected stream', async () => {
     const streamFailure = new Error('stream failed');
     const events: string[] = [];
