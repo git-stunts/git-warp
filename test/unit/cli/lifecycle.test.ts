@@ -1,8 +1,14 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import {
   closeCommandResources,
   emitWithCommandShutdown,
 } from '../../../bin/cli/lifecycle.ts';
+
+const LIFECYCLE_SOURCE = readFileSync(
+  new URL('../../../bin/cli/lifecycle.ts', import.meta.url),
+  'utf8',
+);
 
 describe('CLI long-running command lifecycle', () => {
   it('drains the command before closing its storage', async () => {
@@ -40,6 +46,24 @@ describe('CLI long-running command lifecycle', () => {
       errors: [commandFailure, storageFailure],
     });
     expect(closeStorage).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves arbitrary output and cleanup rejection values', async () => {
+    const outputFailure = 'stream failed';
+    const cleanupFailure = Symbol('cleanup failed');
+
+    await expect(emitWithCommandShutdown({
+      closeCommand: vi.fn(),
+      emit: vi.fn().mockRejectedValue(outputFailure),
+      installShutdown: vi.fn(() => vi.fn().mockRejectedValue(cleanupFailure)),
+    })).rejects.toMatchObject({
+      errors: [outputFailure, cleanupFailure],
+    });
+  });
+
+  it('does not retain CLI failures in explicit unknown bags', () => {
+    expect(LIFECYCLE_SOURCE).not.toContain('operationFailure: unknown');
+    expect(LIFECYCLE_SOURCE).not.toContain('failures: unknown[]');
   });
 
   it('installs shutdown before consuming output and cleans up a rejected stream', async () => {

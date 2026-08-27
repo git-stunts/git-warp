@@ -27,15 +27,14 @@ export async function emitWithCommandShutdown(
   return shutdown;
 }
 
-async function failAfterShutdown(
-  operationFailure: unknown,
+async function failAfterShutdown<Failure>(
+  operationFailure: Failure,
   shutdown: CloseResource,
 ): Promise<never> {
-  try {
-    await shutdown();
-  } catch (cleanupFailure) {
+  const [cleanup] = await Promise.allSettled([shutdown()]);
+  if (cleanup.status === 'rejected') {
     throw new AggregateError(
-      [operationFailure, cleanupFailure],
+      [operationFailure, cleanup.reason],
       'CLI output and shutdown both failed',
     );
   }
@@ -47,18 +46,18 @@ export async function closeCommandResources(
   closeCommand: CloseResource,
   closeStorage: CloseResource,
 ): Promise<void> {
-  const failures: unknown[] = [];
-  for (const close of [closeCommand, closeStorage]) {
-    try {
-      await close();
-    } catch (error) {
-      failures.push(error);
-    }
+  const [command] = await Promise.allSettled([closeCommand()]);
+  const [storage] = await Promise.allSettled([closeStorage()]);
+  if (command.status === 'rejected' && storage.status === 'rejected') {
+    throw new AggregateError(
+      [command.reason, storage.reason],
+      'CLI command and storage failed to close cleanly',
+    );
   }
-  if (failures.length === 1) {
-    throw failures[0];
+  if (command.status === 'rejected') {
+    throw command.reason;
   }
-  if (failures.length > 1) {
-    throw new AggregateError(failures, 'CLI command and storage failed to close cleanly');
+  if (storage.status === 'rejected') {
+    throw storage.reason;
   }
 }
