@@ -40,6 +40,24 @@ describe('EntityAdmissionPatchReader', () => {
     expect(entityAdmissionsFromPatch(entry(nodeOnly))).toEqual([]);
   });
 
+  it('does not classify an unhydrated NodeAdd tag as a retained admission', () => {
+    const rawTagged = new Patch({
+      schema: 2,
+      writer: 'writer-a',
+      lamport: 1,
+      context: {},
+      ops: [
+        // @ts-expect-error Exercise the JavaScript hydration boundary.
+        { type: 'NodeAdd', node: 'capture:raw', dot: Dot.create('writer-a', 1) },
+        new NodePropSet('capture:raw', 'body', 'not hydrated'),
+      ],
+      reads: [],
+      writes: ['capture:raw'],
+    });
+
+    expect(entityAdmissionsFromPatch(entry(rawTagged))).toEqual([]);
+  });
+
   it('rejects allocated origin metadata for an unrelated subject', () => {
     const forged = new Patch({
       schema: 2,

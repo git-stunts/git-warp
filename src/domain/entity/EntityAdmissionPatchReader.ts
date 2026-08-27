@@ -4,6 +4,7 @@ import type Intent from '../api/Intent.ts';
 import type EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
 import type EntityAdmissionOrigin from '../types/EntityAdmissionOrigin.ts';
 import type Patch from '../types/Patch.ts';
+import NodeAdd from '../types/ops/NodeAdd.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
 import { EventId } from '../utils/EventId.ts';
 import { intentFromEntityAdmissionBoundary } from './EntityAdmissionBoundaryIntent.ts';
@@ -55,8 +56,8 @@ function hasLegacyEntityFootprint(patch: Patch): boolean {
 
 function isNodeAdd(
   operation: PatchOp | undefined,
-): operation is Extract<PatchOp, { readonly type: 'NodeAdd' }> {
-  return operation !== undefined && operation.type === 'NodeAdd';
+): operation is NodeAdd {
+  return operation instanceof NodeAdd;
 }
 
 function hasPatchReads(patch: Patch): boolean {
