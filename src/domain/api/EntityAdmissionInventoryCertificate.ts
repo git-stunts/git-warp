@@ -97,18 +97,32 @@ function requireCertificateId(value: string, field: string): string {
   return value;
 }
 
-function freezeLane(lane: LaneReference): EntityAdmissionInventoryLane {
-  if (
-    lane.kind !== 'worldline'
-    || typeof lane.name !== 'string'
-    || lane.name.length === 0
-  ) {
+function freezeLane(
+  lane: LaneReference | null | undefined,
+): EntityAdmissionInventoryLane {
+  if (lane === null || lane === undefined) {
     throw new WarpError(
       'Entity admission inventory certificate requires a Lane reference',
       'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
     );
   }
-  return Object.freeze({ kind: lane.kind, name: lane.name });
+  const { kind, name } = lane;
+  const snapshot = Object.freeze({ kind, name });
+  if (!isWorldlineLane(snapshot)) {
+    throw new WarpError(
+      'Entity admission inventory certificate requires a Lane reference',
+      'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
+    );
+  }
+  return snapshot;
+}
+
+function isWorldlineLane(
+  lane: LaneReference,
+): lane is EntityAdmissionInventoryLane {
+  return lane.kind === 'worldline'
+    && typeof lane.name === 'string'
+    && lane.name.length > 0;
 }
 
 function requireEvidenceBinding(

@@ -70,6 +70,23 @@ describe('EntityAdmissionInventoryCertificate runtime binding', () => {
           basisId: 'basis:inventory',
           causalDomainId: 'domain:inventory',
           evidence: EVIDENCE,
+          // @ts-expect-error Exercise the JavaScript boundary.
+          lane: null,
+          selectorDigest: 'selector:inventory',
+          streamDigest: 'stream:inventory',
+        })
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
+      })
+    );
+    expect(
+      () =>
+        new EntityAdmissionInventoryCertificate({
+          admissionCount: 0,
+          basisId: 'basis:inventory',
+          causalDomainId: 'domain:inventory',
+          evidence: EVIDENCE,
           lane: { kind: 'worldline', name: '' },
           selectorDigest: 'selector:inventory',
           streamDigest: 'stream:inventory',
@@ -79,6 +96,33 @@ describe('EntityAdmissionInventoryCertificate runtime binding', () => {
         code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
       })
     );
+  });
+
+  it('snapshots a Lane reference before validation', () => {
+    let kindReads = 0;
+    const shiftingLane = Object.defineProperties({}, {
+      kind: {
+        get: () => {
+          kindReads += 1;
+          return kindReads === 1 ? 'worldline' : 'strand';
+        },
+      },
+      name: { value: 'captures' },
+    });
+
+    const inventoryCertificate = new EntityAdmissionInventoryCertificate({
+      admissionCount: 0,
+      basisId: 'basis:inventory',
+      causalDomainId: 'domain:inventory',
+      evidence: EVIDENCE,
+      // @ts-expect-error Exercise the JavaScript boundary.
+      lane: shiftingLane,
+      selectorDigest: 'selector:inventory',
+      streamDigest: 'stream:inventory',
+    });
+
+    expect(inventoryCertificate.lane).toEqual({ kind: 'worldline', name: 'captures' });
+    expect(kindReads).toBe(1);
   });
 
   it('requires one exact worldline basis across certificate evidence', () => {
