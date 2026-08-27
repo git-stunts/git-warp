@@ -1,5 +1,6 @@
 import WarpError from '../errors/WarpError.ts';
 import EntityAdmissionInventoryCertificate from './EntityAdmissionInventoryCertificate.ts';
+import { isEntityAdmissionInventoryObserver } from './EntityAdmissionInventoryObserverRuntime.ts';
 import ObservationReceipt from './ObservationReceipt.ts';
 
 const INVENTORY_CERTIFICATES = new WeakMap<
@@ -19,6 +20,15 @@ export function bindEntityAdmissionInventoryCertificate(
   }
   if (!(certificate instanceof EntityAdmissionInventoryCertificate)) {
     throw certificateError('Inventory certificate binding requires a certificate');
+  }
+  if (!isEntityAdmissionInventoryObserver(receipt.observer)) {
+    throw certificateError('Inventory certificate requires an inventory Observer');
+  }
+  if (receipt.lane !== certificate.lane.name) {
+    throw certificateError('Inventory certificate belongs to another Lane');
+  }
+  if (receipt.evidence !== certificate.evidence) {
+    throw certificateError('Inventory certificate evidence does not match its receipt');
   }
   if (INVENTORY_CERTIFICATES.has(receipt)) {
     throw certificateError('Inventory certificate is already bound');

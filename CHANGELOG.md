@@ -60,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RetainedEntityAdmission.context` is now an isolated frozen vector snapshot,
   preventing inventory consumers from rewriting causal evidence before an
   occurrence is issued.
+- Inventory certificates now require a worldline Lane and one matching basis
+  across their public basis, evidence Tick, evidence basis, receipt Lane, and
+  registered inventory Observer. A completed unrelated Observation can no
+  longer acquire a completeness certificate.
 - Intent publication validation now runs against the fully built patch before
   the journal can publish it. A mismatched, truncated, or appended operation
   sequence therefore fails without advancing the target ref or losing the

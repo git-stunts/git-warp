@@ -23,6 +23,11 @@ type EntityAdmissionInventorySelector = Readonly<{
   kind: 'lane';
 }>;
 
+type EntityAdmissionInventoryLane = Readonly<{
+  kind: 'worldline';
+  name: string;
+}>;
+
 export const ENTITY_ADMISSION_INVENTORY_SCHEMA:
   'warp/entity-admission-inventory@1' = 'warp/entity-admission-inventory@1';
 const ENTITY_ADMISSION_INVENTORY_COMPLETENESS: 'complete' = 'complete';
@@ -47,7 +52,7 @@ export default class EntityAdmissionInventoryCertificate {
   readonly coveredDomain: 'retained-entity-add-admissions' =
     ENTITY_ADMISSION_INVENTORY_COVERED_DOMAIN;
   readonly evidence: Evidence;
-  readonly lane: LaneReference;
+  readonly lane: EntityAdmissionInventoryLane;
   readonly ordering: EntityAdmissionInventoryOrdering =
     ENTITY_ADMISSION_INVENTORY_ORDERING;
   readonly selector: EntityAdmissionInventorySelector =
@@ -70,13 +75,17 @@ export default class EntityAdmissionInventoryCertificate {
         'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
       );
     }
+    const basisId = requireCertificateId(options.basisId, 'basis');
+    const evidence = freezeEvidence(options.evidence, 'entityAdmissionInventory.evidence');
+    const lane = freezeLane(options.lane);
+    requireEvidenceBinding(evidence, basisId, lane);
     this.admissionCount = options.admissionCount;
-    this.basis = Object.freeze({ id: requireCertificateId(options.basisId, 'basis') });
+    this.basis = Object.freeze({ id: basisId });
     this.causalDomain = Object.freeze({
       id: requireCertificateId(options.causalDomainId, 'causalDomain'),
     });
-    this.evidence = freezeEvidence(options.evidence, 'entityAdmissionInventory.evidence');
-    this.lane = freezeLane(options.lane);
+    this.evidence = evidence;
+    this.lane = lane;
     this.selectorDigest = requireCertificateId(options.selectorDigest, 'selectorDigest');
     this.streamDigest = requireCertificateId(options.streamDigest, 'streamDigest');
     Object.freeze(this);
@@ -88,9 +97,9 @@ function requireCertificateId(value: string, field: string): string {
   return value;
 }
 
-function freezeLane(lane: LaneReference): LaneReference {
+function freezeLane(lane: LaneReference): EntityAdmissionInventoryLane {
   if (
-    (lane.kind !== 'worldline' && lane.kind !== 'strand')
+    lane.kind !== 'worldline'
     || typeof lane.name !== 'string'
     || lane.name.length === 0
   ) {
@@ -100,4 +109,21 @@ function freezeLane(lane: LaneReference): LaneReference {
     );
   }
   return Object.freeze({ kind: lane.kind, name: lane.name });
+}
+
+function requireEvidenceBinding(
+  evidence: Evidence,
+  basisId: string,
+  lane: EntityAdmissionInventoryLane,
+): void {
+  if (
+    evidence.basis.id !== basisId
+    || evidence.tick?.id !== basisId
+    || evidence.tick.timeline !== lane.name
+  ) {
+    throw new WarpError(
+      'Entity admission inventory evidence must match its worldline basis',
+      'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
+    );
+  }
 }
