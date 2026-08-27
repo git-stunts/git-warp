@@ -138,6 +138,27 @@ describe('EntityAdmissionInventoryCertificate runtime binding', () => {
     )).toThrowError(expect.objectContaining({
       code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
     }));
+
+    const otherEvidence = Object.freeze({
+      basis: Object.freeze({ id: 'basis:inventory' }),
+      support: Object.freeze([]),
+      tick: new Tick({ id: 'basis:inventory', timeline: 'captures' }),
+    });
+    const mismatchedEvidenceCertificate = new EntityAdmissionInventoryCertificate({
+      admissionCount: 0,
+      basisId: 'basis:inventory',
+      causalDomainId: 'domain:inventory',
+      evidence: otherEvidence,
+      lane: { kind: 'worldline', name: 'captures' },
+      selectorDigest: 'selector:inventory',
+      streamDigest: 'stream:inventory',
+    });
+    expect(() => bindEntityAdmissionInventoryCertificate(
+      completedReceipt(),
+      mismatchedEvidenceCertificate,
+    )).toThrowError(expect.objectContaining({
+      code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
+    }));
   });
 
   it('rejects unresolved receipts, forged certificates, duplicate binding, and forged lookup', () => {

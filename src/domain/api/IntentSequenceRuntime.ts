@@ -38,7 +38,7 @@ function singularIntentSequenceFromPatch(patch: Patch): IntentSequence | null {
       ? retainLegacyOrigin(retained)
       : retained);
   } catch (error) {
-    if (!(error instanceof WarpError) || !isMultiOperationHydrationFailure(error, patch)) {
+    if (!(error instanceof WarpError) || !isAtomicHydrationFailure(error, patch)) {
       throw error;
     }
   }
@@ -52,17 +52,10 @@ function atomicIntentSequenceFromPatch(patch: Patch): IntentSequence {
 }
 
 function markedIntentSequence(patch: Patch): IntentSequence {
-  const intents = markedIntentArray(patch);
-  const first = intents[0];
-  if (first === undefined) {
-    throw emptyPatchError();
-  }
-  return intents.length === 1
-    ? IntentSequence.from(first)
-    : IntentSequence.from(Object.freeze([first, ...intents.slice(1)]));
+  return IntentSequence.from(markedIntentArray(patch));
 }
 
-function markedIntentArray(patch: Patch): readonly ReturnType<typeof intentFromOperation>[] {
+function markedIntentArray(patch: Patch): AtomicIntentArray {
   const boundaries = new Map(
     patch.entityAdmissions?.map((boundary) => [boundary.operationIndex, boundary]),
   );
@@ -78,7 +71,11 @@ function markedIntentArray(patch: Patch): readonly ReturnType<typeof intentFromO
     intents.push(intentFromEntityAdmissionBoundary(patch, boundary).intent);
     operationIndex += boundary.operationCount;
   }
-  return Object.freeze(intents);
+  const [first, ...remaining] = intents;
+  if (first === undefined) {
+    throw emptyPatchError();
+  }
+  return Object.freeze([first, ...remaining]);
 }
 
 function retainLegacyOrigin(
@@ -99,12 +96,9 @@ function requireAtomicOperationLimit(patch: PatchBuilder): void {
   }
 }
 
-function isMultiOperationHydrationFailure(error: WarpError, patch: Patch): boolean {
-  return (
-    error instanceof WarpError &&
-    error.code === 'E_DRAFT_INTENT_HYDRATION' &&
-    patch.ops.length > 1
-  );
+function isAtomicHydrationFailure(error: WarpError, patch: Patch): boolean {
+  return error.code === 'E_DRAFT_INTENT_HYDRATION'
+    && patch.ops.length !== 1;
 }
 
 function primitiveIntentArray(patch: Patch): AtomicIntentArray {

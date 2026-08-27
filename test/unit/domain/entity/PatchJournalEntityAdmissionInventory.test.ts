@@ -137,6 +137,18 @@ describe('PatchJournalEntityAdmissionInventory', () => {
     });
   });
 
+  it('normalizes a non-Error journal-open rejection', async () => {
+    const inventory = new PatchJournalEntityAdmissionInventory({
+      journal: new NonErrorOpeningJournal(),
+    });
+
+    await expect(
+      inventory.scan(singleWriterBasis())[Symbol.asyncIterator]().next(),
+    ).rejects.toMatchObject({
+      code: 'E_ENTITY_ADMISSION_INVENTORY_FAILURE',
+    });
+  });
+
   it('preserves a cursor-scan failure before its cleanup failure', async () => {
     const scanFailure = new Error('writer-a scan failed');
     const cleanupFailure = new Error('writer-a cleanup failed');
@@ -256,6 +268,24 @@ class FailingInventoryJournal extends PatchJournalPort {
       throw new Error(`FailingInventoryJournal has no writer ${writerId}`);
     }
     return WarpStream.from(history);
+  }
+}
+
+class NonErrorOpeningJournal extends PatchJournalPort {
+  override appendPatch(_request: AppendPatchRequest): Promise<PublishedPatch> {
+    throw new Error('NonErrorOpeningJournal does not publish patches');
+  }
+
+  override readPatch(_message: PatchCommitMessage): Promise<Patch> {
+    throw new Error('NonErrorOpeningJournal does not read patches');
+  }
+
+  override scanPatchRange(): WarpStream<PatchEntry> {
+    throw new Error('NonErrorOpeningJournal does not scan patch ranges');
+  }
+
+  override scanPatchHistory(): WarpStream<PatchEntry> {
+    throw 'non-Error journal-open rejection';
   }
 }
 

@@ -3,6 +3,7 @@ import {
   completeCleanupSteps,
   completeWithCleanup,
 } from '../../../../src/infrastructure/adapters/OperationCleanup.ts';
+import { failWithCleanupSteps } from '../../../../src/domain/utils/OperationCleanup.ts';
 
 describe('completeWithCleanup', () => {
   it('returns the operation value after cleanup', async () => {
@@ -33,6 +34,16 @@ describe('completeWithCleanup', () => {
       'both failed',
     )).rejects.toBe(operationFailure);
     expect(cleanup).toHaveBeenCalledOnce();
+  });
+
+  it('normalizes a non-Error operation rejection', async () => {
+    await expect(completeWithCleanup(
+      vi.fn().mockRejectedValue('non-Error operation rejection'),
+      vi.fn().mockResolvedValue(undefined),
+      'both failed',
+    )).rejects.toMatchObject({
+      code: 'E_OPERATION_REJECTION',
+    });
   });
 
   it('reports a cleanup failure after the operation succeeds', async () => {
@@ -96,5 +107,17 @@ describe('completeCleanupSteps', () => {
     });
 
     expect(events).toEqual(['first', 'second', 'third']);
+  });
+});
+
+describe('failWithCleanupSteps', () => {
+  it('preserves the primary failure when there is no cleanup failure', async () => {
+    const primaryFailure = new Error('primary operation failed');
+
+    await expect(failWithCleanupSteps(
+      primaryFailure,
+      [vi.fn().mockResolvedValue(undefined)],
+      'operation and cleanup failed',
+    )).rejects.toBe(primaryFailure);
   });
 });
