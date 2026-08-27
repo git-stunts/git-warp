@@ -50,23 +50,7 @@ extends EntityAdmissionInventoryPort {
     const cursors = await this.#openCursors(basis);
     let operationFailed = false;
     try {
-      while (cursors.length > 0) {
-        const selected = latestCursorIndex(cursors);
-        const cursor = cursors[selected];
-        if (cursor === undefined) {
-          throw new WarpError(
-            'Entity admission inventory cursor disappeared',
-            'E_ENTITY_ADMISSION_INVENTORY_CURSOR',
-          );
-        }
-        yield cursor.current;
-        const next = await cursor.iterator.next();
-        if (next.done === true) {
-          cursors.splice(selected, 1);
-        } else {
-          cursor.current = next.value;
-        }
-      }
+      yield* mergedAdmissions(cursors);
     } catch (error) {
       operationFailed = true;
       await failWithCleanupSteps(
@@ -109,6 +93,28 @@ extends EntityAdmissionInventoryPort {
   ): AsyncIterable<RetainedEntityAdmission> {
     for await (const entry of this.#journal.scanPatchHistory(writerId, patchSha)) {
       yield* reverseAdmissions(entry);
+    }
+  }
+}
+
+async function* mergedAdmissions(
+  cursors: AdmissionCursor[],
+): AsyncIterable<RetainedEntityAdmission> {
+  while (cursors.length > 0) {
+    const selected = latestCursorIndex(cursors);
+    const cursor = cursors[selected];
+    if (cursor === undefined) {
+      throw new WarpError(
+        'Entity admission inventory cursor disappeared',
+        'E_ENTITY_ADMISSION_INVENTORY_CURSOR',
+      );
+    }
+    yield cursor.current;
+    const next = await cursor.iterator.next();
+    if (next.done === true) {
+      cursors.splice(selected, 1);
+    } else {
+      cursor.current = next.value;
     }
   }
 }
