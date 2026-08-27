@@ -36,6 +36,20 @@ describe('op hydration boundary ratchet', () => {
     expect(hydrator).not.toContain('function readEntityAdmissionOrigin');
   });
 
+  it('keeps raw patch-root typing out of domain tests', () => {
+    const domainTest = source('test/unit/domain/services/PatchHydrator.test.ts');
+    const adapterTest = source(
+      'test/unit/infrastructure/adapters/PatchHydrationAdapter.test.ts',
+    );
+
+    expect(domainTest).not.toContain(
+      'function hydrateDecodedPatch(decoded: unknown)',
+    );
+    expect(adapterTest).toContain(
+      "hydratePatchAtDecodeBoundary('not-a-patch')",
+    );
+  });
+
   it('keeps decoded ops runtime-backed before patch construction', () => {
     const hydrator = source('src/domain/services/PatchHydrator.ts');
     const normalizer = source('src/domain/services/OpNormalizer.ts');

@@ -161,10 +161,6 @@ describe('PatchHydrator', () => {
     })).toThrow("Decoded patch requires string 'writer'");
   });
 
-  it('rejects non-object patch roots', () => {
-    expect(() => hydrateDecodedPatch('not-a-patch')).toThrow('Decoded patch root must be an object');
-  });
-
   it('rejects non-integer lamports', () => {
     expect(() => hydrateDecodedPatch({
       writer: 'alice',
@@ -249,6 +245,6 @@ describe('PatchHydrator', () => {
   });
 });
 
-function hydrateDecodedPatch(decoded: unknown): Patch {
+function hydrateDecodedPatch(decoded: object): Patch {
   return hydrateDomainPatch(decoded, undefined);
 }
