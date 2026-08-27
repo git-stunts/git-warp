@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { isMcpJsonObject } from '../../../bin/cli/commands/mcp/McpJsonValue.ts';
+import {
+  isMcpJsonObject,
+  type McpJsonObject,
+  type McpJsonValue,
+} from '../../../bin/cli/commands/mcp/McpJsonValue.ts';
 import {
   readingEnvelope,
 } from '../../../bin/presenters/V19ReadingReceipt.ts';
@@ -18,27 +22,25 @@ describe('v19 Reading presentation', () => {
       value: { ['__proto__']: { polluted: true } },
     });
 
-    const envelope = readingEnvelope(reading);
-    expect(isMcpJsonObject(envelope)).toBe(true);
-    if (!isMcpJsonObject(envelope)) {
-      return;
-    }
-    const value = envelope['value'];
-    expect(isMcpJsonObject(value)).toBe(true);
-    if (!isMcpJsonObject(value)) {
-      return;
-    }
+    const envelope = requireMcpJsonObject(readingEnvelope(reading));
+    const value = requireMcpJsonObject(envelope['value']);
 
     expect(Object.hasOwn(value, '__proto__')).toBe(true);
     expect(value['__proto__']).toEqual({ polluted: true });
     expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
     expect(Object.hasOwn(Object.prototype, 'polluted')).toBe(false);
 
-    const direct = toMcpJson({ ['__proto__']: 'direct' });
-    expect(isMcpJsonObject(direct)).toBe(true);
-    if (isMcpJsonObject(direct)) {
-      expect(Object.hasOwn(direct, '__proto__')).toBe(true);
-      expect(direct['__proto__']).toBe('direct');
-    }
+    const direct = requireMcpJsonObject(toMcpJson({ ['__proto__']: 'direct' }));
+    expect(Object.hasOwn(direct, '__proto__')).toBe(true);
+    expect(direct['__proto__']).toBe('direct');
   });
 });
+
+function requireMcpJsonObject(
+  value: McpJsonValue | undefined,
+): McpJsonObject {
+  if (!isMcpJsonObject(value)) {
+    throw new TypeError('expected MCP JSON object');
+  }
+  return value;
+}
