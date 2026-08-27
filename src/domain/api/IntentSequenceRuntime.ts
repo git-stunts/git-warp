@@ -24,6 +24,14 @@ export function applyIntentSequenceToPatch(
 
 /** Recovers one retained write while preserving its one-patch atomic boundary. */
 export function intentSequenceFromPatch(patch: Patch): IntentSequence {
+  const singular = singularIntentSequenceFromPatch(patch);
+  if (singular !== null) {
+    return singular;
+  }
+  return atomicIntentSequenceFromPatch(patch);
+}
+
+function singularIntentSequenceFromPatch(patch: Patch): IntentSequence | null {
   try {
     const retained = intentFromPatch(patch);
     return IntentSequence.from(patch.entityAdmissions === undefined
@@ -34,6 +42,10 @@ export function intentSequenceFromPatch(patch: Patch): IntentSequence {
       throw error;
     }
   }
+  return null;
+}
+
+function atomicIntentSequenceFromPatch(patch: Patch): IntentSequence {
   return patch.entityAdmissions === undefined
     ? IntentSequence.from(primitiveIntentArray(patch))
     : markedIntentSequence(patch);
