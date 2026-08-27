@@ -8,10 +8,13 @@ import type Evidence from '../../src/domain/api/Evidence.ts';
 import type RetentionEvidence from '../../src/domain/api/RetentionEvidence.ts';
 import type { ReadingValue } from '../../src/domain/api/ReadingValue.ts';
 import ImmutableBytes from '../../src/domain/services/snapshot/ImmutableBytes.ts';
-import type { McpJsonValue } from '../cli/commands/mcp/McpJsonValue.ts';
+import type {
+  McpJsonObject,
+  McpJsonValue,
+} from '../cli/commands/mcp/McpJsonValue.ts';
 import { settlementPlanFields } from '../cli/v19/V19SettlementReview.ts';
 import { stableStringify } from './json.ts';
-import { toMcpJson } from './V19Json.ts';
+import { defineMcpJsonProperty, toMcpJson } from './V19Json.ts';
 import WarpError from '../../src/domain/errors/WarpError.ts';
 import type EntityAdmissionInventoryCertificate from '../../src/domain/api/EntityAdmissionInventoryCertificate.ts';
 import { findEntityAdmissionInventoryCertificate } from '../../src/domain/api/EntityAdmissionInventoryCertificateRuntime.ts';
@@ -218,9 +221,9 @@ function readingValueToJson(value: ReadingValue): McpJsonValue {
     return Object.freeze(value.map(readingValueToJson));
   }
   if (isReadingValueObject(value)) {
-    const record: { [key: string]: McpJsonValue } = {};
+    const record: McpJsonObject = {};
     for (const [key, entry] of Object.entries(value)) {
-      record[key] = readingValueToJson(entry);
+      defineMcpJsonProperty(record, key, readingValueToJson(entry));
     }
     return Object.freeze(record);
   }

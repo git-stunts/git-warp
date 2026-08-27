@@ -51,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Entity admission inventory now closes writer cursors in deterministic
   frontier order and preserves a primary open or scan failure before every
   cursor-cleanup failure instead of exposing a timing-dependent rejection.
+- V19 Reading and JSON presenters now preserve a caller-controlled `__proto__`
+  key as frozen own JSON data without invoking the legacy object-prototype
+  setter or dropping that field from CLI output.
 - Intent publication validation now runs against the fully built patch before
   the journal can publish it. A mismatched, truncated, or appended operation
   sequence therefore fails without advancing the target ref or losing the
