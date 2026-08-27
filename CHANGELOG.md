@@ -51,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ordered cleanup now normalizes non-Error Promise rejections into typed WARP
   failures, attempts every declared cleanup step, and aggregates only explicit
   Error values in deterministic declaration order.
+- Entity admission inventory now retains an idempotent cleanup handle for each
+  underlying journal cursor independently of its flattened admission iterator.
+  Mid-scan rejection, open failure, normal exhaustion, and consumer
+  cancellation therefore close the owned cursor exactly once and preserve any
+  cleanup failure in deterministic order.
 - Entity admission inventory now fails closed on an unmarked v19.1-shaped
   whole-patch footprint. Those retained operations cannot prove whether the
   caller used `entity.add` or equivalent manual node and property edits, so the

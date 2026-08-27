@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
@@ -25,6 +25,20 @@ const PORT_SOURCE = readFileSync(
 );
 
 describe('PatchJournalEntityAdmissionInventory', () => {
+  it('requires a patch journal', () => {
+    expect(
+      () =>
+        new PatchJournalEntityAdmissionInventory({
+          // @ts-expect-error Exercise the JavaScript boundary.
+          journal: undefined,
+        }),
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_JOURNAL',
+      }),
+    );
+  });
+
   it('rejects a forged basis-shaped object before opening a scan', () => {
     const inventory = new PatchJournalEntityAdmissionInventory({
       journal: new InventoryJournal(new Map()),
@@ -105,6 +119,82 @@ describe('PatchJournalEntityAdmissionInventory', () => {
     await expect(iterator.next()).rejects.toMatchObject({
       errors: [openFailure, writerACleanup, writerBCleanup],
     });
+  });
+
+  it('normalizes a non-Error cursor-open rejection', async () => {
+    const inventory = new PatchJournalEntityAdmissionInventory({
+      journal: new FailingInventoryJournal(new Map([
+        ['writer-a', nonErrorFailingOpenHistory()],
+      ])),
+    });
+    const basis = new EntityAdmissionInventoryBasis({
+      frontier: new Map([['writer-a', 'a001']]),
+      worldlineName: 'captures',
+    });
+
+    await expect(inventory.scan(basis)[Symbol.asyncIterator]().next()).rejects.toMatchObject({
+      code: 'E_ENTITY_ADMISSION_INVENTORY_FAILURE',
+    });
+  });
+
+  it('preserves a cursor-scan failure before its cleanup failure', async () => {
+    const scanFailure = new Error('writer-a scan failed');
+    const cleanupFailure = new Error('writer-a cleanup failed');
+    const cleanup = vi.fn<() => Promise<IteratorResult<PatchEntry>>>()
+      .mockRejectedValue(cleanupFailure);
+    const inventory = inventoryWithHistory(failingScanHistory(
+      entityEntry('writer-a', 1, 'a001', 'capture:a1'),
+      scanFailure,
+      cleanup,
+    ));
+
+    const iterator = inventory.scan(singleWriterBasis())[Symbol.asyncIterator]();
+    await expect(iterator.next()).resolves.toMatchObject({ done: false });
+    await expect(iterator.next()).rejects.toMatchObject({
+      errors: [scanFailure, cleanupFailure],
+    });
+  });
+
+  it('normalizes a non-Error cursor-scan rejection', async () => {
+    const cleanup = vi.fn(async (): Promise<IteratorResult<PatchEntry>> => ({
+      done: true,
+      value: undefined,
+    }));
+    const inventory = inventoryWithHistory(failingScanHistory(
+      entityEntry('writer-a', 1, 'a001', 'capture:a1'),
+      'non-Error scan rejection',
+      cleanup,
+    ));
+
+    const iterator = inventory.scan(singleWriterBasis())[Symbol.asyncIterator]();
+    await expect(iterator.next()).resolves.toMatchObject({ done: false });
+    await expect(iterator.next()).rejects.toMatchObject({
+      code: 'E_ENTITY_ADMISSION_INVENTORY_FAILURE',
+    });
+    expect(cleanup).toHaveBeenCalledOnce();
+  });
+
+  it('closes a retained cursor when the inventory consumer cancels', async () => {
+    const cleanup = vi.fn(async (): Promise<IteratorResult<PatchEntry>> => ({
+      done: true,
+      value: undefined,
+    }));
+    const inventory = inventoryWithHistory(trackedHistory(
+      entityEntry('writer-a', 1, 'a001', 'capture:a1'),
+      cleanup,
+    ));
+
+    const iterator = inventory.scan(singleWriterBasis())[Symbol.asyncIterator]();
+    await expect(iterator.next()).resolves.toMatchObject({ done: false });
+    await iterator.return?.();
+
+    expect(cleanup).toHaveBeenCalledOnce();
+  });
+
+  it('completes when a retained writer cursor is empty', async () => {
+    const inventory = inventoryWithHistory(WarpStream.from([]));
+
+    await expect(collect(inventory.scan(singleWriterBasis()))).resolves.toEqual([]);
   });
 });
 
@@ -202,6 +292,71 @@ function failingOpenHistory(failure: Error): AsyncIterable<PatchEntry> {
       };
     },
   };
+}
+
+function nonErrorFailingOpenHistory(): AsyncIterable<PatchEntry> {
+  return {
+    [Symbol.asyncIterator](): AsyncIterator<PatchEntry> {
+      const next: () => Promise<IteratorResult<PatchEntry>> = vi.fn()
+        .mockRejectedValue('non-Error open rejection');
+      return { next };
+    },
+  };
+}
+
+function failingScanHistory(
+  retained: PatchEntry,
+  failure: Error | string,
+  cleanup: () => Promise<IteratorResult<PatchEntry>>,
+): AsyncIterable<PatchEntry> {
+  return {
+    [Symbol.asyncIterator](): AsyncIterator<PatchEntry> {
+      let emitted = false;
+      const rejectNext: () => Promise<IteratorResult<PatchEntry>> = vi.fn()
+        .mockRejectedValue(failure);
+      return {
+        async next(): Promise<IteratorResult<PatchEntry>> {
+          if (!emitted) {
+            emitted = true;
+            return { done: false, value: retained };
+          }
+          return await rejectNext();
+        },
+        return: cleanup,
+      };
+    },
+  };
+}
+
+function trackedHistory(
+  retained: PatchEntry,
+  cleanup: () => Promise<IteratorResult<PatchEntry>>,
+): AsyncIterable<PatchEntry> {
+  return {
+    [Symbol.asyncIterator](): AsyncIterator<PatchEntry> {
+      return {
+        async next(): Promise<IteratorResult<PatchEntry>> {
+          return { done: false, value: retained };
+        },
+        return: cleanup,
+      };
+    },
+  };
+}
+
+function inventoryWithHistory(
+  history: AsyncIterable<PatchEntry>,
+): PatchJournalEntityAdmissionInventory {
+  return new PatchJournalEntityAdmissionInventory({
+    journal: new FailingInventoryJournal(new Map([['writer-a', history]])),
+  });
+}
+
+function singleWriterBasis(): EntityAdmissionInventoryBasis {
+  return new EntityAdmissionInventoryBasis({
+    frontier: new Map([['writer-a', 'a001']]),
+    worldlineName: 'captures',
+  });
 }
 
 function entityEntry(

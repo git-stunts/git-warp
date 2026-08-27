@@ -12,9 +12,15 @@ import { entityAdmissionsFromPatch } from './EntityAdmissionPatchReader.ts';
 import type RetainedEntityAdmission from './RetainedEntityAdmission.ts';
 
 type AdmissionCursor = {
+  readonly cleanup: () => Promise<void>;
   readonly iterator: AsyncIterator<RetainedEntityAdmission>;
   current: RetainedEntityAdmission;
 };
+type AdmissionCursorSelection = readonly [index: number, cursor: AdmissionCursor];
+type WriterAdmissionSource = Readonly<{
+  cleanup: () => Promise<void>;
+  iterator: AsyncIterator<RetainedEntityAdmission>;
+}>;
 
 /** Retained-patch implementation of exact-basis entity admission inventory. */
 export default class PatchJournalEntityAdmissionInventory
@@ -74,10 +80,9 @@ extends EntityAdmissionInventoryPort {
     const cursors: AdmissionCursor[] = [];
     try {
       for (const { writerId, patchSha } of basis.frontierEntries) {
-        const iterator = this.#writerAdmissions(writerId, patchSha)[Symbol.asyncIterator]();
-        const first = await iterator.next();
-        if (first.done !== true) {
-          cursors.push({ iterator, current: first.value });
+        const cursor = await this.#openCursor(writerId, patchSha);
+        if (cursor !== null) {
+          cursors.push(cursor);
         }
       }
       return cursors;
@@ -93,32 +98,70 @@ extends EntityAdmissionInventoryPort {
     }
   }
 
-  async *#writerAdmissions(
+  async #openCursor(
     writerId: string,
     patchSha: string,
-  ): AsyncIterable<RetainedEntityAdmission> {
-    for await (const entry of this.#journal.scanPatchHistory(writerId, patchSha)) {
-      yield* reverseAdmissions(entry);
+  ): Promise<AdmissionCursor | null> {
+    const source = this.#writerAdmissionSource(writerId, patchSha);
+    try {
+      const first = await source.iterator.next();
+      if (first.done === true) {
+        await source.cleanup();
+        return null;
+      }
+      return { ...source, current: first.value };
+    } catch (error) {
+      const failure = error instanceof Error
+        ? error
+        : nonErrorInventoryFailure();
+      return await failWithCleanupSteps(
+        failure,
+        [source.cleanup],
+        'Entity admission inventory writer open and cleanup failed',
+      );
     }
+  }
+
+  #writerAdmissionSource(
+    writerId: string,
+    patchSha: string,
+  ): WriterAdmissionSource {
+    const patches = this.#journal.scanPatchHistory(writerId, patchSha)[Symbol.asyncIterator]();
+    return Object.freeze({
+      cleanup: cleanupOnce(async () => {
+        await patches.return?.();
+      }),
+      iterator: admissionsFromPatchHistory(patches)[Symbol.asyncIterator](),
+    });
+  }
+}
+
+async function* admissionsFromPatchHistory(
+  patches: AsyncIterator<PatchEntry>,
+): AsyncIterable<RetainedEntityAdmission> {
+  while (true) {
+    const next = await patches.next();
+    if (next.done === true) {
+      return;
+    }
+    yield* reverseAdmissions(next.value);
   }
 }
 
 async function* mergedAdmissions(
   cursors: AdmissionCursor[],
 ): AsyncIterable<RetainedEntityAdmission> {
-  while (cursors.length > 0) {
-    const selected = latestCursorIndex(cursors);
-    const cursor = cursors[selected];
-    if (cursor === undefined) {
-      throw new WarpError(
-        'Entity admission inventory cursor disappeared',
-        'E_ENTITY_ADMISSION_INVENTORY_CURSOR',
-      );
+  while (true) {
+    const selection = latestCursor(cursors);
+    if (selection === null) {
+      return;
     }
+    const [selected, cursor] = selection;
     yield cursor.current;
     const next = await cursor.iterator.next();
     if (next.done === true) {
       cursors.splice(selected, 1);
+      await cursor.cleanup();
     } else {
       cursor.current = next.value;
     }
@@ -129,13 +172,13 @@ function reverseAdmissions(entry: PatchEntry): readonly RetainedEntityAdmission[
   return [...entityAdmissionsFromPatch(entry)].reverse();
 }
 
-function latestCursorIndex(cursors: readonly AdmissionCursor[]): number {
-  let selected = 0;
-  for (let index = 1; index < cursors.length; index += 1) {
-    const candidate = cursors[index];
-    const current = cursors[selected];
-    if (candidate !== undefined && current !== undefined && candidate.current.compare(current.current) > 0) {
-      selected = index;
+function latestCursor(
+  cursors: readonly AdmissionCursor[],
+): AdmissionCursorSelection | null {
+  let selected: AdmissionCursorSelection | null = null;
+  for (const [index, candidate] of cursors.entries()) {
+    if (selected === null || candidate.current.compare(selected[1].current) > 0) {
+      selected = Object.freeze([index, candidate]);
     }
   }
   return selected;
@@ -151,9 +194,15 @@ async function closeCursors(cursors: readonly AdmissionCursor[]): Promise<void> 
 function cursorCleanupSteps(
   cursors: readonly AdmissionCursor[],
 ): readonly (() => Promise<void>)[] {
-  return cursors.map(({ iterator }) => async () => {
-    await iterator.return?.();
-  });
+  return cursors.map(({ cleanup }) => cleanup);
+}
+
+function cleanupOnce(cleanup: () => Promise<void>): () => Promise<void> {
+  let completion: Promise<void> | null = null;
+  return () => {
+    completion ??= Promise.resolve().then(cleanup);
+    return completion;
+  };
 }
 
 function nonErrorInventoryFailure(): WarpError {
