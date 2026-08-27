@@ -89,12 +89,8 @@ jobs:
       - name: Build base and head
         shell: bash
         run: |
-          npm --prefix base run build --silent
-          if node -e "const p=require('./head/package.json'); process.exit(p.scripts?.['build:maintainer'] ? 0 : 1)"; then
-            npm --prefix head run build:maintainer --silent
-          else
-            npm --prefix head run build --silent
-          fi
+          npm --prefix base run build:maintainer --silent
+          npm --prefix head run build:maintainer --silent
 
       - name: Measure counterbalanced base and head
         shell: bash

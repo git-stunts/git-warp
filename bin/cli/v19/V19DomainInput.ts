@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
-import { intent, reading, createObserver } from '../../../advanced.ts';
+import {
+  createEntityAdmissionInventoryObserver,
+  createObserver,
+  intent,
+  reading,
+} from '../../../advanced.ts';
 import type Intent from '../../../src/domain/api/Intent.ts';
 import type Observer from '../../../src/domain/api/Observer.ts';
 import type { ReadingValue } from '../../../src/domain/api/ReadingValue.ts';
@@ -73,6 +78,11 @@ const INTENT_SCHEMA = z.discriminatedUnion('kind', [
 ]);
 
 const READING_SCHEMA = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('entity-admissions'),
+    })
+    .strict(),
   z
     .object({
       kind: z.literal('property.get'),
@@ -170,6 +180,9 @@ export function observerFromText(observerId: string, text: string): Observer<Rea
 
 export function observerFromValue(observerId: string, value: McpJsonValue): Observer<ReadingValue> {
   const descriptor = parseReadingDescriptor(value);
+  if (descriptor.kind === 'entity-admissions') {
+    return createEntityAdmissionInventoryObserver(observerId);
+  }
   if (descriptor.kind === 'property.get') {
     return propertyObserver(observerId, descriptor);
   }

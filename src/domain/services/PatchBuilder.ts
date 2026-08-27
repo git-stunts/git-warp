@@ -29,6 +29,8 @@ import type { ContentInput, ContentMetadataInput } from './PatchBuilderContent.t
 import { allocateEntityCapture, planEntityCapturePayload } from './PatchBuilderEntity.ts';
 import PatchBuilderPropertyRuntime from './PatchBuilderPropertyRuntime.ts';
 import type { EntityCapturePayload } from '../types/EntityCapturePayload.ts';
+import EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
+import EntityAdmissionOrigin from '../types/EntityAdmissionOrigin.ts';
 import { capturePatchBuilderCausalBasis } from './admission/PatchBuilderCausalBasis.ts';
 import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
 import { commitPatch } from './PatchCommitter.ts';
@@ -82,6 +84,7 @@ export class PatchBuilder {
   private readonly _edgesAdded = new Set<string>();
   private readonly _observedOperands = new Set<string>();
   private readonly _writes = new Set<string>();
+  private readonly _entityAdmissions: EntityAdmissionBoundary[] = [];
   private _snapshotState: WarpState | null | undefined = undefined;
   private _committed = false;
   private _committing = false;
@@ -153,11 +156,35 @@ export class PatchBuilder {
 
   /** Creates one entity and its initial payload in a single-subject patch. */
   addEntity(nodeId: string, properties: EntityCapturePayload): PatchBuilder {
+    return this.addRetainedEntity(
+      nodeId,
+      properties,
+      EntityAdmissionOrigin.suppliedSubject(),
+    );
+  }
+
+  /** Replays one trusted retained entity without discarding its birth origin. */
+  addRetainedEntity(
+    nodeId: string,
+    properties: EntityCapturePayload,
+    origin: EntityAdmissionOrigin,
+  ): PatchBuilder {
     this._assertNotCommitted();
+    if (!(origin instanceof EntityAdmissionOrigin)) {
+      throw new PatchError('Retained entity requires an admission origin', {
+        code: 'E_PATCH_ENTITY_ADMISSION_ORIGIN',
+      });
+    }
     const scope = { added: this._nodesAdded, state: this._getSnapshotState() };
     const payload = planEntityCapturePayload(nodeId, properties, scope);
+    const operationIndex = this._ops.length;
     this.addNode(nodeId);
     this._ops.push(...payload);
+    this._entityAdmissions.push(new EntityAdmissionBoundary({
+      operationCount: 1 + payload.length,
+      operationIndex,
+      origin,
+    }));
     return this;
   }
   addEntityAuto(namespace: string, properties: EntityCapturePayload): PatchBuilder {
@@ -169,9 +196,15 @@ export class PatchBuilder {
       writerId: this._writerId,
       versionVector: this._vv,
     });
+    const operationIndex = this._ops.length;
     this._ops.push(new NodeAdd(capture.nodeId, capture.dot), ...capture.payload);
     this._nodesAdded.add(capture.nodeId);
     this._writes.add(capture.nodeId);
+    this._entityAdmissions.push(new EntityAdmissionBoundary({
+      operationCount: 1 + capture.payload.length,
+      operationIndex,
+      origin: EntityAdmissionOrigin.allocated(namespace, capture.dot),
+    }));
     return this;
   }
   removeNode(nodeId: string): PatchBuilder {
@@ -347,6 +380,7 @@ export class PatchBuilder {
       ops: rawOps,
       reads: [...this._observedOperands].sort(),
       writes: [...this._writes].sort(),
+      entityAdmissions: this._entityAdmissions,
     });
   }
 
@@ -368,6 +402,7 @@ export class PatchBuilder {
         ops: this._ops,
         observedOperands: this._observedOperands,
         writes: this._writes,
+        entityAdmissions: this._entityAdmissions,
         hasEdgeProps: this._properties.hasEdgeProperties,
         expectedParentSha: this._expectedParentSha,
         targetRefPath: this._targetRefPath,

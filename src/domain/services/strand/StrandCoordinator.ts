@@ -373,7 +373,7 @@ export default class StrandCoordinator {
     const entries = await this.getPatchEntries(strandId, options);
     const shas = new Set<string>();
     for (const { patch, sha } of entries) {
-      if (patchTouchesEntity(patch as { reads?: string[]; writes?: string[] }, id)) {
+      if (patchTouchesEntity(patch, id)) {
         shas.add(sha);
       }
     }

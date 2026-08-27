@@ -58,6 +58,24 @@ type BtrWireOperation =
     readonly oid: string;
   };
 
+type BtrWireEntityAdmissionOrigin =
+  | {
+      readonly kind: 'allocated';
+      readonly namespace: string;
+      readonly allocationDot: BtrWireDot;
+    }
+  | {
+      readonly kind: 'supplied-subject' | 'legacy-unrecorded';
+      readonly namespace: null;
+      readonly allocationDot: null;
+    };
+
+type BtrWireEntityAdmissionBoundary = {
+  readonly operationIndex: number;
+  readonly operationCount: number;
+  readonly origin: BtrWireEntityAdmissionOrigin;
+};
+
 type BtrCanonicalPatch = {
   readonly schema: 2 | 3;
   readonly writer: string;
@@ -66,6 +84,7 @@ type BtrCanonicalPatch = {
   readonly ops: readonly BtrWireOperation[];
   readonly reads?: readonly string[];
   readonly writes?: readonly string[];
+  readonly entityAdmissions?: readonly BtrWireEntityAdmissionBoundary[];
 };
 
 type BtrWireProvenanceEntry = {
@@ -77,6 +96,8 @@ export type {
   BtrCanonicalPatch,
   BtrWireContext,
   BtrWireDot,
+  BtrWireEntityAdmissionBoundary,
+  BtrWireEntityAdmissionOrigin,
   BtrWireOperation,
   BtrWireProvenanceEntry,
 };

@@ -214,6 +214,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       commitReader: this._history,
       commitMessageCodec: request.commitMessageCodec,
       encrypted: this._contentEncryption?.enabled ?? false,
+      graph: request.timelineName,
     });
   }
 

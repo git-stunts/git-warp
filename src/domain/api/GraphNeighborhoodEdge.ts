@@ -1,5 +1,4 @@
 import WarpError from '../errors/WarpError.ts';
-import type { ReadingValue } from './ReadingValue.ts';
 import { registerReadingDomainObject } from './ReadingValueRuntime.ts';
 
 export type GraphNeighborhoodEdgeOptions = Readonly<{
@@ -9,7 +8,6 @@ export type GraphNeighborhoodEdgeOptions = Readonly<{
 }>;
 
 export default class GraphNeighborhoodEdge {
-  readonly [key: string]: ReadingValue;
   readonly direction: 'out' | 'in';
   readonly neighborId: string;
   readonly label: string;

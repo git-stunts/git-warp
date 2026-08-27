@@ -70,6 +70,9 @@ function patchJournalThat(
     scanPatchRange(): WarpStream<PatchEntry> {
       return WarpStream.from([]);
     },
+    scanPatchHistory(): WarpStream<PatchEntry> {
+      return WarpStream.from([]);
+    },
   };
 }
 

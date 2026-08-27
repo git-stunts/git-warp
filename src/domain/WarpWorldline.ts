@@ -28,6 +28,8 @@ import {
   createWorldlineDraft,
   openWorldlineDraftCoordinate,
 } from './WarpWorldlineDraftStorage.ts';
+import PatchJournalEntityAdmissionInventory from './entity/PatchJournalEntityAdmissionInventory.ts';
+import { bindEntityAdmissionInventoryRuntime } from './entity/EntityAdmissionInventoryRuntime.ts';
 
 export type { WarpStrandOpticBasis } from './WarpStrandOpticBasis.ts';
 export { WarpDraftPatchEntry };
@@ -80,7 +82,6 @@ type PrepareStrandOptic = (
   name: string,
   checkpointSha: string,
 ) => Promise<WarpStrandOpticBasis>;
-
 type WarpWorldlineConstructionOptions = {
   readonly worldlineName: string;
   readonly writerId: string;
@@ -355,8 +356,7 @@ function createWarpWorldline(worldlineName: string, graph: RuntimeGraph): WarpWo
     });
     return preparedOpticBasis;
   };
-
-  return new WarpWorldline({
+  const worldline = new WarpWorldline({
     worldlineName,
     writerId: graph.writerId,
     commitPatch: async (build) => await graph.patch(build),
@@ -370,6 +370,11 @@ function createWarpWorldline(worldlineName: string, graph: RuntimeGraph): WarpWo
     readOpticBasis: () => preparedOpticBasis,
     admitIntent: async (descriptor) => await graph.admitIntent(descriptor),
   });
+  bindEntityAdmissionInventoryRuntime(worldline, {
+    getFrontier: async () => await graph.getFrontier(),
+    inventory: new PatchJournalEntityAdmissionInventory({ journal: graph._patchJournal }),
+  });
+  return worldline;
 }
 
 async function prepareForkOpticBasis(

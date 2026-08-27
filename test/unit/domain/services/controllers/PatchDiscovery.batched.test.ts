@@ -155,6 +155,10 @@ class FakeJournal extends PatchJournalPort {
   scanPatchRange(_writerId: string, _fromSha: string | null, _toSha: string): WarpStream<PatchEntry> {
     throw new Error(UNIMPLEMENTED);
   }
+
+  scanPatchHistory(_writerId: string, _fromSha: string): WarpStream<PatchEntry> {
+    throw new Error(UNIMPLEMENTED);
+  }
 }
 
 type FakePersistenceOptions = {

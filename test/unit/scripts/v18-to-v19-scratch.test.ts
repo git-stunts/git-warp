@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import Runtime from '../../../src/application/Runtime.ts';
 import { createObserver } from '../../../src/domain/api/ObserverRuntime.ts';
 import Reading from '../../../src/domain/api/Reading.ts';
-import type { SnapshotPropValue } from '../../../src/domain/services/snapshot/SnapshotPropValue.ts';
+import type { ReadingValue } from '../../../src/domain/api/ReadingValue.ts';
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import { restoreV18RetainedSubstrateFixture } from '../../../scripts/v18-to-v19/V18RetainedSubstrateFixtureRestore.ts';
 import { planV18ToV19Migration } from '../../../scripts/v18-to-v19/V18MigrationPlan.ts';
@@ -233,12 +233,12 @@ async function observeProperty(
   graph: string,
   subject: string,
   key: string
-): Promise<SnapshotPropValue> {
+): Promise<ReadingValue> {
   const runtime = await Runtime.open({ at: repositoryPath, writer: 'fixture-reader' });
   try {
     const lane = await runtime.lane(graph);
     const observation = lane.observe(
-      createObserver<SnapshotPropValue>(
+      createObserver<ReadingValue>(
         `fixture.${key}`,
         Reading.property({ subject, key }),
         (value) => value

@@ -3,6 +3,7 @@ import { Dot } from '../crdt/Dot.ts';
 import PatchError from '../errors/PatchError.ts';
 import Patch from '../types/Patch.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
+import type EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
 import type { OpLike } from './OpLike.ts'; // nosemgrep: ts-no-like-types -- 0025C
 import { hydrateKnownDecodedOp } from './OpNormalizer.ts';
 
@@ -331,7 +332,10 @@ function readOps(value: unknown): PatchOp[] { // nosemgrep: ts-no-unknown-outsid
   return normalized;
 }
 
-export function hydrateDecodedPatch(decoded: unknown): Patch { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+export function hydrateDecodedPatch(
+  decoded: unknown, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  entityAdmissions: readonly EntityAdmissionBoundary[] | undefined,
+): Patch {
   const record = expectRecord(decoded, 'root');
   const { schema } = record;
   const { writer } = record;
@@ -345,5 +349,6 @@ export function hydrateDecodedPatch(decoded: unknown): Patch { // nosemgrep: ts-
     ops: readOps(record['ops']),
     reads: readStringArray(record['reads'], 'reads'),
     writes: readStringArray(record['writes'], 'writes'),
+    entityAdmissions,
   });
 }

@@ -7,6 +7,7 @@ const ENTITY_CAPTURE_FILES = Object.freeze([
   'src/domain/api/EntityOccurrenceRuntime.ts',
   'src/domain/api/Intent.ts',
   'src/domain/api/IntentRuntime.ts',
+  'src/domain/entity/EntityAdmissionBoundaryIntent.ts',
   'src/domain/types/EntityCapturePayload.ts',
   'src/domain/types/PropValue.ts',
   'test/integration/application/Runtime.entityCapture.integration.test.ts',

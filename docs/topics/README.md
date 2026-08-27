@@ -31,6 +31,8 @@ performance narrative lives in the root [CHANGELOG](../../CHANGELOG.md).
 
 - [Optic reads](optic-reads.md): ask bounded questions of causal history.
 - [Observers](observers.md): expose a filtered read surface through an aperture.
+- [Entity admission inventory](entity-admission-inventory.md): stream every
+  retained entity birth at one exact Lane basis and certify completeness.
 - [Strands](strands.md): keep speculative work durable and separate from live
   truth.
 

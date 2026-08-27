@@ -49,6 +49,41 @@ describe('PatchBuilder entity capture', () => {
     expect([...builder.writes]).toEqual(['entry:1']);
   });
 
+  it('persists the exact supplied-subject operation boundary', () => {
+    const builder = createBuilder(null);
+
+    builder.addNode('seed');
+    builder.addEntity('entry:1', { kind: 'capture', text: 'a fact' });
+
+    expect(builder.build().entityAdmissions).toEqual([
+      expect.objectContaining({
+        operationIndex: 1,
+        operationCount: 3,
+        origin: expect.objectContaining({
+          kind: 'supplied-subject',
+          namespace: null,
+        }),
+      }),
+    ]);
+  });
+
+  it('persists the allocator namespace without asking readers to parse the subject', () => {
+    const builder = createBuilder(null);
+
+    builder.addEntityAuto('entry', { kind: 'capture' });
+
+    expect(builder.build().entityAdmissions).toEqual([
+      expect.objectContaining({
+        operationIndex: 0,
+        operationCount: 2,
+        origin: expect.objectContaining({
+          kind: 'allocated',
+          namespace: 'entry',
+        }),
+      }),
+    ]);
+  });
+
   it('rejects an entity whose id already exists in the graph', () => {
     const builder = createBuilder(stateWithNode('entry:1'));
 

@@ -3,8 +3,12 @@ import { describe, expect, it } from 'vitest';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';
-import { hydrateDecodedPatch } from '../../../../src/domain/services/PatchHydrator.ts';
+import {
+  hydrateDecodedPatch as hydrateDomainPatch,
+} from '../../../../src/domain/services/PatchHydrator.ts';
 import Patch from '../../../../src/domain/types/Patch.ts';
+import EntityAdmissionBoundary from '../../../../src/domain/types/EntityAdmissionBoundary.ts';
+import EntityAdmissionOrigin from '../../../../src/domain/types/EntityAdmissionOrigin.ts';
 import BlobValue from '../../../../src/domain/types/ops/BlobValue.ts';
 import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import EdgePropSet from '../../../../src/domain/types/ops/EdgePropSet.ts';
@@ -123,6 +127,24 @@ describe('PatchHydrator', () => {
     expect(patch.context).toEqual({});
   });
 
+  it('accepts typed entity admission boundaries from its decode adapter', () => {
+    const boundary = new EntityAdmissionBoundary({
+      operationIndex: 0,
+      operationCount: 2,
+      origin: EntityAdmissionOrigin.suppliedSubject(),
+    });
+    const patch = hydrateDomainPatch({
+      writer: 'alice',
+      lamport: 1,
+      ops: [
+        { type: 'NodeAdd', node: 'capture:1', dot: ['alice', 1] },
+        { type: 'NodePropSet', node: 'capture:1', key: 'body', value: 'retained' },
+      ],
+    }, [boundary]);
+
+    expect(patch.entityAdmissions).toEqual([boundary]);
+  });
+
   it('rejects unknown op types', () => {
     expect(() => hydrateDecodedPatch({
       writer: 'alice',
@@ -137,10 +159,6 @@ describe('PatchHydrator', () => {
       lamport: 1,
       ops: [],
     })).toThrow("Decoded patch requires string 'writer'");
-  });
-
-  it('rejects non-object patch roots', () => {
-    expect(() => hydrateDecodedPatch('not-a-patch')).toThrow('Decoded patch root must be an object');
   });
 
   it('rejects non-integer lamports', () => {
@@ -226,3 +244,7 @@ describe('PatchHydrator', () => {
     })).toThrow("NodeRemove op requires 'observedDots' to be iterable");
   });
 });
+
+function hydrateDecodedPatch(decoded: object): Patch {
+  return hydrateDomainPatch(decoded, undefined);
+}

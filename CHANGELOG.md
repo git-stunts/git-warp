@@ -29,9 +29,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `entity.add` member. The legacy `WriteReceipt.occurrence` convenience remains
   populated only when exactly one entity birth exists, so multiple graph
   subjects are never collapsed into one occurrence.
+- The advanced API and CLI now expose a basis-bound entity admission
+  inventory. It streams every retained `entity.add` birth exactly once with
+  distinct occurrence and representation-subject references, complete initial
+  properties, allocation origin, opaque support, and deterministic non-causal
+  ordering. A terminal certificate is available only after complete stream
+  consumption and binds the Lane, basis, count, selector, and stream digest.
+  Empty Lanes certify zero; cancellation, unavailable support, and Strand
+  overlays fail closed without a completeness certificate.
 
 ### Fixed
 
+- Runtime-backed Reading values now retain their exact named fields instead of
+  declaring arbitrary dictionary keys to satisfy the recursive snapshot value
+  algebra. Consumer type checks reject undeclared `EntityAdmission` fields,
+  while nested snapshot records and arrays remain supported explicitly.
+- Entity admission inventory bases now require an unmodified native Map
+  frontier and the retained-patch scanner requires the runtime-backed basis
+  class. Forged lookalikes, Map subclasses, and own iterator overrides can no
+  longer execute caller-owned iteration code or enter an exact-basis scan.
+- Ordered cleanup now normalizes non-Error Promise rejections into typed WARP
+  failures, attempts every declared cleanup step, and aggregates only explicit
+  Error values in deterministic declaration order.
+- Entity admission inventory now retains an idempotent cleanup handle for each
+  underlying journal cursor independently of its flattened admission iterator.
+  Mid-scan rejection, open failure, normal exhaustion, and consumer
+  cancellation therefore close the owned cursor exactly once and preserve any
+  cleanup failure in deterministic order.
+- Entity admission inventory now fails closed on an unmarked v19.1-shaped
+  whole-patch footprint. Those retained operations cannot prove whether the
+  caller used `entity.add` or equivalent manual node and property edits, so the
+  runtime reports `E_ENTITY_ADMISSION_INVENTORY_LEGACY_AMBIGUOUS` instead of
+  certifying a fabricated source birth.
+- Retained patches carrying an entity-admission marker now rehydrate a
+  cascading node deletion as the original singular `node.remove` Intent rather
+  than exposing its generated edge removals as an atomic public Intent array.
+- Entity admission inventory now closes writer cursors in deterministic
+  frontier order and preserves a primary open or scan failure before every
+  cursor-cleanup failure instead of exposing a timing-dependent rejection.
+- V19 Reading and JSON presenters now preserve a caller-controlled `__proto__`
+  key as frozen own JSON data without invoking the legacy object-prototype
+  setter or dropping that field from CLI output.
+- `Patch` now exposes readonly, runtime-frozen operation, read, write, and
+  causal-context snapshots. Validated retained evidence can no longer be
+  replaced or causally rewritten through a mutable cloned container.
+- `RetainedEntityAdmission.context` is now an isolated frozen vector snapshot,
+  preventing inventory consumers from rewriting causal evidence before an
+  occurrence is issued.
+- Inventory certificates now require a worldline Lane and one matching basis
+  across their public basis, evidence Tick, evidence basis, receipt Lane, and
+  registered inventory Observer. A completed unrelated Observation can no
+  longer acquire a completeness certificate.
 - Intent publication validation now runs against the fully built patch before
   the journal can publish it. A mismatched, truncated, or appended operation
   sequence therefore fails without advancing the target ref or losing the
@@ -39,19 +87,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `WriteReceipt.intent` now types every array input as the immutable normalized
   snapshot the runtime actually retains, even when the caller supplied a
   mutable array.
+- Retained atomic sequence replay now preserves entity-admission boundaries
+  and original allocation witnesses instead of degrading each entity into
+  primitive node and property edits. Auto-allocated subjects therefore remain
+  verifiable after Strand settlement gives the target admission a new causal
+  dot. A classified empty boundary list likewise keeps a manual
+  node-plus-property array from being reinterpreted as an entity birth after
+  reopen or Strand settlement.
 
 ### Compatibility
 
 - Singular `Lane.write(intent)` behavior and its admission-law/digest path are
-  unchanged. Atomic arrays reuse the existing Patch representation and writer
-  publication mechanism, so existing v19 repositories require no retained-data
-  migration. Reopened multi-operation Strands recover their ordered primitive
-  graph transformation from the retained patch; no caller-owned JavaScript
-  array or new Patch wire field is persisted. Because the Patch stores graph
-  operations rather than call syntax, reopen cannot distinguish a canonical
-  single-Intent patch created by `write(intent)` from one created by
-  `write([intent])`; its graph transformation and one-patch boundary remain
-  intact.
+  unchanged. Atomic arrays reuse the existing writer publication mechanism, so
+  existing v19 repositories require no retained-data migration. New patches
+  persist an optional, bounded entity-admission classification field. An empty
+  field distinguishes a classified manual operation array from an entity
+  birth, while an absent ambiguous whole-patch footprint obstructs inventory
+  completeness until explicitly migrated or classified.
+  Reopened multi-operation Strands recover their ordered primitive graph
+  transformation from the retained patch; no caller-owned JavaScript array is
+  persisted. Because the Patch stores graph operations rather than call syntax,
+  reopen cannot distinguish a canonical single-Intent patch created by
+  `write(intent)` from one created by `write([intent])`; its graph
+  transformation and one-patch boundary remain intact.
 
 ### Packaging
 

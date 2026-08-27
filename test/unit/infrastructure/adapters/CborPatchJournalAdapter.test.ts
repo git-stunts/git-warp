@@ -5,6 +5,9 @@ import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 import Patch from '../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
+import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
+import EntityAdmissionBoundary from '../../../../src/domain/types/EntityAdmissionBoundary.ts';
+import EntityAdmissionOrigin from '../../../../src/domain/types/EntityAdmissionOrigin.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import {
   DEFAULT_COMMIT_MESSAGE_CODEC,
@@ -27,17 +30,22 @@ function createFixture() {
     codec: new CborCodec(),
     commitReader: history,
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+    graph: 'test',
   });
   return { history, assets, cas, journal };
 }
 
-function createPatch(lamport: number, nodeId: string): Patch {
+function createPatch(
+  lamport: number,
+  nodeId: string,
+  writer = 'alice',
+): Patch {
   return new Patch({
     schema: 3,
-    writer: 'alice',
+    writer,
     lamport,
-    context: { alice: lamport - 1 },
-    ops: [new NodeAdd(nodeId, new Dot('alice', lamport))],
+    context: { [writer]: lamport - 1 },
+    ops: [new NodeAdd(nodeId, new Dot(writer, lamport))],
     reads: [],
     writes: [nodeId],
   });
@@ -108,6 +116,77 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     expect((loaded.ops[0] as NodeAdd).node).toBe('node:a');
   });
 
+  it('round-trips exact entity admission boundaries with the retained patch', async () => {
+    const { history, journal } = createFixture();
+    const original = new Patch({
+      writer: 'alice',
+      lamport: 1,
+      context: {},
+      ops: [
+        new NodeAdd('capture:1', new Dot('alice', 1)),
+        new PropSet('capture:1', 'body', 'hello'),
+      ],
+      writes: ['capture:1'],
+      entityAdmissions: [new EntityAdmissionBoundary({
+        operationIndex: 0,
+        operationCount: 2,
+        origin: EntityAdmissionOrigin.suppliedSubject(),
+      })],
+    });
+    const published = await journal.appendPatch({
+      patch: original,
+      graph: 'test',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+    });
+    const commit = await history.getNodeInfo(published.sha);
+
+    const loaded = await journal.readPatch(
+      DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch(commit.message),
+    );
+
+    expect(loaded.entityAdmissions).toEqual([
+      expect.objectContaining({
+        operationIndex: 0,
+        operationCount: 2,
+        origin: expect.objectContaining({ kind: 'supplied-subject', namespace: null }),
+      }),
+    ]);
+    expect(loaded.entityAdmissions?.[0]).toBeInstanceOf(EntityAdmissionBoundary);
+    expect(loaded.entityAdmissions?.[0]?.origin).toBeInstanceOf(EntityAdmissionOrigin);
+  });
+
+  it('refuses publication through a journal bound to another graph', async () => {
+    const { journal } = createFixture();
+
+    await expect(journal.appendPatch({
+      patch: createPatch(1, 'node:foreign'),
+      graph: 'other-graph',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+    })).rejects.toMatchObject({ code: 'E_PATCH_GRAPH_MISMATCH' });
+  });
+
+  it('refuses publication under a writer that contradicts the patch payload', async () => {
+    const { journal } = createFixture();
+
+    await expect(journal.appendPatch({
+      patch: createPatch(1, 'node:bob', 'bob'),
+      graph: 'test',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+    })).rejects.toMatchObject({ code: 'E_PATCH_WRITER_MISMATCH' });
+  });
+
   it('maps provider publication conflicts to a typed domain error', async () => {
     const { history, assets, cas } = createFixture();
     const providerFailure = Object.assign(new Error('conflict'), {
@@ -122,6 +201,7 @@ describe('CborPatchJournalAdapter semantic publication', () => {
       codec: new CborCodec(),
       commitReader: history,
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+      graph: 'test',
     });
 
     await expect(journal.appendPatch({
@@ -171,5 +251,92 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     });
     await expect(journal.scanPatchRange('alice', first.sha, nonPatch).collect())
       .rejects.toBeInstanceOf(SyncError);
+  });
+
+  it('refuses retained history that crosses into another graph', async () => {
+    const { history, assets, cas, journal } = createFixture();
+    const foreignJournal = new CborPatchJournalAdapter({
+      assetStorage: assets,
+      cas,
+      codec: new CborCodec(),
+      commitReader: history,
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+      graph: 'other-graph',
+    });
+    const foreign = await foreignJournal.appendPatch({
+      patch: createPatch(1, 'node:foreign'),
+      graph: 'other-graph',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+    });
+
+    await expect(journal.scanPatchHistory('alice', foreign.sha).collect())
+      .rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
+  });
+
+  it('refuses retained patch history with more than one parent', async () => {
+    const { history, journal } = createFixture();
+    const left = await journal.appendPatch({
+      patch: createPatch(1, 'node:left'),
+      graph: 'test',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+    });
+    const right = await journal.appendPatch({
+      patch: createPatch(2, 'node:right'),
+      graph: 'test',
+      writer: 'alice',
+      targetRef: TARGET_REF,
+      expectedHead: left.sha,
+      parent: left.sha,
+      attachments: [],
+    });
+    const rightCommit = await history.getNodeInfo(right.sha);
+    const nonLinear = await history.commitNode({
+      message: rightCommit.message,
+      parents: [right.sha, left.sha],
+    });
+
+    await expect(journal.scanPatchHistory('alice', nonLinear).collect())
+      .rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
+  });
+
+  it('refuses retained history whose patch payload contradicts its trailer', async () => {
+    const { history, journal } = createFixture();
+    const mismatched = new Patch({
+      schema: 3,
+      writer: 'bob',
+      lamport: 1,
+      context: {},
+      ops: [new NodeAdd('node:mismatch', Dot.create('bob', 1))],
+      writes: ['node:mismatch'],
+    });
+    const published = await journal.appendPatch({
+      patch: mismatched,
+      graph: 'test',
+      writer: 'bob',
+      targetRef: TARGET_REF,
+      expectedHead: null,
+      parent: null,
+      attachments: [],
+    });
+    const commit = await history.getNodeInfo(published.sha);
+    const message = DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch(commit.message);
+    const forged = await history.commitNode({
+      message: DEFAULT_COMMIT_MESSAGE_CODEC.encodePatch({
+        ...message,
+        writer: 'alice',
+      }),
+      parents: [],
+    });
+
+    await expect(journal.scanPatchHistory('alice', forged).collect())
+      .rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
   });
 });

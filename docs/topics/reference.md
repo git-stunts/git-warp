@@ -36,11 +36,18 @@ Runtime @ index.ts#L13
 
 ### Type exports
 
-Source: `index.ts`. Count: 33.
+Source: `index.ts`. Count: 40.
 
 ```text
-AdmissionOutcome @ index.ts#L51
+AdmissionOutcome @ index.ts#L60
 CoordinateReference @ index.ts#L25
+EntityAdmission @ index.ts#L52
+EntityAdmissionInitialProperties @ index.ts#L53
+EntityAdmissionInventoryCertificate @ index.ts#L59
+EntityAdmissionOccurrenceReference @ index.ts#L54
+EntityAdmissionOrdering @ index.ts#L55
+EntityAdmissionOriginReading @ index.ts#L56
+EntityAdmissionRepresentationReference @ index.ts#L57
 EntityCausalRelation @ index.ts#L49
 EntityOccurrence @ index.ts#L48
 Evidence @ index.ts#L20
@@ -58,8 +65,8 @@ ObserverCardinality @ index.ts#L34
 Reading @ index.ts#L35
 ReadingCoordinate @ index.ts#L37
 ReadingValue @ index.ts#L38
-Receipt @ index.ts#L52
-RepairHint @ index.ts#L53
+Receipt @ index.ts#L61
+RepairHint @ index.ts#L62
 RuntimeForkOptions @ index.ts#L15
 RuntimeOpenOptions @ index.ts#L16
 RuntimeSettlementOptions @ index.ts#L17
@@ -80,16 +87,18 @@ Bounded formal reads and runtime-backed construction for generated SDK infrastru
 
 ### Value exports
 
-Source: `advanced.ts`. Count: 7.
+Source: `advanced.ts`. Count: 9.
 
 ```text
 captureCoordinate @ advanced.ts#L9
 Coordinate @ advanced.ts#L10
+createEntityAdmissionInventoryObserver @ advanced.ts#L18
 createManyObserver @ advanced.ts#L15
 createObserver @ advanced.ts#L16
 intent @ advanced.ts#L12
 Optic @ advanced.ts#L11
 reading @ advanced.ts#L13
+requireEntityAdmissionInventoryCertificate @ advanced.ts#L19
 ```
 
 ### Type exports
@@ -97,16 +106,16 @@ reading @ advanced.ts#L13
 Source: `advanced.ts`. Count: 10.
 
 ```text
-NeighborhoodOpticCompleteness @ advanced.ts#L21
-NeighborhoodOpticEdge @ advanced.ts#L22
-NeighborhoodOpticReadDirection @ advanced.ts#L23
-NeighborhoodOpticReadOptions @ advanced.ts#L19
-ReadIdentityFrontierEntry @ advanced.ts#L27
-ReadIdentityIndexShard @ advanced.ts#L28
-ReadIdentityOptions @ advanced.ts#L29
-ReadIdentityTailWitness @ advanced.ts#L30
-WarpWorldlineCoordinateFrontierEntry @ advanced.ts#L18
-Witness @ advanced.ts#L26
+NeighborhoodOpticCompleteness @ advanced.ts#L23
+NeighborhoodOpticEdge @ advanced.ts#L24
+NeighborhoodOpticReadDirection @ advanced.ts#L25
+NeighborhoodOpticReadOptions @ advanced.ts#L21
+ReadIdentityFrontierEntry @ advanced.ts#L29
+ReadIdentityIndexShard @ advanced.ts#L30
+ReadIdentityOptions @ advanced.ts#L31
+ReadIdentityTailWitness @ advanced.ts#L32
+WarpWorldlineCoordinateFrontierEntry @ advanced.ts#L20
+Witness @ advanced.ts#L28
 ```
 
 ## Diagnostics export surface
@@ -182,20 +191,20 @@ RuntimeHarnessOptions @ testing.ts#L27
 
 | Command | Handler | Source |
 | --- | --- | --- |
-| `write` | `handleWrite` | `bin/cli/commands/registry.ts#L24` |
-| `observe` | `handleObserve` | `bin/cli/commands/registry.ts#L25` |
-| `fork` | `handleFork` | `bin/cli/commands/registry.ts#L26` |
-| `settle` | `handleSettle` | `bin/cli/commands/registry.ts#L27` |
-| `receipt` | `handleReceipt` | `bin/cli/commands/registry.ts#L28` |
-| `doctor` | `handleDoctor` | `bin/cli/commands/registry.ts#L29` |
-| `repair` | `handleRepair` | `bin/cli/commands/registry.ts#L30` |
-| `audit` | `handleAudit` | `bin/cli/commands/registry.ts#L31` |
-| `mcp` | `handleMcp` | `bin/cli/commands/registry.ts#L32` |
+| `write` | `handleWrite` | `bin/cli/commands/registry.ts#L37` |
+| `observe` | `handleObserve` | `bin/cli/commands/registry.ts#L38` |
+| `fork` | `handleFork` | `bin/cli/commands/registry.ts#L39` |
+| `settle` | `handleSettle` | `bin/cli/commands/registry.ts#L40` |
+| `receipt` | `handleReceipt` | `bin/cli/commands/registry.ts#L41` |
+| `doctor` | `handleDoctor` | `bin/cli/commands/registry.ts#L42` |
+| `repair` | `handleRepair` | `bin/cli/commands/registry.ts#L43` |
+| `audit` | `handleAudit` | `bin/cli/commands/registry.ts#L44` |
+| `mcp` | `handleMcp` | `bin/cli/commands/registry.ts#L45` |
 
 Structured CLI errors for `--json` and `--jsonl` use the payload shape
 `{ error: { code, message, cause? } }` from the CLI entry point.
 
-Source: `bin/git-warp.ts#L211`.
+Source: `bin/git-warp.ts#L187`.
 
 ## Public error classes
 

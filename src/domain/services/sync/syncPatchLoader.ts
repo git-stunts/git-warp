@@ -17,25 +17,27 @@ import type { PatchOp } from '../../types/ops/unions.ts';
 import type CommitPort from '../../../ports/CommitPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
+import type EntityAdmissionBoundary from '../../types/EntityAdmissionBoundary.ts';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export interface DecodedPatch {
-  context: VersionVector | Map<string, number> | Record<string, number> | null | undefined;
-  ops: PatchOp[];
-  writer: string;
-  lamport: number;
-  schema?: 2 | 3;
-  reads?: string[] | undefined;
-  writes?: string[] | undefined;
-}
+export type DecodedPatch = Readonly<{
+  readonly context: VersionVector | Map<string, number> | Record<string, number> | null | undefined;
+  readonly ops: readonly PatchOp[];
+  readonly writer: string;
+  readonly lamport: number;
+  readonly schema?: 2 | 3;
+  readonly reads?: readonly string[] | undefined;
+  readonly writes?: readonly string[] | undefined;
+  readonly entityAdmissions?: readonly EntityAdmissionBoundary[] | undefined;
+}>;
 
-export interface LoadPatchRangeOptions {
-  patchJournal?: PatchJournalPort;
-  commitMessageCodec?: CommitMessageCodecPort;
-}
+export type LoadPatchRangeOptions = Readonly<{
+  readonly patchJournal?: PatchJournalPort;
+  readonly commitMessageCodec?: CommitMessageCodecPort;
+}>;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -62,6 +64,7 @@ export function normalizePatch(patch: DecodedPatch): DecodedPatch {
     ops: patch.ops,
     reads: patch.reads,
     writes: patch.writes,
+    entityAdmissions: patch.entityAdmissions,
   };
   if (patch.schema === undefined) {
     return new Patch(patchInput);

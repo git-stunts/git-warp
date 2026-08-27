@@ -4,6 +4,10 @@ import { isPropValue, type PropValue } from '../types/PropValue.ts';
 import Intent, { type IntentDescriptor, type IntentKind } from './Intent.ts';
 import WarpError from '../errors/WarpError.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
+import type EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
+import type EntityAdmissionOrigin from '../types/EntityAdmissionOrigin.ts';
+import { findRetainedEntityIntentOrigin } from './RetainedEntityIntentRuntime.ts';
+import { intentFromEntityAdmissionBoundary } from '../entity/EntityAdmissionBoundaryIntent.ts';
 
 type IntentLowerer = (descriptor: IntentDescriptor, patch: PatchBuilder) => void;
 
@@ -18,11 +22,28 @@ const lowerers: ReadonlyMap<IntentKind, IntentLowerer> = new Map([
 
 export function applyIntentToPatch(intent: Intent, patch: PatchBuilder): void {
   const { descriptor } = intent;
+  const retainedOrigin = findRetainedEntityIntentOrigin(intent);
+  if (retainedOrigin !== null) {
+    lowerRetainedEntity(descriptor, retainedOrigin, patch);
+    return;
+  }
   const lowerer = lowerers.get(intent.kind);
   if (lowerer === undefined) {
     throw new WarpError('Intent kind is unsupported', 'E_INTENT_KIND');
   }
   lowerer(descriptor, patch);
+}
+
+function lowerRetainedEntity(
+  descriptor: IntentDescriptor,
+  origin: EntityAdmissionOrigin,
+  patch: PatchBuilder,
+): void {
+  assertDescriptorKind(descriptor, 'entity.add');
+  if (!('subject' in descriptor)) {
+    throw hydrationError('retained entity Intent requires its original subject');
+  }
+  patch.addRetainedEntity(descriptor.subject, descriptor.properties, origin);
 }
 
 export function intentFromPatch(patch: Patch): Intent {
@@ -77,11 +98,34 @@ function isCascadingNodeRemoval(
  * to the one-operation rule.
  */
 function entityIntent(patch: Patch): Intent | null {
+  if (patch.entityAdmissions !== undefined) {
+    return markedWholePatchEntityIntent(patch);
+  }
   const [leading, ...payload] = patch.ops;
   if (leading === undefined || leading.type !== 'NodeAdd') {
     return null;
   }
   return entityIntentFor(patch, leading.node, payload);
+}
+
+function markedWholePatchEntityIntent(patch: Patch): Intent | null {
+  const boundary = soleEntityAdmissionBoundary(patch);
+  if (boundary === null || !coversWholePatch(boundary, patch.ops.length)) {
+    return null;
+  }
+  return intentFromEntityAdmissionBoundary(patch, boundary).intent;
+}
+
+function soleEntityAdmissionBoundary(patch: Patch): EntityAdmissionBoundary | null {
+  const boundaries = patch.entityAdmissions;
+  if (boundaries === undefined || boundaries.length !== 1) {
+    return null;
+  }
+  return boundaries[0] ?? null;
+}
+
+function coversWholePatch(boundary: EntityAdmissionBoundary, operationCount: number): boolean {
+  return boundary.operationIndex === 0 && boundary.operationCount === operationCount;
 }
 
 function entityIntentFor(

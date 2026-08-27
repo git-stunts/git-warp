@@ -16,7 +16,7 @@ import { encodePatchMessage } from '../../src/infrastructure/adapters/TrailerCom
 import { generateOidFromNumber } from './WarpGraphObjectIds.ts';
 
 type PatchContext = ConstructorParameters<typeof Patch>[0]['context'];
-type PatchOps = ConstructorParameters<typeof Patch>[0]['ops'];
+type PatchOps = PatchOp[];
 type RawDotInput = {
   readonly writerId?: string;
   readonly counter?: number;

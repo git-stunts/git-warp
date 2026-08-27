@@ -58,6 +58,7 @@ async function publish(attachments: readonly AssetHandle[]): Promise<string> {
     cas,
     codec: defaultCodec,
     commitReader: history,
+    graph: 'events',
   });
   const patch = new Patch({
     schema: 2,
