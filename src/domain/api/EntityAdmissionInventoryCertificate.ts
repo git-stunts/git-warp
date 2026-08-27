@@ -14,29 +14,44 @@ type EntityAdmissionInventoryCertificateOptions = Readonly<{
   streamDigest: string;
 }>;
 
-export const ENTITY_ADMISSION_INVENTORY_SCHEMA =
-  'warp/entity-admission-inventory@1' as const;
+type EntityAdmissionInventoryOrdering = Readonly<{
+  semantics: 'deterministic-non-causal';
+  direction: 'descending';
+}>;
+
+type EntityAdmissionInventorySelector = Readonly<{
+  kind: 'lane';
+}>;
+
+export const ENTITY_ADMISSION_INVENTORY_SCHEMA:
+  'warp/entity-admission-inventory@1' = 'warp/entity-admission-inventory@1';
+const ENTITY_ADMISSION_INVENTORY_COMPLETENESS: 'complete' = 'complete';
+const ENTITY_ADMISSION_INVENTORY_COVERED_DOMAIN:
+  'retained-entity-add-admissions' = 'retained-entity-add-admissions';
+const ENTITY_ADMISSION_INVENTORY_ORDERING: EntityAdmissionInventoryOrdering =
+  Object.freeze({
+    semantics: 'deterministic-non-causal',
+    direction: 'descending',
+  });
+const ENTITY_ADMISSION_INVENTORY_SELECTOR: EntityAdmissionInventorySelector =
+  Object.freeze({ kind: 'lane' });
 
 /** Terminal proof that one exact-basis admission inventory was fully consumed. */
 export default class EntityAdmissionInventoryCertificate {
-  readonly schema = ENTITY_ADMISSION_INVENTORY_SCHEMA;
+  readonly schema: typeof ENTITY_ADMISSION_INVENTORY_SCHEMA =
+    ENTITY_ADMISSION_INVENTORY_SCHEMA;
   readonly admissionCount: number;
   readonly basis: Readonly<{ readonly id: string }>;
   readonly causalDomain: Readonly<{ readonly id: string }>;
-  readonly completeness = 'complete' as const;
-  readonly coveredDomain = 'retained-entity-add-admissions' as const;
+  readonly completeness: 'complete' = ENTITY_ADMISSION_INVENTORY_COMPLETENESS;
+  readonly coveredDomain: 'retained-entity-add-admissions' =
+    ENTITY_ADMISSION_INVENTORY_COVERED_DOMAIN;
   readonly evidence: Evidence;
   readonly lane: LaneReference;
-  readonly ordering: Readonly<{
-    readonly semantics: 'deterministic-non-causal';
-    readonly direction: 'descending';
-  }> = Object.freeze({
-    semantics: 'deterministic-non-causal' as const,
-    direction: 'descending' as const,
-  });
-  readonly selector: Readonly<{ readonly kind: 'lane' }> = Object.freeze({
-    kind: 'lane' as const,
-  });
+  readonly ordering: EntityAdmissionInventoryOrdering =
+    ENTITY_ADMISSION_INVENTORY_ORDERING;
+  readonly selector: EntityAdmissionInventorySelector =
+    ENTITY_ADMISSION_INVENTORY_SELECTOR;
   readonly selectorDigest: string;
   readonly streamDigest: string;
 
