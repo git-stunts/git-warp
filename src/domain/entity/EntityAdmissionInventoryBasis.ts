@@ -24,8 +24,8 @@ export default class EntityAdmissionInventoryBasis {
 function freezeFrontier(
   frontier: ReadonlyMap<string, string>,
 ): readonly WarpWorldlineCoordinateFrontierEntry[] {
-  if (!(frontier instanceof Map)) {
-    throw basisError('Entity admission inventory basis requires a Map frontier');
+  if (!isUnmodifiedMap(frontier)) {
+    throw basisError('Entity admission inventory basis requires an unmodified native Map frontier');
   }
   return Object.freeze([...frontier.entries()]
     .sort(([left], [right]) => compareCodeUnits(left, right))
@@ -36,10 +36,14 @@ function freezeFrontier(
 }
 
 function compareCodeUnits(left: string, right: string): number {
-  if (left === right) {
-    return 0;
-  }
   return left < right ? -1 : 1;
+}
+
+function isUnmodifiedMap(frontier: ReadonlyMap<string, string>): boolean {
+  return frontier instanceof Map
+    && Object.getPrototypeOf(frontier) === Map.prototype
+    && !Object.hasOwn(frontier, 'entries')
+    && !Object.hasOwn(frontier, Symbol.iterator);
 }
 
 function requireIdentity(value: string, field: string): string {

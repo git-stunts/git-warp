@@ -56,6 +56,53 @@ describe('EntityAdmissionInventoryBasis', () => {
     expect(entriesCalled).toBe(false);
   });
 
+  it('rejects a Map subclass without invoking its overridden entries method', () => {
+    let entriesCalled = false;
+    class OverriddenFrontier extends Map<string, string> {
+      override entries(): MapIterator<[string, string]> {
+        entriesCalled = true;
+        return super.entries();
+      }
+    }
+
+    expect(
+      () =>
+        new EntityAdmissionInventoryBasis({
+          frontier: new OverriddenFrontier([['writer-a', 'patch-a']]),
+          worldlineName: 'captures',
+        }),
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_BASIS',
+      }),
+    );
+    expect(entriesCalled).toBe(false);
+  });
+
+  it('rejects an own entries override on an otherwise native Map', () => {
+    let entriesCalled = false;
+    const frontier = new Map([['writer-a', 'patch-a']]);
+    Object.defineProperty(frontier, 'entries', {
+      value: () => {
+        entriesCalled = true;
+        return [][Symbol.iterator]();
+      },
+    });
+
+    expect(
+      () =>
+        new EntityAdmissionInventoryBasis({
+          frontier,
+          worldlineName: 'captures',
+        }),
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_BASIS',
+      }),
+    );
+    expect(entriesCalled).toBe(false);
+  });
+
   it.each([
     { writerId: '', patchSha: 'patch-a' },
     { writerId: 'writer-a', patchSha: '' },

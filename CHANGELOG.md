@@ -44,10 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   declaring arbitrary dictionary keys to satisfy the recursive snapshot value
   algebra. Consumer type checks reject undeclared `EntityAdmission` fields,
   while nested snapshot records and arrays remain supported explicitly.
-- Entity admission inventory bases now require a real Map frontier and the
-  retained-patch scanner requires the runtime-backed basis class. Forged
-  lookalike objects can no longer execute caller-owned iteration code or enter
-  a supposedly exact-basis scan.
+- Entity admission inventory bases now require an unmodified native Map
+  frontier and the retained-patch scanner requires the runtime-backed basis
+  class. Forged lookalikes, Map subclasses, and own iterator overrides can no
+  longer execute caller-owned iteration code or enter an exact-basis scan.
 - Ordered cleanup now normalizes non-Error Promise rejections into typed WARP
   failures, attempts every declared cleanup step, and aggregates only explicit
   Error values in deterministic declaration order.
