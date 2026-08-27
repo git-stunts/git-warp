@@ -24,7 +24,7 @@ function assertMetadataEntry(value: string): void {
   }
 }
 
-function assertStringArray(arr: string[] | undefined): void {
+function assertStringArray(arr: readonly string[] | undefined): void {
   if (arr === undefined) {
     return;
   }
@@ -41,9 +41,9 @@ function assertStringArray(arr: string[] | undefined): void {
 /**
  * Returns the array if non-empty, otherwise undefined.
  */
-function _nonEmpty(arr: string[] | undefined): string[] | undefined {
+function _nonEmpty(arr: readonly string[] | undefined): readonly string[] | undefined {
   assertStringArray(arr);
-  return (arr && arr.length > 0) ? [...arr] : undefined;
+  return (arr && arr.length > 0) ? Object.freeze([...arr]) : undefined;
 }
 
 function validateSchema(schema: number): asserts schema is 2 | 3 {
@@ -73,7 +73,7 @@ function validateLamport(lamport: number): void {
   }
 }
 
-function validateOps(ops: PatchOp[]): void {
+function validateOps(ops: readonly PatchOp[]): void {
   if (!Array.isArray(ops)) {
     throw new PatchError('Patch ops must be an array', {
       code: 'E_PATCH_OPS',
@@ -86,10 +86,14 @@ function normalizeContext(
   context: VersionVector | Map<string, number> | Record<string, number>,
 ): VersionVector | Record<string, number> {
   if (context instanceof VersionVector) {
-    return context.clone();
+    const snapshot = context.clone();
+    Object.freeze(snapshot);
+    return snapshot;
   }
   if (context instanceof Map) {
-    return VersionVector.from(context);
+    const snapshot = VersionVector.from(context);
+    Object.freeze(snapshot);
+    return snapshot;
   }
   VersionVector.from(context);
   return Object.freeze({ ...context });
@@ -102,17 +106,17 @@ export default class Patch {
   /**
    * Schema version (2 for node-only, 3 for edge properties).
    */
-  schema: 2 | 3;
+  readonly schema: 2 | 3;
 
   /**
    * Writer ID — identifies the source of the patch.
    */
-  writer: string;
+  readonly writer: string;
 
   /**
    * Lamport timestamp for ordering.
    */
-  lamport: number;
+  readonly lamport: number;
 
   /**
    * Writer's observed frontier (NOT global stability).
@@ -120,24 +124,24 @@ export default class Patch {
    * deserialization — callers at boundary sites normalize via
    * VersionVector.from().
    */
-  context: VersionVector | Record<string, number>;
+  readonly context: VersionVector | Record<string, number>;
 
   /**
    * Ordered array of operations.
    */
-  ops: PatchOp[];
+  readonly ops: readonly PatchOp[];
 
   /**
    * Node/edge IDs read by this patch (provenance tracking).
    * Omitted when empty for backward compatibility.
    */
-  reads: string[] | undefined;
+  readonly reads: readonly string[] | undefined;
 
   /**
    * Node/edge IDs written by this patch (provenance tracking).
    * Omitted when empty for backward compatibility.
    */
-  writes: string[] | undefined;
+  readonly writes: readonly string[] | undefined;
 
   /** Exact retained spans for entity admissions lowered into this patch. */
   entityAdmissions?: readonly EntityAdmissionBoundary[];
@@ -150,9 +154,9 @@ export default class Patch {
     writer: string;
     lamport: number;
     context: VersionVector | Map<string, number> | Record<string, number>;
-    ops: PatchOp[];
-    reads?: string[] | undefined;
-    writes?: string[] | undefined;
+    ops: readonly PatchOp[];
+    reads?: readonly string[] | undefined;
+    writes?: readonly string[] | undefined;
     entityAdmissions?: readonly EntityAdmissionBoundary[] | undefined;
   }) {
     validateSchema(schema);
@@ -164,7 +168,7 @@ export default class Patch {
     this.writer = writer;
     this.lamport = lamport;
     this.context = normalizeContext(context);
-    this.ops = [...ops];
+    this.ops = Object.freeze([...ops]);
     this.reads = _nonEmpty(reads);
     this.writes = _nonEmpty(writes);
     const boundaries = freezeEntityAdmissionBoundaries(entityAdmissions, this.ops);

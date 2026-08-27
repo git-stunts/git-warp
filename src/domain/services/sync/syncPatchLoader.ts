@@ -24,14 +24,14 @@ import type EntityAdmissionBoundary from '../../types/EntityAdmissionBoundary.ts
 // ---------------------------------------------------------------------------
 
 export interface DecodedPatch {
-  context: VersionVector | Map<string, number> | Record<string, number> | null | undefined;
-  ops: PatchOp[];
-  writer: string;
-  lamport: number;
-  schema?: 2 | 3;
-  reads?: string[] | undefined;
-  writes?: string[] | undefined;
-  entityAdmissions?: readonly EntityAdmissionBoundary[] | undefined;
+  readonly context: VersionVector | Map<string, number> | Record<string, number> | null | undefined;
+  readonly ops: readonly PatchOp[];
+  readonly writer: string;
+  readonly lamport: number;
+  readonly schema?: 2 | 3;
+  readonly reads?: readonly string[] | undefined;
+  readonly writes?: readonly string[] | undefined;
+  readonly entityAdmissions?: readonly EntityAdmissionBoundary[] | undefined;
 }
 
 export interface LoadPatchRangeOptions {

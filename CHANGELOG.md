@@ -54,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - V19 Reading and JSON presenters now preserve a caller-controlled `__proto__`
   key as frozen own JSON data without invoking the legacy object-prototype
   setter or dropping that field from CLI output.
+- `Patch` now exposes readonly, runtime-frozen operation, read, write, and
+  causal-context snapshots. Validated retained evidence can no longer be
+  replaced or causally rewritten through a mutable cloned container.
 - Intent publication validation now runs against the fully built patch before
   the journal can publish it. A mismatched, truncated, or appended operation
   sequence therefore fails without advancing the target ref or losing the
