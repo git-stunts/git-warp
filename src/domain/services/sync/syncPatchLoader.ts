@@ -23,7 +23,7 @@ import type EntityAdmissionBoundary from '../../types/EntityAdmissionBoundary.ts
 // Types
 // ---------------------------------------------------------------------------
 
-export interface DecodedPatch {
+export type DecodedPatch = Readonly<{
   readonly context: VersionVector | Map<string, number> | Record<string, number> | null | undefined;
   readonly ops: readonly PatchOp[];
   readonly writer: string;
@@ -32,12 +32,12 @@ export interface DecodedPatch {
   readonly reads?: readonly string[] | undefined;
   readonly writes?: readonly string[] | undefined;
   readonly entityAdmissions?: readonly EntityAdmissionBoundary[] | undefined;
-}
+}>;
 
-export interface LoadPatchRangeOptions {
-  patchJournal?: PatchJournalPort;
-  commitMessageCodec?: CommitMessageCodecPort;
-}
+export type LoadPatchRangeOptions = Readonly<{
+  readonly patchJournal?: PatchJournalPort;
+  readonly commitMessageCodec?: CommitMessageCodecPort;
+}>;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
