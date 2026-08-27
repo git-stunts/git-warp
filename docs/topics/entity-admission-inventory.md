@@ -92,7 +92,8 @@ audit needs to discover.
 Namespace selection is also deferred. Auto-allocation has an immutable
 namespace, but a caller-supplied subject does not. Parsing a prefix from an
 arbitrary subject would turn an application naming convention into substrate
-truth. Records therefore disclose one of three honest allocation origins:
+truth. Records therefore disclose one of three honest allocation origins when
+that origin was explicitly retained:
 
 ```text
 allocated(namespace)
@@ -100,15 +101,16 @@ supplied-subject
 legacy-unrecorded
 ```
 
-`legacy-unrecorded` is necessary for v19.1 patches. Their entity birth is
-provable, but their retained bytes do not distinguish an auto-allocated
-subject from an intentionally equal supplied subject. A future namespace
-selector may cover only admissions whose recorded allocation origin proves a
-namespace.
+`legacy-unrecorded` remains a wire-compatible origin for explicitly translated
+or classified data. The inventory does not infer it from an unmarked v19.1
+patch: those retained bytes cannot distinguish `entity.add` from an advanced
+manual `node.add` plus property sequence. A future namespace selector may cover
+only admissions whose recorded allocation origin proves a namespace.
 
 ## Persisted intent boundaries
 
-A single v19.1 entity patch is recognizable without heuristics:
+A v19.1 entity patch and an advanced manual graph patch can have the same
+retained footprint:
 
 ```text
 NodeAdd(subject)
@@ -119,8 +121,7 @@ reads  = empty
 writes = exactly subject
 ```
 
-That exact whole-patch footprint remains the backward-compatible legacy
-decoder.
+The operation shape therefore cannot prove which public intent produced it.
 
 Atomic intent arrays make operation shape alone insufficient. These two
 requests can otherwise lower to the same operations:
@@ -162,21 +163,22 @@ but do not expose dots.
 
 Patches without this metadata are handled conservatively:
 
-- the exact legacy single-entity footprint is admitted;
-- every other unmarked multi-operation patch is not classified as an entity
-  admission; and
+- an unmarked whole-patch entity footprint obstructs the inventory with
+  `E_ENTITY_ADMISSION_INVENTORY_LEGACY_AMBIGUOUS`;
+- other unmarked patches are not classified as entity admissions; and
 - no operation-shape guess can earn a completeness certificate.
 
 New v19.2 patches persist the metadata field even when its boundary list is
 empty. That empty marker proves the writer classified the patch and found no
 `entity.add`; it prevents a manual atomic `[node.add, property.set]` sequence
-from falling through to the legacy whole-patch decoder. Only an absent field
-selects the legacy rule.
+from being misclassified by its whole-patch shape. Only an absent field can
+trigger the typed legacy-ambiguity obstruction.
 
-This is backward compatible with released v19.1 repositories and requires no
-repository migration. The array overload is not yet in a published release,
-so v19.2 can establish its retained intent boundaries before consumers rely on
-that surface.
+Released v19.1 repositories remain readable and writable, but their unmarked
+entity-shaped patches cannot support a complete admission inventory without an
+explicit migration or classification step. The array overload is not yet in a
+published release, so v19.2 can establish retained intent boundaries before
+consumers rely on that surface.
 
 ## Basis and ordering
 

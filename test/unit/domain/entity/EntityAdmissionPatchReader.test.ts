@@ -12,24 +12,11 @@ import NodePropSet from '../../../../src/domain/types/ops/NodePropSet.ts';
 const PATCH_SHA = 'a'.repeat(40);
 
 describe('EntityAdmissionPatchReader', () => {
-  it('recovers a released v19.1 whole-patch entity as legacy-unrecorded', () => {
-    const admissions = entityAdmissionsFromPatch(entry(legacyEntityPatch()));
-
-    expect(admissions).toHaveLength(1);
-    expect(admissions[0]).toMatchObject({
-      subject: 'capture:legacy',
-      origin: { kind: 'legacy-unrecorded', namespace: null },
-      eventId: {
-        patchSha: PATCH_SHA,
-        opIndex: 0,
-        writerId: 'writer-a',
-      },
-    });
-    expect(admissions[0]?.intent.descriptor).toMatchObject({
-      kind: 'entity.add',
-      subject: 'capture:legacy',
-      properties: { body: 'retained' },
-    });
+  it('fails closed for an ambiguous unmarked whole-patch footprint', () => {
+    expect(() => entityAdmissionsFromPatch(entry(legacyEntityPatch())))
+      .toThrowError(expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_LEGACY_AMBIGUOUS',
+      }));
   });
 
   it('treats a present empty v19.2 marker as proof of no entity admission', () => {

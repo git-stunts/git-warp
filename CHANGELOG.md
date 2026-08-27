@@ -40,6 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Entity admission inventory now fails closed on an unmarked v19.1-shaped
+  whole-patch footprint. Those retained operations cannot prove whether the
+  caller used `entity.add` or equivalent manual node and property edits, so the
+  runtime reports `E_ENTITY_ADMISSION_INVENTORY_LEGACY_AMBIGUOUS` instead of
+  certifying a fabricated source birth.
 - Intent publication validation now runs against the fully built patch before
   the journal can publish it. A mismatched, truncated, or appended operation
   sequence therefore fails without advancing the target ref or losing the
@@ -61,8 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unchanged. Atomic arrays reuse the existing writer publication mechanism, so
   existing v19 repositories require no retained-data migration. New patches
   persist an optional, bounded entity-admission classification field. An empty
-  field distinguishes a classified manual operation array from a legacy entity
-  birth, while an absent field retains the exact v19.1 whole-patch decoder.
+  field distinguishes a classified manual operation array from an entity
+  birth, while an absent ambiguous whole-patch footprint obstructs inventory
+  completeness until explicitly migrated or classified.
   Reopened multi-operation Strands recover their ordered primitive graph
   transformation from the retained patch; no caller-owned JavaScript array is
   persisted. Because the Patch stores graph operations rather than call syntax,
