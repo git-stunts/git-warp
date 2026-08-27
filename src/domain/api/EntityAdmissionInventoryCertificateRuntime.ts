@@ -12,17 +12,30 @@ export function bindEntityAdmissionInventoryCertificate(
   receipt: ObservationReceipt,
   certificate: EntityAdmissionInventoryCertificate,
 ): void {
+  requireCompletedInventoryReceipt(receipt);
+  requireMatchingInventoryCertificate(receipt, certificate);
+  requireUnboundInventoryCertificate(receipt);
+  INVENTORY_CERTIFICATES.set(receipt, certificate);
+}
+
+function requireCompletedInventoryReceipt(receipt: ObservationReceipt): void {
   if (!(receipt instanceof ObservationReceipt)) {
     throw certificateError('Inventory certificate binding requires an ObservationReceipt');
   }
   if (receipt.status !== 'completed') {
     throw certificateError('Only a completed Observation can carry an inventory certificate');
   }
-  if (!(certificate instanceof EntityAdmissionInventoryCertificate)) {
-    throw certificateError('Inventory certificate binding requires a certificate');
-  }
   if (!isEntityAdmissionInventoryObserver(receipt.observer)) {
     throw certificateError('Inventory certificate requires an inventory Observer');
+  }
+}
+
+function requireMatchingInventoryCertificate(
+  receipt: ObservationReceipt,
+  certificate: EntityAdmissionInventoryCertificate,
+): void {
+  if (!(certificate instanceof EntityAdmissionInventoryCertificate)) {
+    throw certificateError('Inventory certificate binding requires a certificate');
   }
   if (receipt.lane !== certificate.lane.name) {
     throw certificateError('Inventory certificate belongs to another Lane');
@@ -30,10 +43,12 @@ export function bindEntityAdmissionInventoryCertificate(
   if (receipt.evidence !== certificate.evidence) {
     throw certificateError('Inventory certificate evidence does not match its receipt');
   }
+}
+
+function requireUnboundInventoryCertificate(receipt: ObservationReceipt): void {
   if (INVENTORY_CERTIFICATES.has(receipt)) {
     throw certificateError('Inventory certificate is already bound');
   }
-  INVENTORY_CERTIFICATES.set(receipt, certificate);
 }
 
 /** Requires the terminal certificate from a fully consumed inventory receipt. */
