@@ -24,17 +24,19 @@ export function applyIntentSequenceToPatch(
 
 /** Recovers one retained write while preserving its one-patch atomic boundary. */
 export function intentSequenceFromPatch(patch: Patch): IntentSequence {
-  if (patch.entityAdmissions !== undefined) {
-    return markedIntentSequence(patch);
-  }
   try {
-    return IntentSequence.from(retainLegacyOrigin(intentFromPatch(patch)));
+    const retained = intentFromPatch(patch);
+    return IntentSequence.from(patch.entityAdmissions === undefined
+      ? retainLegacyOrigin(retained)
+      : retained);
   } catch (error) {
     if (!(error instanceof WarpError) || !isMultiOperationHydrationFailure(error, patch)) {
       throw error;
     }
   }
-  return IntentSequence.from(primitiveIntentArray(patch));
+  return patch.entityAdmissions === undefined
+    ? IntentSequence.from(primitiveIntentArray(patch))
+    : markedIntentSequence(patch);
 }
 
 function markedIntentSequence(patch: Patch): IntentSequence {

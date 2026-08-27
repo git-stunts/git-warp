@@ -8,6 +8,8 @@ import {
   MAX_ATOMIC_WRITE_OPERATIONS,
 } from '../../../src/domain/api/IntentSequenceRuntime.ts';
 import Patch from '../../../src/domain/types/Patch.ts';
+import EdgeRemove from '../../../src/domain/types/ops/EdgeRemove.ts';
+import NodeRemove from '../../../src/domain/types/ops/NodeRemove.ts';
 import { createPatchBuilder } from './services/PatchBuilderTestHarness.ts';
 
 describe('IntentSequenceRuntime', () => {
@@ -99,6 +101,29 @@ describe('IntentSequenceRuntime', () => {
     expect(retained.entityAdmissions).toEqual([]);
     expect(recovered.kinds).toEqual(['node.add', 'property.set']);
     expect(replayBuilder.build()).toEqual(retained);
+  });
+
+  it('rehydrates a marked cascading node removal as one Intent', () => {
+    const retained = new Patch({
+      writer: 'agent-1',
+      lamport: 1,
+      context: {},
+      ops: [
+        new EdgeRemove({
+          from: 'capture:first',
+          to: 'capture:second',
+          label: 'precedes',
+          observedDots: ['agent-1:2'],
+        }),
+        new NodeRemove('capture:first', ['agent-1:1']),
+      ],
+      entityAdmissions: [],
+    });
+
+    const recovered = intentSequenceFromPatch(retained);
+
+    expect(recovered.atomic).toBe(false);
+    expect(recovered.kinds).toEqual(['node.remove']);
   });
 
   it('rejects a sequence whose lowering exceeds the operation limit', () => {

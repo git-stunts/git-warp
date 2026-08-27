@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   caller used `entity.add` or equivalent manual node and property edits, so the
   runtime reports `E_ENTITY_ADMISSION_INVENTORY_LEGACY_AMBIGUOUS` instead of
   certifying a fabricated source birth.
+- Retained patches carrying an entity-admission marker now rehydrate a
+  cascading node deletion as the original singular `node.remove` Intent rather
+  than exposing its generated edge removals as an atomic public Intent array.
 - Intent publication validation now runs against the fully built patch before
   the journal can publish it. A mismatched, truncated, or appended operation
   sequence therefore fails without advancing the target ref or losing the
