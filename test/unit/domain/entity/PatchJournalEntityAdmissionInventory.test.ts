@@ -25,6 +25,20 @@ const PORT_SOURCE = readFileSync(
 );
 
 describe('PatchJournalEntityAdmissionInventory', () => {
+  it('rejects a forged basis-shaped object before opening a scan', () => {
+    const inventory = new PatchJournalEntityAdmissionInventory({
+      journal: new InventoryJournal(new Map()),
+    });
+
+    expect(() =>
+      inventory.scan({ frontierEntries: [], worldlineName: 'captures' }),
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_BASIS',
+      }),
+    );
+  });
+
   it('declares and repeats descending retained-admission order', async () => {
     expect(PORT_SOURCE).toContain(
       'descending `RetainedEntityAdmission.compare()` order',

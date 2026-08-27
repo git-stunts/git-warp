@@ -44,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   declaring arbitrary dictionary keys to satisfy the recursive snapshot value
   algebra. Consumer type checks reject undeclared `EntityAdmission` fields,
   while nested snapshot records and arrays remain supported explicitly.
+- Entity admission inventory bases now require a real Map frontier and the
+  retained-patch scanner requires the runtime-backed basis class. Forged
+  lookalike objects can no longer execute caller-owned iteration code or enter
+  a supposedly exact-basis scan.
 - Entity admission inventory now fails closed on an unmarked v19.1-shaped
   whole-patch footprint. Those retained operations cannot prove whether the
   caller used `entity.add` or equivalent manual node and property edits, so the

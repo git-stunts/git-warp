@@ -7,7 +7,7 @@ import {
   completeCleanupSteps,
   failWithCleanupSteps,
 } from '../utils/OperationCleanup.ts';
-import type EntityAdmissionInventoryBasis from './EntityAdmissionInventoryBasis.ts';
+import EntityAdmissionInventoryBasis from './EntityAdmissionInventoryBasis.ts';
 import { entityAdmissionsFromPatch } from './EntityAdmissionPatchReader.ts';
 import type RetainedEntityAdmission from './RetainedEntityAdmission.ts';
 
@@ -35,7 +35,7 @@ extends EntityAdmissionInventoryPort {
   override scan(
     basis: EntityAdmissionInventoryBasis,
   ): WarpStream<RetainedEntityAdmission> {
-    if (basis === null || typeof basis !== 'object') {
+    if (!(basis instanceof EntityAdmissionInventoryBasis)) {
       throw new WarpError(
         'Entity admission inventory requires a worldline coordinate',
         'E_ENTITY_ADMISSION_INVENTORY_BASIS',

@@ -24,6 +24,9 @@ export default class EntityAdmissionInventoryBasis {
 function freezeFrontier(
   frontier: ReadonlyMap<string, string>,
 ): readonly WarpWorldlineCoordinateFrontierEntry[] {
+  if (!(frontier instanceof Map)) {
+    throw basisError('Entity admission inventory basis requires a Map frontier');
+  }
   return Object.freeze([...frontier.entries()]
     .sort(([left], [right]) => compareCodeUnits(left, right))
     .map(([writerId, patchSha]) => Object.freeze({

@@ -32,6 +32,30 @@ describe('EntityAdmissionInventoryBasis', () => {
     );
   });
 
+  it('rejects a forged frontier without invoking its entries method', () => {
+    let entriesCalled = false;
+    const forgedFrontier = {
+      entries(): IterableIterator<never> {
+        entriesCalled = true;
+        return [][Symbol.iterator]();
+      },
+    };
+
+    expect(
+      () =>
+        new EntityAdmissionInventoryBasis({
+          // @ts-expect-error Exercise the JavaScript boundary with a forged Map shape.
+          frontier: forgedFrontier,
+          worldlineName: 'captures',
+        }),
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'E_ENTITY_ADMISSION_INVENTORY_BASIS',
+      }),
+    );
+    expect(entriesCalled).toBe(false);
+  });
+
   it.each([
     { writerId: '', patchSha: 'patch-a' },
     { writerId: 'writer-a', patchSha: '' },
