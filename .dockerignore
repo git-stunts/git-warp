@@ -3,8 +3,6 @@ npm-debug.log
 deno.lock
 .gitignore
 .git
-*.md
-!README.md
 .DS_Store
 coverage
 .vscode

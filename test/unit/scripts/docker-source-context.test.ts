@@ -70,6 +70,15 @@ describe('Docker source context', () => {
     expect(entries).toContain('.git');
   });
 
+  it('retains Markdown source contracts required by the unit suite', () => {
+    const entries = readFileSync(join(ROOT, '.dockerignore'), 'utf8')
+      .split('\n')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0 && !entry.startsWith('#'));
+
+    expect(entries).not.toContain('*.md');
+  });
+
   it.each(DEPENDENCY_INSTALL_DOCKERFILES)(
     '%s disables browser downloads before installing dependencies',
     (path) => {
