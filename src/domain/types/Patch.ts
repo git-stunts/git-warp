@@ -144,7 +144,7 @@ export default class Patch {
   readonly writes: readonly string[] | undefined;
 
   /** Exact retained spans for entity admissions lowered into this patch. */
-  entityAdmissions?: readonly EntityAdmissionBoundary[];
+  readonly entityAdmissions?: readonly EntityAdmissionBoundary[];
 
   /**
    * Creates a Patch.

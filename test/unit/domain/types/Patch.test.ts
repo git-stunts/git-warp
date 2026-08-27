@@ -103,3 +103,10 @@ describe('Patch', () => {
     })).toThrow(PatchError);
   });
 });
+
+function assertAdmissionMetadataIsReadonly(patch: Patch): void {
+  // @ts-expect-error Retained entity-admission metadata is immutable.
+  patch.entityAdmissions = [];
+}
+
+void assertAdmissionMetadataIsReadonly;
