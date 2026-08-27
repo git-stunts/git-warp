@@ -31,7 +31,6 @@ export type EntityAdmissionInitialProperties = Readonly<{
 
 /** Public storage-neutral Reading value for one retained entity birth. */
 export default class EntityAdmission {
-  readonly [key: string]: ReadingValue;
   readonly occurrence: EntityAdmissionOccurrenceReference;
   readonly representation: EntityAdmissionRepresentationReference;
   readonly initialProperties: EntityAdmissionInitialProperties;

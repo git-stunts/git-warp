@@ -6,7 +6,10 @@ import type Intent from '../../src/domain/api/Intent.ts';
 import type { WriteIntentInput } from '../../src/domain/api/IntentSequence.ts';
 import type Evidence from '../../src/domain/api/Evidence.ts';
 import type RetentionEvidence from '../../src/domain/api/RetentionEvidence.ts';
-import type { ReadingValue } from '../../src/domain/api/ReadingValue.ts';
+import type {
+  ReadingValue,
+  ReadingValueObject,
+} from '../../src/domain/api/ReadingValue.ts';
 import ImmutableBytes from '../../src/domain/services/snapshot/ImmutableBytes.ts';
 import type {
   McpJsonObject,
@@ -232,7 +235,7 @@ function readingValueToJson(value: ReadingValue): McpJsonValue {
 
 function isReadingValueObject(
   value: ReadingValue
-): value is { readonly [key: string]: ReadingValue } {
+): value is ReadingValueObject {
   return (
     value !== null &&
     typeof value === 'object' &&
