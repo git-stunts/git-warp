@@ -79,6 +79,15 @@ describe('Docker source context', () => {
     expect(entries).not.toContain('*.md');
   });
 
+  it('retains Git ignore policy before seeding the image repository', () => {
+    const entries = readFileSync(join(ROOT, '.dockerignore'), 'utf8')
+      .split('\n')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0 && !entry.startsWith('#'));
+
+    expect(entries).not.toContain('.gitignore');
+  });
+
   it.each(DEPENDENCY_INSTALL_DOCKERFILES)(
     '%s disables browser downloads before installing dependencies',
     (path) => {
