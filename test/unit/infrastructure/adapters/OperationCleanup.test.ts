@@ -61,6 +61,19 @@ describe('completeWithCleanup', () => {
 });
 
 describe('completeCleanupSteps', () => {
+  it('normalizes non-Error rejections and continues ordered cleanup', async () => {
+    const laterCleanup = vi.fn().mockResolvedValue(undefined);
+
+    await expect(completeCleanupSteps([
+      vi.fn().mockRejectedValue('non-Error cleanup rejection'),
+      laterCleanup,
+    ], 'cleanup failed')).rejects.toMatchObject({
+      code: 'E_OPERATION_CLEANUP_REJECTION',
+    });
+
+    expect(laterCleanup).toHaveBeenCalledOnce();
+  });
+
   it('attempts every step in order and preserves failure order', async () => {
     const firstFailure = new Error('first cleanup failed');
     const secondFailure = new Error('second cleanup failed');

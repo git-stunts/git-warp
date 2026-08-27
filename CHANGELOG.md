@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   retained-patch scanner requires the runtime-backed basis class. Forged
   lookalike objects can no longer execute caller-owned iteration code or enter
   a supposedly exact-basis scan.
+- Ordered cleanup now normalizes non-Error Promise rejections into typed WARP
+  failures, attempts every declared cleanup step, and aggregates only explicit
+  Error values in deterministic declaration order.
 - Entity admission inventory now fails closed on an unmarked v19.1-shaped
   whole-patch footprint. Those retained operations cannot prove whether the
   caller used `entity.add` or equivalent manual node and property edits, so the

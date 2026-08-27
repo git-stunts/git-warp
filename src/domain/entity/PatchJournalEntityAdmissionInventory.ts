@@ -53,8 +53,11 @@ extends EntityAdmissionInventoryPort {
       yield* mergedAdmissions(cursors);
     } catch (error) {
       operationFailed = true;
+      const failure = error instanceof Error
+        ? error
+        : nonErrorInventoryFailure();
       await failWithCleanupSteps(
-        error,
+        failure,
         cursorCleanupSteps(cursors),
         'Entity admission inventory scan and cursor cleanup failed',
       );
@@ -79,8 +82,11 @@ extends EntityAdmissionInventoryPort {
       }
       return cursors;
     } catch (error) {
+      const failure = error instanceof Error
+        ? error
+        : nonErrorInventoryFailure();
       return await failWithCleanupSteps(
-        error,
+        failure,
         cursorCleanupSteps(cursors),
         'Entity admission inventory open and cursor cleanup failed',
       );
@@ -148,4 +154,11 @@ function cursorCleanupSteps(
   return cursors.map(({ iterator }) => async () => {
     await iterator.return?.();
   });
+}
+
+function nonErrorInventoryFailure(): WarpError {
+  return new WarpError(
+    'Entity admission inventory rejected with a non-Error value',
+    'E_ENTITY_ADMISSION_INVENTORY_FAILURE',
+  );
 }
