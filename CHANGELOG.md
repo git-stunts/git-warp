@@ -57,6 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Patch` now exposes readonly, runtime-frozen operation, read, write, and
   causal-context snapshots. Validated retained evidence can no longer be
   replaced or causally rewritten through a mutable cloned container.
+- `RetainedEntityAdmission.context` is now an isolated frozen vector snapshot,
+  preventing inventory consumers from rewriting causal evidence before an
+  occurrence is issued.
 - Intent publication validation now runs against the fully built patch before
   the journal can publish it. A mismatched, truncated, or appended operation
   sequence therefore fails without advancing the target ref or losing the

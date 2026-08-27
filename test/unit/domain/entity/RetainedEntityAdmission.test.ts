@@ -92,11 +92,28 @@ describe('RetainedEntityAdmission', () => {
     );
     expect(retained.compare(validRetainedAdmission())).toBe(0);
   });
+
+  it('freezes an isolated causal-context snapshot', () => {
+    const source = VersionVector.empty();
+    source.set('observed', 1);
+    const retained = validRetainedAdmission(source);
+
+    source.set('observed', 2);
+
+    expect(retained.context.get('observed')).toBe(1);
+    expect(Object.isFrozen(retained.context)).toBe(true);
+    expect(() => retained.context.set('observed', 9)).toThrowError(
+      expect.objectContaining({ code: 'E_CRDT_FROZEN_MUTATION' }),
+    );
+    expect(retained.context.get('observed')).toBe(1);
+  });
 });
 
-function validRetainedAdmission(): RetainedEntityAdmission {
+function validRetainedAdmission(
+  context: VersionVector = CONTEXT,
+): RetainedEntityAdmission {
   return new RetainedEntityAdmission({
-    context: CONTEXT,
+    context,
     dot: DOT,
     eventId: EVENT,
     intent: INTENT,

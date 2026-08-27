@@ -27,7 +27,9 @@ export default class RetainedEntityAdmission {
     const required = requireRetainedOptions(options);
     requireCausalCoordinates(required);
     requireAdmissionOrigin(required);
-    this.context = VersionVector.from(required.context);
+    const context = VersionVector.from(required.context);
+    Object.freeze(context);
+    this.context = context;
     this.dot = required.dot;
     this.eventId = required.eventId;
     this.intent = requireEntityIntent(required.intent, required.subject);
