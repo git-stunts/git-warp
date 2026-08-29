@@ -10,6 +10,28 @@ Finish the transition already begun in `optic-reads.md` and `cas-first-memoized-
 
 This is a completion, not a rewrite. The substrate (bounded handle-first reads, the coordinate-keyed persistent cache, the Edict intent write model) is already shipped. The gap is that the **public** optic read path does not use it: it verifies a pre-existing checkpoint and fails closed.
 
+## Settled public surface (authoritative)
+
+Two cleanly separated layers, confirmed against `RefLayout.ts` (`REF_PREFIX = 'refs/warp'`).
+
+**Disk / Git — `GitStorage`'s job.** A repo's object store + refs, reached via a path (main working copy *or* a worktree). WARP graphs live entirely under `refs/warp/<graph>/…`, never `refs/heads/…`, so the checked-out **git branch is irrelevant**, and worktrees of the same repo share the same graphs. Worktrees are a `GitStorage` path detail, invisible above. This layer yields a **location**.
+
+**WARP — git-warp's job.** Within a repo's ref store, multiple named **graphs** coexist (the identifier). Each graph has a mainline plus **strands** (`refs/warp/<graph>/strands/<id>`) and **braids** (`refs/warp/<graph>/strand-braids/<id>/…`). An **optic targets one strand or braid** and never switches.
+
+**Address bridges the layers.** `WarpAddress = (location, identifier)` — location from `GitStorage` (branch-free; worktree is just a path), identifier selects the graph. It stays two fields forever.
+
+```ts
+const warp = await Warp.open(WarpAddress.of(GitStorage.root(), 'my-graph'));
+
+await Optic(warp).node('x').prop('k').read();   // Optic(warp) = mainline strand; geometry lives on the optic
+await warp.as(writer).execute(intent);          // authorship supplied at the write boundary
+
+// advanced: warp.fork() -> strand handle; warp.braid(a, b) -> braid handle
+await Optic(strand).node('x').prop('k').read(); // each optic bound to its strand/braid, never switching
+```
+
+**Internal, never public:** coordinates, checkpoints, materialization, the graph itself, the writer at `open`, and the generic word "lane". Reads carry no identity; authorship attaches only to writes.
+
 ## Motivation
 
 A caller who writes a handful of intents on a fresh lane and immediately reads them back through the public optic API gets `E_OPTIC_NO_BOUNDED_BASIS`. There is no in-process, non-forking way to make that read succeed: the only paths that *create* a basis are (a) the fork/strand optic-basis path (a fork is a real causal object — never fork to read), (b) the auto-checkpoint policy, which fires only inside `_onMaterialized` every `{ every: 64 }` patches and **not on the bounded read path**, or (c) the out-of-process CLI `git warp repair --action materialization`. Downstream consumers (e.g. the `dojo` workcell) have compensated in userland by shelling out to the CLI — which is the workaround this plan removes the need for.
