@@ -15,11 +15,37 @@ COPY patches ./patches
 RUN npm ci
 COPY . .
 RUN npm run build --silent
+# ── Hermetic isolation ──────────────────────────────────────────────────────
+# No repository inside this image may carry a Git remote. The build context
+# already excludes the host .git (.dockerignore), but strip remotes from EVERY
+# repository defensively — including any nested fixture repos — so nothing in
+# the container can ever fetch or push to the host working copy or a real
+# remote. This runs after the code is copied in, as required.
+RUN set -eu; \
+  find /app -type d -name .git 2>/dev/null | while IFS= read -r gitdir; do \
+    repo=$(dirname "$gitdir"); \
+    for remote in $(git -C "$repo" remote 2>/dev/null || true); do \
+      git -C "$repo" remote remove "$remote" || true; \
+    done; \
+  done
+# Seed /app as a clean, remote-less repository for tests that need real Git.
 RUN git init -q \
   && git config user.email "container@git-warp.local" \
   && git config user.name "Git Warp Container" \
   && git add -A \
   && git commit --allow-empty -m "seed git-warp" >/dev/null
+# Assert the hermetic invariant: zero Git remotes anywhere under /app. Fail the
+# build loudly if any remote survives, rather than shipping a leaky image.
+RUN set -eu; \
+  remotes=$(find /app -type d -name .git 2>/dev/null | while IFS= read -r gitdir; do \
+    git -C "$(dirname "$gitdir")" remote 2>/dev/null || true; \
+  done); \
+  if [ -n "$remotes" ]; then \
+    echo "FATAL: hermetic image contains a git remote:" >&2; \
+    printf '%s\n' "$remotes" >&2; \
+    exit 1; \
+  fi; \
+  echo "[hermetic] verified: no git remotes present in image"
 RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /app/dist/bin/git-warp.js "$@"' > /usr/local/bin/git-warp \
   && chmod +x /usr/local/bin/git-warp
 ENV GIT_STUNTS_DOCKER=1

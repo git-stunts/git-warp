@@ -1,0 +1,28 @@
+# Hermetic test runner.
+#
+# Runs the test suite (or a specific file passed as the run command) inside a
+# container isolated from the host in every way we can enforce:
+#   - code is COPYed into the image (never bind-mounted), so container writes
+#     cannot touch the host working copy;
+#   - the image build strips every Git remote and asserts none remain
+#     (see docker/Dockerfile.node22-slim), so no repo inside can fetch/push to
+#     the host or a real remote;
+#   - the container runs with no network at all (network_mode: none), so even a
+#     stray remote could not reach anything.
+#
+# Usage:
+#   docker compose -f docker/docker-compose.hermetic.yml run --build --rm test \
+#     npx vitest run test/integration/application/SomeThing.integration.test.ts
+#
+#   # or the full suite (image CMD):
+#   docker compose -f docker/docker-compose.hermetic.yml run --build --rm test
+services:
+  test:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.node22-slim
+    environment:
+      - GIT_STUNTS_DOCKER=1
+    # No volumes: the host filesystem is never mounted into the container.
+    # No network at runtime: nothing the tests do can reach the host or a remote.
+    network_mode: "none"
