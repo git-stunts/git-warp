@@ -1,27 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { Runtime } from '../../../index.ts';
-import { captureCoordinate, intent } from '../../../advanced.ts';
+import { intent } from '../../../advanced.ts';
 import { createTestRepo } from '../api/helpers/setup.ts';
 
 /**
- * RED for docs/plans/optic-only-public-api.md, slice 1.
+ * RED for docs/plans/optic-only-public-api.md, slice 2.
  *
- * A public optic read at the live frontier, immediately after a handful of
- * writes on a fresh lane, must return the written value. Today this fails
- * closed: `captureCoordinate(lane)` runs `prepareOpticBasis()` ->
- * `CheckpointTailBasisVerifier.verify()`, which only *verifies* a pre-existing
- * checkpoint-tail basis and throws `E_OPTIC_NO_BOUNDED_BASIS` when none has
- * been published. The bounded read path never triggers the cache-publishing
- * materialization (READINGS_AND_OPTICS.md Sec.10: "a checkpoint that never
- * fires is decoration on the one-way door"), so a fresh lane with fewer than
- * the auto-checkpoint cadence of writes can never be read in-process without
- * forking a strand or shelling out to `git warp repair`.
+ * The optic is the sole public read handle: `lane.optic()` reads at the live
+ * frontier. Immediately after a handful of writes on a fresh lane, an optic
+ * read must return the written value.
  *
- * GREEN (slice 2): the bounded read path establishes its own aperture-scoped
- * basis transparently through the already-shipped handle-first cold read,
- * publishes the retained materialization to the persistent cache, and returns
- * the reading. No fork, no CLI repair, no whole-state materialization.
+ * Today it fails closed: the live optic's read verifies a pre-existing
+ * checkpoint-tail basis (CheckpointTailBasisVerifier) and throws
+ * `E_OPTIC_NO_BOUNDED_BASIS` when none has been published; the bounded read
+ * path never establishes one (READINGS_AND_OPTICS.md Sec.10 — "a checkpoint
+ * that never fires is decoration on the one-way door").
+ *
+ * GREEN: the live optic read self-establishes its aperture-scoped basis
+ * through the handle-first cold materialization and returns the reading. No
+ * captureCoordinate, no fork, no CLI repair, no whole-state materialization.
  */
 const LANE = 'events';
 
@@ -48,10 +46,9 @@ describe('optic read self-establishes its aperture-scoped basis', () => {
         intent.entity.add({ subject: 'capture:second', properties: { body: 'two' } }),
       ]);
 
-      // Public optic read on the live frontier. This is the operation that
-      // currently fails closed with E_OPTIC_NO_BOUNDED_BASIS.
-      const coordinate = await captureCoordinate(lane);
-      const reading = await coordinate.optic().node('capture:first').prop('body').read();
+      // The optic is the read handle; a bare lane.optic() reads at the live
+      // frontier. This is the operation that currently fails closed.
+      const reading = await lane.optic().node('capture:first').prop('body').read();
 
       expect(reading.exists).toBe(true);
       expect(reading.value).toBe('one');
