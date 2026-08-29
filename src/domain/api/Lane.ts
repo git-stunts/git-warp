@@ -6,7 +6,6 @@ import Observation, { type ObservationExecution } from './Observation.ts';
 import Observer from './Observer.ts';
 import type { ReadingValue } from './ObservedReading.ts';
 import type WriteReceipt from './WriteReceipt.ts';
-import type WorldlineOptic from '../services/optic/WorldlineOptic.ts';
 
 export type LaneKind = 'worldline' | 'strand';
 
@@ -36,11 +35,9 @@ type WriteIntent = (intent: WriteIntentInput) => Promise<WriteReceipt<WriteInten
 type StartObserver = <TValue extends ReadingValue>(
   observer: Observer<TValue>,
 ) => ObservationExecution<TValue> | Promise<ObservationExecution<TValue>>;
-type OpenOptic = () => WorldlineOptic;
 
 type LaneOptions = {
   readonly descriptor: LaneDescriptor;
-  readonly openOptic: OpenOptic;
   readonly startObserver: StartObserver;
   readonly writeIntent: WriteIntent;
   readonly writer: string;
@@ -49,7 +46,6 @@ type LaneOptions = {
 /** One admitted worldline or counterfactual strand owned by a Runtime. */
 export default class Lane {
   readonly #descriptor: LaneDescriptor;
-  readonly #openOptic: OpenOptic;
   readonly #startObserver: StartObserver;
   readonly #writeIntent: WriteIntent;
   readonly #writer: string;
@@ -66,11 +62,7 @@ export default class Lane {
     if (typeof options.writeIntent !== 'function') {
       throw new WarpError('Lane requires an intent writer', 'E_LANE_WRITER');
     }
-    if (typeof options.openOptic !== 'function') {
-      throw new WarpError('Lane requires an optic opener', 'E_LANE_OPTIC');
-    }
     this.#writer = options.writer;
-    this.#openOptic = options.openOptic;
     this.#startObserver = options.startObserver;
     this.#writeIntent = options.writeIntent;
     Object.freeze(this);
@@ -104,19 +96,6 @@ export default class Lane {
       observer,
       start: async () => await this.#startObserver(observer),
     });
-  }
-
-  /**
-   * Opens a bounded optic over this lane at the live frontier.
-   *
-   * The optic is the read handle: it carries its own observer geometry
-   * (coordinate, aperture, basis and evidence postures) and materializes only
-   * the causal structure inside its aperture. The default aperture is the live
-   * frontier ("now"); widen or move the aperture to read the past. Callers
-   * never name a checkpoint, a coordinate, or the graph itself.
-   */
-  optic(): WorldlineOptic {
-    return this.#openOptic();
   }
 
   write(intent: Intent): Promise<WriteReceipt>;

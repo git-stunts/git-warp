@@ -30,6 +30,7 @@ export function bindStrandLaneRuntime(
   });
   bindLaneRuntime(lane, {
     captureCoordinate: strandCoordinateUnavailable,
+    optic: strandOpticUnavailable,
     fork: null,
     openStrand: null,
     owner,
@@ -54,5 +55,13 @@ function strandCoordinateUnavailable(): Promise<never> {
       'E_LANE_COORDINATE_KIND',
       { context: { kind: 'strand' } },
     ),
+  );
+}
+
+function strandOpticUnavailable(): never {
+  throw new WarpError(
+    'Strand Lane reads are not exposed as an optic; observe the strand instead',
+    'E_LANE_STRAND_OPTIC_UNSUPPORTED',
+    { context: { kind: 'strand' } },
   );
 }

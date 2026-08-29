@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { Runtime } from '../../../index.ts';
-import { intent } from '../../../advanced.ts';
+import { intent, Optic } from '../../../advanced.ts';
 import { createTestRepo } from '../api/helpers/setup.ts';
 
 /**
@@ -46,9 +46,9 @@ describe('optic read self-establishes its aperture-scoped basis', () => {
         intent.entity.add({ subject: 'capture:second', properties: { body: 'two' } }),
       ]);
 
-      // The optic is the read handle; a bare lane.optic() reads at the live
-      // frontier. This is the operation that currently fails closed.
-      const reading = await lane.optic().node('capture:first').prop('body').read();
+      // The optic is the read handle; Optic(lane) reads at the live frontier.
+      // This is the operation that currently fails closed.
+      const reading = await Optic(lane).node('capture:first').prop('body').read();
 
       expect(reading.exists).toBe(true);
       expect(reading.value).toBe('one');

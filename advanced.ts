@@ -8,7 +8,8 @@
 
 export { default as captureCoordinate } from './src/domain/api/captureCoordinate.ts';
 export { default as Coordinate } from './src/domain/WarpWorldlineCoordinate.ts';
-export { default as Optic } from './src/domain/services/optic/WorldlineOptic.ts';
+export { default as Optic } from './src/domain/api/Optic.ts';
+export type { default as WorldlineOptic } from './src/domain/services/optic/WorldlineOptic.ts';
 export { intent } from './src/domain/api/IntentBuilders.ts';
 export { reading } from './src/domain/api/ReadingBuilders.ts';
 export {

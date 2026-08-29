@@ -66,7 +66,6 @@ export function createWorldlineLane(
   const lane = new Lane({
     descriptor: { kind: 'worldline', name: timeline.name },
     writer: timeline.writer,
-    openOptic: () => requireTimelineRuntime(timeline).optic(),
     writeIntent: async (intent) =>
       await activity.run(async () =>
         await mutations.run(async () => await timeline.write(intent))
@@ -108,6 +107,7 @@ function bindWorldlineLaneRuntime(options: {
   bindLaneRuntime(options.lane, {
     captureCoordinate: async () =>
       await captureWorldlineCoordinate(source.timeline, source.activity),
+    optic: () => requireTimelineRuntime(source.timeline).optic(),
     fork: async (name) =>
       await forkWorldlineLane(source, name, createStrandLane),
     openStrand: async (name) =>
@@ -138,12 +138,6 @@ function createStrandLane(options: StrandLaneOptions): Lane {
       forkedAt: options.forkedAt,
     },
     writer: draft.writer,
-    openOptic: () => {
-      throw new WarpError(
-        'Strand optic reads are not yet supported; observe the strand instead',
-        'E_LANE_STRAND_OPTIC_UNSUPPORTED',
-      );
-    },
     writeIntent: async (intent) =>
       await activity.run(async () =>
         await mutations.run(async () => await draft.write(intent))

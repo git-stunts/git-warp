@@ -1,10 +1,12 @@
 import WarpError from '../errors/WarpError.ts';
 import type WarpWorldlineCoordinate from '../WarpWorldlineCoordinate.ts';
+import type WorldlineOptic from '../services/optic/WorldlineOptic.ts';
 import type Lane from './Lane.ts';
 import type { LaneSettlementRuntime } from './LaneSettlementRuntime.ts';
 
 export type LaneRuntime = Readonly<{
   readonly captureCoordinate: () => Promise<WarpWorldlineCoordinate>;
+  readonly optic: () => WorldlineOptic;
   readonly fork: ((name: string) => Promise<Lane>) | null;
   readonly openStrand: ((name: string) => Promise<Lane>) | null;
   readonly owner: object;
@@ -19,6 +21,7 @@ export function bindLaneRuntime(lane: Lane, runtime: LaneRuntime): void {
   }
   LANE_RUNTIMES.set(lane, Object.freeze({
     captureCoordinate: runtime.captureCoordinate,
+    optic: runtime.optic,
     fork: runtime.fork,
     openStrand: runtime.openStrand,
     owner: runtime.owner,
