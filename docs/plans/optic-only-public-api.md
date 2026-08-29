@@ -12,13 +12,18 @@ This is a completion, not a rewrite. The substrate (bounded handle-first reads, 
 
 ## Settled public surface (authoritative)
 
-Two cleanly separated layers, confirmed against `RefLayout.ts` (`REF_PREFIX = 'refs/warp'`).
+Three causal layers, confirmed against `RefLayout.ts` (`REF_PREFIX = 'refs/warp'`), `Frontier.ts`, and `Patch.ts`.
 
-**Disk / Git — `GitStorage`'s job.** A repo's object store + refs, reached via a path (main working copy *or* a worktree). WARP graphs live entirely under `refs/warp/<graph>/…`, never `refs/heads/…`, so the checked-out **git branch is irrelevant**, and worktrees of the same repo share the same graphs. Worktrees are a `GitStorage` path detail, invisible above. This layer yields a **location**.
+1. **Disk / Git — `GitStorage`'s job.** A repo's object store + refs, reached via a path (main working copy *or* a worktree). WARP graphs live entirely under `refs/warp/<graph>/…`, never `refs/heads/…`, so the checked-out **git branch is irrelevant**, and worktrees of the same repo share the same graphs. Worktrees are a `GitStorage` path detail, invisible above. This layer yields a **location**.
+2. **Lane — git-warp's job.** Within a repo's ref store, multiple named **graphs** coexist (the identifier). Each graph has a mainline plus **strands** (`refs/warp/<graph>/strands/<id>`) and **braids** (`refs/warp/<graph>/strand-braids/<id>/…`). An **optic targets one strand or braid** and never switches.
+3. **Writer — the per-writer dot-stream.** Even on the same lane, each writer appends to its own `refs/warp/<graph>/writers/<writer_id>`; every `Patch` carries `writer` + `lamport` + version-vector `context`, and the `Frontier` is the per-writer convergence vector. A lane's state is the CRDT merge of all writer streams.
 
-**WARP — git-warp's job.** Within a repo's ref store, multiple named **graphs** coexist (the identifier). Each graph has a mainline plus **strands** (`refs/warp/<graph>/strands/<id>`) and **braids** (`refs/warp/<graph>/strand-braids/<id>/…`). An **optic targets one strand or braid** and never switches.
+This is why identity sits at the write boundary, not at `open`/read:
 
-**Address bridges the layers.** `WarpAddress = (location, identifier)` — location from `GitStorage` (branch-free; worktree is just a path), identifier selects the graph. It stays two fields forever.
+- **Read = the merged, convergent view across all writers** → writer-agnostic. Needs only *location + lane*. `Optic(warp)` carries no identity.
+- **Write = appending to your own dot-stream** → intrinsically writer-scoped. Needs *location + lane + writer*. `warp.as(writer).execute(intent)`.
+
+**Address bridges disk + lane.** `WarpAddress = (location, identifier)` — location from `GitStorage` (branch-free; worktree is just a path), identifier selects the graph. It stays two fields forever; the writer is supplied later, at the write boundary.
 
 ```ts
 const warp = await Warp.open(WarpAddress.of(GitStorage.root(), 'my-graph'));
