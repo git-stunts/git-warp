@@ -37,6 +37,34 @@ await Optic(strand).node('x').prop('k').read(); // each optic bound to its stran
 
 **Internal, never public:** coordinates, checkpoints, materialization, the graph itself, the writer at `open`, and the generic word "lane". Reads carry no identity; authorship attaches only to writes.
 
+## The optic *is* a structural observer (Observer Geometry I)
+
+An optic is not an ad-hoc read builder; it is exactly a **structural observer** `S = (O, 𝓑_S, M_S, K_S, E_S)` (OG-I, Def. *structural-observer*):
+
+- **O** : `Hist(𝒰,R) → Tr_S` — **projection**: what is seen (equivalently, what is forgotten). Surface: which distinctions enter the trace (`match` / `expose` / `redact`).
+- **𝓑_S** — **observer basis** on `Tr_S`: the native distinctions the reading is said in. Code: `ObserverBasis`.
+- **M_S** — **observational state space**: the memory carrier. Code: `ObserverAccumulation`. *OG-I places no algebraic structure on `M_S` — it is a state space, not a monoid; commutativity/merge-order is a separate WARP substrate concern, not part of the observer.*
+- **K_S** : `M_S × Tr_S → M_S` — **update rule**: the fold step per witnessed trace.
+- **E_S** : `M_S → T̂r_S` — **emission map**: the accumulated structural description made externally available. Code: `ObserverEmission`.
+
+Accumulation is a left fold over a prefix chain `p₀ ⪯ … ⪯ pₙ` from an initial `m₀`:
+`xᵢ = O(pᵢ)`, `mᵢ₊₁ = K_S(mᵢ, xᵢ)`, `x̂ᵢ = E_S(mᵢ₊₁)`. A **memoryless** observer (`T̂r_S ≅ Tr_S`) recovers the WARP-IV one-shot read; an **accumulative** observer retains conflict markers, first-seen events, or summaries over the cone.
+
+The `Optic*Posture` structs are not a second vocabulary: aperture and coordinate bound *where* `O` and `𝓑_S` are taken; the support rule bounds *how far* `K_S` may reach (`exact` / `neighborhood` / `global-discovery-refused`). Expressing the optic as the 5-tuple sharpens the calculus rather than reinventing it.
+
+Surface:
+```ts
+// memoryless special case (terminal state-only read): T̂r_S ≅ Tr_S
+await Optic(warp).node('user:alice').prop('role').read();
+
+// accumulative observers: non-trivial (M_S, K_S, E_S) over the local cone
+await Optic(warp).neighborhood('user:alice').read();
+await Optic(warp).traversal('user:alice').read();
+
+// general form: witness an explicit structural observer S = (O, 𝓑_S, M_S, K_S, E_S)
+await Optic(warp).witness(observer);
+```
+
 ## Motivation
 
 A caller who writes a handful of intents on a fresh lane and immediately reads them back through the public optic API gets `E_OPTIC_NO_BOUNDED_BASIS`. There is no in-process, non-forking way to make that read succeed: the only paths that *create* a basis are (a) the fork/strand optic-basis path (a fork is a real causal object — never fork to read), (b) the auto-checkpoint policy, which fires only inside `_onMaterialized` every `{ every: 64 }` patches and **not on the bounded read path**, or (c) the out-of-process CLI `git warp repair --action materialization`. Downstream consumers (e.g. the `dojo` workcell) have compensated in userland by shelling out to the CLI — which is the workaround this plan removes the need for.
