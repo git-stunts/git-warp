@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFailed } from 'vitest';
 
 import { Runtime, type EntityOccurrence } from '../../../index.ts';
 import { intent } from '../../../advanced.ts';
@@ -46,12 +46,36 @@ describe('Runtime entity occurrence receipts', () => {
   });
 
   it('keeps concurrent occurrences incomparable but deterministically ordered', async () => {
-    const a = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
-    const b = await Runtime.open({ at: repository.tempDir, writer: 'writer-b' });
+    // #878: retain the pending public operation when the outer test times out.
+    // A passing run is not evidence that the previously observed stall is fixed.
+    const progress = new Map<string, string>();
+    onTestFailed(() => {
+      console.error('Concurrent occurrence lifecycle:', Object.fromEntries(progress));
+    });
+    async function stage<T>(name: string, operation: () => Promise<T>): Promise<T> {
+      progress.set(name, 'pending');
+      try {
+        const result = await operation();
+        progress.set(name, 'completed');
+        return result;
+      } catch (error) {
+        progress.set(name, 'failed');
+        throw error;
+      }
+    }
+    const a = await stage('open writer-a', async () => await Runtime.open({
+      at: repository.tempDir, writer: 'writer-a',
+    }));
+    const b = await stage('open writer-b', async () => await Runtime.open({
+      at: repository.tempDir, writer: 'writer-b',
+    }));
     try {
-      const laneA = await a.lane(LANE);
-      const laneB = await b.lane(LANE);
-      const [left, right] = await Promise.all([laneA.write(capture()), laneB.write(capture())]);
+      const laneA = await stage('open lane-a', async () => await a.lane(LANE));
+      const laneB = await stage('open lane-b', async () => await b.lane(LANE));
+      const [left, right] = await Promise.all([
+        stage('write writer-a', async () => await laneA.write(capture())),
+        stage('write writer-b', async () => await laneB.write(capture())),
+      ]);
       const occurrenceA = requireOccurrence(left);
       const occurrenceB = requireOccurrence(right);
 
@@ -62,8 +86,8 @@ describe('Runtime entity occurrence receipts', () => {
       );
       expect(occurrenceA.compare(occurrenceB)).not.toBe(0);
     } finally {
-      await b.close();
-      await a.close();
+      await stage('close writer-b', async () => await b.close());
+      await stage('close writer-a', async () => await a.close());
     }
   });
 
