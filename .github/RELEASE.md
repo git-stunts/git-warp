@@ -370,6 +370,40 @@ Stop publication, rotate or fix identity, then rerun from the same tag.
 
 ## Release Evidence
 
+### Registry-backed closure contract
+
+Issue [#866](https://github.com/git-stunts/git-warp/issues/866) adds a
+post-publication verification job. Until that implementation lands, perform
+these checks manually and record their results in the release issue.
+
+The verifier must read the immutable tag and its reviewed source commit,
+then independently observe the exact version in npm and JSR. It must check
+npm `gitHead` against that commit and the publishing workflow commit, retain
+both registries' integrity values, and record npm provenance availability,
+the observed dist-tag, and the GitHub Release identity.
+
+Registry propagation has a finite retry budget and each external command
+has a timeout. A visible version with conflicting identity is a failure,
+not a reason to retry or publish again. Existing versions can be verified
+again without changing tags, dist-tags, registry artifacts, or release notes.
+An older immutable release may remain valid after its dist-tag advances;
+the receipt must distinguish exact-version visibility from current dist-tag
+ownership.
+
+Consumer verification installs the exact public npm version into a fresh
+directory outside the checkout. It proves the supported root import, the
+private-storage export firewall, installed CLI startup, and the resolved
+git-cas and Plumbing versions. Registry signature and attestation checking
+must run where npm supports it; a failed check must never become an
+unqualified success.
+
+The job leaves a small JSON closure receipt and uploads it even on failure.
+Only a receipt whose required checks all succeeded may report `verified`.
+Tests must exercise delayed visibility, exhausted retries, identity and
+integrity mismatch, consumer failure, signature failure, and safe reruns.
+A read-only rehearsal against an existing public release precedes use in a
+new publication workflow.
+
 Record release evidence in the release tracking issue or retrospective:
 
 - tag name and commit SHA;
