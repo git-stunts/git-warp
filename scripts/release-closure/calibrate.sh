@@ -19,6 +19,7 @@ RESULTS="$WORK/results.jsonl"
 : > "$RESULTS"
 INPUT_DIGEST=$(cat "$ROOT/scripts/verify-published-release.sh" \
   "$ROOT/scripts/release-closure/consumer.sh" "$ROOT/scripts/release-closure/calibrate.sh" \
+  "$ROOT/scripts/release-closure/budget.sh" \
   "$ROOT/test/bats/release-closure.bats" "$ROOT/test/bats/fixtures/release-closure-command.sh" |
   openssl dgst -sha256 -binary | openssl base64 -A)
 NODE_VERSION=$(node --version)
@@ -27,6 +28,7 @@ BATS_VERSION=$(bats --version)
 reset_subject() {
   cp "$ROOT/scripts/verify-published-release.sh" "$WORK/tree/scripts/"
   cp "$ROOT/scripts/release-closure/consumer.sh" "$WORK/tree/scripts/release-closure/"
+  cp "$ROOT/scripts/release-closure/budget.sh" "$WORK/tree/scripts/release-closure/"
 }
 
 replace_once() {
@@ -69,6 +71,7 @@ calibrate() {
   replace_once "$path" "$before" "$after"
   bash -n "$WORK/tree/scripts/verify-published-release.sh"
   bash -n "$WORK/tree/scripts/release-closure/consumer.sh"
+  bash -n "$WORK/tree/scripts/release-closure/budget.sh"
   timeout --kill-after=5s 30s bats --formatter tap --filter "^$test$" \
     "$WORK/tree/test/bats/release-closure.bats" > "$WORK/run.log" 2>&1 || code=$?
   # Exit 1 alone could be a setup crash or no selected test. Require the exact
@@ -87,6 +90,7 @@ calibrate() {
 
 DRIVER=scripts/verify-published-release.sh
 CONSUMER=scripts/release-closure/consumer.sh
+BUDGET=scripts/release-closure/budget.sh
 NONZERO='assertion: invalid release must exit nonzero'
 SUCCESS='[ "$status" -eq 0 ]'
 calibrate receipt-claim 'release closure proves public identity and an independent consumer' \
@@ -96,8 +100,12 @@ calibrate propagation-budget 'release closure retries delayed visibility in both
 calibrate finite-budget 'release closure exhausts a finite visibility budget' \
   'npm-attempts' "$DRIVER" 'local attempt=1' 'local attempt=0'
 calibrate command-deadline 'release closure terminates a stalled external command' \
-  '[ "$status" -ne 124 ]' "$DRIVER" \
-  'bounded() { timeout --kill-after=5s "${COMMAND_TIMEOUT}s" "$@"; }' 'bounded() { "$@"; }'
+  '[ "$status" -ne 124 ]' "$BUDGET" \
+  'timeout --kill-after=5s "${limit}s" "$@"' '"$@"'
+calibrate total-deadline 'release closure bounds the total verification time and retains a failed receipt' \
+  "$NONZERO" "$BUDGET" 'CLOSURE_DEADLINE=$((SECONDS + $1))' 'CLOSURE_DEADLINE=$((SECONDS + 720))'
+calibrate consumer-deadline 'release closure includes consumer installation in its aggregate time budget' \
+  "$NONZERO" "$BUDGET" 'CLOSURE_DEADLINE=$((SECONDS + $1))' 'CLOSURE_DEADLINE=$((SECONDS + 720))'
 calibrate public-tag 'release closure rejects a changed public tag' \
   "$NONZERO" "$DRIVER" '[ "$(cat "$WORK/remote-commit")" = "$EXPECTED_COMMIT" ]' ':'
 calibrate publishing-run 'release closure rejects a publishing run from a different commit' \

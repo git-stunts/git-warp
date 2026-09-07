@@ -13,6 +13,7 @@ case "$tool" in
     esac ;;
   gh)
     [ "$1" = api ] || exit 77
+    [ "$CLOSURE_FIXTURE_MODE" != slow-chain ] || sleep 1
     case "$2" in
       */commits/*)
         if [ "$CLOSURE_FIXTURE_MODE" = wrong-tag ]; then echo bad; else echo "$CLOSURE_FIXTURE_COMMIT"; fi ;;
@@ -59,6 +60,10 @@ case "$tool" in
             attestations:{provenance:{predicateType:"https://slsa.dev/provenance/v1"}},signatures:[]}}|
           if $mode=="no-provenance" then del(.dist.attestations) else . end' ;;
       install)
+        if [ "$CLOSURE_FIXTURE_MODE" = slow-consumer ]; then
+          touch "$CLOSURE_FIXTURE_DIR/consumer-install-started"
+          sleep 10
+        fi
         [ "$CLOSURE_FIXTURE_MODE" != install-failed ] || exit 1
         case "$PWD" in "$CLOSURE_FIXTURE_DIR"/*/consumer) ;; *) exit 77 ;; esac
         mkdir -p node_modules/@git-stunts/git-warp node_modules/.bin

@@ -422,13 +422,22 @@ Add `--require-dist-tag` when verifying a new publication. Historical reruns
 record the current dist-tag owner without claiming that the old version is
 still latest.
 
-The default registry budget is six attempts with ten-second delays and
-180-second command timeouts. Diagnostic overrides are
+The verifier has a 720-second aggregate work budget. Each command and propagation
+delay is capped by the remaining budget, and the consumer inherits only the
+remaining time. Commands allow at most five additional seconds to terminate;
+the 15-minute job ceiling leaves headroom for setup and receipt upload. The
+receipt records the budget limit and whether it was exhausted.
+
+Within that aggregate budget, the default registry policy is six attempts with
+ten-second delays and 180-second command limits. Diagnostic overrides are
 `GIT_WARP_CLOSURE_ATTEMPTS` (1–10),
 `GIT_WARP_CLOSURE_DELAY_SECONDS` (0–30), and
-`GIT_WARP_CLOSURE_COMMAND_TIMEOUT_SECONDS` (1–180). Consumer install, CLI, and
-signature commands retain separate 180-second limits; the workflow has a
-15-minute ceiling. Run the adversarial contract suite with
+`GIT_WARP_CLOSURE_COMMAND_TIMEOUT_SECONDS` (1–180).
+`GIT_WARP_CLOSURE_TOTAL_TIMEOUT_SECONDS` may reduce the aggregate budget (1–720).
+Consumer installation and verification commands retain 180-second ceilings,
+further capped by their remaining aggregate budget. Signature and attestation
+verification precedes execution of the imported package and installed CLI.
+Run the adversarial contract suite with
 `bats test/bats/release-closure.bats`.
 
 The contract suite is medium-sized: it owns scratch state and controls GitHub

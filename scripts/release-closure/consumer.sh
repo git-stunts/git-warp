@@ -5,6 +5,9 @@ set -euo pipefail
 WORK="$1"
 PACKAGE="$2"
 VERSION="$3"
+# shellcheck source=scripts/release-closure/budget.sh
+source "$(cd "$(dirname "$0")" && pwd)/budget.sh"
+start_budget "$4" 180
 CONSUMER_STATUS="failed"
 CONSUMER_STAGE="install"
 consumer_failure() {
@@ -19,7 +22,6 @@ trap consumer_failure EXIT
 mkdir "$WORK/consumer"
 cd "$WORK/consumer"
 printf '{"name":"git-warp-release-consumer","version":"1.0.0","private":true}\n' > package.json
-bounded() { timeout --kill-after=5s 180s "$@"; }
 bounded npm install --save-exact --ignore-scripts --no-audit --no-fund \
   --registry=https://registry.npmjs.org --fetch-retries=0 --fetch-timeout=15000 \
   "$PACKAGE@$VERSION" > "$WORK/install.log" 2>&1

@@ -86,6 +86,25 @@ assert_failed() {
   [ "$(cat "$CLOSURE_FIXTURE_DIR/npm-attempts")" = 1 ]
 }
 
+@test "release closure bounds the total verification time and retains a failed receipt" {
+  export CLOSURE_FIXTURE_MODE=slow-chain
+  export GIT_WARP_CLOSURE_TOTAL_TIMEOUT_SECONDS=2
+  export GIT_WARP_CLOSURE_COMMAND_TIMEOUT_SECONDS=5
+  verify_release
+  assert_failed source
+  jq -e '.budget.limitSeconds==2 and .budget.exhausted==true' "$RECEIPT"
+}
+
+@test "release closure includes consumer installation in its aggregate time budget" {
+  export CLOSURE_FIXTURE_MODE=slow-consumer
+  export GIT_WARP_CLOSURE_TOTAL_TIMEOUT_SECONDS=5
+  verify_release
+  assert_failed consumer
+  [ -e "$CLOSURE_FIXTURE_DIR/consumer-install-started" ]
+  [ ! -e "$CLOSURE_FIXTURE_DIR/executed-code" ]
+  jq -e '.budget.limitSeconds==5 and .budget.exhausted==true' "$RECEIPT"
+}
+
 @test "release closure rejects a changed public tag" {
   export CLOSURE_FIXTURE_MODE=wrong-tag
   verify_release

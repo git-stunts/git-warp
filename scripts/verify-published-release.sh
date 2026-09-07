@@ -13,6 +13,7 @@ REQUIRE_DIST_TAG=0
 ATTEMPTS="${GIT_WARP_CLOSURE_ATTEMPTS:-6}"
 DELAY="${GIT_WARP_CLOSURE_DELAY_SECONDS:-10}"
 COMMAND_TIMEOUT="${GIT_WARP_CLOSURE_COMMAND_TIMEOUT_SECONDS:-180}"
+TOTAL_TIMEOUT="${GIT_WARP_CLOSURE_TOTAL_TIMEOUT_SECONDS:-720}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -40,6 +41,9 @@ done
 [[ "$COMMAND_TIMEOUT" =~ ^[1-9][0-9]*$ ]] && [ "$COMMAND_TIMEOUT" -le 180 ] || exit 2
 [ -n "$OUTPUT" ] || exit 2
 for tool in jq timeout git gh npm curl openssl node; do command -v "$tool" >/dev/null; done
+# shellcheck source=scripts/release-closure/budget.sh
+source "$ROOT/scripts/release-closure/budget.sh"
+start_budget "$TOTAL_TIMEOUT" "$COMMAND_TIMEOUT"
 
 VERSION="${TAG#v}"
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/git-warp-release-closure.XXXXXX")
@@ -55,12 +59,14 @@ finish() {
   trap - EXIT
   jq -n --arg status "$STATUS" --arg stage "$STAGE" --arg tag "$TAG" \
     --arg version "$VERSION" --arg commit "$EXPECTED_COMMIT" --arg distTag "$DIST_TAG" \
+    --argjson limit "$TOTAL_TIMEOUT" --argjson remaining "$((CLOSURE_DEADLINE - SECONDS))" \
     --argjson requireDistTag "$REQUIRE_DIST_TAG" \
     --slurpfile npm "$WORK/npm.json" --slurpfile jsr "$WORK/jsr.json" \
     --slurpfile run "$WORK/run.json" --slurpfile release "$WORK/release.json" \
     --slurpfile consumer "$WORK/consumer.json" --slurpfile owner "$WORK/dist-tag.json" \
     '{schema:"git-warp/release-closure@1",status:$status,stage:$stage,tag:$tag,
       version:$version,sourceCommit:$commit,
+      budget:{limitSeconds:$limit,exhausted:($remaining<=0)},
       publishRun:($run[0]|{id,head_sha,html_url,path}),
       githubRelease:($release[0]|{id,tag_name,html_url}),
       npm:($npm[0]|{name,version,gitHead,integrity:.dist.integrity,
@@ -76,7 +82,6 @@ finish() {
 trap finish EXIT
 
 fail() { echo "release closure failed: $1" >&2; exit 1; }
-bounded() { timeout --kill-after=5s "${COMMAND_TIMEOUT}s" "$@"; }
 
 github_metadata() {
   bounded gh api "repos/$REPO/$1" > "$WORK/github-pending.json"
@@ -100,17 +105,17 @@ registry_metadata() {
     fi
     [ "$attempt" -lt "$ATTEMPTS" ] || fail "registry visibility exhausted $ATTEMPTS attempts"
     echo "registry visibility pending: attempt $attempt/$ATTEMPTS"
-    sleep "$DELAY"
+    bounded sleep "$DELAY"
     attempt=$((attempt + 1))
   done
 }
 
-LOCAL_COMMIT=$(git -C "$ROOT" rev-parse "$TAG^{commit}")
+LOCAL_COMMIT=$(bounded git -C "$ROOT" rev-parse "$TAG^{commit}")
 [ "$LOCAL_COMMIT" = "$EXPECTED_COMMIT" ] || fail "local tag commit mismatch"
 bounded gh api "repos/$REPO/commits/$TAG" --jq .sha > "$WORK/remote-commit"
 [ "$(cat "$WORK/remote-commit")" = "$EXPECTED_COMMIT" ] || fail "public tag commit mismatch"
-git -C "$ROOT" show "$TAG:package.json" > "$WORK/package.json"
-git -C "$ROOT" show "$TAG:jsr.json" > "$WORK/jsr-package.json"
+bounded git -C "$ROOT" show "$TAG:package.json" > "$WORK/package.json"
+bounded git -C "$ROOT" show "$TAG:jsr.json" > "$WORK/jsr-package.json"
 PACKAGE=$(jq -er --arg version "$VERSION" 'select(.version==$version)|.name' "$WORK/package.json")
 JSR_NAME=$(jq -er --arg version "$VERSION" 'select(.version==$version)|.name' "$WORK/jsr-package.json")
 JSR_SCOPE="${JSR_NAME%%/*}"
@@ -147,10 +152,13 @@ STAGE="jsr-integrity"
 JSR_TARBALL=$(jq -er '.dist.tarball|select(startswith("https://npm.jsr.io/"))' "$WORK/jsr.json")
 bounded curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
   --connect-timeout 10 --max-time 90 "$JSR_TARBALL" -o "$WORK/jsr.tgz"
-JSR_INTEGRITY="sha512-$(openssl dgst -sha512 -binary "$WORK/jsr.tgz" | openssl base64 -A)"
+JSR_INTEGRITY="sha512-$(bounded openssl dgst -sha512 -binary "$WORK/jsr.tgz" | openssl base64 -A)"
 [ "$JSR_INTEGRITY" = "$(jq -r .dist.integrity "$WORK/jsr.json")" ] || fail "JSR tarball integrity mismatch"
 
 STAGE="consumer"
-bash "$ROOT/scripts/release-closure/consumer.sh" "$WORK" "$PACKAGE" "$VERSION"
+CONSUMER_BUDGET=$(budget_remaining)
+timeout --kill-after=5s "${CONSUMER_BUDGET}s" \
+  bash "$ROOT/scripts/release-closure/consumer.sh" "$WORK" "$PACKAGE" "$VERSION" "$CONSUMER_BUDGET"
+budget_remaining >/dev/null
 STAGE="complete"
 STATUS="verified"
