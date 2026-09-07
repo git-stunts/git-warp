@@ -2,6 +2,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import packageJson from '../../../package.json' with { type: 'json' };
 
 const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const API_GUIDE = readFileSync(join(ROOT, 'docs/topics/api/README.md'), 'utf8');
@@ -11,7 +12,7 @@ const OPERATIONS_GUIDE = readFileSync(join(ROOT, 'docs/operations/README.md'), '
 const ROOT_README = readFileSync(join(ROOT, 'README.md'), 'utf8');
 const TOPICS_INDEX = readFileSync(join(ROOT, 'docs/topics/README.md'), 'utf8');
 const SAFE_MIGRATION_COMMAND =
-  /npm exec --package=@git-stunts\/git-warp@19\.1\.0 -- \\\r?\n(?:> )?[ \t]+git-warp-v18-to-v19/u;
+  /npm exec --package=@git-stunts\/git-warp@([0-9]+\.[0-9]+\.[0-9]+(?:-(?:alpha|beta|rc)\.[0-9]+)?) -- \\\r?\n(?:> )?[ \t]+git-warp-v18-to-v19/u;
 
 function generatedSdkSection(): string {
   const start = MIGRATION_GUIDE.indexOf('## Generated Domain SDKs');
@@ -22,15 +23,19 @@ function generatedSdkSection(): string {
 }
 
 describe('v19 migration guidance', () => {
-  it('keeps every public release signpost on v19.1.0', () => {
-    expect(ROOT_README).toContain('`v19.1.0` is the current release');
-    expect(ARCHITECTURE).toContain('`v19.1.0` is the current release');
-    expect(TOPICS_INDEX).toContain('`v19.1.0` is the current release');
-    expect(API_GUIDE).toContain('Current in `v19.1.0`');
+  it('keeps public release signposts synchronized with the declared package version', () => {
+    // Oracle: the release profile's root package version declares which
+    // release these current-posture sections must describe; prose may vary.
+    const release = `v${packageJson.version}`;
+    expect(ROOT_README.match(/## Latest release\s+`([^`]+)`/u)?.[1]).toBe(release);
+    expect(ARCHITECTURE.match(/## Release posture\s+`([^`]+)`/u)?.[1]).toBe(release);
+    expect(TOPICS_INDEX.match(/## Current release\s+`([^`]+)`/u)?.[1]).toBe(release);
+    expect(API_GUIDE.match(/Current in `([^`]+)`/u)?.[1]).toBe(release);
+    expect(MIGRATION_GUIDE.match(/current `([^`]+)` package/u)?.[1]).toBe(release);
   });
 
   it('keeps the root README on the current safe one-pass migration', () => {
-    expect(ROOT_README).toMatch(SAFE_MIGRATION_COMMAND);
+    expect(ROOT_README.match(SAFE_MIGRATION_COMMAND)?.[1]).toBe(packageJson.version);
     expect(ROOT_README).toContain('--repo /path/to/repository');
     expect(ROOT_README).toContain('--graph <graph-name>');
     expect(ROOT_README).toContain('--dry-run');
@@ -56,7 +61,7 @@ describe('v19 migration guidance', () => {
 
   it('gives operators one complete maintenance-window checklist', () => {
     expect(OPERATIONS_GUIDE).toContain('## Migrate retained v18 state');
-    expect(OPERATIONS_GUIDE).toMatch(SAFE_MIGRATION_COMMAND);
+    expect(OPERATIONS_GUIDE.match(SAFE_MIGRATION_COMMAND)?.[1]).toBe(packageJson.version);
     expect(OPERATIONS_GUIDE).toContain('git clone --mirror --no-hardlinks');
     expect(OPERATIONS_GUIDE).toContain('already-current');
     expect(OPERATIONS_GUIDE).toContain('Keep the recovery refs');
