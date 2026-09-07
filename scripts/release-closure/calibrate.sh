@@ -103,7 +103,8 @@ calibrate public-tag 'release closure rejects a changed public tag' \
 calibrate publishing-run 'release closure rejects a publishing run from a different commit' \
   "$NONZERO" "$DRIVER" '.head_sha==$commit and .repository' 'true and .repository'
 calibrate failed-receipt 'release closure retains a failed receipt after malformed GitHub transport' \
-  'assertion: failed release must retain a valid failed receipt' "$DRIVER" '> "$WORK/github-pending.json"' '> "$2"'
+  'assertion: failed release must retain a valid failed receipt' "$DRIVER" \
+  '> "$OUTPUT"' '> "$WORK/discarded-receipt.json"'
 calibrate npm-identity 'release closure rejects conflicting npm identity without retrying' \
   "$NONZERO" "$DRIVER" "'.gitHead==\$commit'" "'true'"
 calibrate provenance 'release closure rejects absent provenance' \
