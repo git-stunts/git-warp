@@ -447,17 +447,18 @@ jobs:
     needs: [verify, publish_npm, publish_jsr, github_release]
     if: ${{ always() && needs.verify.result == 'success' }}
     permissions:
+      # Observe the publishing run and tagged source without publication rights.
       actions: read
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ needs.verify.outputs.tag }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Node 24
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: '24'
           package-manager-cache: false
