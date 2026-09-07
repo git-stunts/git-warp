@@ -10,26 +10,34 @@ If you are learning the product for the first time, start with:
 
 ## Release posture
 
-`v19.1.0` is the current release. Applications open a `Runtime`, address causal
-`Lane`s, write validated `Intent`s, consume bounded `Observation` streams of
-`Reading`s, and keep `Receipt`s. Patch-chain metadata now crosses Git through
-one bounded first-parent history stream per chain; retained trie leaves and
-same-depth branches publish through bounded ordered waves; dependent state,
-index, support, descriptor, and terminal materialization artifacts may share
-one bounded git-cas workspace generation.
+`v19.2.0` preserves the Runtime, Lane, Intent, Observer, Observation, Reading,
+and Receipt architecture. A non-empty ordered Intent array is one admission:
+one PatchBuilder lowers it, publication validates the complete patch, and one
+write receipt retains the ordered members and entity occurrences.
 
-Those physical batches do not collapse patch, trie-page, index-root, or
-materialization identity. Existing v19 storage remains readable without a
-migration. Omitted checkpoint policy now defaults to `{ every: 64 }`, while
-`null` remains the explicit opt-out. The merged Entity surface is present only
-as an unofficial preview and is not part of the stable application vocabulary.
+Entity admissions carry explicit retained boundaries and allocation witnesses.
+The advanced inventory Observer captures one exact Lane basis, merges retained
+writer streams behind the semantic journal port, and issues a terminal
+certificate binding the count and stream digest. It reads retained admissions
+independently of materialized graph state or consumer projections. This remains
+part of the unofficial Entity preview, not the stable application vocabulary.
 
-The [v19.1.0 release witness](docs/topics/v19-1-performance-architecture-witness.md)
-traces the route-key bytes, trie splits, structural sharing, write-wave limits,
-compound retention, performance corpus, audit findings, and compatibility
-matrix. The longer release notes live in [CHANGELOG.md](CHANGELOG.md). The
-runtime architecture below describes current implementation boundaries, not
-aspirational roadmap state.
+Existing v19 storage remains readable and writable without migration. Older
+unmarked entity-shaped patches cannot prove their originating public Intent;
+complete inventory fails closed until explicit migration or classification.
+New classified manual edits retain an empty admission-boundary list so they
+cannot be mistaken for entity births.
+
+The bounded history streams, ordered trie waves, and compound git-cas workspace
+generations shipped in v19.1.0 continue to preserve logical artifact identity.
+The default checkpoint policy remains `{ every: 64 }`; `null` is the explicit
+opt-out. The [v19.1.0 release witness](docs/topics/v19-1-performance-architecture-witness.md)
+contains its performance corpus and measured results.
+
+The [inventory guide](docs/topics/entity-admission-inventory.md) explains the
+read contract and compatibility limits. Full release notes live in
+[CHANGELOG.md](CHANGELOG.md). The runtime architecture below describes current
+implementation boundaries.
 
 ## System map
 

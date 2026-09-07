@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.2.0] - 2026-09-07
+
+### Release notes
+
+`v19.2.0` makes retained entity births independently discoverable with a complete
+basis-bound inventory, admits ordered Intent arrays atomically, and verifies
+published artifacts through an independent public-registry consumer. The Entity
+surface remains an unofficial, unstable preview. This release enables Think's
+isolated inventory proof; it does not switch Think's production store.
+
 ### Added
 
+- Registry-backed release verification compares the immutable tag, source
+  commit, publishing run, GitHub Release, npm and JSR identities, integrity,
+  provenance, and dist-tag ownership. A fresh public npm consumer verifies
+  signatures before executing imports and CLI startup. A shared time budget
+  leaves headroom to retain the success or failure receipt.
 - `Lane.write()` now accepts a non-empty ordered array of validated Intents.
   The complete array lowers through one `PatchBuilder`, publishes exactly one
   patch, advances the target publication ref once, and returns one admission
@@ -40,6 +55,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Updated the locked development-only humanfs dependency chain to resolve
+  GHSA-p498-v437-472g. Runtime dependency versions are unchanged.
+- Concurrent occurrence integration failures now report the pending public
+  lifecycle stage. The earlier intermittent timeout remains under
+  investigation in [#878](https://github.com/git-stunts/git-warp/issues/878);
+  diagnostics do not establish a runtime fix.
 - Runtime-backed Reading values now retain their exact named fields instead of
   declaring arbitrary dictionary keys to satisfy the recursive snapshot value
   algebra. Consumer type checks reject undeclared `EntityAdmission` fields,

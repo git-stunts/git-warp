@@ -16,10 +16,10 @@ It does not mutate authoritative history or silently repair git-cas.
 
 ## Migrate retained v18 state
 
-Use the current v19.1.0 package for migration. The safe migrator was introduced
+Use the v19.2.0 package for migration. The safe migrator was introduced
 in v19.0.2; the v19.0.1 migrator lacks complete per-commit progress and durable
 post-TUI completion evidence, and the v19.0.0 migrator is unsafe for retained
-v18 state. A repository already on v19 requires no v19.1.0 migration.
+v18 state. A repository already on v19 requires no storage migration for v19.2.0.
 
 Prepare and test the v19 application without opening the authoritative
 repository. During the maintenance window, stop every writer and make an
@@ -39,7 +39,7 @@ names, reports source and scratch capacity, and asks for confirmation:
 ```bash
 GRAPH_NAME=your-graph-name
 
-npm exec --package=@git-stunts/git-warp@19.1.0 -- \
+npm exec --package=@git-stunts/git-warp@19.2.0 -- \
   git-warp-v18-to-v19 \
   --repo "$REPOSITORY" \
   --graph "$GRAPH_NAME"
@@ -60,6 +60,18 @@ run garbage collection as part of the migration window. The
 [complete migration guide](../migrations/v19/README.md) explains the Git object
 rewrite, capacity formula, compare-and-swap promotion, automatic rollback, and
 recovery topology.
+
+## Verify complete entity inventory
+
+Consume the entire dedicated Lane inventory and retain its terminal certificate
+before making a claim that every retained entity birth was inspected. A partial
+stream, cancellation, missing support, or ambiguous legacy entity footprint is
+incomplete. Preserve the source history when investigating
+`E_ENTITY_ADMISSION_INVENTORY_LEGACY_AMBIGUOUS`; a materialization repair cannot
+supply an Intent classification that the original patch never retained.
+
+The [inventory guide](../topics/entity-admission-inventory.md) documents the
+advanced Observer, CLI stream, certificate, and preview status.
 
 ## Prepare a bounded basis
 

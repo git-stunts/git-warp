@@ -1,6 +1,6 @@
 # Entity admission inventory
 
-> **Status:** v19.2 design and conformance target. This capability is the
+> **Status:** Implemented in v19.2.0 as an advanced preview. This capability is the
 > storage-neutral read inverse of the unofficial `entity.add` preview. It does
 > not make the Entity surface stable.
 
@@ -176,9 +176,8 @@ trigger the typed legacy-ambiguity obstruction.
 
 Released v19.1 repositories remain readable and writable, but their unmarked
 entity-shaped patches cannot support a complete admission inventory without an
-explicit migration or classification step. The array overload is not yet in a
-published release, so v19.2 can establish retained intent boundaries before
-consumers rely on that surface.
+explicit migration or classification step. The array overload and retained intent boundaries are introduced together in
+v19.2.0.
 
 ## Basis and ordering
 
@@ -227,7 +226,7 @@ that a later event semantically supersedes an earlier one.
 
 ## Release gates
 
-The v19.2 capability is not complete until executable evidence proves:
+The v19.2 conformance suite exercises these release contracts:
 
 1. an empty Lane certifies zero admissions;
 2. equal payloads under distinct births remain distinct;

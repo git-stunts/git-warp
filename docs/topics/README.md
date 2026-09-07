@@ -5,16 +5,21 @@ specific task.
 
 ## Current release
 
-`v19.1.0` is the current release. It preserves the Runtime, Lane, Intent,
-Observer, Observation, Reading, and Receipt application vocabulary while
-batching patch discovery, trie dependency waves, and compound retained
-materialization through bounded Git and git-cas operations. Existing v19
-repositories require no migration. Omitted checkpoint policy now defaults to
-`{ every: 64 }`; the merged Entity surface is included only as an unofficial,
-unstable preview. Do not use the v19.0.0 migrator on an authoritative
-repository. Operator workflows live outside the topic shelf in
-[Operations](../operations/). The full compatibility, migration, and
-performance narrative lives in the root [CHANGELOG](../../CHANGELOG.md).
+`v19.2.0` adds atomic ordered Intent arrays and a basis-bound entity admission
+inventory to the existing Runtime/Lane architecture. The Entity surface remains
+an unofficial, unstable preview. Inventory certifies retained births only after
+complete consumption; application schema and chronology remain consumer laws.
+
+Existing v19 repositories remain readable and writable. Older unmarked
+entity-shaped patches require an explicit migration or classification decision
+before complete inventory can be certified. See the
+[inventory guide](entity-admission-inventory.md) and
+[atomic write contract](getting-started.md#write-intents).
+
+The v19.1.0 Git batching improvements and `{ every: 64 }` default checkpoint
+policy remain in place. Do not use the v19.0.0 migrator on an authoritative
+repository. Operator workflows live in [Operations](../operations/), and full
+compatibility notes live in the root [CHANGELOG](../../CHANGELOG.md).
 
 ## Start here
 

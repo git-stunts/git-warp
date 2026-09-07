@@ -46,35 +46,36 @@ It lets you:
 
 ## Latest release
 
-`v19.1.0` is the current release. It preserves the v19 Runtime, Lane, Intent,
-Observer, Observation, Reading, and Receipt grammar while replacing
-per-commit and per-artifact Git process storms with bounded history reads,
-persistent object sessions, ordered trie write waves, and compound git-cas
-workspace admission.
+`v19.2.0` adds atomic ordered Intent arrays and a complete, basis-bound
+entity admission inventory. One `Lane.write([...])` publishes one patch and
+returns every admitted entity occurrence. The advanced inventory Observer
+streams retained births and issues a completeness certificate only after the
+entire captured Lane basis has been consumed.
 
-On the final hosted 65-patch base plus five-patch suffix corpus, cold Git
-commands fell from `781` to `50` and incremental commands from `372` to
-`60`; CPU medians fell by `67.4%` and `48.3%`. Warm materialization moved
-from `30` to `25` commands with a deliberately modest `2.0%` CPU change.
-Every result retained the exact semantic fingerprint and `65 / 0 / 5` replay
-evidence.
+The Entity surface, including this inventory, remains an **unofficial,
+unstable preview**. Think's isolated consumer proof uses a pinned published
+package; this release does not switch its production capture store or migrate
+retained minds. Inventory order is deterministic and non-causal; application
+chronology remains the consumer's responsibility.
 
-Existing v19 repositories require no migration. An omitted
-`checkpointPolicy` now defaults to `{ every: 64 }`; pass
-`checkpointPolicy: null` to opt out explicitly. The package also contains an
-**unofficial, unstable** `entity.add` / `EntityOccurrence` preview. Think
-does not adopt that preview in this release campaign, and exhaustive
-TypeScript switches over `Intent['kind']` must account for the new preview
-member.
+Existing v19 repositories remain readable and writable without migration.
+An unmarked older entity-shaped patch cannot prove whether it came from
+`entity.add` or equivalent manual graph edits, so inventory fails closed with
+`E_ENTITY_ADMISSION_INVENTORY_LEGACY_AMBIGUOUS`. Complete inventory over those
+patches requires an explicit migration or classification decision.
+
+The bounded Git and git-cas performance work shipped in v19.1.0 remains in
+place. See its [architecture and performance witness](docs/topics/v19-1-performance-architecture-witness.md)
+for measured results. The default checkpoint policy remains `{ every: 64 }`;
+`checkpointPolicy: null` explicitly disables automatic checkpoints.
 
 Repositories with retained v18 state still require the safe one-shot migrator
 introduced in v19.0.2 before any v19 process opens them. Do not use the
 v19.0.0 migrator on an authoritative repository.
 
-Read the deeply illustrated
-[v19.1.0 architecture and performance release witness](docs/topics/v19-1-performance-architecture-witness.md)
-or [CHANGELOG.md](CHANGELOG.md) for the complete evidence and compatibility
-notes.
+Read the [entity admission inventory guide](docs/topics/entity-admission-inventory.md),
+[atomic write guide](docs/topics/getting-started.md#write-intents), and
+[CHANGELOG.md](CHANGELOG.md) for the release scope and compatibility details.
 
 ## v19 First-Use API
 
@@ -87,7 +88,7 @@ domain modules provide the validated intents and observers for an application.
 > starting the application, and run the confirmed migration:
 >
 > ```bash
-> npm exec --package=@git-stunts/git-warp@19.1.0 -- \
+> npm exec --package=@git-stunts/git-warp@19.2.0 -- \
 >   git-warp-v18-to-v19 \
 >   --repo /path/to/repository \
 >   --graph <graph-name>

@@ -1,6 +1,6 @@
 # v19 Public Vocabulary Checkpoint
 
-> **Status:** Current in `v19.1.0`; introduced in `v19.0.0`.
+> **Status:** Current in `v19.2.0`; introduced in `v19.0.0`.
 >
 > This document is the normative product vocabulary and public-surface design.
 > The Runtime, Lane, Intent, Observer, streaming Observation, Reading, Receipt,
@@ -8,7 +8,7 @@
 > One generated contract drives their public vocabulary and all twelve
 > acceptance gates execute in CI and release preflight.
 >
-> The `entity.add` / `EntityOccurrence` surface present in v19.1.0 is an
+> The `entity.add` / `EntityOccurrence` surface introduced in v19.1.0 remains an
 > unofficial, unstable preview and is not part of this stable application
 > vocabulary.
 
