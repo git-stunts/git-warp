@@ -69,8 +69,12 @@ case "$tool" in
         if [ "$CLOSURE_FIXTURE_MODE" = broken-import ]; then
           echo 'export const Wrong = true;' > node_modules/@git-stunts/git-warp/index.js
         else echo 'export class Runtime {}' > node_modules/@git-stunts/git-warp/index.js; fi
+        jq -nr --arg marker "$CLOSURE_FIXTURE_DIR/executed-code" '
+          "import {appendFileSync} from \"node:fs\";\nappendFileSync(\($marker|tojson), \"import\\n\");"
+        ' >> node_modules/@git-stunts/git-warp/index.js
         cat > node_modules/.bin/git-warp <<'CLI'
 #!/usr/bin/env bash
+printf 'cli\n' >> "$CLOSURE_FIXTURE_DIR/executed-code"
 [ "$CLOSURE_FIXTURE_MODE" != cli-failed ]
 CLI
         chmod +x node_modules/.bin/git-warp

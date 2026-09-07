@@ -31,6 +31,10 @@ jq -e --arg version "$VERSION" --arg integrity "$(jq -r .dist.integrity "$WORK/n
     (.resolved|startswith("https://registry.npmjs.org/")) and (.link!=true)' \
   package-lock.json >/dev/null
 
+CONSUMER_STAGE="signatures"
+bounded npm audit signatures --registry=https://registry.npmjs.org \
+  --fetch-retries=0 --fetch-timeout=15000 > "$WORK/signatures.log" 2>&1
+
 CONSUMER_STAGE="imports"
 bounded node --input-type=module <<'NODE'
 class ReleaseConsumerError extends Error {}
@@ -55,9 +59,6 @@ NODE
 CONSUMER_STAGE="cli"
 test -x node_modules/.bin/git-warp
 bounded node_modules/.bin/git-warp --help > "$WORK/cli.log" 2>&1
-CONSUMER_STAGE="signatures"
-bounded npm audit signatures --registry=https://registry.npmjs.org \
-  --fetch-retries=0 --fetch-timeout=15000 > "$WORK/signatures.log" 2>&1
 
 CONSUMER_STAGE="dependencies"
 jq -e '.packages|to_entries|map(select(

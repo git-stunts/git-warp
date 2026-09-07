@@ -53,6 +53,7 @@ assert_failed() {
   jq -e '.status=="verified" and .consumer.registrySignatures=="verified" and
     .consumer.privateStorageFirewall=="passed" and .distTag.ownsTag==true and
     (.consumer.dependencies|length)==2' "$RECEIPT"
+  [ "$(cat "$CLOSURE_FIXTURE_DIR/executed-code")" = "$(printf 'import\ncli')" ]
   ! grep -E '^(npm (publish|dist-tag)|git (push|tag)|gh (release|workflow)) ' "$CLOSURE_FIXTURE_DIR/commands"
 }
 
@@ -162,6 +163,7 @@ assert_failed() {
   verify_release
   assert_failed consumer
   [ "$(jq -r .consumer.stage "$RECEIPT")" = signatures ]
+  [ ! -e "$CLOSURE_FIXTURE_DIR/executed-code" ]
 }
 
 @test "new publication must own its intended dist-tag" {
