@@ -370,6 +370,100 @@ Stop publication, rotate or fix identity, then rerun from the same tag.
 
 ## Release Evidence
 
+### Registry-backed closure contract
+
+The `Verify public registry closure` job implements
+[#866](https://github.com/git-stunts/git-warp/issues/866) after the registry
+publish and GitHub Release jobs. It runs even when a publication job failed,
+so a partial publication cannot finish with an unqualified green workflow.
+
+The verifier reads the immutable tag and its reviewed source commit,
+then independently observes the exact version in npm and JSR. It checks
+npm `gitHead` against that commit and the publishing workflow commit, retains
+both registries' integrity values, and records npm provenance availability,
+the observed dist-tag, and the GitHub Release identity.
+
+Registry propagation has a finite retry budget and each external command
+has a timeout. A visible version with conflicting identity is a failure,
+not a reason to retry or publish again. Existing versions can be verified
+again without changing tags, dist-tags, registry artifacts, or release notes.
+An older immutable release may remain valid after its dist-tag advances;
+the receipt must distinguish exact-version visibility from current dist-tag
+ownership.
+
+Consumer verification installs the exact public npm version into a fresh
+directory outside the checkout. It proves the supported root import, the
+private-storage export firewall, installed CLI startup, and the resolved
+git-cas and Plumbing versions. Registry signature and attestation checking
+must run where npm supports it; a failed check must never become an
+unqualified success.
+
+The job leaves a small JSON closure receipt and uploads it even on failure.
+Only a receipt whose required checks all succeeded reports `verified`.
+The JSR archive is downloaded and hashed against its advertised SHA-512
+integrity; the npm installation's lockfile must match npm's advertised
+integrity. npm verifies registry signatures and provenance attestations.
+
+The same read-only check can rehearse or re-verify an existing release:
+
+```bash
+bash scripts/verify-published-release.sh \
+  --tag v19.1.0 \
+  --commit 20a9b7f76d07195de0782f0852102434bdd200d3 \
+  --run-id 32825544033 \
+  --dist-tag latest \
+  --output /tmp/git-warp-release-closure.json
+```
+
+It requires Bash, Node/npm with `npm audit signatures` support, Git, `gh`,
+`jq`, GNU `timeout`, `curl`, and OpenSSL. GitHub access is read-only. The
+checkout must contain the immutable tag; installation occurs outside it.
+Add `--require-dist-tag` when verifying a new publication. Historical reruns
+record the current dist-tag owner without claiming that the old version is
+still latest.
+
+The verifier has a 720-second aggregate work budget. Each command and propagation
+delay is capped by the remaining budget, and the consumer inherits only the
+remaining time. Commands allow at most five additional seconds to terminate;
+the 15-minute job ceiling leaves headroom for setup and receipt upload. The
+receipt records the budget limit and whether it was exhausted.
+
+Within that aggregate budget, the default registry policy is six attempts with
+ten-second delays and 180-second command limits. Diagnostic overrides are
+`GIT_WARP_CLOSURE_ATTEMPTS` (1–10),
+`GIT_WARP_CLOSURE_DELAY_SECONDS` (0–30), and
+`GIT_WARP_CLOSURE_COMMAND_TIMEOUT_SECONDS` (1–180).
+`GIT_WARP_CLOSURE_TOTAL_TIMEOUT_SECONDS` may reduce the aggregate budget (1–720).
+Consumer installation and verification commands retain 180-second ceilings,
+further capped by their remaining aggregate budget. Signature and attestation
+verification precedes execution of the imported package and installed CLI.
+Run the adversarial contract suite with
+`bats test/bats/release-closure.bats`.
+
+The contract suite is medium-sized: it owns scratch state and controls GitHub
+and registry command responses while executing real Node imports, CLI processes,
+hashing, and OS timeouts. Its specified oracle is this release contract. The
+command fixtures reject unexpected operations; they do not establish npm or
+GitHub conformance. A real public-registry rehearsal supplies separate integration
+evidence. That deliberately non-hermetic verification controls versions, source
+identity, integrity, and a finite propagation budget; it cannot make registry
+availability deterministic.
+
+At assertion authoring or material change, run:
+
+```bash
+bash scripts/release-closure/calibrate.sh /tmp/git-warp-release-calibration.json
+```
+
+Calibration first requires the ordinary suite to pass. It then applies named
+contract violations to disposable copies and requires the corresponding test
+to fail at its stated assertion. Setup failures, missing selected tests, syntax
+errors, and outer watchdog expiries do not count. The JSON receipt retains each
+named experiment and failure output. This is selective falsification evidence,
+not a mutation score or a proof that all possible bugs are detected. The command
+deadline test additionally distinguishes the verifier's own timeout from its
+independent outer watchdog.
+
 Record release evidence in the release tracking issue or retrospective:
 
 - tag name and commit SHA;
