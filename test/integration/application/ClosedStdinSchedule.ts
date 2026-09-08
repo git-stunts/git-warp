@@ -25,7 +25,7 @@ export default class ClosedStdinSchedule {
     const spawn = childProcess.spawn;
     const replacement = vi.spyOn(childProcess, 'spawn').mockImplementation((command, args, options) => {
       const child = spawn(command, args, options);
-      if (args.includes('cat-file') && args.includes('--batch-command')) {
+      if (Array.isArray(args) && args.includes('cat-file') && args.includes('--batch-command')) {
         this.control(child);
       }
       return child;
