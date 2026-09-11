@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Idle Git reader retirement now completes when the child process closes
+  before stdin reports its final flush. Storage shutdown no longer waits
+  indefinitely for that missing stream event. Requires Plumbing 3.3.1.
 - Runtime-backed Reading values now retain their exact named fields instead of
   declaring arbitrary dictionary keys to satisfy the recursive snapshot value
   algebra. Consumer type checks reject undeclared `EntityAdmission` fields,
