@@ -29,18 +29,6 @@ async function loadFrame() {
   return ReducerSessionFrame;
 }
 
-/**
- * Presents deliberately wrong field shapes to the frame constructor.
- *
- * These guards defend a runtime boundary — decoded state, a JavaScript
- * consumer — that the compiler cannot see through, so the wrong shape has to
- * reach the constructor unchecked to prove the guard fires. One cast, named
- * and confined here rather than spread across the cases.
- */
-function malformedFields(fields: Readonly<Record<string, unknown>>): ReducerSessionFrameFields {
-  return fields as unknown as ReducerSessionFrameFields;
-}
-
 type ReducerSessionFrameFields = Readonly<{
   session: StateSession;
   prop: Map<string, LWWRegister<string>>;
@@ -72,16 +60,20 @@ describe('ReducerSessionFrame construction', () => {
   it('rejects a session that is not a StateSession', async () => {
     const ReducerSessionFrame = await loadFrame();
     const session = await openSession();
-    const fields = malformedFields({ ...wellFormedFields(session), session: { addNode: () => undefined } });
+    // deliberate runtime-boundary fixture: session is not a StateSession
+    const fields = { ...wellFormedFields(session), session: { addNode: () => undefined } };
 
+    // @ts-expect-error deliberate runtime-boundary fixture
     expect(() => new ReducerSessionFrame(fields)).toThrow(PatchError);
+    // @ts-expect-error deliberate runtime-boundary fixture
     expect(() => new ReducerSessionFrame(fields)).toThrow(/requires a StateSession/u);
   });
 
   it('rejects a prop container that is not a Map', async () => {
     const ReducerSessionFrame = await loadFrame();
     const session = await openSession();
-    const fields = malformedFields({ ...wellFormedFields(session), prop: Object.create(null) });
+    // deliberate runtime-boundary fixture: prop is not a Map
+    const fields = { ...wellFormedFields(session), prop: Object.create(null) };
 
     expect(() => new ReducerSessionFrame(fields)).toThrow(/requires a prop Map/u);
   });
@@ -89,16 +81,20 @@ describe('ReducerSessionFrame construction', () => {
   it('rejects an observed frontier that is a plain Map rather than a VersionVector', async () => {
     const ReducerSessionFrame = await loadFrame();
     const session = await openSession();
-    const fields = malformedFields({ ...wellFormedFields(session), observedFrontier: new Map() });
+    // deliberate runtime-boundary fixture: frontier is a plain Map
+    const fields = { ...wellFormedFields(session), observedFrontier: new Map() };
 
+    // @ts-expect-error deliberate runtime-boundary fixture
     expect(() => new ReducerSessionFrame(fields)).toThrow(/requires a VersionVector/u);
   });
 
   it('rejects an edge birth container that is not a Map', async () => {
     const ReducerSessionFrame = await loadFrame();
     const session = await openSession();
-    const fields = malformedFields({ ...wellFormedFields(session), edgeBirthEvent: [] });
+    // deliberate runtime-boundary fixture: edgeBirthEvent is not a Map
+    const fields = { ...wellFormedFields(session), edgeBirthEvent: [] };
 
+    // @ts-expect-error deliberate runtime-boundary fixture
     expect(() => new ReducerSessionFrame(fields)).toThrow(/requires an edgeBirthEvent Map/u);
   });
 });

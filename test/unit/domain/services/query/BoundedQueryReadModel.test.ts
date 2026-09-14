@@ -4,6 +4,15 @@ import MemoryBudgetError from '../../../../../src/domain/errors/MemoryBudgetErro
 import MemoryBudget from '../../../../../src/domain/memory/MemoryBudget.ts';
 import WarpMemoryPool from '../../../../../src/domain/memory/WarpMemoryPool.ts';
 import BoundedQueryReadModel from '../../../../../src/domain/services/query/BoundedQueryReadModel.ts';
+import type {
+  QueryNeighborEntry,
+  QueryReadModel,
+} from '../../../../../src/domain/services/query/QueryReadModelProvider.ts';
+import type { QueryNodeSnapshot } from '../../../../../src/domain/services/query/QueryPlan.ts';
+
+function nodeSnapshot(id: string): QueryNodeSnapshot {
+  return { id, props: {}, edgesOut: [], edgesIn: [] };
+}
 
 describe('BoundedQueryReadModel', () => {
   it('rejects malformed sources before property access', () => {
@@ -47,18 +56,10 @@ function sourceOf(overrides: Partial<QueryReadModelStub> = {}): QueryReadModelSt
   };
 }
 
-type QueryReadModelStub = {
-  stateHash: string;
-  nodes: (...args: readonly unknown[]) => AsyncIterable<unknown>;
-  neighbors: (...args: readonly unknown[]) => AsyncIterable<unknown>;
-  nodeProps: (...args: readonly unknown[]) => Promise<unknown>;
-};
+type QueryReadModelStub = QueryReadModel;
 
 function boundedOver(source: QueryReadModelStub, pool: WarpMemoryPool): BoundedQueryReadModel {
-  return new BoundedQueryReadModel({
-    source: source as unknown as ConstructorParameters<typeof BoundedQueryReadModel>[0]['source'],
-    pool,
-  });
+  return new BoundedQueryReadModel({ source, pool });
 }
 
 describe('BoundedQueryReadModel lease discipline', () => {
@@ -66,15 +67,15 @@ describe('BoundedQueryReadModel lease discipline', () => {
     const model = boundedOver(
       sourceOf({
         async *nodes() {
-          yield { id: 'node:one' };
-          yield { id: 'node:two' };
-          yield { id: 'node:three' };
+          yield nodeSnapshot('node:one');
+          yield nodeSnapshot('node:two');
+          yield nodeSnapshot('node:three');
         },
       }),
       poolOfOne(),
     );
 
-    const seen: unknown[] = [];
+    const seen: QueryNodeSnapshot[] = [];
     for await (const node of model.nodes({} as never)) {
       seen.push(node);
     }
@@ -86,14 +87,14 @@ describe('BoundedQueryReadModel lease discipline', () => {
     const model = boundedOver(
       sourceOf({
         async *neighbors() {
-          yield { nodeId: 'node:a' };
-          yield { nodeId: 'node:b' };
+          yield { nodeId: 'node:a', label: 'knows' };
+          yield { nodeId: 'node:b', label: 'knows' };
         },
       }),
       poolOfOne(),
     );
 
-    const seen: unknown[] = [];
+    const seen: QueryNeighborEntry[] = [];
     for await (const neighbor of model.neighbors('node:one', {} as never)) {
       seen.push(neighbor);
     }
@@ -106,8 +107,8 @@ describe('BoundedQueryReadModel lease discipline', () => {
     const model = boundedOver(
       sourceOf({
         async *nodes() {
-          yield { id: 'node:one' };
-          yield { id: 'node:two' };
+          yield nodeSnapshot('node:one');
+          yield nodeSnapshot('node:two');
         },
       }),
       pool,
@@ -126,7 +127,7 @@ describe('BoundedQueryReadModel lease discipline', () => {
     const model = boundedOver(
       sourceOf({
         async *nodes() {
-          yield { id: 'node:one' };
+          yield nodeSnapshot('node:one');
           throw new Error('source failed');
         },
       }),
@@ -167,8 +168,9 @@ describe('BoundedQueryReadModel lease discipline', () => {
 
   it('rejects a pool that is not a WarpMemoryPool', () => {
     expect(() => new BoundedQueryReadModel({
-      source: sourceOf() as unknown as ConstructorParameters<typeof BoundedQueryReadModel>[0]['source'],
-      pool: { acquire: () => undefined } as unknown as WarpMemoryPool,
+      source: sourceOf(),
+      // @ts-expect-error deliberate runtime-boundary fixture: not a WarpMemoryPool
+      pool: { acquire: () => undefined },
     })).toThrow(MemoryBudgetError);
   });
 });

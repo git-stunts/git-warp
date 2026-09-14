@@ -137,7 +137,9 @@ describe('BitmapIndexReader corruption handling', () => {
   const sha = 'aa0001';
   const shardPath = `shards_rev_aa.cbor`;
 
-  async function readerWithShard(content: unknown, options: { strict: boolean }) {
+  type ShardFixture = readonly string[] | Readonly<Record<string, string | Uint8Array>>;
+
+  async function readerWithShard(content: ShardFixture, options: { strict: boolean }) {
     const storage = new MockIndexStorage();
     const log = logger();
     const handle = await storage.writeBlob(defaultCodec.encode(content));

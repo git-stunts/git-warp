@@ -5,37 +5,33 @@ import LiveSelector from '../../../../src/domain/types/LiveSelector.ts';
 import CoordinateSelector from '../../../../src/domain/types/CoordinateSelector.ts';
 import StrandSelector from '../../../../src/domain/types/StrandSelector.ts';
 import QueryError from '../../../../src/domain/errors/QueryError.ts';
-
-/**
- * Presents a worldline source shape the compiler would reject.
- *
- * `selectorFromSource` guards a runtime boundary — a decoded DTO, a JavaScript
- * caller — that the type system does not police, so an unrecognised kind has
- * to reach it unchecked. One cast, confined here.
- */
-function unrecognizedSource(fields: Readonly<Record<string, unknown>>): unknown {
-  return fields;
-}
-
-function graphStub() {
-  return { observer: vi.fn() } as unknown as ConstructorParameters<typeof ProjectionHandle>[0]['graph'];
-}
+import type WorldlineSelector from '../../../../src/domain/types/WorldlineSelector.ts';
+import type { WorldlineSource } from '../../../../src/domain/capabilities/QueryCapability.ts';
 
 type HandleOptions = ConstructorParameters<typeof ProjectionHandle>[0];
+
+function graphStub(): HandleOptions['graph'] {
+  return { observer: vi.fn() };
+}
+
+type ProvidedSource = WorldlineSelector | WorldlineSource | null;
 
 /**
  * `exactOptionalPropertyTypes` forbids passing an explicit `undefined` for an
  * optional property, so the key is omitted rather than set when no source is
  * given — which is also the case under test for the live default.
  */
-function handleWith(...source: readonly [unknown] | readonly []): ProjectionHandle {
+function handleWith(...source: readonly [ProvidedSource] | readonly []): ProjectionHandle {
   if (source.length === 0) {
     return new ProjectionHandle({ graph: graphStub() });
   }
-  return new ProjectionHandle({
-    graph: graphStub(),
-    source: source[0] as Exclude<HandleOptions['source'], undefined>,
-  });
+  return new ProjectionHandle({ graph: graphStub(), source: source[0] });
+}
+
+/** A source whose `kind` no selector recognises, as a decoded DTO would present it. */
+function unrecognisedKind(): WorldlineSource {
+  // @ts-expect-error deliberate boundary fixture: 'teleport' is not a known kind
+  return { kind: 'teleport' };
 }
 
 describe('ProjectionHandle worldline source resolution', () => {
@@ -62,10 +58,18 @@ describe('ProjectionHandle worldline source resolution', () => {
   });
 
   it('clones a selector instance rather than retaining the caller’s object', () => {
-    const selector = new LiveSelector(3);
-    const handle = new ProjectionHandle({ graph: graphStub(), source: selector });
+    // LiveSelector is immutable, so comparing DTOs cannot distinguish a clone
+    // from a retained reference. Observe the clone call itself.
+    const clone = vi.spyOn(LiveSelector.prototype, 'clone');
+    try {
+      const selector = new LiveSelector(3);
+      const handle = new ProjectionHandle({ graph: graphStub(), source: selector });
 
-    expect(handle.source).toStrictEqual({ kind: 'live', ceiling: 3 });
+      expect(clone).toHaveBeenCalledTimes(1);
+      expect(handle.source).toStrictEqual({ kind: 'live', ceiling: 3 });
+    } finally {
+      clone.mockRestore();
+    }
   });
 
   it('accepts each concrete selector subclass', () => {
@@ -83,8 +87,10 @@ describe('ProjectionHandle worldline source resolution', () => {
   });
 
   it('rejects an unrecognised source kind instead of silently going live', () => {
-    expect(() => handleWith(unrecognizedSource({ kind: 'teleport' }))).toThrow(QueryError);
-    expect(() => handleWith(unrecognizedSource({ kind: 'teleport' }))).toThrow(
+    // 'teleport' is not a WorldlineSource kind; this is the runtime boundary.
+    // @ts-expect-error deliberate boundary fixture
+    expect(() => handleWith({ kind: 'teleport' })).toThrow(QueryError);
+    expect(() => handleWith(unrecognisedKind())).toThrow(
       /unrecognized worldline source kind/u,
     );
   });

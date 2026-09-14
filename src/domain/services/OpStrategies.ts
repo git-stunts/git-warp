@@ -292,7 +292,27 @@ class BlobValueStrategy extends OpStrategy {
  * Adding a new op type means creating a new `OpStrategy` subclass and
  * registering it here.
  */
-export const OP_STRATEGIES: ReadonlyMap<string, OpStrategy> = Object.freeze(new Map<string, OpStrategy>([
+/**
+ * Seals the dispatch registry against runtime mutation.
+ *
+ * `Object.freeze` alone is not enough: a Map keeps its entries in internal
+ * slots, so `set`, `delete` and `clear` keep working on a frozen Map. Without
+ * this, any caller could delete `NodeAdd` out of the reducer's dispatch table.
+ * The Map identity is preserved so `instanceof Map` still holds for consumers.
+ */
+function sealRegistry(registry: Map<string, OpStrategy>): ReadonlyMap<string, OpStrategy> {
+  const refuse = (operation: string) => (): never => {
+    throw new PatchError(`OP_STRATEGIES is immutable; ${operation} is not permitted`);
+  };
+  Object.defineProperties(registry, {
+    set: { value: refuse('set') },
+    delete: { value: refuse('delete') },
+    clear: { value: refuse('clear') },
+  });
+  return Object.freeze(registry);
+}
+
+export const OP_STRATEGIES: ReadonlyMap<string, OpStrategy> = sealRegistry(new Map<string, OpStrategy>([
   ['NodeAdd', new NodeAddStrategy()],
   ['NodeRemove', new NodeRemoveStrategy()],
   ['EdgeAdd', new EdgeAddStrategy()],

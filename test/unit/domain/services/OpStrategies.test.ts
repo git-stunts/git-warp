@@ -12,9 +12,10 @@ import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import NodePropSet from '../../../../src/domain/types/ops/NodePropSet.ts';
 import EdgePropSet from '../../../../src/domain/types/ops/EdgePropSet.ts';
 import type Op from '../../../../src/domain/types/ops/Op.ts';
+import type OpStrategy from '../../../../src/domain/services/OpStrategy.ts';
 
-function eventId(lamport: number, writerId: string): EventId {
-  return { lamport, writerId, patchSha: `patch-${writerId}-${lamport}`, opIndex: 0 };
+function eventId(lamport: number, writerId: string, patchSha = `patch-${lamport}`): EventId {
+  return { lamport, writerId, patchSha, opIndex: 0 };
 }
 
 function dot(writerId: string, counter: number): Dot {
@@ -29,18 +30,6 @@ function emptyDiff(): MutablePatchDiff {
     edgesRemoved: [],
     propsChanged: [],
   };
-}
-
-/**
- * Builds an op that deliberately violates its own field contract.
- *
- * The concrete Op classes reject these at construction, which is the point:
- * these tests exercise `validate` as the reducer's boundary guard, so the
- * malformed shape has to reach it unconstructed. This is the only place a
- * cast is warranted, and it is confined to this helper.
- */
-function malformedOp(fields: Readonly<Record<string, unknown>>): Op {
-  return Object.freeze(fields) as unknown as Op;
 }
 
 function strategy(name: string) {
@@ -73,8 +62,21 @@ describe('OP_STRATEGIES registry', () => {
     ]);
   });
 
-  it('is frozen, so dispatch cannot be mutated at runtime', () => {
-    expect(Object.isFrozen(OP_STRATEGIES)).toBe(true);
+  it('refuses mutation, so dispatch cannot be rewritten at runtime', () => {
+    // Object.freeze does not disable Map.set/delete/clear — Map data lives in
+    // internal slots. Freezing alone leaves the reducer's dispatch table open
+    // to having NodeAdd deleted out from under it.
+    const registry: ReadonlyMap<string, OpStrategy> = OP_STRATEGIES;
+
+    // @ts-expect-error mutators are removed from the sealed registry's type
+    expect(() => registry.set('Injected', strategy('NodeAdd'))).toThrow(/immutable/u);
+    // @ts-expect-error mutators are removed from the sealed registry's type
+    expect(() => registry.delete('NodeAdd')).toThrow(/immutable/u);
+    // @ts-expect-error mutators are removed from the sealed registry's type
+    expect(() => registry.clear()).toThrow(/immutable/u);
+
+    expect(OP_STRATEGIES.size).toBe(8);
+    expect(OP_STRATEGIES.has('NodeAdd')).toBe(true);
   });
 });
 
@@ -116,7 +118,8 @@ describe('NodeAddStrategy', () => {
 
   it('rejects an op with no node identifier', () => {
     const state = WarpState.empty();
-    expect(() => strategy('NodeAdd').validate(malformedOp({ dot: dot('writer-a', 1) }))).toThrow();
+    // @ts-expect-error deliberate runtime-boundary fixture: no node identifier
+    expect(() => strategy('NodeAdd').validate({ dot: dot('writer-a', 1) })).toThrow();
     expect(state.nodeAlive.contains('node:one')).toBe(false);
   });
 });
@@ -160,7 +163,8 @@ describe('EdgeAddStrategy edge-birth events', () => {
   it('rejects an edge op missing its label', () => {
     expect(() =>
       strategy('EdgeAdd').validate(
-        malformedOp({ from: edge.from, to: edge.to, dot: dot('writer-a', 1) }),
+        // @ts-expect-error deliberate runtime-boundary fixture: no label
+        { from: edge.from, to: edge.to, dot: dot('writer-a', 1) },
       ),
     ).toThrow();
   });
@@ -232,17 +236,25 @@ describe('NodePropSetStrategy last-writer-wins', () => {
     expect(diff.propsChanged).toStrictEqual([]);
   });
 
-  it('breaks a same-lamport tie deterministically by writer id', () => {
+  it('breaks a same-lamport tie on writer id, not on patch sha or arrival order', () => {
+    // Identical lamport AND identical patchSha, so writerId is the only field
+    // left that can decide the winner.
+    const sha = 'patch-shared';
+    const fromA = () => eventId(3, 'writer-a', sha);
+    const fromZ = () => eventId(3, 'writer-z', sha);
+
     const lower = WarpState.empty();
-    applied(lower, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-a'), eventId(3, 'writer-a'), emptyDiff());
-    applied(lower, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-z'), eventId(3, 'writer-z'), emptyDiff());
+    applied(lower, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-a'), fromA(), emptyDiff());
+    applied(lower, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-z'), fromZ(), emptyDiff());
 
     const higher = WarpState.empty();
-    applied(higher, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-z'), eventId(3, 'writer-z'), emptyDiff());
-    applied(higher, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-a'), eventId(3, 'writer-a'), emptyDiff());
+    applied(higher, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-z'), fromZ(), emptyDiff());
+    applied(higher, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-a'), fromA(), emptyDiff());
 
-    // Order of arrival must not change the converged value.
-    expect(lower.getEncodedProp(key)?.value).toBe(higher.getEncodedProp(key)?.value);
+    // Arrival order must not change the converged value, and the winner must be
+    // the higher writer id — asserted concretely rather than only for equality.
+    expect(lower.getEncodedProp(key)?.value).toBe('from-z');
+    expect(higher.getEncodedProp(key)?.value).toBe('from-z');
   });
 
   it('reports no change when the same value is written again', () => {
@@ -271,5 +283,8 @@ describe('EdgePropSetStrategy', () => {
     expect(diff.propsChanged).toHaveLength(1);
     expect(diff.propsChanged[0]?.key).toBe('since');
     expect(diff.propsChanged[0]?.value).toBe(2026);
+    // The diff alone cannot distinguish a strategy that stored this under a
+    // non-edge key, so assert the edge-scoped register directly.
+    expect(state.getEdgeProp('node:a', 'node:b', 'knows', 'since')?.value).toBe(2026);
   });
 });

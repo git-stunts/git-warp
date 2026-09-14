@@ -117,35 +117,34 @@ describe('validateDot', () => {
 
   it('rejects a zero counter, because dot counters start at one', () => {
     expect(() => validateDot(new Dot('writer-a', 1))).not.toThrow();
-    expect(() => validateDot(malformedDot({ writerId: 'writer-a', counter: 0 }))).toThrow(
+    expect(() => validateDot(
+      { writerId: 'writer-a', counter: 0 },
+    )).toThrow(
       /positive integer/u,
     );
   });
 
   it('rejects a fractional counter', () => {
-    expect(() => validateDot(malformedDot({ writerId: 'writer-a', counter: 1.5 }))).toThrow(
+    expect(() => validateDot(
+      { writerId: 'writer-a', counter: 1.5 },
+    )).toThrow(
       /positive integer/u,
     );
   });
 
   it('rejects an empty writer id', () => {
-    expect(() => validateDot(malformedDot({ writerId: '', counter: 1 }))).toThrow(
+    expect(() => validateDot(
+      { writerId: '', counter: 1 },
+    )).toThrow(
       /non-empty string/u,
     );
   });
 
   it('rejects a null dot rather than dereferencing it', () => {
-    expect(() => validateDot(malformedDot(null))).toThrow(/TrieCursor dot must be/u);
+    expect(() => validateDot(
+      // @ts-expect-error deliberate runtime-boundary fixture: null dot
+      null,
+    )).toThrow(/TrieCursor dot must be/u);
   });
 });
 
-/**
- * Presents a dot shape the compiler would reject.
- *
- * `validateDot` guards a runtime boundary — decoded trie bytes, a JavaScript
- * caller — that the type system does not police, so the bad shape has to reach
- * it unchecked. One cast, confined here.
- */
-function malformedDot(fields: unknown): Dot {
-  return fields as Dot;
-}
