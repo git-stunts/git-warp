@@ -185,6 +185,34 @@ describe('NodeRemoveStrategy', () => {
     expect(diff.nodesRemoved).toStrictEqual(['node:one']);
   });
 
+  it('rejects a one-shot generator for observedDots instead of silently no-opping', () => {
+    // snapshot() and mutate() each read observedDots. A generator is drained by
+    // the first of them, leaving the second with an empty collection — so
+    // ORSet.remove() was handed nothing and the node silently stayed alive.
+    // Validation now refuses the shape rather than losing the removal.
+    const state = WarpState.empty();
+    applied(state, 'NodeAdd', new NodeAdd('node:one', dot('writer-a', 1)), eventId(1, 'writer-a'), emptyDiff());
+    const observed = [...state.nodeAlive.getDots('node:one')];
+
+    const target = strategy('NodeRemove');
+    // The concrete NodeRemove class freezes itself, so this shape only reaches
+    // a strategy through the exported OP_STRATEGIES boundary — a raw op object,
+    // which is precisely the path that has no normalization in front of it.
+    const oneShot = (function* (): Generator<string> { yield* observed; })();
+    // @ts-expect-error deliberate boundary fixture: a one-shot iterable
+    const op: Op = { type: 'NodeRemove', node: 'node:one', observedDots: oneShot };
+
+    expect(() => target.validate(op)).toThrow(/re-iterable collection/u);
+    expect(state.nodeAlive.contains('node:one')).toBe(true);
+
+    // The same dots as an Array still remove it.
+    const materialized = new NodeRemove('node:one', observed);
+    const diff = emptyDiff();
+    applied(state, 'NodeRemove', materialized, eventId(2, 'writer-a'), diff);
+    expect(state.nodeAlive.contains('node:one')).toBe(false);
+    expect(diff.nodesRemoved).toStrictEqual(['node:one']);
+  });
+
   it('leaves a node alive when the removal observes none of its dots', () => {
     const state = WarpState.empty();
     applied(state, 'NodeAdd', new NodeAdd('node:one', dot('writer-a', 1)), eventId(1, 'writer-a'), emptyDiff());

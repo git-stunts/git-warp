@@ -53,6 +53,17 @@ import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
 // Concrete strategies — one per canonical op type
 // ===================================================================
 
+/**
+ * Reads `observedDots` as a set.
+ *
+ * `validate` guarantees the field is a re-iterable collection, so `snapshot`
+ * and `mutate` can each read it and see the same dots.
+ */
+function observedDotSet(op: OpLike): Set<string> { // nosemgrep: ts-no-like-types -- 0025C
+  const raw = op.observedDots as Iterable<string>;
+  return raw instanceof Set ? raw : new Set(raw);
+}
+
 class NodeAddStrategy extends OpStrategy {
   readonly receiptName = 'NodeAdd';
   validate(op: OpLike): void { OpValidator.assertString(op, 'node'); OpValidator.assertDot(op); } // nosemgrep: ts-no-like-types -- 0025C
@@ -76,8 +87,7 @@ class NodeRemoveStrategy extends OpStrategy {
   readonly receiptName = 'NodeTombstone';
   validate(op: OpLike): void { OpValidator.assertIterable(op, 'observedDots'); } // nosemgrep: ts-no-like-types -- 0025C
   mutate(state: WarpState, op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
-    const dots = op.observedDots as Iterable<string>;
-    state.nodeAlive.remove(dots instanceof Set ? dots : new Set(dots));
+    state.nodeAlive.remove(observedDotSet(op));
   }
   outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     const outcomeOp: { node?: string; observedDots: Iterable<string> } = {
@@ -89,9 +99,7 @@ class NodeRemoveStrategy extends OpStrategy {
     return ReceiptBuilder.nodeRemoveOutcome(state.nodeAlive, outcomeOp);
   }
   snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
-    const rawDots = op.observedDots as Iterable<string>;
-    const nodeDots = rawDots instanceof Set ? rawDots : new Set(rawDots);
-    return { aliveBeforeNodes: DiffCalculator.aliveElementsForDots(state.nodeAlive, nodeDots) };
+    return { aliveBeforeNodes: DiffCalculator.aliveElementsForDots(state.nodeAlive, observedDotSet(op)) };
   }
   accumulate(diff: MutablePatchDiff, state: WarpState, _op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     DiffCalculator.collectNodeRemovals(diff, state, before.aliveBeforeNodes);
@@ -133,8 +141,7 @@ class EdgeRemoveStrategy extends OpStrategy {
   readonly receiptName = 'EdgeTombstone';
   validate(op: OpLike): void { OpValidator.assertIterable(op, 'observedDots'); } // nosemgrep: ts-no-like-types -- 0025C
   mutate(state: WarpState, op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
-    const dots = op.observedDots as Iterable<string>;
-    state.edgeAlive.remove(dots instanceof Set ? dots : new Set(dots));
+    state.edgeAlive.remove(observedDotSet(op));
   }
   outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     const outcomeOp: {
