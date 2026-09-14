@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import { OP_STRATEGIES } from '../../../../src/domain/services/OpStrategies.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
-import { encodeEdgeKey } from '../../../../src/domain/services/KeyCodec.ts';
+import { encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.ts';
 import type { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import type { MutablePatchDiff } from '../../../../src/domain/types/PatchDiff.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.ts';
 import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
+import NodePropSet from '../../../../src/domain/types/ops/NodePropSet.ts';
+import EdgePropSet from '../../../../src/domain/types/ops/EdgePropSet.ts';
 import type Op from '../../../../src/domain/types/ops/Op.ts';
 
 function eventId(lamport: number, writerId: string): EventId {
@@ -188,5 +190,86 @@ describe('NodeRemoveStrategy', () => {
 
     expect(state.nodeAlive.contains('node:one')).toBe(true);
     expect(diff.nodesRemoved).toStrictEqual([]);
+  });
+});
+
+describe('NodePropSetStrategy last-writer-wins', () => {
+  const key = encodePropKey('node:one', 'title');
+
+  it('records a property and reports the change with no previous value', () => {
+    const state = WarpState.empty();
+    const diff = emptyDiff();
+
+    applied(state, 'NodePropSet', new NodePropSet('node:one', 'title', 'first'), eventId(1, 'writer-a'), diff);
+
+    expect(state.getEncodedProp(key)?.value).toBe('first');
+    expect(diff.propsChanged).toStrictEqual([
+      { nodeId: 'node:one', key: 'title', value: 'first', prevValue: undefined },
+    ]);
+  });
+
+  it('lets a later event overwrite an earlier one', () => {
+    const state = WarpState.empty();
+    applied(state, 'NodePropSet', new NodePropSet('node:one', 'title', 'first'), eventId(1, 'writer-a'), emptyDiff());
+
+    const diff = emptyDiff();
+    applied(state, 'NodePropSet', new NodePropSet('node:one', 'title', 'second'), eventId(5, 'writer-b'), diff);
+
+    expect(state.getEncodedProp(key)?.value).toBe('second');
+    expect(diff.propsChanged).toStrictEqual([
+      { nodeId: 'node:one', key: 'title', value: 'second', prevValue: 'first' },
+    ]);
+  });
+
+  it('keeps the later value when an earlier event arrives out of order', () => {
+    const state = WarpState.empty();
+    applied(state, 'NodePropSet', new NodePropSet('node:one', 'title', 'winner'), eventId(9, 'writer-b'), emptyDiff());
+
+    const diff = emptyDiff();
+    applied(state, 'NodePropSet', new NodePropSet('node:one', 'title', 'loser'), eventId(1, 'writer-a'), diff);
+
+    expect(state.getEncodedProp(key)?.value).toBe('winner');
+    expect(diff.propsChanged).toStrictEqual([]);
+  });
+
+  it('breaks a same-lamport tie deterministically by writer id', () => {
+    const lower = WarpState.empty();
+    applied(lower, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-a'), eventId(3, 'writer-a'), emptyDiff());
+    applied(lower, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-z'), eventId(3, 'writer-z'), emptyDiff());
+
+    const higher = WarpState.empty();
+    applied(higher, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-z'), eventId(3, 'writer-z'), emptyDiff());
+    applied(higher, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-a'), eventId(3, 'writer-a'), emptyDiff());
+
+    // Order of arrival must not change the converged value.
+    expect(lower.getEncodedProp(key)?.value).toBe(higher.getEncodedProp(key)?.value);
+  });
+
+  it('reports no change when the same value is written again', () => {
+    const state = WarpState.empty();
+    applied(state, 'NodePropSet', new NodePropSet('node:one', 'title', 'same'), eventId(1, 'writer-a'), emptyDiff());
+
+    const diff = emptyDiff();
+    applied(state, 'NodePropSet', new NodePropSet('node:one', 'title', 'same'), eventId(2, 'writer-a'), diff);
+
+    expect(diff.propsChanged).toStrictEqual([]);
+  });
+
+  it('rejects an op with an empty key at construction', () => {
+    expect(() => new NodePropSet('node:one', '', 'value')).toThrow();
+  });
+});
+
+describe('EdgePropSetStrategy', () => {
+  it('stores an edge property under its own key space', () => {
+    const state = WarpState.empty();
+    const diff = emptyDiff();
+    const op = new EdgePropSet({ from: 'node:a', to: 'node:b', label: 'knows', key: 'since', value: 2026 });
+
+    applied(state, 'EdgePropSet', op, eventId(1, 'writer-a'), diff);
+
+    expect(diff.propsChanged).toHaveLength(1);
+    expect(diff.propsChanged[0]?.key).toBe('since');
+    expect(diff.propsChanged[0]?.value).toBe(2026);
   });
 });
