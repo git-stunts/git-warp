@@ -61,7 +61,7 @@ import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
  */
 function observedDotSet(op: OpLike): Set<string> { // nosemgrep: ts-no-like-types -- 0025C
   const raw = op.observedDots as Iterable<string>;
-  return raw instanceof Set ? raw : new Set(raw);
+  return new Set<string>(raw);
 }
 
 class NodeAddStrategy extends OpStrategy {
