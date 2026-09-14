@@ -114,21 +114,24 @@ describe('Git machine-local path guard', () => {
     git(repository, 'add', 'base.txt');
     git(repository, 'commit', '--quiet', '-m', 'base');
     const base = gitText(repository, 'rev-parse', 'HEAD');
+    // Do not assume the initial branch is named 'main' — init.defaultBranch
+    // differs between environments, and CI's does not match this machine's.
+    const trunk = gitText(repository, 'rev-parse', '--abbrev-ref', 'HEAD');
 
     // Feature branch published at the base, before the leak exists.
     git(repository, 'checkout', '--quiet', '-b', 'feature');
     git(repository, 'update-ref', 'refs/remotes/origin/feature', base);
 
-    // The leak lands on main and is published there.
-    git(repository, 'checkout', '--quiet', 'main');
+    // The leak lands on the trunk and is published there.
+    git(repository, 'checkout', '--quiet', trunk);
     writeFileSync(join(repository, 'leak.txt'), personalHome('git', 'legacy'), 'utf8');
     git(repository, 'add', 'leak.txt');
     git(repository, 'commit', '--quiet', '-m', 'historical leak on main');
     git(repository, 'update-ref', 'refs/remotes/origin/main', gitText(repository, 'rev-parse', 'HEAD'));
 
-    // The feature merges main, inheriting the already-published blob.
+    // The feature merges the trunk, inheriting the already-published blob.
     git(repository, 'checkout', '--quiet', 'feature');
-    git(repository, 'merge', '--quiet', '--no-edit', 'main');
+    git(repository, 'merge', '--quiet', '--no-edit', trunk);
     const localObject = gitText(repository, 'rev-parse', 'HEAD');
 
     const pushUpdate = `refs/heads/feature ${localObject} refs/heads/feature ${base}\n`;
