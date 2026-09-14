@@ -103,6 +103,40 @@ describe('Git machine-local path guard', () => {
     expect(guard.findOutgoingObjects(pushUpdate, 'origin')).toContain(`blob:${leakedBlob}`);
   });
 
+  it('does not rescan objects the remote already holds on another ref', () => {
+    // Reproduces the real deadlock: a leaked blob lands on main, a feature
+    // branch whose published tip predates that merges main, and the blob
+    // becomes "outgoing" relative to the feature's own remote tip. Rescanning
+    // it makes every branch that merges main permanently unpushable, because
+    // the history carrying it cannot be rewritten.
+    const repository = createRepository();
+    writeFileSync(join(repository, 'base.txt'), 'portable base', 'utf8');
+    git(repository, 'add', 'base.txt');
+    git(repository, 'commit', '--quiet', '-m', 'base');
+    const base = gitText(repository, 'rev-parse', 'HEAD');
+
+    // Feature branch published at the base, before the leak exists.
+    git(repository, 'checkout', '--quiet', '-b', 'feature');
+    git(repository, 'update-ref', 'refs/remotes/origin/feature', base);
+
+    // The leak lands on main and is published there.
+    git(repository, 'checkout', '--quiet', 'main');
+    writeFileSync(join(repository, 'leak.txt'), personalHome('git', 'legacy'), 'utf8');
+    git(repository, 'add', 'leak.txt');
+    git(repository, 'commit', '--quiet', '-m', 'historical leak on main');
+    git(repository, 'update-ref', 'refs/remotes/origin/main', gitText(repository, 'rev-parse', 'HEAD'));
+
+    // The feature merges main, inheriting the already-published blob.
+    git(repository, 'checkout', '--quiet', 'feature');
+    git(repository, 'merge', '--quiet', '--no-edit', 'main');
+    const localObject = gitText(repository, 'rev-parse', 'HEAD');
+
+    const pushUpdate = `refs/heads/feature ${localObject} refs/heads/feature ${base}\n`;
+    const guard = new GitMachineLocalPathGuard(repository, new MachineLocalPathPolicy());
+
+    expect(guard.findOutgoingObjects(pushUpdate, 'origin')).toEqual([]);
+  });
+
   it('runs the exact outgoing-object scanner from the pre-push hook', () => {
     const hookPath = fileURLToPath(new URL('../../../scripts/hooks/pre-push', import.meta.url));
     const hook = readFileSync(hookPath, 'utf8');
