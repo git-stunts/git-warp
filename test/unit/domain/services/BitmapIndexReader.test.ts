@@ -132,3 +132,73 @@ describe('BitmapIndexReader bounded shard reads', () => {
     );
   });
 });
+
+describe('BitmapIndexReader corruption handling', () => {
+  const sha = 'aa0001';
+  const shardPath = `shards_rev_aa.cbor`;
+
+  type ShardFixture = readonly string[] | Readonly<Record<string, string | Uint8Array>>;
+
+  async function readerWithShard(content: ShardFixture, options: { strict: boolean }) {
+    const storage = new MockIndexStorage();
+    const log = logger();
+    const handle = await storage.writeBlob(defaultCodec.encode(content));
+    const reader = new BitmapIndexReader({
+      indexStore: storage,
+      codec: defaultCodec,
+      strict: options.strict,
+      logger: log,
+    });
+    reader.setup({ [shardPath]: handle });
+    return { reader, log };
+  }
+
+  it('throws on a shard whose decoded content is not an object, in strict mode', async () => {
+    const { reader } = await readerWithShard(['not', 'a', 'map'], { strict: true });
+
+    await expect(reader.getParents(sha)).rejects.toThrow(ShardCorruptionError);
+  });
+
+  it('degrades to an empty shard and logs evidence, in lenient mode', async () => {
+    const { reader, log } = await readerWithShard(['not', 'a', 'map'], { strict: false });
+
+    await expect(reader.getParents(sha)).resolves.toStrictEqual([]);
+    expect(log.warn).toHaveBeenCalledWith(
+      'Shard shape invalid',
+      expect.objectContaining({ operation: 'loadShard', shardPath }),
+    );
+  });
+
+  it('throws when a bitmap value is not bytes, in strict mode', async () => {
+    const { reader } = await readerWithShard({ [sha]: 'not-bytes' }, { strict: true });
+
+    await expect(reader.getParents(sha)).rejects.toThrow(ShardCorruptionError);
+  });
+
+  it('skips a non-bytes bitmap value and logs evidence, in lenient mode', async () => {
+    const { reader, log } = await readerWithShard({ [sha]: 'not-bytes' }, { strict: false });
+
+    await expect(reader.getParents(sha)).resolves.toStrictEqual([]);
+    expect(log.warn).toHaveBeenCalledWith(
+      'Bitmap value invalid',
+      expect.objectContaining({
+        operation: 'deserializeBitmap',
+        shardPath,
+        reason: 'bitmap_value_not_bytes',
+      }),
+    );
+  });
+
+  it('treats an empty bitmap value as no neighbours rather than corruption', async () => {
+    const { reader, log } = await readerWithShard({ [sha]: new Uint8Array() }, { strict: true });
+
+    await expect(reader.getParents(sha)).resolves.toStrictEqual([]);
+    expect(log.warn).not.toHaveBeenCalled();
+  });
+
+  it('returns no neighbours when the shard simply lacks the sha', async () => {
+    const { reader } = await readerWithShard({ bb0002: bitmap([1]) }, { strict: true });
+
+    await expect(reader.getParents(sha)).resolves.toStrictEqual([]);
+  });
+});

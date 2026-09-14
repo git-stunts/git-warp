@@ -111,6 +111,15 @@ export default class OpValidator {
         { context: { opType: op.type, field, actual: typeof val } },
       );
     }
+    // A one-shot iterable is drained by the first reader, so a later stage of
+    // the same op sees an empty collection and the removal silently no-ops.
+    // Require a re-iterable collection instead of failing quietly downstream.
+    if (!Array.isArray(val) && !(val instanceof Set)) {
+      throw new PatchError(
+        `${op.type} op requires '${field}' to be a re-iterable collection (Array or Set), not a one-shot iterable`,
+        { context: { opType: op.type, field, actual: val.constructor?.name ?? typeof val } },
+      );
+    }
   }
 
   /**
