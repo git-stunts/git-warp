@@ -8,8 +8,12 @@ import type { DraftReadingTarget } from './DraftReadingTarget.ts';
 import DraftTimeline from './DraftTimeline.ts';
 import type Evidence from './Evidence.ts';
 import { createJoinEvidence, createJoinRecoveryEvidence } from './EvidenceRuntime.ts';
-import type Intent from './Intent.ts';
-import { applyIntentToPatch, intentFromPatch } from './IntentRuntime.ts';
+import type { WriteIntentInput } from './IntentSequence.ts';
+import {
+  applyIntentSequenceToPatch,
+  intentSequenceFromPatch,
+} from './IntentSequenceRuntime.ts';
+import type IntentSequence from './IntentSequence.ts';
 import JoinReceipt from './JoinReceipt.ts';
 import JoinResult from './JoinResult.ts';
 import type Reading from './Reading.ts';
@@ -25,7 +29,7 @@ export type DraftTimelineState = {
   readonly context: ApiRuntimeContext;
   readonly runtime: WarpWorldline;
   readonly draftPatchShas: string[];
-  readonly intents: Intent[];
+  readonly sequences: IntentSequence[];
   readonly forkedAt: WarpWorldlineCoordinate | null;
   readonly joinPatchShas: string[];
   joinRecoveryEvidence: Evidence | undefined;
@@ -38,7 +42,7 @@ type DraftWriteFields = {
   readonly runtime: WarpWorldline;
   readonly draftName: string;
   readonly state: DraftTimelineState;
-  readonly intent: Intent;
+  readonly intent: WriteIntentInput;
 };
 
 type CreateDraftTimelineFields = {
@@ -223,7 +227,7 @@ async function performDraftJoin(
     runtime,
     draft,
     state,
-    patchShas: await commitDraftIntents(runtime, state),
+    patchShas: await commitDraftSequences(runtime, state),
     recoveryEvidence,
   };
   const failed = await rejectedIncompleteJoin(fields);
@@ -244,7 +248,7 @@ function rejectedJoinPrecondition(state: DraftTimelineState): JoinPreconditionRe
   if (state.joinFailed) {
     return failedJoinPrecondition(state);
   }
-  if (state.intents.length === 0) {
+  if (state.sequences.length === 0) {
     return { reason: 'Draft has no public intents to join' };
   }
   return null;
@@ -261,7 +265,7 @@ function failedJoinPrecondition(state: DraftTimelineState): JoinPreconditionReje
 }
 
 async function rejectedIncompleteJoin(fields: JoinCompletionFields): Promise<JoinResult | null> {
-  if (fields.patchShas.length === fields.state.intents.length) {
+  if (fields.patchShas.length === fields.state.sequences.length) {
     return null;
   }
   fields.state.joinFailed = true;
@@ -292,7 +296,7 @@ function createDraftState(fields: DraftStateFields): DraftTimelineState {
     runtime,
     draftPatchShas: persisted.map(({ sha }) => sha),
     forkedAt,
-    intents: persisted.map(({ patch }) => intentFromPatch(patch)),
+    sequences: persisted.map(({ patch }) => intentSequenceFromPatch(patch)),
     joinPatchShas: [],
     joinRecoveryEvidence: undefined,
     joinFailed: false,
@@ -312,7 +316,9 @@ export function requireDraftStateForReading(draft: DraftTimeline): DraftTimeline
   return state;
 }
 
-async function writeDraftIntent(fields: DraftWriteFields): Promise<WriteReceipt> {
+async function writeDraftIntent(
+  fields: DraftWriteFields,
+): Promise<WriteReceipt<WriteIntentInput>> {
   let draftPatch: WarpDraftPatchEntry | undefined;
   const receipt = await executeIntentWrite({
     runtime: fields.runtime,
@@ -331,7 +337,7 @@ async function writeDraftIntent(fields: DraftWriteFields): Promise<WriteReceipt>
     throw new WarpError('Admitted draft write is missing its patch SHA', 'E_DRAFT_WRITE_RECEIPT');
   }
   fields.state.draftPatchShas.push(draftPatch.sha);
-  fields.state.intents.push(intentFromPatch(draftPatch.patch));
+  fields.state.sequences.push(intentSequenceFromPatch(draftPatch.patch));
   return receipt;
 }
 
@@ -347,14 +353,14 @@ async function rejectedJoin(fields: RejectedJoinFields): Promise<JoinResult> {
   });
 }
 
-async function commitDraftIntents(
+async function commitDraftSequences(
   runtime: WarpWorldline,
   state: DraftTimelineState
 ): Promise<readonly string[]> {
-  for (const intent of state.intents) {
+  for (const sequence of state.sequences) {
     try {
       const patchSha = await runtime.commit((patch) => {
-        applyIntentToPatch(intent, patch);
+        applyIntentSequenceToPatch(sequence, patch);
       });
       state.joinPatchShas.push(patchSha);
     } catch {

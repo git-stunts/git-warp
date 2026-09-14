@@ -117,7 +117,8 @@ describe('v16 to v17 top-level upgrade utility', () => {
 
   it('wires npm run upgrade through the top-level operator script', () => {
     expect(parseUpgradeCommandEntrypoint(packageJson.scripts.upgrade)).toBe('dist/scripts/upgrade-v16-to-v17.js');
-    expect(publishTsconfig.include).toContain('scripts/**/*.ts');
-    expect(packageJson.files).toContain('dist');
+    expect(publishTsconfig.include).toContain('scripts/upgrade-v16-to-v17.ts');
+    expect(packageJson.files).toContain('dist/scripts/upgrade-v16-to-v17.js');
+    expect(packageJson.files).toContain('dist/scripts/upgrade-v16-to-v17.d.ts');
   });
 });

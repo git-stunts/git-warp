@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { V19_CAPABILITY_CONTRACT }
@@ -47,6 +47,19 @@ const COMMAND_SOURCE_FILES = [
   'write.ts',
 ] as const;
 
+const CLI_ENTRYPOINT_SOURCE = readFileSync(
+  new URL('../../../bin/git-warp.ts', import.meta.url),
+  'utf8',
+);
+const COMMAND_REGISTRY_SOURCE = readFileSync(
+  new URL('../../../bin/cli/commands/registry.ts', import.meta.url),
+  'utf8',
+);
+const CLI_LIFECYCLE_SOURCE = readFileSync(
+  new URL('../../../bin/cli/lifecycle.ts', import.meta.url),
+  'utf8',
+);
+
 describe('v19 CLI command registry', () => {
   it('is generated-contract complete', () => {
     expect(V19_CAPABILITY_CONTRACT.cli.map((entry) => entry.command))
@@ -89,5 +102,33 @@ describe('v19 CLI command registry', () => {
       .toBe(true);
     expect(existsSync(new URL('../../../bin/warp-graph.ts', import.meta.url)))
       .toBe(false);
+  });
+
+  it('keeps streamed output behind a concrete command-result boundary', () => {
+    expect(COMMAND_REGISTRY_SOURCE).toContain(
+      'export type CommandHandlerResult = Readonly<{',
+    );
+    expect(CLI_ENTRYPOINT_SOURCE).toContain(
+      'type NormalizedCommandResult = Readonly<{',
+    );
+    expect(CLI_LIFECYCLE_SOURCE).toContain(
+      'type EmitWithCommandShutdownOptions = Readonly<{',
+    );
+    expect([
+      COMMAND_REGISTRY_SOURCE,
+      CLI_ENTRYPOINT_SOURCE,
+      CLI_LIFECYCLE_SOURCE,
+    ].join('\n')).not.toMatch(
+      /\binterface (?:CommandHandlerResult|NormalizedCommandResult|EmitWithCommandShutdownOptions)\b/u,
+    );
+    expect(CLI_ENTRYPOINT_SOURCE).not.toContain(
+      'readonly lines: readonly unknown[] | AsyncIterable<unknown>',
+    );
+    expect(CLI_ENTRYPOINT_SOURCE).not.toContain(
+      'return value as readonly unknown[]',
+    );
+    expect(CLI_ENTRYPOINT_SOURCE).not.toContain(
+      'const candidate = value as',
+    );
   });
 });

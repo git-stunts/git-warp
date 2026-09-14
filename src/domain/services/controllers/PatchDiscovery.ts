@@ -10,11 +10,79 @@
 
 import { buildWriterRef, buildWritersPrefix, parseWriterIdFromRef } from '../../utils/RefLayout.ts';
 import PatchError from '../../errors/PatchError.ts';
+import GitLogParser from '../GitLogParser.ts';
 import type Patch from '../../types/Patch.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
+import type { PatchCommitMessage } from '../../../ports/CommitMessageCodecPort.ts';
+
+/** Log format matching GitLogParser's record contract: sha, author, date, parents, message. */
+export const CHAIN_LOG_FORMAT = '%H%n%an <%ae>%n%aI%n%P%n%B';
+
+/** Upper bound on concurrent patch payload reads during chain loading. */
+const PATCH_READ_CONCURRENCY = 8;
+
+/** The subset of commit metadata a chain walk consumes. */
+class ChainNode {
+  readonly sha: string;
+  readonly message: string;
+  readonly parents: readonly string[];
+
+  constructor({ sha, message, parents }: {
+    sha: string;
+    message: string;
+    parents: readonly string[];
+  }) {
+    this.sha = sha;
+    this.message = message;
+    this.parents = parents;
+  }
+}
+
+/**
+ * Maps items to results with bounded concurrency, preserving input order.
+ *
+ * Work is dispatched by a bounded worker pool, but results are collected by
+ * awaiting each item's promise in input order. A rejection therefore surfaces
+ * the earliest failing item by index rather than whichever rejected first in
+ * wall-clock time, so callers see a deterministic error regardless of the
+ * relative latency of concurrent reads.
+ */
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const started = new Array<Promise<R> | null>(items.length).fill(null);
+  // Workers pull from one shared iterator, so every item is dispatched exactly
+  // once and no result slot is skipped. Indexing `items` directly would widen
+  // each element to `T | undefined` and silently drop a legitimately undefined
+  // item, returning fewer results than inputs.
+  const pending = items.entries();
+
+  const drain = async (): Promise<void> => {
+    for (const [index, item] of pending) {
+      const inFlight = fn(item);
+      started[index] = inFlight;
+      // Swallow here so a worker never dies on a rejection; the real error is
+      // rethrown below in index order, where the caller can observe it.
+      await inFlight.catch(() => undefined);
+    }
+  };
+
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(Array.from({ length: workerCount }, drain));
+
+  const results: R[] = [];
+  for (const inFlight of started) {
+    if (inFlight !== null) {
+      results.push(await inFlight);
+    }
+  }
+  return results;
+}
 
 // ── PatchDiscoveryHost ────────────────────────────────────────────────────────
 
@@ -120,6 +188,11 @@ export class PatchDiscovery {
   /**
    * Loads a patch chain walking backwards from a tip SHA.
    * Returns patches in chronological order (oldest first).
+   *
+   * Chain metadata is fetched with a single bulk history read
+   * (`logNodesStream`) instead of one `getNodeInfo` call per commit, so a
+   * Git-backed persistence spawns one subprocess for the whole chain rather
+   * than one per patch. Payload reads run with bounded concurrency.
    */
   async loadPatchChainFromSha(tipSha: string, stopAtSha: string | null = null): Promise<PatchEntry[]> {
     if (typeof tipSha !== 'string' || tipSha.length === 0) {
@@ -127,34 +200,156 @@ export class PatchDiscovery {
     }
 
     const h = this._host;
-    const patches: PatchEntry[] = [];
-    let currentSha: string = tipSha;
+    const pending: Array<{ sha: string; patchMeta: PatchCommitMessage }> = [];
 
-    while (currentSha && currentSha !== stopAtSha) {
-      const nodeInfo = await h._persistence.getNodeInfo(currentSha);
-      const { message } = nodeInfo;
-      const kind = h._commitMessageCodec.detectKind(message);
+    for await (const node of this._chainNodes(tipSha, stopAtSha)) {
+      const kind = h._commitMessageCodec.detectKind(node.message);
       if (kind !== 'patch') {
         break;
       }
-
-      const patchMeta = h._commitMessageCodec.decodePatch(message);
-      const journal = h._patchJournal;
-      if (journal === null || journal === undefined) {
-        throw new PatchError('patchJournal is required for patch discovery', {
-          code: 'E_MISSING_JOURNAL',
-        });
+      const patchMeta = h._commitMessageCodec.decodePatch(node.message);
+      if (pending.length === 0) {
+        // Legacy ordering: the contract error surfaces after the first patch
+        // decodes, not after the whole chain is walked. Checking once suffices.
+        this._requireJournal();
       }
-      patches.push({ patch: await journal.readPatch(patchMeta), sha: currentSha });
+      pending.push({ sha: node.sha, patchMeta });
+    }
 
-      if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
-        currentSha = nodeInfo.parents[0] ?? '';
+    if (pending.length === 0) {
+      return [];
+    }
+
+    const journal = this._requireJournal();
+    const patches = await mapWithConcurrency(pending, PATCH_READ_CONCURRENCY, async ({ sha, patchMeta }) => ({
+      patch: await journal.readPatch(patchMeta),
+      sha,
+    }));
+
+    return patches.reverse();
+  }
+
+  /**
+   * Returns the patch journal or throws the discovery contract error.
+   */
+  private _requireJournal(): PatchJournalPort {
+    const journal = this._host._patchJournal;
+    if (journal === null || journal === undefined) {
+      throw new PatchError('patchJournal is required for patch discovery', {
+        code: 'E_MISSING_JOURNAL',
+      });
+    }
+    return journal;
+  }
+
+  /**
+   * Walks a commit chain from a tip SHA following first parents, yielding
+   * each node until `stopAtSha` or a root commit is reached.
+   *
+   * Prefers one bulk `logNodesStream` read for the whole chain; any commit
+   * missing from the bulk read (or a persistence without a usable bulk
+   * surface) is fetched via per-commit `getNodeInfo`, preserving the legacy
+   * error surface for missing objects.
+   */
+  private async *_chainNodes(tipSha: string, stopAtSha: string | null): AsyncGenerator<ChainNode> {
+    const persistence = this._host._persistence;
+    const chainIndex = await this._loadChainIndex(tipSha, stopAtSha, persistence);
+    const seen = new Set<string>();
+    let gapCount = 0;
+    let currentSha: string = tipSha;
+
+    while (currentSha && currentSha !== stopAtSha) {
+      if (seen.has(currentSha)) {
+        // A parent cycle is corrupt history. Stopping keeps a malformed chain
+        // from spinning forever now that the walk needs no I/O per step.
+        break;
+      }
+      seen.add(currentSha);
+      const indexed = chainIndex?.get(currentSha);
+      if (indexed === undefined) {
+        gapCount += 1;
+        this._warnFirstChainIndexGap(chainIndex, gapCount, tipSha, currentSha);
+      }
+      const node = indexed ?? (await persistence.getNodeInfo(currentSha));
+      // Yield the sha we resolved, not node.sha: the legacy walk tracked the
+      // sha itself, and some persistence doubles omit sha from getNodeInfo.
+      yield new ChainNode({ sha: currentSha, message: node.message, parents: node.parents });
+
+      const nextSha = node.parents[0];
+      if (typeof nextSha === 'string' && nextSha.length > 0) {
+        currentSha = nextSha;
       } else {
         break;
       }
     }
+  }
 
-    return patches.reverse();
+  /**
+   * Warns once when a successful bulk read turns out to be incomplete.
+   *
+   * A bulk read that throws is already reported by `_loadChainIndex`. A bulk
+   * read that succeeds but omits commits is the quieter failure: the walk keeps
+   * working, per-commit `getNodeInfo` covers every gap, and the serial cost this
+   * class exists to remove comes back with nothing in the log to say so.
+   */
+  private _warnFirstChainIndexGap(
+    chainIndex: Map<string, ChainNode> | null,
+    gapCount: number,
+    tipSha: string,
+    missingSha: string,
+  ): void {
+    if (chainIndex === null || gapCount !== 1) {
+      return;
+    }
+    this._host._logger?.warn(
+      'bulk chain read incomplete; falling back to per-commit reads',
+      { tipSha, missingSha },
+    );
+  }
+
+  /**
+   * Reads the first-parent history from `tipSha` in one bulk read and indexes
+   * it by SHA.
+   *
+   * The read is bounded exactly as the walk is: `firstParent` keeps a merge's
+   * side branch out, and `stopAtSha` bounds the range so history the walk will
+   * never visit is neither fetched nor held in memory. Parsing also stops at
+   * the boundary, so a persistence that ignores `stopAt` still cannot force an
+   * unbounded index.
+   *
+   * Returns null when the bulk read is unusable, signalling the caller to walk
+   * per-commit instead.
+   */
+  private async _loadChainIndex(
+    tipSha: string,
+    stopAtSha: string | null,
+    persistence: CorePersistence,
+  ): Promise<Map<string, ChainNode> | null> {
+    try {
+      const stream = await persistence.logNodesStream({
+        ref: tipSha,
+        format: CHAIN_LOG_FORMAT,
+        firstParent: true,
+        ...(stopAtSha === null ? {} : { stopAt: stopAtSha }),
+      });
+      const index = new Map<string, ChainNode>();
+      for await (const node of new GitLogParser().parse(stream)) {
+        if (node.sha === stopAtSha) {
+          break;
+        }
+        index.set(node.sha, new ChainNode(node));
+      }
+      return index;
+    } catch (error) {
+      // Falling back is correct for a persistence with no usable bulk surface,
+      // but it silently restores the per-commit cost this class exists to
+      // avoid — so it must be observable rather than invisible.
+      this._host._logger?.warn(
+        'bulk chain read unavailable; falling back to per-commit walk',
+        { error: error instanceof Error ? error.message : String(error) },
+      );
+      return null;
+    }
   }
 
   /**
@@ -205,20 +400,18 @@ export class PatchDiscovery {
       const tickShas: Record<number, string> = {};
 
       if (typeof tipSha === 'string' && tipSha.length > 0) {
-        let currentSha: string = tipSha;
         let lastLamport = Infinity;
 
-        while (currentSha) {
-          const nodeInfo = await h._persistence.getNodeInfo(currentSha);
-          const kind = h._commitMessageCodec.detectKind(nodeInfo.message);
+        for await (const node of this._chainNodes(tipSha, null)) {
+          const kind = h._commitMessageCodec.detectKind(node.message);
           if (kind !== 'patch') {
             break;
           }
 
-          const patchMeta = h._commitMessageCodec.decodePatch(nodeInfo.message);
+          const patchMeta = h._commitMessageCodec.decodePatch(node.message);
           globalTickSet.add(patchMeta.lamport);
           writerTicks.push(patchMeta.lamport);
-          tickShas[patchMeta.lamport] = currentSha;
+          tickShas[patchMeta.lamport] = node.sha;
 
           if (patchMeta.lamport > lastLamport && h._logger) {
             h._logger.warn(
@@ -226,12 +419,6 @@ export class PatchDiscovery {
             );
           }
           lastLamport = patchMeta.lamport;
-
-          if (Array.isArray(nodeInfo.parents) && nodeInfo.parents.length > 0) {
-            currentSha = nodeInfo.parents[0] ?? '';
-          } else {
-            break;
-          }
         }
       }
 

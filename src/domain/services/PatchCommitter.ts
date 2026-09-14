@@ -24,6 +24,7 @@ import type { PublishedPatch } from '../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type AssetHandle from '../storage/AssetHandle.ts';
+import type EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
 
 export type CommitState = {
   persistence: WarpKernelPort;
@@ -34,6 +35,7 @@ export type CommitState = {
   ops: PatchOp[];
   observedOperands: Set<string>;
   writes: Set<string>;
+  entityAdmissions?: readonly EntityAdmissionBoundary[];
   hasEdgeProps: boolean;
   expectedParentSha: string | null;
   targetRefPath: string | null;
@@ -103,6 +105,7 @@ export async function commitPatch(state: CommitState): Promise<PatchCommitResult
     ops: rawOps,
     reads: [...state.observedOperands].sort(),
     writes: [...state.writes].sort(),
+    entityAdmissions: state.entityAdmissions,
   });
 
   // Publish one storage-owned bundle rooted by the causal writer ref.

@@ -4,7 +4,9 @@ import type MaterializationHandle from '../../../../src/domain/materialization/M
 import GitCasMaterializationStoreAdapter, {
   type GitCasMaterializationFacade,
 } from '../../../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
-import GitCasMaterializationWorkspace from '../../../../src/infrastructure/adapters/GitCasMaterializationWorkspace.ts';
+import GitCasMaterializationWorkspace, {
+  requireCompoundRetention,
+} from '../../../../src/infrastructure/adapters/GitCasMaterializationWorkspace.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
@@ -37,6 +39,133 @@ describe('GitCasMaterializationWorkspace', () => {
 
     await workspace.release();
     expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
+  });
+
+  it('stages an ordered bundle batch under one git-cas workspace generation', async () => {
+    const harness = await createHarness();
+    const workspace = await harness.adapter.openWorkspace(workspaceCoordinate());
+    const left = await workspace.stagePage(new Uint8Array([1]), { maxBytes: 1 });
+    const right = await workspace.stagePage(new Uint8Array([2]), { maxBytes: 1 });
+    const generationBefore = harness.cas.readWorkspaceGenerationCount();
+
+    const bundles = await workspace.stageOrderedBundles!([
+      { members: [['left', left]], options: { maxMembers: 1 } },
+      { members: [['right', right]], options: { maxMembers: 1 } },
+    ], {
+      maxBatchBundles: 2,
+      maxBatchMembers: 2,
+      maxBatchObjects: 8,
+      maxBatchBytes: 1024,
+    });
+
+    expect(harness.cas.readWorkspaceGenerationCount() - generationBefore).toBe(1);
+    expect(bundles.map((bundle) => bundle.toString())).toHaveLength(2);
+    expect(harness.cas.readBundleMembers(bundles[0]!.toString())).toEqual([['left', left]]);
+    expect(harness.cas.readBundleMembers(bundles[1]!.toString())).toEqual([['right', right]]);
+    await workspace.release();
+  });
+
+  it('admits dependent page and bundle waves under one workspace generation', async () => {
+    const harness = await createHarness();
+    const workspace = await harness.adapter.openWorkspace(workspaceCoordinate());
+    const generationBefore = harness.cas.readWorkspaceGenerationCount();
+
+    const root = await workspace.admitDependentArtifacts!(async (staging) => {
+      const pages = await staging.stagePages!(
+        [new Uint8Array([1]), new Uint8Array([2])],
+        { maxBytes: 1, maxBatchBytes: 2, maxBatchPages: 2 },
+      );
+      const bundles = await staging.stageOrderedBundles!([
+        { members: [['leaf/data', pages[0]!]] },
+        { members: [['leaf/data', pages[1]!]] },
+      ], {
+        maxBatchBundles: 2,
+        maxBatchMembers: 2,
+        maxBatchObjects: 8,
+        maxBatchBytes: 1024,
+      });
+      return bundles[1]!.toString();
+    }, { maxOperations: 2 });
+
+    expect(harness.cas.readWorkspaceGenerationCount() - generationBefore).toBe(1);
+    expect(harness.cas.readWorkspaceRoots()[0]).toHaveLength(4);
+    expect(harness.cas.readBundleMembers(root)).toEqual([
+      ['leaf/data', expect.stringMatching(/^git-cas:1:page:/u)],
+    ]);
+    await workspace.release();
+  });
+
+  it('keeps empty bundle batches side-effect free', async () => {
+    const harness = await createHarness();
+    const workspace = await harness.adapter.openWorkspace(workspaceCoordinate());
+    const generationBefore = harness.cas.readWorkspaceGenerationCount();
+
+    await expect(workspace.stageOrderedBundles!([], {
+      maxBatchBundles: 1,
+      maxBatchMembers: 1,
+      maxBatchObjects: 1,
+      maxBatchBytes: 1,
+    })).resolves.toEqual([]);
+
+    expect(harness.cas.readWorkspaceGenerationCount()).toBe(generationBefore);
+    await workspace.release();
+  });
+
+  it('fails closed when git-cas returns the wrong bundle-batch count', async () => {
+    const harness = await createHarness();
+    const raw = await harness.cas.workspaces.open({ namespace: 'malformed-bundle-batch' });
+    const workspace = new GitCasMaterializationWorkspace({
+      workspace: {
+        ...raw,
+        bundles: { ...raw.bundles, putOrderedBatch: async () => Object.freeze([]) },
+      },
+      promote: rejectPromotion,
+    });
+
+    await expect(workspace.stageOrderedBundles!([{
+      members: [],
+    }], {
+      maxBatchBundles: 1,
+      maxBatchMembers: 1,
+      maxBatchObjects: 1,
+      maxBatchBytes: 1,
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('wrong staged bundle count'),
+    });
+    await workspace.release();
+  });
+
+  it('fails closed when a retained bundle batch is sparse', async () => {
+    const harness = await createHarness();
+    const raw = await harness.cas.workspaces.open({ namespace: 'sparse-bundle-batch' });
+    const workspace = new GitCasMaterializationWorkspace({
+      workspace: {
+        ...raw,
+        bundles: {
+          ...raw.bundles,
+          putOrderedBatch: async (request) => {
+            const staged = await raw.bundles.putOrderedBatch(request);
+            return sparsePair(staged[0]!);
+          },
+        },
+      },
+      promote: rejectPromotion,
+    });
+
+    await expect(workspace.stageOrderedBundles!([
+      { members: [] },
+      { members: [] },
+    ], {
+      maxBatchBundles: 2,
+      maxBatchMembers: 2,
+      maxBatchObjects: 8,
+      maxBatchBytes: 1024,
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('omitted staged bundle'),
+    });
+    await workspace.release();
   });
 
   it('keeps empty page batches side-effect free', async () => {
@@ -77,6 +206,56 @@ describe('GitCasMaterializationWorkspace', () => {
       message: expect.stringContaining('wrong staged page count'),
     });
     await workspace.release();
+  });
+
+  it('fails closed when a retained page batch is sparse', async () => {
+    const harness = await createHarness();
+    const raw = await harness.cas.workspaces.open({ namespace: 'sparse-page-batch' });
+    const workspace = new GitCasMaterializationWorkspace({
+      workspace: {
+        ...raw,
+        pages: {
+          ...raw.pages,
+          putBatch: async (request) => {
+            const staged = await raw.pages.putBatch(request);
+            return sparsePair(staged[0]!);
+          },
+        },
+      },
+      promote: rejectPromotion,
+    });
+
+    await expect(workspace.stagePages!([
+      new Uint8Array([1]),
+      new Uint8Array([2]),
+    ], {
+      maxBytes: 1,
+      maxBatchBytes: 2,
+      maxBatchPages: 2,
+    })).rejects.toMatchObject({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('omitted staged page'),
+    });
+    await workspace.release();
+  });
+
+  it('fails closed with a typed error when compound retention handles are sparse', async () => {
+    const harness = await createHarness();
+    const raw = await harness.cas.workspaces.open({ namespace: 'sparse-compound-retention' });
+    const page = await raw.pages.put({ source: new Uint8Array([1]) });
+    const checkpoint = await raw.checkpoint({ handles: [page.handle] });
+    const handle = checkpoint.handles[0]!;
+    const witness = checkpoint.witnesses[0]!;
+
+    expect(() => requireCompoundRetention(Object.freeze({
+      ...checkpoint,
+      handles: sparsePair(handle),
+      witnesses: Object.freeze([witness, witness]),
+    }))).toThrowError(expect.objectContaining({
+      code: 'E_MATERIALIZATION_STORAGE',
+      message: expect.stringContaining('omitted retained handle'),
+    }));
+    await raw.release();
   });
 
   it('checkpoints a transitive aggregate and returns RootSet evidence', async () => {
@@ -167,6 +346,24 @@ describe('GitCasMaterializationWorkspace', () => {
 
     await raw.release();
   });
+
+  it('requires the git-cas workspace bundle-batch capability', async () => {
+    const harness = await createHarness();
+    const raw = await harness.cas.workspaces.open({ namespace: 'missing-bundle-batch' });
+
+    expect(() => Reflect.construct(GitCasMaterializationWorkspace, [{
+      workspace: {
+        ...raw,
+        bundles: {
+          put: raw.bundles.put,
+          putOrdered: raw.bundles.putOrdered,
+        },
+      },
+      promote: rejectPromotion,
+    }])).toThrowError(/bundles must provide putOrderedBatch/u);
+
+    await raw.release();
+  });
 });
 
 type WorkspaceRoots = Readonly<{
@@ -225,4 +422,11 @@ function rejectPromotion(
   _request: unknown,
 ): Promise<MaterializationHandle> {
   return Promise.reject(new Error('Promotion is not used by this lifecycle test'));
+}
+
+function sparsePair<T>(value: T): readonly T[] {
+  const sparse: T[] = [];
+  sparse.length = 2;
+  sparse[0] = value;
+  return Object.freeze(sparse);
 }

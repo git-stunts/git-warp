@@ -153,5 +153,5 @@ function settlementSourceStatus(
   if (state.joinFailed) {
     return 'failed';
   }
-  return state.intents.length === 0 ? 'empty' : 'ready';
+  return state.sequences.length === 0 ? 'empty' : 'ready';
 }

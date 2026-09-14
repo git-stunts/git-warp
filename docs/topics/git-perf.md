@@ -28,6 +28,31 @@ This is not a compromise made for portability. On the page-shaped workload that
 matches WARP materialization, persistent stock Git was faster than NodeGit and
 used substantially less memory.
 
+## v19.1.0 release closeout
+
+The reviewed v19.1.0 release content completes the code and evidence rollout
+described by this topic. Public release completion is a separate claim made only
+after the immutable tag, registry publication, and external smoke-verification
+gates pass. In the reviewed content, patch discovery crosses Git through one
+bounded first-parent metadata stream per writer chain, payload reads reuse
+persistent object sessions, retained trie pages publish through ordered
+dependency waves, and related materialization artifacts may share one bounded
+git-cas workspace generation.
+
+The final hosted Linux comparison used a deterministic 65-patch base plus a
+five-patch suffix and measured the same semantic result before and after the
+change. Cold Git commands fell from `781` to `50`, warm commands from `30` to
+`25`, and incremental commands from `372` to `60`. Operation CPU medians fell
+by `67.4%` cold and `48.3%` incremental; the already-cheap warm path moved by
+`2.0%`. All scenarios preserved the same semantic fingerprint and exact
+`65 / 0 / 5` replay evidence. Blocking command ceilings are `60 / 30 / 72`.
+
+The earlier backend spikes and public-package checkpoints below remain the
+historical evidence that selected the architecture. The complete current
+corpus, route-key and trie topology, compound-publication graph, benchmark
+method, failure controls, compatibility ruling, and reproduction commands live
+in the [v19.1.0 release witness](v19-1-performance-architecture-witness.md).
+
 ## What was actually slow
 
 The hot path does not need `git --version`. Exploratory measurements used it
@@ -100,11 +125,13 @@ structural process counts are the comparable result. Focused real-Git retained
 materialization, materialization-store, and trie integration tests passed 11/11
 against the registry artifact.
 
-This checkpoint proves that npm v6.5.3 matches the audited session topology. It
-does not satisfy the versioned cold/warm/incremental benchmark contract in
-[#759](https://github.com/git-stunts/git-warp/issues/759): that issue still
-requires a committed corpus, process-tree CPU/RSS, repeated base/head CI runs,
-and blocking regression thresholds.
+This checkpoint proved that npm v6.5.3 matched the audited session topology. It
+was intentionally intermediate and did not, by itself, satisfy the versioned
+cold/warm/incremental benchmark contract in
+[#759](https://github.com/git-stunts/git-warp/issues/759). v19.1.0 closes that
+contract with the committed Corpus 19C0FFEE workload, separate process-tree
+CPU/RSS evidence, repeated base/head hosted runs, semantic fingerprints, exact
+replay counts, and blocking regression thresholds.
 
 ## Bounded page reads
 
@@ -318,11 +345,11 @@ Two concurrent fast-import sessions completed without corruption in the spike,
 but allowing arbitrary parallel sessions creates extra packs and complicates
 maintenance. Start with one git-cas-owned writer per repository.
 
-## Target implementation boundary
+## Implemented boundary
 
 ### git-cas
 
-git-cas should own these internal components:
+git-cas owns these internal components:
 
 - a persistent object reader over `cat-file --batch-command --buffer`;
 - a byte-bounded `readMany` path and a single-object streaming path that drains
@@ -335,16 +362,16 @@ git-cas should own these internal components:
 - existing stock-Git ref and commit operations;
 - doctor inspection and repair for abandoned import artifacts.
 
-The public API must stay storage-neutral. Prefer a contract such as `storeMany`
-or workspace-scoped ingestion over exposing `FastImportWriter`, pack options, or
-Git marks. Existing staging workspaces are the natural lifetime for a bulk
+The public API stays storage-neutral. Workspace-scoped ingestion exposes
+bounded object and bundle publication without exposing `FastImportWriter`, pack
+options, or Git marks. Existing staging workspaces are the lifetime of a bulk
 session because they already own in-progress retention and promotion.
 
 ### git-warp
 
-git-warp should not gain a Git object optimization API. Its materialization and
-checkpoint adapters should submit bounded artifact streams to git-cas and retain
-the returned handles. WARP refs and causal history remain behind the history
+git-warp does not expose a Git object optimization API. Its materialization and
+checkpoint adapters submit bounded artifact streams to git-cas and retain the
+returned handles. WARP refs and causal history remain behind the history
 adapter; immutable pages, bundles, snapshots, and caches remain behind git-cas.
 
 The raw tree-record parser belongs inside the git-cas Git adapter. Parsing Git's
@@ -352,23 +379,27 @@ stable tree object framing is not an object database implementation. Hashing,
 compression, deltas, pack indexes, alternates, object formats, refs, and GC stay
 owned by Git.
 
-## Rollout sequence
+## Executed rollout sequence
 
-1. Land persistent, bounded git-cas reads with protocol lifecycle tests.
-2. Add buffered multi-read with a 256 KiB default byte window and caller budget.
-3. Replace per-entry `ls-tree` lookups with bounded raw-tree page indexes.
-4. Add workspace-scoped bulk writes, persistent mktree, checkpoint receipts,
-   and the maintenance lease.
-5. Add doctor findings and repair for abandoned fast-import artifacts.
-6. Release git-cas and bump git-warp.
-7. Route WARP page/property/checkpoint publication through the bulk git-cas
-   contract without adding CAS management to git-warp.
-8. Re-run application-level cold and warm observer benchmarks and remove any
-   remaining process-per-object paths.
+1. Persistent, bounded git-cas reads landed with protocol lifecycle tests.
+2. Buffered multi-read gained a 256 KiB default byte window and caller budget.
+3. Per-entry `ls-tree` lookups moved to bounded raw-tree page indexes.
+4. Workspace-scoped bulk writes, persistent mktree, checkpoint receipts, and
+   the maintenance lease landed in git-cas.
+5. Doctor gained findings and repair for abandoned fast-import artifacts.
+6. Published npm artifacts Plumbing v3.3.0 and git-cas v6.5.10 were installed
+   and verified before the git-warp release candidate consumed their final
+   contracts.
+7. WARP page, property, index, support, descriptor, and terminal publication now
+   use bounded git-cas workspaces without adding CAS management to git-warp.
+8. Hosted cold, warm, incremental, streaming, and migrated-v18 gates verified
+   the integrated release and established blocking process ceilings.
 
-## Merge gates
+## Release evidence contract
 
-The production change needs both performance and semantic gates:
+The v19.1.0 release content closes the code and evidence change with both
+performance and semantic gates; tag and registry verification remain the
+separate public-release boundary:
 
 - no process-per-object regression for object info, page reads, tree entry
   lookup, or bulk materialization writes;
@@ -384,12 +415,14 @@ The production change needs both performance and semantic gates:
   and doctor repair;
 - output OID and byte equality checked against stock Git outside the timed
   region;
-- Linux CI calibration before enforcing absolute thresholds. Use relative
-  regression thresholds until the runner class is stable.
+- hosted Linux calibration, relative base/head comparison, and absolute command
+  ceilings on the current runner class.
 
-An initial local memory gate can use the measured 1 GiB page corpus and require
-less than 192 MiB peak process-tree RSS with a 256 KiB request window. Treat that
-as a calibration target, not a portable constant.
+The earlier local memory gate used the measured 1 GiB page corpus and required
+less than 192 MiB peak process-tree RSS with a 256 KiB request window. That
+remains a diagnostic calibration target, not a portable constant. The release
+gate separately proves a 256 MiB streaming read under a 64 MiB V8 old-space
+limit and requires the hostile collect-all control to exhaust that same limit.
 
 ## Rejected directions
 
@@ -414,18 +447,21 @@ as a calibration target, not a portable constant.
 
 ## Measurement limits
 
-- Results are local measurements from an Apple M1 Pro, Node 24.12.0, and Apple
-  Git 2.50.1. Linux CI must reproduce the ordering and establish runner-specific
-  gates.
+- The backend-selection profiles are historical local measurements from an
+  Apple M1 Pro, Node 24.12.0, and Apple Git 2.50.1. The final v19.1.0 gate is a
+  separate hosted Linux base/head comparison with runner-specific thresholds;
+  it reproduced the intended ordering.
 - The RSS sampler runs every 20 ms and can miss shorter peaks.
 - `/usr/bin/time` provides aggregate process CPU using BSD output on macOS and
   GNU output on Linux; it is useful for relative comparison but does not
   attribute CPU between Node and Git.
 - Random and repetitive corpora bracket compression behavior but do not replace
   benchmarks over actual encoded WARP pages and encrypted git-cas chunks.
-- The spike validates one reader and bounded request batches. Production
-  cancellation, backpressure, timeout, and process-restart behavior still need
-  fault-injection tests.
+- The original spike validated one reader and bounded request batches. The
+  released git-cas session lifecycle, cancellation, backpressure, visibility,
+  maintenance-lease, and recovery behavior are covered by the lower-layer
+  suites; the git-warp release gate measures their integrated use rather than
+  duplicating every fault injection in the benchmark.
 - A full-corpus scan is a stress test. Ordinary optics must continue to select a
   bounded causal support set rather than making the faster scan an excuse to
   read everything.
@@ -448,5 +484,6 @@ NODE_NO_WARNINGS=1 mise exec node@24.12.0 -- npm run semantics
 
 - [Git substrate](git-substrate.md)
 - [WARP state-cache materialization](cas-first-memoized-materialization.md)
+- [v19.1.0 release witness](v19-1-performance-architecture-witness.md)
 - [Content and CAS](content-and-cas.md)
 - [Optic reads](optic-reads.md)

@@ -2,19 +2,28 @@
 
 This directory defines the versioned measurement contract for v19
 materialization and bounded-observation work. It covers issues
-[#759](https://github.com/git-stunts/git-warp/issues/759) and
-[#760](https://github.com/git-stunts/git-warp/issues/760):
+[#759](https://github.com/git-stunts/git-warp/issues/759),
+[#760](https://github.com/git-stunts/git-warp/issues/760), and
+[#849](https://github.com/git-stunts/git-warp/issues/849):
 
 | Scenario | Fixture posture | Required storage evidence |
 |---|---|---|
 | `cold-materialize` | Deterministic causal corpus with no retained materialization | Full replay followed by one retained result |
 | `warm-materialize` | The same corpus with an exact retained materialization | Exact git-cas hit and zero patch replay |
-| `incremental-materialize` | A retained base plus one bounded suffix patch | Compatible predecessor hit and bounded suffix replay |
+| `incremental-materialize` | A retained base plus a bounded suffix patch chain | Compatible predecessor hit and bounded suffix replay |
 
-The corpus format is `git-warp.performance.corpus/v1`. It uses the fixed seed
-`0x19c0ffee`, a directed chain, one deterministic property per node, and an
-explicit bounded suffix. Its version, seed, topology, cardinality, and logical
-property bytes are recorded in every result.
+The harness accepts `git-warp.performance.corpus/v1` and
+`git-warp.performance.corpus/v2`. Both use the fixed seed `0x19c0ffee`, a
+directed chain, one deterministic property per node, and an explicit bounded
+suffix. Version 2 also records independent base and suffix patch counts, so
+node payload volume cannot masquerade as causal-chain depth. Corpus version,
+seed, topology, node and patch cardinality, and logical property bytes are
+recorded in every result.
+
+The checked-in base/head comparison emits version 2. Its 65-patch base crosses
+the default 64-patch checkpoint interval, and its five-patch suffix makes the
+incremental scenario a bounded tail rather than another full-history read.
+Version 1 remains accepted for historical and ad hoc fixtures.
 
 ## Timed boundary
 
@@ -27,8 +36,10 @@ recorded alongside the semantic result.
 On Linux, GNU `time` records worker-lifecycle user/system CPU and maximum RSS,
 including descendant Git processes. On other platforms, Node records
 operation-scoped process CPU and process memory. The result states which scope
-was used, and base/head comparison rejects different platforms, architectures,
-Node majors, Git versions, git-cas versions, or corpora.
+was used. Base/head comparison rejects different platforms, architectures,
+Node majors, Git versions, instrumentation, or corpora. It records but does not
+equate the git-cas package versions, so a dependency upgrade can itself be the
+measured treatment.
 
 CPU is the blocking regression metric. Wall time remains diagnostic because
 hosted-runner scheduling and filesystem noise are not stable enough for a
@@ -36,13 +47,31 @@ trustworthy wall-time gate. Peak RSS and heap have blocking absolute envelopes.
 The checked-in policy combines a relative CPU ratio with an absolute noise
 floor and reviewed materialization and streaming CPU/memory ceilings.
 
-The reviewed CI corpus contains 25 base nodes, a five-node suffix, and 256
-property bytes per node. The earlier 1,500-node bootstrap profile was rejected
-after one worker exceeded the ten-minute timeout. The checked-in
+The reviewed CI corpus contains 65 base nodes in 65 patches, a five-node suffix
+in five patches, and 256 property bytes per node. The earlier 1,500-node
+bootstrap profile was rejected after one worker exceeded the ten-minute
+timeout. The checked-in
 [`calibration.json`](./calibration.json) records the replacement profile,
 observed medians and dispersion, the exact GitHub-hosted Ubuntu 24.04/Node 22
 gating environment, and the policy rationale. A local Apple Silicon calibration
 is retained as secondary evidence, not as the source of CI ceilings.
+Against current `main`, the hosted compound-admission runner reduced cold,
+warm, and incremental Git commands from `781 / 30 / 372` to
+`50 / 25 / 60`. CPU medians fell from `4540 / 1120 / 2790` ms to
+`1560 / 1070 / 1430` ms. Five samples reproduced every command count with
+MAD 0. The reviewed command ceilings are `60 / 30 / 72`, retaining 20%
+structural headroom around cold and incremental publication while preserving
+the existing warm allowance.
+
+A second counterbalanced local arm64 comparison measures bounded compound
+workspace admission from public git-cas 6.5.10 against the same git-warp commit
+on the public 6.5.9 singleton path. Five-sample cold/warm/incremental command
+medians moved from `139 / 25 / 149` to `50 / 25 / 60`; CPU medians moved from
+`484 / 154 / 490` ms to `312 / 160 / 291` ms. Cold and incremental wall medians
+fell by 52.2% and 49.9%. Warm topology was unchanged, and its timing movement is
+treated as host noise. Hosted CI independently reproduced `50 / 25 / 60` on
+the same 65/5 corpus and is the authority for the reviewed command, CPU, and
+memory envelopes.
 
 ## Semantic and schema gates
 
@@ -106,8 +135,10 @@ npm run performance:gate -- \
 ```
 
 Use `GIT_WARP_PERF_RUNS`, `GIT_WARP_PERF_WARMUPS`,
-`GIT_WARP_PERF_BASE_NODES`, `GIT_WARP_PERF_INCREMENTAL_NODES`, and
-`GIT_WARP_PERF_PROPERTY_BYTES` only for local calibration. Use `--profile mini`
+`GIT_WARP_PERF_BASE_NODES`, `GIT_WARP_PERF_INCREMENTAL_NODES`,
+`GIT_WARP_PERF_BASE_PATCHES`, `GIT_WARP_PERF_INCREMENTAL_PATCHES`, and
+`GIT_WARP_PERF_PROPERTY_BYTES` only for alternate local calibration. Omitting
+both patch-count variables still emits a version 1 corpus. Use `--profile mini`
 only for a fast mechanism check; it deliberately skips the hostile OOM control
 and is not release evidence.
 

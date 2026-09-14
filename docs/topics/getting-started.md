@@ -52,8 +52,32 @@ to the same Lane.
 
 ## Write Intents
 
-Each `lane.write(intent)` admits one validated Intent and returns a
-`WriteReceipt`. The closed admission outcomes are:
+`lane.write(intent)` admits one validated Intent. To make several generated
+graph edits visible together, pass one non-empty ordered array:
+
+```typescript
+const receipt = await lane.write([
+  users.intents.registerUser({ subject: 'user:alice' }),
+  users.intents.assignRole({
+    subject: 'user:alice',
+    role: 'admin',
+  }),
+]);
+```
+
+The complete array lowers through one patch publication and returns one
+`WriteReceipt`, one admission outcome, and one target-ref advancement. If any
+member is invalid or cannot lower, the patch is not published and none of its
+edits become visible. Array order is deterministic lowering order; it does not
+turn application order into a claim about independent historical events.
+
+The array must contain at least one Intent. One write accepts at most 50,000
+Intents, a 16 MiB canonical descriptor, and 50,000 lowered patch operations.
+These are admission bounds, not a long-lived transaction or a physical
+publication-window API. Atomicity never crosses Lanes or separate
+`lane.write()` calls.
+
+Every write returns a `WriteReceipt`. The closed admission outcomes are:
 
 - `derived`
 - `plural`
@@ -62,6 +86,12 @@ Each `lane.write(intent)` admits one validated Intent and returns a
 
 Operational outcomes and epistemic support are separate. Do not infer that an
 accepted write has settled a strand.
+
+`receipt.intents` always contains the ordered normalized members. Entity births
+produce an ordered `receipt.occurrences` entry per `entity.add`. The legacy
+`receipt.occurrence` convenience is present only when the write produced
+exactly one entity occurrence; graph subjects and causal occurrence identities
+remain distinct.
 
 ## Observe bounded values
 

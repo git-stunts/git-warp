@@ -4,9 +4,17 @@ import process from 'node:process';
 import { installDefaultRuntimeHostNodePorts } from '../src/application/RuntimeHostNodeDefaults.ts';
 import { EXIT_CODES, HELP_TEXT, CliError, parseArgs, usageError } from './cli/infrastructure.ts';
 import { stableStringify, compactStringify } from './presenters/json.ts';
-import { COMMANDS } from './cli/commands/registry.ts';
+import {
+  COMMANDS,
+  type CommandHandlerResult,
+  type CommandOutputLines,
+  type CommandOutputValue,
+} from './cli/commands/registry.ts';
 import { closeCliStorages } from './cli/shared.ts';
-import { closeCommandResources } from './cli/lifecycle.ts';
+import {
+  closeCommandResources,
+  emitWithCommandShutdown,
+} from './cli/lifecycle.ts';
 
 installDefaultRuntimeHostNodePorts();
 
@@ -17,55 +25,20 @@ installDefaultRuntimeHostNodePorts();
 const hasJsonFlag = process.argv.includes('--json');
 const hasJsonlFlag = process.argv.includes('--jsonl');
 
-interface NormalizedCommandResult {
-  readonly payload: unknown;
+type NormalizedCommandResult = Readonly<{
+  readonly payload: CommandOutputValue | undefined;
   readonly human: string | undefined;
-  readonly lines: readonly unknown[] | undefined;
+  readonly lines: CommandOutputLines | undefined;
   readonly exitCode: number;
-}
-
-/** Runtime guard: does this value carry a `payload` field? */
-function hasPayload(value: unknown): value is {
-  payload: unknown;
-  human?: string;
-  lines?: readonly unknown[];
-  exitCode?: number;
-} {
-  return typeof value === 'object' && value !== null && 'payload' in value;
-}
-
-/** Runtime guard: does this value carry an async `close` function? */
-function hasCloseFn(value: unknown): value is {
-  close: () => Promise<void>;
-  completion?: Promise<void>;
-} {
-  if (typeof value !== 'object' || value === null) { return false; }
-  const rec = value as Record<string, unknown>;
-  return typeof rec['close'] === 'function';
-}
-
-function hasCompletion(value: { readonly completion?: Promise<void> }): value is {
-  readonly completion: Promise<void>;
-} {
-  return value.completion !== undefined
-    && typeof value.completion.then === 'function';
-}
+}>;
 
 /** Normalizes any handler return shape into { payload, exitCode }. */
-function normalizeResult(result: unknown): NormalizedCommandResult {
-  if (hasPayload(result)) {
-    return {
-      payload: result.payload,
-      human: typeof result.human === 'string' ? result.human : undefined,
-      lines: Array.isArray(result.lines) ? result.lines : undefined,
-      exitCode: typeof result.exitCode === 'number' ? result.exitCode : EXIT_CODES.OK,
-    };
-  }
+function normalizeResult(result: CommandHandlerResult): NormalizedCommandResult {
   return {
-    payload: result,
-    human: undefined,
-    lines: undefined,
-    exitCode: EXIT_CODES.OK,
+    payload: result.payload,
+    human: result.human,
+    lines: result.lines,
+    exitCode: result.exitCode ?? EXIT_CODES.OK,
   };
 }
 
@@ -132,15 +105,15 @@ async function finishCompletedCommand(
 }
 
 /** Writes canonical machine output or the shared human rendering. */
-function emitResult(
+async function emitResult(
   result: NormalizedCommandResult,
   options: ParsedInvocation['options'],
-): void {
+): Promise<void> {
   if (options.jsonl) {
     const lines = result.lines ?? (
       result.payload === undefined ? [] : [result.payload]
     );
-    for (const line of lines) {
+    for await (const line of lines) {
       process.stdout.write(`${compactStringify(line)}\n`);
     }
     return;
@@ -181,13 +154,16 @@ async function main(): Promise<void> {
 
   const result = await handler({ args: commandArgs, options });
   const normalized = normalizeResult(result);
-  emitResult(normalized, options);
+  const shutdown = await emitWithCommandShutdown({
+    closeCommand: result.close,
+    emit: async () => await emitResult(normalized, options),
+    installShutdown: installShutdownHandlers,
+  });
 
   // Long-running commands may return a `close` function.
   // Wait for normal completion or SIGINT/SIGTERM instead of exiting immediately.
-  if (hasCloseFn(result)) {
-    const shutdown = installShutdownHandlers(result.close);
-    if (hasCompletion(result)) {
+  if (shutdown !== undefined) {
+    if (result.completion !== undefined) {
       await finishCompletedCommand(result.completion, shutdown);
       process.exit(normalized.exitCode);
     }

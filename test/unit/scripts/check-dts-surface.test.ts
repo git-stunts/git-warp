@@ -4,7 +4,27 @@ import {
   extractJsExports,
   extractDtsExports,
   classifyManifestExports,
+  pathMatchesPublicationGlob,
 } from '../../../scripts/check-dts-surface.ts';
+
+describe('pathMatchesPublicationGlob', () => {
+  it('matches direct wildcard files without crossing a directory boundary', () => {
+    expect(pathMatchesPublicationGlob(
+      'dist/scripts/v18-to-v19/migrate.js',
+      'dist/scripts/v18-to-v19/*.js',
+    )).toBe(true);
+    expect(pathMatchesPublicationGlob(
+      'dist/scripts/v18-to-v19/performance/Run.js',
+      'dist/scripts/v18-to-v19/*.js',
+    )).toBe(false);
+  });
+
+  it('matches recursive wildcards at the root and in nested directories', () => {
+    expect(pathMatchesPublicationGlob('docs/README.md', 'docs/**/*.md')).toBe(true);
+    expect(pathMatchesPublicationGlob('docs/topics/README.md', 'docs/**/*.md')).toBe(true);
+    expect(pathMatchesPublicationGlob('docs/topics/README.md', 'docs/**')).toBe(true);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // parseExportBlock

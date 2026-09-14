@@ -33,13 +33,17 @@ class ProvenanceIndex {
     return new ProvenanceIndex();
   }
 
-  addPatch(patchSha: string, reads: string[] | undefined, writes: string[] | undefined): ProvenanceIndex {
+  addPatch(
+    patchSha: string,
+    reads: readonly string[] | undefined,
+    writes: readonly string[] | undefined,
+  ): ProvenanceIndex {
     this.#indexEntityList(reads, patchSha);
     this.#indexEntityList(writes, patchSha);
     return this;
   }
 
-  #indexEntityList(entities: string[] | undefined, patchSha: string): void {
+  #indexEntityList(entities: readonly string[] | undefined, patchSha: string): void {
     if (entities !== undefined && entities !== null && entities.length > 0) {
       for (const entityId of entities) {
         this.#addEntry(entityId, patchSha);

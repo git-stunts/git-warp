@@ -20,6 +20,11 @@ jobs:
           node-version: "22"
           cache: npm
 
+      - name: Setup Deno 2.6.7
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
+        with:
+          deno-version: 'v2.6.7'
+
       - name: Install
         run: npm ci
 
@@ -38,11 +43,11 @@ jobs:
       - name: Test
         run: npm run test:local --if-present
 
-      - name: npm pack dry-run
-        run: npm pack --dry-run
+      - name: npm package payload
+        run: npm run check:package-payload
 
       - name: JSR dry-run
-        run: npx -y jsr publish --dry-run
+        run: npm run jsr:publish -- --dry-run
 
       - name: Compute predicted dist-tag from package version
         id: predict
@@ -92,7 +97,7 @@ jobs:
               `- package version: \`${version}\``,
               `- prerelease: \`${pre}\``,
               `- npm dist-tag on release: \`${dist}\``,
-              "- npm pack dry-run: passed",
+              "- npm package payload: passed",
               "- jsr publish dry-run: passed",
               "",
               `If this PR is from a \`release/*\` branch and merges to \`main\`, Main Push Release Branch Check will run final preflight and create \`v${version}\`. A maintainer who is a JSR \`@git-stunts\` scope member must then dispatch the Release workflow manually.`

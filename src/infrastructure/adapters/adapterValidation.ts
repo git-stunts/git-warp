@@ -71,6 +71,35 @@ export function validateRef(ref: string): void {
   assertRefFormat(ref);
 }
 
+/**
+ * Validates every input a history read puts on the git command line.
+ *
+ * `ref`, `limit` and `stopAt` all reach argv, so they are checked together at
+ * the single point where a log request enters the adapter.
+ */
+export function validateLogRequest({ ref, limit, stopAt }: {
+  ref: string;
+  limit: number;
+  stopAt: string | undefined;
+}): void {
+  validateRef(ref);
+  validateLimit(limit);
+  validateStopAt(stopAt);
+}
+
+/**
+ * Validates an optional exclusive range boundary.
+ *
+ * `stopAt` is interpolated into a `stopAt..ref` rev range, so it must clear the
+ * same checks as a ref; an unvalidated value would reach the git command line.
+ */
+export function validateStopAt(stopAt: string | undefined): void {
+  if (stopAt === undefined) {
+    return;
+  }
+  validateRef(stopAt);
+}
+
 function assertLimitType(limit: number): void {
   if (typeof limit !== 'number' || !Number.isFinite(limit)) {
     throw new AdapterValidationError('Limit must be a finite number');

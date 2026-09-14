@@ -1,6 +1,7 @@
 import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import Intent from './Intent.ts';
+import IntentSequence, { type WriteIntentInput } from './IntentSequence.ts';
 import Observation, { type ObservationExecution } from './Observation.ts';
 import Observer from './Observer.ts';
 import type { ReadingValue } from './ObservedReading.ts';
@@ -30,7 +31,7 @@ export type LaneDescriptor =
       readonly parent: LaneReference;
     };
 
-type WriteIntent = (intent: Intent) => Promise<WriteReceipt>;
+type WriteIntent = (intent: WriteIntentInput) => Promise<WriteReceipt<WriteIntentInput>>;
 type StartObserver = <TValue extends ReadingValue>(
   observer: Observer<TValue>,
 ) => ObservationExecution<TValue> | Promise<ObservationExecution<TValue>>;
@@ -97,11 +98,14 @@ export default class Lane {
     });
   }
 
-  async write(intent: Intent): Promise<WriteReceipt> {
-    if (!(intent instanceof Intent)) {
+  write(intent: Intent): Promise<WriteReceipt>;
+  write(intents: readonly Intent[]): Promise<WriteReceipt<readonly Intent[]>>;
+  write(intent: WriteIntentInput): Promise<WriteReceipt<WriteIntentInput>>;
+  async write(intent: WriteIntentInput): Promise<WriteReceipt<WriteIntentInput>> {
+    if (!(intent instanceof Intent) && !Array.isArray(intent)) {
       throw new WarpError('Lane.write requires an Intent', 'E_LANE_WRITE_INTENT');
     }
-    return await this.#writeIntent(intent);
+    return await this.#writeIntent(IntentSequence.from(intent).input);
   }
 }
 

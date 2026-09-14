@@ -8,8 +8,6 @@ import {
   StagedBundle,
   StagedPage,
   type ApplicationHandle,
-  type ApplicationHandleInput,
-  type AssetHandleInput,
   type AssetCapability,
   type BundleHandleInput,
   type BundleCapability,
@@ -17,21 +15,23 @@ import {
   type CacheAcquisition,
   type CacheInspection,
   type CacheSet,
-  type CacheStoreResult,
-  type PageHandleInput,
   type PageCapability,
   type PublicationCapability,
-  type WorkspaceCheckpointResult,
-  type WorkspaceReleaseResult,
-  type WorkspaceRetainedAsset,
-  type WorkspaceRetainedBundle,
-  type WorkspaceRetainedPage,
 } from '@git-stunts/git-cas';
 import AssetHandle from '../../src/domain/storage/AssetHandle.ts';
 import { collectAsyncIterable } from '../../src/domain/utils/streamUtils.ts';
 import type { GitTreeCommitOptions } from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import type { GitCasStagingWorkspace } from '../../src/infrastructure/adapters/GitCasMaterializationWorkspace.ts';
 import InMemoryBlobStorageAdapter from './InMemoryBlobStorageAdapter.ts';
+import {
+  parseInMemoryApplicationHandle as parseApplicationHandle,
+} from './InMemoryGitCasApplicationHandle.ts';
+import InMemoryGitCasWorkspaceRegistry from './InMemoryGitCasWorkspaceRegistry.ts';
+import {
+  type InMemoryBundlePlan,
+  planInMemoryBundle,
+  planInMemoryBundleBatch,
+} from './InMemoryGitCasBundleBatch.ts';
 
 type PublicationHistory = {
   readRef(ref: string): Promise<string | null>;
@@ -44,13 +44,6 @@ type PublicationHistory = {
 
 type FixtureAssetReader = (oid: string) => Promise<Uint8Array | null>;
 
-const BUNDLE_LIMITS = Object.freeze({
-  maxMembers: 100_000,
-  maxMemberPathBytes: 4_096,
-  maxDescriptorBytes: 16_777_216,
-  maxFanoutEntries: 1_024,
-  maxFanoutDepth: 16,
-});
 const ENCRYPTED_ASSET_MAGIC = new Uint8Array([0x47, 0x57, 0x45, 0x43]);
 const ENCRYPTED_ASSET_NONCE_BYTES = 12;
 
@@ -62,6 +55,7 @@ export default class InMemoryGitCasFacade {
     | 'getMember'
     | 'getMemberReference'
     | 'putOrdered'
+    | 'putOrderedBatch'
     | 'iterateMembers'
     | 'iterateMemberReferences'
   >;
@@ -99,11 +93,9 @@ export default class InMemoryGitCasFacade {
   readonly #cacheEntries = new Map<string, Map<string, CacheHit>>();
   readonly #pageBytes = new Map<string, Uint8Array>();
   readonly #publicationRoots = new Map<string, string>();
-  readonly #workspaceRoots = new Map<string, ReadonlySet<string>>();
+  readonly #workspaceRegistry: InMemoryGitCasWorkspaceRegistry;
   #cacheGeneration = 0;
   #nextCacheAcquisition = 1;
-  #nextWorkspace = 1;
-  #workspaceGeneration = 0;
 
   constructor(options: {
     history: PublicationHistory;
@@ -113,13 +105,22 @@ export default class InMemoryGitCasFacade {
     this.#history = options.history;
     this.#storage = options.storage;
     this.#fixtureAssetReader = options.fixtureAssetReader ?? null;
+    this.#workspaceRegistry = new InMemoryGitCasWorkspaceRegistry({
+      putAsset: async (request) => await this.#putAsset(request),
+      adoptAsset: async (treeOid) => await this.#adoptAsset(treeOid),
+      putPage: async (request) => await this.#putPage(request),
+      putPageBatch: async (request) => await this.#putPageBatch(request),
+      putBundle: async (members) => await this.#putBundle(members),
+      putBundleBatch: async (request) => await this.#putBundleBatch(request),
+    });
     this.assets = Object.freeze({
       put: async (request) => await this.#putAsset(request),
       adopt: async ({ treeOid }) => await this.#adoptAsset(treeOid),
       open: (request) => this.#openAsset(request),
     });
     this.bundles = Object.freeze({
-      putOrdered: async (request) => await this.#putBundle(request.members),
+      putOrdered: async (request) => await this.#putBundle(request.members, request.limits),
+      putOrderedBatch: async (request) => await this.#putBundleBatch(request),
       getMember: async (request) => await this.#getBundleMember(request.handle, request.path),
       getMemberReference: async (request) => (
         await this.#getBundleMember(request.handle, request.path)
@@ -139,7 +140,7 @@ export default class InMemoryGitCasFacade {
       commit: async (request) => await this.#publish(request),
     });
     this.workspaces = Object.freeze({
-      open: async (request) => await this.#openWorkspace(request),
+      open: async (request) => await this.#workspaceRegistry.open(request),
     });
   }
 
@@ -164,17 +165,15 @@ export default class InMemoryGitCasFacade {
   }
 
   readActiveWorkspaceCount(): number {
-    return this.#workspaceRoots.size;
+    return this.#workspaceRegistry.readActiveCount();
   }
 
   readWorkspaceRoots(): readonly (readonly string[])[] {
-    return Object.freeze(
-      [...this.#workspaceRoots.values()].map((roots) => Object.freeze([...roots])),
-    );
+    return this.#workspaceRegistry.readRoots();
   }
 
   readWorkspaceGenerationCount(): number {
-    return this.#workspaceGeneration;
+    return this.#workspaceRegistry.readGenerationCount();
   }
 
   replaceStoredPage(handle: string, bytes: Uint8Array): void {
@@ -271,15 +270,13 @@ export default class InMemoryGitCasFacade {
 
   async #putBundle(
     members: Parameters<BundleCapability['putOrdered']>[0]['members'],
+    limits?: Parameters<BundleCapability['putOrdered']>[0]['limits'],
   ): Promise<StagedBundle> {
-    const lines: string[] = [];
-    const recordedMembers: Array<[string, string]> = [];
-    for await (const [path, member] of members) {
-      const token = String(member);
-      lines.push(`${path}\0${token}`);
-      recordedMembers.push([path, token]);
-    }
-    const descriptorOid = await this.#history.writeBlob(lines.join('\n'));
+    return await this.#writeBundlePlan(await planInMemoryBundle(members, limits));
+  }
+
+  async #writeBundlePlan(plan: InMemoryBundlePlan): Promise<StagedBundle> {
+    const descriptorOid = await this.#history.writeBlob(plan.descriptor);
     const oid = await this.#history.writeTree([
       `100644 blob ${descriptorOid}\tbundle.members`,
     ]);
@@ -288,15 +285,26 @@ export default class InMemoryGitCasFacade {
       hashAlgorithm: oid.length === 64 ? 'sha256' : 'sha1',
       oid,
     });
-    this.#bundleMembers.set(handle.toString(), Object.freeze(recordedMembers));
+    this.#bundleMembers.set(handle.toString(), plan.members);
     return new StagedBundle({
       handle,
-      memberCount: lines.length,
-      indexDepth: 1,
-      descriptorBytes: lines.join('\n').length,
-      limits: BUNDLE_LIMITS,
+      memberCount: plan.members.length,
+      indexDepth: plan.indexDepth,
+      descriptorBytes: plan.descriptorBytes,
+      limits: plan.limits,
       observedAt: new Date(0).toISOString(),
     });
+  }
+
+  async #putBundleBatch(
+    request: Parameters<BundleCapability['putOrderedBatch']>[0],
+  ): Promise<Awaited<ReturnType<BundleCapability['putOrderedBatch']>>> {
+    const plans = await planInMemoryBundleBatch(request);
+    const staged: StagedBundle[] = [];
+    for (const plan of plans) {
+      staged.push(await this.#writeBundlePlan(plan));
+    }
+    return Object.freeze(staged);
   }
 
   async *#iterateBundleMembers(
@@ -648,138 +656,6 @@ export default class InMemoryGitCasFacade {
     });
   }
 
-  async #openWorkspace(options: {
-    readonly namespace: string;
-    readonly ttlMs?: number;
-  }): Promise<GitCasStagingWorkspace> {
-    const id = `test-workspace-${String(this.#nextWorkspace)}`;
-    this.#nextWorkspace += 1;
-    const ref = `refs/cas/workspaces/${options.namespace}/${id}`;
-    const createdAt = new Date(0).toISOString();
-    const expiresAt = new Date(options.ttlMs ?? 60_000).toISOString();
-    let released = false;
-    let roots = new Map<string, ApplicationHandle>();
-
-    const install = (handles: Iterable<ApplicationHandleInput>): WorkspaceCheckpointResult => {
-      if (released) {
-        throw Object.assign(new Error('Workspace is released'), { code: 'WORKSPACE_RELEASED' });
-      }
-      roots = new Map(
-        [...handles].map((input) => {
-          const handle = parseApplicationHandle(input);
-          return [handle.toString(), handle];
-        }),
-      );
-      this.#workspaceGeneration += 1;
-      const generation = this.#workspaceGeneration.toString(16).padStart(40, '0');
-      this.#workspaceRoots.set(ref, new Set(roots.keys()));
-      const witnesses = [...roots.values()].map((handle, index) => new RetentionWitness({
-        handle,
-        policy: 'evictable',
-        reachability: 'anchored',
-        root: {
-          kind: 'root-set',
-          namespace: options.namespace,
-          ref,
-          generation,
-          path: `root-${index.toString(16).padStart(8, '0')}`,
-        },
-        observedAt: createdAt,
-      }));
-      return Object.freeze({
-        changed: true,
-        ref,
-        generation,
-        expiresAt,
-        handles: Object.freeze([...roots.values()]),
-        witnesses: Object.freeze(witnesses),
-      });
-    };
-
-    const retain = (handle: ApplicationHandle): RetentionWitness => {
-      const checkpoint = install([...roots.values(), handle]);
-      const witness = checkpoint.witnesses.find(
-        (candidate) => candidate.handle.toString() === handle.toString(),
-      );
-      if (witness === undefined) {
-        throw new Error('In-memory workspace omitted a staged handle');
-      }
-      return witness;
-    };
-
-    const release = async (): Promise<WorkspaceReleaseResult> => {
-      const changed = !released;
-      released = true;
-      this.#workspaceRoots.delete(ref);
-      return Object.freeze({
-        changed,
-        ref,
-        generation: changed
-          ? (++this.#workspaceGeneration).toString(16).padStart(40, '0')
-          : null,
-      });
-    };
-
-    return Object.freeze({
-      assets: Object.freeze({
-        put: async (request): Promise<WorkspaceRetainedAsset> => {
-          const staged = await this.#putAsset(request);
-          return retainedAsset(staged, retain(staged.handle));
-        },
-        adopt: async ({ treeOid }): Promise<WorkspaceRetainedAsset> => {
-          const staged = await this.#adoptAsset(treeOid);
-          return retainedAsset(staged, retain(staged.handle));
-        },
-      }),
-      pages: Object.freeze({
-        put: async (request): Promise<WorkspaceRetainedPage> => {
-          const staged = await this.#putPage(request);
-          return retainedPage(staged, retain(staged.handle));
-        },
-        putBatch: async (request): Promise<ReadonlyArray<WorkspaceRetainedPage>> => {
-          const staged = await this.#putPageBatch(request);
-          if (staged.length === 0) {
-            return Object.freeze([]);
-          }
-          const checkpoint = install([
-            ...roots.values(),
-            ...staged.map((page) => page.handle),
-          ]);
-          const witnesses = new Map(checkpoint.witnesses.map((entry) => (
-            [entry.handle.toString(), entry]
-          )));
-          return Object.freeze(staged.map((page) => {
-            const evidence = witnesses.get(page.handle.toString());
-            if (evidence === undefined) {
-              throw new Error('In-memory workspace omitted a batched page');
-            }
-            return retainedPage(page, evidence);
-          }));
-        },
-      }),
-      bundles: Object.freeze({
-        put: async (request): Promise<WorkspaceRetainedBundle> => {
-          const staged = await this.#putBundle(request.members);
-          return retainedBundle(staged, retain(staged.handle));
-        },
-        putOrdered: async (request): Promise<WorkspaceRetainedBundle> => {
-          const staged = await this.#putBundle(request.members);
-          return retainedBundle(staged, retain(staged.handle));
-        },
-      }),
-      checkpoint: async ({ handles }) => install(handles),
-      promoteToCache: async ({ cache, key, handle, options: entryOptions }) => {
-        const target = parseApplicationHandle(handle);
-        if (!roots.has(target.toString())) {
-          install([...roots.values(), target]);
-        }
-        const destination: CacheStoreResult = await cache.put(key, target, entryOptions);
-        return Object.freeze({ destination, release: await release() });
-      },
-      release,
-    });
-  }
-
   async #publish(
     request: Parameters<PublicationCapability['commit']>[0],
   ): Promise<Awaited<ReturnType<PublicationCapability['commit']>>> {
@@ -821,85 +697,6 @@ export default class InMemoryGitCasFacade {
       witness,
     });
   }
-}
-
-function retainedAsset(
-  staged: StagedAsset,
-  witness: RetentionWitness,
-): WorkspaceRetainedAsset {
-  const retention = Object.freeze({
-    policy: 'evictable' as const,
-    reachability: 'anchored' as const,
-    protection: 'workspace' as const,
-  });
-  return Object.freeze({
-    version: staged.version,
-    state: 'retained',
-    handle: staged.handle,
-    asset: staged.asset,
-    retention,
-    witness,
-    observedAt: staged.observedAt,
-    toJSON: () => Object.freeze({
-      ...staged.toJSON(),
-      state: 'retained' as const,
-      retention,
-      witness: witness.toJSON(),
-    }),
-  });
-}
-
-function retainedPage(
-  staged: StagedPage,
-  witness: RetentionWitness,
-): WorkspaceRetainedPage {
-  const retention = Object.freeze({
-    policy: 'evictable' as const,
-    reachability: 'anchored' as const,
-    protection: 'workspace' as const,
-  });
-  return Object.freeze({
-    version: staged.version,
-    state: 'retained',
-    handle: staged.handle,
-    page: staged.page,
-    retention,
-    witness,
-    observedAt: staged.observedAt,
-    toJSON: () => Object.freeze({
-      ...staged.toJSON(),
-      state: 'retained' as const,
-      retention,
-      witness: witness.toJSON(),
-    }),
-  });
-}
-
-function retainedBundle(
-  staged: StagedBundle,
-  witness: RetentionWitness,
-): WorkspaceRetainedBundle {
-  const retention = Object.freeze({
-    policy: 'evictable' as const,
-    reachability: 'anchored' as const,
-    protection: 'workspace' as const,
-  });
-  return Object.freeze({
-    version: staged.version,
-    state: 'retained',
-    handle: staged.handle,
-    bundle: staged.bundle,
-    limits: staged.limits,
-    retention,
-    witness,
-    observedAt: staged.observedAt,
-    toJSON: () => Object.freeze({
-      ...staged.toJSON(),
-      state: 'retained' as const,
-      retention,
-      witness: witness.toJSON(),
-    }),
-  });
 }
 
 async function encryptAsset(bytes: Uint8Array, keyBytes: Uint8Array): Promise<Uint8Array> {
@@ -981,30 +778,6 @@ async function* toAsyncIterable(
   for await (const chunk of source) {
     yield chunk;
   }
-}
-
-function parseApplicationHandle(input: ApplicationHandleInput): ApplicationHandle {
-  if (input instanceof GitCasAssetHandle || input instanceof BundleHandle || input instanceof PageHandle) {
-    return input;
-  }
-  if (typeof input === 'string') {
-    try {
-      return GitCasAssetHandle.parse(input);
-    } catch {
-      try {
-        return BundleHandle.parse(input);
-      } catch {
-        return PageHandle.parse(input);
-      }
-    }
-  }
-  if (input.kind === 'asset' || input.format === 'manifest-tree') {
-    return GitCasAssetHandle.from(input as AssetHandleInput);
-  }
-  if (input.kind === 'bundle' || input.format === 'fanout-tree') {
-    return BundleHandle.from(input as BundleHandleInput);
-  }
-  return PageHandle.from(input as PageHandleInput);
 }
 
 /** Converts a git-cas asset handle for assertions against WARP ports. */

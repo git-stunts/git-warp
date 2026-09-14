@@ -1,5 +1,9 @@
 import type ImmutableBytes from './ImmutableBytes.ts';
 
+export type SnapshotPropRecord<TDomainValue = never> = Readonly<{
+  readonly [key: string]: SnapshotPropValue<TDomainValue>;
+}>;
+
 /**
  * Recursive public property-value algebra for immutable snapshots.
  *
@@ -7,11 +11,12 @@ import type ImmutableBytes from './ImmutableBytes.ts';
  * model and not an arbitrary domain bag. Domain entities still require
  * explicit runtime-backed classes.
  */
-export type SnapshotPropValue =
+export type SnapshotPropValue<TDomainValue = never> =
   | string
   | number
   | boolean
   | null
   | ImmutableBytes
-  | readonly SnapshotPropValue[]
-  | { readonly [key: string]: SnapshotPropValue };
+  | TDomainValue
+  | readonly SnapshotPropValue<TDomainValue>[]
+  | SnapshotPropRecord<TDomainValue>;

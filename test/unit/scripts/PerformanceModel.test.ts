@@ -90,6 +90,42 @@ describe('v19 performance result contract', () => {
       .toThrow('did not prove a cold replay');
   });
 
+  it('requires version 2 replay evidence to match declared patch counts', () => {
+    const valid = multiPatchResult();
+    const coldSample = firstSample(valid, 'cold-materialize');
+    const incrementalSample = firstSample(valid, 'incremental-materialize');
+    const wrongColdReplay = replaceSample(valid, 'cold-materialize', {
+      ...coldSample,
+      observation: {
+        ...coldSample.observation,
+        materialization: {
+          ...coldSample.observation.materialization,
+          replayedPatches: 2,
+        },
+      },
+    });
+    const wrongIncrementalReplay = replaceSample(
+      valid,
+      'incremental-materialize',
+      {
+        ...incrementalSample,
+        observation: {
+          ...incrementalSample.observation,
+          materialization: {
+            ...incrementalSample.observation.materialization,
+            replayedPatches: 2,
+          },
+        },
+      },
+    );
+
+    expect(parsePerformanceResult(valid)).toEqual(valid);
+    expect(() => parsePerformanceResult(wrongColdReplay))
+      .toThrow('replay count does not match corpus');
+    expect(() => parsePerformanceResult(wrongIncrementalReplay))
+      .toThrow('replay count does not match corpus');
+  });
+
   it('fails a synthetic CPU regression while keeping wall time diagnostic', () => {
     const base = validResult();
     const cpuRegression = replaceDistribution(
@@ -165,6 +201,50 @@ describe('v19 performance result contract', () => {
     ).failures).toEqual([
       'streaming peak heap: 110.0 MiB exceeds 96.0 MiB',
     ]);
+  });
+
+  it('fails a Git-command blowup the CPU envelope would absorb', () => {
+    const blowup = replaceDistribution(
+      validResult(),
+      'cold-materialize',
+      'gitCommandCount',
+      distribution(3_505),
+    );
+
+    expect(evaluatePerformanceGate(blowup, null, policy()).failures).toEqual([
+      'cold-materialize median Git commands: 3505 exceeds 12',
+    ]);
+  });
+
+  it('fails Git-command creep that stays inside every absolute ceiling', () => {
+    const base = validResult();
+    const creep = replaceDistribution(
+      base,
+      'warm-materialize',
+      'gitCommandCount',
+      distribution(11),
+    );
+
+    expect(evaluatePerformanceGate(creep, base, policy()).failures).toEqual([
+      'warm-materialize median Git command regression: 11 exceeds 10',
+    ]);
+  });
+
+  it('accepts an unchanged Git-command count', () => {
+    const base = validResult();
+
+    expect(evaluatePerformanceGate(validResult(), base, policy()).failures)
+      .toEqual([]);
+  });
+
+  it('describes comparison mode as both CPU and Git-command gated', () => {
+    const base = validResult();
+
+    expect(evaluatePerformanceGate(validResult(), base, policy()).summary)
+      .toContain(
+        'Comparison mode: same-runner base/head CPU and Git-command gates '
+          + 'plus absolute policy.',
+      );
   });
 
   it('allows the git-cas versions under test to differ', () => {
@@ -314,6 +394,67 @@ function corpus(scenario: PerformanceScenarioName): CorpusProfile {
   };
 }
 
+function multiPatchResult(): PerformanceResult {
+  const valid = validResult();
+  return {
+    ...valid,
+    scenarios: {
+      'cold-materialize': multiPatchScenario(
+        valid.scenarios['cold-materialize'],
+        0,
+      ),
+      'incremental-materialize': multiPatchScenario(
+        valid.scenarios['incremental-materialize'],
+        1,
+      ),
+      'warm-materialize': multiPatchScenario(
+        valid.scenarios['warm-materialize'],
+        0,
+      ),
+    },
+  };
+}
+
+function multiPatchScenario(
+  scenario: ScenarioResult,
+  suffixPatchCount: number,
+): ScenarioResult {
+  const replayedPatches = scenario.scenario === 'cold-materialize'
+    ? 3
+    : suffixPatchCount;
+  return {
+    ...scenario,
+    corpus: {
+      ...scenario.corpus,
+      basePatchCount: 3,
+      format: 'git-warp.performance.corpus/v2',
+      suffixPatchCount,
+      version: 2,
+    },
+    samples: scenario.samples.map((value) => ({
+      ...value,
+      observation: {
+        ...value.observation,
+        materialization: {
+          ...value.observation.materialization,
+          replayedPatches,
+        },
+      },
+    })),
+  };
+}
+
+function firstSample(
+  result: PerformanceResult,
+  scenario: PerformanceScenarioName,
+): PerformanceSample {
+  const value = result.scenarios[scenario].samples[0];
+  if (value === undefined) {
+    throw new Error(`Missing performance sample: ${scenario}`);
+  }
+  return value;
+}
+
 function distribution(value: number): Distribution {
   return {
     mad: 0,
@@ -345,7 +486,11 @@ function replaceSample(
 function replaceDistribution(
   result: PerformanceResult,
   scenario: PerformanceScenarioName,
-  metric: 'cpuTotalMs' | 'maxRssBytes' | 'peakHeapUsedBytes' | 'wallMs',
+  metric: 'cpuTotalMs'
+    | 'gitCommandCount'
+    | 'maxRssBytes'
+    | 'peakHeapUsedBytes'
+    | 'wallMs',
   value: Distribution,
 ): PerformanceResult {
   const current = result.scenarios[scenario];
@@ -369,6 +514,11 @@ function policy(): PerformancePolicy {
         'incremental-materialize': 1_000,
         'warm-materialize': 1_000,
       },
+      gitCommandMedian: {
+        'cold-materialize': 12,
+        'incremental-materialize': 12,
+        'warm-materialize': 12,
+      },
       maxRssBytes: {
         'cold-materialize': 256 * 1024 * 1024,
         'incremental-materialize': 256 * 1024 * 1024,
@@ -387,8 +537,9 @@ function policy(): PerformancePolicy {
         'warm-materialize': 50,
       },
       cpuRegressionRatio: 1.15,
+      gitCommandRegressionRatio: 1.05,
     },
-    schemaVersion: 1,
+    schemaVersion: 2,
     streaming: {
       maxRssBytes: 256 * 1024 * 1024,
       peakHeapUsedBytes: 96 * 1024 * 1024,

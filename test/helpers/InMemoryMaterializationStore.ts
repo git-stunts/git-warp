@@ -8,6 +8,12 @@ import MaterializationStorePort, {
   type MaterializationAcquisition,
   type RetainMaterializationRequest,
 } from '../../src/ports/MaterializationStorePort.ts';
+import ArtifactStagingPort, {
+  type DependentArtifactAdmissionOptions,
+  type DependentArtifactOperation,
+  type StageOrderedBundleOptions,
+  type StagePageOptions,
+} from '../../src/ports/ArtifactStagingPort.ts';
 import MaterializationWorkspacePort, {
   type MaterializationWorkspaceRoots,
   type PromoteMaterializationRequest,
@@ -21,6 +27,8 @@ import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 
 export class InMemoryMaterializationWorkspace extends MaterializationWorkspacePort {
   readonly checkpoints: MaterializationWorkspaceRoots[] = [];
+  readonly dependentArtifactAdmissions: number[] = [];
+  readonly dependentArtifactRetentions: string[][] = [];
   readonly #promoteMaterialization: (
     request: PromoteMaterializationRequest,
   ) => Promise<MaterializationHandle>;
@@ -43,14 +51,33 @@ export class InMemoryMaterializationWorkspace extends MaterializationWorkspacePo
     return Promise.resolve(workspaceRetentionWitness(bundle));
   }
 
-  override stagePage(): Promise<string> {
+  override async admitDependentArtifacts<T>(
+    operation: DependentArtifactOperation<T>,
+    options: DependentArtifactAdmissionOptions<T>,
+  ): Promise<T> {
+    this.#assertMutable();
+    this.dependentArtifactAdmissions.push(options.maxOperations);
+    const value = await operation(new InMemoryCompoundArtifactStaging(this));
+    if (options.retain !== undefined) {
+      this.dependentArtifactRetentions.push([...options.retain(value)]);
+    }
+    return value;
+  }
+
+  override stagePage(
+    _source?: Uint8Array,
+    _options?: StagePageOptions,
+  ): Promise<string> {
     this.#assertMutable();
     const handle = `test:workspace-page:${String(this.#nextArtifact)}`;
     this.#nextArtifact += 1;
     return Promise.resolve(handle);
   }
 
-  override stageOrderedBundle(): Promise<BundleHandle> {
+  override stageOrderedBundle(
+    _members: Iterable<[path: string, handle: string]> = [],
+    _options: StageOrderedBundleOptions = {},
+  ): Promise<BundleHandle> {
     this.#assertMutable();
     const handle = new BundleHandle(`test:workspace-bundle:${String(this.#nextArtifact)}`);
     this.#nextArtifact += 1;
@@ -71,6 +98,26 @@ export class InMemoryMaterializationWorkspace extends MaterializationWorkspacePo
     if (this.released) {
       throw new Error('In-memory materialization workspace is released');
     }
+  }
+}
+
+class InMemoryCompoundArtifactStaging extends ArtifactStagingPort {
+  readonly #workspace: InMemoryMaterializationWorkspace;
+
+  constructor(workspace: InMemoryMaterializationWorkspace) {
+    super();
+    this.#workspace = workspace;
+  }
+
+  override stagePage(source: Uint8Array, options: StagePageOptions): Promise<string> {
+    return this.#workspace.stagePage(source, options);
+  }
+
+  override stageOrderedBundle(
+    members: Iterable<[path: string, handle: string]>,
+    options: StageOrderedBundleOptions = {},
+  ): Promise<BundleHandle> {
+    return this.#workspace.stageOrderedBundle(members, options);
   }
 }
 

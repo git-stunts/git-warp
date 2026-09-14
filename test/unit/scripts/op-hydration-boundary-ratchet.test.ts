@@ -12,17 +12,42 @@ describe('op hydration boundary ratchet', () => {
   it('keeps decoded patch hydration at storage and codec boundaries', () => {
     const cborAdapter = source('src/infrastructure/adapters/CborPatchJournalAdapter.ts');
     const btrAdapter = source('src/infrastructure/adapters/BtrCodecAdapter.ts');
+    const hydrator = source('src/domain/services/PatchHydrator.ts');
     const patchDiscovery = source('src/domain/services/controllers/PatchDiscovery.ts');
 
-    expect(cborAdapter).toContain("import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';");
-    expect(cborAdapter).toContain('return hydrateDecodedPatch(this.#codec.decode(bytes));');
+    expect(cborAdapter).toContain(
+      "import { hydratePatchAtDecodeBoundary } from './PatchHydrationAdapter.ts';",
+    );
+    expect(cborAdapter).toContain(
+      'return hydratePatchAtDecodeBoundary(this.#codec.decode(bytes));',
+    );
 
-    expect(btrAdapter).toContain("import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';");
-    expect(btrAdapter).toContain("patch: hydrateDecodedPatch(source['patch']),");
+    expect(btrAdapter).toContain(
+      "import { hydratePatchAtDecodeBoundary } from './PatchHydrationAdapter.ts';",
+    );
+    expect(btrAdapter).toContain(
+      "patch: hydratePatchAtDecodeBoundary(source['patch']),",
+    );
 
     expect(patchDiscovery).toContain("import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';");
     expect(patchDiscovery).toContain('patch: await journal.readPatch(patchMeta)');
     expect(patchDiscovery).not.toContain('hydrateDecodedPatch');
+    expect(hydrator).not.toContain('function readEntityAdmissions');
+    expect(hydrator).not.toContain('function readEntityAdmissionOrigin');
+  });
+
+  it('keeps raw patch-root typing out of domain tests', () => {
+    const domainTest = source('test/unit/domain/services/PatchHydrator.test.ts');
+    const adapterTest = source(
+      'test/unit/infrastructure/adapters/PatchHydrationAdapter.test.ts',
+    );
+
+    expect(domainTest).not.toContain(
+      'function hydrateDecodedPatch(decoded: unknown)',
+    );
+    expect(adapterTest).toContain(
+      "hydratePatchAtDecodeBoundary('not-a-patch')",
+    );
   });
 
   it('keeps decoded ops runtime-backed before patch construction', () => {

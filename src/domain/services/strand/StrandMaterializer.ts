@@ -166,13 +166,13 @@ export default class StrandMaterializer {
     }
     if (collectReceipts) {
       return reducePatches(
-        allPatches as Parameters<typeof reducePatches>[0],
+        allPatches,
         undefined,
         { receipts: true },
-      ) as { state: WarpState; receipts: TickReceipt[] };
+      );
     }
     return {
-      state: reducePatches(allPatches as Parameters<typeof reducePatches>[0]),
+      state: reducePatches(allPatches),
       receipts: [],
     };
   }

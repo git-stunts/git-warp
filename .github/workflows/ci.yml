@@ -175,9 +175,8 @@ jobs:
       - name: 'Gate 8: Public documentation topology'
         run: npm run lint:docs-topology
 
-  type-firewall-audit-advisory:
+  type-firewall-audit:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -188,8 +187,8 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      - name: 'Gate 8: Security audit (runtime deps, advisory)'
-        run: npm audit --omit=dev --audit-level=high
+      - name: 'Gate 8s: Full locked dependency audit'
+        run: npm run audit:locked
 
   type-firewall:
     runs-on: ubuntu-latest
@@ -202,6 +201,7 @@ jobs:
       - type-firewall-surface
       - type-firewall-generated-sdk
       - type-firewall-docs
+      - type-firewall-audit
     if: ${{ always() }}
     steps:
       - name: 'IRONCLAD M9 aggregate gate'
@@ -214,6 +214,7 @@ jobs:
           echo "surface:    ${{ needs['type-firewall-surface'].result }}"
           echo "sdk:        ${{ needs['type-firewall-generated-sdk'].result }}"
           echo "docs:       ${{ needs['type-firewall-docs'].result }}"
+          echo "audit:      ${{ needs['type-firewall-audit'].result }}"
 
           test "${{ needs['type-firewall-types'].result }}" = "success"
           test "${{ needs['type-firewall-lint'].result }}" = "success"
@@ -223,6 +224,7 @@ jobs:
           test "${{ needs['type-firewall-surface'].result }}" = "success"
           test "${{ needs['type-firewall-generated-sdk'].result }}" = "success"
           test "${{ needs['type-firewall-docs'].result }}" = "success"
+          test "${{ needs['type-firewall-audit'].result }}" = "success"
 
   typecheck-test-advisory:
     runs-on: ubuntu-latest

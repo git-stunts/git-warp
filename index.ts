@@ -19,6 +19,7 @@ export type {
 } from './src/application/Runtime.ts';
 export type { default as Evidence, EvidenceHandle } from './src/domain/api/Evidence.ts';
 export type { default as Intent } from './src/domain/api/Intent.ts';
+export type { WriteIntentInput } from './src/domain/api/IntentSequence.ts';
 export type { default as Lane } from './src/domain/api/Lane.ts';
 export type {
   CoordinateReference,
@@ -47,6 +48,15 @@ export type {
   default as EntityOccurrence,
   EntityCausalRelation,
 } from './src/domain/api/EntityOccurrence.ts';
+export type {
+  default as EntityAdmission,
+  EntityAdmissionInitialProperties,
+  EntityAdmissionOccurrenceReference,
+  EntityAdmissionOrdering,
+  EntityAdmissionOriginReading,
+  EntityAdmissionRepresentationReference,
+} from './src/domain/api/EntityAdmission.ts';
+export type { default as EntityAdmissionInventoryCertificate } from './src/domain/api/EntityAdmissionInventoryCertificate.ts';
 export type { AdmissionOutcome } from './src/domain/api/AdmissionOutcome.ts';
 export type { Receipt } from './src/domain/api/PublicReceipt.ts';
 export type { RepairHint } from './src/domain/api/ReceiptSupport.ts';

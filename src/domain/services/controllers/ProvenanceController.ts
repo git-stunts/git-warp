@@ -81,7 +81,7 @@ export default class ProvenanceController {
     const sortedPatches = this._sortPatchesCausally(patchEntries);
 
     if (collectReceipts) {
-      const result = reducePatches(sortedPatches, undefined, { receipts: true }) as { state: WarpState; receipts: TickReceipt[] };
+      const result = reducePatches(sortedPatches, undefined, { receipts: true });
       return {
         state: result.state,
         patchCount: sortedPatches.length,

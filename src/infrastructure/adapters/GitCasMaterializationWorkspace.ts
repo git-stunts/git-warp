@@ -5,19 +5,30 @@ import {
   type RetentionWitness,
   type StagingWorkspace,
   type WorkspaceCheckpointResult,
+  type WorkspaceCompoundResult,
+  type WorkspaceCompoundScope,
   type WorkspaceRetainedBundle,
   type WorkspaceRetainedPage,
 } from '@git-stunts/git-cas';
 import type MaterializationHandle from '../../domain/materialization/MaterializationHandle.ts';
+import {
+  materializationWorkspaceRootMembers,
+} from '../../domain/materialization/MaterializationWorkspaceRootMembers.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import type StorageRetentionWitness from '../../domain/storage/StorageRetentionWitness.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import type {
+  DependentArtifactAdmissionOptions,
+  DependentArtifactOperation,
   StagedBundleMember,
   StageOrderedBundleOptions,
+  StageOrderedBundleRequest,
+  StageOrderedBundlesOptions,
   StagePageOptions,
   StagePagesOptions,
 } from '../../ports/ArtifactStagingPort.ts';
+import GitCasCompoundArtifactStagingAdapter
+  from './GitCasCompoundArtifactStagingAdapter.ts';
 import MaterializationWorkspacePort, {
   type MaterializationWorkspaceRoots,
   type PromoteMaterializationRequest,
@@ -31,6 +42,11 @@ export type GitCasStagingWorkspace = Pick<
   StagingWorkspace,
   'assets' | 'pages' | 'bundles' | 'checkpoint' | 'release'
 > & Readonly<{
+  batch<T>(options: {
+    operation(scope: WorkspaceCompoundScope): T | Promise<T>;
+    maxOperations?: number;
+    retain?: (value: T) => readonly string[];
+  }): Promise<Readonly<WorkspaceCompoundResult<T>>>;
   promoteToCache(options: {
     cache: Pick<CacheSet, 'ref' | 'put'>;
     key: string;
@@ -68,6 +84,24 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
     this.#onRelease = options.onRelease ?? (() => undefined);
   }
 
+  override admitDependentArtifacts<T>(
+    operation: DependentArtifactOperation<T>,
+    options: DependentArtifactAdmissionOptions<T>,
+  ): Promise<T> {
+    this.#assertMutable('admit dependent artifacts');
+    return this.#serialize(async () => {
+      const admitted = await this.#workspace.batch({
+        maxOperations: options.maxOperations,
+        ...(options.retain === undefined ? {} : { retain: options.retain }),
+        operation: async (scope) => await operation(
+          new GitCasCompoundArtifactStagingAdapter({ scope }),
+        ),
+      });
+      requireCompoundRetention(admitted.retention);
+      return admitted.value;
+    });
+  }
+
   override stagePage(
     source: Uint8Array,
     options: StagePageOptions,
@@ -94,23 +128,7 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
         maxBatchBytes: options.maxBatchBytes,
         maxBatchPages: options.maxBatchPages,
       });
-      if (staged.length !== sources.length) {
-        throw workspaceError('git-cas returned the wrong staged page count');
-      }
-      if (staged.length === 0) {
-        return Object.freeze([]);
-      }
-      const generations = new Set<string>();
-      const handles = staged.map((page) => {
-        const handle = page.handle.toString();
-        const witness = requireRetainedStage(page, handle);
-        generations.add(witness.root.generation);
-        return handle;
-      });
-      if (generations.size !== 1) {
-        throw workspaceError('git-cas page batch did not share one generation');
-      }
-      return Object.freeze(handles);
+      return retainedBatchHandles(staged, sources.length, 'page');
     });
   }
 
@@ -128,6 +146,21 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
       });
       requireRetainedStage(staged, staged.handle.toString());
       return new BundleHandle(staged.handle.toString());
+    });
+  }
+
+  override stageOrderedBundles(
+    bundles: readonly StageOrderedBundleRequest[],
+    options: StageOrderedBundlesOptions,
+  ): Promise<readonly BundleHandle[]> {
+    this.#assertMutable('stage bundles');
+    return this.#serialize(async () => {
+      const staged = await this.#workspace.bundles.putOrderedBatch({
+        bundles: bundles.map(gitCasBundleRequest),
+        ...options,
+      });
+      return retainedBatchHandles(staged, bundles.length, 'bundle')
+        .map((handle) => new BundleHandle(handle));
     });
   }
 
@@ -193,26 +226,61 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
   }
 }
 
+type RetainedStage = WorkspaceRetainedPage | WorkspaceRetainedBundle;
+
+function retainedBatchHandles(
+  staged: readonly RetainedStage[],
+  expectedCount: number,
+  kind: 'page' | 'bundle',
+): readonly string[] {
+  if (staged.length !== expectedCount) {
+    throw workspaceError(`git-cas returned the wrong staged ${kind} count`);
+  }
+  if (staged.length === 0) { return Object.freeze([]); }
+  const generations = new Set<string>();
+  const handles: string[] = [];
+  for (let index = 0; index < staged.length; index += 1) {
+    const entry = requireRetainedBatchEntry(staged, index, kind);
+    const handle = entry.handle.toString();
+    generations.add(requireRetainedStage(entry, handle).root.generation);
+    handles.push(handle);
+  }
+  if (generations.size !== 1) {
+    throw workspaceError(`git-cas ${kind} batch did not share one generation`);
+  }
+  return Object.freeze(handles);
+}
+
+function requireRetainedBatchEntry(
+  staged: readonly RetainedStage[],
+  index: number,
+  kind: 'page' | 'bundle',
+): RetainedStage {
+  const entry = staged[index];
+  if (entry === undefined) {
+    throw workspaceError(`git-cas omitted staged ${kind} ${String(index)}`);
+  }
+  return entry;
+}
+
+function gitCasBundleRequest(request: StageOrderedBundleRequest): {
+  members: Iterable<StagedBundleMember>;
+  limits?: Readonly<{ maxMembers?: number }>;
+} {
+  return {
+    members: request.members,
+    ...(request.options?.maxMembers === undefined
+      ? {}
+      : { limits: { maxMembers: request.options.maxMembers } }),
+  };
+}
+
 function workspaceMembers(
   roots: MaterializationWorkspaceRoots,
 ): Array<[string, string]> {
   requireRoots(roots);
-  const members: Array<[string, string]> = [];
-  appendWorkspaceRoot(members, 'roots/edge-alive', roots.edgeAliveRoot);
-  appendWorkspaceRoot(members, 'roots/node-alive', roots.nodeAliveRoot);
-  appendWorkspaceRoot(members, 'roots/properties', roots.propertiesRoot);
-  appendWorkspaceRoot(members, 'roots/roaring-indexes', roots.roaringIndexesRoot);
-  return members;
-}
-
-function appendWorkspaceRoot(
-  members: Array<[string, string]>,
-  path: string,
-  root: string | null | undefined,
-): void {
-  if (root !== undefined && root !== null) {
-    members.push([path, parseRoot(root)]);
-  }
+  return materializationWorkspaceRootMembers(roots)
+    .map(([path, root]) => [path, parseRoot(root)]);
 }
 
 function parseRoot(token: string): string {
@@ -255,6 +323,37 @@ function requireCheckpointWitness(
     throw workspaceError('git-cas checkpoint omitted retention evidence');
   }
   return requireWorkspaceWitness(witness, expectedHandle);
+}
+
+export function requireCompoundRetention(retention: WorkspaceCheckpointResult): void {
+  if (
+    retention.handles.length === 0 ||
+    retention.handles.length !== retention.witnesses.length
+  ) {
+    throw workspaceError('git-cas compound admission returned incomplete evidence');
+  }
+  for (let index = 0; index < retention.handles.length; index += 1) {
+    const handle = retention.handles[index];
+    if (handle === undefined) {
+      throw workspaceError('git-cas compound admission omitted retained handle');
+    }
+    requireCompoundWitness(retention, handle.toString(), index);
+  }
+}
+
+function requireCompoundWitness(
+  retention: WorkspaceCheckpointResult,
+  expectedHandle: string,
+  index: number,
+): void {
+  const witness = retention.witnesses[index];
+  if (witness === undefined) {
+    throw workspaceError('git-cas compound admission omitted retention evidence');
+  }
+  const adapted = requireWorkspaceWitness(witness, expectedHandle);
+  if (adapted.root.generation !== retention.generation) {
+    throw workspaceError('git-cas compound admission returned mixed generations');
+  }
 }
 
 function requireWorkspaceWitness(

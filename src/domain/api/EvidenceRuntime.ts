@@ -21,6 +21,13 @@ type WriteEvidenceFields = {
   readonly retentionWitness?: StorageRetentionWitness;
 };
 
+type EntityAdmissionInventoryEvidenceFields = Readonly<{
+  context: ApiRuntimeContext;
+  operationIndex: number;
+  patchSha: string;
+  tick: Tick;
+}>;
+
 const WRITE_EVIDENCE = 'write';
 const JOIN_EVIDENCE = 'join';
 const READ_EVIDENCE = 'read';
@@ -28,6 +35,7 @@ const PATCH_SUPPORT = 'patch';
 const INDEX_SUPPORT = 'index';
 const RECOVERY_EVIDENCE = 'recovery';
 const RETENTION_SUPPORT = 'retention';
+const ENTITY_ADMISSION_INVENTORY = 'entity-admission-inventory';
 
 export async function createWriteEvidence(fields: WriteEvidenceFields): Promise<Evidence> {
   const { runtime, context, patchSha, retentionWitness } = fields;
@@ -107,6 +115,39 @@ export async function createReadEvidence(
     support,
   };
   return freezeCreatedEvidence(tick === undefined ? evidence : { ...evidence, tick });
+}
+
+/** Exact-basis evidence for one retained entity admission Reading. */
+export async function createEntityAdmissionInventoryEvidence(
+  fields: EntityAdmissionInventoryEvidenceFields,
+): Promise<Evidence> {
+  return freezeCreatedEvidence({
+    basis: Object.freeze({ id: fields.tick.id }),
+    support: [await createHandle(fields.context, [
+      ENTITY_ADMISSION_INVENTORY,
+      PATCH_SUPPORT,
+      fields.patchSha,
+      fields.operationIndex,
+    ])],
+    tick: fields.tick,
+  });
+}
+
+/** Aggregate evidence for one completely consumed admission inventory. */
+export async function createEntityAdmissionInventoryCertificateEvidence(
+  context: ApiRuntimeContext,
+  tick: Tick,
+  streamDigest: string,
+): Promise<Evidence> {
+  return freezeCreatedEvidence({
+    basis: Object.freeze({ id: tick.id }),
+    support: [await createHandle(context, [
+      ENTITY_ADMISSION_INVENTORY,
+      'complete',
+      streamDigest,
+    ])],
+    tick,
+  });
 }
 
 export function freezeEvidence(evidence: Evidence, field: string): Evidence {

@@ -79,7 +79,7 @@ export type MaterializeResult = {
 
 type ReducerInput = Parameters<typeof reduceJoinedPatches>[0];
 function toReducerInput(patches: PatchWithSha[]): ReducerInput {
-  return patches as ReducerInput;
+  return patches;
 }
 
 export type MaterializeReduceOutput = {
@@ -97,7 +97,7 @@ function reduceWithReceipts(patches: PatchWithSha[], base?: WarpState): Material
     toReducerInput(patches),
     base,
     { receipts: true },
-  ) as { state: WarpState; receipts: TickReceipt[] };
+  );
   return { state: r.state, receipts: r.receipts };
 }
 function reduceWithDiff(patches: PatchWithSha[], base?: WarpState): MaterializeReduceOutput {
@@ -105,7 +105,7 @@ function reduceWithDiff(patches: PatchWithSha[], base?: WarpState): MaterializeR
     toReducerInput(patches),
     base,
     { trackDiff: true },
-  ) as { state: WarpState; diff: PatchDiff };
+  );
   return { state: r.state, diff: r.diff };
 }
 function reducePlain(patches: PatchWithSha[], base?: WarpState): MaterializeReduceOutput {

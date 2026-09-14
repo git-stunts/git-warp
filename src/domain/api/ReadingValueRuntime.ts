@@ -2,7 +2,6 @@ import ImmutableBytes from '../services/snapshot/ImmutableBytes.ts';
 import WarpError from '../errors/WarpError.ts';
 import type { ReadingValue } from './ReadingValue.ts';
 
-const FORBIDDEN_READING_VALUE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 const READING_DOMAIN_OBJECTS = new WeakSet<object>();
 
 export function registerReadingDomainObject<TValue extends ReadingValue & object>(
@@ -51,7 +50,12 @@ function snapshotReadingValueObjectOrPrimitive(value: ReadingValue): ReadingValu
   if (value !== null && typeof value === 'object') {
     const snapshot: { [key: string]: ReadingValue } = {};
     for (const [key, entry] of Object.entries(value)) {
-      snapshot[key] = snapshotReadingValueValue(entry);
+      Object.defineProperty(snapshot, key, {
+        value: snapshotReadingValueValue(entry),
+        enumerable: true,
+        configurable: false,
+        writable: false,
+      });
     }
     return Object.freeze(snapshot);
   }
@@ -119,8 +123,8 @@ function isReadingValueObjectCandidate<T>(value: T): value is T & object {
 }
 
 function readingValueObjectEntriesAreValid(value: object, seen: WeakSet<object>): boolean {
-  for (const [key, entry] of Object.entries(value)) {
-    if (FORBIDDEN_READING_VALUE_KEYS.has(key) || !isReadingValueWithSeen(entry, seen)) {
+  for (const entry of Object.values(value)) {
+    if (!isReadingValueWithSeen(entry, seen)) {
       return false;
     }
   }

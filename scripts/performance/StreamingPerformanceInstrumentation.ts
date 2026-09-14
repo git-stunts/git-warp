@@ -32,7 +32,7 @@ export function installPathEvidence(): PathEvidence {
     materializeCalls += 1;
     await Promise.resolve();
     throw new Error('Streaming proof prohibited RuntimeHost.materialize()');
-  }) as typeof originalMaterialize;
+  });
   CborIndexStoreAdapter.prototype.decodeShardAt = (async function (
     this: CborIndexStoreAdapter,
     indexHandle,
@@ -47,7 +47,7 @@ export function installPathEvidence(): PathEvidence {
   CborIndexStoreAdapter.prototype.scanShards = (function () {
     wholeIndexScans += 1;
     throw new Error('Streaming proof prohibited whole-index shard scanning');
-  }) as typeof originalScanShards;
+  });
   return Object.freeze({
     restore: () => {
       RuntimeHost.prototype.materialize = originalMaterialize;

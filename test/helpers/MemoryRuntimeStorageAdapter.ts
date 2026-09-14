@@ -76,6 +76,7 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         commitReader: this.#history,
         commitMessageCodec: request.commitMessageCodec,
         encrypted: this.#encrypted,
+        graph: request.timelineName,
       }),
       checkpoints: new CborCheckpointStoreAdapter({
         codec: request.codec,

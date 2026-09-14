@@ -178,6 +178,13 @@ class PopulatedPersistencePatchJournal extends PatchJournalPort {
   ): WarpStream<PatchEntry> {
     return WarpStream.from([]);
   }
+
+  override scanPatchHistory(
+    _writerId: string,
+    _fromSha: string,
+  ): WarpStream<PatchEntry> {
+    return WarpStream.from([]);
+  }
 }
 
 export function createMockPersistence(): WarpGraphMockPersistence {

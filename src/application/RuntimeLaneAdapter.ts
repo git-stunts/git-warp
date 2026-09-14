@@ -16,6 +16,7 @@ import {
   decodeObserverValue,
   observerReadings,
 } from '../domain/api/ObserverRuntime.ts';
+import { isEntityAdmissionInventoryObserver } from '../domain/api/EntityAdmissionInventoryObserverRuntime.ts';
 import ObservationReceipt from '../domain/api/ObservationReceipt.ts';
 import Reading, { type ReadingValue } from '../domain/api/ObservedReading.ts';
 import type ReadReceipt from '../domain/api/ReadReceipt.ts';
@@ -32,6 +33,10 @@ import {
   type StrandLaneOptions,
   type WorldlineLaneSource,
 } from './RuntimeStrandLaneOpening.ts';
+import {
+  startEntityAdmissionInventory,
+  unsupportedStrandEntityAdmissionInventory,
+} from './RuntimeEntityAdmissionInventory.ts';
 
 type ReceiptSettlement = Readonly<{
   promise: Promise<ObservationReceipt>;
@@ -149,7 +154,17 @@ function createStrandLane(options: StrandLaneOptions): Lane {
   return lane;
 }
 
-async function startObserver<TValue extends ReadingValue>(
+function startObserver<TValue extends ReadingValue>(
+  timeline: Timeline,
+  observer: Observer<TValue>,
+  activity: RuntimeActivity,
+): Promise<ObservationExecution<TValue>> {
+  return isEntityAdmissionInventoryObserver(observer)
+    ? startEntityAdmissionInventory(timeline, observer, activity)
+    : startBoundedObserver(timeline, observer, activity);
+}
+
+async function startBoundedObserver<TValue extends ReadingValue>(
   timeline: Timeline,
   observer: Observer<TValue>,
   activity: RuntimeActivity,
@@ -183,6 +198,9 @@ async function startStrandObserver<TValue extends ReadingValue>(
   observer: Observer<TValue>,
   activity: RuntimeActivity,
 ): Promise<ObservationExecution<TValue>> {
+  if (isEntityAdmissionInventoryObserver(observer)) {
+    return unsupportedStrandEntityAdmissionInventory(draft, observer);
+  }
   const lease = activity.acquire();
   try {
     const target: DraftReadingTarget = await createDraftReadingTarget(draft);

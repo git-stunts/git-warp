@@ -101,7 +101,7 @@ function listFilesUnder(directory: string): string[] {
   const files: string[] = [];
   for (const entry of readdirSync(absoluteDirectory)) {
     const absoluteEntry = resolve(absoluteDirectory, entry);
-    const relativeEntry = `${directory}/${entry}`;
+    const relativeEntry = directory.length === 0 ? entry : `${directory}/${entry}`;
     if (statSync(absoluteEntry).isDirectory()) {
       files.push(...listFilesUnder(relativeEntry));
       continue;
@@ -112,13 +112,34 @@ function listFilesUnder(directory: string): string[] {
 }
 
 function globHasMatch(pattern: string): boolean {
-  const recursiveMarker = '/**/*';
-  if (!pattern.includes(recursiveMarker)) {
+  const normalizedPattern = relativeTargetToPath(pattern);
+  const firstWildcard = normalizedPattern.indexOf('*');
+  if (firstWildcard === -1) {
     return targetExists(pattern);
   }
+  const prefix = normalizedPattern.slice(0, firstWildcard);
+  const directorySeparator = prefix.lastIndexOf('/');
+  const directory = directorySeparator === -1 ? '' : prefix.slice(0, directorySeparator);
+  return listFilesUnder(directory).some((file) => pathMatchesPublicationGlob(file, normalizedPattern));
+}
 
-  const [directory = '', suffix = ''] = pattern.split(recursiveMarker);
-  return listFilesUnder(relativeTargetToPath(directory)).some((file) => file.endsWith(suffix));
+export function pathMatchesPublicationGlob(path: string, pattern: string): boolean {
+  let expression = '^';
+  for (let index = 0; index < pattern.length; index++) {
+    const character = pattern[index] ?? '';
+    if (character === '*' && pattern[index + 1] === '*') {
+      const consumesDirectory = pattern[index + 2] === '/';
+      expression += consumesDirectory ? '(?:.*/)?' : '.*';
+      index += consumesDirectory ? 2 : 1;
+      continue;
+    }
+    expression += character === '*' ? '[^/]*' : escapeRegularExpressionCharacter(character);
+  }
+  return new RegExp(`${expression}$`, 'u').test(path);
+}
+
+function escapeRegularExpressionCharacter(character: string): string {
+  return /[\\^$.*+?()[\]{}|]/u.test(character) ? `\\${character}` : character;
 }
 
 function checkTarget(target: LabeledTarget, report: SurfaceErrorReport): void {

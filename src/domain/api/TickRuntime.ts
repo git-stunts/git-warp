@@ -1,5 +1,7 @@
 import type WarpWorldline from '../WarpWorldline.ts';
 import type WarpWorldlineCoordinate from '../WarpWorldlineCoordinate.ts';
+import type EntityAdmissionInventoryBasis from '../entity/EntityAdmissionInventoryBasis.ts';
+import { captureEntityAdmissionInventoryBasis } from '../entity/EntityAdmissionInventoryRuntime.ts';
 import WarpError from '../errors/WarpError.ts';
 import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
 import Tick from './Tick.ts';
@@ -10,6 +12,10 @@ type TickBinding = {
 };
 
 const tickBindings = new WeakMap<Tick, TickBinding>();
+const entityAdmissionInventoryTicks = new WeakMap<Tick, Readonly<{
+  basis: EntityAdmissionInventoryBasis;
+  runtime: WarpWorldline;
+}>>();
 
 export async function createTick(
   runtime: WarpWorldline,
@@ -54,6 +60,37 @@ export function requireTickCoordinate(runtime: WarpWorldline, tick: Tick): WarpW
   return binding.coordinate;
 }
 
+export async function createEntityAdmissionInventoryTick(
+  runtime: WarpWorldline,
+  context: ApiRuntimeContext,
+): Promise<Tick> {
+  const basis = await captureEntityAdmissionInventoryBasis(runtime);
+  const tick = new Tick({
+    timeline: runtime.worldlineName,
+    id: await entityAdmissionInventoryTickId(context, basis),
+  });
+  entityAdmissionInventoryTicks.set(tick, { basis, runtime });
+  return tick;
+}
+
+export function requireEntityAdmissionInventoryBasis(
+  runtime: WarpWorldline,
+  tick: Tick,
+): EntityAdmissionInventoryBasis {
+  const binding = entityAdmissionInventoryTicks.get(tick);
+  if (
+    binding === undefined
+    || binding.runtime !== runtime
+    || tick.timeline !== runtime.worldlineName
+  ) {
+    throw new WarpError(
+      'Tick does not belong to this entity admission inventory',
+      'E_TIMELINE_TICK_MISMATCH',
+    );
+  }
+  return binding.basis;
+}
+
 async function tickId(
   context: ApiRuntimeContext,
   coordinate: WarpWorldlineCoordinate
@@ -62,6 +99,21 @@ async function tickId(
   return await context.createOpaqueId('tick', [
     coordinate.worldlineName,
     coordinate.checkpointSha,
+    ...frontier,
+  ]);
+}
+
+async function entityAdmissionInventoryTickId(
+  context: ApiRuntimeContext,
+  basis: EntityAdmissionInventoryBasis,
+): Promise<string> {
+  const frontier = basis.frontierEntries.flatMap((entry) => [
+    entry.writerId,
+    entry.patchSha,
+  ]);
+  return await context.createOpaqueId('tick', [
+    'entity-admission-inventory',
+    basis.worldlineName,
     ...frontier,
   ]);
 }

@@ -2,17 +2,30 @@ import type ObservedReading from '../../src/domain/api/ObservedReading.ts';
 import type ObservationReceipt from '../../src/domain/api/ObservationReceipt.ts';
 import type SettlementReceipt from '../../src/domain/api/SettlementReceipt.ts';
 import type WriteReceipt from '../../src/domain/api/WriteReceipt.ts';
+import type Intent from '../../src/domain/api/Intent.ts';
+import type { WriteIntentInput } from '../../src/domain/api/IntentSequence.ts';
 import type Evidence from '../../src/domain/api/Evidence.ts';
 import type RetentionEvidence from '../../src/domain/api/RetentionEvidence.ts';
-import type { ReadingValue } from '../../src/domain/api/ReadingValue.ts';
+import type {
+  ReadingValue,
+  ReadingValueObject,
+} from '../../src/domain/api/ReadingValue.ts';
 import ImmutableBytes from '../../src/domain/services/snapshot/ImmutableBytes.ts';
-import type { McpJsonValue } from '../cli/commands/mcp/McpJsonValue.ts';
+import type {
+  McpJsonObject,
+  McpJsonValue,
+} from '../cli/commands/mcp/McpJsonValue.ts';
 import { settlementPlanFields } from '../cli/v19/V19SettlementReview.ts';
 import { stableStringify } from './json.ts';
-import { toMcpJson } from './V19Json.ts';
+import { defineMcpJsonProperty, toMcpJson } from './V19Json.ts';
 import WarpError from '../../src/domain/errors/WarpError.ts';
+import type EntityAdmissionInventoryCertificate from '../../src/domain/api/EntityAdmissionInventoryCertificate.ts';
+import { findEntityAdmissionInventoryCertificate } from '../../src/domain/api/EntityAdmissionInventoryCertificateRuntime.ts';
 
-export type V19Receipt = WriteReceipt | ObservationReceipt | SettlementReceipt;
+export type V19Receipt =
+  | WriteReceipt<WriteIntentInput>
+  | ObservationReceipt
+  | SettlementReceipt;
 
 export function readingEnvelope(reading: ObservedReading): McpJsonValue {
   return Object.freeze({
@@ -34,13 +47,13 @@ export function receiptEnvelope(receipt: V19Receipt): McpJsonValue {
   return settlementReceiptEnvelope(receipt);
 }
 
-function writeReceiptEnvelope(receipt: WriteReceipt): McpJsonValue {
+function writeReceiptEnvelope(receipt: WriteReceipt<WriteIntentInput>): McpJsonValue {
   return Object.freeze({
     type: 'Receipt',
     operation: receipt.operation,
     lane: receipt.lane,
     writer: receipt.writer,
-    intent: toMcpJson(receipt.intent.descriptor),
+    ...writeIntentEnvelope(receipt),
     outcome: toMcpJson(receipt.outcome),
     reason: receipt.reason ?? null,
     occurrence:
@@ -50,12 +63,34 @@ function writeReceiptEnvelope(receipt: WriteReceipt): McpJsonValue {
             id: receipt.occurrence.id,
             subject: receipt.occurrence.subject,
           }),
+    ...(receipt.occurrences.length < 2
+      ? {}
+      : {
+          occurrences: Object.freeze(
+            receipt.occurrences.map(({ id, subject }) => Object.freeze({ id, subject })),
+          ),
+        }),
     evidence: evidenceEnvelope(receipt.evidence),
     repairHints: toMcpJson([...receipt.repairHints]),
   });
 }
 
+function writeIntentEnvelope(
+  receipt: WriteReceipt<WriteIntentInput>,
+): Readonly<{ intent: McpJsonValue } | { intents: McpJsonValue }> {
+  if (!isIntentArray(receipt.intent)) {
+    return Object.freeze({ intent: toMcpJson(receipt.intent.descriptor) });
+  }
+  const descriptors = receipt.intents.map(({ descriptor }) => descriptor);
+  return Object.freeze({ intents: toMcpJson(descriptors) });
+}
+
+function isIntentArray(input: WriteIntentInput): input is readonly Intent[] {
+  return Array.isArray(input);
+}
+
 function observationReceiptEnvelope(receipt: ObservationReceipt): McpJsonValue {
+  const inventory = findEntityAdmissionInventoryCertificate(receipt);
   return Object.freeze({
     type: 'Receipt',
     operation: receipt.operation,
@@ -69,6 +104,28 @@ function observationReceiptEnvelope(receipt: ObservationReceipt): McpJsonValue {
     reason: receipt.reason ?? null,
     evidence: receipt.evidence === undefined ? null : evidenceEnvelope(receipt.evidence),
     repairHints: toMcpJson([...receipt.repairHints]),
+    ...(inventory === null
+      ? {}
+      : { inventoryCertificate: inventoryCertificateEnvelope(inventory) }),
+  });
+}
+
+function inventoryCertificateEnvelope(
+  certificate: EntityAdmissionInventoryCertificate,
+): McpJsonValue {
+  return Object.freeze({
+    schema: certificate.schema,
+    admissionCount: certificate.admissionCount,
+    basis: toMcpJson(certificate.basis),
+    causalDomain: toMcpJson(certificate.causalDomain),
+    completeness: certificate.completeness,
+    coveredDomain: certificate.coveredDomain,
+    evidence: evidenceEnvelope(certificate.evidence),
+    lane: toMcpJson(certificate.lane),
+    ordering: toMcpJson(certificate.ordering),
+    selector: toMcpJson(certificate.selector),
+    selectorDigest: certificate.selectorDigest,
+    streamDigest: certificate.streamDigest,
   });
 }
 
@@ -167,9 +224,9 @@ function readingValueToJson(value: ReadingValue): McpJsonValue {
     return Object.freeze(value.map(readingValueToJson));
   }
   if (isReadingValueObject(value)) {
-    const record: { [key: string]: McpJsonValue } = {};
+    const record: McpJsonObject = {};
     for (const [key, entry] of Object.entries(value)) {
-      record[key] = readingValueToJson(entry);
+      defineMcpJsonProperty(record, key, readingValueToJson(entry));
     }
     return Object.freeze(record);
   }
@@ -178,7 +235,7 @@ function readingValueToJson(value: ReadingValue): McpJsonValue {
 
 function isReadingValueObject(
   value: ReadingValue
-): value is { readonly [key: string]: ReadingValue } {
+): value is ReadingValueObject {
   return (
     value !== null &&
     typeof value === 'object' &&

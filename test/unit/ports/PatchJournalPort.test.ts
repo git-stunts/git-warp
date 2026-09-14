@@ -19,6 +19,7 @@ describe('PatchJournalPort', () => {
     expect(PatchJournalPort.prototype.appendPatch).toBeUndefined();
     expect(PatchJournalPort.prototype.readPatch).toBeUndefined();
     expect(PatchJournalPort.prototype.scanPatchRange).toBeUndefined();
+    expect(PatchJournalPort.prototype.scanPatchHistory).toBeUndefined();
   });
 
   it('returns publication and retention evidence without a naked OID', async () => {
@@ -51,6 +52,9 @@ describe('PatchJournalPort', () => {
       async appendPatch(_request: AppendPatchRequest) { return published; }
       async readPatch(_message: PatchCommitMessage) { return patch; }
       scanPatchRange(_writer: string, _from: string | null, _to: string) {
+        return WarpStream.of<PatchEntry>();
+      }
+      scanPatchHistory(_writer: string, _from: string) {
         return WarpStream.of<PatchEntry>();
       }
     }

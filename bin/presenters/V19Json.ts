@@ -1,4 +1,7 @@
-import type { McpJsonValue } from '../cli/commands/mcp/McpJsonValue.ts';
+import type {
+  McpJsonObject,
+  McpJsonValue,
+} from '../cli/commands/mcp/McpJsonValue.ts';
 import WarpError from '../../src/domain/errors/WarpError.ts';
 
 export function toMcpJson(value: object): McpJsonValue {
@@ -13,9 +16,9 @@ export function parseMcpJson(value: unknown): McpJsonValue {
     return Object.freeze(value.map(parseMcpJson));
   }
   if (isPlainObject(value)) {
-    const record: { [key: string]: McpJsonValue } = {};
+    const record: McpJsonObject = {};
     for (const [key, entry] of Object.entries(value)) {
-      record[key] = parseMcpJson(entry);
+      defineMcpJsonProperty(record, key, parseMcpJson(entry));
     }
     return Object.freeze(record);
   }
@@ -23,6 +26,20 @@ export function parseMcpJson(value: unknown): McpJsonValue {
     'Value is not canonical JSON data',
     'E_V19_JSON_VALUE',
   );
+}
+
+/** Defines caller-controlled JSON keys without invoking Object prototype setters. */
+export function defineMcpJsonProperty(
+  record: McpJsonObject,
+  key: string,
+  value: McpJsonValue,
+): void {
+  Object.defineProperty(record, key, {
+    configurable: false,
+    enumerable: true,
+    value,
+    writable: false,
+  });
 }
 
 function isJsonScalar(

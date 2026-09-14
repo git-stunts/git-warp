@@ -41,6 +41,20 @@ const STRICT_SYNC_LIMITS = Object.freeze({
 });
 
 describe('Sync response paging and metrics', () => {
+  it('bounds fixture history at the requested retained SHA', async () => {
+    const patchJournal = new StreamingPatchJournal([
+      patchEntry('writer-a', SHA_1, 1),
+      patchEntry('writer-a', SHA_2, 2),
+      patchEntry('writer-a', SHA_3, 3),
+    ]);
+
+    expect((await collect(patchJournal.scanPatchHistory('writer-a', SHA_2)))
+      .map(({ sha }) => sha)).toEqual([SHA_2, SHA_1]);
+    await expect(collect(
+      patchJournal.scanPatchHistory('writer-a', 'f'.repeat(40)),
+    )).rejects.toThrow('StreamingPatchJournal has no retained boundary');
+  });
+
   it('pages broad sync responses and emits deterministic response metrics', async () => {
     const logger = new RecordingLogger();
     const patchJournal = new StreamingPatchJournal([
@@ -193,6 +207,29 @@ class StreamingPatchJournal extends PatchJournalPort {
   scanPatchRange(writerId: string, _fromSha: string | null, _toSha: string): WarpStream<PatchEntry> {
     return WarpStream.from(this._entries.filter((entry) => entry.patch.writer === writerId));
   }
+
+  scanPatchHistory(writerId: string, fromSha: string): WarpStream<PatchEntry> {
+    const writerEntries = this._entries.filter(
+      (entry) => entry.patch.writer === writerId,
+    );
+    return WarpStream.from(reverseHistoryThrough(writerEntries, fromSha));
+  }
+}
+
+function* reverseHistoryThrough(
+  entries: readonly PatchEntry[],
+  fromSha: string,
+): Iterable<PatchEntry> {
+  const boundary = entries.findIndex(({ sha }) => sha === fromSha);
+  if (boundary < 0) {
+    throw new Error(`StreamingPatchJournal has no retained boundary ${fromSha}`);
+  }
+  for (let index = boundary; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry !== undefined) {
+      yield entry;
+    }
+  }
 }
 
 class UnusedPersistence extends CommitPort {
@@ -244,4 +281,12 @@ function patchEntry(writer: string, sha: string, lamport: number): PatchEntry {
 
 function unusedMethod(methodName: string): Error {
   return new Error(`Unexpected ${methodName} call`);
+}
+
+async function collect(source: AsyncIterable<PatchEntry>): Promise<PatchEntry[]> {
+  const entries: PatchEntry[] = [];
+  for await (const entry of source) {
+    entries.push(entry);
+  }
+  return entries;
 }

@@ -135,14 +135,15 @@ function readRepoFile(path: string): string {
 
 function prepareOpticBasisImplementation(): string {
   const source = readRepoFile('src/domain/WarpWorldline.ts');
+  const implementationEnd = '\n  };';
   const start = source.indexOf(
     'const prepareOpticBasis = async (): Promise<WarpWorldlineOpticBasis> => {',
   );
-  const end = source.indexOf('\n\n  return new WarpWorldline', start);
+  const end = source.indexOf(implementationEnd, start);
   if (start < 0 || end < 0) {
     throw new Error('WarpWorldline prepareOpticBasis implementation not found');
   }
-  return source.slice(start, end);
+  return source.slice(start, end + implementationEnd.length);
 }
 
 describe('v18 first-use optics honesty gate', () => {

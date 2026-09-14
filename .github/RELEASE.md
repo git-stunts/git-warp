@@ -301,9 +301,22 @@ and rerun the release workflow or the failed job.
 - zero open non-release-operation issues in the target release milestone;
 - zero open issues in prior release milestones.
 
-`scripts/release-preflight.sh` wraps the guard with lint, Markdown, link,
-type, coverage, npm pack, JSR dry-run, packed-artifact smoke, and npm audit
-checks.
+`scripts/release-preflight.sh` wraps the guard with lint, Markdown, link, type,
+coverage, npm pack, JSR dry-run, packed-artifact smoke, and the full locked
+runtime/development dependency audit.
+
+Release preflight owns validation and runs each expensive gate once. Its
+declaration-surface check builds `dist`; validation-only `npm pack` calls then
+use `--ignore-scripts`, and the packed-artifact smoke consumes that prepared
+output. A maintainer's standalone `npm pack` or `npm publish` still runs the
+package `prepack` lifecycle as a separate safety boundary.
+
+JSR validation and publication run through `scripts/run-jsr-publish.sh`. The
+npm wrapper is locked to `jsr@0.14.3`, and publication workflows install its
+expected Deno `v2.6.7` before invoking the proof. The wrapper makes at most
+three attempts for named transport or bootstrap failures such as resets and
+timeouts. Package validation failures do not match that classifier and return
+after their first attempt.
 
 ## Idempotency
 

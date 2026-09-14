@@ -16,5 +16,8 @@ describe('CLI entity documentation boundary', () => {
 
     expect(guide).toContain('The CLI JSON envelope exposes only');
     expect(guide).toContain('The in-process TypeScript `EntityOccurrence`');
+    expect(guide).toContain('Zero entity births emit `occurrence: null`');
+    expect(guide).toContain('Exactly one entity birth emits an `occurrence` object');
+    expect(guide).toContain('Two or more entity births emit `occurrence: null`');
   });
 });

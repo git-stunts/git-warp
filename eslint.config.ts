@@ -53,6 +53,8 @@ export default tseslint.config(
       "scripts/**/*",
       "!scripts/performance",
       "!scripts/performance/**",
+      "!scripts/package-payload",
+      "!scripts/package-payload/**",
       ".claude/**",
       ".obsidian/**",
       "test/type-check/**",
@@ -103,6 +105,53 @@ export default tseslint.config(
       "@typescript-eslint/no-unnecessary-condition": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
       "@typescript-eslint/require-await": "error",
+    },
+  },
+
+  // Package-payload code executes release law, so it receives the normal
+  // typed structural caps instead of the global maintainer-script exclusion.
+  {
+    files: ["scripts/package-payload/**/*.ts"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      parser: tseslint.parser,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: __dirname,
+      },
+      globals: {
+        process: "readonly",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint.plugin,
+    },
+    rules: {
+      "no-undef": "off",
+      "no-duplicate-imports": "error",
+      "eqeqeq": "error",
+      "complexity": ["error", 5],
+      "max-depth": ["error", 3],
+      "max-lines-per-function": ["error", 30],
+      "max-params": ["error", 3],
+      "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/no-unnecessary-condition": "error",
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      "@typescript-eslint/only-throw-error": "error",
+      "@typescript-eslint/require-await": "error",
+      "@typescript-eslint/restrict-template-expressions": ["error", {
+        allowAny: false,
+        allowBoolean: false,
+        allowNever: false,
+        allowNullish: false,
+        allowNumber: true,
+        allowRegExp: false,
+      }],
     },
   },
 

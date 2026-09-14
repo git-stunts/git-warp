@@ -75,7 +75,11 @@ export interface PatchHost extends PatchDiscoveryHost {
   _assetStorage: AssetStoragePort | null | undefined;
   _commitMessageCodec: CommitMessageCodecPort;
   _provenanceIndex: {
-    addPatch: (sha: string, reads: string[] | undefined, writes: string[] | undefined) => void;
+    addPatch: (
+      sha: string,
+      reads: readonly string[] | undefined,
+      writes: readonly string[] | undefined,
+    ) => void;
   } | null | undefined;
   _cachedFrontier: Map<string, string> | null | undefined;
   _lastFrontier: Map<string, string> | null | undefined;

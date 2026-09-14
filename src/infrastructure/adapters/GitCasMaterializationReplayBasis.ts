@@ -5,12 +5,12 @@ import type {
   BundleMemberReference,
 } from '@git-stunts/git-cas';
 import MaterializationHandle from '../../domain/materialization/MaterializationHandle.ts';
-import MaterializationRoot from '../../domain/materialization/MaterializationRoot.ts';
+import type MaterializationRoot from '../../domain/materialization/MaterializationRoot.ts';
 import type MaterializationRoots from '../../domain/materialization/MaterializationRoots.ts';
 import type WarpState from '../../domain/services/state/WarpState.ts';
 import { computeStateHash } from '../../domain/services/state/StateSerializer.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
-import BundleHandle from '../../domain/storage/BundleHandle.ts';
+import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
@@ -46,21 +46,16 @@ export default class GitCasMaterializationReplayBasis {
     this.#crypto = options.crypto;
   }
 
-  async stage(
-    workspace: GitCasStagingWorkspace,
-    state: WarpState,
-  ): Promise<MaterializationRoot> {
-    const bytes = encodeWarpFullState(state, this.#codec);
-    const asset = await workspace.assets.put({
-      source: WarpStream.from([bytes]),
+  assetRequest(state: WarpState): Parameters<GitCasStagingWorkspace['assets']['put']>[0] {
+    return {
+      source: WarpStream.from([encodeWarpFullState(state, this.#codec)]),
       slug: 'git-warp-materialization-replay-basis',
       filename: REPLAY_BASIS_PATH,
-    });
-    const bundle = await workspace.bundles.putOrdered({
-      members: [[REPLAY_BASIS_PATH, asset.handle]],
-      limits: { maxMembers: 1 },
-    });
-    return MaterializationRoot.retained(new BundleHandle(bundle.handle.toString()));
+    };
+  }
+
+  bundleMembers(asset: AssetHandle): ReadonlyArray<[string, AssetHandle]> {
+    return Object.freeze([[REPLAY_BASIS_PATH, asset]]);
   }
 
   async load(materialization: MaterializationHandle): Promise<WarpState | null> {

@@ -9,6 +9,281 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Lane.write()` now accepts a non-empty ordered array of validated Intents.
+  The complete array lowers through one `PatchBuilder`, publishes exactly one
+  patch, advances the target publication ref once, and returns one admission
+  outcome and one `WriteReceipt`. Validation or lowering failure publishes
+  none of the edits.
+  Worldline and Strand Lanes share the same contract, including retained
+  Strand reopen and settlement. Several `Lane.write()` calls remain several
+  independently admitted patches; the overload is not a transaction object or
+  admission-window API.
+- Atomic array requests are bounded to 50,000 Intents, a 16 MiB canonical
+  sequence descriptor, and 50,000 lowered patch operations. The runtime copies
+  and freezes caller arrays, binds proposal and law digests to the ordered
+  sequence, rejects substituted or appended publication operations, and
+  rehydrates retained patches without a canonical singular-Intent
+  interpretation as one deterministic primitive sequence.
+- `WriteReceipt.intents` exposes every normalized member in lowering order and
+  `WriteReceipt.occurrences` exposes one causal occurrence per admitted
+  `entity.add` member. The legacy `WriteReceipt.occurrence` convenience remains
+  populated only when exactly one entity birth exists, so multiple graph
+  subjects are never collapsed into one occurrence.
+- The advanced API and CLI now expose a basis-bound entity admission
+  inventory. It streams every retained `entity.add` birth exactly once with
+  distinct occurrence and representation-subject references, complete initial
+  properties, allocation origin, opaque support, and deterministic non-causal
+  ordering. A terminal certificate is available only after complete stream
+  consumption and binds the Lane, basis, count, selector, and stream digest.
+  Empty Lanes certify zero; cancellation, unavailable support, and Strand
+  overlays fail closed without a completeness certificate.
+
+### Fixed
+
+- Runtime-backed Reading values now retain their exact named fields instead of
+  declaring arbitrary dictionary keys to satisfy the recursive snapshot value
+  algebra. Consumer type checks reject undeclared `EntityAdmission` fields,
+  while nested snapshot records and arrays remain supported explicitly.
+- Entity admission inventory bases now require an unmodified native Map
+  frontier and the retained-patch scanner requires the runtime-backed basis
+  class. Forged lookalikes, Map subclasses, and own iterator overrides can no
+  longer execute caller-owned iteration code or enter an exact-basis scan.
+- Ordered cleanup now normalizes non-Error Promise rejections into typed WARP
+  failures, attempts every declared cleanup step, and aggregates only explicit
+  Error values in deterministic declaration order.
+- Entity admission inventory now retains an idempotent cleanup handle for each
+  underlying journal cursor independently of its flattened admission iterator.
+  Mid-scan rejection, open failure, normal exhaustion, and consumer
+  cancellation therefore close the owned cursor exactly once and preserve any
+  cleanup failure in deterministic order.
+- Entity admission inventory now fails closed on an unmarked v19.1-shaped
+  whole-patch footprint. Those retained operations cannot prove whether the
+  caller used `entity.add` or equivalent manual node and property edits, so the
+  runtime reports `E_ENTITY_ADMISSION_INVENTORY_LEGACY_AMBIGUOUS` instead of
+  certifying a fabricated source birth.
+- Retained patches carrying an entity-admission marker now rehydrate a
+  cascading node deletion as the original singular `node.remove` Intent rather
+  than exposing its generated edge removals as an atomic public Intent array.
+- Entity admission inventory now closes writer cursors in deterministic
+  frontier order and preserves a primary open or scan failure before every
+  cursor-cleanup failure instead of exposing a timing-dependent rejection.
+- V19 Reading and JSON presenters now preserve a caller-controlled `__proto__`
+  key as frozen own JSON data without invoking the legacy object-prototype
+  setter or dropping that field from CLI output.
+- `Patch` now exposes readonly, runtime-frozen operation, read, write, and
+  causal-context snapshots. Validated retained evidence can no longer be
+  replaced or causally rewritten through a mutable cloned container.
+- `RetainedEntityAdmission.context` is now an isolated frozen vector snapshot,
+  preventing inventory consumers from rewriting causal evidence before an
+  occurrence is issued.
+- Inventory certificates now require a worldline Lane and one matching basis
+  across their public basis, evidence Tick, evidence basis, receipt Lane, and
+  registered inventory Observer. A completed unrelated Observation can no
+  longer acquire a completeness certificate.
+- Intent publication validation now runs against the fully built patch before
+  the journal can publish it. A mismatched, truncated, or appended operation
+  sequence therefore fails without advancing the target ref or losing the
+  write receipt after durable publication.
+- `WriteReceipt.intent` now types every array input as the immutable normalized
+  snapshot the runtime actually retains, even when the caller supplied a
+  mutable array.
+- Retained atomic sequence replay now preserves entity-admission boundaries
+  and original allocation witnesses instead of degrading each entity into
+  primitive node and property edits. Auto-allocated subjects therefore remain
+  verifiable after Strand settlement gives the target admission a new causal
+  dot. A classified empty boundary list likewise keeps a manual
+  node-plus-property array from being reinterpreted as an entity birth after
+  reopen or Strand settlement.
+
+### Compatibility
+
+- Singular `Lane.write(intent)` behavior and its admission-law/digest path are
+  unchanged. Atomic arrays reuse the existing writer publication mechanism, so
+  existing v19 repositories require no retained-data migration. New patches
+  persist an optional, bounded entity-admission classification field. An empty
+  field distinguishes a classified manual operation array from an entity
+  birth, while an absent ambiguous whole-patch footprint obstructs inventory
+  completeness until explicitly migrated or classified.
+  Reopened multi-operation Strands recover their ordered primitive graph
+  transformation from the retained patch; no caller-owned JavaScript array is
+  persisted. Because the Patch stores graph operations rather than call syntax,
+  reopen cannot distinguish a canonical single-Intent patch created by
+  `write(intent)` from one created by `write([intent])`; its graph
+  transformation and one-patch boundary remain intact.
+
+### Packaging
+
+- npm publication now uses an explicit package allowlist that retains required
+  Runtime implementation, supported migration commands, hook, bootstrap,
+  legal, topic, operations, and runtime-linked reading guidance while
+  excluding compiled tests, fixtures, maintainers' utilities, performance
+  drivers, maintainer-only policy documents, and plans. Repository builds
+  continue compiling
+  maintainer programs through a separate build profile for their own CI and
+  operator workflows without making those outputs part of the npm artifact.
+- Release and standalone prepack gates now inspect the actual npm inventory,
+  reject every unrecognized path, and enforce reviewed ceilings of 1,700
+  files, 1,200,000 compressed bytes, and 4,900,000 unpacked bytes. The typed
+  inventory boundary tolerates npm 10 prepare output only before a terminal
+  schema-valid JSON frame. The clean external-consumer smoke imports every
+  supported subpath and package metadata, starts both executables, verifies
+  required hook/bootstrap assets, and keeps the private storage subpath
+  inaccessible.
+
+## [19.1.0] - 2026-08-25
+
+### Release notes
+
+`v19.1.0` turns the retained materialization path from a storm of
+per-commit, per-page, per-bundle, and per-ref Git crossings into bounded
+history reads, persistent object sessions, ordered trie dependency waves, and
+compound git-cas workspace admissions. On the final hosted 65-patch base plus
+five-patch suffix corpus, cold Git commands fell from `781` to `50` and
+incremental commands from `372` to `60`; CPU medians fell by `67.4%` and
+`48.3%`. Warm materialization remained deliberately modest at `30` to
+`25` commands and `2.0%` CPU improvement. Every scenario preserved the
+same semantic fingerprint and exact `65 / 0 / 5` replay evidence.
+
+The v19 patch, trie, and retained-materialization storage representations are
+unchanged. Existing v19 repositories require no migration. Repositories that
+still contain retained v18 state continue to require the established one-shot
+v18-to-v19 migration before any v19 process opens them.
+
+Two compatibility notes are explicit:
+
+- An omitted `checkpointPolicy` now means `{ every: 64 }`; use
+  `checkpointPolicy: null` for the existing explicit opt-out.
+- The already-merged `entity.add` and `EntityOccurrence` surface ships as
+  an **unofficial, unstable preview**. It is not adopted by Think in this
+  release campaign. TypeScript consumers that exhaustively switch on
+  `Intent['kind']` must add an `entity.add` arm or stop treating the preview
+  union as closed.
+
+The deeply source-anchored architecture, trie-byte topology, benchmark method,
+Code Lawyer audit, compatibility matrix, and reproduction commands live in the
+[v19.1.0 release witness](docs/topics/v19-1-performance-architecture-witness.md).
+
+### Performance
+
+- Retained materialization now joins dependent trie pages and bundles, derived
+  index shards and roots, workspace roots, replay/provenance support, the
+  descriptor, and the terminal materialization bundle through bounded
+  git-cas compound admissions. Logical artifact identity and causal replay
+  evidence are unchanged; the optimization amortizes workspace publication
+  without turning the physical batch into a domain transaction. In a
+  counterbalanced five-run local arm64 comparison against the same git-warp
+  commit on the previous git-cas 6.5.9 singleton path, cold Git commands fell
+  from `139` to `50` and incremental commands from `149` to `60`; CPU medians
+  fell by `35.5%` and `40.6%`, and wall medians by `52.2%` and `49.9%`.
+  Warm materialization remained at `25` commands; its small timing movement is
+  treated as host noise rather than an improvement. Every run retained the
+  exact semantic fingerprint and `65 / 0 / 5` replay evidence. The v19 storage
+  format and publication authority are unchanged, so existing repositories
+  require no migration. A counterbalanced five-run hosted comparison against
+  current `main` independently reproduced `50 / 25 / 60` commands, down from
+  `781 / 30 / 372`; hosted CPU medians fell by `67.4%` cold and `48.3%`
+  incremental while the warm path moved by `2.0%`. The reviewed
+  command ceilings are now `60 / 30 / 72`.
+- Retained trie flushes now stage leaf pages, leaf bundles, and branch bundles
+  through ordered git-cas write waves instead of one storage operation per
+  trie page. The domain boundary caps each serialized leaf wave at 256 items
+  and 32 MiB and each same-depth branch wave at 64 items before the Git adapter
+  applies its tighter member, object, and byte limits. Stores without the
+  optional batch capabilities retain the existing ordered singleton fallback.
+  Root identity, publication authority, and the v19 storage format are
+  unchanged; existing v19 repositories require no migration. On the hosted
+  reference runner, cold/warm/incremental Git commands fell from
+  `781 / 30 / 372` to `139 / 25 / 149`; CPU medians fell by
+  `57.9% / 1.6% / 32.9%`. A five-run local arm64 comparison reproduced the
+  exact command counts and measured CPU improvements of
+  `66.4% / 8.0% / 41.3%`. Both comparisons retained exact `65 / 0 / 5`
+  replay evidence and identical semantic fingerprints.
+- Patch-chain traversal (`PatchDiscovery.loadPatchChainFromSha`,
+  `PatchDiscovery.discoverTicks`) now reads chain metadata with a single bulk
+  `logNodesStream` history read per chain instead of one `getNodeInfo` call per
+  commit. On the Git adapter every `getNodeInfo` call is a `git show`
+  subprocess, so materializing a graph previously spawned one subprocess per
+  patch commit, serially — O(history × spawn latency) for every read. Patch
+  payload reads now run with bounded concurrency (8) while preserving
+  chronological order and read-error behavior. When several payload reads fail,
+  the error raised is the one belonging to the earliest patch in chain order
+  rather than whichever rejected first in wall-clock time, so the failure a
+  caller observes is deterministic. Persistences without a usable bulk log
+  surface (or commits missing from the bulk read) fall back to the legacy
+  per-commit walk and its error surface. Both degradations are logged — a bulk
+  read that throws, and a bulk read that succeeds while omitting commits — so a
+  silent return to per-commit cost is observable rather than merely correct. Measured as an A/B on two
+  fresh copies of one real graph whose largest writer chain holds 745 patch
+  commits, three reads and two captures each: median read time went from
+  80.0 s to 9.3 s, and median capture from 59.0 s to 17.1 s. Upgrading the
+  runtime dependency from `@git-stunts/git-cas` 6.5.5 to 6.5.7 also completes
+  the payload half of the fix: on twin disposable copies of the same current
+  Think mind, a consumer-level spawn census on this branch fell from 3,205 Git
+  child starts to 27. All 3,179 one-shot `git cat-file blob` children became
+  zero; two bounded persistent `git cat-file --batch-command` sessions covered
+  the object-read path instead. The 54 emitted JSON events had the same semantic
+  digest after removing only their per-run timestamps. This is process-topology
+  and output-equivalence evidence, not a claim that arbitrary large payloads
+  are buffered or that every Git process has been eliminated.
+
+### Changed
+
+- The minimum `@git-stunts/plumbing` runtime dependency is now 3.3.0. The
+  performance harness requires its persistent `update-ref` session and carries
+  concrete protocol-session types instead of accepting opaque session values.
+- The minimum `@git-stunts/git-cas` runtime dependency is now 6.5.10. Because
+  git-cas includes its package version in newly written manifest metadata, the
+  verified v17 migration-reading fixture's content handle advances with the
+  dependency while its legacy equivalence facts remain unchanged. Versions
+  6.5.8 and 6.5.10 supply the ordered write-wave and bounded compound workspace
+  APIs used by retained trie and materialization publication; previously
+  written manifests remain readable.
+- `LogNodesOptions` gains `firstParent` and `stopAt`. Chain readers advance by
+  first parent and stop at a known boundary, so the history read is now
+  constrained the same way: a merge's side branch is never streamed, and the
+  read is bounded to `stopAt..ref` rather than running to the root of history.
+  Both options are opt-in and default to the previous behaviour.
+
+### Added
+
+- The materialization performance harness accepts a version 2 corpus with
+  independent base and suffix patch counts. Version 2 results must replay the
+  exact declared patch count, so increasing node payload volume can no longer
+  impersonate causal-chain depth. The checked-in comparison now uses 65 base
+  nodes across 65 patches and five suffix nodes across five patches. That
+  crosses the default 64-patch checkpoint interval and makes the incremental
+  scenario exercise a bounded tail. Version 1 remains accepted for historical
+  and ad hoc fixtures.
+- The v19 performance gate now blocks on Git command counts as well as CPU.
+  `benchmarks/v19/policy.json` gains `absolute.gitCommandMedian` per scenario and
+  `relative.gitCommandRegressionRatio`, and the gate summary reports head and base
+  counts. The benchmark plumbing delegates and counts persistent `cat-file`,
+  `mktree`, and `fast-import` sessions, so instrumentation preserves the same
+  session topology as production instead of degrading a session-capable adapter
+  into one-shot commands. Persistent `update-ref` sessions are delegated and
+  counted by the same wrapper. Command counts are structural: they are decided by
+  which code paths run, not by how fast the runner is. This is measured rather
+  than assumed: the ubuntu-24.04 reference runner and a local arm64 machine report
+  identical counts per scenario (1521 / 30 / 1409) despite differing in
+  architecture, OS, Node version, and Git version, while their CPU medians differ
+  materially. Five measured runs on each machine returned the same count every
+  time (MAD 0). The checks therefore carry no noise floor, and the absolute
+  ceilings sit about 1.15x above the observed count — tight enough to force review
+  of a structural change to the storage path, loose enough to absorb a small
+  legitimate addition. On the reference runner, the dependency and benchmark
+  plumbing change reduced cold/warm/incremental Git commands from
+  2758 / 543 / 2788 to 1521 / 30 / 1409 and CPU medians by
+  28.4% / 59.0% / 33.5%. Together the gates catch a subprocess-count regression
+  that leaves the CPU envelope untouched.
+  Those before/after numbers belong to the preceding one-patch version 1
+  compatibility corpus: they measure object and payload traffic, not traversal
+  depth, and would not by themselves have caught the per-commit walk fixed
+  above. The version 2 release gate adds the independently calibrated 65-patch
+  base and five-patch suffix. The first calibrated reference run reported
+  `781 / 30 / 372` cold, warm, and incremental Git commands. Ordered retained
+  write waves reduce those counts to `139 / 25 / 149`; reviewed ceilings of
+  `160 / 30 / 175` preserve about 15% structural headroom. Raw absolute counts
+  are not compared across different corpus versions.
 - `intent.entity.add({ subject, properties })` creates one entity occurrence and
   its initial payload in a single patch. The lowered patch declares an empty
   read set and exactly one subject write. That declaration describes the
@@ -81,6 +356,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   policy: such graphs will begin writing checkpoint commits
   once their replay depth reaches or exceeds 64 patches. State hashes are
   unaffected — a checkpoint is a snapshot, not a semantic change.
+
 - Repository lint now rejects personal-home and Darwin temporary absolute
   paths in tracked or unignored text and binary files, and the pre-commit hook
   inspects exact staged additions and modifications rather than mutable
@@ -101,6 +377,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release preflight now suppresses npm lifecycle scripts during validation-only
+  pack dry-runs and reuses its prepared `dist` tree for the packed-artifact
+  smoke. The coverage, lint, unit, and consumer-type gates no longer rerun
+  through `prepack`; standalone `npm pack` and `npm publish` retain the full
+  lifecycle safety gate.
+- JSR validation and publication now use a locked `jsr@0.14.3` wrapper with its
+  expected Deno `v2.6.7` installed before proof. Classified transport and
+  bootstrap failures receive at most three attempts; deterministic package
+  validation failures remain single-attempt failures.
+- The locked development-tool graph now resolves fixed `brace-expansion`,
+  `js-yaml`, `nanoid`, `dompurify`, and `mermaid` releases. A full-graph npm
+  audit is now a required CI and release gate instead of a runtime-only
+  advisory, while the published runtime graph remains unchanged.
+- Docker-backed tests now build from the invoking checkout root instead of a
+  parent context with a literal `git-warp/` source path. `npm test` and the
+  Node/Bun/Deno matrix therefore test linked worktrees rather than silently
+  substituting a sibling checkout. Git metadata is excluded before container
+  repository seeding, test images skip unused Puppeteer browser downloads, and
+  the default Node image installs the exact lockfile with `npm ci`.
 - Content attachment now rechecks the builder lifecycle after asynchronous
   asset staging. Publication that overtakes staging can no longer be followed
   by late property operations or attachment handles on an already committed
@@ -159,7 +454,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Invalid Dot counters now report the enforced positive-safe-integer constraint
   instead of describing the weaker integer-only rule.
 
-### Breaking
+### Unofficial preview compatibility
 
 - **`entity.add` widens the `Intent` discriminated union.** `IntentKind` and
   `IntentDescriptor` are not exported by name, but both are structurally
@@ -175,7 +470,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The runtime surface is purely additive, and this repository's own consumer
   contract (`test/type-check`) still compiles because it does not switch
   exhaustively. The type-level break is nonetheless real for any consumer that
-  opted into exhaustiveness checking, so this release targets **20.0.0**.
+  opted into exhaustiveness checking. By explicit maintainer decision, the
+  already-merged surface ships in v19.1.0 as an **unofficial, unstable
+  preview**, outside the stable application vocabulary. Consumers should not
+  build authority-sensitive production semantics on it yet.
 
   Migration: add a `case 'entity.add':` arm, or stop treating the union as
   closed.

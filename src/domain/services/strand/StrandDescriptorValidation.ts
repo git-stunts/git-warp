@@ -166,7 +166,13 @@ function isMap(value: object): boolean {
 }
 
 /** Check whether a patch touches a given entity in its reads or writes. */
-export function patchTouchesEntity(patch: { reads?: string[]; writes?: string[] }, entityId: string): boolean {
+export function patchTouchesEntity(
+  patch: {
+    readonly reads?: readonly string[] | undefined;
+    readonly writes?: readonly string[] | undefined;
+  },
+  entityId: string,
+): boolean {
   if (patch.reads !== undefined && patch.reads.includes(entityId)) { return true; }
   if (patch.writes !== undefined && patch.writes.includes(entityId)) { return true; }
   return false;

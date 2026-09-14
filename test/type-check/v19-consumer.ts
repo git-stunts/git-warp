@@ -3,6 +3,7 @@
 import {
   Runtime,
   type AdmissionOutcome,
+  type EntityAdmission,
   type Evidence,
   type EvidenceHandle,
   type Intent,
@@ -21,6 +22,7 @@ import {
   type SettlementReceipt,
   type SupportReport,
   type Tick,
+  type WriteIntentInput,
   type WriteReceipt,
 } from '../../index.ts';
 import { users } from '../fixtures/generated-sdk/users.generated.ts';
@@ -35,7 +37,16 @@ const intent: Intent = users.intents.assignRole({
   role: 'admin',
 });
 const write: WriteReceipt = await lane.write(intent);
+const intents: Intent[] = [intent, intent];
+const atomicWrite = await lane.write(intents);
+const atomicIntentCount: number = atomicWrite.intents.length;
+declare const normalizedArrayReceipt: WriteReceipt<Intent[]>;
+// @ts-expect-error WriteReceipt retains an immutable normalized array snapshot.
+normalizedArrayReceipt.intent.push(intent);
+const writeInput: WriteIntentInput = intents;
+const genericWrite = await lane.write(writeInput);
 const admission: AdmissionOutcome = write.outcome;
+declare const entityAdmission: EntityAdmission;
 const writeEvidence: Evidence = write.evidence;
 const writeLane: string = write.lane;
 const observer: Observer<string> = users.observers.roleOf({ subject: 'user:alice' });
@@ -97,6 +108,9 @@ observationReceipt.outcome;
 // @ts-expect-error Canonical write receipts name their Lane, not a Timeline.
 write.timeline;
 
+// @ts-expect-error Entity admissions expose only their named domain fields.
+entityAdmission['arbitraryField'];
+
 const readingTick: Tick | undefined = emitted.coordinate.tick;
 
 void admissionWitnessHandle(admission);
@@ -104,6 +118,8 @@ void laneName(lane.descriptor);
 void laneName(strand.descriptor);
 void writeEvidence;
 void writeLane;
+void atomicWrite;
+void atomicIntentCount;
 void readingTick;
 void emitted.coordinate;
 void emitted.witnessRefs;
