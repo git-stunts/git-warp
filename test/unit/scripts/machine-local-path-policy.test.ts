@@ -54,6 +54,26 @@ describe('machine-local path policy', () => {
     expect(policy.containsMachineLocalPath('/tmp/project')).toBe(false);
   });
 
+  it('preserves segment semantics at stream completion and whitespace boundaries', () => {
+    const policy = new MachineLocalPathPolicy();
+
+    expect(policy.containsMachineLocalPath(posixPath('Users', 'example'))).toBe(true);
+    expect(policy.containsMachineLocalPath(windowsPath('Users', 'example'))).toBe(true);
+    expect(policy.containsMachineLocalPath(`${posixPath('Users', 'example')} portable`)).toBe(
+      true
+    );
+    expect(policy.containsMachineLocalPath(posixPath('Users', ''))).toBe(false);
+  });
+
+  it('makes stream completion idempotent and rejects writes after completion', () => {
+    const scanner = new MachineLocalPathPolicy().createStreamScanner();
+    scanner.write(new TextEncoder().encode('portable'));
+
+    expect(scanner.finish()).toBe(false);
+    expect(scanner.finish()).toBe(false);
+    expect(() => scanner.write(new Uint8Array())).toThrow('already finished');
+  });
+
   it('passes the current tracked and unignored repository inventory', () => {
     expect(() =>
       execFileSync(process.execPath, [join(ROOT, 'scripts/check-machine-local-paths.ts')], {
