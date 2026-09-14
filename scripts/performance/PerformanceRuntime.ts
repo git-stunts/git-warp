@@ -4,7 +4,6 @@ import type MaterializationCoordinate
   from '../../src/domain/materialization/MaterializationCoordinate.ts';
 import type MaterializationHandle
   from '../../src/domain/materialization/MaterializationHandle.ts';
-import type WarpState from '../../src/domain/services/state/WarpState.ts';
 import GitCasRepositoryAdapter
   from '../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import GitTimelineHistoryAdapter, {
@@ -212,12 +211,6 @@ class RecordingMaterializationStore extends MaterializationStorePort {
       this.predecessorHits += 1;
     }
     return acquisition;
-  }
-
-  override async loadReplayBasis(
-    materialization: MaterializationHandle,
-  ): Promise<WarpState | null> {
-    return await this.#delegate.loadReplayBasis(materialization);
   }
 
   override async close(): Promise<void> {

@@ -6,7 +6,6 @@ import type {
 } from '@git-stunts/git-cas';
 import type MaterializationCoordinate from '../../domain/materialization/MaterializationCoordinate.ts';
 import MaterializationHandle from '../../domain/materialization/MaterializationHandle.ts';
-import type WarpState from '../../domain/services/state/WarpState.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
 import type StorageRetentionWitness from '../../domain/storage/StorageRetentionWitness.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
@@ -230,12 +229,6 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
         isCompatible,
       ),
     );
-  }
-
-  override async loadReplayBasis(
-    materialization: MaterializationHandle,
-  ): Promise<WarpState | null> {
-    return await this.#replayBasis.load(materialization);
   }
 
   override close(): Promise<void> {

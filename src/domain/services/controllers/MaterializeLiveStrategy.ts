@@ -24,7 +24,6 @@ import {
 } from './MaterializeSnapshotCacheResult.ts';
 import { snapshotPublicationForReceipts } from './MaterializeSnapshotPublication.ts';
 import { releaseAcquisitionAfterFailure } from './MaterializationWorkspaceCleanup.ts';
-import RetainedMaterializationResumeStrategy from './RetainedMaterializationResumeStrategy.ts';
 import { isNonEmptyPatchSha } from './MaterializeHelpers.ts';
 import { resolveBoundedLiveMaterialization } from './BoundedLiveMaterialization.ts';
 import { materializedResolution } from './MaterializedLiveResolution.ts';
@@ -36,11 +35,9 @@ import {
 
 export default class MaterializeLiveStrategy {
   private readonly runtime: MaterializeStrategyRuntime;
-  private readonly retainedResume: RetainedMaterializationResumeStrategy;
 
   constructor(runtime: MaterializeStrategyRuntime) {
     this.runtime = runtime;
-    this.retainedResume = new RetainedMaterializationResumeStrategy(runtime);
   }
 
   async materialize(opts: MaterializeLiveOptions): Promise<MaterializeResult> {
@@ -49,10 +46,6 @@ export default class MaterializeLiveStrategy {
       return await this.runtime.emptyResult(null, frontier, snapshotPublicationForLiveOptions(opts));
     }
     const coordinate = this.snapshotCoordinate(frontier);
-    const retainedResolved = await this.retainedResume.tryResume(coordinate, opts);
-    if (retainedResolved !== null) {
-      return retainedResolved;
-    }
     const stateCache = this.runtime.deps.getStateCache?.() ?? null;
     return await this.resolveConfiguredStateCache(stateCache, coordinate, opts);
   }

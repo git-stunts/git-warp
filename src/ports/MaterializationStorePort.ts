@@ -2,7 +2,6 @@ import type MaterializationCoordinate from '../domain/materialization/Materializ
 import type MaterializationHandle from '../domain/materialization/MaterializationHandle.ts';
 import type MaterializationWorkspacePort from './MaterializationWorkspacePort.ts';
 import type { PromoteMaterializationRequest } from './MaterializationWorkspacePort.ts';
-import type WarpState from '../domain/services/state/WarpState.ts';
 
 export type RetainMaterializationRequest = PromoteMaterializationRequest;
 
@@ -32,10 +31,6 @@ export default abstract class MaterializationStorePort {
     _coordinate: MaterializationCoordinate,
     _isCompatible: MaterializationPredecessorPredicate,
   ): Promise<MaterializationAcquisition | null> {
-    return Promise.resolve(null);
-  }
-
-  loadReplayBasis(_materialization: MaterializationHandle): Promise<WarpState | null> {
     return Promise.resolve(null);
   }
 
