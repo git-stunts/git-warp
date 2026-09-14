@@ -6,8 +6,13 @@ import WarpMemoryPool from '../../../../../src/domain/memory/WarpMemoryPool.ts';
 import BoundedQueryReadModel from '../../../../../src/domain/services/query/BoundedQueryReadModel.ts';
 import type {
   QueryNeighborEntry,
+  QueryNeighborOptions,
+  QueryNodeStreamRequest,
   QueryReadModel,
 } from '../../../../../src/domain/services/query/QueryReadModelProvider.ts';
+
+const NODE_REQUEST: QueryNodeStreamRequest = { pattern: 'node:*', select: null };
+const NEIGHBOR_OPTIONS: QueryNeighborOptions = { direction: 'outgoing' };
 import type { QueryNodeSnapshot } from '../../../../../src/domain/services/query/QueryPlan.ts';
 
 function nodeSnapshot(id: string): QueryNodeSnapshot {
@@ -76,7 +81,7 @@ describe('BoundedQueryReadModel lease discipline', () => {
     );
 
     const seen: QueryNodeSnapshot[] = [];
-    for await (const node of model.nodes({} as never)) {
+    for await (const node of model.nodes(NODE_REQUEST)) {
       seen.push(node);
     }
 
@@ -95,7 +100,7 @@ describe('BoundedQueryReadModel lease discipline', () => {
     );
 
     const seen: QueryNeighborEntry[] = [];
-    for await (const neighbor of model.neighbors('node:one', {} as never)) {
+    for await (const neighbor of model.neighbors('node:one', NEIGHBOR_OPTIONS)) {
       seen.push(neighbor);
     }
 
@@ -114,7 +119,7 @@ describe('BoundedQueryReadModel lease discipline', () => {
       pool,
     );
 
-    for await (const _node of model.nodes({} as never)) {
+    for await (const _node of model.nodes(NODE_REQUEST)) {
       break;
     }
 
@@ -135,7 +140,7 @@ describe('BoundedQueryReadModel lease discipline', () => {
     );
 
     await expect(async () => {
-      for await (const _node of model.nodes({} as never)) {
+      for await (const _node of model.nodes(NODE_REQUEST)) {
         // drain until the source throws
       }
     }).rejects.toThrow('source failed');

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { OP_STRATEGIES } from '../../../../src/domain/services/OpStrategies.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import { encodeEdgeKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.ts';
-import type { EventId } from '../../../../src/domain/utils/EventId.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import type { MutablePatchDiff } from '../../../../src/domain/types/PatchDiff.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
@@ -14,8 +14,11 @@ import EdgePropSet from '../../../../src/domain/types/ops/EdgePropSet.ts';
 import type Op from '../../../../src/domain/types/ops/Op.ts';
 import type OpStrategy from '../../../../src/domain/services/OpStrategy.ts';
 
-function eventId(lamport: number, writerId: string, patchSha = `patch-${lamport}`): EventId {
-  return { lamport, writerId, patchSha, opIndex: 0 };
+/** Valid hexadecimal object ids, so fixtures cannot carry metadata real code could not produce. */
+const SHARED_SHA = 'deadbeef';
+
+function eventId(lamport: number, writerId: string, patchSha = SHARED_SHA): EventId {
+  return new EventId(lamport, writerId, patchSha, 0);
 }
 
 function dot(writerId: string, counter: number): Dot {
@@ -267,9 +270,8 @@ describe('NodePropSetStrategy last-writer-wins', () => {
   it('breaks a same-lamport tie on writer id, not on patch sha or arrival order', () => {
     // Identical lamport AND identical patchSha, so writerId is the only field
     // left that can decide the winner.
-    const sha = 'patch-shared';
-    const fromA = () => eventId(3, 'writer-a', sha);
-    const fromZ = () => eventId(3, 'writer-z', sha);
+    const fromA = () => eventId(3, 'writer-a', SHARED_SHA);
+    const fromZ = () => eventId(3, 'writer-z', SHARED_SHA);
 
     const lower = WarpState.empty();
     applied(lower, 'NodePropSet', new NodePropSet('node:one', 'title', 'from-a'), fromA(), emptyDiff());
