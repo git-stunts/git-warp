@@ -91,7 +91,14 @@ export class GitMachineLocalPathGuard {
         continue;
       }
 
-      const exclusions = ZERO_OBJECT_PATTERN.test(remoteObject) ? remoteTips : [remoteObject];
+      // Exclude everything the remote already holds, not just this ref's old
+      // tip. An object published on another remote ref — typically a blob that
+      // reached main and arrived here through a merge — is not outgoing.
+      // Scanning it again would make every branch that merges main permanently
+      // unpushable, since the history carrying it cannot be rewritten.
+      const exclusions = ZERO_OBJECT_PATTERN.test(remoteObject)
+        ? remoteTips
+        : [remoteObject, ...remoteTips];
       const revisionArguments = [localObject, ...exclusions.map((objectId) => `^${objectId}`)];
       const inventory = execFileSync(
         'git',
