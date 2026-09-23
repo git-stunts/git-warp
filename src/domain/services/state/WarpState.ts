@@ -8,6 +8,7 @@
  */
 
 import ORSet from '../../crdt/ORSet.ts';
+import WarpError from '../../errors/WarpError.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { lwwMax, lwwSet, type LWWRegister } from '../../crdt/LWW.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
@@ -195,11 +196,15 @@ export default class WarpState {
    * would instead delete a live element's registers, so the decode must
    * round-trip.
    *
-   * A key with the wrong field count makes `decodeEdgePropKey` throw.
-   * Full-state deserialization accepts prop-map keys without validating
-   * their shape, so one malformed key would otherwise abort the whole
-   * sweep and, through it, GC. Sweeping is an optimization; a key it
+   * A key with the wrong field count makes `decodeEdgePropKey` throw a
+   * `WarpError`. Full-state deserialization accepts prop-map keys without
+   * validating their shape, so one malformed key would otherwise abort the
+   * whole sweep and, through it, GC. Sweeping is an optimization; a key it
    * cannot read is one it leaves alone.
+   *
+   * Only the codec's own error is caught. A fault anywhere else is a bug,
+   * not malformed data, and swallowing it would report every owner as
+   * alive — disabling the sweep with no signal that it had stopped working.
    */
   private ownerIsAlive(encodedKey: string): boolean {
     try {
@@ -215,8 +220,11 @@ export default class WarpState {
         return true;
       }
       return this.nodeAlive.contains(node.nodeId);
-    } catch {
-      return true;
+    } catch (error) {
+      if (error instanceof WarpError) {
+        return true;
+      }
+      throw error;
     }
   }
 

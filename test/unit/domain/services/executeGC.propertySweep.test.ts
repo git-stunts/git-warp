@@ -192,6 +192,18 @@ describe('executeGC property sweep', () => {
     expect(state.hasNodeProp('ast:doomed', 'type')).toBe(false);
   });
 
+  it('surfaces a non-codec fault instead of silently skipping the sweep', () => {
+    // The decode guard exists for malformed keys. A fault in the liveness
+    // check itself is a bug, not data: swallowing it would report every
+    // owner as alive and disable the sweep with no signal.
+    const state = createEmptyState();
+    setNodeProp(state, 'ast:doomed', 'type', 'identifier');
+    const boom = new TypeError('alive-set fault');
+    state.nodeAlive.contains = (): boolean => { throw boom; };
+
+    expect(() => executeGC(state, VersionVector.empty())).toThrow(boom);
+  });
+
   it('reports zero pruned properties for an empty state', () => {
     const state = createEmptyState();
     const result = executeGC(state, VersionVector.empty());
