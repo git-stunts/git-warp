@@ -40,6 +40,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Property keys that cannot be decoded now follow one policy across every
+  surface. `\x01` marks a key as edge-owned and `decodeEdgePropKey` then
+  demands exactly four `\0`-separated fields, but nothing validated that
+  shape on the way in and the read paths disagreed on what to do about it:
+  the node branch resolved an unreadable key to no owner and hid the row,
+  while `attachmentRecords()`, `edgeProperties()`, `edgePropertiesFromMap()`
+  and `edgePropertiesFromState()` threw and took the whole read with them.
+  Readers now skip such a key, matching what the node branch already did, via
+  the new `tryDecodeEdgePropKey`; the throwing `decodeEdgePropKey` remains for
+  boundaries that can still refuse bad input. Skipping is a read decision and
+  never deletes the register — only GC removes one.
+  Checkpoint loading refuses a `props[].node` bearing the edge-property
+  prefix with `E_CHECKPOINT_INVALID_PROP_OWNER`. The visible projection
+  carries node properties only, so that shape is one this library never
+  writes and can arrive only through corruption or a foreign writer.
 - Garbage collection now reclaims the property registers of removed nodes and
   edges. Compaction previously cleared tombstoned dots from `nodeAlive` and
   `edgeAlive` but left every register keyed under the removed element in
