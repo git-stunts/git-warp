@@ -137,13 +137,70 @@ boundary changes.
 
 ## Dist-Tag Policy
 
-- Stable SemVer releases publish to `latest`.
 - Alpha prereleases publish to `alpha`.
 - Beta prereleases publish to `beta`.
 - Release candidates publish to `next`.
-- Maintenance releases for old majors require an explicit maintenance tag
-  policy before publication.
 - The release workflow must print the intended dist-tag before publication.
+
+A stable SemVer release publishes to `latest` **only when it is at or above the
+version the registry currently serves as `latest`**. A stable tag does not
+claim `latest` by virtue of being stable. `latest` is what a bare
+`npm install @git-stunts/git-warp` resolves to, so a maintenance release of an
+older major that took it would move every new install backwards.
+
+| Tag relative to the published `latest` | npm dist-tag        |
+| -------------------------------------- | ------------------- |
+| at or above it                          | `latest`            |
+| below it                                | `maintenance-vX`    |
+| package not yet published               | `latest`            |
+| registry unreadable                     | **release refuses** |
+
+The maintenance tag is `maintenance-v16`, not `v16` or `16.x`. Both of those
+parse as the semver range `>=16.0.0 <17.0.0-0`, so `npm install …@v16` would
+resolve as a range and shadow the dist-tag instead of reading it.
+
+The release refuses rather than guessing when the registry cannot be read.
+Defaulting to `latest` mispublishes a back-release; defaulting to a maintenance
+tag silently fails to promote a real one. Neither is recoverable once
+published, and a failed release is cheap by comparison. A genuine first publish
+is distinguished by `E404`, where there is nothing to demote.
+
+Release verification must check the **dist-tag**, not only that the version
+resolves:
+
+```bash
+npm view @git-stunts/git-warp dist-tags --json
+```
+
+`latest` must still point at the current line. A published version cannot be
+withdrawn, so a mispublished `latest` is repaired forward with
+`npm dist-tag add`, and only after it has already misled consumers.
+
+## Maintenance Releases
+
+`main` carries one line. When an older major still needs correctness fixes —
+because a consumer cannot cross a major to pick them up — that line gets a
+maintenance branch and releases from it.
+
+A release normally comes from a commit already on `main`. A maintenance line
+cannot satisfy that by construction: `main` holds a newer version and cannot
+carry an older line's bump. The **shape** of the rule carries over, not the
+branch name — merge to the line's trunk first, tag that trunk, never tag a PR
+head or a local-only commit:
+
+1. Branch `maintenance/<major>.x` from the line's last release tag. This is the
+   line's trunk; treat it as `main` is treated for the current line.
+2. Land fixes on it by PR, reviewed as normal.
+3. Branch `release/vX.Y.Z` from that trunk, and bump the version metadata
+   together with whatever release bookkeeping that line pins.
+4. PR that into `maintenance/<major>.x`, **not** into `main`. A maintenance
+   branch cannot merge to `main` and will show as conflicting; that is expected.
+5. Merge, then tag `vX.Y.Z` on `maintenance/<major>.x` and push the tag.
+6. Verify the version *and* the dist-tag from the registry, as above.
+
+Fixes that apply to both lines land on `main` first, then get backported. A
+backport PR opened against `main` for review purposes only must be closed
+rather than merged, and say so in its description.
 
 ## Release Thesis
 
