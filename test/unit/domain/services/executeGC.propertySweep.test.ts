@@ -17,7 +17,7 @@ import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
-import { encodeEdgeKey, encodeEdgePropKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.ts';
+import { EDGE_PROP_PREFIX, encodeEdgeKey, encodeEdgePropKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.ts';
 import type WarpState from '../../../../src/domain/services/state/WarpState.ts';
 
 /** Distinct EventIds per call so LWW writes never collide on identity. */
@@ -168,6 +168,28 @@ describe('executeGC property sweep', () => {
     executeGC(state, appliedVV);
 
     expect(state.edgeBirthEvent.has(edgeKey)).toBe(false);
+  });
+
+  it('retains a malformed edge-property key instead of aborting the sweep', () => {
+    // Full-state deserialization accepts prop-map keys without validating
+    // their shape, and decodeEdgePropKey throws on the wrong field count.
+    // One such key must not take GC down with it.
+    const state = createEmptyState();
+    state.mutatePropLWW(`${EDGE_PROP_PREFIX}a\0b\0c\0d\0e`, nextEventId(), 'kept');
+    const deadDot = Dot.create('A', 1);
+    addThenRemoveNode(state, 'ast:doomed', deadDot);
+    setNodeProp(state, 'ast:doomed', 'type', 'identifier');
+
+    const appliedVV = VersionVector.empty();
+    appliedVV.set('A', 1);
+
+    let result!: ReturnType<typeof executeGC>;
+    expect(() => { result = executeGC(state, appliedVV); }).not.toThrow();
+
+    // The unreadable key survives; the readable dead one is still swept.
+    expect(result.propertiesPruned).toBe(1);
+    expect(state.hasProp(`${EDGE_PROP_PREFIX}a\0b\0c\0d\0e`)).toBe(true);
+    expect(state.hasNodeProp('ast:doomed', 'type')).toBe(false);
   });
 
   it('reports zero pruned properties for an empty state', () => {

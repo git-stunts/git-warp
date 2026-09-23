@@ -114,9 +114,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   node and later adding the same id back no longer resurrects the properties
   it carried before removal, once a GC run has swept them. This matches the
   visibility edges already had through `edgeBirthEvent`, extending one
-  clean-slate rule to both element kinds. Read results are unchanged for any
-  element that is not re-added, because a dead element's registers were
-  already hidden from every read path. Replicas that sweep and replicas that
+  clean-slate rule to both element kinds. Visibility-filtered reads are
+  unchanged for any element that is not re-added, because a dead element's
+  registers were already hidden from them. The raw accessors — `getNodeProp`,
+  `getEdgeProp`, `getEncodedProp`, `hasProp` and `propSize` — do not filter by
+  liveness, so for a dead owner they return a register before a sweep and
+  nothing after it. Replicas that sweep and replicas that
   do not can therefore disagree after a re-add, so run GC only at a frontier
   every replica has observed — the stability contract `ORSet.compact` already
   requires. Retained data needs no migration; GC remains opt-in and disabled
