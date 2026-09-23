@@ -151,6 +151,63 @@ export default class WarpState {
     this.prop.set(encodedKey, winner);
   }
 
+  /**
+   * Drops every property register whose owning node or edge is no longer
+   * alive, along with the birth events of dead edges. Returns the number
+   * of registers removed. Mutates in place.
+   *
+   * Removing an element tombstones its dot in the alive set but leaves its
+   * registers here, so a graph under churn — re-indexing the same file,
+   * retiring one generation of anchors to add the next — accumulates
+   * registers monotonically and never reclaims them.
+   *
+   * A re-added element then starts from a clean property slate, which is
+   * the visibility edges already have through `edgeBirthEvent` /
+   * `isStaleEdgeAttachment`; this extends the same clean-slate rule to
+   * nodes.
+   *
+   * @internal Call only from GC, and only at a frontier every replica has
+   * observed — the stability contract `ORSet.compact` already requires.
+   * Sweeping ahead of that frontier drops registers a concurrent writer
+   * can still resurrect the owner of, diverging this replica from one that
+   * has not swept.
+   */
+  compactDeadProperties(): number {
+    let pruned = 0;
+    for (const encodedKey of this.prop.keys()) {
+      if (this.ownerIsAlive(encodedKey)) {
+        continue;
+      }
+      this.prop.delete(encodedKey);
+      pruned++;
+    }
+    for (const edgeKey of this.edgeBirthEvent.keys()) {
+      if (!this.edgeAlive.contains(edgeKey)) {
+        this.edgeBirthEvent.delete(edgeKey);
+      }
+    }
+    return pruned;
+  }
+
+  /**
+   * Returns true when the element owning an encoded prop key is still
+   * alive, and whenever that owner cannot be determined.
+   *
+   * The guard covers decoding only. A fault in the alive-set read is a
+   * bug, not malformed data, and swallowing it would report every owner
+   * as alive — disabling the sweep with no signal that it had stopped
+   * working.
+   */
+  private ownerIsAlive(encodedKey: string): boolean {
+    const owner = decodePropOwner(encodedKey);
+    if (owner === null) {
+      return true;
+    }
+    return owner.kind === 'edge'
+      ? this.edgeAlive.contains(owner.key)
+      : this.nodeAlive.contains(owner.id);
+  }
+
   /** Yields every node property register with decoded identity. */
   *nodeProperties(): Generator<NodePropertyEntry> {
     for (const [encodedKey, register] of this.prop) {
@@ -392,6 +449,46 @@ export default class WarpState {
       }
     }
     return result;
+  }
+}
+
+/** The element whose liveness governs a property register. */
+type PropOwner = { readonly kind: 'node'; readonly id: string }
+  | { readonly kind: 'edge'; readonly key: string };
+
+/**
+ * Decodes an encoded prop key to the element whose liveness governs it, or
+ * null when the key cannot be read.
+ *
+ * Two ways a key resists decoding, both of which yield null and so retain it.
+ *
+ * `\0` separates fields, so a key whose element id itself contains `\0`
+ * decodes to a shorter, different id. Read paths already resolve such a key
+ * to no owner and hide it; a sweep that trusted the same decode would instead
+ * delete a live element's registers, so the decode must round-trip.
+ *
+ * A key with the wrong field count makes `decodeEdgePropKey` throw.
+ * Full-state deserialization accepts prop-map keys without validating their
+ * shape, so one malformed key would otherwise abort the whole sweep and,
+ * through it, GC. Sweeping is an optimization; a key it cannot read is one it
+ * leaves alone.
+ */
+function decodePropOwner(encodedKey: string): PropOwner | null {
+  try {
+    if (isEdgePropKey(encodedKey)) {
+      const edge = decodeEdgePropKey(encodedKey);
+      if (encodeEdgePropKey(edge.from, edge.to, edge.label, edge.propKey) !== encodedKey) {
+        return null;
+      }
+      return { kind: 'edge', key: encodeEdgeKey(edge.from, edge.to, edge.label) };
+    }
+    const node = decodePropKey(encodedKey);
+    if (encodePropKey(node.nodeId, node.propKey) !== encodedKey) {
+      return null;
+    }
+    return { kind: 'node', id: node.nodeId };
+  } catch {
+    return null;
   }
 }
 

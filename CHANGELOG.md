@@ -40,6 +40,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Garbage collection now reclaims the property registers of removed nodes and
+  edges. Compaction previously cleared tombstoned dots from `nodeAlive` and
+  `edgeAlive` but left every register keyed under the removed element in
+  `WarpState.prop`, so a graph under churn — retiring one generation of
+  elements to add the next — grew that map monotonically and never released
+  it, ratcheting heap in long-lived processes even across full GC runs. Dead
+  edges' `edgeBirthEvent` entries are reclaimed with them, and
+  `GCExecuteResult.propertiesPruned` reports the count. A key whose element id
+  embeds the `\0` field separator does not decode unambiguously and is always
+  retained, never pruned.
 - Idle Git reader retirement now completes when the child process closes
   before stdin reports its final flush. Storage shutdown no longer waits
   indefinitely for that missing stream event. Requires Plumbing 3.3.1.
@@ -100,6 +110,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Compatibility
 
+- Property-register sweeping gives re-added nodes a clean slate. Removing a
+  node and later adding the same id back no longer resurrects the properties
+  it carried before removal, once a GC run has swept them. This matches the
+  visibility edges already had through `edgeBirthEvent`, extending one
+  clean-slate rule to both element kinds. Visibility-filtered reads are
+  unchanged for any element that is not re-added, because a dead element's
+  registers were already hidden from them. The raw accessors — `getNodeProp`,
+  `getEdgeProp`, `getEncodedProp`, `hasProp` and `propSize` — do not filter by
+  liveness, so for a dead owner they return a register before a sweep and
+  nothing after it. Replicas that sweep and replicas that
+  do not can therefore disagree after a re-add, so run GC only at a frontier
+  every replica has observed — the stability contract `ORSet.compact` already
+  requires. Retained data needs no migration; GC remains opt-in and disabled
+  by default.
 - Singular `Lane.write(intent)` behavior and its admission-law/digest path are
   unchanged. Atomic arrays reuse the existing writer publication mechanism, so
   existing v19 repositories require no retained-data migration. New patches

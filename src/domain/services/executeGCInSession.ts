@@ -28,6 +28,9 @@ export default async function executeGCInSession(
     nodesCompacted: beforeMetrics.nodeEntries - afterMetrics.nodeEntries,
     edgesCompacted: beforeMetrics.edgeEntries - afterMetrics.edgeEntries,
     tombstonesRemoved: beforeMetrics.totalTombstones - afterMetrics.totalTombstones,
+    // A StateSession owns only the alive-set roots; the trie-backed substrate
+    // holds no property registers for this path to reclaim.
+    propertiesPruned: 0,
   });
 }
 

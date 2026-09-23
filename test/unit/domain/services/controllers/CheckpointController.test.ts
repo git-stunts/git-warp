@@ -125,7 +125,7 @@ function stubState() {
 
 /** Minimal GC result stub. */
 function stubGCResult() {
-  return new GCExecuteResult({ nodesCompacted: 1, edgesCompacted: 2, tombstonesRemoved: 3 });
+  return new GCExecuteResult({ nodesCompacted: 1, edgesCompacted: 2, tombstonesRemoved: 3, propertiesPruned: 4 });
 }
 
 /**
