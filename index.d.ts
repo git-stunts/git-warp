@@ -1793,6 +1793,8 @@ export interface GCExecuteResult {
   nodesCompacted: number;
   edgesCompacted: number;
   tombstonesRemoved: number;
+  /** Property registers dropped because their node or edge is dead. */
+  propertiesPruned: number;
   durationMs: number;
 }
 
