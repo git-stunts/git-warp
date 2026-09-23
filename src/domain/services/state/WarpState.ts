@@ -18,7 +18,7 @@ import EdgeId from '../../graph/EdgeId.ts';
 import EdgeRecord from '../../graph/EdgeRecord.ts';
 import NodeId from '../../graph/NodeId.ts';
 import NodeRecord from '../../graph/NodeRecord.ts';
-import { decodeEdgeKey, decodeEdgePropKey, decodePropKey, encodeEdgeKey, encodeEdgePropKey, encodePropKey, isEdgePropKey } from '../KeyCodec.ts';
+import { decodeEdgeKey, decodePropKey, encodeEdgeKey, encodeEdgePropKey, encodePropKey, isEdgePropKey, tryDecodeEdgePropKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 
 /** Decoded node property entry yielded by WarpState.nodeProperties(). */
@@ -221,8 +221,8 @@ export default class WarpState {
   /** Yields every edge property register with decoded identity. */
   *edgeProperties(): Generator<EdgePropertyEntry> {
     for (const [encodedKey, register] of this.prop) {
-      if (isEdgePropKey(encodedKey)) {
-        const decoded = decodeEdgePropKey(encodedKey);
+      const decoded = tryDecodeEdgePropKey(encodedKey);
+      if (decoded !== null) {
         yield { encodedKey, from: decoded.from, to: decoded.to, label: decoded.label, key: decoded.propKey, register };
       }
     }
@@ -260,8 +260,8 @@ export default class WarpState {
    */
   static *edgePropertiesFromMap(prop: Map<string, LWWRegister<PropValue>>): Generator<EdgePropertyEntry> {
     for (const [encodedKey, register] of prop) {
-      if (isEdgePropKey(encodedKey)) {
-        const decoded = decodeEdgePropKey(encodedKey);
+      const decoded = tryDecodeEdgePropKey(encodedKey);
+      if (decoded !== null) {
         yield { encodedKey, from: decoded.from, to: decoded.to, label: decoded.label, key: decoded.propKey, register };
       }
     }
@@ -273,8 +273,8 @@ export default class WarpState {
    */
   static *edgePropertiesFromState(state: WarpState | WarpStatePropertyRegisterSource): Generator<EdgePropertyEntry> {
     for (const [encodedKey, register] of WarpState.allPropEntriesFromState(state)) {
-      if (isEdgePropKey(encodedKey)) {
-        const decoded = decodeEdgePropKey(encodedKey);
+      const decoded = tryDecodeEdgePropKey(encodedKey);
+      if (decoded !== null) {
         yield { encodedKey, from: decoded.from, to: decoded.to, label: decoded.label, key: decoded.propKey, register };
       }
     }
@@ -474,22 +474,21 @@ type PropOwner = { readonly kind: 'node'; readonly id: string }
  * leaves alone.
  */
 function decodePropOwner(encodedKey: string): PropOwner | null {
-  try {
-    if (isEdgePropKey(encodedKey)) {
-      const edge = decodeEdgePropKey(encodedKey);
-      if (encodeEdgePropKey(edge.from, edge.to, edge.label, edge.propKey) !== encodedKey) {
-        return null;
-      }
-      return { kind: 'edge', key: encodeEdgeKey(edge.from, edge.to, edge.label) };
-    }
-    const node = decodePropKey(encodedKey);
-    if (encodePropKey(node.nodeId, node.propKey) !== encodedKey) {
+  if (isEdgePropKey(encodedKey)) {
+    const edge = tryDecodeEdgePropKey(encodedKey);
+    if (edge === null) {
       return null;
     }
-    return { kind: 'node', id: node.nodeId };
-  } catch {
+    if (encodeEdgePropKey(edge.from, edge.to, edge.label, edge.propKey) !== encodedKey) {
+      return null;
+    }
+    return { kind: 'edge', key: encodeEdgeKey(edge.from, edge.to, edge.label) };
+  }
+  const node = decodePropKey(encodedKey);
+  if (encodePropKey(node.nodeId, node.propKey) !== encodedKey) {
     return null;
   }
+  return { kind: 'node', id: node.nodeId };
 }
 
 /** Normalizes an edge id carrier for state record reads. */
@@ -550,7 +549,10 @@ function edgeAttachmentRecordForProperty(
   propKey: string,
   register: LWWRegister<PropValue>,
 ): AttachmentRecord | null {
-  const decoded = decodeEdgePropKey(propKey);
+  const decoded = tryDecodeEdgePropKey(propKey);
+  if (decoded === null) {
+    return null;
+  }
   const edgeKey = encodeEdgeKey(decoded.from, decoded.to, decoded.label);
   if (isStaleEdgeAttachment(register, state.edgeBirthEvent.get(edgeKey))) {
     return null;

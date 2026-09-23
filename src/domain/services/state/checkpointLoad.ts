@@ -15,7 +15,8 @@ import { LWWRegister } from '../../crdt/LWW.ts';
 import { EventId } from '../../utils/EventId.ts';
 import { reducePatches } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
-import { encodeEdgeKey, encodePropKey } from '../KeyCodec.ts';
+import { encodeEdgeKey, encodePropKey, isEdgePropKey } from '../KeyCodec.ts';
+import WarpError from '../../errors/WarpError.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type AssetHandle from '../../storage/AssetHandle.ts';
@@ -193,6 +194,7 @@ export function reconstructStateFromCheckpoint(
 
   // Reconstruct props with LWW registers matching the legacy checkpoint shape.
   for (const p of props) {
+    requireNodeOwnedProperty(p.node, p.key);
     const propKey = encodePropKey(p.node, p.key);
     prop.set(propKey, LWWRegister.set(syntheticEventId, p.value as PropValue));
   }
@@ -207,4 +209,28 @@ export function reconstructStateFromCheckpoint(
   }
 
   return new WarpState({ nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent });
+}
+
+/**
+ * Refuses a checkpoint property whose owner is not a node id.
+ *
+ * The visible projection carries node properties only — `projectState` fills
+ * `props[].node` from node property entries, skipping every edge-owned key —
+ * so an owner bearing the edge-property prefix is a shape this library never
+ * writes. Encoding it anyway would produce a key that later reads classify as
+ * edge-owned but that carries the wrong field count, turning one bad row into
+ * an unreadable property.
+ *
+ * Rejecting here is safe precisely because the shape is unwritable: it can
+ * only appear through corruption, truncation, or a foreign writer, never
+ * through a checkpoint this library produced.
+ */
+function requireNodeOwnedProperty(node: string, key: string): void {
+  if (isEdgePropKey(node)) {
+    throw new WarpError(
+      'Checkpoint property owner is not a node id: the visible projection carries node properties only',
+      'E_CHECKPOINT_INVALID_PROP_OWNER',
+      { context: { key } },
+    );
+  }
 }
