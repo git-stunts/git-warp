@@ -21,12 +21,12 @@ export default class GCExecuteResult {
     readonly nodesCompacted: number;
     readonly edgesCompacted: number;
     readonly tombstonesRemoved: number;
-    readonly propertiesPruned?: number;
+    readonly propertiesPruned: number;
   }) {
     this.nodesCompacted = fields.nodesCompacted;
     this.edgesCompacted = fields.edgesCompacted;
     this.tombstonesRemoved = fields.tombstonesRemoved;
-    this.propertiesPruned = fields.propertiesPruned ?? 0;
+    this.propertiesPruned = fields.propertiesPruned;
     Object.freeze(this);
   }
 }
