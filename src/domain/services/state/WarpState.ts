@@ -162,10 +162,16 @@ export default class WarpState {
    * retiring one generation of anchors to add the next — accumulates
    * registers monotonically and never reclaims them.
    *
-   * Call this only from GC at a stable frontier. A re-added element then
-   * starts from a clean property slate, which is the visibility edges
-   * already have through `edgeBirthEvent` / `isStaleEdgeAttachment`; this
-   * extends the same clean-slate rule to nodes.
+   * A re-added element then starts from a clean property slate, which is
+   * the visibility edges already have through `edgeBirthEvent` /
+   * `isStaleEdgeAttachment`; this extends the same clean-slate rule to
+   * nodes.
+   *
+   * @internal Call only from GC, and only at a frontier every replica has
+   * observed — the stability contract `ORSet.compact` already requires.
+   * Sweeping ahead of that frontier drops registers a concurrent writer
+   * can still resurrect the owner of, diverging this replica from one that
+   * has not swept.
    */
   compactDeadProperties(): number {
     let pruned = 0;
