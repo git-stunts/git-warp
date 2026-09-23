@@ -194,6 +194,22 @@ describe('executeGC property sweep', () => {
     expect(state.prop.has(encodePropKey('ast:doomed', 'type'))).toBe(false);
   });
 
+  it('surfaces a non-codec fault instead of silently skipping the sweep', () => {
+    // The decode guard exists for malformed keys. A fault in the liveness
+    // check itself is a bug, not data: swallowing it would report every
+    // owner as alive and disable the sweep with no signal.
+    //
+    // Only orsetContains calls entries.get, so faulting that method — and
+    // leaving iteration intact — reaches the sweep without disturbing the
+    // metrics collection and ORSet compaction that run before it.
+    const state = createEmptyStateV5();
+    setProp(state, encodePropKey('ast:doomed', 'type'), 'identifier');
+    const boom = new TypeError('alive-set fault');
+    state.nodeAlive.entries.get = () => { throw boom; };
+
+    expect(() => executeGC(state, appliedThrough(1))).toThrow(boom);
+  });
+
   it('reports zero pruned properties for an empty state', () => {
     const result = executeGC(createEmptyStateV5(), createVersionVector());
     expect(result.propertiesPruned).toBe(0);
