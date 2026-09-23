@@ -23,12 +23,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Release
 
-- Published under the **`v16` npm dist-tag**, not `latest`. 19.x is the current
-  line; a maintenance release of an older major must not move what a bare
-  `npm install @git-stunts/git-warp` resolves to. Install this line explicitly
-  with `npm install @git-stunts/git-warp@v16`. The release workflow now
-  computes the dist-tag by comparing the tag against the published `latest`
-  rather than assuming every non-prerelease claims it.
+- Published under the **`maintenance-v16` npm dist-tag**, not `latest`. 19.x is
+  the current line; a maintenance release of an older major must not move what
+  a bare `npm install @git-stunts/git-warp` resolves to. Install this line
+  explicitly with `npm install @git-stunts/git-warp@maintenance-v16`.
+
+  The tag is deliberately not `v16` or `16.x`: both parse as the semver range
+  `>=16.0.0 <17.0.0-0`, so `npm install …@v16` would resolve as a range and
+  shadow the dist-tag rather than read it.
+
+  The release workflow now computes the dist-tag by comparing the tag against
+  the published `latest` rather than assuming every non-prerelease claims it,
+  and refuses to publish at all when the registry cannot be read — guessing
+  either way is unrecoverable once published.
 
 ### Compatibility
 

@@ -3,8 +3,9 @@
 > **Current release on this line:** v16.0.1
 > **Next intended release:** v16.0.2
 > **Line status:** 16.x is a maintenance line. `main` moved on to 19.x; this
-> line carries correctness fixes only, published under the `v16` npm dist-tag
-> so it never claims `latest`.
+> line carries correctness fixes only, published under the `maintenance-v16`
+> npm dist-tag so it never claims `latest`.
+> Install with `npm install @git-stunts/git-warp@maintenance-v16`.
 > **Last reconciled:** 2026-09-23 (v16.0.1 release. GC reclaims removed nodes' and edges' property registers.)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](ROADMAP/COMPLETED.md)
 
