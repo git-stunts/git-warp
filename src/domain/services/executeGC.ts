@@ -2,9 +2,10 @@
  * executeGC — compacts a WARP V5 state against an applied version vector.
  *
  * Compacts tombstoned dots that are <= `appliedVV` from both
- * `nodeAlive` and `edgeAlive`. Mutates `state` in place — callers must
- * clone-then-swap to preserve a rollback copy (see CheckpointService
- * for the canonical pattern).
+ * `nodeAlive` and `edgeAlive`, then drops the property registers left
+ * behind by elements those sets no longer hold. Mutates `state` in
+ * place — callers must clone-then-swap to preserve a rollback copy
+ * (see CheckpointService for the canonical pattern).
  *
  * @module domain/services/executeGC
  */
@@ -54,11 +55,13 @@ export default function executeGC(
 
   const beforeMetrics = GCMetrics.fromState(state);
   compactORSets(state, appliedVV);
+  const propertiesPruned = state.compactDeadProperties();
   const afterMetrics = GCMetrics.fromState(state);
 
   return new GCExecuteResult({
     nodesCompacted: beforeMetrics.nodeEntries - afterMetrics.nodeEntries,
     edgesCompacted: beforeMetrics.edgeEntries - afterMetrics.edgeEntries,
     tombstonesRemoved: beforeMetrics.totalTombstones - afterMetrics.totalTombstones,
+    propertiesPruned,
   });
 }

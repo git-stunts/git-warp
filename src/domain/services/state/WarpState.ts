@@ -151,6 +151,63 @@ export default class WarpState {
     this.prop.set(encodedKey, winner);
   }
 
+  /**
+   * Drops every property register whose owning node or edge is no longer
+   * alive, along with the birth events of dead edges. Returns the number
+   * of registers removed. Mutates in place.
+   *
+   * Removing an element tombstones its dot in the alive set but leaves its
+   * registers here, so a graph under churn — re-indexing the same file,
+   * retiring one generation of anchors to add the next — accumulates
+   * registers monotonically and never reclaims them.
+   *
+   * Call this only from GC at a stable frontier. A re-added element then
+   * starts from a clean property slate, which is the visibility edges
+   * already have through `edgeBirthEvent` / `isStaleEdgeAttachment`; this
+   * extends the same clean-slate rule to nodes.
+   */
+  compactDeadProperties(): number {
+    let pruned = 0;
+    for (const encodedKey of this.prop.keys()) {
+      if (this.ownerIsAlive(encodedKey)) {
+        continue;
+      }
+      this.prop.delete(encodedKey);
+      pruned++;
+    }
+    for (const edgeKey of this.edgeBirthEvent.keys()) {
+      if (!this.edgeAlive.contains(edgeKey)) {
+        this.edgeBirthEvent.delete(edgeKey);
+      }
+    }
+    return pruned;
+  }
+
+  /**
+   * Returns true when the element owning an encoded prop key is still
+   * alive, or when the key cannot be decoded unambiguously.
+   *
+   * `\0` separates fields, so a key whose element id itself contains `\0`
+   * decodes to a shorter, different id. Read paths already resolve such a
+   * key to no owner and hide it; a sweep that trusted the same decode
+   * would instead delete a live element's registers. Requiring the decode
+   * to round-trip keeps an ambiguous key — it is retained, never dropped.
+   */
+  private ownerIsAlive(encodedKey: string): boolean {
+    if (isEdgePropKey(encodedKey)) {
+      const edge = decodeEdgePropKey(encodedKey);
+      if (encodeEdgePropKey(edge.from, edge.to, edge.label, edge.propKey) !== encodedKey) {
+        return true;
+      }
+      return this.edgeAlive.contains(encodeEdgeKey(edge.from, edge.to, edge.label));
+    }
+    const node = decodePropKey(encodedKey);
+    if (encodePropKey(node.nodeId, node.propKey) !== encodedKey) {
+      return true;
+    }
+    return this.nodeAlive.contains(node.nodeId);
+  }
+
   /** Yields every node property register with decoded identity. */
   *nodeProperties(): Generator<NodePropertyEntry> {
     for (const [encodedKey, register] of this.prop) {
