@@ -1,8 +1,11 @@
 # ROADMAP — @git-stunts/git-warp
 
-> **Current release on `main`:** v16.0.0
-> **Next intended release:** v16.0.1
-> **Last reconciled:** 2026-03-29 (v16.0.0 release. OG-014 streaming CAS blob storage, OG-015 JSR docs, deprecated TraversalService and createWriter removed.)
+> **Current release on this line:** v16.0.1
+> **Next intended release:** v16.0.2
+> **Line status:** 16.x is a maintenance line. `main` moved on to 19.x; this
+> line carries correctness fixes only, published under the `v16` npm dist-tag
+> so it never claims `latest`.
+> **Last reconciled:** 2026-09-23 (v16.0.1 release. GC reclaims removed nodes' and edges' property registers.)
 > **Completed milestones:** [docs/ROADMAP/COMPLETED.md](ROADMAP/COMPLETED.md)
 
 ---

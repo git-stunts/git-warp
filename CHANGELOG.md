@@ -21,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   embeds the `\0` field separator does not decode unambiguously and is always
   retained, never pruned.
 
+### Release
+
+- Published under the **`v16` npm dist-tag**, not `latest`. 19.x is the current
+  line; a maintenance release of an older major must not move what a bare
+  `npm install @git-stunts/git-warp` resolves to. Install this line explicitly
+  with `npm install @git-stunts/git-warp@v16`. The release workflow now
+  computes the dist-tag by comparing the tag against the published `latest`
+  rather than assuming every non-prerelease claims it.
+
 ### Compatibility
 
 - Re-adding a removed node no longer resurrects the properties it carried

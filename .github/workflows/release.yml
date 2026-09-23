@@ -62,7 +62,21 @@ jobs:
             fi
           else
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-            echo "npm_dist_tag=latest" >> "$GITHUB_OUTPUT"
+            # `latest` is what a bare `npm install` resolves to, so only the
+            # highest published version may claim it. A maintenance release of
+            # an older line publishes under that line's own tag instead;
+            # without this, tagging v16.0.1 while 19.1.0 is current would
+            # silently move every new install back three majors.
+            CURRENT_LATEST="$(npm view @git-stunts/git-warp version 2>/dev/null || echo '0.0.0')"
+            HIGHEST="$(printf '%s\n%s\n' "$TAG_VERSION" "$CURRENT_LATEST" | sort -V | tail -1)"
+            if [ "$HIGHEST" = "$TAG_VERSION" ]; then
+              echo "Tag $TAG_VERSION is at or above published latest $CURRENT_LATEST; claiming 'latest'"
+              echo "npm_dist_tag=latest" >> "$GITHUB_OUTPUT"
+            else
+              MAINTENANCE_TAG="v${TAG_VERSION%%.*}"
+              echo "Tag $TAG_VERSION is below published latest $CURRENT_LATEST; publishing under '$MAINTENANCE_TAG'"
+              echo "npm_dist_tag=$MAINTENANCE_TAG" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Verify tag == package.json version
