@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [16.0.1] — 2026-09-23
+
+### Fixed
+
+- **Garbage collection now reclaims removed elements' property registers** —
+  compaction cleared tombstoned dots from `nodeAlive` and `edgeAlive` but left
+  every register keyed under the removed element in `state.prop`, and nothing
+  else ever deleted from that map. A graph under churn — retiring one
+  generation of elements to add the next, as an AST re-indexer does on every
+  file edit — grew that map monotonically and never released it, ratcheting
+  heap in long-lived processes even across full GC runs. Dead edges'
+  `edgeBirthEvent` entries are reclaimed with them, and the new
+  `GCExecuteResult.propertiesPruned` reports the count. A key whose element id
+  embeds the `\0` field separator does not decode unambiguously and is always
+  retained, never pruned.
+
+### Compatibility
+
+- Re-adding a removed node no longer resurrects the properties it carried
+  before removal, once a GC run has swept them. This matches the visibility
+  edges already had through `edgeBirthEvent`. Reads are unchanged for any
+  element that is not re-added, because a dead element's registers were
+  already hidden from every read path. Run GC only at a frontier every replica
+  has observed — the stability contract `orsetCompact` already requires.
+  Retained data needs no migration; GC remains opt-in and disabled by default.
+
 ## [16.0.0] — 2026-03-29
 
 ### Added

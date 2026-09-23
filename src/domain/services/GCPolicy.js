@@ -2,7 +2,15 @@
  * GCPolicy - Garbage collection policy for WARP V5.
  */
 
-import { orsetCompact } from '../crdt/ORSet.js';
+import { orsetCompact, orsetContains } from '../crdt/ORSet.js';
+import {
+  decodeEdgePropKey,
+  decodePropKey,
+  encodeEdgeKey,
+  encodeEdgePropKey,
+  encodePropKey,
+  isEdgePropKey,
+} from './KeyCodec.js';
 import { collectGCMetrics } from './GCMetrics.js';
 import WarpError from '../errors/WarpError.js';
 
@@ -27,6 +35,7 @@ import WarpError from '../errors/WarpError.js';
  * @property {number} nodesCompacted - Number of node entries compacted
  * @property {number} edgesCompacted - Number of edge entries compacted
  * @property {number} tombstonesRemoved - Total tombstones removed
+ * @property {number} propertiesPruned - Property registers dropped because their node or edge is dead
  * @property {number} durationMs - Time taken in milliseconds
  */
 
@@ -92,6 +101,68 @@ export function shouldRunGC(metrics, policy) {
 }
 
 /**
+ * Returns true when the element owning an encoded prop key is still alive,
+ * or when the key cannot be decoded unambiguously.
+ *
+ * `\0` separates fields, so a key whose element id itself contains `\0`
+ * decodes to a shorter, different id. Read paths already resolve such a key
+ * to no owner and hide it; a sweep that trusted the same decode would instead
+ * delete a live element's registers. Requiring the decode to round-trip keeps
+ * an ambiguous key — it is retained, never dropped.
+ *
+ * @param {import('./JoinReducer.js').WarpStateV5} state
+ * @param {string} encodedKey
+ * @returns {boolean}
+ */
+function propOwnerIsAlive(state, encodedKey) {
+  if (isEdgePropKey(encodedKey)) {
+    const edge = decodeEdgePropKey(encodedKey);
+    if (encodeEdgePropKey(edge.from, edge.to, edge.label, edge.propKey) !== encodedKey) {
+      return true;
+    }
+    return orsetContains(state.edgeAlive, encodeEdgeKey(edge.from, edge.to, edge.label));
+  }
+  const node = decodePropKey(encodedKey);
+  if (encodePropKey(node.nodeId, node.propKey) !== encodedKey) {
+    return true;
+  }
+  return orsetContains(state.nodeAlive, node.nodeId);
+}
+
+/**
+ * Drops every property register whose owning node or edge is no longer alive,
+ * along with the birth events of dead edges. Returns the number of registers
+ * removed. Mutates state in place.
+ *
+ * Removing an element tombstones its dot in the alive set but leaves its
+ * registers in `state.prop`, so a graph under churn accumulates them
+ * monotonically and never reclaims them. Runs only from GC, at the stable
+ * frontier `orsetCompact` already requires: a re-added element then starts
+ * from a clean property slate.
+ *
+ * @param {import('./JoinReducer.js').WarpStateV5} state
+ * @returns {number}
+ */
+function compactDeadProperties(state) {
+  let pruned = 0;
+  for (const encodedKey of state.prop.keys()) {
+    if (propOwnerIsAlive(state, encodedKey)) {
+      continue;
+    }
+    state.prop.delete(encodedKey);
+    pruned++;
+  }
+  if (state.edgeBirthEvent) {
+    for (const edgeKey of state.edgeBirthEvent.keys()) {
+      if (!orsetContains(state.edgeAlive, edgeKey)) {
+        state.edgeBirthEvent.delete(edgeKey);
+      }
+    }
+  }
+  return pruned;
+}
+
+/**
  * Executes GC on state. Only compacts tombstoned dots <= appliedVV.
  * Mutates state **in place** — callers must clone-then-swap to preserve
  * a rollback copy (see CheckpointService for the canonical pattern).
@@ -129,6 +200,8 @@ export function executeGC(state, appliedVV) {
     );
   }
 
+  const propertiesPruned = compactDeadProperties(state);
+
   // Collect metrics after compaction
   const afterMetrics = collectGCMetrics(state);
 
@@ -138,6 +211,7 @@ export function executeGC(state, appliedVV) {
     nodesCompacted: beforeMetrics.nodeEntries - afterMetrics.nodeEntries,
     edgesCompacted: beforeMetrics.edgeEntries - afterMetrics.edgeEntries,
     tombstonesRemoved: beforeMetrics.totalTombstones - afterMetrics.totalTombstones,
+    propertiesPruned,
     durationMs: endTime - startTime,
   };
 }
