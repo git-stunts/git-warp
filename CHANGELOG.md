@@ -40,6 +40,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A stable release tag no longer claims the `latest` npm dist-tag
+  unconditionally. `latest` is what a bare `npm install` resolves to, so a
+  maintenance release of an older major would have moved every new install
+  backwards — irreversibly, since a published version cannot be withdrawn, and
+  silently, since nothing in the pipeline inspected the dist-tag. A tag now
+  claims `latest` only when it is at or above the version the registry serves,
+  and publishes under `maintenance-vX` otherwise. The decision refuses rather
+  than guessing when the registry cannot be read or answers with no usable
+  version, and treats `E404` as a first publish. It lives in
+  `scripts/compute-npm-dist-tag.sh` so it is testable rather than trusted.
+  `.github/RELEASE.md` already required "an explicit maintenance tag policy
+  before publication"; that policy is now written down and enforced, alongside
+  a procedure for releasing from a maintenance line.
 - Idle Git reader retirement now completes when the child process closes
   before stdin reports its final flush. Storage shutdown no longer waits
   indefinitely for that missing stream event. Requires Plumbing 3.3.1.

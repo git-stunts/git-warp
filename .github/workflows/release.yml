@@ -71,17 +71,17 @@ jobs:
 
           if [[ "$TAG_VERSION" =~ -(rc|beta|alpha)\. ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
-            if [[ "$TAG_VERSION" =~ -rc\. ]]; then
-              echo "npm_dist_tag=next" >> "$GITHUB_OUTPUT"
-            elif [[ "$TAG_VERSION" =~ -beta\. ]]; then
-              echo "npm_dist_tag=beta" >> "$GITHUB_OUTPUT"
-            else
-              echo "npm_dist_tag=alpha" >> "$GITHUB_OUTPUT"
-            fi
           else
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-            echo "npm_dist_tag=latest" >> "$GITHUB_OUTPUT"
           fi
+
+          # A stable tag does not claim `latest` by virtue of being stable.
+          # The decision lives in a script so it can be tested; see
+          # "Dist-Tag Policy" in .github/RELEASE.md. It exits non-zero rather
+          # than guessing when the registry cannot be read.
+          NPM_DIST_TAG="$(./scripts/compute-npm-dist-tag.sh "$TAG_VERSION")"
+          echo "Publishing under npm dist-tag: $NPM_DIST_TAG"
+          echo "npm_dist_tag=$NPM_DIST_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Verify checkout matches release tag
         shell: bash
