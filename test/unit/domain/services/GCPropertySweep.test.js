@@ -16,6 +16,7 @@ import { orsetAdd, orsetRemove } from '../../../../src/domain/crdt/ORSet.js';
 import { createDot, encodeDot } from '../../../../src/domain/crdt/Dot.js';
 import { createVersionVector } from '../../../../src/domain/crdt/VersionVector.js';
 import {
+  EDGE_PROP_PREFIX,
   encodeEdgeKey,
   encodeEdgePropKey,
   encodePropKey,
@@ -171,6 +172,26 @@ describe('executeGC property sweep', () => {
     executeGC(state, appliedThrough(1));
 
     expect(state.edgeBirthEvent.has(edgeKey)).toBe(false);
+  });
+
+  it('retains a malformed edge-property key instead of aborting the sweep', () => {
+    // Full-state deserialization accepts prop-map keys without validating
+    // their shape, and decodeEdgePropKey throws on the wrong field count.
+    // One such key must not take GC down with it.
+    const state = createEmptyStateV5();
+    const malformed = `${EDGE_PROP_PREFIX}a\0b\0c\0d\0e`;
+    setProp(state, malformed, 'kept');
+    addThenRemoveNode(state, 'ast:doomed', createDot('A', 1));
+    setProp(state, encodePropKey('ast:doomed', 'type'), 'identifier');
+
+    /** @type {import('../../../../src/domain/services/GCPolicy.js').GCExecuteResult | undefined} */
+    let result;
+    expect(() => { result = executeGC(state, appliedThrough(1)); }).not.toThrow();
+
+    // The unreadable key survives; the readable dead one is still swept.
+    expect(result?.propertiesPruned).toBe(1);
+    expect(state.prop.has(malformed)).toBe(true);
+    expect(state.prop.has(encodePropKey('ast:doomed', 'type'))).toBe(false);
   });
 
   it('reports zero pruned properties for an empty state', () => {

@@ -25,9 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Re-adding a removed node no longer resurrects the properties it carried
   before removal, once a GC run has swept them. This matches the visibility
-  edges already had through `edgeBirthEvent`. Reads are unchanged for any
-  element that is not re-added, because a dead element's registers were
-  already hidden from every read path. Run GC only at a frontier every replica
+  edges already had through `edgeBirthEvent`. Visibility-filtered reads are
+  unchanged for any element that is not re-added, because a dead element's
+  registers were already hidden from them; raw `state.prop` lookups do not
+  filter by liveness and will stop returning a dead owner's register once it
+  is swept. Run GC only at a frontier every replica
   has observed — the stability contract `orsetCompact` already requires.
   Retained data needs no migration; GC remains opt-in and disabled by default.
 

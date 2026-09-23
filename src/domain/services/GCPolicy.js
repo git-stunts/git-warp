@@ -104,29 +104,39 @@ export function shouldRunGC(metrics, policy) {
  * Returns true when the element owning an encoded prop key is still alive,
  * or when the key cannot be decoded unambiguously.
  *
+ * Two ways a key resists decoding, both of which retain it.
+ *
  * `\0` separates fields, so a key whose element id itself contains `\0`
  * decodes to a shorter, different id. Read paths already resolve such a key
  * to no owner and hide it; a sweep that trusted the same decode would instead
- * delete a live element's registers. Requiring the decode to round-trip keeps
- * an ambiguous key — it is retained, never dropped.
+ * delete a live element's registers, so the decode must round-trip.
+ *
+ * A key with the wrong field count makes decodeEdgePropKey throw. Full-state
+ * deserialization accepts prop-map keys without validating their shape, so one
+ * malformed key would otherwise abort the whole sweep and, through it, GC.
+ * Sweeping is an optimization; a key it cannot read is one it leaves alone.
  *
  * @param {import('./JoinReducer.js').WarpStateV5} state
  * @param {string} encodedKey
  * @returns {boolean}
  */
 function propOwnerIsAlive(state, encodedKey) {
-  if (isEdgePropKey(encodedKey)) {
-    const edge = decodeEdgePropKey(encodedKey);
-    if (encodeEdgePropKey(edge.from, edge.to, edge.label, edge.propKey) !== encodedKey) {
+  try {
+    if (isEdgePropKey(encodedKey)) {
+      const edge = decodeEdgePropKey(encodedKey);
+      if (encodeEdgePropKey(edge.from, edge.to, edge.label, edge.propKey) !== encodedKey) {
+        return true;
+      }
+      return orsetContains(state.edgeAlive, encodeEdgeKey(edge.from, edge.to, edge.label));
+    }
+    const node = decodePropKey(encodedKey);
+    if (encodePropKey(node.nodeId, node.propKey) !== encodedKey) {
       return true;
     }
-    return orsetContains(state.edgeAlive, encodeEdgeKey(edge.from, edge.to, edge.label));
-  }
-  const node = decodePropKey(encodedKey);
-  if (encodePropKey(node.nodeId, node.propKey) !== encodedKey) {
+    return orsetContains(state.nodeAlive, node.nodeId);
+  } catch {
     return true;
   }
-  return orsetContains(state.nodeAlive, node.nodeId);
 }
 
 /**
