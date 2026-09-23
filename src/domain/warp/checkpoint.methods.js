@@ -419,7 +419,7 @@ export function maybeRunGC() {
  * **Requires a cached state.**
  *
  * @this {import('../WarpRuntime.js').default}
- * @returns {{nodesCompacted: number, edgesCompacted: number, tombstonesRemoved: number, durationMs: number}}
+ * @returns {{nodesCompacted: number, edgesCompacted: number, tombstonesRemoved: number, propertiesPruned: number, durationMs: number}}
  * @throws {QueryError} If no cached state exists (code: `E_NO_STATE`)
  * @throws {QueryError} If frontier changed during GC (code: `E_GC_STALE`)
  *

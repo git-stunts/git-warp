@@ -21,25 +21,57 @@ import {
   encodePropKey,
 } from '../../../../src/domain/services/KeyCodec.js';
 
-/** Distinct EventIds per call so LWW writes never collide on identity. */
 let opCounter = 0;
+
+/**
+ * Distinct EventIds per call so LWW writes never collide on identity.
+ * @returns {import('../../../../src/domain/utils/EventId.js').EventId}
+ */
 function nextEventId() {
   opCounter += 1;
   return { lamport: 1, writerId: 'A', patchSha: 'abcdef01', opIndex: opCounter };
 }
 
-/** Writes a property register directly into state under an encoded key. */
+/**
+ * Writes a property register directly into state under an encoded key.
+ * @param {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} state
+ * @param {string} encodedKey
+ * @param {unknown} value
+ * @returns {void}
+ */
 function setProp(state, encodedKey, value) {
   state.prop.set(encodedKey, { eventId: nextEventId(), value });
 }
 
-/** Adds a node, then tombstones its only dot, leaving it dead. */
+/**
+ * Reads back a register's value, failing the test if the key is absent.
+ * @param {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} state
+ * @param {string} encodedKey
+ * @returns {unknown}
+ */
+function propValue(state, encodedKey) {
+  const register = state.prop.get(encodedKey);
+  expect(register).toBeDefined();
+  return register?.value;
+}
+
+/**
+ * Adds a node, then tombstones its only dot, leaving it dead.
+ * @param {import('../../../../src/domain/services/JoinReducer.js').WarpStateV5} state
+ * @param {string} nodeId
+ * @param {import('../../../../src/domain/crdt/Dot.js').Dot} dot
+ * @returns {void}
+ */
 function addThenRemoveNode(state, nodeId, dot) {
   orsetAdd(state.nodeAlive, nodeId, dot);
   orsetRemove(state.nodeAlive, new Set([encodeDot(dot)]));
 }
 
-/** A VersionVector covering writer A through `counter`. */
+/**
+ * A VersionVector covering writer A through `counter`.
+ * @param {number} counter
+ * @returns {import('../../../../src/domain/crdt/VersionVector.js').VersionVector}
+ */
 function appliedThrough(counter) {
   const vv = createVersionVector();
   vv.set('A', counter);
@@ -69,7 +101,7 @@ describe('executeGC property sweep', () => {
     const result = executeGC(state, appliedThrough(1));
 
     expect(result.propertiesPruned).toBe(0);
-    expect(state.prop.get(encodePropKey('ast:keeper', 'type')).value).toBe('function_declaration');
+    expect(propValue(state, encodePropKey('ast:keeper', 'type'))).toBe('function_declaration');
   });
 
   it('prunes dead nodes while preserving live ones in the same sweep', () => {
@@ -110,7 +142,7 @@ describe('executeGC property sweep', () => {
     const result = executeGC(state, appliedThrough(1));
 
     expect(result.propertiesPruned).toBe(0);
-    expect(state.prop.get(propKey).value).toBe(1);
+    expect(propValue(state, propKey)).toBe(1);
   });
 
   it('retains a property whose key does not decode unambiguously', () => {
@@ -125,7 +157,7 @@ describe('executeGC property sweep', () => {
     const result = executeGC(state, appliedThrough(1));
 
     expect(result.propertiesPruned).toBe(0);
-    expect(state.prop.get(encodePropKey(nodeId, 'kind')).value).toBe('node');
+    expect(propValue(state, encodePropKey(nodeId, 'kind'))).toBe('node');
   });
 
   it('reclaims the edge birth event of a swept edge', () => {
