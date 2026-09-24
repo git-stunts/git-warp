@@ -12,16 +12,25 @@ import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
 describe('GitCasMaterializationWorkspace', () => {
-  it('stages pages and bundles under one git-cas workspace root', async () => {
+  it('defers workspace ref mutation until a transitive root is checkpointed', async () => {
     const harness = await createHarness();
     const workspace = await harness.adapter.openWorkspace(workspaceCoordinate());
 
     const page = await workspace.stagePage(new Uint8Array([1, 2, 3]), { maxBytes: 3 });
     const bundle = await workspace.stageOrderedBundle([['value', page]], { maxMembers: 1 });
 
-    expect(harness.cas.readActiveWorkspaceCount()).toBe(1);
-    expect(harness.cas.readWorkspaceRoots()).toEqual([[page, bundle.toString()]]);
+    expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
+    expect(harness.cas.readWorkspaceRoots()).toEqual([]);
     expect(harness.cas.readBundleMembers(bundle.toString())).toEqual([['value', page]]);
+
+    const witness = await workspace.checkpoint({
+      nodeAliveRoot: bundle.toString(),
+      edgeAliveRoot: null,
+    });
+
+    expect(witness).not.toBeNull();
+    expect(harness.cas.readActiveWorkspaceCount()).toBe(1);
+    expect(harness.cas.readWorkspaceRoots()).toHaveLength(1);
 
     await workspace.release();
     expect(harness.cas.readActiveWorkspaceCount()).toBe(0);
@@ -76,6 +85,7 @@ describe('GitCasMaterializationWorkspace', () => {
     const harness = await createHarness();
     const raw = await harness.cas.workspaces.open({ namespace: 'malformed-workspace' });
     const workspace = new GitCasMaterializationWorkspace({
+      staging: harness.cas,
       workspace: {
         ...raw,
         checkpoint: async (options) => {
@@ -96,9 +106,10 @@ describe('GitCasMaterializationWorkspace', () => {
 
   it('validates the git-cas workspace dependency at construction', () => {
     expect(() => Reflect.construct(GitCasMaterializationWorkspace, [{
+      staging: {},
       workspace: {},
       promote: rejectPromotion,
-    }])).toThrowError(/workspace dependency/u);
+    }])).toThrowError(/staging dependency/u);
   });
 });
 

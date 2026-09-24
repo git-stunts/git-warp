@@ -363,6 +363,7 @@ function rootsWithStatus(options: {
           ? MaterializationRoot.empty()
           : unavailable,
     provenanceSupport: unavailable,
+    replayBasis: unavailable,
     roaringIndexes: unavailable,
   });
 }

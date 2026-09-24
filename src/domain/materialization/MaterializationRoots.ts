@@ -9,6 +9,7 @@ export const MATERIALIZATION_ROOT_NAMES = defineRootNames(
   'node-alive',
   'properties',
   'provenance-support',
+  'replay-basis',
   'roaring-indexes',
 );
 
@@ -22,6 +23,7 @@ export type MaterializationRootsOptions = Readonly<{
   nodeAlive: MaterializationRoot;
   properties: MaterializationRoot;
   provenanceSupport: MaterializationRoot;
+  replayBasis: MaterializationRoot;
   roaringIndexes: MaterializationRoot;
 }>;
 
@@ -35,6 +37,7 @@ export default class MaterializationRoots {
   readonly nodeAlive: MaterializationRoot;
   readonly properties: MaterializationRoot;
   readonly provenanceSupport: MaterializationRoot;
+  readonly replayBasis: MaterializationRoot;
   readonly roaringIndexes: MaterializationRoot;
 
   constructor(options: MaterializationRootsOptions) {
@@ -47,6 +50,7 @@ export default class MaterializationRoots {
       'node-alive': requireRoot(options.nodeAlive, 'nodeAlive'),
       properties: requireRoot(options.properties, 'properties'),
       'provenance-support': requireRoot(options.provenanceSupport, 'provenanceSupport'),
+      'replay-basis': requireRoot(options.replayBasis, 'replayBasis'),
       'roaring-indexes': requireRoot(options.roaringIndexes, 'roaringIndexes'),
     } satisfies Record<MaterializationRootName, MaterializationRoot>);
     this.adjacency = this.roots.adjacency;
@@ -56,6 +60,7 @@ export default class MaterializationRoots {
     this.nodeAlive = this.roots['node-alive'];
     this.properties = this.roots.properties;
     this.provenanceSupport = this.roots['provenance-support'];
+    this.replayBasis = this.roots['replay-basis'];
     this.roaringIndexes = this.roots['roaring-indexes'];
     Object.freeze(this);
   }

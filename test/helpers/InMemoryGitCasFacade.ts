@@ -15,6 +15,7 @@ import {
   type BundleCapability,
   type BundleMember,
   type CacheAcquisition,
+  type CacheInspection,
   type CacheSet,
   type CacheStoreResult,
   type PageHandleInput,
@@ -64,7 +65,7 @@ export default class InMemoryGitCasFacade {
   readonly caches: {
     open(options: {
       readonly namespace: string;
-    }): Promise<Pick<CacheSet, 'acquire' | 'get' | 'put' | 'remove' | 'ref'>>;
+    }): Promise<Pick<CacheSet, 'acquire' | 'get' | 'inspect' | 'put' | 'remove' | 'ref'>>;
   };
   readonly pages: Pick<PageCapability, 'get' | 'put'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
@@ -342,7 +343,7 @@ export default class InMemoryGitCasFacade {
 
   async #openCache(
     namespace: string,
-  ): Promise<Pick<CacheSet, 'acquire' | 'get' | 'put' | 'remove' | 'ref'>> {
+  ): Promise<Pick<CacheSet, 'acquire' | 'get' | 'inspect' | 'put' | 'remove' | 'ref'>> {
     const entries = this.#cacheEntries.get(namespace) ?? new Map<string, CacheHit>();
     this.#cacheEntries.set(namespace, entries);
     return Object.freeze({
@@ -383,6 +384,37 @@ export default class InMemoryGitCasFacade {
         });
       },
       get: async (key) => entries.get(key) ?? null,
+      inspect: async (
+        { limit = 100, cursor = null }: { limit?: number; cursor?: string | null } = {},
+      ): Promise<CacheInspection> => {
+        const candidates = [...entries.values()]
+          .sort((left, right) => left.key.localeCompare(right.key))
+          .filter((hit) => cursor === null || hit.key > cursor);
+        const selected = candidates.slice(0, limit);
+        return Object.freeze({
+          namespace,
+          ref: `refs/cas/caches/${namespace}`,
+          generation: null,
+          state: null,
+          observed: null,
+          policy: null,
+          entries: Object.freeze(selected.map((hit) => Object.freeze({
+            version: 1 as const,
+            accountingVersion: 1 as const,
+            key: hit.key,
+            keyDigest: hit.key,
+            handle: hit.handle.toString(),
+            policy: hit.policy,
+            expiresAt: hit.expiresAt,
+            logicalBytes: hit.logicalBytes,
+            createdAt: hit.createdAt,
+            accessedAt: hit.accessedAt,
+          }))),
+          nextCursor: candidates.length > limit
+            ? selected.at(-1)?.key ?? null
+            : null,
+        });
+      },
       put: async (key, handle, options) => {
         const previous = entries.get(key) ?? null;
         const target = parseApplicationHandle(handle);

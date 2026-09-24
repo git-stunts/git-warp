@@ -1,0 +1,98 @@
+name: Performance
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: performance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  performance-gate:
+    name: CPU, wall-time, and bounded-memory gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GIT_WARP_PERF_RUNS: '5'
+      GIT_WARP_PERF_WARMUPS: '1'
+      GIT_WARP_PERF_CPU_NODES: '1500'
+      GIT_WARP_PERF_CPU_PROPERTY_BYTES: '256'
+      GIT_WARP_PERF_INCREMENTAL_NODES: '25'
+      GIT_WARP_PERF_STREAM_NODES: '1024'
+      GIT_WARP_PERF_STREAM_PROPERTY_BYTES: '262144'
+      GIT_WARP_PERF_STREAM_HEAP_MIB: '48'
+      RUNNER_ENVIRONMENT: github-hosted
+    steps:
+      - name: Check out head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Use Node.js 22
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install head dependencies
+        run: npm ci
+      - name: Build head
+        run: npm run build --silent
+      - name: Measure merge base on the same runner
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          base_dir="$RUNNER_TEMP/git-warp-performance-base"
+          results_dir="$RUNNER_TEMP/git-warp-performance-results"
+          mkdir -p "$results_dir"
+          git clone --no-local "$GITHUB_WORKSPACE" "$base_dir"
+          git -C "$base_dir" checkout --detach "$BASE_SHA"
+          if test -f "$base_dir/scripts/performance/RunPerformance.ts"; then
+            npm --prefix "$base_dir" ci
+            npm --prefix "$base_dir" run build --silent
+            GIT_WARP_PERF_COMMIT="$BASE_SHA" node \
+              "$base_dir/dist/scripts/performance/RunPerformance.js" \
+              --output "$results_dir/base.json"
+          else
+            printf '%s\n' 'Merge base predates the v19 performance harness; using absolute bootstrap policy.'
+          fi
+      - name: Measure head
+        env:
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          results_dir="$RUNNER_TEMP/git-warp-performance-results"
+          mkdir -p "$results_dir"
+          GIT_WARP_PERF_COMMIT="$HEAD_SHA" node \
+            dist/scripts/performance/RunPerformance.js \
+            --output "$results_dir/head.json"
+      - name: Enforce performance policy
+        run: |
+          results_dir="$RUNNER_TEMP/git-warp-performance-results"
+          args=(
+            --head "$results_dir/head.json"
+            --policy benchmarks/v19/policy.json
+            --summary "$results_dir/summary.md"
+          )
+          if test -f "$results_dir/base.json"; then
+            args+=(--base "$results_dir/base.json")
+          fi
+          node dist/scripts/performance/GatePerformance.js "${args[@]}"
+          cat "$results_dir/summary.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload measurements
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: git-warp-performance-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/git-warp-performance-results/*.json
+            ${{ runner.temp }}/git-warp-performance-results/*.md
+            benchmarks/v19/policy.json
+          if-no-files-found: error
+          retention-days: 90

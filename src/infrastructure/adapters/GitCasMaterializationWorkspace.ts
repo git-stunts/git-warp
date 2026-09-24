@@ -1,12 +1,12 @@
 import {
   BundleHandle as GitCasBundleHandle,
   type ApplicationHandleInput,
+  type BundleCapability,
   type CacheSet,
+  type PageCapability,
   type RetentionWitness,
   type StagingWorkspace,
   type WorkspaceCheckpointResult,
-  type WorkspaceRetainedBundle,
-  type WorkspaceRetainedPage,
 } from '@git-stunts/git-cas';
 import type MaterializationHandle from '../../domain/materialization/MaterializationHandle.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
@@ -36,6 +36,10 @@ export type GitCasStagingWorkspace = Pick<
 }>;
 
 export type GitCasMaterializationWorkspaceOptions = Readonly<{
+  staging: Readonly<{
+    pages: Pick<PageCapability, 'put'>;
+    bundles: Pick<BundleCapability, 'putOrdered'>;
+  }>;
   workspace: GitCasStagingWorkspace;
   promote: (
     workspace: GitCasStagingWorkspace,
@@ -45,6 +49,7 @@ export type GitCasMaterializationWorkspaceOptions = Readonly<{
 
 /** git-cas-owned retention scope for one in-progress materialization. */
 export default class GitCasMaterializationWorkspace extends MaterializationWorkspacePort {
+  readonly #staging: GitCasMaterializationWorkspaceOptions['staging'];
   readonly #workspace: GitCasStagingWorkspace;
   readonly #promoteMaterialization: GitCasMaterializationWorkspaceOptions['promote'];
   #promoting = false;
@@ -57,6 +62,7 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
   constructor(options: GitCasMaterializationWorkspaceOptions) {
     super();
     requireWorkspaceOptions(options);
+    this.#staging = options.staging;
     this.#workspace = options.workspace;
     this.#promoteMaterialization = options.promote;
   }
@@ -67,11 +73,10 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
   ): Promise<string> {
     this.#assertMutable('stage a page');
     return this.#serialize(async () => {
-      const staged = await this.#workspace.pages.put({
+      const staged = await this.#staging.pages.put({
         source,
         maxBytes: options.maxBytes,
       });
-      requireRetainedStage(staged, staged.handle.toString());
       return staged.handle.toString();
     });
   }
@@ -82,13 +87,12 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
   ): Promise<BundleHandle> {
     this.#assertMutable('stage a bundle');
     return this.#serialize(async () => {
-      const staged = await this.#workspace.bundles.putOrdered({
+      const staged = await this.#staging.bundles.putOrdered({
         members,
         ...(options.maxMembers === undefined
           ? {}
           : { limits: { maxMembers: options.maxMembers } }),
       });
-      requireRetainedStage(staged, staged.handle.toString());
       return new BundleHandle(staged.handle.toString());
     });
   }
@@ -102,8 +106,7 @@ export default class GitCasMaterializationWorkspace extends MaterializationWorks
       if (members.length === 0) {
         return null;
       }
-      const staged = await this.#workspace.bundles.putOrdered({ members });
-      requireRetainedStage(staged, staged.handle.toString());
+      const staged = await this.#staging.bundles.putOrdered({ members });
       const checkpoint = await this.#workspace.checkpoint({ handles: [staged.handle] });
       return requireCheckpointWitness(checkpoint, staged.handle.toString());
     });
@@ -179,21 +182,6 @@ function parseRoot(token: string): string {
   }
 }
 
-function requireRetainedStage(
-  staged: WorkspaceRetainedPage | WorkspaceRetainedBundle,
-  expectedHandle: string,
-): StorageRetentionWitness {
-  if (
-    staged.state !== 'retained' ||
-    staged.retention.policy !== 'evictable' ||
-    staged.retention.reachability !== 'anchored' ||
-    staged.retention.protection !== 'workspace'
-  ) {
-    throw workspaceError('git-cas returned an unretained staged artifact');
-  }
-  return requireWorkspaceWitness(staged.witness, expectedHandle);
-}
-
 function requireCheckpointWitness(
   checkpoint: WorkspaceCheckpointResult,
   expectedHandle: string,
@@ -239,6 +227,11 @@ function requireWorkspaceOptions(options: GitCasMaterializationWorkspaceOptions)
   if (options === null || typeof options !== 'object' || Array.isArray(options)) {
     throw workspaceError('options must be an object');
   }
+  requireObject(options.staging, 'git-cas staging dependency');
+  requireObject(options.staging.pages, 'git-cas staging dependency pages');
+  requireObject(options.staging.bundles, 'git-cas staging dependency bundles');
+  requireMethod(options.staging.pages, 'put', 'git-cas staging pages');
+  requireMethod(options.staging.bundles, 'putOrdered', 'git-cas staging bundles');
   requireObject(options.workspace, 'git-cas workspace dependency');
   requireObject(options.workspace.pages, 'git-cas workspace dependency pages');
   requireObject(options.workspace.bundles, 'git-cas workspace dependency bundles');

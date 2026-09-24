@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "absolute": {
+    "cpuTotalMedianMs": {
+      "cold-materialize": 180000,
+      "warm-property-read": 15000,
+      "incremental-materialize": 180000,
+      "bounded-memory-read": 30000
+    },
+    "wallMedianMs": {
+      "cold-materialize": 240000,
+      "warm-property-read": 30000,
+      "incremental-materialize": 240000,
+      "bounded-memory-read": 45000
+    },
+    "maximumRssBytes": 268435456,
+    "minimumLogicalToHeapRatio": 4
+  },
+  "relative": {
+    "cpuNoiseFloorMs": {
+      "cold-materialize": 250,
+      "warm-property-read": 25,
+      "incremental-materialize": 250,
+      "bounded-memory-read": 50
+    },
+    "cpuRegressionRatio": 1.15,
+    "wallNoiseFloorMs": {
+      "cold-materialize": 1000,
+      "warm-property-read": 100,
+      "incremental-materialize": 1000,
+      "bounded-memory-read": 250
+    },
+    "wallRegressionRatio": 1.25,
+    "rssNoiseFloorBytes": 16777216,
+    "rssRegressionRatio": 1.15
+  }
+}

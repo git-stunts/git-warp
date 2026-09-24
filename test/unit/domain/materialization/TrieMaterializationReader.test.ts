@@ -39,10 +39,12 @@ describe('TrieMaterializationReader', () => {
 
     expect(Object.isFrozen(reader)).toBe(true);
     await expect(reader.hasNode(root, 'node:present')).resolves.toBe(true);
+    const readsAfterFirstLookup = store.readCounts();
     await expect(reader.hasNode(root, 'node:missing')).resolves.toBe(false);
 
     expect(store.writeCounts()).toEqual(writesBeforeRead);
     const reads = store.readCounts();
+    expect(reads).toEqual(readsAfterFirstLookup);
     expect(reads.leaf + reads.branch).toBeGreaterThan(0);
     expect(reads.leaf + reads.branch).toBeLessThanOrEqual(4);
   });
@@ -140,6 +142,7 @@ describe('TrieMaterializationReader', () => {
     ['codec', { store: new InMemoryTrieStore(), codec: {} }],
     ['geometry', { store: new InMemoryTrieStore(), codec: cborCodec, geometry: {} }],
     ['indexStore', { store: new InMemoryTrieStore(), codec: cborCodec, indexStore: {} }],
+    ['pageCache', { store: new InMemoryTrieStore(), codec: cborCodec, pageCache: {} }],
   ])('rejects malformed %s with a domain error', (_field, options) => {
     expect(() => Reflect.construct(TrieMaterializationReader, [options])).toThrowError(
       expect.objectContaining<Pick<WarpError, 'code'>>({ code: 'E_MATERIALIZATION_RESUME' })

@@ -15,6 +15,7 @@ import type {
 import type WarpStateCachePort from '../../../ports/WarpStateCachePort.ts';
 import type MaterializationReadPort from '../../../ports/MaterializationReadPort.ts';
 import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
+import WarpStream from '../../stream/WarpStream.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import type {
   WarpStateCoordinate,
@@ -43,6 +44,14 @@ export default class MaterializeLiveStrategy {
       return await this.runtime.emptyResult(null, frontier, snapshotPublicationForLiveOptions(opts));
     }
     const coordinate = this.snapshotCoordinate(frontier);
+    const exactRetained = await this.tryResumeExactRetained(coordinate, opts);
+    if (exactRetained !== null) {
+      return exactRetained;
+    }
+    const retainedResolved = await this.tryResumeRetainedPredecessor(coordinate, opts);
+    if (retainedResolved !== null) {
+      return retainedResolved;
+    }
     const stateCache = this.runtime.deps.getStateCache?.() ?? null;
     const cacheResolved = await this.tryResolveConfiguredStateCache(
       stateCache,
@@ -152,6 +161,141 @@ export default class MaterializeLiveStrategy {
       receipts: opts.receipts,
       wantDiff: opts.wantDiff,
     });
+  }
+
+  private async tryResumeRetainedPredecessor(
+    coordinate: WarpStateCoordinate,
+    opts: MaterializeLiveOptions,
+  ): Promise<MaterializeResult | null> {
+    if (opts.receipts || opts.wantDiff) {
+      return null;
+    }
+    const target = new MaterializationCoordinate(coordinate);
+    const acquisition = await this.runtime.deps.materializations
+      .acquireBestCompatiblePredecessor(
+        target,
+        async (candidate) => await this.coordinatePrecedes(candidate, target),
+      );
+    if (acquisition === null) {
+      return null;
+    }
+    let result: MaterializeResult | null;
+    try {
+      const basis = await this.runtime.deps.materializations.loadReplayBasis(
+        acquisition.materialization,
+      );
+      if (basis === null) {
+        result = null;
+      } else {
+        const reduction = await this.runtime.reducePatchStream(
+          this.runtime.deps.patches.streamForFrontierSinceCoordinate(
+            coordinate.frontier,
+            coordinate.ceiling,
+            {
+              frontier: acquisition.materialization.coordinate.frontier(),
+              ceiling: acquisition.materialization.coordinate.ceiling,
+            },
+          ),
+          basis,
+          { receipts: false, wantDiff: false },
+          coordinate,
+          undefined,
+          acquisition.materialization,
+        );
+        result = await this.runtime.buildResult({
+          reduced: reduction.reduced,
+          summary: reduction.summary,
+          degraded: true,
+          ceiling: coordinate.ceiling,
+          frontier: coordinate.frontier,
+          ...(opts.publishSnapshot === undefined
+            ? {}
+            : { publishSnapshot: opts.publishSnapshot }),
+        });
+      }
+    } catch (raw) {
+      await releaseAcquisitionAfterFailure(acquisition, this.runtime.deps.logger);
+      throw raw;
+    }
+    await acquisition.release();
+    return result;
+  }
+
+  private async tryResumeExactRetained(
+    coordinate: WarpStateCoordinate,
+    opts: MaterializeLiveOptions,
+  ): Promise<MaterializeResult | null> {
+    if (opts.receipts) {
+      return null;
+    }
+    const acquisition = await this.runtime.deps.materializations.acquireExact(
+      new MaterializationCoordinate(coordinate),
+    );
+    if (acquisition === null) {
+      return null;
+    }
+    let result: MaterializeResult | null;
+    try {
+      const basis = await this.runtime.deps.materializations.loadReplayBasis(
+        acquisition.materialization,
+      );
+      if (basis === null) {
+        result = null;
+      } else {
+        const reduction = await this.runtime.reducePatchStream(
+          emptyPatchStream(),
+          basis,
+          { receipts: false, wantDiff: opts.wantDiff },
+          coordinate,
+          undefined,
+          acquisition.materialization,
+        );
+        result = await this.runtime.buildResult({
+          reduced: reduction.reduced,
+          summary: reduction.summary,
+          degraded: true,
+          ceiling: coordinate.ceiling,
+          frontier: coordinate.frontier,
+          materialization: acquisition.materialization,
+          publishSnapshot: false,
+        });
+      }
+    } catch (raw) {
+      await releaseAcquisitionAfterFailure(acquisition, this.runtime.deps.logger);
+      throw raw;
+    }
+    await acquisition.release();
+    return result;
+  }
+
+  private async coordinatePrecedes(
+    candidate: MaterializationCoordinate,
+    target: MaterializationCoordinate,
+  ): Promise<boolean> {
+    if (!ceilingPrecedes(candidate.ceiling, target.ceiling)) {
+      return false;
+    }
+    const targetFrontier = target.frontier();
+    for (const [writerId, candidateTip] of candidate.frontierEntries.map(
+      (entry) => [entry.writerId, entry.patchSha] as const,
+    )) {
+      const targetTip = targetFrontier.get(writerId);
+      if (targetTip === undefined) {
+        return false;
+      }
+      if (candidateTip === targetTip) {
+        continue;
+      }
+      const isAncestor = this.runtime.deps.patches.isAncestor;
+      if (typeof isAncestor !== 'function' || !await isAncestor.call(
+        this.runtime.deps.patches,
+        candidateTip,
+        targetTip,
+      )) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private async replayCurrentCoordinate(
@@ -364,6 +508,17 @@ export default class MaterializeLiveStrategy {
       frontier: opts.coordinate.frontier,
     });
   }
+}
+
+function ceilingPrecedes(candidate: number | null, target: number | null): boolean {
+  if (target === null) {
+    return true;
+  }
+  return candidate !== null && candidate <= target;
+}
+
+function emptyPatchStream(): AsyncIterable<PatchWithSha> {
+  return WarpStream.from<PatchWithSha>([]);
 }
 
 async function readNodePresence(

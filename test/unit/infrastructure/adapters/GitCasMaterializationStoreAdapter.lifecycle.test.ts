@@ -14,7 +14,7 @@ import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
 const CACHE_NAMESPACE = 'git-warp/materializations';
-const ROOT_COUNT = 8;
+const ROOT_COUNT = 9;
 
 describe('GitCasMaterializationStoreAdapter legacy lifecycle', () => {
   it('keeps the matching v2 cache anchor until the v3 profile is retained', async () => {
@@ -32,7 +32,7 @@ describe('GitCasMaterializationStoreAdapter legacy lifecycle', () => {
     expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toEqual([v2Key]);
 
     await harness.adapter.retain({ coordinate, roots, stateHash: 'replacement-state-hash' });
-    expect(requireSingleCacheKey(harness.cas)).toMatch(/^v3:[0-9a-f]{64}$/u);
+    expect(requireSingleCacheKey(harness.cas)).toMatch(/^v4:[0-9a-f]{64}$/u);
   });
 
   it('removes the matching v2 cache anchor after direct v3 retention', async () => {
@@ -54,7 +54,7 @@ describe('GitCasMaterializationStoreAdapter legacy lifecycle', () => {
     const acquisition = await harness.adapter.acquireExact(coordinate);
 
     expect(harness.cas.readCacheKeys(CACHE_NAMESPACE)).toEqual([
-      expect.stringMatching(/^v3:[0-9a-f]{64}$/u),
+      expect.stringMatching(/^v4:[0-9a-f]{64}$/u),
     ]);
     expect(replacement.retention.root.generation)
       .toBe(acquisition?.materialization.retention.root.generation);
@@ -107,6 +107,7 @@ function adapterFor(cas: GitCasMaterializationFacade): GitCasMaterializationStor
 
 function withoutCacheAcquisition(cas: InMemoryGitCasFacade): GitCasMaterializationFacade {
   return {
+    assets: cas.assets,
     bundles: cas.bundles,
     pages: cas.pages,
     caches: {
@@ -115,6 +116,7 @@ function withoutCacheAcquisition(cas: InMemoryGitCasFacade): GitCasMaterializati
         return {
           ref: cache.ref,
           acquire: async () => null,
+          inspect: async (inspectOptions) => await cache.inspect(inspectOptions),
           put: async (key, handle, entryOptions) => await cache.put(key, handle, entryOptions),
           remove: async (key) => await cache.remove(key),
         };
@@ -150,7 +152,8 @@ function rootsFromHandles(handles: readonly BundleHandle[]): MaterializationRoot
     nodeAlive: root(4),
     properties: root(5),
     provenanceSupport: root(6),
-    roaringIndexes: root(7),
+    replayBasis: root(7),
+    roaringIndexes: root(8),
   });
 }
 

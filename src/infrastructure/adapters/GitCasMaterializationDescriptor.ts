@@ -9,7 +9,7 @@ import MaterializationRoots, {
 import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 
-export const MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 3;
+export const MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 4;
 
 export type DecodedMaterializationDescriptor = Readonly<{
   coordinate: MaterializationCoordinate;
@@ -75,6 +75,7 @@ export function materializationRootsFromDescriptor(
     nodeAlive: rootFromMaps(statuses, retainedRoots, 'node-alive'),
     properties: rootFromMaps(statuses, retainedRoots, 'properties'),
     provenanceSupport: rootFromMaps(statuses, retainedRoots, 'provenance-support'),
+    replayBasis: rootFromMaps(statuses, retainedRoots, 'replay-basis'),
     roaringIndexes: rootFromMaps(statuses, retainedRoots, 'roaring-indexes'),
   });
 }

@@ -54,6 +54,7 @@ export async function reduceSessionBackedState(args: {
   readonly logger?: LoggerPort;
   readonly propertyStore?: IndexStorePort;
   readonly propertyRoot?: MaterializationRoot;
+  readonly replayBasisRoot?: MaterializationRoot;
   readonly coordinate: MaterializationCoordinate;
   readonly patches: MaterializeSessionPatchSource;
   readonly baseState?: WarpStateClass;
@@ -127,7 +128,10 @@ export async function reduceSessionBackedState(args: {
       reducedPatchCount === 0 ? args.propertyRoot : undefined,
     );
     await retainPreparedPropertyRoot(workspace, close.roots, properties);
-    const roots = materializationRootsFromSession(close.roots, properties);
+    const replayBasis = reducedPatchCount === 0 && args.replayBasisRoot !== undefined
+      ? args.replayBasisRoot
+      : MaterializationRoot.unavailable();
+    const roots = materializationRootsFromSession(close.roots, properties, replayBasis);
     return {
       ...reduced,
       roots,
@@ -189,6 +193,7 @@ export function materializationSessionOpen(
 function materializationRootsFromSession(
   roots: MaterializeSessionOpen,
   properties: MaterializationRoot,
+  replayBasis: MaterializationRoot,
 ): MaterializationRoots {
   return new MaterializationRoots({
     adjacency: MaterializationRoot.unavailable(),
@@ -198,6 +203,7 @@ function materializationRootsFromSession(
     nodeAlive: sessionMaterializationRoot(roots.nodeAliveRootOid),
     properties,
     provenanceSupport: MaterializationRoot.unavailable(),
+    replayBasis,
     roaringIndexes: MaterializationRoot.unavailable(),
   });
 }

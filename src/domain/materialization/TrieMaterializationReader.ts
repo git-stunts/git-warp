@@ -23,12 +23,14 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
   readonly #codec: CodecPort;
   readonly #geometry: TrieGeometry;
   readonly #indexStore: IndexStorePort | null;
+  readonly #pageCache: PageCache;
 
   constructor(options: {
     readonly store: TrieStorePort;
     readonly codec: CodecPort;
     readonly geometry?: TrieGeometry;
     readonly indexStore?: IndexStorePort;
+    readonly pageCache?: PageCache;
   }) {
     super();
     requireOptions(options);
@@ -40,6 +42,9 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
     this.#indexStore = options.indexStore === undefined
       ? null
       : requireIndexStore(options.indexStore);
+    this.#pageCache = options.pageCache === undefined
+      ? new PageCache({ maxResident: MAX_RESIDENT_READ_PAGES })
+      : requirePageCache(options.pageCache);
     Object.freeze(this);
   }
 
@@ -55,7 +60,7 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
       store: this.#store,
       geometry: this.#geometry,
       codec: this.#codec,
-      pageCache: new PageCache({ maxResident: MAX_RESIDENT_READ_PAGES }),
+      pageCache: this.#pageCache,
     });
     return await cursor.contains(nodeId);
   }
@@ -140,6 +145,13 @@ function requireIndexStore(indexStore: IndexStorePort): IndexStorePort {
     throw readerError('indexStore must provide exact shard read operations');
   }
   return indexStore;
+}
+
+function requirePageCache(pageCache: PageCache): PageCache {
+  if (!(pageCache instanceof PageCache)) {
+    throw readerError('pageCache must be a PageCache instance');
+  }
+  return pageCache;
 }
 
 function readerError(message: string): WarpError {

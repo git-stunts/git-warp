@@ -1,6 +1,8 @@
 import type {
+  AssetCapability,
   BundleCapability,
   CacheAcquisition,
+  CacheEntryMetadata,
   CacheHit,
   CacheSet,
   PageHandle,
@@ -10,8 +12,12 @@ import type {
 } from '@git-stunts/git-cas';
 import MaterializationCoordinate from '../../domain/materialization/MaterializationCoordinate.ts';
 import MaterializationHandle from '../../domain/materialization/MaterializationHandle.ts';
+import MaterializationRoot from '../../domain/materialization/MaterializationRoot.ts';
 import MaterializationRoots from '../../domain/materialization/MaterializationRoots.ts';
+import type WarpState from '../../domain/services/state/WarpState.ts';
+import WarpStream from '../../domain/stream/WarpStream.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
+import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
 import type StorageRetentionWitness from '../../domain/storage/StorageRetentionWitness.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
@@ -19,6 +25,7 @@ import type CryptoPort from '../../ports/CryptoPort.ts';
 import type MaterializationWorkspacePort from '../../ports/MaterializationWorkspacePort.ts';
 import MaterializationStorePort, {
   type MaterializationAcquisition,
+  type MaterializationPredecessorPredicate,
   type RetainMaterializationRequest,
 } from '../../ports/MaterializationStorePort.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
@@ -26,6 +33,11 @@ import GitCasMaterializationWorkspace, {
   type GitCasStagingWorkspace,
 } from './GitCasMaterializationWorkspace.ts';
 import GitCasMaterializationLease from './GitCasMaterializationLease.ts';
+import {
+  decodeCanonicalWarpFullState,
+  encodeWarpFullState,
+} from '../codecs/WarpStateCborCodec.ts';
+import { computeStateHash } from '../../domain/services/state/StateSerializer.ts';
 import {
   decodeMaterializationDescriptor,
   MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
@@ -44,13 +56,28 @@ const CACHE_NAMESPACE = 'git-warp/materializations';
 const WORKSPACE_NAMESPACE = 'git-warp/materializations';
 const WORKSPACE_TTL_MS = 2 * 60 * 60 * 1000;
 const MAX_DESCRIPTOR_BYTES = 1024 * 1024;
-const LEGACY_MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 2;
+const REPLAY_BASIS_PATH = 'state.cbor';
+const MAX_CACHE_INSPECTION_PAGE = 100;
+const MAX_MATERIALIZATION_CANDIDATES = 1024;
+const LEGACY_MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSIONS = Object.freeze([2, 3]);
 
-type MaterializationCacheSet = Pick<CacheSet, 'acquire' | 'put' | 'remove' | 'ref'>;
+type MaterializationCacheSet = Pick<
+  CacheSet,
+  'acquire' | 'inspect' | 'put' | 'remove' | 'ref'
+>;
 type MaterializationCachePut = Awaited<ReturnType<MaterializationCacheSet['put']>>;
+type MaterializationCandidate = Readonly<{
+  coordinate: MaterializationCoordinate;
+  createdAt: string;
+  key: string;
+}>;
 
 export type GitCasMaterializationFacade = {
-  readonly bundles: Pick<BundleCapability, 'iterateMemberReferences' | 'putOrdered'>;
+  readonly assets: Pick<AssetCapability, 'open' | 'put'>;
+  readonly bundles: Pick<
+    BundleCapability,
+    'getMemberReference' | 'iterateMemberReferences' | 'putOrdered'
+  >;
   readonly caches: {
     open(options: { readonly namespace: string }): Promise<MaterializationCacheSet>;
   };
@@ -102,6 +129,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       ttlMs: WORKSPACE_TTL_MS,
     });
     return new GitCasMaterializationWorkspace({
+      staging: this.#cas,
       workspace,
       promote: async (activeWorkspace, request) => {
         if (!request.coordinate.equals(coordinate)) {
@@ -128,7 +156,9 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
   ): Promise<MaterializationHandle> {
     requireRetainRequest(request);
     const stateHash = requireNonEmpty(request.stateHash, 'stateHash');
-    const bundle = await this.#stageWorkspaceBundle(workspace, request, stateHash);
+    const roots = await this.#rootsWithReplayBasis(request);
+    const retainedRequest = { ...request, roots };
+    const bundle = await this.#stageWorkspaceBundle(workspace, retainedRequest, stateHash);
     const retention = await this.#promoteWorkspaceBundle(
       workspace,
       bundle,
@@ -138,10 +168,32 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       laneName: this.#laneName,
       bundle: new BundleHandle(bundle.handle.toString()),
       coordinate: request.coordinate,
-      roots: request.roots,
+      roots,
       stateHash,
       retention,
     });
+  }
+
+  async #rootsWithReplayBasis(
+    request: RetainMaterializationRequest,
+  ): Promise<MaterializationRoots> {
+    if (request.replayBasis === undefined) {
+      return request.roots;
+    }
+    const bytes = encodeWarpFullState(request.replayBasis, this.#codec);
+    const asset = await this.#cas.assets.put({
+      source: WarpStream.from([bytes]),
+      slug: 'git-warp-materialization-replay-basis',
+      filename: REPLAY_BASIS_PATH,
+    });
+    const bundle = await this.#cas.bundles.putOrdered({
+      members: [[REPLAY_BASIS_PATH, asset.handle]],
+      limits: { maxMembers: 1 },
+    });
+    return rootsWithReplayBasis(
+      request.roots,
+      MaterializationRoot.retained(new BundleHandle(bundle.handle.toString())),
+    );
   }
 
   async #stageWorkspaceBundle(
@@ -157,11 +209,10 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     }));
     requireDescriptorSize(descriptorBytes);
 
-    const descriptorPage = await workspace.pages.put({
+    const descriptorPage = await this.#cas.pages.put({
       source: descriptorBytes,
       maxBytes: MAX_DESCRIPTOR_BYTES,
     });
-    requireWorkspaceStage(descriptorPage);
     const bundle = await workspace.bundles.putOrdered({
       members: materializationMembers(descriptorPage.handle.toString(), request.roots),
     });
@@ -200,7 +251,7 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     }
     try {
       requireExpectedAcquisition(acquisition, args.expectedHandle);
-      await this.#removeLegacyEntry(args.cache, args.coordinate);
+      await this.#removeLegacyEntries(args.cache, args.coordinate);
     } finally {
       await acquisition.release();
     }
@@ -213,6 +264,53 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     return await this.#withLeaseMutation(
       async () => await this.#acquireExactLocked(coordinate),
     );
+  }
+
+  override async acquireBestCompatiblePredecessor(
+    coordinate: MaterializationCoordinate,
+    isCompatible: MaterializationPredecessorPredicate,
+  ): Promise<MaterializationAcquisition | null> {
+    requireCoordinate(coordinate);
+    if (typeof isCompatible !== 'function') {
+      throw storageError('predecessor compatibility predicate must be a function');
+    }
+    return await this.#withLeaseMutation(
+      async () => await this.#acquireBestCompatiblePredecessorLocked(
+        coordinate,
+        isCompatible,
+      ),
+    );
+  }
+
+  override async loadReplayBasis(
+    materialization: MaterializationHandle,
+  ): Promise<WarpState | null> {
+    if (!(materialization instanceof MaterializationHandle)) {
+      throw storageError('replay basis requires a MaterializationHandle');
+    }
+    const root = materialization.roots.replayBasis;
+    if (root.status !== 'retained' || root.handle === null) {
+      return null;
+    }
+    const member = await this.#cas.bundles.getMemberReference({
+      handle: root.handle.toString(),
+      path: REPLAY_BASIS_PATH,
+    });
+    if (member === null || member.handle.kind !== 'asset') {
+      throw storageError('replay basis root has no state asset');
+    }
+    const bytes = await collectAsyncIterable(this.#cas.assets.open({
+      handle: member.handle,
+    }));
+    const state = decodeCanonicalWarpFullState(bytes, this.#codec);
+    const stateHash = await computeStateHash(state, {
+      codec: this.#codec,
+      crypto: this.#crypto,
+    });
+    if (stateHash !== materialization.stateHash) {
+      throw storageError('replay basis state hash does not match its descriptor');
+    }
+    return state;
   }
 
   override close(): Promise<void> {
@@ -235,6 +333,79 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
       return null;
     }
     return this.#replaceCurrentLease(next);
+  }
+
+  async #acquireBestCompatiblePredecessorLocked(
+    coordinate: MaterializationCoordinate,
+    isCompatible: MaterializationPredecessorPredicate,
+  ): Promise<MaterializationAcquisition | null> {
+    if (this.#closed) {
+      throw storageError('adapter is closed');
+    }
+    const candidate = await this.#findBestCompatiblePredecessor(
+      coordinate,
+      isCompatible,
+    );
+    if (candidate === null) {
+      return null;
+    }
+    const next = await this.#openLease(candidate);
+    return next === null ? null : this.#replaceCurrentLease(next);
+  }
+
+  async #findBestCompatiblePredecessor(
+    coordinate: MaterializationCoordinate,
+    isCompatible: MaterializationPredecessorPredicate,
+  ): Promise<MaterializationCoordinate | null> {
+    const cache = await this.#cas.caches.open({ namespace: CACHE_NAMESPACE });
+    let cursor: string | null = null;
+    let inspected = 0;
+    let best: MaterializationCandidate | null = null;
+    do {
+      const page = await cache.inspect({
+        limit: MAX_CACHE_INSPECTION_PAGE,
+        cursor,
+      });
+      for (const entry of page.entries) {
+        inspected += 1;
+        if (inspected > MAX_MATERIALIZATION_CANDIDATES) {
+          throw storageError('materialization cache exceeds predecessor scan limit');
+        }
+        const candidate = await this.#candidateFromEntry(entry, coordinate, isCompatible);
+        if (candidate !== null && candidateIsBetter(candidate, best)) {
+          best = candidate;
+        }
+      }
+      cursor = page.nextCursor;
+    } while (cursor !== null);
+    return best?.coordinate ?? null;
+  }
+
+  async #candidateFromEntry(
+    entry: CacheEntryMetadata,
+    target: MaterializationCoordinate,
+    isCompatible: MaterializationPredecessorPredicate,
+  ): Promise<MaterializationCandidate | null> {
+    if (!entry.key.startsWith(`v${String(MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION)}:`)) {
+      return null;
+    }
+    const bundle = new BundleHandle(entry.handle);
+    const members = await this.#readMembers(bundle);
+    const descriptor = await this.#readDescriptor(members.descriptor);
+    if (
+      descriptor.laneName !== this.#laneName
+      || descriptor.coordinate.equals(target)
+      || descriptor.rootStatuses.get('replay-basis') !== 'retained'
+      || entry.key !== await this.#cacheKey(descriptor.coordinate)
+      || !await isCompatible(descriptor.coordinate)
+    ) {
+      return null;
+    }
+    return Object.freeze({
+      coordinate: descriptor.coordinate,
+      createdAt: entry.createdAt,
+      key: entry.key,
+    });
   }
 
   #replaceCurrentLease(next: GitCasMaterializationLease): MaterializationAcquisition {
@@ -357,15 +528,13 @@ export default class GitCasMaterializationStoreAdapter extends MaterializationSt
     return `v${String(schemaVersion)}:${digest}`;
   }
 
-  async #removeLegacyEntry(
+  async #removeLegacyEntries(
     cache: MaterializationCacheSet,
     coordinate: MaterializationCoordinate,
   ): Promise<void> {
-    const key = await this.#cacheKey(
-      coordinate,
-      LEGACY_MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
-    );
-    await cache.remove(key);
+    for (const schemaVersion of LEGACY_MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSIONS) {
+      await cache.remove(await this.#cacheKey(coordinate, schemaVersion));
+    }
   }
 
   async #readDescriptor(handle: PageHandle): Promise<DecodedMaterializationDescriptor> {
@@ -407,6 +576,33 @@ function requireWorkspaceStage(
   if (valid.includes(false)) {
     throw storageError('git-cas did not retain a staged materialization artifact');
   }
+}
+
+function rootsWithReplayBasis(
+  roots: MaterializationRoots,
+  replayBasis: MaterializationRoot,
+): MaterializationRoots {
+  return new MaterializationRoots({
+    adjacency: roots.adjacency,
+    edgeAlive: roots.edgeAlive,
+    edgeBirths: roots.edgeBirths,
+    frontier: roots.frontier,
+    nodeAlive: roots.nodeAlive,
+    properties: roots.properties,
+    provenanceSupport: roots.provenanceSupport,
+    replayBasis,
+    roaringIndexes: roots.roaringIndexes,
+  });
+}
+
+function candidateIsBetter(
+  candidate: MaterializationCandidate,
+  current: MaterializationCandidate | null,
+): boolean {
+  if (current === null || candidate.createdAt > current.createdAt) {
+    return true;
+  }
+  return candidate.createdAt === current.createdAt && candidate.key > current.key;
 }
 
 function requireStoredMaterialization(

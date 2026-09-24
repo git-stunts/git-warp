@@ -4,6 +4,8 @@ import MaterializationCoordinate from '../../../../src/domain/materialization/Ma
 import type MaterializationHandle from '../../../../src/domain/materialization/MaterializationHandle.ts';
 import MaterializationRoot from '../../../../src/domain/materialization/MaterializationRoot.ts';
 import MaterializationRoots from '../../../../src/domain/materialization/MaterializationRoots.ts';
+import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
+import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import GitCasMaterializationStoreAdapter, {
   type GitCasMaterializationFacade,
@@ -23,6 +25,7 @@ const ROOT_PATHS = Object.freeze([
   'roots/node-alive',
   'roots/properties',
   'roots/provenance-support',
+  'roots/replay-basis',
   'roots/roaring-indexes',
 ]);
 
@@ -70,7 +73,7 @@ describe('GitCasMaterializationStoreAdapter', () => {
     expect(members.map(([path]) => path)).toEqual(['meta/descriptor', ...ROOT_PATHS]);
     const cacheKeys = harness.cas.readCacheKeys(CACHE_NAMESPACE);
     expect(cacheKeys).toHaveLength(1);
-    expect(cacheKeys[0]).toMatch(/^v3:[0-9a-f]{64}$/u);
+    expect(cacheKeys[0]).toMatch(/^v4:[0-9a-f]{64}$/u);
     expect(cacheKeys[0]?.length).toBeLessThan(1024);
     expect(harness.cas.readActiveCacheAcquisitionCount()).toBe(1);
     await acquisition?.release();
@@ -114,6 +117,105 @@ describe('GitCasMaterializationStoreAdapter', () => {
   it('returns null for a coordinate with no retained materialization', async () => {
     const harness = await createHarness();
     expect(await harness.adapter.acquireExact(exactCoordinate())).toBeNull();
+  });
+
+  it('retains and restores a replay basis through the materialization bundle', async () => {
+    const harness = await createHarness();
+    const coordinate = exactCoordinate();
+    const state = createEmptyState();
+
+    const retained = await harness.adapter.retain({
+      coordinate,
+      roots: await createRoots(harness.cas),
+      stateHash: await hashState(state),
+      replayBasis: state,
+    });
+
+    expect(retained.roots.replayBasis.status).toBe('retained');
+    await expect(harness.adapter.loadReplayBasis(retained)).resolves.toEqual(state);
+  });
+
+  it('fails closed when a retained replay basis is corrupt', async () => {
+    const harness = await createHarness();
+    const retained = await harness.adapter.retain({
+      coordinate: exactCoordinate(),
+      roots: await createRoots(harness.cas),
+      stateHash: await hashState(createEmptyState()),
+      replayBasis: createEmptyState(),
+    });
+    const replayRoot = retained.roots.replayBasis.handle;
+    if (replayRoot === null) {
+      throw new Error('Expected a retained replay basis root');
+    }
+    const asset = requireMember(
+      harness.cas.readBundleMembers(replayRoot.toString()),
+      'state.cbor',
+    );
+    harness.cas.replaceStoredAsset(asset, new Uint8Array([0xff]));
+
+    await expect(harness.adapter.loadReplayBasis(retained)).rejects.toBeDefined();
+  });
+
+  it('acquires a compatible retained predecessor and excludes the target coordinate', async () => {
+    const harness = await createHarness();
+    const predecessor = exactCoordinate();
+    const target = new MaterializationCoordinate({
+      frontier: new Map([
+        ['writer-a', 'patch-next'],
+        ['writer-b', 'patch-b'],
+      ]),
+      ceiling: 13,
+    });
+    const retained = await harness.adapter.retain({
+      coordinate: predecessor,
+      roots: await createRoots(harness.cas),
+      stateHash: 'predecessor-state-hash',
+      replayBasis: createEmptyState(),
+    });
+    await harness.adapter.retain({
+      coordinate: target,
+      roots: await createRoots(harness.cas),
+      stateHash: 'target-state-hash',
+      replayBasis: createEmptyState(),
+    });
+    const observed: MaterializationCoordinate[] = [];
+
+    const acquisition = await harness.adapter.acquireBestCompatiblePredecessor(
+      target,
+      (candidate) => {
+        observed.push(candidate);
+        return Promise.resolve(candidate.equals(predecessor));
+      },
+    );
+
+    expect(observed).toHaveLength(1);
+    expect(acquisition?.materialization.bundle.equals(retained.bundle)).toBe(true);
+    await acquisition?.release();
+    await harness.adapter.close();
+  });
+
+  it('excludes compatible predecessors without a retained replay basis', async () => {
+    const harness = await createHarness();
+    const predecessor = exactCoordinate();
+    const target = new MaterializationCoordinate({
+      frontier: new Map([
+        ['writer-a', 'patch-next'],
+        ['writer-b', 'patch-b'],
+      ]),
+      ceiling: 13,
+    });
+    await harness.adapter.retain({
+      coordinate: predecessor,
+      roots: rootsWithoutReplayBasis(await createRoots(harness.cas)),
+      stateHash: 'predecessor-state-hash',
+    });
+
+    const acquisition = await harness.adapter.acquireBestCompatiblePredecessor(
+      target,
+      () => Promise.resolve(true),
+    );
+
+    expect(acquisition).toBeNull();
   });
 
   it('promotes terminal roots and releases the git-cas workspace', async () => {
@@ -579,11 +681,19 @@ function adapterFor(cas: GitCasMaterializationFacade): GitCasMaterializationStor
   });
 }
 
+async function hashState(state: ReturnType<typeof createEmptyState>): Promise<string> {
+  return await computeStateHash(state, {
+    codec: defaultCodec,
+    crypto: new NodeCryptoAdapter(),
+  });
+}
+
 function withCacheResult(
   cas: InMemoryGitCasFacade,
   rewrite: (stored: CacheStoreResult) => CacheStoreResult,
 ): GitCasMaterializationFacade {
   return {
+    assets: cas.assets,
     bundles: cas.bundles,
     pages: cas.pages,
     caches: {
@@ -592,6 +702,7 @@ function withCacheResult(
         return {
           ref: cache.ref,
           acquire: async (key) => await cache.acquire(key),
+          inspect: async (inspectOptions) => await cache.inspect(inspectOptions),
           put: async (key, handle, entryOptions) => rewrite(
             await cache.put(key, handle, entryOptions),
           ),
@@ -635,12 +746,13 @@ async function createRoots(cas: InMemoryGitCasFacade): Promise<MaterializationRo
     nodeAlive,
     properties,
     provenanceSupport,
+    replayBasis,
     roaringIndexes,
   ] = handles;
   if (
     adjacency === undefined || edgeAlive === undefined || edgeBirths === undefined ||
     frontier === undefined || nodeAlive === undefined || properties === undefined ||
-    provenanceSupport === undefined || roaringIndexes === undefined
+    provenanceSupport === undefined || replayBasis === undefined || roaringIndexes === undefined
   ) {
     throw new Error('Root fixture did not create every materialization root');
   }
@@ -652,7 +764,22 @@ async function createRoots(cas: InMemoryGitCasFacade): Promise<MaterializationRo
     nodeAlive: MaterializationRoot.retained(nodeAlive),
     properties: MaterializationRoot.retained(properties),
     provenanceSupport: MaterializationRoot.retained(provenanceSupport),
+    replayBasis: MaterializationRoot.retained(replayBasis),
     roaringIndexes: MaterializationRoot.retained(roaringIndexes),
+  });
+}
+
+function rootsWithoutReplayBasis(roots: MaterializationRoots): MaterializationRoots {
+  return new MaterializationRoots({
+    adjacency: roots.adjacency,
+    edgeAlive: roots.edgeAlive,
+    edgeBirths: roots.edgeBirths,
+    frontier: roots.frontier,
+    nodeAlive: roots.nodeAlive,
+    properties: roots.properties,
+    provenanceSupport: roots.provenanceSupport,
+    replayBasis: MaterializationRoot.unavailable(),
+    roaringIndexes: roots.roaringIndexes,
   });
 }
 
@@ -672,6 +799,7 @@ function partialRoots(nodeAlive: BundleHandle): MaterializationRoots {
     nodeAlive: MaterializationRoot.retained(nodeAlive),
     properties: MaterializationRoot.empty(),
     provenanceSupport: MaterializationRoot.unavailable(),
+    replayBasis: MaterializationRoot.unavailable(),
     roaringIndexes: MaterializationRoot.unavailable(),
   });
 }
@@ -686,6 +814,7 @@ function unavailablePropertyRoots(nodeAlive: BundleHandle): MaterializationRoots
     nodeAlive: roots.nodeAlive,
     properties: MaterializationRoot.unavailable(),
     provenanceSupport: roots.provenanceSupport,
+    replayBasis: roots.replayBasis,
     roaringIndexes: roots.roaringIndexes,
   });
 }
@@ -702,7 +831,7 @@ function exactCoordinate(): MaterializationCoordinate {
 
 function descriptor(overrides: Record<string, object | string | number | null> = {}): object {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     laneName: 'events',
     stateHash: 'state-hash',
     roots: rootStatusFixture(),
