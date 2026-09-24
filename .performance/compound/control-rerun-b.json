@@ -1,0 +1,580 @@
+{
+  "commit": "0ab91f34f5bd0116ef8387e8f487b677c67d9eaa",
+  "environment": {
+    "architecture": "arm64",
+    "cpuCount": 10,
+    "cpuModel": "Apple M1 Pro",
+    "git": "git version 2.50.1 (Apple Git-155)",
+    "gitCas": "6.5.9",
+    "node": "v26.0.0",
+    "platform": "darwin",
+    "runner": "local-counterbalanced-control"
+  },
+  "generatedAt": "2026-08-24T22:26:15.693Z",
+  "instrumentation": {
+    "corpusSetup": "excluded",
+    "cpuScope": "node-process",
+    "gitCommands": "timed-operation-plumbing-calls",
+    "memoryScope": "node-process",
+    "wallClock": "materialize-operation"
+  },
+  "scenarios": {
+    "cold-materialize": {
+      "corpus": {
+        "baseNodeCount": 65,
+        "edgeCount": 64,
+        "logicalPropertyBytes": 16640,
+        "nodeCount": 65,
+        "propertyBytesPerNode": 256,
+        "propertyCount": 65,
+        "seed": 432078830,
+        "suffixNodeCount": 0,
+        "topology": "directed-chain",
+        "basePatchCount": 65,
+        "format": "git-warp.performance.corpus/v2",
+        "suffixPatchCount": 0,
+        "version": 2
+      },
+      "cpuSystemMs": {
+        "mad": 1.6460000000000008,
+        "maximum": 98.407,
+        "median": 96.761,
+        "minimum": 95.115,
+        "samples": [
+          95.115,
+          98.407
+        ]
+      },
+      "cpuTotalMs": {
+        "mad": 6.900000000000006,
+        "maximum": 487.16,
+        "median": 480.26,
+        "minimum": 473.36,
+        "samples": [
+          473.36,
+          487.16
+        ]
+      },
+      "cpuUserMs": {
+        "mad": 5.253999999999991,
+        "maximum": 388.753,
+        "median": 383.499,
+        "minimum": 378.245,
+        "samples": [
+          378.245,
+          388.753
+        ]
+      },
+      "gitCommandCount": {
+        "mad": 0,
+        "maximum": 139,
+        "median": 139,
+        "minimum": 139,
+        "samples": [
+          139,
+          139
+        ]
+      },
+      "maxRssBytes": {
+        "mad": 8822784,
+        "maximum": 140853248,
+        "median": 132030464,
+        "minimum": 123207680,
+        "samples": [
+          123207680,
+          140853248
+        ]
+      },
+      "measuredRuns": 2,
+      "peakHeapUsedBytes": {
+        "mad": 7241140,
+        "maximum": 58961992,
+        "median": 51720852,
+        "minimum": 44479712,
+        "samples": [
+          44479712,
+          58961992
+        ]
+      },
+      "samples": [
+        {
+          "cpuSystemMs": 95.115,
+          "cpuTotalMs": 473.36,
+          "cpuUserMs": 378.245,
+          "gitCommandCount": 139,
+          "gitCommandHistogram": {
+            "rev-parse": 8,
+            "session:cat-file": 1,
+            "for-each-ref": 3,
+            "log": 1,
+            "session:fast-import": 10,
+            "hash-object": 60,
+            "session:mktree": 10,
+            "commit-tree": 21,
+            "symbolic-ref": 22,
+            "session:update-ref": 1,
+            "update-ref": 1,
+            "rev-list": 1
+          },
+          "maxRssBytes": 123207680,
+          "observation": {
+            "materialization": {
+              "exactHits": 0,
+              "exactLookups": 1,
+              "predecessorHits": 0,
+              "predecessorLookups": 1,
+              "replayedPatches": 65,
+              "retainRequests": 1
+            },
+            "semantic": {
+              "edgeCount": 64,
+              "fingerprint": "d4a3d26858bddad534c3f5d00e5ed8f7896767ae9e05e972b6005892f85e73e3",
+              "nodeCount": 65,
+              "propertyCount": 65,
+              "targetPropertyBytes": 256
+            }
+          },
+          "peakHeapUsedBytes": 44479712,
+          "throughputPerSecond": 23.238825847984543,
+          "wallMs": 2797.043208,
+          "workerLifecycleWallMs": null
+        },
+        {
+          "cpuSystemMs": 98.407,
+          "cpuTotalMs": 487.16,
+          "cpuUserMs": 388.753,
+          "gitCommandCount": 139,
+          "gitCommandHistogram": {
+            "rev-parse": 8,
+            "session:cat-file": 1,
+            "for-each-ref": 3,
+            "log": 1,
+            "session:fast-import": 10,
+            "hash-object": 60,
+            "session:mktree": 10,
+            "commit-tree": 21,
+            "symbolic-ref": 22,
+            "session:update-ref": 1,
+            "update-ref": 1,
+            "rev-list": 1
+          },
+          "maxRssBytes": 140853248,
+          "observation": {
+            "materialization": {
+              "exactHits": 0,
+              "exactLookups": 1,
+              "predecessorHits": 0,
+              "predecessorLookups": 1,
+              "replayedPatches": 65,
+              "retainRequests": 1
+            },
+            "semantic": {
+              "edgeCount": 64,
+              "fingerprint": "d4a3d26858bddad534c3f5d00e5ed8f7896767ae9e05e972b6005892f85e73e3",
+              "nodeCount": 65,
+              "propertyCount": 65,
+              "targetPropertyBytes": 256
+            }
+          },
+          "peakHeapUsedBytes": 58961992,
+          "throughputPerSecond": 23.564928697284067,
+          "wallMs": 2758.336375,
+          "workerLifecycleWallMs": null
+        }
+      ],
+      "scenario": "cold-materialize",
+      "throughputPerSecond": {
+        "mad": 0.16305142464976186,
+        "maximum": 23.564928697284067,
+        "median": 23.401877272634305,
+        "minimum": 23.238825847984543,
+        "samples": [
+          23.238825847984543,
+          23.564928697284067
+        ]
+      },
+      "wallMs": {
+        "mad": 19.353416500000094,
+        "maximum": 2797.043208,
+        "median": 2777.6897915,
+        "minimum": 2758.336375,
+        "samples": [
+          2797.043208,
+          2758.336375
+        ]
+      },
+      "warmupRuns": 0
+    },
+    "incremental-materialize": {
+      "corpus": {
+        "baseNodeCount": 65,
+        "edgeCount": 69,
+        "logicalPropertyBytes": 17920,
+        "nodeCount": 70,
+        "propertyBytesPerNode": 256,
+        "propertyCount": 70,
+        "seed": 432078830,
+        "suffixNodeCount": 5,
+        "topology": "directed-chain",
+        "basePatchCount": 65,
+        "format": "git-warp.performance.corpus/v2",
+        "suffixPatchCount": 5,
+        "version": 2
+      },
+      "cpuSystemMs": {
+        "mad": 0.5180000000000007,
+        "maximum": 102.527,
+        "median": 102.009,
+        "minimum": 101.491,
+        "samples": [
+          101.491,
+          102.527
+        ]
+      },
+      "cpuTotalMs": {
+        "mad": 1.7854999999999848,
+        "maximum": 507.57,
+        "median": 505.7845,
+        "minimum": 503.999,
+        "samples": [
+          503.999,
+          507.57
+        ]
+      },
+      "cpuUserMs": {
+        "mad": 1.2675000000000125,
+        "maximum": 405.043,
+        "median": 403.77549999999997,
+        "minimum": 402.508,
+        "samples": [
+          402.508,
+          405.043
+        ]
+      },
+      "gitCommandCount": {
+        "mad": 0,
+        "maximum": 149,
+        "median": 149,
+        "minimum": 149,
+        "samples": [
+          149,
+          149
+        ]
+      },
+      "maxRssBytes": {
+        "mad": 557056,
+        "maximum": 128860160,
+        "median": 128303104,
+        "minimum": 127746048,
+        "samples": [
+          128860160,
+          127746048
+        ]
+      },
+      "measuredRuns": 2,
+      "peakHeapUsedBytes": {
+        "mad": 276300,
+        "maximum": 42323672,
+        "median": 42047372,
+        "minimum": 41771072,
+        "samples": [
+          41771072,
+          42323672
+        ]
+      },
+      "samples": [
+        {
+          "cpuSystemMs": 101.491,
+          "cpuTotalMs": 503.999,
+          "cpuUserMs": 402.508,
+          "gitCommandCount": 149,
+          "gitCommandHistogram": {
+            "rev-parse": 10,
+            "session:cat-file": 1,
+            "show": 5,
+            "for-each-ref": 2,
+            "rev-list": 4,
+            "symbolic-ref": 23,
+            "update-ref": 2,
+            "log": 1,
+            "session:fast-import": 10,
+            "hash-object": 60,
+            "session:mktree": 10,
+            "commit-tree": 20,
+            "session:update-ref": 1
+          },
+          "maxRssBytes": 128860160,
+          "observation": {
+            "materialization": {
+              "exactHits": 0,
+              "exactLookups": 1,
+              "predecessorHits": 1,
+              "predecessorLookups": 1,
+              "replayedPatches": 5,
+              "retainRequests": 1
+            },
+            "semantic": {
+              "edgeCount": 69,
+              "fingerprint": "d409bceebad0457de14e49fc34fd41af87b1d278d0eb18ff259e9b10088697ca",
+              "nodeCount": 70,
+              "propertyCount": 70,
+              "targetPropertyBytes": 256
+            }
+          },
+          "peakHeapUsedBytes": 41771072,
+          "throughputPerSecond": 23.623829995564915,
+          "wallMs": 2963.109708,
+          "workerLifecycleWallMs": null
+        },
+        {
+          "cpuSystemMs": 102.527,
+          "cpuTotalMs": 507.57,
+          "cpuUserMs": 405.043,
+          "gitCommandCount": 149,
+          "gitCommandHistogram": {
+            "rev-parse": 10,
+            "session:cat-file": 1,
+            "show": 5,
+            "for-each-ref": 2,
+            "rev-list": 4,
+            "symbolic-ref": 23,
+            "update-ref": 2,
+            "log": 1,
+            "session:fast-import": 10,
+            "hash-object": 60,
+            "session:mktree": 10,
+            "commit-tree": 20,
+            "session:update-ref": 1
+          },
+          "maxRssBytes": 127746048,
+          "observation": {
+            "materialization": {
+              "exactHits": 0,
+              "exactLookups": 1,
+              "predecessorHits": 1,
+              "predecessorLookups": 1,
+              "replayedPatches": 5,
+              "retainRequests": 1
+            },
+            "semantic": {
+              "edgeCount": 69,
+              "fingerprint": "d409bceebad0457de14e49fc34fd41af87b1d278d0eb18ff259e9b10088697ca",
+              "nodeCount": 70,
+              "propertyCount": 70,
+              "targetPropertyBytes": 256
+            }
+          },
+          "peakHeapUsedBytes": 42323672,
+          "throughputPerSecond": 23.67593496372868,
+          "wallMs": 2956.5886250000003,
+          "workerLifecycleWallMs": null
+        }
+      ],
+      "scenario": "incremental-materialize",
+      "throughputPerSecond": {
+        "mad": 0.0260524840818821,
+        "maximum": 23.67593496372868,
+        "median": 23.6498824796468,
+        "minimum": 23.623829995564915,
+        "samples": [
+          23.623829995564915,
+          23.67593496372868
+        ]
+      },
+      "wallMs": {
+        "mad": 3.2605414999998175,
+        "maximum": 2963.109708,
+        "median": 2959.8491665,
+        "minimum": 2956.5886250000003,
+        "samples": [
+          2963.109708,
+          2956.5886250000003
+        ]
+      },
+      "warmupRuns": 0
+    },
+    "warm-materialize": {
+      "corpus": {
+        "baseNodeCount": 65,
+        "edgeCount": 64,
+        "logicalPropertyBytes": 16640,
+        "nodeCount": 65,
+        "propertyBytesPerNode": 256,
+        "propertyCount": 65,
+        "seed": 432078830,
+        "suffixNodeCount": 0,
+        "topology": "directed-chain",
+        "basePatchCount": 65,
+        "format": "git-warp.performance.corpus/v2",
+        "suffixPatchCount": 0,
+        "version": 2
+      },
+      "cpuSystemMs": {
+        "mad": 0.2624999999999993,
+        "maximum": 24.006,
+        "median": 23.7435,
+        "minimum": 23.481,
+        "samples": [
+          23.481,
+          24.006
+        ]
+      },
+      "cpuTotalMs": {
+        "mad": 0.1110000000000042,
+        "maximum": 153.812,
+        "median": 153.70100000000002,
+        "minimum": 153.59,
+        "samples": [
+          153.812,
+          153.59
+        ]
+      },
+      "cpuUserMs": {
+        "mad": 0.37349999999999284,
+        "maximum": 130.331,
+        "median": 129.95749999999998,
+        "minimum": 129.584,
+        "samples": [
+          130.331,
+          129.584
+        ]
+      },
+      "gitCommandCount": {
+        "mad": 0,
+        "maximum": 25,
+        "median": 25,
+        "minimum": 25,
+        "samples": [
+          25,
+          25
+        ]
+      },
+      "maxRssBytes": {
+        "mad": 49152,
+        "maximum": 124747776,
+        "median": 124698624,
+        "minimum": 124649472,
+        "samples": [
+          124747776,
+          124649472
+        ]
+      },
+      "measuredRuns": 2,
+      "peakHeapUsedBytes": {
+        "mad": 4152,
+        "maximum": 40904064,
+        "median": 40899912,
+        "minimum": 40895760,
+        "samples": [
+          40904064,
+          40895760
+        ]
+      },
+      "samples": [
+        {
+          "cpuSystemMs": 23.481,
+          "cpuTotalMs": 153.812,
+          "cpuUserMs": 130.331,
+          "gitCommandCount": 25,
+          "gitCommandHistogram": {
+            "rev-parse": 4,
+            "session:cat-file": 1,
+            "for-each-ref": 2,
+            "rev-list": 1,
+            "symbolic-ref": 5,
+            "update-ref": 2,
+            "hash-object": 6,
+            "session:mktree": 1,
+            "commit-tree": 2,
+            "session:update-ref": 1
+          },
+          "maxRssBytes": 124747776,
+          "observation": {
+            "materialization": {
+              "exactHits": 1,
+              "exactLookups": 1,
+              "predecessorHits": 0,
+              "predecessorLookups": 0,
+              "replayedPatches": 0,
+              "retainRequests": 0
+            },
+            "semantic": {
+              "edgeCount": 64,
+              "fingerprint": "d4a3d26858bddad534c3f5d00e5ed8f7896767ae9e05e972b6005892f85e73e3",
+              "nodeCount": 65,
+              "propertyCount": 65,
+              "targetPropertyBytes": 256
+            }
+          },
+          "peakHeapUsedBytes": 40904064,
+          "throughputPerSecond": 123.60181390415823,
+          "wallMs": 525.8822499999999,
+          "workerLifecycleWallMs": null
+        },
+        {
+          "cpuSystemMs": 24.006,
+          "cpuTotalMs": 153.59,
+          "cpuUserMs": 129.584,
+          "gitCommandCount": 25,
+          "gitCommandHistogram": {
+            "rev-parse": 4,
+            "session:cat-file": 1,
+            "for-each-ref": 2,
+            "rev-list": 1,
+            "symbolic-ref": 5,
+            "update-ref": 2,
+            "hash-object": 6,
+            "session:mktree": 1,
+            "commit-tree": 2,
+            "session:update-ref": 1
+          },
+          "maxRssBytes": 124649472,
+          "observation": {
+            "materialization": {
+              "exactHits": 1,
+              "exactLookups": 1,
+              "predecessorHits": 0,
+              "predecessorLookups": 0,
+              "replayedPatches": 0,
+              "retainRequests": 0
+            },
+            "semantic": {
+              "edgeCount": 64,
+              "fingerprint": "d4a3d26858bddad534c3f5d00e5ed8f7896767ae9e05e972b6005892f85e73e3",
+              "nodeCount": 65,
+              "propertyCount": 65,
+              "targetPropertyBytes": 256
+            }
+          },
+          "peakHeapUsedBytes": 40895760,
+          "throughputPerSecond": 123.96548419487753,
+          "wallMs": 524.3395,
+          "workerLifecycleWallMs": null
+        }
+      ],
+      "scenario": "warm-materialize",
+      "throughputPerSecond": {
+        "mad": 0.18183514535964918,
+        "maximum": 123.96548419487753,
+        "median": 123.78364904951789,
+        "minimum": 123.60181390415823,
+        "samples": [
+          123.60181390415823,
+          123.96548419487753
+        ]
+      },
+      "wallMs": {
+        "mad": 0.7713749999999209,
+        "maximum": 525.8822499999999,
+        "median": 525.110875,
+        "minimum": 524.3395,
+        "samples": [
+          525.8822499999999,
+          524.3395
+        ]
+      },
+      "warmupRuns": 0
+    }
+  },
+  "schemaVersion": 1
+}
