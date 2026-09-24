@@ -62,7 +62,46 @@ jobs:
             fi
           else
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-            echo "npm_dist_tag=latest" >> "$GITHUB_OUTPUT"
+            # `latest` is what a bare `npm install` resolves to, so only the
+            # highest published version may claim it. A maintenance release of
+            # an older line publishes under that line's own tag instead;
+            # without this, tagging v16.0.1 while 19.1.0 is current would
+            # silently move every new install back three majors.
+            set +e
+            NPM_VIEW_OUT="$(npm view @git-stunts/git-warp version 2>&1)"
+            NPM_VIEW_STATUS=$?
+            set -e
+
+            if [ "$NPM_VIEW_STATUS" -ne 0 ]; then
+              if printf '%s' "$NPM_VIEW_OUT" | grep -q 'E404'; then
+                # Nothing published yet, so nothing to demote.
+                echo "Package is unpublished; first release claims 'latest'"
+                echo "npm_dist_tag=latest" >> "$GITHUB_OUTPUT"
+              else
+                # Fail closed. Guessing here is how `latest` gets clobbered:
+                # defaulting to latest mispublishes a back-release, and
+                # defaulting to a maintenance tag silently fails to promote a
+                # real one. Neither is recoverable once published.
+                echo "Could not read the published latest version from the registry:"
+                printf '%s\n' "$NPM_VIEW_OUT"
+                echo "Refusing to choose a dist-tag without knowing what 'latest' currently is."
+                exit 1
+              fi
+            else
+              CURRENT_LATEST="$NPM_VIEW_OUT"
+              HIGHEST="$(printf '%s\n%s\n' "$TAG_VERSION" "$CURRENT_LATEST" | sort -V | tail -1)"
+              if [ "$HIGHEST" = "$TAG_VERSION" ]; then
+                echo "Tag $TAG_VERSION is at or above published latest $CURRENT_LATEST; claiming 'latest'"
+                echo "npm_dist_tag=latest" >> "$GITHUB_OUTPUT"
+              else
+                # Not `v16` or `16.x`: both parse as the semver range
+                # >=16.0.0 <17.0.0-0, so `npm install pkg@v16` would resolve as
+                # a range and shadow the dist-tag entirely.
+                MAINTENANCE_TAG="maintenance-v${TAG_VERSION%%.*}"
+                echo "Tag $TAG_VERSION is below published latest $CURRENT_LATEST; publishing under '$MAINTENANCE_TAG'"
+                echo "npm_dist_tag=$MAINTENANCE_TAG" >> "$GITHUB_OUTPUT"
+              fi
+            fi
           fi
 
       - name: Verify tag == package.json version
