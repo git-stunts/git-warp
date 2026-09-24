@@ -121,9 +121,8 @@ await graph.syncWith('http://peer:3000', {
 | `@git-stunts/alfred` | Runtime | Low | Retry/backoff utility, no I/O |
 | `@git-stunts/trailer-codec` | Runtime | Low | Pure string encoding, no I/O |
 | `cbor-x` | Runtime | Medium | Binary parser processing untrusted sync payloads; mitigated by body size limit in HttpSyncServer (4 MB default) |
-| `roaring` | Runtime | Medium | Native C++ bindings (N-API); largest attack surface but sandboxed by N-API boundary, no network-facing input |
+| `roaring-wasm` | Runtime | Low-Medium | WebAssembly build of CRoaring. A memory-safety fault stays inside the module's linear memory: it can yield a wrong bitmap result or trap, but cannot reach host process memory. No network-facing input |
 | `zod` | Runtime | Low | Schema validation, pure JS |
-| `elkjs` | Runtime (lazy) | Low | ELK layout engine, pure JS, lazy-loaded only for `--view` |
 | `chalk` | CLI-only | Negligible | Terminal coloring, no security surface |
 | `boxen` | CLI-only | Negligible | Terminal box drawing |
 | `cli-table3` | CLI-only | Negligible | Terminal table rendering |
@@ -134,10 +133,10 @@ await graph.syncWith('http://peer:3000', {
 
 | Risk | Severity | Owner | Expiry | Mitigation |
 |---|---|---|---|---|
-| `roaring` native bindings could have memory-safety bugs | Medium | @jross | 2026-08-01 | N-API sandbox; no untrusted input reaches bitmap code directly |
-| `cbor-x` parser handles untrusted sync payloads | Medium | @jross | 2026-08-01 | 4 MB body size limit in HttpSyncServer; schema validation post-parse |
-| Nonce cache lost on restart allows replay within clock skew window | Low | @jross | 2026-08-01 | 5-minute TTL; recommend TLS in production |
-| No rate limiting on sync endpoint | Low | @jross | 2026-08-01 | Deploy behind reverse proxy with rate limiting |
+| `roaring-wasm` bitmap faults could corrupt in-module state | Low | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | WASM linear-memory sandbox prevents host memory access; failure mode is a wrong result or a trap, not host corruption; no untrusted input reaches bitmap code directly |
+| `cbor-x` parser handles untrusted sync payloads | Medium | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | 4 MB body size limit in HttpSyncServer; schema validation post-parse |
+| Nonce cache lost on restart allows replay within clock skew window | Low | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | 5-minute TTL; recommend TLS in production |
+| No rate limiting on sync endpoint | Low | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | Deploy behind reverse proxy with rate limiting |
 
 ## Threat Model Boundaries
 
