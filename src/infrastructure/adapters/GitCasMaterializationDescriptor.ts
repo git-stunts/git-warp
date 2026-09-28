@@ -48,6 +48,22 @@ export function materializationCoordinateData(
   };
 }
 
+/**
+ * True when an older runtime wrote the descriptor under an earlier schema.
+ * Its state was built without the current visibility rules, so a reader
+ * treats it as a miss and rebuilds rather than as corrupt storage.
+ */
+export function isOlderMaterializationDescriptor(value: unknown): boolean {
+  if (!isDescriptorRecord(value)) {
+    return false;
+  }
+  const { schemaVersion } = value;
+  return typeof schemaVersion === 'number'
+    && Number.isSafeInteger(schemaVersion)
+    && schemaVersion > 0
+    && schemaVersion < MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION;
+}
+
 export function decodeMaterializationDescriptor(
   value: unknown,
 ): DecodedMaterializationDescriptor {
@@ -229,9 +245,13 @@ function requireRecord(
   value: unknown,
   field: string,
 ): asserts value is Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+  if (!isDescriptorRecord(value)) {
     throw descriptorError(`${field} must be an object`);
   }
+}
+
+function isDescriptorRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function requireNonEmpty(value: unknown, field: string): string {

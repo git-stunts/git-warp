@@ -5,6 +5,7 @@ import type { IndexShardReference } from '../../../ports/IndexStorePort.ts';
 import type { CheckpointBasis } from '../../../ports/CheckpointStorePort.ts';
 import { partitionShardHandles } from '../MaterializedViewHelpers.ts';
 import { isCurrentCheckpointSchema } from '../state/checkpointHelpers.ts';
+import { isStaleCheckpointMaterialization } from '../state/StaleCheckpointMaterialization.ts';
 import CheckpointBasisManifest, {
   CheckpointBasisChunking,
   CheckpointBasisCompleteness,
@@ -77,7 +78,7 @@ export default class CheckpointTailBasisLoader {
 
   private async _loadFresh(): Promise<CheckpointTailIndexBasis> {
     const checkpointSha = await this._readCheckpointSha();
-    const basis = await this._source._checkpointStore.loadBasis(checkpointSha, this._source.graphName);
+    const basis = await this._loadCheckpointBasis(checkpointSha);
     if (!isCurrentCheckpointSchema(basis.schema)) {
       throwNoBoundedBasis(this._source.graphName, 'checkpoint-without-index-tree');
     }
@@ -91,6 +92,17 @@ export default class CheckpointTailBasisLoader {
       basis,
       shards,
     });
+  }
+
+  private async _loadCheckpointBasis(checkpointSha: string): Promise<CheckpointBasis> {
+    try {
+      return await this._source._checkpointStore.loadBasis(checkpointSha, this._source.graphName);
+    } catch (error) {
+      if (error instanceof Error && isStaleCheckpointMaterialization(error)) {
+        throwNoBoundedBasis(this._source.graphName, 'checkpoint-without-index-tree');
+      }
+      throw error;
+    }
   }
 
   private async _readCheckpointSha(): Promise<string> {

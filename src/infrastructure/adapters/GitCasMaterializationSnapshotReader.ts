@@ -11,9 +11,13 @@ import type { ProvenanceIndex } from '../../domain/services/provenance/Provenanc
 import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
+import PersistenceError from '../../domain/errors/PersistenceError.ts';
+import { E_CHECKPOINT_STALE_MATERIALIZATION } from '../../domain/services/state/StaleCheckpointMaterialization.ts';
 import {
   decodeMaterializationDescriptor,
+  isOlderMaterializationDescriptor,
   MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
+  MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION,
   materializationRootsFromDescriptor,
   type DecodedMaterializationDescriptor,
 } from './GitCasMaterializationDescriptor.ts';
@@ -88,13 +92,17 @@ export default class GitCasMaterializationSnapshotReader {
     const members = await decodeMaterializationMembers(
       this.#cas.bundles.iterateMemberReferences({ handle: bundle.toString() }),
     );
+    const descriptorValue = this.#codec.decode(
+      await this.#cas.pages.get({
+        handle: members.descriptor,
+        maxBytes: MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
+      }),
+    );
+    if (isOlderMaterializationDescriptor(descriptorValue)) {
+      throw staleMaterialization(bundle);
+    }
     const descriptor = requireWholeStateDescriptor(
-      decodeMaterializationDescriptor(this.#codec.decode(
-        await this.#cas.pages.get({
-          handle: members.descriptor,
-          maxBytes: MATERIALIZATION_DESCRIPTOR_MAX_BYTES,
-        }),
-      )),
+      decodeMaterializationDescriptor(descriptorValue),
     );
     const roots = materializationRootsFromDescriptor(descriptor, members.retainedRoots);
     return Object.freeze({
@@ -103,6 +111,15 @@ export default class GitCasMaterializationSnapshotReader {
       stateHash: descriptor.stateHash,
     });
   }
+}
+
+function staleMaterialization(bundle: BundleHandle): PersistenceError {
+  return new PersistenceError(
+    `Materialization ${bundle.toString()} predates descriptor schema `
+      + `${String(MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION)}; rebuild it from patches`,
+    E_CHECKPOINT_STALE_MATERIALIZATION,
+    { context: { bundle: bundle.toString(), schemaVersion: MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION } },
+  );
 }
 
 function requireWholeStateDescriptor(

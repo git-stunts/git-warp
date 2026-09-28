@@ -137,15 +137,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   transformation and one-patch boundary remain intact.
 - Materialized state is now written as `full-v6`. It adds, per node, the
   latest add, the latest remove that sorts below it and the removes that sort
-  above it, and per edge the latest remove. `full-v5` and unversioned state
-  remain readable. They carry none of these records, so history before such a
-  checkpoint keeps the previous visibility until it is rebuilt from patches.
-  Earlier releases cannot read `full-v6`.
-- The materialization cache descriptor schema is now 6. Entries written under
-  schema 5 miss instead of serving state built without the new rule, so each
-  graph pays one cold rebuild on its first read after upgrading.
-- Migration: to apply the new visibility to existing history, rebuild from
-  patches rather than resuming from a `full-v5` checkpoint.
+  above it, and per edge the latest remove. The state codec still decodes
+  `full-v5` and unversioned state. Earlier releases cannot read `full-v6`.
+- The materialization descriptor schema is now 6, for cache entries and
+  checkpoints alike. A cache entry written under schema 5 misses. A checkpoint
+  written under schema 5 is treated as absent: `materialize()` replays the
+  graph from its patches instead of resuming from it, so the new visibility
+  also applies to history before that checkpoint, and a bounded
+  checkpoint-tail read refuses with `E_OPTIC_NO_BOUNDED_BASIS`. Neither
+  throws a descriptor schema error.
+- Migration: none is required. The next `createCheckpoint()` after upgrading
+  writes a schema 6 checkpoint for later reads to start from.
 - Under `.github/RELEASE.md` the visibility, state hash and storage format
   changes above are breaking, so the release that ships them must be a MAJOR
   version.
