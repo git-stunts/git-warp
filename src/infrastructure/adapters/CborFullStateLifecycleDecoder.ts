@@ -5,7 +5,14 @@ import FullStateLifecycleDecoderPort, {
   type FullStateLifecycle,
 } from '../../ports/FullStateLifecycleDecoderPort.ts';
 
-/** Decodes full-v6 node lifecycle records and edge removes from CBOR. */
+/**
+ * Decodes full-v6 node lifecycle records and edge removes from CBOR.
+ *
+ * The full-v6 writer emits all four lists, empty or not, so every list is
+ * required: a missing list, or one that is not a list, is refused rather
+ * than read as empty, which would make a hidden property visible again.
+ * full-v5 states carry no lifecycle records and never reach this decoder.
+ */
 export default class CborFullStateLifecycleDecoder extends FullStateLifecycleDecoderPort {
   readonly #codec: CodecPort;
 
@@ -15,40 +22,43 @@ export default class CborFullStateLifecycleDecoder extends FullStateLifecycleDec
   }
 
   override decode(buffer: Uint8Array): FullStateLifecycle {
-    const envelope = this.#codec.decode<unknown>(buffer);
-    const fields = isWireRecord(envelope) ? envelope : {};
+    const fields = this.#codec.decode<unknown>(buffer);
+    if (!isWireRecord(fields)) {
+      throw new WarpError('Full state envelope is not a record', 'E_INVALID_FULL_STATE_LIFECYCLE');
+    }
     return Object.freeze({
-      nodeBirthEvent: decodeEventArray(fields['nodeBirthEvent'], 'nodeBirthEvent'),
-      nodeClearEvent: decodeEventArray(fields['nodeClearEvent'], 'nodeClearEvent'),
-      nodePendingRemoveEvents: decodeEventListArray(fields['nodePendingRemoveEvents']),
-      edgeRemoveEvent: decodeEventArray(fields['edgeRemoveEvent'], 'edgeRemoveEvent'),
+      nodeBirthEvent: decodeEventArray(fields, 'nodeBirthEvent'),
+      nodeClearEvent: decodeEventArray(fields, 'nodeClearEvent'),
+      nodePendingRemoveEvents: decodeEventListArray(fields),
+      edgeRemoveEvent: decodeEventArray(fields, 'edgeRemoveEvent'),
     });
   }
 }
 
-function decodeEventArray(data: unknown, field: string): Map<string, EventId> {
+function decodeEventArray(fields: Record<string, unknown>, field: string): Map<string, EventId> {
   const events = new Map<string, EventId>();
-  if (!Array.isArray(data)) {
-    return events;
-  }
-  for (const entry of data) {
+  for (const entry of requireList(fields[field], field)) {
     const [key, value] = requireKeyedEntry(entry, field);
     events.set(key, decodeEvent(value, field));
   }
   return events;
 }
 
-function decodeEventListArray(data: unknown): Map<string, readonly EventId[]> {
+function decodeEventListArray(fields: Record<string, unknown>): Map<string, readonly EventId[]> {
   const field = 'nodePendingRemoveEvents';
   const events = new Map<string, readonly EventId[]>();
-  if (!Array.isArray(data)) {
-    return events;
-  }
-  for (const entry of data) {
+  for (const entry of requireList(fields[field], field)) {
     const [key, list] = requireKeyedEntry(entry, field);
-    events.set(key, Array.isArray(list) ? list.map((value) => decodeEvent(value, field)) : []);
+    events.set(key, requireList(list, field).map((value) => decodeEvent(value, field)));
   }
   return events;
+}
+
+function requireList(data: unknown, field: string): readonly unknown[] {
+  if (!Array.isArray(data)) {
+    throw new WarpError(`Full state ${field} is missing or is not a list`, 'E_INVALID_FULL_STATE_LIFECYCLE');
+  }
+  return data;
 }
 
 function requireKeyedEntry(entry: unknown, field: string): readonly [string, unknown] {

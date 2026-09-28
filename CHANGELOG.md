@@ -157,6 +157,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   latest add, the latest remove that sorts below it and the removes that sort
   above it, and per edge the latest remove. The state codec still decodes
   `full-v5` and unversioned state. Earlier releases cannot read `full-v6`.
+  A `full-v6` state whose lifecycle lists are missing or are not lists is
+  refused with `E_INVALID_FULL_STATE_LIFECYCLE` rather than read as empty.
 - The materialization descriptor schema is now 6, for cache entries and
   checkpoints alike. A cache entry written under schema 5 misses. A checkpoint
   written under schema 5 is treated as absent: `materialize()`, and, on a

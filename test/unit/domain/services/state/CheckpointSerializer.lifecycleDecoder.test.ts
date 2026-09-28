@@ -38,6 +38,36 @@ describe('deserializeFullState lifecycle decoding', () => {
     expect(restored.edgeRemoveEvent).toEqual(state.edgeRemoveEvent);
   });
 
+  it('refuses a full-v6 state whose node clear events are missing', () => {
+    const envelope = defaultCodec.decode<Record<string, object>>(
+      serializeFullState(removedAndReadded(), { codec: defaultCodec }),
+    );
+    delete envelope['nodeClearEvent'];
+
+    expect(() => deserializeFullState(defaultCodec.encode(envelope), {
+      codec: defaultCodec,
+      lifecycle: new CborFullStateLifecycleDecoder(defaultCodec),
+    })).toThrow(expect.objectContaining({ code: 'E_INVALID_FULL_STATE_LIFECYCLE' }));
+  });
+
+  it('still decodes a full-v5 state, which carries no lifecycle records', () => {
+    const state = removedAndReadded();
+    const { nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent } = defaultCodec.decode<Record<string, object>>(
+      serializeFullState(state, { codec: defaultCodec }),
+    );
+    const fullV5 = defaultCodec.encode({ version: 'full-v5', nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent });
+    const restored = deserializeFullState(fullV5, {
+      codec: defaultCodec,
+      lifecycle: new CborFullStateLifecycleDecoder(defaultCodec),
+    });
+
+    expect(restored.nodeAlive.elements()).toEqual(['n']);
+    expect(restored.nodeBirthEvent).toEqual(new Map());
+    expect(restored.nodeClearEvent).toEqual(new Map());
+    expect(restored.nodePendingRemoveEvents).toEqual(new Map());
+    expect(restored.edgeRemoveEvent).toEqual(new Map());
+  });
+
   it('refuses a full-v6 state without a lifecycle decoder', () => {
     const bytes = serializeFullState(removedAndReadded(), { codec: defaultCodec });
 
