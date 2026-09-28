@@ -57,9 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A checkpoint-tail node property read now refuses with
   `E_OPTIC_NO_BOUNDED_BASIS` and cause
   `tail-node-add-needs-checkpoint-lifecycle-witnesses` when the tail adds the
-  node and the checkpoint holds a value. The checkpoint may hold a remove that
-  the tail add turns into the node's clear event, which hides that value, and
-  the checkpoint index shards do not record node removes. Creating a new
+  node and the checkpoint holds a value, whether or not the tail also removes
+  it. The checkpoint may hold a remove that the tail add turns into the node's
+  clear event, which hides that value, and a concurrent writer's tail remove
+  may sort below the value, which leaves it visible. The checkpoint index
+  shards record neither node removes nor the value's event id. Creating a new
   indexed checkpoint recovers the read.
 
 ### Fixed

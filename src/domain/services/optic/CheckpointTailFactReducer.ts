@@ -120,11 +120,12 @@ export default class CheckpointTailFactReducer {
   }
 
   /**
-   * Tail events sort after every checkpointed register and after the node's
-   * checkpointed add, so a tail remove followed by a later tail add hides the
-   * checkpoint value. A tail add alone can also pass a remove the checkpoint
-   * holds as pending and hide the value; only the checkpoint's lifecycle
-   * records can say whether one exists.
+   * A tail add of the node can hide the checkpoint value, and whether it does
+   * depends on events the tail does not carry. It can pass a remove the
+   * checkpoint holds as pending. A concurrent writer's tail remove and add
+   * can also sort below the checkpoint's register, so the clear they make
+   * does not reach it. Only the checkpoint's lifecycle records and the
+   * register's EventId decide either case, so without them the read refuses.
    */
   private _isCheckpointValueHidden(
     options: {
@@ -136,9 +137,6 @@ export default class CheckpointTailFactReducer {
     const { checkpointLifecycle, nodeId } = options;
     if (checkpointLifecycle.kind === 'witnessed') {
       return isStaleNodeRegisterIn(lifecycle, nodeId, checkpointLifecycle.baseRegisterEvent);
-    }
-    if (lifecycle.nodeClearEvent.has(nodeId)) {
-      return true;
     }
     if (lifecycle.nodeBirthEvent.has(nodeId)) {
       throwNoBoundedBasis(this._graphName, 'tail-node-add-needs-checkpoint-lifecycle-witnesses');

@@ -135,6 +135,75 @@ describe('checkpoint-tail property read with a pending remove in the checkpoint'
   });
 });
 
+/**
+ * Writer A adds the node at 1 and writes the property at 5; both are in the
+ * checkpoint. Writer B, which saw A's add but not the property, removes the
+ * node at 3 and adds it again at 4; both are in the tail. The remove at 3 is
+ * the node's clear event, and the property at 5 sorts above it, so the full
+ * state shows the property. The tail events sort below the checkpoint's
+ * register, so the tail alone cannot tell whether the value is hidden.
+ */
+describe('checkpoint-tail property read with a concurrent remove and re-add in the tail', () => {
+  const CONCURRENT_CHECKPOINT_STEPS: readonly Step[] = [
+    [new NodeAdd(NODE, Dot.create('A', 1)), event(1, 'A')],
+    [new PropSet(NODE, KEY, 'v'), event(5, 'A')],
+  ];
+  const CONCURRENT_REMOVE = new NodeRemove(NODE, [encodeDot(Dot.create('A', 1))]);
+  const CONCURRENT_ADD = new NodeAdd(NODE, Dot.create('B', 1));
+  const CONCURRENT_TAIL_ENTRIES: readonly CheckpointTailPatchEntry[] = [
+    {
+      sha: 'abcdef03',
+      patch: new Patch({ schema: 3, writer: 'B', lamport: 3, context: {}, ops: [CONCURRENT_REMOVE] }),
+    },
+    {
+      sha: 'abcdef04',
+      patch: new Patch({ schema: 3, writer: 'B', lamport: 4, context: {}, ops: [CONCURRENT_ADD] }),
+    },
+  ];
+  const CONCURRENT_TAIL_STEPS: readonly Step[] = [
+    [CONCURRENT_REMOVE, new EventId(3, 'B', 'abcdef03', 0)],
+    [CONCURRENT_ADD, new EventId(4, 'B', 'abcdef04', 0)],
+  ];
+  const checkpoint = replay(CONCURRENT_CHECKPOINT_STEPS);
+  const full = replay([...CONCURRENT_CHECKPOINT_STEPS, ...CONCURRENT_TAIL_STEPS]);
+
+  it('keeps the property visible in the full state', () => {
+    expect(visibleProperty(checkpoint)).toBe('v');
+    expect(visibleProperty(full)).toBe('v');
+  });
+
+  it('returns the full-state value when given the checkpoint lifecycle', () => {
+    const value = reducer.reduceProperty({
+      baseValue: visibleProperty(checkpoint),
+      checkpointLifecycle: {
+        kind: 'witnessed',
+        lifecycle: checkpoint,
+        baseRegisterEvent: checkpoint.getNodeProp(NODE, KEY)?.eventId ?? null,
+      },
+      tailEntries: CONCURRENT_TAIL_ENTRIES,
+      nodeId: NODE,
+      propertyKey: KEY,
+    });
+
+    expect(value).toBe(visibleProperty(full));
+  });
+
+  it('refuses the bounded read when the checkpoint lifecycle is not witnessed', () => {
+    const read = (): PropValue | undefined => reducer.reduceProperty({
+      baseValue: visibleProperty(checkpoint),
+      checkpointLifecycle: { kind: 'unwitnessed' },
+      tailEntries: CONCURRENT_TAIL_ENTRIES,
+      nodeId: NODE,
+      propertyKey: KEY,
+    });
+
+    expect(read).toThrow(expect.objectContaining({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: expect.objectContaining({ reason: 'tail-node-add-needs-checkpoint-lifecycle-witnesses' }),
+    }));
+  });
+});
+
 describe('checkpoint-tail property read without checkpoint lifecycle witnesses', () => {
   function unwitnessedRead(
     baseValue: PropValue | undefined,
@@ -157,8 +226,11 @@ describe('checkpoint-tail property read without checkpoint lifecycle witnesses',
     expect(unwitnessedRead(undefined, TAIL_ENTRIES)).toBeUndefined();
   });
 
-  it('answers when a tail remove and a later tail add hide the checkpoint value', () => {
-    expect(unwitnessedRead('v', [
+  it('refuses when a tail remove and a later tail add may hide the checkpoint value', () => {
+    // Whether the tail clear reaches the checkpoint value depends on the
+    // value's EventId, which the basis does not carry: see the concurrent
+    // remove and re-add case above.
+    expect(() => unwitnessedRead('v', [
       {
         sha: 'abcdef05',
         patch: new Patch({
@@ -170,6 +242,9 @@ describe('checkpoint-tail property read without checkpoint lifecycle witnesses',
         }),
       },
       ...TAIL_ENTRIES,
-    ])).toBeUndefined();
+    ])).toThrow(expect.objectContaining({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: expect.objectContaining({ reason: 'tail-node-add-needs-checkpoint-lifecycle-witnesses' }),
+    }));
   });
 });
