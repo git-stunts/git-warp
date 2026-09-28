@@ -163,10 +163,13 @@ export default class WarpState {
    * retiring one generation of anchors to add the next — accumulates
    * registers monotonically and never reclaims them.
    *
-   * A re-added element then starts from a clean property slate, which is
-   * the visibility edges already have through `edgeBirthEvent` /
-   * `isStaleEdgeAttachment`; this extends the same clean-slate rule to
-   * nodes.
+   * A swept element that is later re-added starts with no properties. A
+   * replica that has not swept still holds the old registers, and shows
+   * them for a re-added node, and for a re-added edge whose add sorts below
+   * them; `edgeBirthEvent` hides them only when the edge's newest add sorts
+   * above them.
+   * Swept and unswept replicas can therefore differ after a re-add. Node
+   * registers have no birth filter to make that rule the same everywhere.
    *
    * @internal Call only from GC, after `ORSet.compact`. The sweep follows
    * compaction rather than liveness: an owner whose removal lies beyond
