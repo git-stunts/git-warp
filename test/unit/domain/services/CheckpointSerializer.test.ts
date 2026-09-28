@@ -95,7 +95,7 @@ describe('CheckpointSerializer', () => {
     });
 
     it('throws on unsupported version', () => {
-      const buffer = encode({ version: 'full-v6' });
+      const buffer = encode({ version: 'full-v7' });
       expect(() => deserializeFullState(buffer, { codec: defaultCodec })).toThrow(/Unsupported full state version/);
     });
 

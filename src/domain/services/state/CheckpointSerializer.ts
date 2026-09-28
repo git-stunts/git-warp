@@ -40,6 +40,11 @@ interface SerializedLWWRegister {
 // Full State Serialization (for Checkpoints)
 // ============================================================================
 
+/** Current full-state version: adds node births and node and edge removes. */
+const FULL_STATE_VERSION = 'full-v6';
+/** Previous version, still read: it carries no node or remove events. */
+const LEGACY_FULL_STATE_VERSION = 'full-v5';
+
 /**
  * Serializes full state including ORSet internals (entries + tombstones).
  * This is the AUTHORITATIVE checkpoint format.
@@ -49,19 +54,16 @@ export function serializeFullState(
   { codec }: { codec?: CodecPort } = {},
 ): Uint8Array {
   const c = requireCodec(codec, 'serializeFullState');
-  const nodeAliveObj = serializeORSet(state.nodeAlive);
-  const edgeAliveObj = serializeORSet(state.edgeAlive);
-  const propArray = serializePropsArray(WarpState.allPropEntriesFromState(state));
-  const observedFrontierObj = VersionVector.serialize(state.observedFrontier);
-  const edgeBirthArray = serializeEdgeBirthArray(state.edgeBirthEvent);
-
   return c.encode({
-    version: 'full-v5',
-    nodeAlive: nodeAliveObj,
-    edgeAlive: edgeAliveObj,
-    prop: propArray,
-    observedFrontier: observedFrontierObj,
-    edgeBirthEvent: edgeBirthArray,
+    version: FULL_STATE_VERSION,
+    nodeAlive: serializeORSet(state.nodeAlive),
+    edgeAlive: serializeORSet(state.edgeAlive),
+    prop: serializePropsArray(WarpState.allPropEntriesFromState(state)),
+    observedFrontier: VersionVector.serialize(state.observedFrontier),
+    edgeBirthEvent: serializeEventArray(state.edgeBirthEvent),
+    nodeBirthEvent: serializeEventArray(state.nodeBirthEvent),
+    nodeRemoveEvent: serializeEventArray(state.nodeRemoveEvent),
+    edgeRemoveEvent: serializeEventArray(state.edgeRemoveEvent),
   });
 }
 
@@ -74,11 +76,11 @@ function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister
   return propArray;
 }
 
-function serializeEdgeBirthArray(
-  edgeBirthEvent: Map<string, EventId>,
+function serializeEventArray(
+  events: ReadonlyMap<string, EventId> | undefined,
 ): Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> {
   const result: Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> = [];
-  for (const [key, eventId] of edgeBirthEvent) {
+  for (const [key, eventId] of events ?? []) {
     result.push([key, { lamport: eventId.lamport, writerId: eventId.writerId, patchSha: eventId.patchSha, opIndex: eventId.opIndex }]);
   }
   result.sort((left, right) => compareStrings(left[0], right[0]));
@@ -106,18 +108,27 @@ export function deserializeFullState(
       'E_CHECKPOINT_STATE_PAYLOAD_MISSING',
     );
   }
-  if (obj.version !== undefined && obj.version !== 'full-v5') {
+  if (obj.version !== undefined && obj.version !== LEGACY_FULL_STATE_VERSION && obj.version !== FULL_STATE_VERSION) {
     throw new SchemaUnsupportedError(
-      `Unsupported full state version: expected 'full-v5', got '${JSON.stringify(obj.version)}'`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
+      `Unsupported full state version: expected '${LEGACY_FULL_STATE_VERSION}' or '${FULL_STATE_VERSION}', got '${JSON.stringify(obj.version)}'`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
       { context: { version: obj.version } },
     );
   }
-  return new WarpState({
+  const legacyFields = {
     nodeAlive: deserializeORSet(obj.nodeAlive ?? {}),
     edgeAlive: deserializeORSet(obj.edgeAlive ?? {}),
     prop: deserializeProps(obj.prop ?? []),
     observedFrontier: VersionVector.from(obj.observedFrontier ?? {}),
     edgeBirthEvent: deserializeEdgeBirthEvent(obj),
+  };
+  if (obj.version !== FULL_STATE_VERSION) {
+    return new WarpState(legacyFields);
+  }
+  return new WarpState({
+    ...legacyFields,
+    nodeBirthEvent: deserializeEventArray(obj.nodeBirthEvent),
+    nodeRemoveEvent: deserializeEventArray(obj.nodeRemoveEvent),
+    edgeRemoveEvent: deserializeEventArray(obj.edgeRemoveEvent),
   });
 }
 
@@ -129,6 +140,9 @@ interface DeserializedFullState {
   observedFrontier?: { [x: string]: number };
   edgeBirthEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   edgeBirthLamport?: Array<[string, number]>;
+  nodeBirthEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  nodeRemoveEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  edgeRemoveEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export interface CheckpointStateEnvelopeBuffers {
@@ -149,7 +163,7 @@ export function serializeCheckpointStateEnvelope(
     edgeAlive: c.encode(serializeORSet(state.edgeAlive)),
     prop: c.encode(serializePropsArray(WarpState.allPropEntriesFromState(state))),
     observedFrontier: c.encode(VersionVector.serialize(state.observedFrontier)),
-    edgeBirthEvent: c.encode(serializeEdgeBirthArray(state.edgeBirthEvent)),
+    edgeBirthEvent: c.encode(serializeEventArray(state.edgeBirthEvent)),
   };
 }
 
@@ -249,13 +263,16 @@ function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWR
 }
 
 function deserializeEdgeBirthEvent(obj: DeserializedFullState): Map<string, EventId> {
-  const edgeBirthEvent = new Map<string, EventId>();
-  const birthData = obj.edgeBirthEvent ?? obj.edgeBirthLamport;
-  if (!Array.isArray(birthData)) { return edgeBirthEvent; }
-  for (const [key, val] of birthData) {
-    edgeBirthEvent.set(key, deserializeSingleBirthEvent(val));
+  return deserializeEventArray(obj.edgeBirthEvent ?? obj.edgeBirthLamport);
+}
+
+function deserializeEventArray(data: Array<[string, unknown]> | undefined): Map<string, EventId> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const events = new Map<string, EventId>();
+  if (!Array.isArray(data)) { return events; }
+  for (const [key, val] of data) {
+    events.set(key, deserializeSingleBirthEvent(val));
   }
-  return edgeBirthEvent;
+  return events;
 }
 
 interface CurrentEdgeBirthEventPayload {
