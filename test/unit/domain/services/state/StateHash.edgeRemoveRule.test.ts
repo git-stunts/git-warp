@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { Dot, encodeDot } from '../../../../../src/domain/crdt/Dot.ts';
 import { applyPatchOp, createEmptyState } from '../../../../../src/domain/services/JoinReducer.ts';
-import { encodeEdgeKey, encodeEdgePropKey } from '../../../../../src/domain/services/KeyCodec.ts';
+import { encodeEdgeKey } from '../../../../../src/domain/services/KeyCodec.ts';
 import { computeStateHash } from '../../../../../src/domain/services/state/StateSerializer.ts';
 import type WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import EdgeAdd from '../../../../../src/domain/types/ops/EdgeAdd.ts';
@@ -52,7 +52,7 @@ describe('computeStateHash and the edge remove rule', () => {
   it('leaves the hash unchanged when the edge remove rule hides an edge property', async () => {
     const visible = replay(WRITTEN);
     const hidden = replay(REMOVED);
-    const register = hidden.prop.get(encodeEdgePropKey(EDGE.from, EDGE.to, EDGE.label, 'weight'));
+    const register = hidden.getEdgeProp(EDGE.from, EDGE.to, EDGE.label, 'weight');
     if (register === undefined) {
       throw new Error('expected the edge property register');
     }
