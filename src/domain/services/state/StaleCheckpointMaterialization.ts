@@ -12,3 +12,15 @@ export const E_CHECKPOINT_STALE_MATERIALIZATION = 'E_CHECKPOINT_STALE_MATERIALIZ
 export function isStaleCheckpointMaterialization(error: Error): boolean {
   return error instanceof PersistenceError && error.code === E_CHECKPOINT_STALE_MATERIALIZATION;
 }
+
+/** Awaits a checkpoint load and reads a stale checkpoint as no checkpoint. */
+export async function unlessStaleCheckpoint<T>(load: Promise<T>): Promise<T | null> {
+  try {
+    return await load;
+  } catch (error) {
+    if (error instanceof Error && isStaleCheckpointMaterialization(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
