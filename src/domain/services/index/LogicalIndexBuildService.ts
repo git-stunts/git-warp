@@ -14,6 +14,7 @@ import WarpStream from '../../stream/WarpStream.ts';
 import { ReceiptShard } from '../../artifacts/ReceiptShard.ts';
 import IndexError from '../../errors/IndexError.ts';
 import WarpState from '../state/WarpState.ts';
+import { isStaleNodeRegisterIn, type ElementLifecycleSource } from '../state/ElementLifecycle.ts';
 import type { IndexShard } from '../../artifacts/IndexShard.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
 import type { PropValue } from '../../types/PropValue.ts';
@@ -67,9 +68,15 @@ export default class LogicalIndexBuildService {
     return this._collectShards(indexBuilder, propBuilder);
   }
 
+  /**
+   * Builds shards from a page-backed session. `lifecycle` carries the birth
+   * and remove events that decide which registers are current; without it
+   * every register of a live node is indexed.
+   */
   async buildShardsFromSession(args: {
     session: StateSession;
     prop: PropertyRegisters;
+    lifecycle?: ElementLifecycleSource;
     existingMeta?: ExistingMeta;
     existingLabels?: ExistingLabels;
   }): Promise<{ shards: IndexShard[]; receipt: ReceiptShard }> {
@@ -122,6 +129,7 @@ export default class LogicalIndexBuildService {
       aliveNodeSet,
       visibleEdges,
       prop: new Map(state.allPropEntries()),
+      lifecycle: state,
     });
     return { indexBuilder, propBuilder };
   }
@@ -129,6 +137,7 @@ export default class LogicalIndexBuildService {
   private async _populateBuildersFromSession(args: {
     session: StateSession;
     prop: PropertyRegisters;
+    lifecycle?: ElementLifecycleSource;
     existingMeta?: ExistingMeta;
     existingLabels?: ExistingLabels;
   }): Promise<{ indexBuilder: LogicalBitmapIndexBuilder; propBuilder: PropertyIndexBuilder }> {
@@ -146,6 +155,7 @@ export default class LogicalIndexBuildService {
       aliveNodeSet,
       visibleEdges,
       prop: args.prop,
+      lifecycle: args.lifecycle ?? {},
     });
     return { indexBuilder, propBuilder };
   }
@@ -177,10 +187,12 @@ export default class LogicalIndexBuildService {
     aliveNodeSet: ReadonlySet<string>;
     visibleEdges: ReadonlyArray<VisibleEdgeRecord>;
     prop: PropertyRegisters;
+    lifecycle: ElementLifecycleSource;
   }): void {
     this._populateLogicalIndex(args);
     for (const entry of WarpState.nodePropertiesFromMap(args.prop)) {
-      if (args.aliveNodeSet.has(entry.nodeId)) {
+      if (args.aliveNodeSet.has(entry.nodeId)
+        && !isStaleNodeRegisterIn(args.lifecycle, entry.nodeId, entry.register.eventId)) {
         args.propBuilder.addProperty(entry.nodeId, entry.key, entry.register.value);
       }
     }

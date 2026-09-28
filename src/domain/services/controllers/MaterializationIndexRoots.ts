@@ -202,7 +202,7 @@ function buildMaterializationPropertyIndex(state: WarpState): PropertyIndexBuild
     shardKey: materializationPropertyShardKey,
   });
   for (const entry of state.nodeProperties()) {
-    if (state.nodeAlive.contains(entry.nodeId)) {
+    if (state.nodeAlive.contains(entry.nodeId) && !state.isStaleNodeRegister(entry.nodeId, entry.register)) {
       builder.addProperty(entry.nodeId, entry.key, entry.register.value);
     }
   }

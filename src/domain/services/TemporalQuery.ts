@@ -105,7 +105,7 @@ function extractNodeSnapshot(state: WarpState, nodeId: string): NodeSnapshot {
 
   if (exists) {
     for (const entry of WarpState.nodePropertiesFromState(state)) {
-      if (entry.nodeId === nodeId) {
+      if (entry.nodeId === nodeId && !state.isStaleNodeRegister(nodeId, entry.register)) {
         props[entry.key] = unwrapValue(entry.register.value);
       }
     }

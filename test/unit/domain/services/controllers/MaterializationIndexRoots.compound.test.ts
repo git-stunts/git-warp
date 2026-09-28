@@ -12,6 +12,7 @@ import LogicalBitmapIndexBuilder
 import PropertyIndexBuilder
   from '../../../../../src/domain/services/index/PropertyIndexBuilder.ts';
 import { encodePropKey } from '../../../../../src/domain/services/KeyCodec.ts';
+import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import type BundleHandle from '../../../../../src/domain/storage/BundleHandle.ts';
 import type WarpStream from '../../../../../src/domain/stream/WarpStream.ts';
@@ -49,6 +50,19 @@ describe('prepareMaterializationIndexRoots compound admission', () => {
     ]]);
     expect(store.writeOptions.map((options) => options.staging))
       .toEqual([workspace.scoped, workspace.scoped]);
+  });
+
+  it('indexes no property written before its node was added again', async () => {
+    const state = stateWithOneProperty();
+    new NodeAdd('node:0', Dot.create('writer', 2)).mutate(state, new EventId(2, 'writer', 'a1b2', 0));
+
+    const roots = await prepareMaterializationIndexRoots({
+      state,
+      store: new RecordingIndexStorage(),
+      workspace: new CompoundRecordingWorkspace(),
+    });
+
+    expect(roots.properties.status).toBe('empty');
   });
 
   it('keeps separate staging when the conservative bound exceeds the ceiling', async () => {
