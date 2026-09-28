@@ -142,6 +142,12 @@ describe('release artifact command evidence', () => {
     const entries = packEntries(runNpmPackDryRun());
 
     const compiledTests = [...entries].filter((entry) => entry.startsWith('dist/test/'));
+    const withheldDocumentation = [...entries].filter(
+      (entry) =>
+        entry === 'CHANGELOG.md' ||
+        entry.startsWith('docs/topics/') ||
+        entry.startsWith('docs/operations/')
+    );
     const unrelatedCompiledScripts = [...entries].filter(
       (entry) =>
         entry.startsWith('dist/scripts/') &&
@@ -168,14 +174,13 @@ describe('release artifact command evidence', () => {
     expect(entries.has('dist/bin/warp-graph.js')).toBe(false);
     expect(entries.has('README.md')).toBe(true);
     expect(entries.has('docs/migrations/v19/README.md')).toBe(true);
-    expect(entries.has('docs/operations/README.md')).toBe(true);
-    expect(entries.has('docs/topics/README.md')).toBe(true);
-    expect(entries.has('docs/topics/api/README.md')).toBe(true);
-    expect(entries.has('docs/topics/getting-started.md')).toBe(true);
     expect(entries.has('docs/READINGS_AND_OPTICS.md')).toBe(true);
-    expect(entries.has('docs/operations/package-payload.md')).toBe(true);
-    expect(entries.has('CHANGELOG.md')).toBe(true);
     expect(entries.has('LICENSE')).toBe(true);
+    expect(entries.has('NOTICE')).toBe(true);
+    expect(withheldDocumentation).toEqual([]);
+    expect(entries.has('CHANGELOG.md')).toBe(false);
+    expect(entries.has('docs/topics/README.md')).toBe(false);
+    expect(entries.has('docs/operations/package-payload.md')).toBe(false);
     expect(compiledTests).toEqual([]);
     expect(unrelatedCompiledScripts).toEqual([]);
     expect(entries.has('docs/ANTI_SLUDGE_POLICY.md')).toBe(false);

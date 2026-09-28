@@ -4,7 +4,6 @@ import type PackagePayloadInventory from './PackagePayloadInventory.ts';
 const REQUIRED_PATHS = Object.freeze([
   'package.json',
   'README.md',
-  'CHANGELOG.md',
   'LICENSE',
   'NOTICE',
   'dist/index.js',
@@ -30,9 +29,6 @@ const REQUIRED_PATHS = Object.freeze([
   'scripts/hooks/post-merge.sh',
   'scripts/install-git-warp.sh',
   'scripts/uninstall-git-warp.sh',
-  'docs/topics/README.md',
-  'docs/operations/README.md',
-  'docs/operations/package-payload.md',
   'docs/migrations/v19/README.md',
   'docs/READINGS_AND_OPTICS.md',
 ]);
@@ -44,16 +40,22 @@ const ALLOWED_PREFIXES = Object.freeze([
   'dist/bin/',
   'dist/scripts/migrations/v17.0.0/',
   'dist/scripts/v18-to-v19/adapters/',
-  'docs/topics/',
-  'docs/operations/',
-  'docs/migrations/v19/',
 ]);
 
-const FORBIDDEN_PREFIXES = Object.freeze(['dist/scripts/v18-to-v19/performance/']);
+// Repository documentation that is deliberately withheld from the npm
+// artifact. Retained packaged documents link to commit-pinned repository
+// copies instead.
+const WITHHELD_DOCUMENTATION_PATHS = Object.freeze(['CHANGELOG.md']);
+
+const FORBIDDEN_PREFIXES = Object.freeze([
+  'dist/scripts/v18-to-v19/performance/',
+  'docs/topics/',
+  'docs/operations/',
+]);
 
 export default class PackagePayloadPolicy {
   readonly maxPackedBytes = 1_200_000;
-  readonly maxUnpackedBytes = 4_900_000;
+  readonly maxUnpackedBytes = 4_300_000;
   readonly maxEntryCount = 1_700;
 
   assess(inventory: PackagePayloadInventory): PackagePayloadAssessment {
@@ -71,7 +73,10 @@ export default class PackagePayloadPolicy {
   }
 
   private allows(path: string): boolean {
-    if (FORBIDDEN_PREFIXES.some((prefix) => path.startsWith(prefix))) {
+    if (
+      WITHHELD_DOCUMENTATION_PATHS.includes(path) ||
+      FORBIDDEN_PREFIXES.some((prefix) => path.startsWith(prefix))
+    ) {
       return false;
     }
     return (

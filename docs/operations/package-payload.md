@@ -31,6 +31,19 @@ The export map prevented those internal paths from becoming supported imports,
 but physical publication still exposed them. The package gate therefore checks
 the artifact inventory independently of the export map.
 
+## Ceilings
+
+At `7b43e330c`, a clean publish build packed 1,679 files, 1,176,780
+compressed bytes, and 4,798,907 unpacked bytes. Withholding the changelog and
+the general documentation shelves removed 25 files and brought the artifact to
+1,654 files, 951,990 compressed bytes, and 4,126,293 unpacked bytes.
+
+| Ceiling          | Value     | Headroom over the measured artifact |
+| ---------------- | --------- | ----------------------------------- |
+| Compressed bytes | 1,200,000 | 248,010 bytes                       |
+| Unpacked bytes   | 4,300,000 | 173,707 bytes (4.2%)                |
+| Entries          | 1,700     | 46 entries                          |
+
 ## Allowlist
 
 The package may contain only these path classes:
@@ -38,7 +51,7 @@ The package may contain only these path classes:
 | Path class                                                                   | Publication reason                                                  |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | `package.json`                                                               | npm metadata and the public export/bin maps                         |
-| `README.md`, `CHANGELOG.md`, `LICENSE`, `NOTICE`                             | User orientation, compatibility history, and legal notices          |
+| `README.md`, `LICENSE`, `NOTICE`                                             | User orientation and legal notices                                  |
 | `dist/{index,advanced,diagnostics,charts,testing}.{js,d.ts}`                 | Supported JavaScript and declaration entrypoints                    |
 | `dist/src/**`                                                                | Transitive runtime implementation required by supported entrypoints |
 | `dist/bin/**`, `bin/git-warp`                                                | Supported `git-warp` executable implementation and launcher         |
@@ -47,14 +60,26 @@ The package may contain only these path classes:
 | `dist/scripts/migrations/v17.0.0/**`, `dist/scripts/formatFailure.{js,d.ts}` | Private implementation required by supported migration commands     |
 | `scripts/hooks/post-merge.sh`                                                | Runtime asset required by CLI hook installation and diagnostics     |
 | `scripts/{install-git-warp,uninstall-git-warp}.sh`                           | Existing explicit bootstrap and removal command surfaces            |
-| `docs/topics/**`                                                             | Curated public learning shelf linked from the README                |
-| `docs/operations/**`                                                         | Curated operator procedures linked from the README                  |
-| `docs/migrations/v19/**`                                                     | Safety-critical guide for the supported migration executable        |
+| `docs/migrations/v19/README.md`                                              | Safety-critical guide for the supported migration executable        |
 | `docs/READINGS_AND_OPTICS.md`                                                | Runtime guidance named by public reading-basis errors               |
 
 Repository policy, tests, fixtures, plans, maintainer utilities, performance
 drivers, generators, audit scripts, and release machinery do not belong in the
 npm artifact. Maintainers use those files from the reviewed source checkout.
+
+## Withheld documentation
+
+`CHANGELOG.md`, `docs/topics/**`, and `docs/operations/**` stay in the
+repository but are not published to npm. They are release history and general
+learning or operator shelves, not assets a supported command reads. The policy
+rejects them explicitly, so they cannot return merely because other payload
+shrank.
+
+The retained packaged documents (`README.md`, `docs/migrations/v19/README.md`,
+and `docs/READINGS_AND_OPTICS.md`) must not link package-relative into any
+path the artifact does not contain. Links to withheld documentation use a
+release-tagged or commit-pinned repository URL. A unit test checks the source
+documents and the packed-artifact smoke checks the installed copies.
 
 ## Enforcement
 

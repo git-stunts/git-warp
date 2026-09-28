@@ -132,6 +132,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   supported subpath and package metadata, starts both executables, verifies
   required hook/bootstrap assets, and keeps the private storage subpath
   inaccessible.
+- The npm artifact no longer carries `CHANGELOG.md`, `docs/topics/`, or
+  `docs/operations/`; they remain in the repository. The package keeps
+  `README.md`, the v19 migration guide, `docs/READINGS_AND_OPTICS.md`,
+  `LICENSE`, and `NOTICE`, and links from those documents to withheld
+  documentation now use commit-pinned repository URLs. The payload policy
+  rejects the withheld paths explicitly and lowers the unpacked ceiling to
+  4,300,000 bytes.
 
 ## [19.1.0] - 2026-08-25
 

@@ -111,7 +111,62 @@ PACKAGE_DIR="$FIXTURE_DIR/node_modules/@git-stunts/git-warp"
 node "$PACKAGE_DIR/dist/scripts/upgrade-v16-to-v17.js" --help >/dev/null
 test -f "$PACKAGE_DIR/scripts/hooks/post-merge.sh"
 test -f "$PACKAGE_DIR/docs/READINGS_AND_OPTICS.md"
+test -f "$PACKAGE_DIR/docs/migrations/v19/README.md"
 bash "$PACKAGE_DIR/scripts/install-git-warp.sh" --help >/dev/null
 bash "$PACKAGE_DIR/scripts/uninstall-git-warp.sh" --help >/dev/null
+
+# Withheld repository documentation must stay out of the artifact.
+test ! -e "$PACKAGE_DIR/CHANGELOG.md"
+test ! -e "$PACKAGE_DIR/docs/topics"
+test ! -e "$PACKAGE_DIR/docs/operations"
+
+# Every package-relative link in a shipped document must resolve inside the
+# installed package; withheld documents are linked by pinned repository URL.
+PACKAGE_DIR="$PACKAGE_DIR" node --input-type=module <<'NODE'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
+
+const packageDir = process.env.PACKAGE_DIR;
+const markdownFiles = [];
+function collect(directory) {
+  for (const entry of readdirSync(directory)) {
+    const path = join(directory, entry);
+    if (entry === 'node_modules') {
+      continue;
+    }
+    if (statSync(path).isDirectory()) {
+      collect(path);
+    } else if (entry.endsWith('.md')) {
+      markdownFiles.push(path);
+    }
+  }
+}
+collect(packageDir);
+
+const escaping = [];
+for (const file of markdownFiles) {
+  const markdown = readFileSync(file, 'utf8');
+  const targets = [
+    ...markdown.matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/gu),
+    ...markdown.matchAll(/^\s*\[[^\]]+\]:\s*(\S+)/gmu),
+  ].map((match) => match[1]);
+  for (const target of targets) {
+    if (/^(?:[a-z][a-z0-9+.-]*:|#)/iu.test(target)) {
+      continue;
+    }
+    const resolved = resolve(dirname(file), target.split('#')[0]);
+    const insidePackage = !relative(packageDir, resolved).startsWith('..');
+    if (!insidePackage || !existsSync(resolved)) {
+      escaping.push(`${relative(packageDir, file)} -> ${target}`);
+    }
+  }
+}
+if (markdownFiles.length < 3) {
+  throw new Error(`expected packaged documentation; found ${String(markdownFiles.length)} files`);
+}
+if (escaping.length > 0) {
+  throw new Error(`packaged documentation links outside the artifact:\n${escaping.join('\n')}`);
+}
+NODE
 
 echo "packed artifact smoke passed"
