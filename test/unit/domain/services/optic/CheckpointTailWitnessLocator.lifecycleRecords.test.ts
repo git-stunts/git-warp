@@ -183,6 +183,26 @@ describe('checkpoint-tail property reads the records cannot decide', () => {
   });
 });
 
+describe('checkpoint-tail property reads over an index root whose lifecycle receipt does not match its members', () => {
+  it('refuses when the receipt is present and the node lifecycle shard is missing', async () => {
+    // Without the shard the node reads as having no record, and probe (e)'s
+    // tail write, which the checkpoint's clear event hides, would answer.
+    expect(materializedValue(PROBE_E)).toBeNull();
+
+    await expect(tailRead(PROBE_E, { damage: 'drop-node-lifecycle-shard' })).resolves.toEqual({
+      kind: 'refused',
+      reason: 'checkpoint-shard-invalid',
+    });
+  });
+
+  it('refuses when the receipt carries a schema version this runtime does not read', async () => {
+    await expect(tailRead(PROBE_E, { damage: 'receipt-schema-version' })).resolves.toEqual({
+      kind: 'refused',
+      reason: 'checkpoint-shard-invalid',
+    });
+  });
+});
+
 describe('checkpoint-tail property reads over a checkpoint written without node lifecycle records', () => {
   it.each([
     ['probe (c)', PROBE_C, 'tail-node-add-needs-checkpoint-lifecycle-witnesses'],

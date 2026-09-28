@@ -1,7 +1,8 @@
 /**
  * Boundary reader for node lifecycle shards.
  *
- * Validates one decoded `life_XX.cbor` payload into NodeLifecycleRecords.
+ * Validates one decoded `life_XX.cbor` payload into NodeLifecycleRecords,
+ * and the `life_receipt.cbor` payload against the root's record shards.
  * Only the canonical form the encoder writes is accepted: records in
  * ascending node id order, pending removes ascending above the birth, and
  * registers in ascending key order. Anything else is a malformed shard.
@@ -14,6 +15,7 @@
  * @module domain/services/index/NodeLifecycleShardReader
  */
 
+import { NodeLifecycleReceipt } from '../../artifacts/NodeLifecycleReceipt.ts';
 import { NodeLifecycleRecord } from '../../artifacts/NodeLifecycleRecord.ts';
 import { NODE_LIFECYCLE_SHARD_SCHEMA_VERSION } from '../../artifacts/NodeLifecycleShard.ts';
 import IndexError from '../../errors/IndexError.ts';
@@ -26,7 +28,9 @@ import computeShardKey from '../../utils/shardKey.ts';
 export const NODE_LIFECYCLE_RECEIPT_PATH = 'life_receipt.cbor';
 
 const NODE_LIFECYCLE_PATH_PREFIX = 'life_';
+const NODE_LIFECYCLE_SHARD_PATH = /^life_[0-9a-f]{2}\.cbor$/u;
 const ENVELOPE_KEYS = 'entries,schemaVersion';
+const RECEIPT_KEYS = 'nodeCount,schemaVersion,shardCount';
 const PAIR_FIELDS = 2;
 const RECORD_FIELDS = 4;
 const EVENT_FIELDS = 4;
@@ -59,6 +63,43 @@ export function decodeNodeLifecycleShard(
     previous = record.nodeId;
   }
   return records;
+}
+
+/** True for a `life_XX.cbor` record shard path; false for the receipt and every other member. */
+export function isNodeLifecycleShardPath(path: string): boolean {
+  return NODE_LIFECYCLE_SHARD_PATH.test(path);
+}
+
+/**
+ * Decodes the lifecycle receipt and checks it against the record shards the
+ * index root actually carries. A receipt whose schema version this reader
+ * does not read, or whose shard count differs from the `life_XX` members
+ * present, marks a damaged or partially written root: a missing record shard
+ * would otherwise read as "no record".
+ */
+export function decodeNodeLifecycleReceipt(
+  decoded: CodecValue,
+  memberPaths: readonly string[],
+): NodeLifecycleReceipt {
+  const path = NODE_LIFECYCLE_RECEIPT_PATH;
+  if (!isCodecRecord(decoded) || Object.keys(decoded).sort().join(',') !== RECEIPT_KEYS) {
+    throw malformed(path, 'invalid receipt envelope');
+  }
+  if (decoded['schemaVersion'] !== NODE_LIFECYCLE_SHARD_SCHEMA_VERSION) {
+    throw malformed(path, 'unsupported node lifecycle receipt schema version');
+  }
+  const receipt = validated(path, () => new NodeLifecycleReceipt({
+    nodeCount: requireNumber(decoded['nodeCount'], path),
+    shardCount: requireNumber(decoded['shardCount'], path),
+  }));
+  const present = memberPaths.filter(isNodeLifecycleShardPath).length;
+  if (present !== receipt.shardCount) {
+    throw malformed(
+      path,
+      `receipt records ${String(receipt.shardCount)} lifecycle shards, root carries ${String(present)}`,
+    );
+  }
+  return receipt;
 }
 
 function requireEnvelope(decoded: CodecValue, path: string): readonly CodecValue[] {

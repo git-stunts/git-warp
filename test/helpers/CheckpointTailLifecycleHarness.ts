@@ -15,6 +15,10 @@ import QueryError from '../../src/domain/errors/QueryError.ts';
 import { applyPatchOp, createEmptyState } from '../../src/domain/services/JoinReducer.ts';
 import { MaterializationIndexRootPlan } from '../../src/domain/services/controllers/MaterializationIndexRoots.ts';
 import LogicalIndexBuildService from '../../src/domain/services/index/LogicalIndexBuildService.ts';
+import {
+  NODE_LIFECYCLE_RECEIPT_PATH,
+  nodeLifecycleShardPath,
+} from '../../src/domain/services/index/NodeLifecycleShardReader.ts';
 import CheckpointTailOpticSource, {
   type CheckpointTailCheckpointFrontier,
   type CheckpointTailPatchEntry,
@@ -100,14 +104,25 @@ export function materializedValue(scenario: HarnessScenario): PropValue | null {
   return first;
 }
 
+/**
+ * Damage applied to the index root after the checkpoint writer wrote it:
+ * `drop-node-lifecycle-shard` removes the harness node's `life_XX` member and
+ * keeps the receipt; `receipt-schema-version` replaces the receipt with one
+ * whose schema version this runtime does not read.
+ */
+export type HarnessRootDamage = 'drop-node-lifecycle-shard' | 'receipt-schema-version';
+
+const UNREAD_RECEIPT_SCHEMA_VERSION = 2;
+
 /** Reads the property through CheckpointTailWitnessLocator over a written basis. */
 export async function tailRead(
   scenario: HarnessScenario,
-  options: Readonly<{ recordsAbsent?: boolean }> = {},
+  options: Readonly<{ recordsAbsent?: boolean; damage?: HarnessRootDamage }> = {},
 ): Promise<HarnessRead> {
   const checkpoint = replay(stepsOf(scenario.checkpoint));
   const indexStore = new MockIndexStorage();
-  const roots = await writeBasis(checkpoint, indexStore, options.recordsAbsent ?? false);
+  const written = await writeBasis(checkpoint, indexStore, options.recordsAbsent ?? false);
+  const roots = options.damage === undefined ? written : await damageRoot(written, indexStore, options.damage);
   const source = new HarnessSource({ indexStore, scenario, roots });
   const locator = new CheckpointTailWitnessLocator({ source });
   try {
@@ -174,6 +189,50 @@ async function writeBasis(
     ))
     : roots.roaringIndexes.handle;
   return { indexRoot, propertyRoot: roots.properties.handle };
+}
+
+async function damageRoot(
+  roots: WrittenBasis,
+  store: MockIndexStorage,
+  damage: HarnessRootDamage,
+): Promise<WrittenBasis> {
+  if (roots.indexRoot === null) {
+    throw new Error('harness damage needs an index root');
+  }
+  const members = await store.readShardHandles(roots.indexRoot);
+  const target = damage === 'drop-node-lifecycle-shard'
+    ? nodeLifecycleShardPath(HARNESS_NODE)
+    : NODE_LIFECYCLE_RECEIPT_PATH;
+  const handle = members[target];
+  if (handle === undefined) {
+    throw new Error(`harness damage expected member ${target}`);
+  }
+  const kept = Object.fromEntries(Object.entries(members).filter(([path]) => path !== target));
+  if (damage === 'receipt-schema-version') {
+    const receipt = defaultCodec.decode<{ nodeCount: number; shardCount: number }>(
+      await readAll(store.openShard(handle)),
+    );
+    kept[target] = await store.writeBlob(defaultCodec.encode({
+      schemaVersion: UNREAD_RECEIPT_SCHEMA_VERSION,
+      nodeCount: receipt.nodeCount,
+      shardCount: receipt.shardCount,
+    }));
+  }
+  return { indexRoot: store.writeIndex(kept), propertyRoot: roots.propertyRoot };
+}
+
+async function readAll(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of source) {
+    chunks.push(chunk);
+  }
+  const bytes = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.length, 0));
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return bytes;
 }
 
 function propertyOptic(): Optic {
