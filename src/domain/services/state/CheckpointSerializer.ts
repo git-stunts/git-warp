@@ -21,6 +21,7 @@ import WarpState from './WarpState.ts';
 import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
+import type FullStateLifecycleDecoderPort from '../../../ports/FullStateLifecycleDecoderPort.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
 import { compareEventIds, EventId } from '../../utils/EventId.ts';
 import { mergeNodeLifecycles } from './NodeLifecycle.ts';
@@ -108,10 +109,13 @@ function serializeEventArray(
 
 /**
  * Deserializes full state. Used for resume.
+ *
+ * A full-v6 state's node lifecycle records and edge removes are decoded by
+ * the injected `lifecycle` decoder, which owns their wire form.
  */
 export function deserializeFullState(
   buffer: Uint8Array,
-  { codec: codecOpt }: { codec?: CodecPort } = {},
+  { codec: codecOpt, lifecycle }: { codec?: CodecPort; lifecycle?: FullStateLifecycleDecoderPort } = {},
 ): WarpStateType {
   if (buffer === null || buffer === undefined) {
     throw new WarpError(
@@ -143,15 +147,24 @@ export function deserializeFullState(
   if (obj.version !== FULL_STATE_VERSION) {
     return new WarpState(legacyFields);
   }
+  const records = requireLifecycleDecoder(lifecycle).decode(buffer);
   return new WarpState({
     ...legacyFields,
-    ...mergeNodeLifecycles({}, {
-      nodeBirthEvent: deserializeEventArray(obj.nodeBirthEvent),
-      nodeClearEvent: deserializeEventArray(obj.nodeClearEvent),
-      nodePendingRemoveEvents: deserializeEventListArray(obj.nodePendingRemoveEvents),
-    }),
-    edgeRemoveEvent: deserializeEventArray(obj.edgeRemoveEvent),
+    ...mergeNodeLifecycles({}, records),
+    edgeRemoveEvent: records.edgeRemoveEvent,
   });
+}
+
+function requireLifecycleDecoder(
+  lifecycle: FullStateLifecycleDecoderPort | undefined,
+): FullStateLifecycleDecoderPort {
+  if (lifecycle === undefined) {
+    throw new WarpError(
+      `deserializeFullState requires an injected lifecycle decoder for ${FULL_STATE_VERSION}`,
+      'E_FULL_STATE_LIFECYCLE_DECODER_REQUIRED',
+    );
+  }
+  return lifecycle;
 }
 
 interface DeserializedFullState {
@@ -162,10 +175,6 @@ interface DeserializedFullState {
   observedFrontier?: { [x: string]: number };
   edgeBirthEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   edgeBirthLamport?: Array<[string, number]>;
-  nodeBirthEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  nodeClearEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  nodePendingRemoveEvents?: Array<[string, unknown[]]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  edgeRemoveEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
 export interface CheckpointStateEnvelopeBuffers {
@@ -286,25 +295,13 @@ function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWR
 }
 
 function deserializeEdgeBirthEvent(obj: DeserializedFullState): Map<string, EventId> {
-  return deserializeEventArray(obj.edgeBirthEvent ?? obj.edgeBirthLamport);
-}
-
-function deserializeEventArray(data: Array<[string, unknown]> | undefined): Map<string, EventId> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  const events = new Map<string, EventId>();
-  if (!Array.isArray(data)) { return events; }
-  for (const [key, val] of data) {
-    events.set(key, deserializeSingleBirthEvent(val));
+  const edgeBirthEvent = new Map<string, EventId>();
+  const birthData = obj.edgeBirthEvent ?? obj.edgeBirthLamport;
+  if (!Array.isArray(birthData)) { return edgeBirthEvent; }
+  for (const [key, val] of birthData) {
+    edgeBirthEvent.set(key, deserializeSingleBirthEvent(val));
   }
-  return events;
-}
-
-function deserializeEventListArray(data: Array<[string, unknown[]]> | undefined): Map<string, readonly EventId[]> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  const events = new Map<string, readonly EventId[]>();
-  if (!Array.isArray(data)) { return events; }
-  for (const [key, list] of data) {
-    events.set(key, Array.isArray(list) ? list.map(deserializeSingleBirthEvent) : []);
-  }
-  return events;
+  return edgeBirthEvent;
 }
 
 interface CurrentEdgeBirthEventPayload {

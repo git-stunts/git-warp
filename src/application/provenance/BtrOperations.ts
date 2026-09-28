@@ -17,6 +17,7 @@ import {
   deserializeFullState,
   computeStateHash,
 } from '../../domain/services/state/StateSerializer.ts';
+import CborFullStateLifecycleDecoder from '../../infrastructure/adapters/CborFullStateLifecycleDecoder.ts';
 
 const HMAC_ALGORITHM = 'sha256';
 
@@ -58,6 +59,13 @@ type BTRVerificationResult = VerificationResult;
 
 function stateCodecOptions(stateCodec: CodecPort | undefined): StateCodecOptions {
   return stateCodec === undefined ? {} : { codec: stateCodec };
+}
+
+/** The state codec plus the adapter that decodes full-v6 lifecycle records with it. */
+function fullStateReadOptions(stateCodec: CodecPort | undefined): Parameters<typeof deserializeFullState>[1] {
+  return stateCodec === undefined
+    ? {}
+    : { codec: stateCodec, lifecycle: new CborFullStateLifecycleDecoder(stateCodec) };
 }
 
 function replayOptions(crypto: CryptoPort, stateCodec: CodecPort | undefined): ReplayBTROptions {
@@ -182,7 +190,7 @@ async function replayBTR(
   btr: BoundaryTransitionRecord,
   deps: ReplayBTROptions = {},
 ): Promise<ReplayBTRResult> {
-  const initialState = deserializeFullState(btr.U_0, stateCodecOptions(deps.stateCodec));
+  const initialState = deserializeFullState(btr.U_0, fullStateReadOptions(deps.stateCodec));
   const payload = ProvenancePayload.fromEntries(btr.P);
   const finalState = payload.replay(initialState);
 

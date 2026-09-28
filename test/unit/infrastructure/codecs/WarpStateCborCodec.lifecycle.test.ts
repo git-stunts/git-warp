@@ -15,6 +15,7 @@ import {
   serializeFullState,
 } from '../../../../src/domain/services/state/CheckpointSerializer.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import CborFullStateLifecycleDecoder from '../../../../src/infrastructure/adapters/CborFullStateLifecycleDecoder.ts';
 
 const OLDER = new EventId(1, 'writer-a', 'a1b2c3d4', 0);
 const NEWER = new EventId(2, 'writer-b', 'b1c2d3e4', 1);
@@ -115,7 +116,10 @@ describe('full state format across the node lifecycle bump', () => {
   it('writes the checkpoint serializer format as the same full-v6 bytes', () => {
     const state = lifecycleState();
     const bytes = serializeFullState(state, { codec: defaultCodec });
-    const decoded = deserializeFullState(bytes, { codec: defaultCodec });
+    const decoded = deserializeFullState(bytes, {
+      codec: defaultCodec,
+      lifecycle: new CborFullStateLifecycleDecoder(defaultCodec),
+    });
 
     expect([...bytes]).toEqual([...encodeWarpFullState(state, defaultCodec)]);
     expect([...serializeFullState(decoded, { codec: defaultCodec })]).toEqual([...bytes]);
