@@ -9,7 +9,12 @@ import MaterializationRoots, {
 import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 
-export const MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 5;
+/**
+ * Descriptor schema 6: property roots and the replay basis apply the node
+ * lifecycle visibility rule. Entries an older runtime wrote under schema 5
+ * miss and are rebuilt, once per graph.
+ */
+export const MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 6;
 export const MATERIALIZATION_DESCRIPTOR_MAX_BYTES = 1024 * 1024;
 
 export type DecodedMaterializationDescriptor = Readonly<{
