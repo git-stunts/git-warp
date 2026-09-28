@@ -52,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   event id sorts below the remove, keeps the edge alive.
 - **BREAKING:** `computeStateHash` changes for graphs where either rule hides
   a property that was visible before. Other graphs hash as before.
+- `subscribe()` and `watch()` diffs report a node property that the node rule
+  hides as removed, and never report a hidden property as set.
 - A checkpoint-tail node property read now refuses with
   `E_OPTIC_NO_BOUNDED_BASIS` and cause
   `tail-node-add-needs-checkpoint-lifecycle-witnesses` when the tail adds the
