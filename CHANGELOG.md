@@ -38,6 +38,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Empty Lanes certify zero; cancellation, unavailable support, and Strand
   overlays fail closed without a completeness certificate.
 
+### Changed
+
+- **BREAKING:** A node property written before a remove of that node is
+  hidden once the node is added again, so removing a node and adding it back
+  starts it with no properties on every replica, as edges already did. Which
+  came first is judged by event id, the same order that decides removes. A
+  property written before the node's first add stays visible, and adding a
+  node that is already live hides nothing, so graphs that never remove and
+  then re-add a node show the same properties as before.
+- **BREAKING:** Edges now also record their latest remove. An edge property
+  written before that remove stays hidden even when a concurrent add, whose
+  event id sorts below the remove, keeps the edge alive.
+- **BREAKING:** `computeStateHash` changes for graphs where either rule hides
+  a property that was visible before. Other graphs hash as before.
+
 ### Fixed
 
 - Idle Git reader retirement now completes when the child process closes
@@ -113,6 +128,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reopen cannot distinguish a canonical single-Intent patch created by
   `write(intent)` from one created by `write([intent])`; its graph
   transformation and one-patch boundary remain intact.
+- Materialized state is now written as `full-v6`. It adds, per node, the
+  latest add, the latest remove that sorts below it and the removes that sort
+  above it, and per edge the latest remove. `full-v5` and unversioned state
+  remain readable. They carry none of these records, so history before such a
+  checkpoint keeps the previous visibility until it is rebuilt from patches.
+  Earlier releases cannot read `full-v6`.
+- The materialization cache descriptor schema is now 6. Entries written under
+  schema 5 miss instead of serving state built without the new rule, so each
+  graph pays one cold rebuild on its first read after upgrading.
+- Migration: to apply the new visibility to existing history, rebuild from
+  patches rather than resuming from a `full-v5` checkpoint.
+- Under `.github/RELEASE.md` the visibility, state hash and storage format
+  changes above are breaking, so the release that ships them must be a MAJOR
+  version.
 
 ### Packaging
 
