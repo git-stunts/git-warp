@@ -1,0 +1,94 @@
+/**
+ * ElementLifecycle — the clean-slate rule for property registers.
+ *
+ * Every node and edge keeps the EventId of its latest add (its birth) and
+ * of its latest remove. A property register written before either event is
+ * stale: it belongs to an earlier life of its owner, so no read shows it.
+ *
+ * Both events only ever advance (EventId max), and both merge by EventId
+ * max, so staleness is monotone and independent of delivery order. Once a
+ * register is stale it stays stale after any later operation, which is what
+ * makes it safe for garbage collection to delete.
+ *
+ * @module domain/services/state/ElementLifecycle
+ */
+
+import { compareEventIds, type EventId } from '../../utils/EventId.ts';
+
+/**
+ * The lifecycle maps of a live state or of a read-side snapshot. A source
+ * that predates node lifecycle tracking omits the node and remove maps, and
+ * then nothing is stale on their account.
+ */
+export type ElementLifecycleSource = {
+  readonly edgeBirthEvent?: ReadonlyMap<string, EventId>;
+  readonly nodeBirthEvent?: ReadonlyMap<string, EventId>;
+  readonly nodeRemoveEvent?: ReadonlyMap<string, EventId>;
+  readonly edgeRemoveEvent?: ReadonlyMap<string, EventId>;
+};
+
+/** Returns true when a node register predates the node's latest add or remove. */
+export function isStaleNodeRegisterIn(
+  source: ElementLifecycleSource,
+  nodeId: string,
+  registerEvent: EventId | null | undefined,
+): boolean {
+  return predatesLifecycle(
+    registerEvent,
+    source.nodeBirthEvent?.get(nodeId),
+    source.nodeRemoveEvent?.get(nodeId),
+  );
+}
+
+/** Returns true when an edge register predates the edge's latest add or remove. */
+export function isStaleEdgeRegisterIn(
+  source: ElementLifecycleSource,
+  edgeKey: string,
+  registerEvent: EventId | null | undefined,
+): boolean {
+  return predatesLifecycle(
+    registerEvent,
+    source.edgeBirthEvent?.get(edgeKey),
+    source.edgeRemoveEvent?.get(edgeKey),
+  );
+}
+
+/** Records `eventId` for `key` when it sorts after the stored event. */
+export function advanceLifecycleEvent(
+  events: Map<string, EventId>,
+  key: string,
+  eventId: EventId,
+): void {
+  const previous = events.get(key);
+  if (previous === undefined || compareEventIds(eventId, previous) > 0) {
+    events.set(key, eventId);
+  }
+}
+
+/** EventId-max merge of two lifecycle event maps. Pure. */
+export function mergeLifecycleEvents(
+  left: ReadonlyMap<string, EventId> | null | undefined,
+  right: ReadonlyMap<string, EventId> | null | undefined,
+): Map<string, EventId> {
+  const result = new Map<string, EventId>(left ?? []);
+  for (const [key, eventId] of right ?? []) {
+    advanceLifecycleEvent(result, key, eventId);
+  }
+  return result;
+}
+
+/** Returns true when `registerEvent` sorts before the owner's birth or removal. */
+export function predatesLifecycle(
+  registerEvent: EventId | null | undefined,
+  birth: EventId | undefined,
+  removal: EventId | undefined,
+): boolean {
+  if (registerEvent === null || registerEvent === undefined) {
+    return false;
+  }
+  return isBefore(registerEvent, birth) || isBefore(registerEvent, removal);
+}
+
+function isBefore(eventId: EventId, boundary: EventId | undefined): boolean {
+  return boundary !== undefined && compareEventIds(eventId, boundary) < 0;
+}

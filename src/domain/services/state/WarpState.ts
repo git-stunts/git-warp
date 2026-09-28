@@ -2,7 +2,8 @@
  * WarpState — the core CRDT materialized state object.
  *
  * Holds the alive sets (OR-Set for nodes and edges), property registers
- * (LWW), the observed version vector frontier, and edge birth events.
+ * (LWW), the observed version vector frontier, and the birth and remove
+ * events that decide which property registers are current.
  *
  * @module domain/services/state/WarpState
  */
@@ -10,7 +11,8 @@
 import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { lwwMax, lwwSet, type LWWRegister } from '../../crdt/LWW.ts';
-import { compareEventIds, type EventId } from '../../utils/EventId.ts';
+import type { EventId } from '../../utils/EventId.ts';
+import { isStaleEdgeRegisterIn, isStaleNodeRegisterIn, mergeLifecycleEvents } from './ElementLifecycle.ts';
 import AttachmentKey from '../../graph/AttachmentKey.ts';
 import AttachmentRecord from '../../graph/AttachmentRecord.ts';
 import AttachmentSchemaVersion from '../../graph/AttachmentSchemaVersion.ts';
@@ -39,6 +41,18 @@ export type EdgePropertyEntry = {
   readonly register: LWWRegister<PropValue>;
 };
 
+/** Constructor fields; absent lifecycle maps start empty. */
+export type WarpStateFields = {
+  readonly nodeAlive: ORSet;
+  readonly edgeAlive: ORSet;
+  readonly prop: Map<string, LWWRegister<PropValue>>;
+  readonly observedFrontier: VersionVector;
+  readonly edgeBirthEvent?: Map<string, EventId>;
+  readonly nodeBirthEvent?: Map<string, EventId>;
+  readonly nodeRemoveEvent?: Map<string, EventId>;
+  readonly edgeRemoveEvent?: Map<string, EventId>;
+};
+
 export type WarpStatePropertyRegisterSource = {
   readonly prop: Map<string, LWWRegister<PropValue>>;
 };
@@ -57,19 +71,22 @@ export default class WarpState {
   observedFrontier: VersionVector;
   /** EdgeKey → EventId of most recent EdgeAdd (for clean-slate prop visibility). */
   edgeBirthEvent: Map<string, EventId>;
+  /** NodeId → EventId of most recent NodeAdd (for clean-slate prop visibility). */
+  nodeBirthEvent: Map<string, EventId>;
+  /** NodeId → EventId of most recent NodeRemove (for clean-slate prop visibility). */
+  nodeRemoveEvent: Map<string, EventId>;
+  /** EdgeKey → EventId of most recent EdgeRemove (for clean-slate prop visibility). */
+  edgeRemoveEvent: Map<string, EventId>;
 
-  constructor(fields: {
-    nodeAlive: ORSet;
-    edgeAlive: ORSet;
-    prop: Map<string, LWWRegister<PropValue>>;
-    observedFrontier: VersionVector;
-    edgeBirthEvent?: Map<string, EventId>;
-  }) {
+  constructor(fields: WarpStateFields) {
     this.nodeAlive = fields.nodeAlive;
     this.edgeAlive = fields.edgeAlive;
     this.prop = fields.prop;
     this.observedFrontier = fields.observedFrontier;
     this.edgeBirthEvent = fields.edgeBirthEvent ?? new Map<string, EventId>();
+    this.nodeBirthEvent = fields.nodeBirthEvent ?? new Map<string, EventId>();
+    this.nodeRemoveEvent = fields.nodeRemoveEvent ?? new Map<string, EventId>();
+    this.edgeRemoveEvent = fields.edgeRemoveEvent ?? new Map<string, EventId>();
   }
 
   /** Creates an empty state with fresh OR-Sets and version vector. */
@@ -79,8 +96,24 @@ export default class WarpState {
       edgeAlive: ORSet.empty(),
       prop: new Map(),
       observedFrontier: VersionVector.empty(),
-      edgeBirthEvent: new Map(),
     });
+  }
+
+  /**
+   * Returns true when a node property register predates the node's latest
+   * add or remove. Stale registers are never visible and never become
+   * visible again, so garbage collection may delete them.
+   */
+  isStaleNodeRegister(nodeId: string, register: LWWRegister<PropValue>): boolean {
+    return isStaleNodeRegisterIn(this, nodeId, register.eventId);
+  }
+
+  /**
+   * Returns true when an edge property register predates the edge's latest
+   * add or remove. Same contract as `isStaleNodeRegister`.
+   */
+  isStaleEdgeRegister(edgeKey: string, register: LWWRegister<PropValue>): boolean {
+    return isStaleEdgeRegisterIn(this, edgeKey, register.eventId);
   }
 
   /** Returns live graph nodes as deterministic runtime-backed records. */
@@ -297,6 +330,9 @@ export default class WarpState {
       prop: new Map(this.prop),
       observedFrontier: this.observedFrontier.clone(),
       edgeBirthEvent: new Map(this.edgeBirthEvent),
+      nodeBirthEvent: new Map(this.nodeBirthEvent),
+      nodeRemoveEvent: new Map(this.nodeRemoveEvent),
+      edgeRemoveEvent: new Map(this.edgeRemoveEvent),
     });
   }
 
@@ -312,6 +348,9 @@ export default class WarpState {
     readonly prop: Map<string, LWWRegister<PropValue>>;
     readonly observedFrontier: VersionVector;
     readonly edgeBirthEvent?: Map<string, EventId>;
+    readonly nodeBirthEvent?: Map<string, EventId>;
+    readonly nodeRemoveEvent?: Map<string, EventId>;
+    readonly edgeRemoveEvent?: Map<string, EventId>;
   }): WarpState {
     if (state instanceof WarpState) {
       return state.clone();
@@ -322,6 +361,9 @@ export default class WarpState {
       prop: new Map(state.prop),
       observedFrontier: state.observedFrontier.clone(),
       edgeBirthEvent: new Map(state.edgeBirthEvent ?? []),
+      nodeBirthEvent: new Map(state.nodeBirthEvent ?? []),
+      nodeRemoveEvent: new Map(state.nodeRemoveEvent ?? []),
+      edgeRemoveEvent: new Map(state.edgeRemoveEvent ?? []),
     });
   }
 
@@ -331,7 +373,7 @@ export default class WarpState {
    * - `nodeAlive` / `edgeAlive`: OR-Set join
    * - `prop`: LWW-Max per key
    * - `observedFrontier`: VersionVector merge (component-wise max)
-   * - `edgeBirthEvent`: EventId max per edge key
+   * - birth and remove events: EventId max per element key
    */
   join(other: WarpState): WarpState {
     return new WarpState({
@@ -339,7 +381,10 @@ export default class WarpState {
       edgeAlive: this.edgeAlive.join(other.edgeAlive),
       prop: WarpState._mergeProps(this.prop, other.prop),
       observedFrontier: this.observedFrontier.merge(other.observedFrontier),
-      edgeBirthEvent: WarpState._mergeEdgeBirthEvent(this.edgeBirthEvent, other.edgeBirthEvent),
+      edgeBirthEvent: mergeLifecycleEvents(this.edgeBirthEvent, other.edgeBirthEvent),
+      nodeBirthEvent: mergeLifecycleEvents(this.nodeBirthEvent, other.nodeBirthEvent),
+      nodeRemoveEvent: mergeLifecycleEvents(this.nodeRemoveEvent, other.nodeRemoveEvent),
+      edgeRemoveEvent: mergeLifecycleEvents(this.edgeRemoveEvent, other.edgeRemoveEvent),
     });
   }
 
@@ -373,23 +418,6 @@ export default class WarpState {
       const regA = result.get(key);
       const winner = lwwMax(regA, regB);
       result.set(key, winner);
-    }
-    return result;
-  }
-
-  /** EventId-max merge of two edge-birth-event maps. */
-  private static _mergeEdgeBirthEvent(
-    a: Map<string, EventId> | null | undefined,
-    b: Map<string, EventId> | null | undefined,
-  ): Map<string, EventId> {
-    const result = new Map(a ?? []);
-    if (b) {
-      for (const [key, eventId] of b) {
-        const existing = result.get(key);
-        if (!existing || compareEventIds(eventId, existing) > 0) {
-          result.set(key, eventId);
-        }
-      }
     }
     return result;
   }
@@ -435,6 +463,9 @@ function nodeAttachmentRecordForProperty(
   register: LWWRegister<PropValue>,
 ): AttachmentRecord | null {
   const decoded = decodePropKey(propKey);
+  if (state.isStaleNodeRegister(decoded.nodeId, register)) {
+    return null;
+  }
   const owner = state.getNodeRecord(decoded.nodeId);
   if (owner === null) {
     return null;
@@ -455,7 +486,7 @@ function edgeAttachmentRecordForProperty(
 ): AttachmentRecord | null {
   const decoded = decodeEdgePropKey(propKey);
   const edgeKey = encodeEdgeKey(decoded.from, decoded.to, decoded.label);
-  if (isStaleEdgeAttachment(register, state.edgeBirthEvent.get(edgeKey))) {
+  if (state.isStaleEdgeRegister(edgeKey, register)) {
     return null;
   }
   if (!state.edgeAlive.contains(edgeKey)) {
@@ -471,17 +502,6 @@ function edgeAttachmentRecordForProperty(
     value: register.value,
     schemaVersion: AttachmentSchemaVersion.current(),
   });
-}
-
-/** Returns true when an edge attachment predates the current edge birth. */
-function isStaleEdgeAttachment(
-  register: LWWRegister<PropValue>,
-  birthEvent: EventId | undefined,
-): boolean {
-  if (birthEvent === undefined || register.eventId === null) {
-    return false;
-  }
-  return compareEventIds(register.eventId, birthEvent) < 0;
 }
 
 /** Compares attachment records by deterministic owner/key order. */

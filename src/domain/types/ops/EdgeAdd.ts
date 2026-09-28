@@ -7,7 +7,8 @@ import { Dot } from '../../crdt/Dot.ts';
 import Op from './Op.ts';
 import { OP_SCOPE_BOTH } from './OpScope.ts';
 import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
-import { compareEventIds, type EventId } from '../../utils/EventId.ts';
+import type { EventId } from '../../utils/EventId.ts';
+import { advanceLifecycleEvent } from '../../services/state/ElementLifecycle.ts';
 import { encodeEdgeKey } from '../../services/KeyCodec.ts';
 import type WarpState from '../../services/state/WarpState.ts';
 import type OpOutcomeResult from './OpOutcomeResult.ts';
@@ -45,10 +46,7 @@ export default class EdgeAdd extends Op<'EdgeAdd'> {
   mutate(state: WarpState, eventId: EventId): void {
     const edgeKey = encodeEdgeKey(this.from, this.to, this.label);
     state.edgeAlive.add(edgeKey, this.dot);
-    const prev = state.edgeBirthEvent.get(edgeKey);
-    if (prev === undefined || compareEventIds(eventId, prev) > 0) {
-      state.edgeBirthEvent.set(edgeKey, eventId);
-    }
+    advanceLifecycleEvent(state.edgeBirthEvent, edgeKey, eventId);
   }
 
   outcome(state: WarpState): OpOutcomeResult {
