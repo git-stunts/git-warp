@@ -5,14 +5,15 @@ import WarpError from '../../domain/errors/WarpError.ts';
 import { createEmptyState } from '../../domain/services/JoinReducer.ts';
 import WarpState, { type WarpStateFields } from '../../domain/services/state/WarpState.ts';
 import type { PropValue } from '../../domain/types/PropValue.ts';
-import type { EventId } from '../../domain/utils/EventId.ts';
+import { compareEventIds, type EventId } from '../../domain/utils/EventId.ts';
+import { mergeNodeLifecycles } from '../../domain/services/state/NodeLifecycle.ts';
 import {
   deserializeORSet,
   serializeORSet,
   type ORSetWire,
 } from '../../domain/services/state/ORSetWireBoundary.ts';
 
-/** Current full-state version: adds node births and node and edge removes. */
+/** Current full-state version: adds node lifecycle records and edge removes. */
 const FULL_STATE_VERSION = 'full-v6';
 /** Previous version, still read: it carries no node or remove events. */
 const LEGACY_FULL_STATE_VERSION = 'full-v5';
@@ -38,7 +39,8 @@ interface DecodedFullState {
   edgeBirthEvent?: Array<[string, EdgeBirthWire]>;
   edgeBirthLamport?: Array<[string, number]>;
   nodeBirthEvent?: Array<[string, EdgeBirthWire]>;
-  nodeRemoveEvent?: Array<[string, EdgeBirthWire]>;
+  nodeClearEvent?: Array<[string, EdgeBirthWire]>;
+  nodePendingRemoveEvents?: Array<[string, EdgeBirthWire[]]>;
   edgeRemoveEvent?: Array<[string, EdgeBirthWire]>;
 }
 
@@ -61,7 +63,8 @@ function encodeFullStateVersion(state: WarpState, codec: CodecPort, version: Ful
     version,
     ...legacyFields,
     nodeBirthEvent: serializeEventArray(state.nodeBirthEvent),
-    nodeRemoveEvent: serializeEventArray(state.nodeRemoveEvent),
+    nodeClearEvent: serializeEventArray(state.nodeClearEvent),
+    nodePendingRemoveEvents: serializeEventListArray(state.nodePendingRemoveEvents),
     edgeRemoveEvent: serializeEventArray(state.edgeRemoveEvent),
   });
 }
@@ -121,8 +124,11 @@ function hydrateWarpState(obj: DecodedFullState): WarpState {
   }
   return new WarpState({
     ...legacyFields,
-    nodeBirthEvent: deserializeEventArray(obj.nodeBirthEvent),
-    nodeRemoveEvent: deserializeEventArray(obj.nodeRemoveEvent),
+    ...mergeNodeLifecycles({}, {
+      nodeBirthEvent: deserializeEventArray(obj.nodeBirthEvent),
+      nodeClearEvent: deserializeEventArray(obj.nodeClearEvent),
+      nodePendingRemoveEvents: deserializeEventListArray(obj.nodePendingRemoveEvents),
+    }),
     edgeRemoveEvent: deserializeEventArray(obj.edgeRemoveEvent),
   });
 }
@@ -149,19 +155,43 @@ function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister
   return arr;
 }
 
+function eventWire(eventId: EventId): EventWire {
+  return {
+    lamport: eventId.lamport,
+    writerId: eventId.writerId,
+    patchSha: eventId.patchSha,
+    opIndex: eventId.opIndex,
+  };
+}
+
+function compareWireKeys<T>(left: readonly [string, T], right: readonly [string, T]): number {
+  return left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0;
+}
+
 function serializeEventArray(events: ReadonlyMap<string, EventId>): Array<[string, EventWire]> {
   const result: Array<[string, EventWire]> = [];
   for (const [key, eventId] of events) {
-    result.push([key, {
-      lamport: eventId.lamport,
-      writerId: eventId.writerId,
-      patchSha: eventId.patchSha,
-      opIndex: eventId.opIndex,
-    }]);
+    result.push([key, eventWire(eventId)]);
   }
-  result.sort((left, right) => (
-    left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0
-  ));
+  return result.sort(compareWireKeys);
+}
+
+function serializeEventListArray(events: ReadonlyMap<string, readonly EventId[]>): Array<[string, EventWire[]]> {
+  const result: Array<[string, EventWire[]]> = [];
+  for (const [key, eventIds] of events) {
+    result.push([key, [...eventIds].sort(compareEventIds).map(eventWire)]);
+  }
+  return result.sort(compareWireKeys);
+}
+
+function deserializeEventListArray(data: Array<[string, EdgeBirthWire[]]> | undefined): Map<string, readonly EventId[]> {
+  const result = new Map<string, readonly EventId[]>();
+  if (!Array.isArray(data)) {
+    return result;
+  }
+  for (const [key, list] of data) {
+    result.set(key, Array.isArray(list) ? list.map(edgeBirthWireToEventId) : []);
+  }
   return result;
 }
 

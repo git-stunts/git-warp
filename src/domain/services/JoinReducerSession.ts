@@ -26,6 +26,7 @@ import {
 } from "../types/PatchDiff.ts";
 import { compareEventIds, EventId } from "../utils/EventId.ts";
 import { advanceLifecycleEvent, mergeLifecycleEvents } from "./state/ElementLifecycle.ts";
+import { mergeNodeLifecycles, recordNodeAdd, recordNodeRemove } from "./state/NodeLifecycle.ts";
 import {
   encodeEdgeKey,
   encodeEdgePropKey,
@@ -68,7 +69,8 @@ export class ReducerSessionFrame {
   readonly observedFrontier: VersionVector;
   readonly edgeBirthEvent: Map<string, EventId>;
   readonly nodeBirthEvent: Map<string, EventId>;
-  readonly nodeRemoveEvent: Map<string, EventId>;
+  readonly nodeClearEvent: Map<string, EventId>;
+  readonly nodePendingRemoveEvents: Map<string, readonly EventId[]>;
   readonly edgeRemoveEvent: Map<string, EventId>;
 
   constructor(fields: {
@@ -77,7 +79,8 @@ export class ReducerSessionFrame {
     readonly observedFrontier: VersionVector;
     readonly edgeBirthEvent: Map<string, EventId>;
     readonly nodeBirthEvent?: Map<string, EventId>;
-    readonly nodeRemoveEvent?: Map<string, EventId>;
+    readonly nodeClearEvent?: Map<string, EventId>;
+    readonly nodePendingRemoveEvents?: Map<string, readonly EventId[]>;
     readonly edgeRemoveEvent?: Map<string, EventId>;
   }) {
     if (!(fields.session instanceof StateSession)) {
@@ -97,7 +100,8 @@ export class ReducerSessionFrame {
     this.observedFrontier = fields.observedFrontier;
     this.edgeBirthEvent = fields.edgeBirthEvent;
     this.nodeBirthEvent = optionalLifecycleMap(fields.nodeBirthEvent, "nodeBirthEvent");
-    this.nodeRemoveEvent = optionalLifecycleMap(fields.nodeRemoveEvent, "nodeRemoveEvent");
+    this.nodeClearEvent = optionalLifecycleMap(fields.nodeClearEvent, "nodeClearEvent");
+    this.nodePendingRemoveEvents = optionalLifecycleMap(fields.nodePendingRemoveEvents, "nodePendingRemoveEvents");
     this.edgeRemoveEvent = optionalLifecycleMap(fields.edgeRemoveEvent, "edgeRemoveEvent");
     Object.freeze(this);
   }
@@ -227,8 +231,7 @@ export async function joinFrames(
     prop: mergePropMaps(left.prop, right.prop),
     observedFrontier: left.observedFrontier.merge(right.observedFrontier),
     edgeBirthEvent: mergeLifecycleEvents(left.edgeBirthEvent, right.edgeBirthEvent),
-    nodeBirthEvent: mergeLifecycleEvents(left.nodeBirthEvent, right.nodeBirthEvent),
-    nodeRemoveEvent: mergeLifecycleEvents(left.nodeRemoveEvent, right.nodeRemoveEvent),
+    ...mergeNodeLifecycles(left, right),
     edgeRemoveEvent: mergeLifecycleEvents(left.edgeRemoveEvent, right.edgeRemoveEvent),
   });
 }
@@ -389,13 +392,13 @@ async function mutateInSession(
 ): Promise<void> {
   if (op instanceof NodeAdd) {
     await frame.session.addNode(op.node, op.dot);
-    advanceLifecycleEvent(frame.nodeBirthEvent, op.node, eventId);
+    recordNodeAdd(frame, op.node, eventId);
     return;
   }
   if (op instanceof NodeRemove) {
     await frame.session.removeNode(op.node, new Set(op.observedDots));
     if (op.observedDots.length > 0) {
-      advanceLifecycleEvent(frame.nodeRemoveEvent, op.node, eventId);
+      recordNodeRemove(frame, op.node, eventId);
     }
     return;
   }
@@ -563,12 +566,12 @@ function mergePropMaps(
   return merged;
 }
 
-function optionalLifecycleMap(
-  value: Map<string, EventId> | undefined,
+function optionalLifecycleMap<V>(
+  value: Map<string, V> | undefined,
   field: string,
-): Map<string, EventId> {
+): Map<string, V> {
   if (value === undefined) {
-    return new Map<string, EventId>();
+    return new Map<string, V>();
   }
   if (!(value instanceof Map)) {
     throw new PatchError(`ReducerSessionFrame requires a ${field} Map`);

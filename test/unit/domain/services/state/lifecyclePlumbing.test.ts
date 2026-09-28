@@ -1,5 +1,5 @@
 /**
- * Birth and remove events travel with every copy of the state: snapshots,
+ * Lifecycle records travel with every copy of the state: snapshots,
  * scoped states, session-backed reducer frames and their joins. A copy that
  * dropped them would show properties the live state hides.
  */
@@ -31,7 +31,7 @@ const crypto = new NodeCryptoAdapter();
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
 
-/** n: add + property, then remove; x->y: add then remove; then n re-added. */
+/** n: add + property, then remove; x->y: add then remove; then n re-added and x removed. */
 function lifecyclePatches(): { patch: PatchLike; sha: string }[] {
   return [
     {
@@ -59,6 +59,7 @@ function lifecyclePatches(): { patch: PatchLike; sha: string }[] {
           new NodeRemove('n', [encodeDot(Dot.create('A', 1))]),
           new EdgeRemove({ from: 'x', to: 'y', label: 'rel', observedDots: [encodeDot(Dot.create('A', 4))] }),
           new NodeAdd('n', Dot.create('A', 5)),
+          new NodeRemove('x', [encodeDot(Dot.create('A', 2))]),
         ],
       },
     },
@@ -80,13 +81,15 @@ function reAddedState(): WarpState {
 
 function lifecycleMaps(state: {
   readonly nodeBirthEvent: ReadonlyMap<string, EventId>;
-  readonly nodeRemoveEvent: ReadonlyMap<string, EventId>;
+  readonly nodeClearEvent: ReadonlyMap<string, EventId>;
+  readonly nodePendingRemoveEvents: ReadonlyMap<string, readonly EventId[]>;
   readonly edgeBirthEvent: ReadonlyMap<string, EventId>;
   readonly edgeRemoveEvent: ReadonlyMap<string, EventId>;
-}): Record<string, [string, EventId][]> {
+}): Record<string, [string, EventId | readonly EventId[]][]> {
   return {
     nodeBirthEvent: [...state.nodeBirthEvent].sort(),
-    nodeRemoveEvent: [...state.nodeRemoveEvent].sort(),
+    nodeClearEvent: [...state.nodeClearEvent].sort(),
+    nodePendingRemoveEvents: [...state.nodePendingRemoveEvents].sort(),
     edgeBirthEvent: [...state.edgeBirthEvent].sort(),
     edgeRemoveEvent: [...state.edgeRemoveEvent].sort(),
   };
@@ -129,7 +132,8 @@ describe('lifecycle events travel with every copy of the state', () => {
     const frame = await reducePatchesInSession(lifecyclePatches(), await openFrame());
 
     expect(lifecycleMaps(frame)).toEqual(lifecycleMaps(inMemory));
-    expect(frame.nodeRemoveEvent.get('n')).toEqual(new EventId(2, 'A', SHA_B, 0));
+    expect(frame.nodeClearEvent.get('n')).toEqual(new EventId(2, 'A', SHA_B, 0));
+    expect(frame.nodePendingRemoveEvents.get('x')).toEqual([new EventId(2, 'A', SHA_B, 3)]);
   });
 
   it('joining session-backed frames keeps the latest event of each side', async () => {

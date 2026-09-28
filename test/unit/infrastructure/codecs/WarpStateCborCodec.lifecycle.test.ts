@@ -52,10 +52,12 @@ function sha256(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
+/** node:a was removed and added again; node:b has two removes and no add yet. */
 function lifecycleState(): WarpState {
   const state = baseState();
   state.nodeBirthEvent.set('node:a', NEWER);
-  state.nodeRemoveEvent.set('node:a', OLDER);
+  state.nodeClearEvent.set('node:a', OLDER);
+  state.nodePendingRemoveEvents.set('node:b', [OLDER, NEWER]);
   state.edgeRemoveEvent.set('node:a\0node:a\0self', NEWER);
   return state;
 }
@@ -72,7 +74,8 @@ describe('full state format across the node lifecycle bump', () => {
     expect(decoded.getEncodedProp('node:a\0name')?.value).toBe('alpha');
     expect(decoded.edgeBirthEvent.get('node:a\0node:a\0self')).toEqual(OLDER);
     expect(decoded.nodeBirthEvent).toEqual(new Map());
-    expect(decoded.nodeRemoveEvent).toEqual(new Map());
+    expect(decoded.nodeClearEvent).toEqual(new Map());
+    expect(decoded.nodePendingRemoveEvents).toEqual(new Map());
     expect(decoded.edgeRemoveEvent).toEqual(new Map());
   });
 
@@ -94,8 +97,19 @@ describe('full state format across the node lifecycle bump', () => {
     expect([...encodeWarpFullState(decoded, defaultCodec)]).toEqual([...encoded]);
     expect(defaultCodec.decode<{ version: string }>(encoded).version).toBe('full-v6');
     expect(decoded.nodeBirthEvent).toEqual(new Map([['node:a', NEWER]]));
-    expect(decoded.nodeRemoveEvent).toEqual(new Map([['node:a', OLDER]]));
+    expect(decoded.nodeClearEvent).toEqual(new Map([['node:a', OLDER]]));
+    expect(decoded.nodePendingRemoveEvents).toEqual(new Map([['node:b', [OLDER, NEWER]]]));
     expect(decoded.edgeRemoveEvent).toEqual(new Map([['node:a\0node:a\0self', NEWER]]));
+  });
+
+  it('refuses a full-v6 envelope whose pending remove sorts below the node birth', () => {
+    const state = lifecycleState();
+    state.nodePendingRemoveEvents.set('node:a', [OLDER]);
+    const inconsistent = encodeWarpFullState(state, defaultCodec);
+
+    expect(() => decodeCanonicalWarpFullState(inconsistent, defaultCodec)).toThrow(
+      'Full state payload is not canonical',
+    );
   });
 
   it('writes the checkpoint serializer format as the same full-v6 bytes', () => {

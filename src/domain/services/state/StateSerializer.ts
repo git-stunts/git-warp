@@ -5,7 +5,7 @@ import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import WarpStateClass, { type NodePropertyEntry } from './WarpState.ts';
-import { isStaleNodeRegisterIn } from './ElementLifecycle.ts';
+import { isStaleNodeRegisterIn } from './NodeLifecycle.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 
 /**
@@ -44,8 +44,8 @@ export function edgeVisible(state: WarpState, edgeKey: string): boolean {
 
 /**
  * Checks if a property is visible.
- * Property is visible if the owning node is visible and the register was
- * written at or after the node's latest add and latest remove.
+ * Property is visible if the owning node is visible and no remove of the
+ * node sorts between the register and the node's latest add.
  * Callers obtain entries from WarpState property iterators — prop existence is implied.
  */
 export function propertyVisible(state: WarpState, entry: NodePropertyEntry): boolean {

@@ -8,7 +8,7 @@ import Op from './Op.ts';
 import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
 import { OP_SCOPE_BOTH } from './OpScope.ts';
 import type WarpState from '../../services/state/WarpState.ts';
-import { advanceLifecycleEvent } from '../../services/state/ElementLifecycle.ts';
+import { recordNodeAdd } from '../../services/state/NodeLifecycle.ts';
 import type { EventId } from '../../utils/EventId.ts';
 import type OpOutcomeResult from './OpOutcomeResult.ts';
 import type { MutablePatchDiff } from '../PatchDiff.ts';
@@ -36,7 +36,7 @@ export default class NodeAdd extends Op<'NodeAdd'> {
 
   mutate(state: WarpState, eventId: EventId): void {
     state.nodeAlive.add(this.node, this.dot);
-    advanceLifecycleEvent(state.nodeBirthEvent, this.node, eventId);
+    recordNodeAdd(state, this.node, eventId);
   }
 
   outcome(state: WarpState): OpOutcomeResult {

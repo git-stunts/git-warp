@@ -241,11 +241,11 @@ function collectScopedProps(
 /**
  * Collects the lifecycle events whose element keys are in the scoped set.
  */
-function collectScopedEvents(
-  events: ReadonlyMap<string, EventId>,
+function collectScopedEvents<V extends EventId | readonly EventId[]>(
+  events: ReadonlyMap<string, V>,
   scopedKeys: Set<string>,
-): Map<string, EventId> {
-  const scoped = new Map<string, EventId>();
+): Map<string, V> {
+  const scoped = new Map<string, V>();
   for (const [key, eventId] of events) {
     if (scopedKeys.has(key)) {
       scoped.set(key, eventId);
@@ -278,7 +278,8 @@ export function scopeMaterializedState(state: WarpState, scope: VisibleStateScop
     observedFrontier: state.observedFrontier.clone(),
     edgeBirthEvent: collectScopedEvents(state.edgeBirthEvent, scopedEdgeKeys),
     nodeBirthEvent: collectScopedEvents(state.nodeBirthEvent, scopedNodeIds),
-    nodeRemoveEvent: collectScopedEvents(state.nodeRemoveEvent, scopedNodeIds),
+    nodeClearEvent: collectScopedEvents(state.nodeClearEvent, scopedNodeIds),
+    nodePendingRemoveEvents: collectScopedEvents(state.nodePendingRemoveEvents, scopedNodeIds),
     edgeRemoveEvent: collectScopedEvents(state.edgeRemoveEvent, scopedEdgeKeys),
   });
 }

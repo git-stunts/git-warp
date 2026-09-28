@@ -23,6 +23,7 @@
 import type { Dot } from '../crdt/Dot.ts';
 import type { EventId } from '../utils/EventId.ts';
 import { advanceLifecycleEvent } from './state/ElementLifecycle.ts';
+import { recordNodeAdd, recordNodeRemove } from './state/NodeLifecycle.ts';
 import {
   encodeEdgeKey,
   encodePropKey,
@@ -70,7 +71,7 @@ class NodeAddStrategy extends OpStrategy {
   validate(op: OpLike): void { OpValidator.assertString(op, 'node'); OpValidator.assertDot(op); } // nosemgrep: ts-no-like-types -- 0025C
   mutate(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
     state.nodeAlive.add(op.node as string, op.dot as Dot);
-    advanceLifecycleEvent(state.nodeBirthEvent, op.node as string, eventId);
+    recordNodeAdd(state, op.node as string, eventId);
   }
   outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     return ReceiptBuilder.nodeAddOutcome(state.nodeAlive, { node: op.node as string, dot: op.dot as Dot });
@@ -92,7 +93,7 @@ class NodeRemoveStrategy extends OpStrategy {
     const dots = observedDotSet(op);
     state.nodeAlive.remove(dots);
     if (dots.size > 0 && typeof op.node === 'string') {
-      advanceLifecycleEvent(state.nodeRemoveEvent, op.node, eventId);
+      recordNodeRemove(state, op.node, eventId);
     }
   }
   outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C

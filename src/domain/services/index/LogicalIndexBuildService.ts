@@ -14,7 +14,7 @@ import WarpStream from '../../stream/WarpStream.ts';
 import { ReceiptShard } from '../../artifacts/ReceiptShard.ts';
 import IndexError from '../../errors/IndexError.ts';
 import WarpState from '../state/WarpState.ts';
-import { isStaleNodeRegisterIn, type ElementLifecycleSource } from '../state/ElementLifecycle.ts';
+import { isStaleNodeRegisterIn, type NodeLifecycleSource } from '../state/NodeLifecycle.ts';
 import type { IndexShard } from '../../artifacts/IndexShard.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
 import type { PropValue } from '../../types/PropValue.ts';
@@ -69,14 +69,14 @@ export default class LogicalIndexBuildService {
   }
 
   /**
-   * Builds shards from a page-backed session. `lifecycle` carries the birth
-   * and remove events that decide which registers are current; without it
+   * Builds shards from a page-backed session. `lifecycle` carries the node
+   * lifecycle records that decide which registers are current; without it
    * every register of a live node is indexed.
    */
   async buildShardsFromSession(args: {
     session: StateSession;
     prop: PropertyRegisters;
-    lifecycle?: ElementLifecycleSource;
+    lifecycle?: NodeLifecycleSource;
     existingMeta?: ExistingMeta;
     existingLabels?: ExistingLabels;
   }): Promise<{ shards: IndexShard[]; receipt: ReceiptShard }> {
@@ -137,7 +137,7 @@ export default class LogicalIndexBuildService {
   private async _populateBuildersFromSession(args: {
     session: StateSession;
     prop: PropertyRegisters;
-    lifecycle?: ElementLifecycleSource;
+    lifecycle?: NodeLifecycleSource;
     existingMeta?: ExistingMeta;
     existingLabels?: ExistingLabels;
   }): Promise<{ indexBuilder: LogicalBitmapIndexBuilder; propBuilder: PropertyIndexBuilder }> {
@@ -187,7 +187,7 @@ export default class LogicalIndexBuildService {
     aliveNodeSet: ReadonlySet<string>;
     visibleEdges: ReadonlyArray<VisibleEdgeRecord>;
     prop: PropertyRegisters;
-    lifecycle: ElementLifecycleSource;
+    lifecycle: NodeLifecycleSource;
   }): void {
     this._populateLogicalIndex(args);
     for (const entry of WarpState.nodePropertiesFromMap(args.prop)) {

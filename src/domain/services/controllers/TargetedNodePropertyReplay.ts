@@ -6,7 +6,13 @@ import type MaterializationCoordinate from '../../materialization/Materializatio
 import NodeAdd from '../../types/ops/NodeAdd.ts';
 import NodePropSet from '../../types/ops/NodePropSet.ts';
 import NodeRemove from '../../types/ops/NodeRemove.ts';
-import { advanceLifecycleEvent, isStaleNodeRegisterIn } from '../state/ElementLifecycle.ts';
+import {
+  emptyNodeLifecycle,
+  isStaleNodeRegisterIn,
+  recordNodeAdd,
+  recordNodeRemove,
+  type NodeLifecycleEvents,
+} from '../state/NodeLifecycle.ts';
 import {
   copyPropValue,
   isPropValue,
@@ -18,10 +24,8 @@ import { normalizeRawOp } from '../OpNormalizer.ts';
 
 type PropertyRegisters = Map<string, LWWRegister<PropValue>>;
 
-type TargetedNodeReplay = {
+type TargetedNodeReplay = NodeLifecycleEvents & {
   readonly registers: PropertyRegisters;
-  readonly nodeBirthEvent: Map<string, EventId>;
-  readonly nodeRemoveEvent: Map<string, EventId>;
 };
 
 /**
@@ -30,9 +34,10 @@ type TargetedNodeReplay = {
  *
  * This reducer never constructs WarpState, adjacency, receipts, diffs, or
  * provenance. Its own resident state is proportional to the requested node's
- * winning property bag plus its latest add and remove events, which hide
- * registers written before either. PatchCollector may still buffer one writer
- * chain while producing the coordinate stream.
+ * winning property bag plus its node lifecycle records, which hide registers
+ * written before a remove that precedes the node's latest add.
+ * PatchCollector may still buffer one writer chain while producing the
+ * coordinate stream.
  */
 export async function replayTargetedNodeProperties(options: {
   readonly coordinate: MaterializationCoordinate;
@@ -41,8 +46,7 @@ export async function replayTargetedNodeProperties(options: {
 }): Promise<Readonly<Record<string, PropValue>>> {
   const replay: TargetedNodeReplay = {
     registers: new Map(),
-    nodeBirthEvent: new Map(),
-    nodeRemoveEvent: new Map(),
+    ...emptyNodeLifecycle(),
   };
   const entries = options.patches.streamForFrontier(
     options.coordinate.frontier(),
@@ -77,7 +81,7 @@ function applyTargetedOp(
 ): void {
   const op = targetedNodeOp(rawOp, target.nodeId);
   if (op instanceof NodeAdd) {
-    advanceLifecycleEvent(replay.nodeBirthEvent, op.node, target.eventId);
+    recordNodeAdd(replay, op.node, target.eventId);
   } else if (op instanceof NodeRemove) {
     recordRemoval(replay, op, target.eventId);
   } else if (op instanceof NodePropSet) {
@@ -102,7 +106,7 @@ function targetedNodeOp(
 /** A removal that observed no dots removed nothing and hides nothing. */
 function recordRemoval(replay: TargetedNodeReplay, op: NodeRemove, eventId: EventId): void {
   if (op.observedDots.length > 0) {
-    advanceLifecycleEvent(replay.nodeRemoveEvent, op.node, eventId);
+    recordNodeRemove(replay, op.node, eventId);
   }
 }
 

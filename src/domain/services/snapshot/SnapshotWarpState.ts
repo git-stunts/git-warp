@@ -14,7 +14,8 @@ export default class SnapshotWarpState {
   readonly observedFrontier: SnapshotVersionVector;
   readonly edgeBirthEvent: ReadonlyMap<string, EventId>;
   readonly nodeBirthEvent: ReadonlyMap<string, EventId>;
-  readonly nodeRemoveEvent: ReadonlyMap<string, EventId>;
+  readonly nodeClearEvent: ReadonlyMap<string, EventId>;
+  readonly nodePendingRemoveEvents: ReadonlyMap<string, readonly EventId[]>;
   readonly edgeRemoveEvent: ReadonlyMap<string, EventId>;
 
   constructor(fields: {
@@ -24,7 +25,8 @@ export default class SnapshotWarpState {
     observedFrontier: SnapshotVersionVector;
     edgeBirthEvent: ReadonlyMap<string, EventId>;
     nodeBirthEvent?: ReadonlyMap<string, EventId>;
-    nodeRemoveEvent?: ReadonlyMap<string, EventId>;
+    nodeClearEvent?: ReadonlyMap<string, EventId>;
+    nodePendingRemoveEvents?: ReadonlyMap<string, readonly EventId[]>;
     edgeRemoveEvent?: ReadonlyMap<string, EventId>;
   }) {
     this.nodeAlive = fields.nodeAlive;
@@ -33,7 +35,8 @@ export default class SnapshotWarpState {
     this.observedFrontier = fields.observedFrontier;
     this.edgeBirthEvent = fields.edgeBirthEvent;
     this.nodeBirthEvent = fields.nodeBirthEvent ?? new Map<string, EventId>();
-    this.nodeRemoveEvent = fields.nodeRemoveEvent ?? new Map<string, EventId>();
+    this.nodeClearEvent = fields.nodeClearEvent ?? new Map<string, EventId>();
+    this.nodePendingRemoveEvents = fields.nodePendingRemoveEvents ?? new Map<string, readonly EventId[]>();
     this.edgeRemoveEvent = fields.edgeRemoveEvent ?? new Map<string, EventId>();
     Object.freeze(this);
   }

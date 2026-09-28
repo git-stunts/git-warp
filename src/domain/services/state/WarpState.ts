@@ -12,7 +12,8 @@ import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { lwwMax, lwwSet, type LWWRegister } from '../../crdt/LWW.ts';
 import type { EventId } from '../../utils/EventId.ts';
-import { isStaleEdgeRegisterIn, isStaleNodeRegisterIn, mergeLifecycleEvents } from './ElementLifecycle.ts';
+import { isStaleEdgeRegisterIn, mergeLifecycleEvents } from './ElementLifecycle.ts';
+import { copyNodeLifecycle, isStaleNodeRegisterIn, mergeNodeLifecycles } from './NodeLifecycle.ts';
 import AttachmentKey from '../../graph/AttachmentKey.ts';
 import AttachmentRecord from '../../graph/AttachmentRecord.ts';
 import AttachmentSchemaVersion from '../../graph/AttachmentSchemaVersion.ts';
@@ -49,7 +50,8 @@ export type WarpStateFields = {
   readonly observedFrontier: VersionVector;
   readonly edgeBirthEvent?: Map<string, EventId>;
   readonly nodeBirthEvent?: Map<string, EventId>;
-  readonly nodeRemoveEvent?: Map<string, EventId>;
+  readonly nodeClearEvent?: Map<string, EventId>;
+  readonly nodePendingRemoveEvents?: Map<string, readonly EventId[]>;
   readonly edgeRemoveEvent?: Map<string, EventId>;
 };
 
@@ -71,10 +73,12 @@ export default class WarpState {
   observedFrontier: VersionVector;
   /** EdgeKey → EventId of most recent EdgeAdd (for clean-slate prop visibility). */
   edgeBirthEvent: Map<string, EventId>;
-  /** NodeId → EventId of most recent NodeAdd (for clean-slate prop visibility). */
+  /** NodeId → EventId of most recent NodeAdd (see NodeLifecycle). */
   nodeBirthEvent: Map<string, EventId>;
-  /** NodeId → EventId of most recent NodeRemove (for clean-slate prop visibility). */
-  nodeRemoveEvent: Map<string, EventId>;
+  /** NodeId → latest NodeRemove sorting below the node's latest add (see NodeLifecycle). */
+  nodeClearEvent: Map<string, EventId>;
+  /** NodeId → NodeRemoves sorting above the node's latest add, ascending (see NodeLifecycle). */
+  nodePendingRemoveEvents: Map<string, readonly EventId[]>;
   /** EdgeKey → EventId of most recent EdgeRemove (for clean-slate prop visibility). */
   edgeRemoveEvent: Map<string, EventId>;
 
@@ -85,7 +89,8 @@ export default class WarpState {
     this.observedFrontier = fields.observedFrontier;
     this.edgeBirthEvent = fields.edgeBirthEvent ?? new Map<string, EventId>();
     this.nodeBirthEvent = fields.nodeBirthEvent ?? new Map<string, EventId>();
-    this.nodeRemoveEvent = fields.nodeRemoveEvent ?? new Map<string, EventId>();
+    this.nodeClearEvent = fields.nodeClearEvent ?? new Map<string, EventId>();
+    this.nodePendingRemoveEvents = fields.nodePendingRemoveEvents ?? new Map<string, readonly EventId[]>();
     this.edgeRemoveEvent = fields.edgeRemoveEvent ?? new Map<string, EventId>();
   }
 
@@ -100,9 +105,9 @@ export default class WarpState {
   }
 
   /**
-   * Returns true when a node property register predates the node's latest
-   * add or remove. Stale registers are never visible and never become
-   * visible again, so garbage collection may delete them.
+   * Returns true when a remove of the node sorts between the property
+   * register and the node's latest add. Stale registers are never visible
+   * and never become visible again, so garbage collection may delete them.
    */
   isStaleNodeRegister(nodeId: string, register: LWWRegister<PropValue>): boolean {
     return isStaleNodeRegisterIn(this, nodeId, register.eventId);
@@ -110,7 +115,7 @@ export default class WarpState {
 
   /**
    * Returns true when an edge property register predates the edge's latest
-   * add or remove. Same contract as `isStaleNodeRegister`.
+   * add or remove. Same monotone contract as `isStaleNodeRegister`.
    */
   isStaleEdgeRegister(edgeKey: string, register: LWWRegister<PropValue>): boolean {
     return isStaleEdgeRegisterIn(this, edgeKey, register.eventId);
@@ -330,8 +335,7 @@ export default class WarpState {
       prop: new Map(this.prop),
       observedFrontier: this.observedFrontier.clone(),
       edgeBirthEvent: new Map(this.edgeBirthEvent),
-      nodeBirthEvent: new Map(this.nodeBirthEvent),
-      nodeRemoveEvent: new Map(this.nodeRemoveEvent),
+      ...copyNodeLifecycle(this),
       edgeRemoveEvent: new Map(this.edgeRemoveEvent),
     });
   }
@@ -349,7 +353,8 @@ export default class WarpState {
     readonly observedFrontier: VersionVector;
     readonly edgeBirthEvent?: Map<string, EventId>;
     readonly nodeBirthEvent?: Map<string, EventId>;
-    readonly nodeRemoveEvent?: Map<string, EventId>;
+    readonly nodeClearEvent?: Map<string, EventId>;
+    readonly nodePendingRemoveEvents?: Map<string, readonly EventId[]>;
     readonly edgeRemoveEvent?: Map<string, EventId>;
   }): WarpState {
     if (state instanceof WarpState) {
@@ -361,8 +366,7 @@ export default class WarpState {
       prop: new Map(state.prop),
       observedFrontier: state.observedFrontier.clone(),
       edgeBirthEvent: new Map(state.edgeBirthEvent ?? []),
-      nodeBirthEvent: new Map(state.nodeBirthEvent ?? []),
-      nodeRemoveEvent: new Map(state.nodeRemoveEvent ?? []),
+      ...copyNodeLifecycle(state),
       edgeRemoveEvent: new Map(state.edgeRemoveEvent ?? []),
     });
   }
@@ -373,7 +377,8 @@ export default class WarpState {
    * - `nodeAlive` / `edgeAlive`: OR-Set join
    * - `prop`: LWW-Max per key
    * - `observedFrontier`: VersionVector merge (component-wise max)
-   * - birth and remove events: EventId max per element key
+   * - edge birth and remove events: EventId max per edge key
+   * - node lifecycle records: NodeLifecycle merge
    */
   join(other: WarpState): WarpState {
     return new WarpState({
@@ -382,8 +387,7 @@ export default class WarpState {
       prop: WarpState._mergeProps(this.prop, other.prop),
       observedFrontier: this.observedFrontier.merge(other.observedFrontier),
       edgeBirthEvent: mergeLifecycleEvents(this.edgeBirthEvent, other.edgeBirthEvent),
-      nodeBirthEvent: mergeLifecycleEvents(this.nodeBirthEvent, other.nodeBirthEvent),
-      nodeRemoveEvent: mergeLifecycleEvents(this.nodeRemoveEvent, other.nodeRemoveEvent),
+      ...mergeNodeLifecycles(this, other),
       edgeRemoveEvent: mergeLifecycleEvents(this.edgeRemoveEvent, other.edgeRemoveEvent),
     });
   }

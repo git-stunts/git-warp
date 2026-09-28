@@ -1,9 +1,11 @@
 /**
- * ElementLifecycle — the clean-slate rule for property registers.
+ * ElementLifecycle — the clean-slate rule for edge property registers, and
+ * the event-map helpers that node and edge lifecycles share.
  *
- * Every node and edge keeps the EventId of its latest add (its birth) and
- * of its latest remove. A property register written before either event is
- * stale: it belongs to an earlier life of its owner, so no read shows it.
+ * Every edge keeps the EventId of its latest add (its birth) and of its
+ * latest remove. An edge property register written before either event is
+ * stale: it belongs to an earlier life of its edge, so no read shows it.
+ * Node registers follow a narrower rule; see NodeLifecycle.
  *
  * Both events only ever advance (EventId max), and both merge by EventId
  * max, so staleness is monotone and independent of delivery order. Once a
@@ -16,33 +18,18 @@
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 
 /**
- * The lifecycle maps of a live state or of a read-side snapshot. A source
- * that predates node lifecycle tracking omits the node and remove maps, and
- * then nothing is stale on their account.
+ * The edge lifecycle maps of a live state or of a read-side snapshot. A
+ * source that predates remove tracking omits the remove map, and then
+ * nothing is stale on its account.
  */
-export type ElementLifecycleSource = {
+export type EdgeLifecycleSource = {
   readonly edgeBirthEvent?: ReadonlyMap<string, EventId>;
-  readonly nodeBirthEvent?: ReadonlyMap<string, EventId>;
-  readonly nodeRemoveEvent?: ReadonlyMap<string, EventId>;
   readonly edgeRemoveEvent?: ReadonlyMap<string, EventId>;
 };
 
-/** Returns true when a node register predates the node's latest add or remove. */
-export function isStaleNodeRegisterIn(
-  source: ElementLifecycleSource,
-  nodeId: string,
-  registerEvent: EventId | null | undefined,
-): boolean {
-  return predatesLifecycle(
-    registerEvent,
-    source.nodeBirthEvent?.get(nodeId),
-    source.nodeRemoveEvent?.get(nodeId),
-  );
-}
-
 /** Returns true when an edge register predates the edge's latest add or remove. */
 export function isStaleEdgeRegisterIn(
-  source: ElementLifecycleSource,
+  source: EdgeLifecycleSource,
   edgeKey: string,
   registerEvent: EventId | null | undefined,
 ): boolean {

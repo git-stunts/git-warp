@@ -1,9 +1,11 @@
 /**
  * Property visibility across an element's lifecycle.
  *
- * A property register written before its owner's latest add, or before its
- * owner's latest remove, is stale: no replica shows it, whatever order the
- * operations arrive in, and it stays hidden after any later operation. That
+ * An edge property register written before the edge's latest add, or before
+ * its latest remove, is stale. A node property register is stale when a
+ * remove of the node sorts between the write and the node's latest add. No
+ * replica shows a stale register, whatever order the operations arrive in,
+ * and it stays hidden after any later operation. That
  * is what lets garbage collection delete stale registers without changing
  * what any replica shows.
  */
@@ -116,19 +118,53 @@ describe('property visibility across remove and re-add', () => {
     }
   });
 
-  it('hides a node property whatever order a concurrent lower re-add arrives in', async () => {
+  it('shows a node property when the only remove sorts after the latest add, in every order', async () => {
     const add: Step = [new NodeAdd('n', Dot.create('A', 1)), event(1, 'A')];
     const set: Step = [new PropSet('n', 'color', 'red'), event(2, 'A')];
     const remove: Step = [new NodeRemove('n', [encodeDot(Dot.create('A', 1))]), event(3, 'A')];
+    // B's add keeps the node alive and is its latest add, but no remove sorts
+    // between the property write and that add.
     const concurrentAdd: Step = [new NodeAdd('n', Dot.create('B', 1)), event(1, 'B')];
 
     const states = permutations([set, remove, concurrentAdd]).map((order) => replay([add, ...order]));
     const hashes = new Set(await Promise.all(states.map(hashOf)));
 
     for (const state of states) {
+      expect(projectState(state)).toEqual({
+        nodes: ['n'],
+        edges: [],
+        props: [{ node: 'n', key: 'color', value: 'red' }],
+      });
+    }
+    expect(hashes.size).toBe(1);
+  });
+
+  it('hides a node property when an earlier remove precedes a re-add that a later remove missed', async () => {
+    const add: Step = [new NodeAdd('n', Dot.create('A', 1)), event(1, 'A')];
+    const set: Step = [new PropSet('n', 'color', 'red'), event(2, 'A')];
+    const remove: Step = [new NodeRemove('n', [encodeDot(Dot.create('A', 1))]), event(3, 'A')];
+    // C saw A's remove and added the node again. B removed A's add without
+    // seeing either, at a higher lamport, so the node stays alive through C.
+    const readd: Step = [new NodeAdd('n', Dot.create('C', 1)), event(6, 'C')];
+    const laterRemove: Step = [new NodeRemove('n', [encodeDot(Dot.create('A', 1))]), event(7, 'B')];
+
+    const states = permutations([set, remove, readd, laterRemove]).map((order) => replay([add, ...order]));
+    const hashes = new Set(await Promise.all(states.map(hashOf)));
+
+    expect(states).toHaveLength(24);
+    for (const state of states) {
       expect(projectState(state)).toEqual({ nodes: ['n'], edges: [], props: [] });
     }
     expect(hashes.size).toBe(1);
+
+    // Every split of the same operations between two replicas joins to the
+    // same visible state.
+    const steps = [set, remove, readd, laterRemove];
+    for (let mask = 0; mask < 2 ** steps.length; mask += 1) {
+      const left = replay([add, ...steps.filter((_, index) => (mask & (1 << index)) !== 0)]);
+      const right = replay([add, ...steps.filter((_, index) => (mask & (1 << index)) === 0)]);
+      expect(projectState(left.join(right))).toEqual({ nodes: ['n'], edges: [], props: [] });
+    }
   });
 });
 

@@ -25,6 +25,7 @@ import WarpError from "../../errors/WarpError.ts";
 import type { PatchDiff } from "../../types/PatchDiff.ts";
 import type { TickReceipt } from "../../types/TickReceipt.ts";
 import WarpStateClass from "../state/WarpState.ts";
+import { copyNodeLifecycle } from "../state/NodeLifecycle.ts";
 import {
   ReducerSessionFrame,
   reducePatchesInSession,
@@ -296,8 +297,7 @@ async function openReducerSessionFrame(
     prop: new Map(baseState?.allPropEntries() ?? []),
     observedFrontier: baseState?.observedFrontier.clone() ?? VersionVector.empty(),
     edgeBirthEvent: new Map(baseState?.edgeBirthEvent ?? []),
-    nodeBirthEvent: new Map(baseState?.nodeBirthEvent ?? []),
-    nodeRemoveEvent: new Map(baseState?.nodeRemoveEvent ?? []),
+    ...copyNodeLifecycle(baseState ?? {}),
     edgeRemoveEvent: new Map(baseState?.edgeRemoveEvent ?? []),
   });
 }
@@ -421,7 +421,8 @@ async function projectFrameToState(
     observedFrontier: frame.observedFrontier,
     edgeBirthEvent: frame.edgeBirthEvent,
     nodeBirthEvent: frame.nodeBirthEvent,
-    nodeRemoveEvent: frame.nodeRemoveEvent,
+    nodeClearEvent: frame.nodeClearEvent,
+    nodePendingRemoveEvents: frame.nodePendingRemoveEvents,
     edgeRemoveEvent: frame.edgeRemoveEvent,
   });
 }

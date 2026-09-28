@@ -1,9 +1,10 @@
 /**
- * A checkpoint-tail property read applies the lifecycle rule: an add or
- * remove of the node in the tail hides the checkpoint's value and every tail
- * write that sorts before it. The reducer already treats tail writes as
- * newer than the checkpoint, so a tail add or remove is newer than every
- * checkpointed register too.
+ * A checkpoint-tail property read applies the node lifecycle rule: a remove
+ * of the node in the tail, followed by a later add, hides the checkpoint's
+ * value and every tail write that sorts before that remove. The reducer
+ * already treats tail writes as newer than the checkpoint, so tail adds and
+ * removes are newer than every checkpointed register and add too. This read
+ * does not decide liveness; the node-liveness read does that separately.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -38,15 +39,30 @@ describe('checkpoint-tail property reads across a node lifecycle', () => {
     expect(reducer.includesProperty(entry(3, [new NodeAdd('node:other', Dot.create('writer-a', 9))], 'aaaa'), NODE, KEY)).toBe(false);
   });
 
-  it('hides the checkpoint value after a tail re-add', () => {
-    expect(read('old', [entry(3, [new NodeAdd(NODE, Dot.create('writer-a', 9))], 'aaaa')])).toBeUndefined();
+  it('keeps the checkpoint value when a tail add finds the node live', () => {
+    expect(read('old', [entry(3, [new NodeAdd(NODE, Dot.create('writer-a', 9))], 'aaaa')])).toBe('old');
   });
 
-  it('hides a tail write that predates a later tail remove', () => {
+  it('hides the checkpoint value after a tail remove and re-add', () => {
+    expect(read('old', [
+      entry(3, [new NodeRemove(NODE, [encodeDot(Dot.create('writer-a', 1))])], 'aaaa'),
+      entry(4, [new NodeAdd(NODE, Dot.create('writer-a', 9))], 'bbbb'),
+    ])).toBeUndefined();
+  });
+
+  it('hides a tail write that predates a tail remove and re-add', () => {
     expect(read('old', [
       entry(3, [new NodePropSet(NODE, KEY, 'tail')], 'aaaa'),
       entry(4, [new NodeRemove(NODE, [encodeDot(Dot.create('writer-a', 1))])], 'bbbb'),
+      entry(5, [new NodeAdd(NODE, Dot.create('writer-a', 9))], 'cccc'),
     ])).toBeUndefined();
+  });
+
+  it('keeps a tail write when no add follows the tail remove', () => {
+    expect(read('old', [
+      entry(3, [new NodePropSet(NODE, KEY, 'tail')], 'aaaa'),
+      entry(4, [new NodeRemove(NODE, [encodeDot(Dot.create('writer-a', 1))])], 'bbbb'),
+    ])).toBe('tail');
   });
 
   it('shows a tail write made after the tail re-add', () => {

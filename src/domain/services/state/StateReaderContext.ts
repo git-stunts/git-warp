@@ -17,6 +17,7 @@ import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 import type VisibleEdgePropertyRecord from '../../graph/VisibleEdgePropertyRecord.ts';
 import type VisibleNodePropertyRecord from '../../graph/VisibleNodePropertyRecord.ts';
 import WarpState from './WarpState.ts';
+import { copyNodeLifecycle } from './NodeLifecycle.ts';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -105,8 +106,7 @@ function warpStateFromSnapshot(snapshot: SnapshotWarpState): WarpState {
     prop: propMapFromSnapshot(snapshot.prop),
     observedFrontier: VersionVector.from(new Map(snapshot.observedFrontier.entries())),
     edgeBirthEvent: new Map(snapshot.edgeBirthEvent),
-    nodeBirthEvent: new Map(snapshot.nodeBirthEvent),
-    nodeRemoveEvent: new Map(snapshot.nodeRemoveEvent),
+    ...copyNodeLifecycle(snapshot),
     edgeRemoveEvent: new Map(snapshot.edgeRemoveEvent),
   });
 }

@@ -168,7 +168,32 @@ describe('replayTargetedNodeProperties', () => {
     })).resolves.toEqual({ title: 'new' });
   });
 
-  it('hides properties a removal covers when a concurrent add sorts below it', async () => {
+  it('keeps properties when a live node is added again', async () => {
+    const patches = new ChainPatchCollector(new Map([
+      ['tip-a', [
+        patchEntry({
+          lamport: 1,
+          ops: [new NodePropSet(TARGET_NODE, 'color', 'red'), new NodeAdd(TARGET_NODE, Dot.create('writer-a', 1))],
+          sha: 'aaaa',
+          writer: 'writer-a',
+        }),
+        patchEntry({
+          lamport: 2,
+          ops: [new NodeAdd(TARGET_NODE, Dot.create('writer-a', 2))],
+          sha: 'bbbb',
+          writer: 'writer-a',
+        }),
+      ]],
+    ]));
+
+    await expect(replayTargetedNodeProperties({
+      coordinate: coordinate(new Map([['writer-a', 'tip-a']]), null),
+      nodeId: TARGET_NODE,
+      patches,
+    })).resolves.toEqual({ color: 'red' });
+  });
+
+  it('keeps properties when the only removal sorts after the latest add', async () => {
     const patches = new ChainPatchCollector(new Map([
       ['tip-a', [
         patchEntry({
@@ -198,7 +223,7 @@ describe('replayTargetedNodeProperties', () => {
       coordinate: coordinate(new Map([['writer-a', 'tip-a'], ['writer-b', 'tip-b']]), null),
       nodeId: TARGET_NODE,
       patches,
-    })).resolves.toEqual({});
+    })).resolves.toEqual({ color: 'red' });
   });
 
   it('returns a sorted frozen bag with a safe own __proto__ property', async () => {

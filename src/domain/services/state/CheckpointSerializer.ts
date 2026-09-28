@@ -22,7 +22,8 @@ import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
-import { EventId } from '../../utils/EventId.ts';
+import { compareEventIds, EventId } from '../../utils/EventId.ts';
+import { mergeNodeLifecycles } from './NodeLifecycle.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import { compareStrings } from '../../utils/StringComparison.ts';
 import {
@@ -40,7 +41,7 @@ interface SerializedLWWRegister {
 // Full State Serialization (for Checkpoints)
 // ============================================================================
 
-/** Current full-state version: adds node births and node and edge removes. */
+/** Current full-state version: adds node lifecycle records and edge removes. */
 const FULL_STATE_VERSION = 'full-v6';
 /** Previous version, still read: it carries no node or remove events. */
 const LEGACY_FULL_STATE_VERSION = 'full-v5';
@@ -62,9 +63,27 @@ export function serializeFullState(
     observedFrontier: VersionVector.serialize(state.observedFrontier),
     edgeBirthEvent: serializeEventArray(state.edgeBirthEvent),
     nodeBirthEvent: serializeEventArray(state.nodeBirthEvent),
-    nodeRemoveEvent: serializeEventArray(state.nodeRemoveEvent),
+    nodeClearEvent: serializeEventArray(state.nodeClearEvent),
+    nodePendingRemoveEvents: serializeEventListArray(state.nodePendingRemoveEvents),
     edgeRemoveEvent: serializeEventArray(state.edgeRemoveEvent),
   });
+}
+
+type SerializedEvent = { lamport: number; writerId: string; patchSha: string; opIndex: number };
+
+function serializeEvent(eventId: EventId): SerializedEvent {
+  return { lamport: eventId.lamport, writerId: eventId.writerId, patchSha: eventId.patchSha, opIndex: eventId.opIndex };
+}
+
+function serializeEventListArray(
+  events: ReadonlyMap<string, readonly EventId[]> | undefined,
+): Array<[string, SerializedEvent[]]> {
+  const result: Array<[string, SerializedEvent[]]> = [];
+  for (const [key, eventIds] of events ?? []) {
+    result.push([key, [...eventIds].sort(compareEventIds).map(serializeEvent)]);
+  }
+  result.sort((left, right) => compareStrings(left[0], right[0]));
+  return result;
 }
 
 function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister<PropValue>]>): Array<[string, unknown]> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
@@ -78,10 +97,10 @@ function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister
 
 function serializeEventArray(
   events: ReadonlyMap<string, EventId> | undefined,
-): Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> {
-  const result: Array<[string, { lamport: number; writerId: string; patchSha: string; opIndex: number }]> = [];
+): Array<[string, SerializedEvent]> {
+  const result: Array<[string, SerializedEvent]> = [];
   for (const [key, eventId] of events ?? []) {
-    result.push([key, { lamport: eventId.lamport, writerId: eventId.writerId, patchSha: eventId.patchSha, opIndex: eventId.opIndex }]);
+    result.push([key, serializeEvent(eventId)]);
   }
   result.sort((left, right) => compareStrings(left[0], right[0]));
   return result;
@@ -126,8 +145,11 @@ export function deserializeFullState(
   }
   return new WarpState({
     ...legacyFields,
-    nodeBirthEvent: deserializeEventArray(obj.nodeBirthEvent),
-    nodeRemoveEvent: deserializeEventArray(obj.nodeRemoveEvent),
+    ...mergeNodeLifecycles({}, {
+      nodeBirthEvent: deserializeEventArray(obj.nodeBirthEvent),
+      nodeClearEvent: deserializeEventArray(obj.nodeClearEvent),
+      nodePendingRemoveEvents: deserializeEventListArray(obj.nodePendingRemoveEvents),
+    }),
     edgeRemoveEvent: deserializeEventArray(obj.edgeRemoveEvent),
   });
 }
@@ -141,7 +163,8 @@ interface DeserializedFullState {
   edgeBirthEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   edgeBirthLamport?: Array<[string, number]>;
   nodeBirthEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  nodeRemoveEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  nodeClearEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  nodePendingRemoveEvents?: Array<[string, unknown[]]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   edgeRemoveEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 }
 
@@ -271,6 +294,15 @@ function deserializeEventArray(data: Array<[string, unknown]> | undefined): Map<
   if (!Array.isArray(data)) { return events; }
   for (const [key, val] of data) {
     events.set(key, deserializeSingleBirthEvent(val));
+  }
+  return events;
+}
+
+function deserializeEventListArray(data: Array<[string, unknown[]]> | undefined): Map<string, readonly EventId[]> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const events = new Map<string, readonly EventId[]>();
+  if (!Array.isArray(data)) { return events; }
+  for (const [key, list] of data) {
+    events.set(key, Array.isArray(list) ? list.map(deserializeSingleBirthEvent) : []);
   }
   return events;
 }
