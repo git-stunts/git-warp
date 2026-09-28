@@ -3,7 +3,7 @@ import type { LWWRegister } from '../../domain/crdt/LWW.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import { createEmptyState } from '../../domain/services/JoinReducer.ts';
-import WarpState from '../../domain/services/state/WarpState.ts';
+import WarpState, { type WarpStateFields } from '../../domain/services/state/WarpState.ts';
 import type { PropValue } from '../../domain/types/PropValue.ts';
 import type { EventId } from '../../domain/utils/EventId.ts';
 import {
@@ -115,13 +115,7 @@ function assertSupportedFullStateVersion(version: string | undefined): void {
 }
 
 function hydrateWarpState(obj: DecodedFullState): WarpState {
-  const legacyFields = {
-    nodeAlive: deserializeORSet(obj.nodeAlive ?? {}),
-    edgeAlive: deserializeORSet(obj.edgeAlive ?? {}),
-    prop: deserializeProps(obj.prop ?? []),
-    observedFrontier: VersionVector.from(obj.observedFrontier ?? {}),
-    edgeBirthEvent: deserializeEdgeBirthEvent(obj),
-  };
+  const legacyFields = hydrateLegacyFields(obj);
   if (obj.version !== FULL_STATE_VERSION) {
     return new WarpState(legacyFields);
   }
@@ -131,6 +125,17 @@ function hydrateWarpState(obj: DecodedFullState): WarpState {
     nodeRemoveEvent: deserializeEventArray(obj.nodeRemoveEvent),
     edgeRemoveEvent: deserializeEventArray(obj.edgeRemoveEvent),
   });
+}
+
+/** The fields every full-state version carries. */
+function hydrateLegacyFields(obj: DecodedFullState): WarpStateFields {
+  return {
+    nodeAlive: deserializeORSet(obj.nodeAlive ?? {}),
+    edgeAlive: deserializeORSet(obj.edgeAlive ?? {}),
+    prop: deserializeProps(obj.prop ?? []),
+    observedFrontier: VersionVector.from(obj.observedFrontier ?? {}),
+    edgeBirthEvent: deserializeEdgeBirthEvent(obj),
+  };
 }
 
 function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister<unknown>]>): Array<[string, unknown]> {
