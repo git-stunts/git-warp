@@ -26,7 +26,13 @@ import {
 } from "../types/PatchDiff.ts";
 import { compareEventIds, EventId } from "../utils/EventId.ts";
 import { advanceLifecycleEvent, mergeLifecycleEvents } from "./state/ElementLifecycle.ts";
-import { mergeNodeLifecycles, recordNodeAdd, recordNodeRemove } from "./state/NodeLifecycle.ts";
+import {
+  isStaleNodeRegisterIn,
+  mergeNodeLifecycles,
+  recordNodeAdd,
+  recordNodeRemove,
+  type NodeLifecycleSource,
+} from "./state/NodeLifecycle.ts";
 import {
   encodeEdgeKey,
   encodeEdgePropKey,
@@ -243,6 +249,7 @@ async function applyPatchInSession(
   mode: ReplayMode,
 ): Promise<{ readonly diff: PatchDiff; readonly receipt: TickReceipt }> {
   const diff = createPatchDiffAccumulator();
+  const nodesCleared: string[] = [];
   const receiptOps: OpOutcome[] = [];
 
   for (let i = 0; i < patch.ops.length; i += 1) {
@@ -263,16 +270,18 @@ async function applyPatchInSession(
     const before = mode === "diff"
       ? await snapshotForDiff(frame, canonOp)
       : { kind: "none" } satisfies ReplayDiffSnapshot;
+    const clearBefore = nodeClearEventOf(frame, canonOp);
     await mutateInSession(frame, canonOp, eventId);
     if (mode === "diff") {
       await accumulateDiff(diff, frame, before);
+      recordClearedNode(nodesCleared, frame, canonOp, clearBefore);
     }
   }
 
   foldPatchIntoFrame(frame, patch);
 
   return {
-    diff: new PatchDiff(diff),
+    diff: new PatchDiff({ ...diff, nodesCleared }),
     receipt: createTickReceipt({
       patchSha,
       writer: patch.writer,
@@ -368,11 +377,8 @@ async function snapshotForDiff(
       aliveBefore: await frame.session.edgeContains(target),
     };
   }
-  if (op instanceof PropSet) {
-    return propertySnapshot(frame.prop, op.node, op.key, encodePropKey(op.node, op.key));
-  }
-  if (op instanceof NodePropSet) {
-    return propertySnapshot(frame.prop, op.node, op.key, encodePropKey(op.node, op.key));
+  if (op instanceof PropSet || op instanceof NodePropSet) {
+    return propertySnapshot(frame.prop, op.node, op.key, encodePropKey(op.node, op.key), frame);
   }
   if (op instanceof EdgePropSet) {
     return propertySnapshot(
@@ -439,6 +445,26 @@ async function mutateInSession(
   throw new PatchError(`Unsupported canonical op for session replay: ${op.type}`);
 }
 
+/** The clear event of the node a node add or remove targets, before the op. */
+function nodeClearEventOf(frame: ReducerSessionFrame, op: Op): EventId | undefined {
+  return op instanceof NodeAdd || op instanceof NodeRemove ? frame.nodeClearEvent.get(op.node) : undefined;
+}
+
+/**
+ * Records the node as cleared when the op advanced its clear event: earlier
+ * property registers became hidden even if the node stayed alive.
+ */
+function recordClearedNode(
+  nodesCleared: string[],
+  frame: ReducerSessionFrame,
+  op: Op,
+  clearBefore: EventId | undefined,
+): void {
+  if ((op instanceof NodeAdd || op instanceof NodeRemove) && frame.nodeClearEvent.get(op.node) !== clearBefore) {
+    nodesCleared.push(op.node);
+  }
+}
+
 async function accumulateDiff(
   diff: MutablePatchDiff,
   frame: ReducerSessionFrame,
@@ -496,14 +522,20 @@ function foldPatchIntoFrame(frame: ReducerSessionFrame, patch: PatchLike): void 
   }
 }
 
+/**
+ * Snapshots a property register before a write. For a node property,
+ * `lifecycle` is given, and a register it hides has no visible value, so a
+ * later write of the same value still shows up as a change.
+ */
 function propertySnapshot(
   prop: ReadonlyMap<string, LWWRegister<ReducerPropValue>>,
   nodeId: string,
   key: string,
   storageKey: string,
+  lifecycle?: NodeLifecycleSource,
 ): ReplayDiffSnapshot {
   const reg = prop.get(storageKey);
-  if (reg === undefined) {
+  if (reg === undefined || (lifecycle !== undefined && isStaleNodeRegisterIn(lifecycle, nodeId, reg.eventId))) {
     return {
       kind: "prop",
       nodeId,

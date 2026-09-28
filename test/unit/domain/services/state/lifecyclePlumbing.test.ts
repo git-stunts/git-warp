@@ -5,7 +5,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { applyPatchOp, createEmptyState, reducePatches, type PatchLike } from '../../../../../src/domain/services/JoinReducer.ts';
+import {
+  applyPatchOp,
+  applyWithDiff,
+  createEmptyState,
+  reducePatches,
+  type PatchLike,
+} from '../../../../../src/domain/services/JoinReducer.ts';
 import { Dot, encodeDot } from '../../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import { EventId } from '../../../../../src/domain/utils/EventId.ts';
@@ -134,6 +140,16 @@ describe('lifecycle events travel with every copy of the state', () => {
     expect(lifecycleMaps(frame)).toEqual(lifecycleMaps(inMemory));
     expect(frame.nodeClearEvent.get('n')).toEqual(new EventId(2, 'A', SHA_B, 0));
     expect(frame.nodePendingRemoveEvents.get('x')).toEqual([new EventId(2, 'A', SHA_B, 3)]);
+  });
+
+  it('the session-backed reducer reports the nodes it cleared, as the in-memory reducer does', async () => {
+    const inMemory = createEmptyState();
+    const inMemoryCleared = lifecyclePatches().flatMap(({ patch, sha }) =>
+      [...(applyWithDiff(inMemory, patch, sha).diff.nodesCleared ?? [])]);
+    const { diff } = await reducePatchesInSession(lifecyclePatches(), await openFrame(), { trackDiff: true });
+
+    expect(inMemoryCleared).toEqual(['n']);
+    expect(diff.nodesCleared).toEqual(['n']);
   });
 
   it('joining session-backed frames keeps the latest event of each side', async () => {

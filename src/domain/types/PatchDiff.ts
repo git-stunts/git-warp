@@ -99,25 +99,36 @@ export class PatchDiff {
   readonly propsChanged: readonly PropDiffEntry[];
 
   /**
+   * Nodes whose property registers written before a remove that precedes
+   * the node's latest add became hidden. This can happen without the node
+   * leaving the alive set. A hand-built diff may omit it; absent means no
+   * node was cleared.
+   */
+  readonly nodesCleared?: readonly string[];
+
+  /**
    * Creates a PatchDiff from field values.
    */
-  constructor({ nodesAdded, nodesRemoved, edgesAdded, edgesRemoved, propsChanged }: {
+  constructor({ nodesAdded, nodesRemoved, edgesAdded, edgesRemoved, propsChanged, nodesCleared = [] }: {
     nodesAdded: readonly string[];
     nodesRemoved: readonly string[];
     edgesAdded: readonly EdgeDiffEntry[];
     edgesRemoved: readonly EdgeDiffEntry[];
     propsChanged: readonly PropDiffEntry[];
+    nodesCleared?: readonly string[];
   }) {
     requireArray(nodesAdded, 'nodesAdded');
     requireArray(nodesRemoved, 'nodesRemoved');
     requireArray(edgesAdded, 'edgesAdded');
     requireArray(edgesRemoved, 'edgesRemoved');
     requireArray(propsChanged, 'propsChanged');
+    requireArray(nodesCleared, 'nodesCleared');
     this.nodesAdded = Object.freeze(nodesAdded.map((nodeId) => requireNonEmptyString(nodeId, 'nodeId')));
     this.nodesRemoved = Object.freeze(nodesRemoved.map((nodeId) => requireNonEmptyString(nodeId, 'nodeId')));
     this.edgesAdded = Object.freeze(edgesAdded.map((entry) => EdgeDiffEntry.fromEntry(entry)));
     this.edgesRemoved = Object.freeze(edgesRemoved.map((entry) => EdgeDiffEntry.fromEntry(entry)));
     this.propsChanged = Object.freeze(propsChanged.map((entry) => PropDiffEntry.fromEntry(entry)));
+    this.nodesCleared = Object.freeze([...new Set(nodesCleared.map((nodeId) => requireNonEmptyString(nodeId, 'nodeId')))]);
     Object.freeze(this);
   }
 
@@ -186,6 +197,7 @@ function deduplicateProps(allProps: readonly PropDiffEntry[]): PropDiffEntry[] {
  *   is dropped from both lists (the transitions cancel out).
  * - Same logic applies to edges (keyed by `from\0to\0label`).
  * - For `propsChanged`, only the last entry per `(nodeId, key)` is kept.
+ * - `nodesCleared` is the union of both sides: hidden registers stay hidden.
  */
 export function mergeDiffs(a: PatchDiff, b: PatchDiff): PatchDiff {
   const allAdded = a.nodesAdded.concat(b.nodesAdded);
@@ -203,6 +215,7 @@ export function mergeDiffs(a: PatchDiff, b: PatchDiff): PatchDiff {
   const edgesRemoved = allEdgesRemoved.filter((e) => !edgeAddedSet.has(edgeKey(e)));
 
   const propsChanged = deduplicateProps(a.propsChanged.concat(b.propsChanged));
+  const nodesCleared = [...(a.nodesCleared ?? []), ...(b.nodesCleared ?? [])];
 
-  return new PatchDiff({ nodesAdded, nodesRemoved, edgesAdded, edgesRemoved, propsChanged });
+  return new PatchDiff({ nodesAdded, nodesRemoved, edgesAdded, edgesRemoved, propsChanged, nodesCleared });
 }

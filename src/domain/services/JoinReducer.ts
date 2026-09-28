@@ -23,7 +23,15 @@
 import { EventId } from '../utils/EventId.ts';
 import { createTickReceipt, type TickReceipt, type OpOutcome } from '../types/TickReceipt.ts';
 import { normalizeRawOp } from './OpNormalizer.ts';
-import { PatchDiff, createEmptyDiff, createPatchDiffAccumulator, mergeDiffs } from '../types/PatchDiff.ts';
+import {
+  PatchDiff,
+  createEmptyDiff,
+  createPatchDiffAccumulator,
+  mergeDiffs,
+  type MutablePatchDiff,
+} from '../types/PatchDiff.ts';
+import NodeAdd from '../types/ops/NodeAdd.ts';
+import NodeRemove from '../types/ops/NodeRemove.ts';
 import PatchError from '../errors/PatchError.ts';
 import WarpState from './state/WarpState.ts';
 import OpSuperseded from '../types/ops/OpSuperseded.ts';
@@ -177,6 +185,7 @@ export function applyWithDiff(
   patchSha: string,
 ): { state: WarpState; diff: PatchDiff } {
   const diff = createPatchDiffAccumulator();
+  const nodesCleared: string[] = [];
   for (let i = 0; i < patch.ops.length; i++) {
     const rawOp = patch.ops[i];
     if (rawOp === undefined) { continue; }
@@ -186,12 +195,35 @@ export function applyWithDiff(
     if (!(canonOp instanceof Op)) { continue; }
     canonOp.validate();
     const eventId = new EventId(patch.lamport, patch.writer, patchSha, i);
-    const before = canonOp.snapshot(state);
-    canonOp.mutate(state, eventId);
-    canonOp.accumulate(diff, state, before);
+    applyOpWithDiff(state, canonOp, { eventId, diff, nodesCleared });
   }
   state.foldPatch(patch);
-  return { state, diff: new PatchDiff(diff) };
+  return { state, diff: new PatchDiff({ ...diff, nodesCleared }) };
+}
+
+/**
+ * Applies one op and records its diff entries. A node add or remove that
+ * advances the node's clear event also records the node as cleared, because
+ * it hides earlier property registers even when the node stays alive.
+ */
+function applyOpWithDiff(
+  state: WarpState,
+  op: Op,
+  out: { readonly eventId: EventId; readonly diff: MutablePatchDiff; readonly nodesCleared: string[] },
+): void {
+  const lifecycleNode = lifecycleNodeOf(op);
+  const clearBefore = lifecycleNode === null ? undefined : state.nodeClearEvent.get(lifecycleNode);
+  const before = op.snapshot(state);
+  op.mutate(state, out.eventId);
+  op.accumulate(out.diff, state, before);
+  if (lifecycleNode !== null && state.nodeClearEvent.get(lifecycleNode) !== clearBefore) {
+    out.nodesCleared.push(lifecycleNode);
+  }
+}
+
+/** The node whose lifecycle records an op can advance, or null. */
+function lifecycleNodeOf(op: Op): string | null {
+  return op instanceof NodeAdd || op instanceof NodeRemove ? op.node : null;
 }
 
 /**

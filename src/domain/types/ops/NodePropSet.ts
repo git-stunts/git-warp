@@ -7,7 +7,7 @@ import Op from './Op.ts';
 import { OP_SCOPE_CANONICAL } from './OpScope.ts';
 import { assertNonEmptyString, assertNoReservedBytes } from './validate.ts';
 import { encodePropKey } from '../../services/KeyCodec.ts';
-import { mutateProp, snapshotProp, accumulatePropDiff } from './propHelpers.ts';
+import { mutateProp, snapshotNodeProp, accumulatePropDiff } from './propHelpers.ts';
 import type WarpState from '../../services/state/WarpState.ts';
 import type { EventId } from '../../utils/EventId.ts';
 import type OpOutcomeResult from './OpOutcomeResult.ts';
@@ -44,7 +44,7 @@ export default class NodePropSet extends Op<'NodePropSet'> {
   }
 
   snapshot(state: WarpState): SnapshotBeforeOp {
-    return snapshotProp(state, encodePropKey(this.node, this.key));
+    return snapshotNodeProp(state, this.node, encodePropKey(this.node, this.key));
   }
 
   accumulate(diff: MutablePatchDiff, state: WarpState, before: SnapshotBeforeOp): void {
