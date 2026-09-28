@@ -41,8 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** A node property written before a remove of that node is
-  hidden once the node is added again, so removing a node and adding it back
-  starts it with no properties on every replica, as edges already did. Which
+  hidden once the node is added again, on every replica, as edges already did.
+  Removing a node and adding it back hides the properties written before the
+  removal; a property written after the removal stays visible. Which
   came first is judged by event id, the same order that decides removes. A
   property written before the node's first add stays visible, and adding a
   node that is already live hides nothing, so graphs that never remove and
