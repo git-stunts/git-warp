@@ -51,8 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Edges now also record their latest remove. An edge property
   written before that remove stays hidden even when a concurrent add, whose
   event id sorts below the remove, keeps the edge alive.
-- **BREAKING:** `computeStateHash` changes for graphs where either rule hides
-  a property that was visible before. Other graphs hash as before.
+- **BREAKING:** `computeStateHash` changes for graphs where the node rule
+  hides a node property that was visible before. The edge rule never changes
+  it, because edge properties are not part of the hash. Other graphs hash as
+  before.
 - `subscribe()` and `watch()` diffs report a node property that the node rule
   hides as removed, and never report a hidden property as set.
 - A checkpoint-tail node property read now refuses with
