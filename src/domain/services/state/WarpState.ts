@@ -11,16 +11,14 @@ import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { lwwMax, lwwSet, type LWWRegister } from '../../crdt/LWW.ts';
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
-import AttachmentKey from '../../graph/AttachmentKey.ts';
-import AttachmentRecord from '../../graph/AttachmentRecord.ts';
-import AttachmentSchemaVersion from '../../graph/AttachmentSchemaVersion.ts';
+import type AttachmentRecord from '../../graph/AttachmentRecord.ts';
 import EdgeId from '../../graph/EdgeId.ts';
 import EdgeRecord from '../../graph/EdgeRecord.ts';
 import NodeId from '../../graph/NodeId.ts';
 import NodeRecord from '../../graph/NodeRecord.ts';
-import EdgePropertyOwner from './EdgePropertyOwner.ts';
-import NodePropertyOwner from './NodePropertyOwner.ts';
-import { decodeEdgeKey, decodeEdgePropKey, decodePropKey, encodeEdgeKey, encodeEdgePropKey, encodePropKey, isEdgePropKey } from '../KeyCodec.ts';
+import { sweepDeadProperties } from './deadPropertySweep.ts';
+import { attachmentRecordForProperty, compareAttachmentRecords } from './stateAttachmentRecords.ts';
+import { decodeEdgeKey, decodeEdgePropKey, decodePropKey, encodeEdgePropKey, encodePropKey, isEdgePropKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 
 /** Decoded node property entry yielded by WarpState.nodeProperties(). */
@@ -158,61 +156,17 @@ export default class WarpState {
    * no longer holds at all, along with those edges' birth events. Returns
    * the number of registers removed. Mutates in place.
    *
-   * Removing an element tombstones its dot in the alive set but leaves its
-   * registers here, so a graph under churn — re-indexing the same file,
-   * retiring one generation of anchors to add the next — accumulates
-   * registers monotonically and never reclaims them.
-   *
-   * A swept element that is later re-added starts with no properties. A
-   * replica that has not swept still holds the old registers, and shows
-   * them for a re-added node, and for a re-added edge whose add sorts below
-   * them; `edgeBirthEvent` hides them only when the edge's newest add sorts
-   * above them.
-   * Swept and unswept replicas can therefore differ after a re-add. Node
-   * registers have no birth filter to make that rule the same everywhere.
-   *
-   * @internal Call only from GC, after `ORSet.compact`. The sweep follows
-   * compaction rather than liveness: an owner whose removal lies beyond
-   * the compaction frontier still has its tombstoned dot in the set, so
-   * its registers stay until the same `appliedVV` that compacts that dot
-   * lets them go.
+   * @internal Call only from GC, after `ORSet.compact`. The re-add and
+   * compaction-frontier contract is documented on `sweepDeadProperties`
+   * in `deadPropertySweep.ts`.
    */
   compactDeadProperties(): number {
-    let pruned = 0;
-    for (const encodedKey of this.prop.keys()) {
-      if (this.ownerIsHeld(encodedKey)) {
-        continue;
-      }
-      this.prop.delete(encodedKey);
-      pruned++;
-    }
-    for (const edgeKey of this.edgeBirthEvent.keys()) {
-      if (!this.edgeAlive.hasEntries(edgeKey)) {
-        this.edgeBirthEvent.delete(edgeKey);
-      }
-    }
-    return pruned;
-  }
-
-  /**
-   * Returns true while the alive set still holds any dot, live or
-   * tombstoned, for the element owning an encoded prop key, and whenever
-   * that owner cannot be determined.
-   *
-   * The guard covers decoding only. A fault in the alive-set read is a
-   * bug, not malformed data, and swallowing it would report every owner
-   * as held — disabling the sweep with no signal that it had stopped
-   * working.
-   */
-  private ownerIsHeld(encodedKey: string): boolean {
-    const owner = decodePropOwner(encodedKey);
-    if (owner === null) {
-      return true;
-    }
-    if (owner instanceof EdgePropertyOwner) {
-      return this.edgeAlive.hasEntries(owner.edgeKey);
-    }
-    return this.nodeAlive.hasEntries(owner.nodeId);
+    return sweepDeadProperties({
+      prop: this.prop,
+      nodeAlive: this.nodeAlive,
+      edgeAlive: this.edgeAlive,
+      edgeBirthEvent: this.edgeBirthEvent,
+    });
   }
 
   /** Yields every node property register with decoded identity. */
@@ -459,42 +413,6 @@ export default class WarpState {
   }
 }
 
-/**
- * Decodes an encoded prop key to the element whose liveness governs it, or
- * null when the key cannot be read.
- *
- * Two ways a key resists decoding, both of which yield null and so retain it.
- *
- * `\0` separates fields, so a key whose element id itself contains `\0`
- * decodes to a shorter, different id. Read paths already resolve such a key
- * to no owner and hide it; a sweep that trusted the same decode would instead
- * delete a live element's registers, so the decode must round-trip.
- *
- * A key with the wrong field count makes `decodeEdgePropKey` throw.
- * Full-state deserialization accepts prop-map keys without validating their
- * shape, so one malformed key would otherwise abort the whole sweep and,
- * through it, GC. Sweeping is an optimization; a key it cannot read is one it
- * leaves alone.
- */
-function decodePropOwner(encodedKey: string): NodePropertyOwner | EdgePropertyOwner | null {
-  try {
-    if (isEdgePropKey(encodedKey)) {
-      const edge = decodeEdgePropKey(encodedKey);
-      if (encodeEdgePropKey(edge.from, edge.to, edge.label, edge.propKey) !== encodedKey) {
-        return null;
-      }
-      return new EdgePropertyOwner(encodeEdgeKey(edge.from, edge.to, edge.label));
-    }
-    const node = decodePropKey(encodedKey);
-    if (encodePropKey(node.nodeId, node.propKey) !== encodedKey) {
-      return null;
-    }
-    return new NodePropertyOwner(node.nodeId);
-  } catch {
-    return null;
-  }
-}
-
 /** Normalizes an edge id carrier for state record reads. */
 function normalizeEdgeId(value: string | EdgeId): EdgeId {
   if (value instanceof EdgeId) {
@@ -514,87 +432,6 @@ function normalizeNodeId(value: string | NodeId): NodeId {
 /** Compares edge records by deterministic id order. */
 function compareEdgeRecords(left: EdgeRecord, right: EdgeRecord): number {
   return compareStrings(left.id.toString(), right.id.toString());
-}
-
-/** Builds a visible attachment record from a legacy property map entry. */
-function attachmentRecordForProperty(
-  state: WarpState,
-  propKey: string,
-  register: LWWRegister<PropValue>,
-): AttachmentRecord | null {
-  if (isEdgePropKey(propKey)) {
-    return edgeAttachmentRecordForProperty(state, propKey, register);
-  }
-  return nodeAttachmentRecordForProperty(state, propKey, register);
-}
-
-/** Builds a node-owned attachment record from a legacy node property. */
-function nodeAttachmentRecordForProperty(
-  state: WarpState,
-  propKey: string,
-  register: LWWRegister<PropValue>,
-): AttachmentRecord | null {
-  const decoded = decodePropKey(propKey);
-  const owner = state.getNodeRecord(decoded.nodeId);
-  if (owner === null) {
-    return null;
-  }
-  return new AttachmentRecord({
-    owner,
-    key: new AttachmentKey(decoded.propKey),
-    value: register.value,
-    schemaVersion: AttachmentSchemaVersion.current(),
-  });
-}
-
-/** Builds an edge-owned attachment record from a legacy edge property. */
-function edgeAttachmentRecordForProperty(
-  state: WarpState,
-  propKey: string,
-  register: LWWRegister<PropValue>,
-): AttachmentRecord | null {
-  const decoded = decodeEdgePropKey(propKey);
-  const edgeKey = encodeEdgeKey(decoded.from, decoded.to, decoded.label);
-  if (isStaleEdgeAttachment(register, state.edgeBirthEvent.get(edgeKey))) {
-    return null;
-  }
-  if (!state.edgeAlive.contains(edgeKey)) {
-    return null;
-  }
-  if (!state.hasNodeRecord(decoded.from) || !state.hasNodeRecord(decoded.to)) {
-    return null;
-  }
-  const owner = EdgeRecord.fromLegacyEdge(decoded);
-  return new AttachmentRecord({
-    owner,
-    key: new AttachmentKey(decoded.propKey),
-    value: register.value,
-    schemaVersion: AttachmentSchemaVersion.current(),
-  });
-}
-
-/** Returns true when an edge attachment predates the current edge birth. */
-function isStaleEdgeAttachment(
-  register: LWWRegister<PropValue>,
-  birthEvent: EventId | undefined,
-): boolean {
-  if (birthEvent === undefined || register.eventId === null) {
-    return false;
-  }
-  return compareEventIds(register.eventId, birthEvent) < 0;
-}
-
-/** Compares attachment records by deterministic owner/key order. */
-function compareAttachmentRecords(left: AttachmentRecord, right: AttachmentRecord): number {
-  return compareStrings(attachmentRecordSortKey(left), attachmentRecordSortKey(right));
-}
-
-/** Returns the deterministic sort key for an attachment record. */
-function attachmentRecordSortKey(record: AttachmentRecord): string {
-  if (record.owner instanceof NodeRecord) {
-    return `node:${record.owner.id.toString()}:${record.key.toString()}`;
-  }
-  return `edge:${record.owner.id.toString()}:${record.key.toString()}`;
 }
 
 /** Compares protocol strings without locale-sensitive collation. */

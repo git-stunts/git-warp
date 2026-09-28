@@ -19,6 +19,8 @@ const EXPECTED_RAW_COMPATIBILITY_FILES = Object.freeze([
   'src/domain/services/KeyCodec.ts',
   'src/domain/services/state/StateDiff.ts',
   'src/domain/services/state/WarpState.ts',
+  'src/domain/services/state/decodePropOwner.ts',
+  'src/domain/services/state/stateAttachmentRecords.ts',
 ]);
 
 describe('v18 content/property closeout audit', () => {
