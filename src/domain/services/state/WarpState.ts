@@ -18,6 +18,8 @@ import EdgeId from '../../graph/EdgeId.ts';
 import EdgeRecord from '../../graph/EdgeRecord.ts';
 import NodeId from '../../graph/NodeId.ts';
 import NodeRecord from '../../graph/NodeRecord.ts';
+import EdgePropertyOwner from './EdgePropertyOwner.ts';
+import NodePropertyOwner from './NodePropertyOwner.ts';
 import { decodeEdgeKey, decodeEdgePropKey, decodePropKey, encodeEdgeKey, encodeEdgePropKey, encodePropKey, isEdgePropKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 
@@ -204,9 +206,10 @@ export default class WarpState {
     if (owner === null) {
       return true;
     }
-    return owner.kind === 'edge'
-      ? this.edgeAlive.hasEntries(owner.key)
-      : this.nodeAlive.hasEntries(owner.id);
+    if (owner instanceof EdgePropertyOwner) {
+      return this.edgeAlive.hasEntries(owner.edgeKey);
+    }
+    return this.nodeAlive.hasEntries(owner.nodeId);
   }
 
   /** Yields every node property register with decoded identity. */
@@ -453,10 +456,6 @@ export default class WarpState {
   }
 }
 
-/** The element whose liveness governs a property register. */
-type PropOwner = { readonly kind: 'node'; readonly id: string }
-  | { readonly kind: 'edge'; readonly key: string };
-
 /**
  * Decodes an encoded prop key to the element whose liveness governs it, or
  * null when the key cannot be read.
@@ -474,20 +473,20 @@ type PropOwner = { readonly kind: 'node'; readonly id: string }
  * through it, GC. Sweeping is an optimization; a key it cannot read is one it
  * leaves alone.
  */
-function decodePropOwner(encodedKey: string): PropOwner | null {
+function decodePropOwner(encodedKey: string): NodePropertyOwner | EdgePropertyOwner | null {
   try {
     if (isEdgePropKey(encodedKey)) {
       const edge = decodeEdgePropKey(encodedKey);
       if (encodeEdgePropKey(edge.from, edge.to, edge.label, edge.propKey) !== encodedKey) {
         return null;
       }
-      return { kind: 'edge', key: encodeEdgeKey(edge.from, edge.to, edge.label) };
+      return new EdgePropertyOwner(encodeEdgeKey(edge.from, edge.to, edge.label));
     }
     const node = decodePropKey(encodedKey);
     if (encodePropKey(node.nodeId, node.propKey) !== encodedKey) {
       return null;
     }
-    return { kind: 'node', id: node.nodeId };
+    return new NodePropertyOwner(node.nodeId);
   } catch {
     return null;
   }
