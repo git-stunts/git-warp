@@ -57,15 +57,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before.
 - `subscribe()` and `watch()` diffs report a node property that the node rule
   hides as removed, and never report a hidden property as set.
-- A checkpoint-tail node property read now refuses with
-  `E_OPTIC_NO_BOUNDED_BASIS` and cause
-  `tail-node-add-needs-checkpoint-lifecycle-witnesses` when the tail adds the
-  node and the checkpoint holds a value, whether or not the tail also removes
-  it. The checkpoint may hold a remove that the tail add turns into the node's
-  clear event, which hides that value, and a concurrent writer's tail remove
-  may sort below the value, which leaves it visible. The checkpoint index
-  shards record neither node removes nor the value's event id. Creating a new
-  indexed checkpoint recovers the read.
+- A checkpoint's index root now carries node lifecycle records: per node, its
+  latest add, the remove that hides its older properties, the removes still
+  pending, and the event id of every property register that is not hidden.
+  A checkpoint-tail node property read uses them, and the node's liveness, to
+  answer as `materialize()` does in every delivery order, including a tail
+  that removes and re-adds the node and a concurrent writer's tail events
+  that sort below the checkpoint's.
+- A checkpoint-tail node property read over an index root without those
+  records refuses with `E_OPTIC_NO_BOUNDED_BASIS` when the tail adds the node
+  (cause `tail-node-add-needs-checkpoint-lifecycle-witnesses`) or writes the
+  property or removes the node (new cause
+  `tail-property-needs-checkpoint-lifecycle-witnesses`), because such a tail
+  event may sort below a checkpoint event it cannot see. A tail that touches
+  neither still reads the checkpoint value. Creating a new indexed checkpoint
+  recovers the read.
+- With the records, a checkpoint-tail node property read still refuses when a
+  tail remove may have removed the node's last live add
+  (`tail-node-remove-needs-raw-liveness-witnesses`), or when a tail add makes
+  a register visible whose value the checkpoint did not store because the node
+  was not live there (`tail-node-add-needs-checkpoint-lifecycle-witnesses`).
 
 ### Fixed
 
@@ -153,6 +164,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   also applies to history before that checkpoint, and a bounded
   checkpoint-tail read refuses with `E_OPTIC_NO_BOUNDED_BASIS`. Neither
   throws a descriptor schema error.
+- The node lifecycle records are a new shard family in the checkpoint index
+  root: `life_XX.cbor` shards (schema 1, one per index shard key) and one
+  `life_receipt.cbor`. The receipt marks a root that carries the family. A
+  root without it, from any earlier writer, is read as having no records, and
+  the reads that need them refuse as above. This needs no descriptor or index
+  schema bump beyond schema 6. On
+  a 10,000-node graph with two properties per node the family adds about
+  170 to 230 bytes per node, 1.7 to 2.3 MB, which is 35 to 48 percent of the
+  `full-v6` state of the same graph.
 - Migration: none is required. The next `createCheckpoint()` after upgrading
   writes a schema 6 checkpoint for later reads to start from.
 - Under `.github/RELEASE.md` the visibility, state hash and storage format
