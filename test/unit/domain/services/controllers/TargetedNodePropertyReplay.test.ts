@@ -10,6 +10,9 @@ import { replayTargetedNodeProperties } from '../../../../../src/domain/services
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import EdgePropSet from '../../../../../src/domain/types/ops/EdgePropSet.ts';
 import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
+import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
+import NodeRemove from '../../../../../src/domain/types/ops/NodeRemove.ts';
+import { Dot, encodeDot } from '../../../../../src/domain/crdt/Dot.ts';
 
 const TARGET_NODE = 'node:target';
 
@@ -125,6 +128,77 @@ describe('replayTargetedNodeProperties', () => {
       nodeId: TARGET_NODE,
       patches,
     })).resolves.toEqual({ status: 'last' });
+  });
+
+  it('hides properties written before the node was removed and added again', async () => {
+    const patches = new ChainPatchCollector(new Map([
+      ['tip-a', [
+        patchEntry({
+          lamport: 1,
+          ops: [
+            new NodeAdd(TARGET_NODE, Dot.create('writer-a', 1)),
+            new NodePropSet(TARGET_NODE, 'color', 'red'),
+            new NodePropSet(TARGET_NODE, 'title', 'old'),
+          ],
+          sha: 'aaaa',
+          writer: 'writer-a',
+        }),
+        patchEntry({
+          lamport: 2,
+          ops: [new NodeRemove(TARGET_NODE, [encodeDot(Dot.create('writer-a', 1))])],
+          sha: 'bbbb',
+          writer: 'writer-a',
+        }),
+        patchEntry({
+          lamport: 3,
+          ops: [
+            new NodeAdd(TARGET_NODE, Dot.create('writer-a', 2)),
+            new NodePropSet(TARGET_NODE, 'title', 'new'),
+          ],
+          sha: 'cccc',
+          writer: 'writer-a',
+        }),
+      ]],
+    ]));
+
+    await expect(replayTargetedNodeProperties({
+      coordinate: coordinate(new Map([['writer-a', 'tip-a']]), null),
+      nodeId: TARGET_NODE,
+      patches,
+    })).resolves.toEqual({ title: 'new' });
+  });
+
+  it('hides properties a removal covers when a concurrent add sorts below it', async () => {
+    const patches = new ChainPatchCollector(new Map([
+      ['tip-a', [
+        patchEntry({
+          lamport: 1,
+          ops: [new NodeAdd(TARGET_NODE, Dot.create('writer-a', 1)), new NodePropSet(TARGET_NODE, 'color', 'red')],
+          sha: 'aaaa',
+          writer: 'writer-a',
+        }),
+        patchEntry({
+          lamport: 3,
+          ops: [new NodeRemove(TARGET_NODE, [encodeDot(Dot.create('writer-a', 1))])],
+          sha: 'bbbb',
+          writer: 'writer-a',
+        }),
+      ]],
+      ['tip-b', [
+        patchEntry({
+          lamport: 2,
+          ops: [new NodeAdd(TARGET_NODE, Dot.create('writer-b', 1))],
+          sha: 'dddd',
+          writer: 'writer-b',
+        }),
+      ]],
+    ]));
+
+    await expect(replayTargetedNodeProperties({
+      coordinate: coordinate(new Map([['writer-a', 'tip-a'], ['writer-b', 'tip-b']]), null),
+      nodeId: TARGET_NODE,
+      patches,
+    })).resolves.toEqual({});
   });
 
   it('returns a sorted frozen bag with a safe own __proto__ property', async () => {
