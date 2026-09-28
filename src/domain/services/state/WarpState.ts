@@ -152,9 +152,9 @@ export default class WarpState {
   }
 
   /**
-   * Drops every property register whose owning node or edge is no longer
-   * alive, along with the birth events of dead edges. Returns the number
-   * of registers removed. Mutates in place.
+   * Drops every property register whose owning node or edge the alive set
+   * no longer holds at all, along with those edges' birth events. Returns
+   * the number of registers removed. Mutates in place.
    *
    * Removing an element tombstones its dot in the alive set but leaves its
    * registers here, so a graph under churn — re-indexing the same file,
@@ -166,23 +166,23 @@ export default class WarpState {
    * `isStaleEdgeAttachment`; this extends the same clean-slate rule to
    * nodes.
    *
-   * @internal Call only from GC, and only at a frontier every replica has
-   * observed — the stability contract `ORSet.compact` already requires.
-   * Sweeping ahead of that frontier drops registers a concurrent writer
-   * can still resurrect the owner of, diverging this replica from one that
-   * has not swept.
+   * @internal Call only from GC, after `ORSet.compact`. The sweep follows
+   * compaction rather than liveness: an owner whose removal lies beyond
+   * the compaction frontier still has its tombstoned dot in the set, so
+   * its registers stay until the same `appliedVV` that compacts that dot
+   * lets them go.
    */
   compactDeadProperties(): number {
     let pruned = 0;
     for (const encodedKey of this.prop.keys()) {
-      if (this.ownerIsAlive(encodedKey)) {
+      if (this.ownerIsHeld(encodedKey)) {
         continue;
       }
       this.prop.delete(encodedKey);
       pruned++;
     }
     for (const edgeKey of this.edgeBirthEvent.keys()) {
-      if (!this.edgeAlive.contains(edgeKey)) {
+      if (!this.edgeAlive.hasEntries(edgeKey)) {
         this.edgeBirthEvent.delete(edgeKey);
       }
     }
@@ -190,22 +190,23 @@ export default class WarpState {
   }
 
   /**
-   * Returns true when the element owning an encoded prop key is still
-   * alive, and whenever that owner cannot be determined.
+   * Returns true while the alive set still holds any dot, live or
+   * tombstoned, for the element owning an encoded prop key, and whenever
+   * that owner cannot be determined.
    *
    * The guard covers decoding only. A fault in the alive-set read is a
    * bug, not malformed data, and swallowing it would report every owner
-   * as alive — disabling the sweep with no signal that it had stopped
+   * as held — disabling the sweep with no signal that it had stopped
    * working.
    */
-  private ownerIsAlive(encodedKey: string): boolean {
+  private ownerIsHeld(encodedKey: string): boolean {
     const owner = decodePropOwner(encodedKey);
     if (owner === null) {
       return true;
     }
     return owner.kind === 'edge'
-      ? this.edgeAlive.contains(owner.key)
-      : this.nodeAlive.contains(owner.id);
+      ? this.edgeAlive.hasEntries(owner.key)
+      : this.nodeAlive.hasEntries(owner.id);
   }
 
   /** Yields every node property register with decoded identity. */
