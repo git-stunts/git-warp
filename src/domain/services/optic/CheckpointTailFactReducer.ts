@@ -8,6 +8,7 @@ import NodeRemove from '../../types/ops/NodeRemove.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import { EventId } from '../../utils/EventId.ts';
 import { normalizeRawOp } from '../OpNormalizer.ts';
+import { advanceLifecycleEvent, predatesLifecycle } from '../state/ElementLifecycle.ts';
 import type { CheckpointTailPatchEntry } from './CheckpointTailOpticSource.ts';
 
 type NormalizedTailOperation = ReturnType<typeof normalizeRawOp>;
@@ -39,7 +40,7 @@ export default class CheckpointTailFactReducer {
   ): boolean {
     return entry.patch.ops.some((rawOp) => {
       const op = normalizeRawOp(rawOp);
-      return op instanceof NodePropSet && op.node === nodeId && op.key === propertyKey;
+      return isTargetPropertyOp(op, nodeId, propertyKey) || isTargetLifecycleOp(op, nodeId);
     });
   }
 
@@ -84,7 +85,16 @@ export default class CheckpointTailFactReducer {
     readonly propertyKey: string;
   }): PropValue | undefined {
     const tailRegister = this._tailPropertyRegister(options);
-    return tailRegister !== null ? tailRegister.value : options.baseValue;
+    const lifecycleEvent = latestTailLifecycleEvent(options.tailEntries, options.nodeId);
+    if (lifecycleEvent === undefined) {
+      return tailRegister !== null ? tailRegister.value : options.baseValue;
+    }
+    // Tail events sort after every checkpointed register, so a tail add or
+    // remove hides the checkpoint value and any tail write before it.
+    if (tailRegister === null || predatesLifecycle(tailRegister.eventId, lifecycleEvent, undefined)) {
+      return undefined;
+    }
+    return tailRegister.value;
   }
 
   assertNeighborhoodTailStable(
@@ -190,6 +200,28 @@ function isTargetPropertyOp(
   propertyKey: string,
 ): op is NodePropSet {
   return op instanceof NodePropSet && op.node === nodeId && op.key === propertyKey;
+}
+
+/** An add of the node, or a remove that observed at least one of its dots. */
+function isTargetLifecycleOp(op: NormalizedTailOperation, nodeId: string): op is NodeAdd | NodeRemove {
+  return isTargetNodeAdd(op, nodeId)
+    || (isTargetNodeRemove(op, nodeId) && op.observedDots.length > 0);
+}
+
+/** The latest add or remove of the node among the tail patches. */
+function latestTailLifecycleEvent(
+  tailEntries: readonly CheckpointTailPatchEntry[],
+  nodeId: string,
+): EventId | undefined {
+  const events = new Map<string, EventId>();
+  for (const entry of tailEntries) {
+    entry.patch.ops.forEach((rawOp, opIndex) => {
+      if (isTargetLifecycleOp(normalizeRawOp(rawOp), nodeId)) {
+        advanceLifecycleEvent(events, nodeId, new EventId(entry.patch.lamport, entry.patch.writer, entry.sha, opIndex));
+      }
+    });
+  }
+  return events.get(nodeId);
 }
 
 function isTargetNodeAdd(
