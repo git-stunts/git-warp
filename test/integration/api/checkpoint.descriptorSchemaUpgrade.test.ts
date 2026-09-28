@@ -15,6 +15,9 @@ import { computeStateHash, projectState } from '../../../src/domain/services/sta
 import { decodeCanonicalWarpFullState } from '../../../src/infrastructure/codecs/WarpStateCborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
+import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import type RuntimeStorageProviderPort from '../../../src/ports/RuntimeStorageProviderPort.ts';
+import type { RuntimeStorageRequest, RuntimeStorageServices } from '../../../src/ports/RuntimeStorageProviderPort.ts';
 import { createTestRepo } from './helpers/setup.ts';
 
 const GRAPH = 'upgrade';
@@ -197,4 +200,42 @@ describe('API: checkpoint written before descriptor schema 6', () => {
     await reopened.materialize();
     expect(await reopened.getNodeProps('n')).toEqual({});
   });
+
+  it('rebuilds an explicit materializeAt of the checkpoint from patches', async () => {
+    if (repo === null) {
+      throw new Error('Test repository is not initialized');
+    }
+    const writer = await repo.openGraph(GRAPH, 'w1');
+    await (await writer.createPatch()).addNode('n').setProperty('n', 'color', 'red').commit();
+    await writer.materialize();
+    await (await writer.createPatch()).removeNode('n').commit();
+    await writer.materialize();
+    await (await writer.createPatch()).addNode('n').commit();
+    await writer.materialize();
+    const forged = await forgeOlderCheckpoint(repo, await writer.createCheckpoint());
+    await (await writer.createPatch()).setProperty('n', 'size', 'large').commit();
+
+    // materializeAt() runs only on a runtime without a trie store; the
+    // session-backed line refuses it before reading any checkpoint.
+    const storage = new GitCasRepositoryAdapter({ plumbing: repo.plumbing, history: repo.persistence });
+    try {
+      const reader = await repo.openGraph(GRAPH, 'w1', { runtimeStorage: withoutTrieStore(storage) });
+      const state = await reader.materializeAt(forged.checkpointSha);
+      expect([...state.nodeAlive.elements()]).toEqual(['n']);
+      expect(await reader.getNodeProps('n')).toEqual({ size: 'large' });
+    } finally {
+      await storage.close();
+    }
+  });
 });
+
+/** Supplies the repository's storage services without the trie store. */
+function withoutTrieStore(storage: RuntimeStorageProviderPort): RuntimeStorageProviderPort {
+  return {
+    async createRuntimeStorageServices(request: RuntimeStorageRequest): Promise<RuntimeStorageServices> {
+      const { trie, ...services } = await storage.createRuntimeStorageServices(request);
+      expect(trie).toBeDefined();
+      return services;
+    },
+  };
+}

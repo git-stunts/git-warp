@@ -159,11 +159,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `full-v5` and unversioned state. Earlier releases cannot read `full-v6`.
 - The materialization descriptor schema is now 6, for cache entries and
   checkpoints alike. A cache entry written under schema 5 misses. A checkpoint
-  written under schema 5 is treated as absent: `materialize()` replays the
-  graph from its patches instead of resuming from it, so the new visibility
-  also applies to history before that checkpoint, and a bounded
-  checkpoint-tail read refuses with `E_OPTIC_NO_BOUNDED_BASIS`. Neither
-  throws a descriptor schema error.
+  written under schema 5 is treated as absent: `materialize()`, and an
+  explicit `materializeAt()` of that checkpoint, replay the graph from its
+  patches instead of resuming from it, so the new visibility also applies to
+  history before that checkpoint, and a bounded checkpoint-tail read refuses
+  with `E_OPTIC_NO_BOUNDED_BASIS`. None of them throws a descriptor schema
+  error.
 - The node lifecycle records are a new shard family in the checkpoint index
   root: `life_XX.cbor` shards (schema 1, one per index shard key) and one
   `life_receipt.cbor`. The receipt marks a root that carries the family. A
