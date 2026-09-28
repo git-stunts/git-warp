@@ -25,14 +25,10 @@ import {
   type MutablePatchDiff,
 } from "../types/PatchDiff.ts";
 import { compareEventIds, EventId } from "../utils/EventId.ts";
-import { advanceLifecycleEvent, mergeLifecycleEvents } from "./state/ElementLifecycle.ts";
-import {
-  isStaleNodeRegisterIn,
-  mergeNodeLifecycles,
-  recordNodeAdd,
-  recordNodeRemove,
-  type NodeLifecycleSource,
-} from "./state/NodeLifecycle.ts";
+import { advanceLifecycleEvent } from "./state/ElementLifecycle.ts";
+import { isStaleNodeRegisterIn, type NodeLifecycleSource } from "./state/NodeLifecycle.ts";
+import { joinStateLifecycles, type StateLifecycleSource } from "./state/StateLifecycle.ts";
+import { optionalLifecycleMap, recordClearedNode, recordSessionLifecycleOp, watchNodeClear } from "./ReducerSessionLifecycle.ts";
 import {
   encodeEdgeKey,
   encodeEdgePropKey,
@@ -79,15 +75,11 @@ export class ReducerSessionFrame {
   readonly nodePendingRemoveEvents: Map<string, readonly EventId[]>;
   readonly edgeRemoveEvent: Map<string, EventId>;
 
-  constructor(fields: {
+  constructor(fields: StateLifecycleSource & {
     readonly session: StateSession;
     readonly prop: Map<string, LWWRegister<ReducerPropValue>>;
     readonly observedFrontier: VersionVector;
     readonly edgeBirthEvent: Map<string, EventId>;
-    readonly nodeBirthEvent?: Map<string, EventId>;
-    readonly nodeClearEvent?: Map<string, EventId>;
-    readonly nodePendingRemoveEvents?: Map<string, readonly EventId[]>;
-    readonly edgeRemoveEvent?: Map<string, EventId>;
   }) {
     if (!(fields.session instanceof StateSession)) {
       throw new PatchError("ReducerSessionFrame requires a StateSession");
@@ -236,9 +228,7 @@ export async function joinFrames(
     session: left.session,
     prop: mergePropMaps(left.prop, right.prop),
     observedFrontier: left.observedFrontier.merge(right.observedFrontier),
-    edgeBirthEvent: mergeLifecycleEvents(left.edgeBirthEvent, right.edgeBirthEvent),
-    ...mergeNodeLifecycles(left, right),
-    edgeRemoveEvent: mergeLifecycleEvents(left.edgeRemoveEvent, right.edgeRemoveEvent),
+    ...joinStateLifecycles(left, right),
   });
 }
 
@@ -270,11 +260,12 @@ async function applyPatchInSession(
     const before = mode === "diff"
       ? await snapshotForDiff(frame, canonOp)
       : { kind: "none" } satisfies ReplayDiffSnapshot;
-    const clearBefore = nodeClearEventOf(frame, canonOp);
+    const clearWatch = watchNodeClear(frame, canonOp);
     await mutateInSession(frame, canonOp, eventId);
+    recordSessionLifecycleOp(frame, canonOp, eventId);
     if (mode === "diff") {
       await accumulateDiff(diff, frame, before);
-      recordClearedNode(nodesCleared, frame, canonOp, clearBefore);
+      recordClearedNode(nodesCleared, frame, clearWatch);
     }
   }
 
@@ -398,14 +389,10 @@ async function mutateInSession(
 ): Promise<void> {
   if (op instanceof NodeAdd) {
     await frame.session.addNode(op.node, op.dot);
-    recordNodeAdd(frame, op.node, eventId);
     return;
   }
   if (op instanceof NodeRemove) {
     await frame.session.removeNode(op.node, new Set(op.observedDots));
-    if (op.observedDots.length > 0) {
-      recordNodeRemove(frame, op.node, eventId);
-    }
     return;
   }
   if (op instanceof EdgeAdd) {
@@ -417,9 +404,6 @@ async function mutateInSession(
   if (op instanceof EdgeRemove) {
     const edgeKey = encodeEdgeKey(op.from, op.to, op.label);
     await frame.session.removeEdge(edgeKey, new Set(op.observedDots));
-    if (op.observedDots.length > 0) {
-      advanceLifecycleEvent(frame.edgeRemoveEvent, edgeKey, eventId);
-    }
     return;
   }
   if (op instanceof PropSet) {
@@ -443,26 +427,6 @@ async function mutateInSession(
     return;
   }
   throw new PatchError(`Unsupported canonical op for session replay: ${op.type}`);
-}
-
-/** The clear event of the node a node add or remove targets, before the op. */
-function nodeClearEventOf(frame: ReducerSessionFrame, op: Op): EventId | undefined {
-  return op instanceof NodeAdd || op instanceof NodeRemove ? frame.nodeClearEvent.get(op.node) : undefined;
-}
-
-/**
- * Records the node as cleared when the op advanced its clear event: earlier
- * property registers became hidden even if the node stayed alive.
- */
-function recordClearedNode(
-  nodesCleared: string[],
-  frame: ReducerSessionFrame,
-  op: Op,
-  clearBefore: EventId | undefined,
-): void {
-  if ((op instanceof NodeAdd || op instanceof NodeRemove) && frame.nodeClearEvent.get(op.node) !== clearBefore) {
-    nodesCleared.push(op.node);
-  }
 }
 
 async function accumulateDiff(
@@ -522,11 +486,7 @@ function foldPatchIntoFrame(frame: ReducerSessionFrame, patch: PatchLike): void 
   }
 }
 
-/**
- * Snapshots a property register before a write. For a node property,
- * `lifecycle` is given, and a register it hides has no visible value, so a
- * later write of the same value still shows up as a change.
- */
+/** Snapshots a register before a write; a node register `lifecycle` hides counts as absent. */
 function propertySnapshot(
   prop: ReadonlyMap<string, LWWRegister<ReducerPropValue>>,
   nodeId: string,
@@ -596,19 +556,6 @@ function mergePropMaps(
     }
   }
   return merged;
-}
-
-function optionalLifecycleMap<V>(
-  value: Map<string, V> | undefined,
-  field: string,
-): Map<string, V> {
-  if (value === undefined) {
-    return new Map<string, V>();
-  }
-  if (!(value instanceof Map)) {
-    throw new PatchError(`ReducerSessionFrame requires a ${field} Map`);
-  }
-  return value;
 }
 
 async function mergeLiveNodesInto(

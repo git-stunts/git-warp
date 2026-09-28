@@ -12,8 +12,10 @@ import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { lwwMax, lwwSet, type LWWRegister } from '../../crdt/LWW.ts';
 import type { EventId } from '../../utils/EventId.ts';
-import { isStaleEdgeRegisterIn, mergeLifecycleEvents } from './ElementLifecycle.ts';
-import { copyNodeLifecycle, isStaleNodeRegisterIn, mergeNodeLifecycles } from './NodeLifecycle.ts';
+import { isStaleEdgeRegisterIn } from './ElementLifecycle.ts';
+import { isStaleNodeRegisterIn } from './NodeLifecycle.ts';
+import { copyStateLifecycle, joinStateLifecycles, type StateLifecycleSource } from './StateLifecycle.ts';
+import { compareStrings } from '../../utils/StringComparison.ts';
 import AttachmentKey from '../../graph/AttachmentKey.ts';
 import AttachmentRecord from '../../graph/AttachmentRecord.ts';
 import AttachmentSchemaVersion from '../../graph/AttachmentSchemaVersion.ts';
@@ -43,16 +45,11 @@ export type EdgePropertyEntry = {
 };
 
 /** Constructor fields; absent lifecycle maps start empty. */
-export type WarpStateFields = {
+export type WarpStateFields = StateLifecycleSource & {
   readonly nodeAlive: ORSet;
   readonly edgeAlive: ORSet;
   readonly prop: Map<string, LWWRegister<PropValue>>;
   readonly observedFrontier: VersionVector;
-  readonly edgeBirthEvent?: Map<string, EventId>;
-  readonly nodeBirthEvent?: Map<string, EventId>;
-  readonly nodeClearEvent?: Map<string, EventId>;
-  readonly nodePendingRemoveEvents?: Map<string, readonly EventId[]>;
-  readonly edgeRemoveEvent?: Map<string, EventId>;
 };
 
 export type WarpStatePropertyRegisterSource = {
@@ -73,13 +70,10 @@ export default class WarpState {
   observedFrontier: VersionVector;
   /** EdgeKey → EventId of most recent EdgeAdd (for clean-slate prop visibility). */
   edgeBirthEvent: Map<string, EventId>;
-  /** NodeId → EventId of most recent NodeAdd (see NodeLifecycle). */
+  /** Node lifecycle records and edge removes; each map is described on StateLifecycleSource. */
   nodeBirthEvent: Map<string, EventId>;
-  /** NodeId → latest NodeRemove sorting below the node's latest add (see NodeLifecycle). */
   nodeClearEvent: Map<string, EventId>;
-  /** NodeId → NodeRemoves sorting above the node's latest add, ascending (see NodeLifecycle). */
   nodePendingRemoveEvents: Map<string, readonly EventId[]>;
-  /** EdgeKey → EventId of most recent EdgeRemove (for clean-slate prop visibility). */
   edgeRemoveEvent: Map<string, EventId>;
 
   constructor(fields: WarpStateFields) {
@@ -334,9 +328,7 @@ export default class WarpState {
       edgeAlive: this.edgeAlive.clone(),
       prop: new Map(this.prop),
       observedFrontier: this.observedFrontier.clone(),
-      edgeBirthEvent: new Map(this.edgeBirthEvent),
-      ...copyNodeLifecycle(this),
-      edgeRemoveEvent: new Map(this.edgeRemoveEvent),
+      ...copyStateLifecycle(this),
     });
   }
 
@@ -346,17 +338,7 @@ export default class WarpState {
    * reducer and checkpoint loader to accept either class instances or
    * hydrated POJOs at the boundary.
    */
-  static cloneFromSnapshot(state: WarpState | {
-    readonly nodeAlive: ORSet;
-    readonly edgeAlive: ORSet;
-    readonly prop: Map<string, LWWRegister<PropValue>>;
-    readonly observedFrontier: VersionVector;
-    readonly edgeBirthEvent?: Map<string, EventId>;
-    readonly nodeBirthEvent?: Map<string, EventId>;
-    readonly nodeClearEvent?: Map<string, EventId>;
-    readonly nodePendingRemoveEvents?: Map<string, readonly EventId[]>;
-    readonly edgeRemoveEvent?: Map<string, EventId>;
-  }): WarpState {
+  static cloneFromSnapshot(state: WarpState | WarpStateFields): WarpState {
     if (state instanceof WarpState) {
       return state.clone();
     }
@@ -365,9 +347,7 @@ export default class WarpState {
       edgeAlive: state.edgeAlive.clone(),
       prop: new Map(state.prop),
       observedFrontier: state.observedFrontier.clone(),
-      edgeBirthEvent: new Map(state.edgeBirthEvent ?? []),
-      ...copyNodeLifecycle(state),
-      edgeRemoveEvent: new Map(state.edgeRemoveEvent ?? []),
+      ...copyStateLifecycle(state),
     });
   }
 
@@ -377,8 +357,7 @@ export default class WarpState {
    * - `nodeAlive` / `edgeAlive`: OR-Set join
    * - `prop`: LWW-Max per key
    * - `observedFrontier`: VersionVector merge (component-wise max)
-   * - edge birth and remove events: EventId max per edge key
-   * - node lifecycle records: NodeLifecycle merge
+   * - birth, clear and remove events: StateLifecycle join
    */
   join(other: WarpState): WarpState {
     return new WarpState({
@@ -386,9 +365,7 @@ export default class WarpState {
       edgeAlive: this.edgeAlive.join(other.edgeAlive),
       prop: WarpState._mergeProps(this.prop, other.prop),
       observedFrontier: this.observedFrontier.merge(other.observedFrontier),
-      edgeBirthEvent: mergeLifecycleEvents(this.edgeBirthEvent, other.edgeBirthEvent),
-      ...mergeNodeLifecycles(this, other),
-      edgeRemoveEvent: mergeLifecycleEvents(this.edgeRemoveEvent, other.edgeRemoveEvent),
+      ...joinStateLifecycles(this, other),
     });
   }
 
@@ -519,15 +496,4 @@ function attachmentRecordSortKey(record: AttachmentRecord): string {
     return `node:${record.owner.id.toString()}:${record.key.toString()}`;
   }
   return `edge:${record.owner.id.toString()}:${record.key.toString()}`;
-}
-
-/** Compares protocol strings without locale-sensitive collation. */
-function compareStrings(left: string, right: string): number {
-  if (left < right) {
-    return -1;
-  }
-  if (left > right) {
-    return 1;
-  }
-  return 0;
 }
