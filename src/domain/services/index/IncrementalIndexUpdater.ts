@@ -166,7 +166,7 @@ export default class IncrementalIndexUpdater {
 
     Object.assign(out, this._propertyUpdater.computeDirtyPropertyShards({
       propsChanged: diff.propsChanged,
-      nodesCleared: diff.nodesCleared ?? [],
+      nodesCleared: diff.nodesCleared,
       state,
     }, loadShard));
 
@@ -192,7 +192,7 @@ export default class IncrementalIndexUpdater {
     for (const p of diff.propsChanged) {
       keys.add(computeShardKey(p.nodeId));
     }
-    for (const nodeId of diff.nodesCleared ?? []) {
+    for (const nodeId of diff.nodesCleared) {
       keys.add(computeShardKey(nodeId));
     }
     return keys;

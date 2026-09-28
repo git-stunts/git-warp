@@ -101,21 +101,21 @@ export class PatchDiff {
   /**
    * Nodes whose property registers written before a remove that precedes
    * the node's latest add became hidden. This can happen without the node
-   * leaving the alive set. A hand-built diff may omit it; absent means no
-   * node was cleared.
+   * leaving the alive set. Every producer must say which nodes, possibly
+   * none, so the incremental index never keeps a hidden property.
    */
-  readonly nodesCleared?: readonly string[];
+  readonly nodesCleared: readonly string[];
 
   /**
    * Creates a PatchDiff from field values.
    */
-  constructor({ nodesAdded, nodesRemoved, edgesAdded, edgesRemoved, propsChanged, nodesCleared = [] }: {
+  constructor({ nodesAdded, nodesRemoved, edgesAdded, edgesRemoved, propsChanged, nodesCleared }: {
     nodesAdded: readonly string[];
     nodesRemoved: readonly string[];
     edgesAdded: readonly EdgeDiffEntry[];
     edgesRemoved: readonly EdgeDiffEntry[];
     propsChanged: readonly PropDiffEntry[];
-    nodesCleared?: readonly string[];
+    nodesCleared: readonly string[];
   }) {
     requireArray(nodesAdded, 'nodesAdded');
     requireArray(nodesRemoved, 'nodesRemoved');
@@ -142,6 +142,7 @@ export class PatchDiff {
       edgesAdded: [],
       edgesRemoved: [],
       propsChanged: [],
+      nodesCleared: [],
     });
   }
 }
@@ -215,7 +216,7 @@ export function mergeDiffs(a: PatchDiff, b: PatchDiff): PatchDiff {
   const edgesRemoved = allEdgesRemoved.filter((e) => !edgeAddedSet.has(edgeKey(e)));
 
   const propsChanged = deduplicateProps(a.propsChanged.concat(b.propsChanged));
-  const nodesCleared = [...(a.nodesCleared ?? []), ...(b.nodesCleared ?? [])];
+  const nodesCleared = [...a.nodesCleared, ...b.nodesCleared];
 
   return new PatchDiff({ nodesAdded, nodesRemoved, edgesAdded, edgesRemoved, propsChanged, nodesCleared });
 }
