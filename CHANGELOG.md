@@ -159,8 +159,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `full-v5` and unversioned state. Earlier releases cannot read `full-v6`.
 - The materialization descriptor schema is now 6, for cache entries and
   checkpoints alike. A cache entry written under schema 5 misses. A checkpoint
-  written under schema 5 is treated as absent: `materialize()`, and an
-  explicit `materializeAt()` of that checkpoint, replay the graph from its
+  written under schema 5 is treated as absent: `materialize()`, and, on a
+  runtime without a trie store (the only kind on which it runs), an explicit
+  `materializeAt()` of that checkpoint, replay the graph from its
   patches instead of resuming from it, so the new visibility also applies to
   history before that checkpoint, and a bounded checkpoint-tail read refuses
   with `E_OPTIC_NO_BOUNDED_BASIS`. None of them throws a descriptor schema
@@ -171,7 +172,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   records its shard count, and lists the node dots the checkpoint's removes
   observed without holding their adds. A checkpoint taken after one writer's
   patches arrived but before the patches they observed can hold such a
-  remove; a bounded read then treats a tail add of that dot as removed, as
+  remove; a bounded property read then treats a tail add of that dot as
+  removed, as
   `materialize()` does. A read that finds the receipt with a schema
   version other than 1, or with a shard count that differs from the
   `life_XX.cbor` members present, refuses with `E_OPTIC_NO_BOUNDED_BASIS`. A
@@ -184,7 +186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Each `life_XX.cbor` shard must fit the index shard limits of 16 MiB and
   2,000,000 CBOR items. A node's record takes 25 items when the node is live
   with two properties and 30 when it was removed, plus 7 for each further
-  property, and about 175 to 260 bytes, so one shard holds about 64,000 to
+  property, and about 175 to 260 bytes for node ids of up to 40 characters,
+  so one shard holds about 64,000 to
   80,000 records. Spread evenly over the 256 shard keys, the family reaches a
   limit at roughly 16 to 20 million recorded nodes. At 10,000 nodes its
   largest shard is 8 to 11 times the size of the largest logical `meta_XX`
