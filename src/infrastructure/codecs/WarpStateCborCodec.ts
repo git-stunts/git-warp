@@ -75,7 +75,37 @@ export function decodeWarpFullState(buffer: Uint8Array, codec: CodecPort): WarpS
     return createEmptyState();
   }
   assertSupportedFullStateVersion(obj.version);
+  if (obj.version === FULL_STATE_VERSION) {
+    assertLifecycleLists(obj);
+  }
   return hydrateWarpState(obj);
+}
+
+const LIFECYCLE_LIST_FIELDS = ['nodeBirthEvent', 'nodeClearEvent', 'nodePendingRemoveEvents', 'edgeRemoveEvent'] as const;
+
+/**
+ * The full-v6 writer emits all four lifecycle lists, empty or not. A missing
+ * list, or one that is not a list, is refused rather than read as empty,
+ * which would make a hidden property visible again.
+ */
+function assertLifecycleLists(obj: DecodedFullState): void {
+  for (const field of LIFECYCLE_LIST_FIELDS) {
+    if (!Array.isArray(obj[field])) {
+      throw invalidLifecycleList(field);
+    }
+  }
+  const pendingRemoves: readonly unknown[] = obj.nodePendingRemoveEvents ?? [];
+  if (!pendingRemoves.every(isPendingRemoveEntry)) {
+    throw invalidLifecycleList('nodePendingRemoveEvents');
+  }
+}
+
+function isPendingRemoveEntry(entry: unknown): boolean {
+  return Array.isArray(entry) && entry.length === 2 && Array.isArray(entry[1]);
+}
+
+function invalidLifecycleList(field: string): WarpError {
+  return new WarpError(`Full state ${field} is missing or is not a list`, 'E_INVALID_FULL_STATE_LIFECYCLE');
 }
 
 /**
