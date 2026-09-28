@@ -11,6 +11,7 @@ import {
   NODE_LIFECYCLE_RECEIPT_PATH,
   nodeLifecycleShardPath,
 } from '../index/NodeLifecycleShardReader.ts';
+import type { NodeLifecycleReceipt } from '../../artifacts/NodeLifecycleReceipt.ts';
 import type { NodeLifecycleRecord } from '../../artifacts/NodeLifecycleRecord.ts';
 import type CodecValue from '../../types/codec/CodecValue.ts';
 import CheckpointNeighborhoodPageReader, {
@@ -31,9 +32,12 @@ export type {
   CheckpointShardNeighborhoodReadOptions,
 } from './CheckpointNeighborhoodPageReader.ts';
 
-/** A node's lifecycle record at the checkpoint, or `unwitnessed` when the basis does not carry records. */
+/**
+ * A node's lifecycle record at the checkpoint, with the root's floating node
+ * tombstones, or `unwitnessed` when the basis does not carry records.
+ */
 export type CheckpointNodeLifecycleRecord =
-  | Readonly<{ kind: 'witnessed'; record: NodeLifecycleRecord | null }>
+  | Readonly<{ kind: 'witnessed'; record: NodeLifecycleRecord | null; floatingTombstones: ReadonlySet<string> }>
   | Readonly<{ kind: 'unwitnessed' }>;
 
 const UNWITNESSED_NODE_LIFECYCLE: CheckpointNodeLifecycleRecord = Object.freeze({ kind: 'unwitnessed' });
@@ -160,14 +164,15 @@ export default class CheckpointShardFactReader {
     if (receiptToken === undefined) {
       return UNWITNESSED_NODE_LIFECYCLE;
     }
-    await this._requireNodeLifecycleReceipt(basis, receiptToken);
+    const receipt = await this._requireNodeLifecycleReceipt(basis, receiptToken);
+    const floatingTombstones: ReadonlySet<string> = new Set(receipt.floatingTombstones);
     const path = nodeLifecycleShardPath(nodeId);
     const token = basis.manifest.livenessRoots.get(path);
     if (token === undefined) {
-      return Object.freeze({ kind: 'witnessed', record: null });
+      return Object.freeze({ kind: 'witnessed', record: null, floatingTombstones });
     }
     const records = await this._readNodeLifecycleShard(basis, path, token);
-    return Object.freeze({ kind: 'witnessed', record: records.get(nodeId) ?? null });
+    return Object.freeze({ kind: 'witnessed', record: records.get(nodeId) ?? null, floatingTombstones });
   }
 
   nodeLifecycleShardIdentities(
@@ -205,9 +210,12 @@ export default class CheckpointShardFactReader {
     return await this._decodeLivenessMember(basis, { path, token }, (decoded) => decodeNodeLifecycleShard(decoded, path));
   }
 
-  private async _requireNodeLifecycleReceipt(basis: CheckpointTailIndexBasis, token: string): Promise<void> {
+  private async _requireNodeLifecycleReceipt(
+    basis: CheckpointTailIndexBasis,
+    token: string,
+  ): Promise<NodeLifecycleReceipt> {
     const memberPaths = basis.manifest.livenessRoots.paths();
-    await this._decodeLivenessMember(
+    return await this._decodeLivenessMember(
       basis,
       { path: NODE_LIFECYCLE_RECEIPT_PATH, token },
       (decoded) => decodeNodeLifecycleReceipt(decoded, memberPaths),

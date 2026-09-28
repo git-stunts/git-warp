@@ -33,6 +33,7 @@ const CHECKPOINT_LIFECYCLE: CheckpointNodeLifecycle = {
   lifecycle: { nodeBirthEvent: new Map([[NODE, new EventId(1, 'writer-a', 'abcdef01', 0)]]) },
   baseRegisterEvent: new EventId(2, 'writer-a', 'abcdef02', 0),
   baseAlive: true,
+  floatingTombstones: new Set<string>(),
 };
 
 function read(baseValue: string | undefined, tailEntries: readonly CheckpointTailPatchEntry[]) {

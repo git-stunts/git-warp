@@ -3,7 +3,8 @@
  *
  * One `life_XX.cbor` shard per index shard key holds a NodeLifecycleRecord
  * for every node with a lifecycle record or a register that is not stale,
- * and one `life_receipt.cbor` marks the root as carrying the family.
+ * and one `life_receipt.cbor` marks the root as carrying the family and
+ * lists the node tombstones whose adds the state does not hold.
  *
  * @module domain/services/index/NodeLifecycleIndexBuilder
  */
@@ -65,7 +66,11 @@ export default class NodeLifecycleIndexBuilder {
       nodeCount += records.length;
       yield new NodeLifecycleShard({ shardKey, records });
     }
-    yield new NodeLifecycleReceipt({ nodeCount, shardCount: this._nodesByShard.size });
+    yield new NodeLifecycleReceipt({
+      nodeCount,
+      shardCount: this._nodesByShard.size,
+      floatingTombstones: floatingNodeTombstones(this._state),
+    });
   }
 
   private _shardRecords(shardKey: string): readonly NodeLifecycleRecord[] {
@@ -94,6 +99,16 @@ function eventIdOf(event: Pick<EventId, 'lamport' | 'writerId' | 'patchSha' | 'o
   return event instanceof EventId
     ? event
     : new EventId(event.lamport, event.writerId, event.patchSha, event.opIndex);
+}
+
+/**
+ * Node tombstones no add in the state holds. Compaction drops a dot's entry
+ * and its tombstone together, so these come only from removes that observed
+ * an add the state has not received.
+ */
+function floatingNodeTombstones(state: WarpState): readonly string[] {
+  const held = new Set(state.nodeAlive.entryDotsIter());
+  return [...state.nodeAlive.tombstonesIter()].filter((dot) => !held.has(dot)).sort(compareStrings);
 }
 
 function lifecycleNodeIds(state: WarpState): ReadonlySet<string> {

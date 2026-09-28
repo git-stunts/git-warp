@@ -5,6 +5,8 @@
  *
  * The pinned sha256 values were produced by running this file once against
  * the first implementation; they catch any later change to the encoding.
+ * The receipt's value was pinned again the same way when the receipt gained
+ * its floating tombstones.
  */
 
 import { createHash } from 'node:crypto';
@@ -15,6 +17,7 @@ import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { applyPatchOp, createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 import NodeLifecycleIndexBuilder from '../../../../src/domain/services/index/NodeLifecycleIndexBuilder.ts';
 import {
+  decodeNodeLifecycleReceipt,
   decodeNodeLifecycleShard,
   NODE_LIFECYCLE_RECEIPT_PATH,
   nodeLifecycleShardPath,
@@ -129,5 +132,45 @@ const PINNED_SHA256: Readonly<Record<string, string>> = {
   'life_67.cbor': 'ddbed744de462c866f77c32345a5065844fd661142d4c252298b592f753ce749',
   'life_9c.cbor': 'e6785b2fccea6a69c9c1211aef84627f9ea2f1e378ae18b6a9844de3bec98082',
   'life_b2.cbor': '580a16494d4724cc5f6d91092b0151f1dab8362a82a0aa34b1fafa129e28414c',
-  'life_receipt.cbor': 'de356c831e5561808ed62c0e6aef51f75ccb149da1979200292dac2ff45271bc',
+  'life_receipt.cbor': 'b298c86c4476d8a52c4d7684bec1d664b4b55358221477a4b5f759255c701d98',
 };
+
+describe('node lifecycle receipt', () => {
+  function receiptOf(encoded: ReadonlyMap<string, Uint8Array>): CodecValue {
+    return codec.decode<CodecValue>(encoded.get(NODE_LIFECYCLE_RECEIPT_PATH) ?? new Uint8Array());
+  }
+
+  it('lists the node tombstones whose adds the state does not hold', async () => {
+    // Writer x removed a dot of writer y that this state never received.
+    const state = lifecycleState();
+    applyPatchOp(state, new NodeRemove('plain', [encodeDot(Dot.create('y', 1))]), event(11, 'x'));
+    const encoded = await encode(NodeLifecycleIndexBuilder.fromState(state).yieldShards());
+    const paths = [...encoded.keys()];
+
+    expect(decodeNodeLifecycleReceipt(receiptOf(encoded), paths)).toMatchObject({
+      nodeCount: 3,
+      shardCount: 3,
+      floatingTombstones: ['y:1'],
+    });
+  });
+
+  it('lists none when every removed dot has its add in the state', async () => {
+    const encoded = await encode(NodeLifecycleIndexBuilder.fromState(lifecycleState()).yieldShards());
+
+    expect(decodeNodeLifecycleReceipt(receiptOf(encoded), [...encoded.keys()])).toMatchObject({ floatingTombstones: [] });
+  });
+
+  it('refuses floating tombstones that are not ascending encoded dots', () => {
+    const paths = ['life_67.cbor'];
+    const receipt = (floatingTombstones: CodecValue): () => void => () => decodeNodeLifecycleReceipt(
+      codec.decode<CodecValue>(codec.encode({ schemaVersion: 1, nodeCount: 1, shardCount: 1, floatingTombstones })),
+      paths,
+    );
+    const malformed = expect.objectContaining({ code: 'E_INDEX_SHARD_MALFORMED' });
+
+    expect(receipt(['y:2', 'y:1'])).toThrow(malformed);
+    expect(receipt(['not-a-dot'])).toThrow(malformed);
+    expect(receipt([1])).toThrow(malformed);
+    expect(receipt(['y:1'])).not.toThrow();
+  });
+});

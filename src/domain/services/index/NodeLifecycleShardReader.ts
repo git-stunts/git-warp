@@ -30,7 +30,7 @@ export const NODE_LIFECYCLE_RECEIPT_PATH = 'life_receipt.cbor';
 const NODE_LIFECYCLE_PATH_PREFIX = 'life_';
 const NODE_LIFECYCLE_SHARD_PATH = /^life_[0-9a-f]{2}\.cbor$/u;
 const ENVELOPE_KEYS = 'entries,schemaVersion';
-const RECEIPT_KEYS = 'nodeCount,schemaVersion,shardCount';
+const RECEIPT_KEYS = 'floatingTombstones,nodeCount,schemaVersion,shardCount';
 const PAIR_FIELDS = 2;
 const RECORD_FIELDS = 4;
 const EVENT_FIELDS = 4;
@@ -91,6 +91,7 @@ export function decodeNodeLifecycleReceipt(
   const receipt = validated(path, () => new NodeLifecycleReceipt({
     nodeCount: requireNumber(decoded['nodeCount'], path),
     shardCount: requireNumber(decoded['shardCount'], path),
+    floatingTombstones: requireArray(decoded['floatingTombstones'], path).map((dot) => requireString(dot, path)),
   }));
   const present = memberPaths.filter(isNodeLifecycleShardPath).length;
   if (present !== receipt.shardCount) {

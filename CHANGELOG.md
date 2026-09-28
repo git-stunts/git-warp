@@ -167,8 +167,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error.
 - The node lifecycle records are a new shard family in the checkpoint index
   root: `life_XX.cbor` shards (schema 1, one per index shard key) and one
-  `life_receipt.cbor`. The receipt marks a root that carries the family and
-  records its shard count. A read that finds the receipt with a schema
+  `life_receipt.cbor`. The receipt marks a root that carries the family,
+  records its shard count, and lists the node dots the checkpoint's removes
+  observed without holding their adds. A checkpoint taken after one writer's
+  patches arrived but before the patches they observed can hold such a
+  remove; a bounded read then treats a tail add of that dot as removed, as
+  `materialize()` does. A read that finds the receipt with a schema
   version other than 1, or with a shard count that differs from the
   `life_XX.cbor` members present, refuses with `E_OPTIC_NO_BOUNDED_BASIS`. A
   root without it, from any earlier writer, is read as having no records, and

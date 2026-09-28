@@ -16,13 +16,16 @@ import type { CheckpointTailPatchEntry } from './CheckpointTailOpticSource.ts';
  * What the read knows about the node at the checkpoint. `lifecycle` holds
  * the checkpoint's node lifecycle records, `baseRegisterEvent` the EventId
  * of the node's register for the key when it is not stale (whether or not
- * the node is live), and `baseAlive` whether the node is live.
+ * the node is live), `baseAlive` whether the node is live, and
+ * `floatingTombstones` the encoded node dots the checkpoint's removes
+ * observed although no checkpoint add holds them.
  */
 export type WitnessedCheckpointNodeLifecycle = {
   readonly kind: 'witnessed';
   readonly lifecycle: NodeLifecycleSource;
   readonly baseRegisterEvent: EventId | null;
   readonly baseAlive: boolean;
+  readonly floatingTombstones: ReadonlySet<string>;
 };
 
 /**
@@ -167,7 +170,7 @@ export default class CheckpointTailFactReducer {
     checkpointLifecycle: WitnessedCheckpointNodeLifecycle,
     tailNode: CheckpointTailNodeScan,
   ): 'alive' | 'dead' {
-    const liveness = tailNode.livenessAfter(checkpointLifecycle.baseAlive);
+    const liveness = tailNode.livenessAfter(checkpointLifecycle.baseAlive, checkpointLifecycle.floatingTombstones);
     if (liveness === 'undecided') {
       throwNoBoundedBasis(this._graphName, 'tail-node-remove-needs-raw-liveness-witnesses');
     }

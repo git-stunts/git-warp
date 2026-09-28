@@ -42,7 +42,12 @@ export async function readCheckpointNodeProperty(
       checkpointIndexShards: propertyShards,
     });
   }
-  return await witnessedProperty(options, { baseValue, propertyShards, record: lifecycle.record });
+  return await witnessedProperty(options, {
+    baseValue,
+    propertyShards,
+    record: lifecycle.record,
+    floatingTombstones: lifecycle.floatingTombstones,
+  });
 }
 
 async function witnessedProperty(
@@ -51,6 +56,7 @@ async function witnessedProperty(
     baseValue: PropValue | undefined;
     propertyShards: readonly ReadIdentityIndexShard[];
     record: NodeLifecycleRecord | null;
+    floatingTombstones: ReadonlySet<string>;
   }>,
 ): Promise<CheckpointNodePropertyWitness> {
   const { basis, nodeId, shardReader } = options;
@@ -65,6 +71,7 @@ async function witnessedProperty(
       lifecycle: lifecycleSource(nodeId, read.record),
       baseRegisterEvent,
       baseAlive: await shardReader.readNodeAlive(basis, nodeId),
+      floatingTombstones: read.floatingTombstones,
     }),
     checkpointIndexShards: Object.freeze([
       ...read.propertyShards,

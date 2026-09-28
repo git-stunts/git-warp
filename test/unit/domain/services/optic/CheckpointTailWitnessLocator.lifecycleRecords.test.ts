@@ -183,6 +183,46 @@ describe('checkpoint-tail property reads the records cannot decide', () => {
   });
 });
 
+describe('checkpoint-tail property reads when a checkpoint remove observed a tail add', () => {
+  // Writer X saw writer Y's add of dot (Y,1) and removed it; the checkpoint
+  // holds X's remove, but Y's add is after the checkpoint frontier, as a
+  // checkpoint taken while a sync has delivered X's chain and not yet Y's
+  // leaves it. The remove's tombstone kills the tail add in every order, so
+  // Y's later write, which sorts above the remove, is not visible.
+  const REMOVE_BEFORE_ITS_ADD: HarnessScenario = {
+    checkpoint: [
+      { writer: 'X', lamport: 5, sha: 'dddd0005', ops: [remove(['Y', 1])] },
+    ],
+    tail: [
+      { writer: 'Y', lamport: 3, sha: 'ffff0003', ops: [add('Y', 1)] },
+      { writer: 'Y', lamport: 9, sha: 'ffff0009', ops: [write('w')] },
+    ],
+  };
+
+  /** The same history with a second, unobserved checkpoint add that keeps the node live. */
+  const REMOVE_BEFORE_ITS_ADD_LIVE: HarnessScenario = {
+    checkpoint: [
+      { writer: 'A', lamport: 1, sha: 'aaaa0001', ops: [add('A', 1)] },
+      ...REMOVE_BEFORE_ITS_ADD.checkpoint,
+    ],
+    tail: REMOVE_BEFORE_ITS_ADD.tail,
+  };
+
+  it.each([
+    ['the node has no other add', REMOVE_BEFORE_ITS_ADD, null],
+    ['another checkpoint add keeps the node live', REMOVE_BEFORE_ITS_ADD_LIVE, 'w'],
+  ] as const)('answers as materialize() when %s', async (_name, scenario, expected) => {
+    expect(materializedValue(scenario)).toBe(expected);
+
+    const read = await tailRead(scenario);
+
+    expect(read).toEqual({ kind: 'value', value: expected });
+    for (const reordered of reducerReadsInEveryTailOrder(scenario)) {
+      expect(reordered).toEqual(read);
+    }
+  });
+});
+
 describe('checkpoint-tail property reads over an index root whose lifecycle receipt does not match its members', () => {
   it('refuses when the receipt is present and the node lifecycle shard is missing', async () => {
     // Without the shard the node reads as having no record, and probe (e)'s

@@ -97,6 +97,7 @@ export class IndexShardEncodeTransform extends Transform<IndexShard, [string, Ui
         schemaVersion: shard.schemaVersion,
         nodeCount: shard.nodeCount,
         shardCount: shard.shardCount,
+        floatingTombstones: shard.floatingTombstones,
       });
     }
     if (shard instanceof ReceiptShard) {

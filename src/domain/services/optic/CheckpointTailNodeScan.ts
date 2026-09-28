@@ -78,13 +78,16 @@ export default class CheckpointTailNodeScan {
   }
 
   /**
-   * Liveness after the tail. A tail add whose dot no tail remove observed
-   * keeps the node live. Without one, a tail remove may or may not have
-   * observed every live dot of the checkpoint, which only the checkpoint's
-   * dots decide, unless the node was not live there.
+   * Liveness after the tail. A tail add whose dot neither a tail remove nor
+   * a checkpoint remove observed keeps the node live; the checkpoint's
+   * removes of dots it holds no add for are its floating tombstones, which
+   * tombstone a tail add with that dot as they do in the full state. Without
+   * a live tail add, a tail remove may or may not have observed every live
+   * dot of the checkpoint, which only the checkpoint's dots decide, unless
+   * the node was not live there.
    */
-  livenessAfter(checkpointAlive: boolean): TailNodeLiveness {
-    if ([...this.#addedDots].some((dot) => !this.#removedDots.has(dot))) {
+  livenessAfter(checkpointAlive: boolean, floatingTombstones: ReadonlySet<string>): TailNodeLiveness {
+    if ([...this.#addedDots].some((dot) => !this.#removedDots.has(dot) && !floatingTombstones.has(dot))) {
       return 'alive';
     }
     if (this.#removes.length === 0 || !checkpointAlive) {

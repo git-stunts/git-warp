@@ -153,6 +153,7 @@ export function reducerReadsInEveryTailOrder(scenario: HarnessScenario): readonl
             ? null
             : register.eventId,
           baseAlive: checkpoint.nodeAlive.contains(HARNESS_NODE),
+          floatingTombstones: floatingTombstones(checkpoint),
         },
         tailEntries: order.map(tailEntry),
         nodeId: HARNESS_NODE,
@@ -166,6 +167,12 @@ export function reducerReadsInEveryTailOrder(scenario: HarnessScenario): readonl
       throw error;
     }
   });
+}
+
+/** Node tombstones whose dot no node entry of the state holds. */
+function floatingTombstones(state: WarpState): ReadonlySet<string> {
+  const held = new Set(state.nodeAlive.entryDotsIter());
+  return new Set([...state.nodeAlive.tombstonesIter()].filter((dot) => !held.has(dot)));
 }
 
 function tailEntry(patch: HarnessPatch): CheckpointTailPatchEntry {
@@ -209,13 +216,14 @@ async function damageRoot(
   }
   const kept = Object.fromEntries(Object.entries(members).filter(([path]) => path !== target));
   if (damage === 'receipt-schema-version') {
-    const receipt = defaultCodec.decode<{ nodeCount: number; shardCount: number }>(
+    const receipt = defaultCodec.decode<{ nodeCount: number; shardCount: number; floatingTombstones: string[] }>(
       await readAll(store.openShard(handle)),
     );
     kept[target] = await store.writeBlob(defaultCodec.encode({
       schemaVersion: UNREAD_RECEIPT_SCHEMA_VERSION,
       nodeCount: receipt.nodeCount,
       shardCount: receipt.shardCount,
+      floatingTombstones: receipt.floatingTombstones,
     }));
   }
   return { indexRoot: store.writeIndex(kept), propertyRoot: roots.propertyRoot };
