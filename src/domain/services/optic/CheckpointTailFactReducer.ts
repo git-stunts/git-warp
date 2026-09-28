@@ -9,13 +9,30 @@ import type { PropValue } from '../../types/PropValue.ts';
 import { EventId } from '../../utils/EventId.ts';
 import { normalizeRawOp } from '../OpNormalizer.ts';
 import {
+  copyNodeLifecycle,
   emptyNodeLifecycle,
   isStaleNodeRegisterIn,
   recordNodeAdd,
   recordNodeRemove,
   type NodeLifecycleEvents,
+  type NodeLifecycleSource,
 } from '../state/NodeLifecycle.ts';
 import type { CheckpointTailPatchEntry } from './CheckpointTailOpticSource.ts';
+
+/**
+ * What the read knows about the node's lifecycle at the checkpoint.
+ * `witnessed` carries the checkpoint's node lifecycle records and the
+ * EventId of the register behind the checkpoint value. `unwitnessed` means
+ * the basis carries neither, and a read whose answer depends on them is
+ * refused.
+ */
+export type CheckpointNodeLifecycle =
+  | {
+    readonly kind: 'witnessed';
+    readonly lifecycle: NodeLifecycleSource;
+    readonly baseRegisterEvent: EventId | null;
+  }
+  | { readonly kind: 'unwitnessed' };
 
 type NormalizedTailOperation = ReturnType<typeof normalizeRawOp>;
 type NeighborhoodTailScope = {
@@ -86,19 +103,47 @@ export default class CheckpointTailFactReducer {
 
   reduceProperty(options: {
     readonly baseValue: PropValue | undefined;
+    readonly checkpointLifecycle: CheckpointNodeLifecycle;
     readonly tailEntries: readonly CheckpointTailPatchEntry[];
     readonly nodeId: string;
     readonly propertyKey: string;
   }): PropValue | undefined {
     const tailRegister = this._tailPropertyRegister(options);
-    const lifecycle = tailNodeLifecycle(options.tailEntries, options.nodeId);
+    const lifecycle = tailNodeLifecycle(options);
     if (tailRegister !== null) {
       return isStaleNodeRegisterIn(lifecycle, options.nodeId, tailRegister.eventId) ? undefined : tailRegister.value;
     }
-    // Tail events sort after every checkpointed register and after the
-    // node's checkpointed add, so a tail remove followed by a later tail add
-    // hides the checkpoint value.
-    return lifecycle.nodeClearEvent.has(options.nodeId) ? undefined : options.baseValue;
+    if (options.baseValue === undefined) {
+      return undefined;
+    }
+    return this._isCheckpointValueHidden(options, lifecycle) ? undefined : options.baseValue;
+  }
+
+  /**
+   * Tail events sort after every checkpointed register and after the node's
+   * checkpointed add, so a tail remove followed by a later tail add hides the
+   * checkpoint value. A tail add alone can also pass a remove the checkpoint
+   * holds as pending and hide the value; only the checkpoint's lifecycle
+   * records can say whether one exists.
+   */
+  private _isCheckpointValueHidden(
+    options: {
+      readonly checkpointLifecycle: CheckpointNodeLifecycle;
+      readonly nodeId: string;
+    },
+    lifecycle: NodeLifecycleEvents,
+  ): boolean {
+    const { checkpointLifecycle, nodeId } = options;
+    if (checkpointLifecycle.kind === 'witnessed') {
+      return isStaleNodeRegisterIn(lifecycle, nodeId, checkpointLifecycle.baseRegisterEvent);
+    }
+    if (lifecycle.nodeClearEvent.has(nodeId)) {
+      return true;
+    }
+    if (lifecycle.nodeBirthEvent.has(nodeId)) {
+      throwNoBoundedBasis(this._graphName, 'tail-node-add-needs-checkpoint-lifecycle-witnesses');
+    }
+    return false;
   }
 
   assertNeighborhoodTailStable(
@@ -212,12 +257,19 @@ function isTargetLifecycleOp(op: NormalizedTailOperation, nodeId: string): op is
     || (isTargetNodeRemove(op, nodeId) && op.observedDots.length > 0);
 }
 
-/** The node's lifecycle records built from its adds and removes in the tail patches. */
-function tailNodeLifecycle(
-  tailEntries: readonly CheckpointTailPatchEntry[],
-  nodeId: string,
-): NodeLifecycleEvents {
-  const lifecycle = emptyNodeLifecycle();
+/**
+ * The node's lifecycle records after the tail: the checkpoint's records when
+ * they are witnessed, then each add and remove of the node in the tail.
+ */
+function tailNodeLifecycle(options: {
+  readonly checkpointLifecycle: CheckpointNodeLifecycle;
+  readonly tailEntries: readonly CheckpointTailPatchEntry[];
+  readonly nodeId: string;
+}): NodeLifecycleEvents {
+  const { checkpointLifecycle, nodeId, tailEntries } = options;
+  const lifecycle = checkpointLifecycle.kind === 'witnessed'
+    ? copyNodeLifecycle(checkpointLifecycle.lifecycle)
+    : emptyNodeLifecycle();
   for (const entry of tailEntries) {
     entry.patch.ops.forEach((rawOp, opIndex) => {
       const op = normalizeRawOp(rawOp);

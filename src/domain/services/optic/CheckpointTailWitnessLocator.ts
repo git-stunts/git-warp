@@ -193,8 +193,11 @@ export default class CheckpointTailWitnessLocator {
     const basis = await this._basisLoader.load();
     const baseValue = await this._shardReader.readProperty(basis, nodeId, propertyKey);
     const tail = await this._scanTailForProperty(basis, nodeId, propertyKey);
+    // The checkpoint index shards carry values, not node lifecycle records
+    // or register EventIds, so the reducer refuses a read that needs them.
     const value = this._factReducer.reduceProperty({
       baseValue,
+      checkpointLifecycle: { kind: 'unwitnessed' },
       tailEntries: tail.entries,
       nodeId,
       propertyKey,

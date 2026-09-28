@@ -9,12 +9,15 @@
 
 import { describe, expect, it } from 'vitest';
 import { Dot, encodeDot } from '../../../../../src/domain/crdt/Dot.ts';
-import CheckpointTailFactReducer from '../../../../../src/domain/services/optic/CheckpointTailFactReducer.ts';
+import CheckpointTailFactReducer, {
+  type CheckpointNodeLifecycle,
+} from '../../../../../src/domain/services/optic/CheckpointTailFactReducer.ts';
 import type { CheckpointTailPatchEntry } from '../../../../../src/domain/services/optic/CheckpointTailOpticSource.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
 import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
 import NodeRemove from '../../../../../src/domain/types/ops/NodeRemove.ts';
+import { EventId } from '../../../../../src/domain/utils/EventId.ts';
 
 const NODE = 'node:target';
 const KEY = 'status';
@@ -24,8 +27,21 @@ function entry(lamport: number, ops: Patch['ops'], sha: string): CheckpointTailP
   return { sha, patch: new Patch({ schema: 3, writer: 'writer-a', lamport, context: {}, ops }) };
 }
 
+/** The checkpoint added the node once at lamport 1 and wrote the value at 2; it removed nothing. */
+const CHECKPOINT_LIFECYCLE: CheckpointNodeLifecycle = {
+  kind: 'witnessed',
+  lifecycle: { nodeBirthEvent: new Map([[NODE, new EventId(1, 'writer-a', 'abcdef01', 0)]]) },
+  baseRegisterEvent: new EventId(2, 'writer-a', 'abcdef02', 0),
+};
+
 function read(baseValue: string | undefined, tailEntries: readonly CheckpointTailPatchEntry[]) {
-  return reducer.reduceProperty({ baseValue, tailEntries, nodeId: NODE, propertyKey: KEY });
+  return reducer.reduceProperty({
+    baseValue,
+    checkpointLifecycle: CHECKPOINT_LIFECYCLE,
+    tailEntries,
+    nodeId: NODE,
+    propertyKey: KEY,
+  });
 }
 
 describe('checkpoint-tail property reads across a node lifecycle', () => {
