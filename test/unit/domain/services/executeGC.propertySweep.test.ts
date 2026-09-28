@@ -240,6 +240,21 @@ describe('executeGC property sweep', () => {
     expect(state.edgeBirthEvent.has(edgeKey)).toBe(true);
   });
 
+  it('prunes a register whose owner was never added, whatever the frontier', () => {
+    // appliedVV bounds only owners the set once held. An owner with no dot
+    // at all, live or tombstoned, has nothing for compaction to wait on, so
+    // even an empty frontier releases its registers.
+    const state = createEmptyState();
+    setNodeProp(state, 'ast:never-added', 'type', 'identifier');
+    setEdgeProp(state, 'ast:never-added', 'ast:other', 'contains_ast', 'weight', '1');
+
+    const result = executeGC(state, VersionVector.empty());
+
+    expect(result.propertiesPruned).toBe(2);
+    expect(state.hasNodeProp('ast:never-added', 'type')).toBe(false);
+    expect(state.getEdgeProp('ast:never-added', 'ast:other', 'contains_ast', 'weight')).toBeUndefined();
+  });
+
   it('reports zero pruned properties for an empty state', () => {
     const state = createEmptyState();
     const result = executeGC(state, VersionVector.empty());
