@@ -177,6 +177,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a 10,000-node graph with two properties per node the family adds about
   170 to 230 bytes per node, 1.7 to 2.3 MB, which is 35 to 48 percent of the
   `full-v6` state of the same graph.
+- Each `life_XX.cbor` shard must fit the index shard limits of 16 MiB and
+  2,000,000 CBOR items. A node's record takes 25 items when the node is live
+  with two properties and 30 when it was removed, plus 7 for each further
+  property, and about 175 to 260 bytes, so one shard holds about 64,000 to
+  80,000 records. Spread evenly over the 256 shard keys, the family reaches a
+  limit at roughly 16 to 20 million recorded nodes. At 10,000 nodes its
+  largest shard is 8 to 11 times the size of the largest logical `meta_XX`
+  shard. Records of removed nodes are kept and never
+  pruned, so a graph with far fewer live nodes can reach it; the property
+  root already refuses more than 100,000 nodes with properties. Past the
+  limit, writing the index root fails with `E_INDEX_SHARD_TOO_LARGE` or
+  `E_INDEX_SHARD_MALFORMED`, and so do `materialize()` and
+  `createCheckpoint()`, which write it.
 - Migration: none is required. The next `createCheckpoint()` after upgrading
   writes a schema 6 checkpoint for later reads to start from.
 - Under `.github/RELEASE.md` the visibility, state hash and storage format
