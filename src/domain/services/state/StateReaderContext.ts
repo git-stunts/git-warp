@@ -105,6 +105,9 @@ function warpStateFromSnapshot(snapshot: SnapshotWarpState): WarpState {
     prop: propMapFromSnapshot(snapshot.prop),
     observedFrontier: VersionVector.from(new Map(snapshot.observedFrontier.entries())),
     edgeBirthEvent: new Map(snapshot.edgeBirthEvent),
+    nodeBirthEvent: new Map(snapshot.nodeBirthEvent),
+    nodeRemoveEvent: new Map(snapshot.nodeRemoveEvent),
+    edgeRemoveEvent: new Map(snapshot.edgeRemoveEvent),
   });
 }
 

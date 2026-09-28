@@ -189,6 +189,9 @@ export function createSnapshotWarpState(state: WarpState): SnapshotWarpState {
     prop: createReadonlyPropMap(state.allPropEntries()),
     observedFrontier: createSnapshotVersionVector(state.observedFrontier),
     edgeBirthEvent: createReadonlyEventMap(state.edgeBirthEvent),
+    nodeBirthEvent: createReadonlyEventMap(state.nodeBirthEvent),
+    nodeRemoveEvent: createReadonlyEventMap(state.nodeRemoveEvent),
+    edgeRemoveEvent: createReadonlyEventMap(state.edgeRemoveEvent),
   });
 }
 

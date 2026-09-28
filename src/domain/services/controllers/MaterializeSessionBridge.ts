@@ -296,6 +296,9 @@ async function openReducerSessionFrame(
     prop: new Map(baseState?.allPropEntries() ?? []),
     observedFrontier: baseState?.observedFrontier.clone() ?? VersionVector.empty(),
     edgeBirthEvent: new Map(baseState?.edgeBirthEvent ?? []),
+    nodeBirthEvent: new Map(baseState?.nodeBirthEvent ?? []),
+    nodeRemoveEvent: new Map(baseState?.nodeRemoveEvent ?? []),
+    edgeRemoveEvent: new Map(baseState?.edgeRemoveEvent ?? []),
   });
 }
 
@@ -417,6 +420,9 @@ async function projectFrameToState(
     prop: frame.prop,
     observedFrontier: frame.observedFrontier,
     edgeBirthEvent: frame.edgeBirthEvent,
+    nodeBirthEvent: frame.nodeBirthEvent,
+    nodeRemoveEvent: frame.nodeRemoveEvent,
+    edgeRemoveEvent: frame.edgeRemoveEvent,
   });
 }
 

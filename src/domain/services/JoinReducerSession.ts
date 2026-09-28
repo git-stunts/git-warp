@@ -25,6 +25,7 @@ import {
   type MutablePatchDiff,
 } from "../types/PatchDiff.ts";
 import { compareEventIds, EventId } from "../utils/EventId.ts";
+import { advanceLifecycleEvent, mergeLifecycleEvents } from "./state/ElementLifecycle.ts";
 import {
   encodeEdgeKey,
   encodeEdgePropKey,
@@ -66,12 +67,18 @@ export class ReducerSessionFrame {
   readonly prop: Map<string, LWWRegister<ReducerPropValue>>;
   readonly observedFrontier: VersionVector;
   readonly edgeBirthEvent: Map<string, EventId>;
+  readonly nodeBirthEvent: Map<string, EventId>;
+  readonly nodeRemoveEvent: Map<string, EventId>;
+  readonly edgeRemoveEvent: Map<string, EventId>;
 
   constructor(fields: {
     readonly session: StateSession;
     readonly prop: Map<string, LWWRegister<ReducerPropValue>>;
     readonly observedFrontier: VersionVector;
     readonly edgeBirthEvent: Map<string, EventId>;
+    readonly nodeBirthEvent?: Map<string, EventId>;
+    readonly nodeRemoveEvent?: Map<string, EventId>;
+    readonly edgeRemoveEvent?: Map<string, EventId>;
   }) {
     if (!(fields.session instanceof StateSession)) {
       throw new PatchError("ReducerSessionFrame requires a StateSession");
@@ -89,6 +96,9 @@ export class ReducerSessionFrame {
     this.prop = fields.prop;
     this.observedFrontier = fields.observedFrontier;
     this.edgeBirthEvent = fields.edgeBirthEvent;
+    this.nodeBirthEvent = optionalLifecycleMap(fields.nodeBirthEvent, "nodeBirthEvent");
+    this.nodeRemoveEvent = optionalLifecycleMap(fields.nodeRemoveEvent, "nodeRemoveEvent");
+    this.edgeRemoveEvent = optionalLifecycleMap(fields.edgeRemoveEvent, "edgeRemoveEvent");
     Object.freeze(this);
   }
 
@@ -216,7 +226,10 @@ export async function joinFrames(
     session: left.session,
     prop: mergePropMaps(left.prop, right.prop),
     observedFrontier: left.observedFrontier.merge(right.observedFrontier),
-    edgeBirthEvent: mergeEdgeBirthEvents(left.edgeBirthEvent, right.edgeBirthEvent),
+    edgeBirthEvent: mergeLifecycleEvents(left.edgeBirthEvent, right.edgeBirthEvent),
+    nodeBirthEvent: mergeLifecycleEvents(left.nodeBirthEvent, right.nodeBirthEvent),
+    nodeRemoveEvent: mergeLifecycleEvents(left.nodeRemoveEvent, right.nodeRemoveEvent),
+    edgeRemoveEvent: mergeLifecycleEvents(left.edgeRemoveEvent, right.edgeRemoveEvent),
   });
 }
 
@@ -376,24 +389,28 @@ async function mutateInSession(
 ): Promise<void> {
   if (op instanceof NodeAdd) {
     await frame.session.addNode(op.node, op.dot);
+    advanceLifecycleEvent(frame.nodeBirthEvent, op.node, eventId);
     return;
   }
   if (op instanceof NodeRemove) {
     await frame.session.removeNode(op.node, new Set(op.observedDots));
+    if (op.observedDots.length > 0) {
+      advanceLifecycleEvent(frame.nodeRemoveEvent, op.node, eventId);
+    }
     return;
   }
   if (op instanceof EdgeAdd) {
     const edgeKey = encodeEdgeKey(op.from, op.to, op.label);
     await frame.session.addEdge(edgeKey, op.dot);
-    const previous = frame.edgeBirthEvent.get(edgeKey);
-    if (previous === undefined || compareEventIds(eventId, previous) > 0) {
-      frame.edgeBirthEvent.set(edgeKey, eventId);
-    }
+    advanceLifecycleEvent(frame.edgeBirthEvent, edgeKey, eventId);
     return;
   }
   if (op instanceof EdgeRemove) {
     const edgeKey = encodeEdgeKey(op.from, op.to, op.label);
     await frame.session.removeEdge(edgeKey, new Set(op.observedDots));
+    if (op.observedDots.length > 0) {
+      advanceLifecycleEvent(frame.edgeRemoveEvent, edgeKey, eventId);
+    }
     return;
   }
   if (op instanceof PropSet) {
@@ -546,18 +563,17 @@ function mergePropMaps(
   return merged;
 }
 
-function mergeEdgeBirthEvents(
-  left: ReadonlyMap<string, EventId>,
-  right: ReadonlyMap<string, EventId>,
+function optionalLifecycleMap(
+  value: Map<string, EventId> | undefined,
+  field: string,
 ): Map<string, EventId> {
-  const merged = new Map(left);
-  for (const [key, rightValue] of right) {
-    const current = merged.get(key);
-    if (current === undefined || compareEventIds(rightValue, current) > 0) {
-      merged.set(key, rightValue);
-    }
+  if (value === undefined) {
+    return new Map<string, EventId>();
   }
-  return merged;
+  if (!(value instanceof Map)) {
+    throw new PatchError(`ReducerSessionFrame requires a ${field} Map`);
+  }
+  return value;
 }
 
 async function mergeLiveNodesInto(

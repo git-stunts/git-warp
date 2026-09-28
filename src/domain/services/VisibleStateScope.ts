@@ -239,19 +239,19 @@ function collectScopedProps(
 }
 
 /**
- * Collects birth events for edges whose keys are in the scoped set.
+ * Collects the lifecycle events whose element keys are in the scoped set.
  */
-function collectScopedEdgeBirthEvents(
-  state: WarpState,
-  scopedEdgeKeys: Set<string>,
+function collectScopedEvents(
+  events: ReadonlyMap<string, EventId>,
+  scopedKeys: Set<string>,
 ): Map<string, EventId> {
-  const scopedEdgeBirthEvent = new Map<string, EventId>();
-  for (const [edgeKey, eventId] of state.edgeBirthEvent.entries()) {
-    if (scopedEdgeKeys.has(edgeKey)) {
-      scopedEdgeBirthEvent.set(edgeKey, eventId);
+  const scoped = new Map<string, EventId>();
+  for (const [key, eventId] of events) {
+    if (scopedKeys.has(key)) {
+      scoped.set(key, eventId);
     }
   }
-  return scopedEdgeBirthEvent;
+  return scoped;
 }
 
 /**
@@ -276,7 +276,10 @@ export function scopeMaterializedState(state: WarpState, scope: VisibleStateScop
     edgeAlive: scopedEdgeAlive,
     prop: collectScopedProps(state, scopedNodeIds, scopedEdgeKeys),
     observedFrontier: state.observedFrontier.clone(),
-    edgeBirthEvent: collectScopedEdgeBirthEvents(state, scopedEdgeKeys),
+    edgeBirthEvent: collectScopedEvents(state.edgeBirthEvent, scopedEdgeKeys),
+    nodeBirthEvent: collectScopedEvents(state.nodeBirthEvent, scopedNodeIds),
+    nodeRemoveEvent: collectScopedEvents(state.nodeRemoveEvent, scopedNodeIds),
+    edgeRemoveEvent: collectScopedEvents(state.edgeRemoveEvent, scopedEdgeKeys),
   });
 }
 
