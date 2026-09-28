@@ -12,6 +12,7 @@ import { EventId } from '../../../../../src/domain/utils/EventId.ts';
 import { computeStateHash } from '../../../../../src/domain/services/state/StateSerializer.ts';
 import { createImmutableWarpStateSnapshot } from '../../../../../src/domain/services/ImmutableSnapshot.ts';
 import { createStateReader } from '../../../../../src/domain/services/state/StateReader.ts';
+import { createStateReaderProjectionState } from '../../../../../src/domain/services/state/StateReaderContext.ts';
 import { scopeMaterializedState } from '../../../../../src/domain/services/VisibleStateScope.ts';
 import NodeCryptoAdapter from '../../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -112,7 +113,7 @@ describe('lifecycle events travel with every copy of the state', () => {
     const state = reAddedState();
     const snapshot = createImmutableWarpStateSnapshot(state);
 
-    expect(await computeStateHash(snapshot, { crypto, codec: defaultCodec }))
+    expect(await computeStateHash(createStateReaderProjectionState(snapshot), { crypto, codec: defaultCodec }))
       .toBe(await computeStateHash(state, { crypto, codec: defaultCodec }));
     expect(createStateReader(snapshot).getNodeProps('n')).toEqual({});
   });
@@ -132,9 +133,8 @@ describe('lifecycle events travel with every copy of the state', () => {
   });
 
   it('joining session-backed frames keeps the latest event of each side', async () => {
-    const [first, second] = lifecyclePatches();
-    const left = await reducePatchesInSession([first], await openFrame());
-    const right = await reducePatchesInSession([second], await openFrame());
+    const left = await reducePatchesInSession(lifecyclePatches().slice(0, 1), await openFrame());
+    const right = await reducePatchesInSession(lifecyclePatches().slice(1), await openFrame());
 
     const joined = await joinFrames(left, right);
 
