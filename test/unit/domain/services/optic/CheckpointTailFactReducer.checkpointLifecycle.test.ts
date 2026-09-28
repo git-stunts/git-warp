@@ -91,6 +91,7 @@ describe('checkpoint-tail property read with a pending remove in the checkpoint'
         kind: 'witnessed',
         lifecycle: checkpoint,
         baseRegisterEvent: checkpoint.getNodeProp(NODE, KEY)?.eventId ?? null,
+        baseAlive: checkpoint.nodeAlive.contains(NODE),
       },
       tailEntries: TAIL_ENTRIES,
       nodeId: NODE,
@@ -179,6 +180,7 @@ describe('checkpoint-tail property read with a concurrent remove and re-add in t
         kind: 'witnessed',
         lifecycle: checkpoint,
         baseRegisterEvent: checkpoint.getNodeProp(NODE, KEY)?.eventId ?? null,
+        baseAlive: checkpoint.nodeAlive.contains(NODE),
       },
       tailEntries: CONCURRENT_TAIL_ENTRIES,
       nodeId: NODE,
@@ -222,8 +224,13 @@ describe('checkpoint-tail property read without checkpoint lifecycle witnesses',
     expect(unwitnessedRead('v', [])).toBe('v');
   });
 
-  it('answers when the checkpoint holds no value to hide', () => {
-    expect(unwitnessedRead(undefined, TAIL_ENTRIES)).toBeUndefined();
+  it('refuses a tail add even when the checkpoint shows no value', () => {
+    // A node that is not live at the checkpoint can still hold a register
+    // that is not stale; a tail add can make it visible again.
+    expect(() => unwitnessedRead(undefined, TAIL_ENTRIES)).toThrow(expect.objectContaining({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: expect.objectContaining({ reason: 'tail-node-add-needs-checkpoint-lifecycle-witnesses' }),
+    }));
   });
 
   it('refuses when a tail remove and a later tail add may hide the checkpoint value', () => {

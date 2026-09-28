@@ -6,33 +6,36 @@ import EdgeRemove from '../../types/ops/EdgeRemove.ts';
 import NodePropSet from '../../types/ops/NodePropSet.ts';
 import NodeRemove from '../../types/ops/NodeRemove.ts';
 import type { PropValue } from '../../types/PropValue.ts';
-import { EventId } from '../../utils/EventId.ts';
+import { compareEventIds, EventId } from '../../utils/EventId.ts';
 import { normalizeRawOp } from '../OpNormalizer.ts';
-import {
-  copyNodeLifecycle,
-  emptyNodeLifecycle,
-  isStaleNodeRegisterIn,
-  recordNodeAdd,
-  recordNodeRemove,
-  type NodeLifecycleEvents,
-  type NodeLifecycleSource,
-} from '../state/NodeLifecycle.ts';
+import { isStaleNodeRegisterIn, type NodeLifecycleSource } from '../state/NodeLifecycle.ts';
+import CheckpointTailNodeScan from './CheckpointTailNodeScan.ts';
 import type { CheckpointTailPatchEntry } from './CheckpointTailOpticSource.ts';
 
 /**
- * What the read knows about the node's lifecycle at the checkpoint.
- * `witnessed` carries the checkpoint's node lifecycle records and the
- * EventId of the register behind the checkpoint value. `unwitnessed` means
- * the basis carries neither, and a read whose answer depends on them is
- * refused.
+ * What the read knows about the node at the checkpoint. `lifecycle` holds
+ * the checkpoint's node lifecycle records, `baseRegisterEvent` the EventId
+ * of the node's register for the key when it is not stale (whether or not
+ * the node is live), and `baseAlive` whether the node is live.
+ */
+export type WitnessedCheckpointNodeLifecycle = {
+  readonly kind: 'witnessed';
+  readonly lifecycle: NodeLifecycleSource;
+  readonly baseRegisterEvent: EventId | null;
+  readonly baseAlive: boolean;
+};
+
+/**
+ * `unwitnessed` means the basis carries no lifecycle records or register
+ * EventIds, and a read whose answer depends on them is refused.
  */
 export type CheckpointNodeLifecycle =
-  | {
-    readonly kind: 'witnessed';
-    readonly lifecycle: NodeLifecycleSource;
-    readonly baseRegisterEvent: EventId | null;
-  }
+  | WitnessedCheckpointNodeLifecycle
   | { readonly kind: 'unwitnessed' };
+
+type WinningRegister =
+  | { readonly kind: 'checkpoint'; readonly eventId: EventId }
+  | { readonly kind: 'tail'; readonly eventId: EventId; readonly value: PropValue };
 
 type NormalizedTailOperation = ReturnType<typeof normalizeRawOp>;
 type NeighborhoodTailScope = {
@@ -109,39 +112,66 @@ export default class CheckpointTailFactReducer {
     readonly propertyKey: string;
   }): PropValue | undefined {
     const tailRegister = this._tailPropertyRegister(options);
-    const lifecycle = tailNodeLifecycle(options);
-    if (tailRegister !== null) {
-      return isStaleNodeRegisterIn(lifecycle, options.nodeId, tailRegister.eventId) ? undefined : tailRegister.value;
+    const tailNode = CheckpointTailNodeScan.scan(options.tailEntries, options.nodeId);
+    const { checkpointLifecycle } = options;
+    if (checkpointLifecycle.kind === 'unwitnessed') {
+      return this._reduceUnwitnessed(options.baseValue, tailRegister, tailNode);
     }
-    if (options.baseValue === undefined) {
+    if (this._livenessAfter(checkpointLifecycle, tailNode) === 'dead') {
       return undefined;
     }
-    return this._isCheckpointValueHidden(options, lifecycle) ? undefined : options.baseValue;
+    const lifecycle = tailNode.lifecycleAfter(checkpointLifecycle.lifecycle, options.nodeId);
+    const winner = winningRegister(checkpointLifecycle.baseRegisterEvent, tailRegister);
+    return winner === null || isStaleNodeRegisterIn(lifecycle, options.nodeId, winner.eventId)
+      ? undefined
+      : this._visibleValue(winner, options.baseValue);
+  }
+
+  private _visibleValue(winner: WinningRegister, baseValue: PropValue | undefined): PropValue {
+    return winner.kind === 'tail' ? winner.value : this._checkpointValue(baseValue);
   }
 
   /**
-   * A tail add of the node can hide the checkpoint value, and whether it does
-   * depends on events the tail does not carry. It can pass a remove the
-   * checkpoint holds as pending. A concurrent writer's tail remove and add
-   * can also sort below the checkpoint's register, so the clear they make
-   * does not reach it. Only the checkpoint's lifecycle records and the
-   * register's EventId decide either case, so without them the read refuses.
+   * The checkpoint register wins and is visible. Its value is in the
+   * property shard unless the node was not live at the checkpoint and a
+   * tail add made the register visible again.
    */
-  private _isCheckpointValueHidden(
-    options: {
-      readonly checkpointLifecycle: CheckpointNodeLifecycle;
-      readonly nodeId: string;
-    },
-    lifecycle: NodeLifecycleEvents,
-  ): boolean {
-    const { checkpointLifecycle, nodeId } = options;
-    if (checkpointLifecycle.kind === 'witnessed') {
-      return isStaleNodeRegisterIn(lifecycle, nodeId, checkpointLifecycle.baseRegisterEvent);
-    }
-    if (lifecycle.nodeBirthEvent.has(nodeId)) {
+  private _checkpointValue(baseValue: PropValue | undefined): PropValue {
+    if (baseValue === undefined) {
       throwNoBoundedBasis(this._graphName, 'tail-node-add-needs-checkpoint-lifecycle-witnesses');
     }
-    return false;
+    return baseValue;
+  }
+
+  /**
+   * Without the checkpoint's lifecycle records and register EventIds, any
+   * tail write or tail add or remove of the node may sort below a checkpoint
+   * event and so have an effect the tail alone cannot see. Only a tail that
+   * touches neither leaves the checkpoint value standing.
+   */
+  private _reduceUnwitnessed(
+    baseValue: PropValue | undefined,
+    tailRegister: LWWRegister<PropValue> | null,
+    tailNode: CheckpointTailNodeScan,
+  ): PropValue | undefined {
+    if (tailNode.hasAdd()) {
+      throwNoBoundedBasis(this._graphName, 'tail-node-add-needs-checkpoint-lifecycle-witnesses');
+    }
+    if (tailRegister !== null || tailNode.touchesLifecycle()) {
+      throwNoBoundedBasis(this._graphName, 'tail-property-needs-checkpoint-lifecycle-witnesses');
+    }
+    return baseValue;
+  }
+
+  private _livenessAfter(
+    checkpointLifecycle: WitnessedCheckpointNodeLifecycle,
+    tailNode: CheckpointTailNodeScan,
+  ): 'alive' | 'dead' {
+    const liveness = tailNode.livenessAfter(checkpointLifecycle.baseAlive);
+    if (liveness === 'undecided') {
+      throwNoBoundedBasis(this._graphName, 'tail-node-remove-needs-raw-liveness-witnesses');
+    }
+    return liveness;
   }
 
   assertNeighborhoodTailStable(
@@ -255,30 +285,18 @@ function isTargetLifecycleOp(op: NormalizedTailOperation, nodeId: string): op is
     || (isTargetNodeRemove(op, nodeId) && op.observedDots.length > 0);
 }
 
-/**
- * The node's lifecycle records after the tail: the checkpoint's records when
- * they are witnessed, then each add and remove of the node in the tail.
- */
-function tailNodeLifecycle(options: {
-  readonly checkpointLifecycle: CheckpointNodeLifecycle;
-  readonly tailEntries: readonly CheckpointTailPatchEntry[];
-  readonly nodeId: string;
-}): NodeLifecycleEvents {
-  const { checkpointLifecycle, nodeId, tailEntries } = options;
-  const lifecycle = checkpointLifecycle.kind === 'witnessed'
-    ? copyNodeLifecycle(checkpointLifecycle.lifecycle)
-    : emptyNodeLifecycle();
-  for (const entry of tailEntries) {
-    entry.patch.ops.forEach((rawOp, opIndex) => {
-      const op = normalizeRawOp(rawOp);
-      if (isTargetLifecycleOp(op, nodeId)) {
-        const eventId = new EventId(entry.patch.lamport, entry.patch.writer, entry.sha, opIndex);
-        const record = op instanceof NodeAdd ? recordNodeAdd : recordNodeRemove;
-        record(lifecycle, nodeId, eventId);
-      }
-    });
+/** The register LWW picks from the checkpoint's register and the tail's writes. */
+function winningRegister(
+  checkpointEvent: EventId | null,
+  tailRegister: LWWRegister<PropValue> | null,
+): WinningRegister | null {
+  if (checkpointEvent !== null
+    && (tailRegister === null || compareEventIds(checkpointEvent, tailRegister.eventId) > 0)) {
+    return { kind: 'checkpoint', eventId: checkpointEvent };
   }
-  return lifecycle;
+  return tailRegister === null
+    ? null
+    : { kind: 'tail', eventId: tailRegister.eventId, value: tailRegister.value };
 }
 
 function isTargetNodeAdd(

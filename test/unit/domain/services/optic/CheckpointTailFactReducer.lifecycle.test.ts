@@ -1,10 +1,10 @@
 /**
  * A checkpoint-tail property read applies the node lifecycle rule: a remove
  * of the node in the tail, followed by a later add, hides the checkpoint's
- * value and every tail write that sorts before that remove. The reducer
- * already treats tail writes as newer than the checkpoint, so tail adds and
- * removes are newer than every checkpointed register and add too. This read
- * does not decide liveness; the node-liveness read does that separately.
+ * value and every tail write that sorts before that remove. The read also
+ * decides liveness: a tail remove with no later tail add may remove every
+ * live dot of the checkpoint, which the witness does not show, so the read
+ * refuses.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -32,6 +32,7 @@ const CHECKPOINT_LIFECYCLE: CheckpointNodeLifecycle = {
   kind: 'witnessed',
   lifecycle: { nodeBirthEvent: new Map([[NODE, new EventId(1, 'writer-a', 'abcdef01', 0)]]) },
   baseRegisterEvent: new EventId(2, 'writer-a', 'abcdef02', 0),
+  baseAlive: true,
 };
 
 function read(baseValue: string | undefined, tailEntries: readonly CheckpointTailPatchEntry[]) {
@@ -74,11 +75,14 @@ describe('checkpoint-tail property reads across a node lifecycle', () => {
     ])).toBeUndefined();
   });
 
-  it('keeps a tail write when no add follows the tail remove', () => {
-    expect(read('old', [
+  it('refuses when no add follows the tail remove, which may have left the node dead', () => {
+    expect(() => read('old', [
       entry(3, [new NodePropSet(NODE, KEY, 'tail')], 'aaaa'),
       entry(4, [new NodeRemove(NODE, [encodeDot(Dot.create('writer-a', 1))])], 'bbbb'),
-    ])).toBe('tail');
+    ])).toThrow(expect.objectContaining({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: expect.objectContaining({ reason: 'tail-node-remove-needs-raw-liveness-witnesses' }),
+    }));
   });
 
   it('shows a tail write made after the tail re-add', () => {

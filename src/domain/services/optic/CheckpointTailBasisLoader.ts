@@ -32,6 +32,11 @@ export type CheckpointTailIndexBasis = {
   readonly propReferences: Readonly<Record<string, IndexShardReference>>;
 };
 
+/** Node liveness bitmaps, and the node lifecycle records beside them. */
+const NODE_LIVENESS_PREFIXES: readonly string[] = Object.freeze(['meta_', 'life_']);
+/** Index members of the liveness and adjacency families; the rest are edge facts. */
+const NON_EDGE_FACT_PREFIXES: readonly string[] = Object.freeze([...NODE_LIVENESS_PREFIXES, 'fwd_', 'rev_']);
+
 const capturedBasisLoads = new WeakMap<
   CheckpointTailBasisLoader,
   Promise<CheckpointTailIndexBasis>
@@ -199,13 +204,13 @@ function createManifestRoots(
   propOids: CheckpointTailShardIdentityMap,
 ): CheckpointTailManifestRoots {
   return {
-    livenessRoots: rootsForPrefix('node-liveness', indexOids, 'meta_'),
+    livenessRoots: rootsForPrefixes('node-liveness', indexOids, NODE_LIVENESS_PREFIXES),
     propertyRoots: new CheckpointBasisShardRootMap({
       family: 'node-property',
       roots: shardOidMapToMap(propOids),
     }),
-    outgoingAdjacencyRoots: rootsForPrefix('outgoing-adjacency', indexOids, 'fwd_'),
-    incomingAdjacencyRoots: rootsForPrefix('incoming-adjacency', indexOids, 'rev_'),
+    outgoingAdjacencyRoots: rootsForPrefixes('outgoing-adjacency', indexOids, ['fwd_']),
+    incomingAdjacencyRoots: rootsForPrefixes('incoming-adjacency', indexOids, ['rev_']),
     edgeFactRoots: edgeFactRootsFromIndex(indexOids),
   };
 }
@@ -234,14 +239,14 @@ function checkpointChunking(shardCount: number): CheckpointBasisChunking {
   return new CheckpointBasisChunking({ maxFactsPerShard: shardCount, chunkCount: 1 });
 }
 
-function rootsForPrefix(
+function rootsForPrefixes(
   family: 'node-liveness' | 'outgoing-adjacency' | 'incoming-adjacency',
   source: CheckpointTailShardIdentityMap,
-  prefix: string,
+  prefixes: readonly string[],
 ): CheckpointBasisShardRootMap {
   const roots = new Map<string, string>();
   for (const [path, oid] of Object.entries(source)) {
-    if (path.startsWith(prefix)) {
+    if (prefixes.some((prefix) => path.startsWith(prefix))) {
       roots.set(path, oid);
     }
   }
@@ -251,7 +256,7 @@ function rootsForPrefix(
 function edgeFactRootsFromIndex(source: CheckpointTailShardIdentityMap): CheckpointBasisShardRootMap {
   const roots = new Map<string, string>();
   for (const [path, oid] of Object.entries(source)) {
-    if (!path.startsWith('meta_') && !path.startsWith('fwd_') && !path.startsWith('rev_')) {
+    if (!NON_EDGE_FACT_PREFIXES.some((prefix) => path.startsWith(prefix))) {
       roots.set(path, oid);
     }
   }
