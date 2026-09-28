@@ -127,7 +127,7 @@ describe('full state format across the node lifecycle bump', () => {
 
   it('refuses a full-v5 envelope that carries full-v6 fields', () => {
     const mixed = defaultCodec.encode({
-      ...defaultCodec.decode<Record<string, unknown>>(encodeWarpFullState(lifecycleState(), defaultCodec)),
+      ...defaultCodec.decode<object>(encodeWarpFullState(lifecycleState(), defaultCodec)),
       version: 'full-v5',
     });
 
