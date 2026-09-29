@@ -92,6 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Skip edge-property rows with invalid runtime identifier or slot fields, consistently across iterators and attachment projections, while retaining their stored registers.
+
 - Validate checkpoint projection property values and preserve absent lifecycle witnesses instead of fabricating invalid birth events.
 
 - Checkpoint property owners now pass runtime `NodeId` validation, including

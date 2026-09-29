@@ -116,3 +116,19 @@ describe('checkpoint load refuses a property owner it could never have written',
     expect(state.getNodeProp('file:a.ts', 'path')?.value).toBe('a.ts');
   });
 });
+
+describe('readable field counts still require valid runtime key fields', () => {
+  it.each([
+    { from: '', to: 'b', label: 'e', key: 'k' },
+    { from: 'a', to: '', label: 'e', key: 'k' },
+    { from: 'a', to: 'b', label: '', key: 'k' },
+    { from: 'a', to: 'b', label: 'e', key: '' },
+  ])('skips an empty field without deleting the register: %#', ({ from, to, label, key }) => {
+    const state = stateWithMalformedKey();
+    const encoded = `${EDGE_PROP_PREFIX}${from}\0${to}\0${label}\0${key}`;
+    state.mutatePropLWW(encoded, new EventId(1, 'A', 'abcdef01', 3), 'invalid');
+    expect([...state.edgeProperties()].map((entry) => entry.register.value)).toEqual(['readable']);
+    expect(() => state.attachmentRecords()).not.toThrow();
+    expect(state.hasProp(encoded)).toBe(true);
+  });
+});

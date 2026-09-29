@@ -1,3 +1,6 @@
+import NodeId from '../graph/NodeId.ts';
+import EdgeTypeId from '../graph/EdgeTypeId.ts';
+import AttachmentKey from '../graph/AttachmentKey.ts';
 /**
  * Key encoding/decoding for WARP graph CRDT state maps.
  *
@@ -120,7 +123,25 @@ export function tryDecodeEdgePropKey(
   if (parts.length !== 4) {
     return null;
   }
-  return { from: parts[0] ?? '', to: parts[1] ?? '', label: parts[2] ?? '', propKey: parts[3] ?? '' };
+  return validateEdgePropertyFields({
+    from: parts[0] ?? '', to: parts[1] ?? '', label: parts[2] ?? '', propKey: parts[3] ?? '',
+  });
+}
+
+function validateEdgePropertyFields(fields: { from: string; to: string; label: string; propKey: string }) {
+  try {
+    return {
+      from: new NodeId(fields.from).toString(),
+      to: new NodeId(fields.to).toString(),
+      label: new EdgeTypeId(fields.label).toString(),
+      propKey: new AttachmentKey(fields.propKey).toString(),
+    };
+  } catch (error) {
+    if (error instanceof WarpError && error.code === 'E_VALIDATION') {
+      return null;
+    }
+    throw error;
+  }
 }
 
 // -------------------------------------------------------------------------
