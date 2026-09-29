@@ -56,14 +56,17 @@ if [ -n "${NPM_DIST_TAG_PROBE_OUT+x}" ]; then
   probe_status="${NPM_DIST_TAG_PROBE_STATUS:-0}"
 else
   set +e
-  probe_out="$(npm view "$PACKAGE_NAME" version 2>&1)"
+  probe_out="$(npm view "$PACKAGE_NAME" version --json)"
   probe_status=$?
   set -e
 fi
 
 if [ "$probe_status" -ne 0 ]; then
   # Nothing published yet means nothing to demote.
-  if printf '%s' "$probe_out" | grep -q 'E404'; then
+  if node --input-type=module -e '
+    import Decoder from "./src/infrastructure/adapters/NpmRegistryProbeDecoder.ts";
+    process.exit(new Decoder().isMissingPackage(process.argv[1]) ? 0 : 1);
+  ' "$probe_out"; then
     echo "latest"
     exit 0
   fi
@@ -76,7 +79,20 @@ if [ "$probe_status" -ne 0 ]; then
   exit 1
 fi
 
-current_latest="$probe_out"
+# Decode only the structured registry stdout; stderr is diagnostic, never decision data.
+registry_version() {
+  node --input-type=module -e '
+    import Decoder from "./src/infrastructure/adapters/NpmRegistryProbeDecoder.ts";
+    const version = new Decoder().version(process.argv[1]);
+    if (version === undefined) {
+      console.error("Refusing malformed npm registry JSON.");
+      process.exit(1);
+    }
+    console.log(version);
+  ' "$1"
+}
+
+current_latest="$(registry_version "$probe_out")"
 
 order="$(version_order "$TAG_VERSION" "$current_latest")"
 if [ "$order" -ge 0 ]; then
@@ -88,7 +104,7 @@ else
     maintenance_status="${NPM_MAINTENANCE_PROBE_STATUS:-0}"
   else
     set +e
-    maintenance_out="$(npm view "$PACKAGE_NAME" "dist-tags.$maintenance_tag" 2>&1)"
+    maintenance_out="$(npm view "$PACKAGE_NAME" "dist-tags.$maintenance_tag" --json)"
     maintenance_status=$?
     set -e
   fi
@@ -97,6 +113,7 @@ else
     exit 1
   fi
   if [ -n "$maintenance_out" ]; then
+    maintenance_out="$(registry_version "$maintenance_out")"
     maintenance_order="$(version_order "$TAG_VERSION" "$maintenance_out")"
     if [ "${maintenance_out%%.*}" != "${TAG_VERSION%%.*}" ] || [ "$maintenance_order" -lt 0 ]; then
       echo "Refusing to move $maintenance_tag backward from $maintenance_out to $TAG_VERSION." >&2

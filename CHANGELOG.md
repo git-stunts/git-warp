@@ -52,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release registry probes decode npm JSON responses and require a structured
+  `E404` code before treating a lookup failure as an unpublished package.
+  Error descriptions cannot authorize a `latest` publication.
+
 - Release tag decisions validate complete SemVer inputs and compare precedence
   with npm SemVer, including prereleases and precedence-neutral build metadata.
   Unsupported prerelease channels and malformed registry answers fail closed.

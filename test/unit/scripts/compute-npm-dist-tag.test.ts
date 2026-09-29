@@ -24,9 +24,9 @@ function decide(
   maintenance?: { out: string; status?: number },
 ): { tag: string | null; status: number; stderr: string } {
   const result = spawnSync('env', [
-    `NPM_DIST_TAG_PROBE_OUT=${probe?.out ?? 'registry must not be consulted'}`,
+    `NPM_DIST_TAG_PROBE_OUT=${probe?.status ? probe.out : `"${probe?.out ?? 'registry must not be consulted'}"`}`,
     `NPM_DIST_TAG_PROBE_STATUS=${probe?.status ?? 0}`,
-    `NPM_MAINTENANCE_PROBE_OUT=${maintenance?.out ?? ""}`,
+    `NPM_MAINTENANCE_PROBE_OUT=${maintenance ? `"${maintenance.out}"` : ""}`,
     `NPM_MAINTENANCE_PROBE_STATUS=${maintenance?.status ?? 0}`,
     SCRIPT,
     tagVersion,
@@ -125,7 +125,7 @@ describe('npm dist-tag decision', () => {
     );
     it.each(['bad', '019.1.0', '19.1.0-rc.01', '19.1.0-gamma.1'])(
       'rejects unsupported or malformed target %s before registry access', (version) => {
-        expect(decide(version, { out: 'npm error code E404', status: 1 }).status).not.toBe(0);
+        expect(decide(version, { out: '{"error":{"code":"E404"}}', status: 1 }).status).not.toBe(0);
       },
     );
     it.each(['16.0.0junk', '15.0.0'])(
@@ -158,11 +158,19 @@ describe('npm dist-tag decision', () => {
 
     it('treats an unpublished package as a first release, not a failure', () => {
       // E404 means there is nothing to demote.
-      expect(decide('1.0.0', { out: 'npm error code E404', status: 1 }).tag).toBe('latest');
+      expect(decide('1.0.0', { out: '{"error":{"code":"E404"}}', status: 1 }).tag).toBe('latest');
     });
 
     it('rejects a missing argument instead of defaulting', () => {
       expect(decide('').status).toBe(2);
     });
   });
+});
+
+it('refuses non-E404 registry failures even when their description mentions E404', () => {
+  const result = decide('1.0.0', {
+    out: '{"error":{"code":"E500","summary":"upstream E404 cache failure"}}', status: 1,
+  });
+  expect(result.status).toBe(1);
+  expect(result.tag).toBeNull();
 });
