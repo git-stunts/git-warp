@@ -193,6 +193,11 @@
     "vitest": "^4.1.11",
     "yaml": "^2.9.0"
   },
+  "overrides": {
+    "markdownlint-cli": {
+      "js-yaml": "5.4.2"
+    }
+  },
   "keywords": [
     "git",
     "git-stunts",

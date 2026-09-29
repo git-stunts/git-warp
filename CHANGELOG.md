@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clear the locked dependency audit for Markdown tooling by updating
+  `markdown-it` to 14.3.2 and overriding only `markdownlint-cli`'s `js-yaml`
+  dependency to 5.4.2. The scoped override bridges the CLI's vulnerable
+  `~5.2.1` range; audit thresholds and production dependencies are unchanged.
+
 - Idle Git reader retirement now completes when the child process closes
   before stdin reports its final flush. Storage shutdown no longer waits
   indefinitely for that missing stream event. Requires Plumbing 3.3.1.
