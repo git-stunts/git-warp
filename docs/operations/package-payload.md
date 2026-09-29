@@ -42,7 +42,7 @@ Publishing the executable implementation as JavaScript only then removed the
 80 declarations under `dist/bin/` and `dist/scripts/`, leaving 1,574 files,
 933,202 compressed bytes, and 4,038,202 unpacked bytes. `npm pack --dry-run`
 and the generated tarball report identical inventories.
-The documentation-only inventory is from `878652ba`; the final inventory is
+The documentation-only inventory is from `878652ba`; the executable-declaration inventory is
 from `1b24b3f0`. Direct tarball inspection independently confirmed every file
 path and byte size, as well as the compressed archive size. Across both stages,
 the only removed paths were the 25 documentation files and 80 executable
@@ -54,11 +54,19 @@ both NodeNext and Bundler resolution, with `skipLibCheck: false` and zero
 diagnostics. None resolved under `dist/bin/` or `dist/scripts/`. The final
 isolated packed-consumer smoke also passed with both resolution modes.
 
+The second audit removed seven unused direct production dependencies and 581
+additional private declarations (894,575 bytes). The clean build now prunes
+`.d.ts` outputs against the compiler-verified closure of all five public type
+entrypoints, retaining 161 declarations. Compiler errors abort pruning before
+any file is removed. JavaScript and supported assets remain unchanged.
+The resulting artifact contains 993 files, 716,164 compressed bytes, and
+3,143,572 unpacked bytes.
+
 | Ceiling          | Value     | Headroom over the measured artifact |
 | ---------------- | --------- | ----------------------------------- |
-| Compressed bytes | 1,000,000 | 66,798 bytes (7.2%)                 |
-| Unpacked bytes   | 4,300,000 | 261,798 bytes (6.5%)                |
-| Entries          | 1,650     | 76 entries (4.8%)                   |
+| Compressed bytes | 760,000   | 43,836 bytes (6.1%)                 |
+| Unpacked bytes   | 3,300,000 | 156,428 bytes (5.0%)                |
+| Entries          | 1,050     | 57 entries (5.7%)                   |
 
 ## Allowlist
 
@@ -69,7 +77,7 @@ The package may contain only these path classes:
 | `package.json`                                                               | npm metadata and the public export/bin maps                         |
 | `README.md`, `LICENSE`, `NOTICE`                                             | User orientation and legal notices                                  |
 | `dist/{index,advanced,diagnostics,charts,testing}.{js,d.ts}`                 | Supported JavaScript and declaration entrypoints                    |
-| `dist/src/**`                                                                | Transitive runtime implementation required by supported entrypoints |
+| `dist/src/**`                                                                | Emitted runtime modules and the public declaration dependency closure |
 | `dist/bin/**/*.js`, `bin/git-warp`                                           | Supported `git-warp` executable implementation and launcher         |
 | `dist/scripts/v18-to-v19/*.js`, `dist/scripts/v18-to-v19/adapters/**/*.js`   | Supported `git-warp-v18-to-v19` migration executable               |
 | `dist/scripts/upgrade-v16-to-v17.js`                                         | Supported legacy `npm run upgrade` operator command                 |
@@ -114,7 +122,9 @@ before release if it does not.
 The boundary has four independent witnesses:
 
 1. `tsconfig.publish.json` compiles supported package entrypoints and their
-   transitive implementation. `tsconfig.maintainer.json` extends that build
+   transitive implementation. The publish build then prunes declarations outside
+   the five public type roots using `PrunePrivateDeclarations.ts`. The packed
+   inventory test rejects declarations outside that closure. `tsconfig.maintainer.json` extends that build
    graph for performance and operator programs without publishing them.
 2. `package.json#files` names the only source and build path classes npm may
    consider.
@@ -142,6 +152,11 @@ The allowlist and ceilings are release law. A legitimate new public entrypoint,
 runtime asset, migration, or documentation path must update this contract and
 its executable policy in the same reviewed change. Raising a ceiling requires
 an artifact inventory and rationale; it is not a routine version-bump edit.
+
+Runtime-root traversal also identified 77 JavaScript candidates outside its
+static import closure. These outputs are tracked in
+[issue #908](https://github.com/git-stunts/git-warp/issues/908) and retained
+pending combined runtime, type, and asset review; this PR does not claim a minimal JavaScript tree.
 
 ## Interpretation
 

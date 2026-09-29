@@ -151,20 +151,20 @@ describe('package payload policy', () => {
 
   it('reports every exceeded geometry ceiling', () => {
     const oversizedEntries = REQUIRED_PATHS.map(
-      (path, index) => new PackagePayloadEntry(path, index === 0 ? 4_300_001 : 0)
+      (path, index) => new PackagePayloadEntry(path, index === 0 ? 3_300_001 : 0)
     );
     const generatedEntries = Array.from(
-      { length: 1_651 },
+      { length: 1_051 },
       (_, index) => new PackagePayloadEntry(`dist/src/generated/${String(index)}.js`, 0)
     );
     const entries = [...oversizedEntries, ...generatedEntries];
-    const oversized = new PackagePayloadInventory(1_000_001, 4_300_001, entries);
+    const oversized = new PackagePayloadInventory(760_001, 3_300_001, entries);
     const assessment = new PackagePayloadPolicy().assess(oversized);
 
-    expect(assessment.violations).toContain('compressed size 1000001 exceeds 1000000');
-    expect(assessment.violations).toContain('unpacked size 4300001 exceeds 4300000');
+    expect(assessment.violations).toContain('compressed size 760001 exceeds 760000');
+    expect(assessment.violations).toContain('unpacked size 3300001 exceeds 3300000');
     expect(assessment.violations).toContain(
-      `entry count ${String(entries.length)} exceeds 1650`
+      `entry count ${String(entries.length)} exceeds 1050`
     );
   });
 });

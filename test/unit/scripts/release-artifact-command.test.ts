@@ -3,6 +3,8 @@ import {
   type SpawnSyncOptionsWithStringEncoding,
   type SpawnSyncReturns,
 } from 'node:child_process';
+import { relative, resolve } from 'node:path';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const COMMAND_TIMEOUT_MS = 120_000;
@@ -139,6 +141,18 @@ describe('release artifact command evidence', () => {
 
   it('dry-runs the packed npm artifact and exposes the compiled public surface', () => {
     const entries = packEntries(runNpmPackDryRun());
+    const roots = ['index', 'advanced', 'diagnostics', 'charts', 'testing']
+      .map((name) => resolve(`dist/${name}.d.ts`));
+    const declarations = ts.createProgram(roots, {
+      module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext,
+      skipLibCheck: false, noEmit: true, target: ts.ScriptTarget.ESNext, strict: true,
+    });
+    expect(ts.getPreEmitDiagnostics(declarations)).toEqual([]);
+    const requiredDeclarations = declarations.getSourceFiles()
+      .map((file) => relative(resolve('.'), file.fileName).split('\\').join('/'))
+      .filter((path) => path.startsWith('dist/'));
+    expect([...entries].filter((path) => path.endsWith('.d.ts')).sort())
+      .toEqual(requiredDeclarations.sort());
 
     const compiledTests = [...entries].filter((entry) => entry.startsWith('dist/test/'));
     const withheldDocumentation = [...entries].filter(

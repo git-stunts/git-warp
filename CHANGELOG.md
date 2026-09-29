@@ -139,6 +139,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documentation now use commit-pinned repository URLs. The payload policy
   rejects the withheld paths explicitly and lowers the unpacked ceiling to
   4,300,000 bytes.
+- The publish build now removes 581 private declarations outside the compiler-
+  verified dependency closure of all five public type entrypoints, retaining
+  161 required declarations. Compiler errors abort pruning before deletion;
+  JavaScript and supported commands remain intact. Payload ceilings are now
+  760,000 compressed bytes, 3,300,000 unpacked bytes, and 1,050 entries.
 - Remove unused direct production dependencies on `boxen`, `chalk`,
   `cli-table3`, `elkjs`, `figures`, `string-width`, and `wrap-ansi`.
   Supported runtime and command imports retain their dependencies.
@@ -146,7 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   80 declarations was reachable from the five public declaration entrypoints,
   so type consumers see no change. The payload policy rejects non-JavaScript
   files there and lowers the ceilings to 1,000,000 compressed bytes and 1,650
-  entries; the measured artifact is 933,496 compressed bytes, 4,038,202
+  entries; the measured artifact is 933,202 compressed bytes, 4,038,202
   unpacked bytes, and 1,574 entries. The packed-artifact smoke now also
   type-checks every public type surface from the installed tarball with
   `skipLibCheck: false`, verifies the export and bin maps and sealed private
