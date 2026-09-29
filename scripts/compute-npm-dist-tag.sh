@@ -56,7 +56,7 @@ if [ -n "${NPM_DIST_TAG_PROBE_OUT+x}" ]; then
   probe_status="${NPM_DIST_TAG_PROBE_STATUS:-0}"
 else
   set +e
-  probe_out="$(npm view "$PACKAGE_NAME" version --json)"
+  probe_out="$(npm view "$PACKAGE_NAME@latest" version --json)"
   probe_status=$?
   set -e
 fi

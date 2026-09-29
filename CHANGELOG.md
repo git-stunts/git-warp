@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release promotion probes `@git-stunts/git-warp@latest` explicitly so npm
+  default-tag configuration cannot substitute another publication channel.
+
 - Release registry probes decode npm JSON responses and require a structured
   `E404` code before treating a lookup failure as an unpublished package.
   Error descriptions cannot authorize a `latest` publication.
