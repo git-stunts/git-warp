@@ -69,7 +69,28 @@ highest="$(printf '%s\n%s\n' "$TAG_VERSION" "$current_latest" | sort -V | tail -
 if [ "$highest" = "$TAG_VERSION" ]; then
   echo "latest"
 else
+  maintenance_tag="maintenance-v${TAG_VERSION%%.*}"
+  if [ -n "${NPM_MAINTENANCE_PROBE_OUT+x}" ]; then
+    maintenance_out="$NPM_MAINTENANCE_PROBE_OUT"
+    maintenance_status="${NPM_MAINTENANCE_PROBE_STATUS:-0}"
+  else
+    set +e
+    maintenance_out="$(npm view "$PACKAGE_NAME" "dist-tags.$maintenance_tag" 2>&1)"
+    maintenance_status=$?
+    set -e
+  fi
+  if [ "$maintenance_status" -ne 0 ]; then
+    echo "Refusing to publish: could not read $maintenance_tag." >&2
+    exit 1
+  fi
+  if [ -n "$maintenance_out" ]; then
+    maintenance_highest="$(printf '%s\n%s\n' "$TAG_VERSION" "$maintenance_out" | sort -V | tail -1)"
+    if [ "$maintenance_highest" != "$TAG_VERSION" ]; then
+      echo "Refusing to move $maintenance_tag backward from $maintenance_out to $TAG_VERSION." >&2
+      exit 1
+    fi
+  fi
   # Not `v16` or `16.x`: both parse as the semver range >=16.0.0 <17.0.0-0,
   # so `npm install pkg@v16` resolves as a range and shadows the dist-tag.
-  echo "maintenance-v${TAG_VERSION%%.*}"
+  echo "$maintenance_tag"
 fi

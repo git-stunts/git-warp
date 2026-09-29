@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Maintenance releases now inspect their existing npm channel and refuse to
+  move it backward or publish when that channel cannot be inspected.
 - Release publication shares one non-cancelling concurrency group across tags,
   keeping registry inspection and publication serialized between releases.
 - A stable release tag no longer claims the `latest` npm dist-tag

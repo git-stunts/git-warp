@@ -21,10 +21,13 @@ const SCRIPT = fileURLToPath(new URL('../../../scripts/compute-npm-dist-tag.sh',
 function decide(
   tagVersion: string,
   probe?: { out: string; status?: number },
+  maintenance?: { out: string; status?: number },
 ): { tag: string | null; status: number; stderr: string } {
   const result = spawnSync('env', [
     `NPM_DIST_TAG_PROBE_OUT=${probe?.out ?? 'registry must not be consulted'}`,
     `NPM_DIST_TAG_PROBE_STATUS=${probe?.status ?? 0}`,
+    `NPM_MAINTENANCE_PROBE_OUT=${maintenance?.out ?? ""}`,
+    `NPM_MAINTENANCE_PROBE_STATUS=${maintenance?.status ?? 0}`,
     SCRIPT,
     tagVersion,
   ], { encoding: 'utf8' });
@@ -76,6 +79,24 @@ describe('npm dist-tag decision', () => {
       // A lexical compare puts 9.0.0 above 10.0.0 and would demote a real release.
       expect(decide('10.0.0', { out: '9.0.0' }).tag).toBe('latest');
       expect(decide('9.0.0', { out: '10.0.0' }).tag).toBe('maintenance-v9');
+    });
+  });
+
+  describe('maintenance channels never move backward', () => {
+    it('refuses a release older than its existing maintenance channel', () => {
+      const result = decide('16.0.2', { out: '19.1.0' }, { out: '16.0.3' });
+      expect(result.status).toBe(1);
+      expect(result.tag).toBeNull();
+      expect(result.stderr).toContain('Refusing');
+    });
+
+    it('allows an equal or newer maintenance release', () => {
+      expect(decide('16.0.3', { out: '19.1.0' }, { out: '16.0.3' }).tag).toBe('maintenance-v16');
+      expect(decide('16.0.4', { out: '19.1.0' }, { out: '16.0.3' }).tag).toBe('maintenance-v16');
+    });
+
+    it('refuses an unavailable maintenance channel probe', () => {
+      expect(decide('16.0.3', { out: '19.1.0' }, { out: 'timeout', status: 1 }).status).toBe(1);
     });
   });
 
