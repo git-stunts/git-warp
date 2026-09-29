@@ -80,7 +80,7 @@ describe('reads skip a property key they cannot decode', () => {
 describe('checkpoint load refuses a property owner it could never have written', () => {
   const base = {
     nodes: ['file:a.ts'],
-    edges: [] as Array<{ from: string; to: string; label: string }>,
+    edges: [],
   };
 
   it('rejects a props[].node carrying the edge-property prefix', () => {
@@ -101,7 +101,10 @@ describe('checkpoint load refuses a property owner it could never have written',
       expect.unreachable('checkpoint load should have refused');
     } catch (error) {
       expect(error).toBeInstanceOf(WarpError);
-      expect((error as WarpError).code).toBe('E_CHECKPOINT_INVALID_PROP_OWNER');
+      if (!(error instanceof WarpError)) {
+        throw error;
+      }
+      expect(error.code).toBe('E_CHECKPOINT_INVALID_PROP_OWNER');
     }
   });
 
