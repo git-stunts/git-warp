@@ -758,6 +758,6 @@ closure.
 
 ## Related Reading
 
-- [v19 public vocabulary checkpoint](../../topics/api/README.md)
-- [Optic reads](../../topics/optic-reads.md)
-- [Public API reference](../../topics/reference.md)
+- [v19 public vocabulary checkpoint](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/api/README.md)
+- [Optic reads](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/optic-reads.md)
+- [Public API reference](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/reference.md)

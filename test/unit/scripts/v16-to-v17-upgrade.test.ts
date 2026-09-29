@@ -119,6 +119,8 @@ describe('v16 to v17 top-level upgrade utility', () => {
     expect(parseUpgradeCommandEntrypoint(packageJson.scripts.upgrade)).toBe('dist/scripts/upgrade-v16-to-v17.js');
     expect(publishTsconfig.include).toContain('scripts/upgrade-v16-to-v17.ts');
     expect(packageJson.files).toContain('dist/scripts/upgrade-v16-to-v17.js');
-    expect(packageJson.files).toContain('dist/scripts/upgrade-v16-to-v17.d.ts');
+    // The operator command is executable implementation; no public declaration
+    // imports it, so the package publishes its JavaScript only.
+    expect(packageJson.files).not.toContain('dist/scripts/upgrade-v16-to-v17.d.ts');
   });
 });

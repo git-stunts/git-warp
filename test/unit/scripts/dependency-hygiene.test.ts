@@ -1,4 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import PackedArtifactBoundaryAdapter from '../../../src/infrastructure/adapters/PackedArtifactBoundaryAdapter.ts';
 
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -35,10 +37,15 @@ function requireEntry(entries: Readonly<Record<string, string>>, name: string): 
 }
 
 describe('dependency hygiene', () => {
-  it('keeps direct dependency policy explicit without stale overrides', async () => {
+  it('allows only the reviewed Markdown security override', async () => {
     const packageJson = await readFile(repoPath('package.json'), 'utf8');
 
-    expect(packageJson).not.toMatch(/"overrides"\s*:\s*\{/);
+    const manifest = new PackedArtifactBoundaryAdapter().read(
+      fileURLToPath(repoPath('package.json')),
+      z.object({ overrides: z.record(z.record(z.string())) })
+    );
+    // markdownlint-cli 0.49.1 pins vulnerable ~5.2.1; remove when upstream permits patched YAML.
+    expect(manifest.overrides).toEqual({ 'markdownlint-cli': { 'js-yaml': '5.4.2' } });
     expect(packageJson).not.toContain('"tar": "7.5.16"');
     expect(packageJson).toContain('"zod": "^3.24.1"');
     expect(packageJson).toContain('"patch-package": "^8.0.0"');
@@ -59,11 +66,10 @@ describe('dependency hygiene', () => {
   });
 
   it('keeps Deno on the same git storage ranges as the package manifest', async () => {
-    const packageFile = PACKAGE_FILE_SCHEMA.parse(
-      JSON.parse(await readFile(repoPath('package.json'), 'utf8'))
-    );
-    const denoImportMap = DENO_IMPORT_MAP_SCHEMA.parse(
-      JSON.parse(await readFile(repoPath('test/runtime/deno/deno.json'), 'utf8'))
+    const reader = new PackedArtifactBoundaryAdapter();
+    const packageFile = reader.read(fileURLToPath(repoPath('package.json')), PACKAGE_FILE_SCHEMA);
+    const denoImportMap = reader.read(
+      fileURLToPath(repoPath('test/runtime/deno/deno.json')), DENO_IMPORT_MAP_SCHEMA
     );
 
     for (const dependency of SHARED_RUNTIME_DEPENDENCIES) {
