@@ -92,27 +92,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Property GC retains registers and edge lifecycle evidence for owners whose
-  adds have not arrived. Sweep candidates must have been held before the
-  current compaction cycle; an empty alive set alone is not proof of removal.
+- Garbage collection reclaims permanently stale property registers only after
+  their owner passes the compaction frontier. Lifecycle evidence is retained
+  so re-adds and delayed merges cannot change which properties are visible.
+  Properties with pending owner adds, ambiguous keys, or no permanent
+  staleness proof remain intact. In particular, dead-node absence alone does
+  not authorize pruning, and legacy churn may still retain properties.
+  `GCExecuteResult.propertiesPruned` reports the reclaimed register count,
+  including through `graph.checkpoint.runGC()` and `maybeRunGC()`.
 
-- Garbage collection now reclaims the property registers of removed nodes and
-  edges. Compaction previously cleared tombstoned dots from `nodeAlive` and
-  `edgeAlive` but left every register keyed under the removed element in
-  `WarpState.prop`, so a graph under churn — retiring one generation of
-  elements to add the next — grew that map monotonically and never released
-  it, ratcheting heap in long-lived processes even across full GC runs. The
-  sweep runs after compaction and drops a register once the alive set holds no
-  dot, live or tombstoned, for its element. For an element the set once held,
-  that happens only after compaction has removed its last dot, so the
-  `appliedVV` passed to `executeGC` bounds the sweep as it bounds compaction.
-  A register whose element was never added has no dot to wait for and is
-  dropped under any `appliedVV`, including an empty one. Those edges'
-  `edgeBirthEvent` entries are reclaimed with them, and
-  `GCExecuteResult.propertiesPruned` reports the count, including through
-  `graph.checkpoint.runGC()` and `maybeRunGC()`. A key whose element id embeds
-  the `\0` field separator does not decode unambiguously and is always
-  retained, never pruned.
 - Validate full-state envelopes and entry keys at the CBOR adapter boundary; preserve supported legacy event defaults.
 
 - Reject full-state property registers with missing or invalid values before hydration.

@@ -2,8 +2,8 @@
  * executeGC — compacts a WARP V5 state against an applied version vector.
  *
  * Compacts tombstoned dots that are <= `appliedVV` from both
- * `nodeAlive` and `edgeAlive`, then drops the property registers left
- * behind by elements those sets no longer hold. Mutates `state` in
+ * `nodeAlive` and `edgeAlive`, then drops permanently stale property registers
+ * whose owners those sets no longer hold. Mutates `state` in
  * place — callers must clone-then-swap to preserve a rollback copy
  * (see CheckpointService for the canonical pattern).
  *

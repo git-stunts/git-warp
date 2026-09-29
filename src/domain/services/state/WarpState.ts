@@ -196,6 +196,8 @@ export default class WarpState {
   compactDeadProperties(candidates: PropertySweepCandidates): number {
     return sweepDeadProperties({
       prop: this.prop,
+      nodeClearEvent: this.nodeClearEvent,
+      edgeRemoveEvent: this.edgeRemoveEvent,
       nodeAlive: this.nodeAlive,
       edgeAlive: this.edgeAlive,
       edgeBirthEvent: this.edgeBirthEvent,
