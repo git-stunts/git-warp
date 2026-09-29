@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Publish builds now use `@vercel/nft` to prune unreachable emitted JavaScript
+  after `tsc`, preserving retained bytes, compiler-selected declarations,
+  supported commands, and runtime assets. Runtime roots come from package
+  exports and executables plus the explicit CLI and legacy upgrade roots;
+  unresolved traces and computed dynamic imports abort before deletion.
+
+- Release Preflight PR comments now include an actual-tarball bundle analysis:
+  measured sizes and file count, limit utilization and remaining capacity,
+  warnings at 85% and critical headroom at 95%, largest files, payload
+  composition, and static file/dependency findings. Reports update one bot
+  comment and retain complete workflow evidence, including when gates fail.
+
 - `Lane.write()` now accepts a non-empty ordered array of validated Intents.
   The complete array lowers through one `PatchBuilder`, publishes exactly one
   patch, advances the target publication ref once, and returns one admission
@@ -61,6 +73,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.github/RELEASE.md` already required "an explicit maintenance tag policy
   before publication"; that policy is now written down and enforced, alongside
   a procedure for releasing from a maintenance line.
+- Clear the locked dependency audit for Markdown tooling by updating
+  `markdown-it` to 14.3.2 and overriding only `markdownlint-cli`'s `js-yaml`
+  dependency to 5.4.2. The scoped override bridges the CLI's vulnerable
+  `~5.2.1` range; audit thresholds and production dependencies are unchanged.
+
 - Idle Git reader retirement now completes when the child process closes
   before stdin reports its final flush. Storage shutdown no longer waits
   indefinitely for that missing stream event. Requires Plumbing 3.3.1.
@@ -137,22 +154,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Packaging
 
-- npm publication now uses an explicit package allowlist that retains required
-  Runtime implementation, supported migration commands, hook, bootstrap,
-  legal, topic, operations, and runtime-linked reading guidance while
-  excluding compiled tests, fixtures, maintainers' utilities, performance
-  drivers, maintainer-only policy documents, and plans. Repository builds
-  continue compiling
-  maintainer programs through a separate build profile for their own CI and
-  operator workflows without making those outputs part of the npm artifact.
-- Release and standalone prepack gates now inspect the actual npm inventory,
-  reject every unrecognized path, and enforce reviewed ceilings of 1,700
-  files, 1,200,000 compressed bytes, and 4,900,000 unpacked bytes. The typed
-  inventory boundary tolerates npm 10 prepare output only before a terminal
-  schema-valid JSON frame. The clean external-consumer smoke imports every
-  supported subpath and package metadata, starts both executables, verifies
-  required hook/bootstrap assets, and keeps the private storage subpath
-  inaccessible.
+- npm publication uses an explicit allowlist retaining the five public
+  JavaScript/type entrypoints and their dependencies, both published
+  executables, legacy upgrade, installer/uninstaller, post-merge hook,
+  `README.md`, the v19 migration guide, `docs/READINGS_AND_OPTICS.md`,
+  `LICENSE`, and `NOTICE`. `CHANGELOG.md`, topic and operator docs, compiled
+  tests, fixtures, maintainer utilities, performance drivers, policy documents,
+  and plans stay outside the artifact. Withheld documentation remains in Git;
+  retained documents link to it using commit-pinned repository URLs.
+- The publish build uses `tsc`, compiler-based declaration pruning, and NFT
+  whole-file JavaScript tracing. It retains 161 required declarations and
+  excludes 80 executable declarations plus 581 private declarations.
+  `dist/bin/` and `dist/scripts/` publish JavaScript only. NFT excludes the
+  77 audited unreachable JavaScript outputs without rewriting retained code.
+  Maintainer programs use a separate build profile.
+- Release and prepack gates reject unrecognized paths and enforce final
+  ceilings of **760,000 compressed bytes, 3,300,000 unpacked bytes, and 1,050
+  entries**. The inventory boundary tolerates npm 10 prepare output only before
+  a terminal schema-valid JSON frame. The external packed-consumer smoke checks
+  all public exports and declarations with `skipLibCheck: false`, metadata,
+  both executables, private-subpath restrictions, relative imports, hook
+  installation, CLI and migration behavior, assets, and documentation links.
+- Remove unused direct production dependencies on `boxen`, `chalk`,
+  `cli-table3`, `elkjs`, `figures`, `string-width`, and `wrap-ansi`.
+  Supported runtime and command imports retain their dependencies.
+- Bundle advisories recognize `*`, `x`, and `X` wildcard ranges. Report tests
+  enforce descending file sizes and deterministic ties. Release Preflight's
+  artifact upload and PR comment actions are pinned to verified commit SHAs.
 
 ## [19.1.0] - 2026-08-25
 

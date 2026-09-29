@@ -3,6 +3,8 @@ import {
   type SpawnSyncOptionsWithStringEncoding,
   type SpawnSyncReturns,
 } from 'node:child_process';
+import { relative, resolve } from 'node:path';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const COMMAND_TIMEOUT_MS = 120_000;
@@ -22,9 +24,11 @@ type SpawnCall = {
 
 type PackSectionName = 'Tarball Contents' | 'Tarball Details';
 
+/** Executes npm without a shell, preserving argument boundaries. */
 const defaultCommandRunner: CommandRunner = (command, args, options) =>
   spawnSync(command, [...args], options);
 
+/** Runs a bounded npm command and requires successful process completion. */
 function runNpmCommand(
   args: readonly string[],
   runner: CommandRunner = defaultCommandRunner
@@ -39,11 +43,13 @@ function runNpmCommand(
   return `${result.stdout}\n${result.stderr}`;
 }
 
+/** Builds a clean publish tree before inspecting npm’s dry-run inventory. */
 function runNpmPackDryRun(): string {
   runNpmCommand(['run', 'build', '--silent']);
   return runNpmCommand(['pack', '--dry-run', '--ignore-scripts', '--no-json']);
 }
 
+/** Extracts only file paths from the npm tarball-contents section. */
 function packEntries(output: string): ReadonlySet<string> {
   const entries = new Set<string>();
   let inContents = false;
@@ -66,16 +72,19 @@ function packEntries(output: string): ReadonlySet<string> {
   return entries;
 }
 
+/** Recognizes both plain and decorated npm notice section headers. */
 function isPackSectionHeader(line: string, sectionName: PackSectionName): boolean {
   const normalizedHeader = line.replaceAll('=', '').replace(/\s+/gu, ' ').trim();
   return line.includes(sectionName) && normalizedHeader === `npm notice ${sectionName}`;
 }
 
+/** Reads one npm inventory row without interpreting unrelated output. */
 function packEntryPath(line: string): string | null {
   const match = /^npm notice\s+\S+\s+(.+)$/u.exec(line);
   return match?.[1] ?? null;
 }
 
+/** Admits migration entry modules and their adapter subtree. */
 function isSupportedV18ToV19Artifact(path: string): boolean {
   const prefix = 'dist/scripts/v18-to-v19/';
   if (!path.startsWith(prefix)) {
@@ -84,11 +93,11 @@ function isSupportedV18ToV19Artifact(path: string): boolean {
   const relativePath = path.slice(prefix.length);
   return (
     relativePath.startsWith('adapters/') ||
-    (!relativePath.includes('/') &&
-      (relativePath.endsWith('.js') || relativePath.endsWith('.d.ts')))
+    (!relativePath.includes('/') && relativePath.endsWith('.js'))
   );
 }
 
+/** Creates a completed process result for the command timeout regression. */
 function successfulSpawnResult(stdout: string): SpawnSyncReturns<string> {
   return {
     pid: 0,
@@ -140,23 +149,48 @@ describe('release artifact command evidence', () => {
 
   it('dry-runs the packed npm artifact and exposes the compiled public surface', () => {
     const entries = packEntries(runNpmPackDryRun());
+    const roots = ['index', 'advanced', 'diagnostics', 'charts', 'testing']
+      .map((name) => resolve(`dist/${name}.d.ts`));
+    const declarations = ts.createProgram(roots, {
+      module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext,
+      skipLibCheck: false, noEmit: true, target: ts.ScriptTarget.ESNext, strict: true,
+    });
+    expect(ts.getPreEmitDiagnostics(declarations)).toEqual([]);
+    const requiredDeclarations = declarations.getSourceFiles()
+      .map((file) => relative(resolve('.'), file.fileName).split('\\').join('/'))
+      .filter((path) => path.startsWith('dist/'));
+    expect([...entries].filter((path) => path.endsWith('.d.ts')).sort())
+      .toEqual(requiredDeclarations.sort());
 
     const compiledTests = [...entries].filter((entry) => entry.startsWith('dist/test/'));
+    const withheldDocumentation = [...entries].filter(
+      (entry) =>
+        entry === 'CHANGELOG.md' ||
+        entry.startsWith('docs/topics/') ||
+        entry.startsWith('docs/operations/')
+    );
     const unrelatedCompiledScripts = [...entries].filter(
       (entry) =>
         entry.startsWith('dist/scripts/') &&
         !isSupportedV18ToV19Artifact(entry) &&
         !entry.startsWith('dist/scripts/migrations/v17.0.0/') &&
         entry !== 'dist/scripts/formatFailure.js' &&
-        entry !== 'dist/scripts/formatFailure.d.ts' &&
-        entry !== 'dist/scripts/upgrade-v16-to-v17.js' &&
-        entry !== 'dist/scripts/upgrade-v16-to-v17.d.ts'
+        entry !== 'dist/scripts/upgrade-v16-to-v17.js'
+    );
+    const implementationNonJavaScript = [...entries].filter(
+      (entry) =>
+        (entry.startsWith('dist/bin/') || entry.startsWith('dist/scripts/')) &&
+        !entry.endsWith('.js')
     );
 
     expect(entries.has('dist/index.js')).toBe(true);
     expect(entries.has('dist/index.d.ts')).toBe(true);
     expect(entries.has('dist/scripts/upgrade-v16-to-v17.js')).toBe(true);
-    expect(entries.has('dist/scripts/upgrade-v16-to-v17.d.ts')).toBe(true);
+    expect(entries.has('dist/scripts/upgrade-v16-to-v17.d.ts')).toBe(false);
+    expect(entries.has('dist/scripts/v18-to-v19/migrate.js')).toBe(true);
+    expect(entries.has('dist/scripts/v18-to-v19/migrate.d.ts')).toBe(false);
+    expect(entries.has('dist/bin/git-warp.d.ts')).toBe(false);
+    expect(implementationNonJavaScript).toEqual([]);
     expect(entries.has('dist/browser.js')).toBe(false);
     expect(entries.has('dist/browser.d.ts')).toBe(false);
     expect(entries.has('dist/legacy.js')).toBe(false);
@@ -168,14 +202,13 @@ describe('release artifact command evidence', () => {
     expect(entries.has('dist/bin/warp-graph.js')).toBe(false);
     expect(entries.has('README.md')).toBe(true);
     expect(entries.has('docs/migrations/v19/README.md')).toBe(true);
-    expect(entries.has('docs/operations/README.md')).toBe(true);
-    expect(entries.has('docs/topics/README.md')).toBe(true);
-    expect(entries.has('docs/topics/api/README.md')).toBe(true);
-    expect(entries.has('docs/topics/getting-started.md')).toBe(true);
     expect(entries.has('docs/READINGS_AND_OPTICS.md')).toBe(true);
-    expect(entries.has('docs/operations/package-payload.md')).toBe(true);
-    expect(entries.has('CHANGELOG.md')).toBe(true);
     expect(entries.has('LICENSE')).toBe(true);
+    expect(entries.has('NOTICE')).toBe(true);
+    expect(withheldDocumentation).toEqual([]);
+    expect(entries.has('CHANGELOG.md')).toBe(false);
+    expect(entries.has('docs/topics/README.md')).toBe(false);
+    expect(entries.has('docs/operations/package-payload.md')).toBe(false);
     expect(compiledTests).toEqual([]);
     expect(unrelatedCompiledScripts).toEqual([]);
     expect(entries.has('docs/ANTI_SLUDGE_POLICY.md')).toBe(false);
