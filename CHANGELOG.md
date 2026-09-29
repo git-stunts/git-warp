@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Publish builds now use `@vercel/nft` to prune unreachable emitted JavaScript
+  after `tsc`, preserving retained bytes, compiler-selected declarations,
+  supported commands, and runtime assets. Runtime roots come from package
+  exports and executables plus the explicit CLI and legacy upgrade roots;
+  unresolved traces and computed dynamic imports abort before deletion.
+
 - Release Preflight PR comments now include an actual-tarball bundle analysis:
   measured sizes and file count, limit utilization and remaining capacity,
   warnings at 85% and critical headroom at 95%, largest files, payload

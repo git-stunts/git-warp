@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { join, posix } from 'node:path';
 import ts from 'typescript';
+import computedModuleLoads from './ComputedModuleLoads.ts';
 import type PackagePayloadInventory from './PackagePayloadInventory.ts';
 import PackageModuleTrace from './PackageModuleTrace.ts';
 
@@ -22,7 +23,7 @@ export default function tracePackageModules(
     const references = ts.preProcessFile(source, true, true);
     localReferences(path, references).forEach((reference) => queue.add(reference));
     packageNames(references).forEach((name) => packages.add(name));
-    findings.push(...computedImports(source, path));
+    findings.push(...computedModuleLoads(source, path));
   }
   return new PackageModuleTrace(queue, packages, findings);
 }
@@ -44,21 +45,4 @@ function packageNames(references: ts.PreProcessedFileInfo): string[] {
   return references.importedFiles.map(({ fileName }) => fileName)
     .filter((name) => !name.startsWith('.') && !name.startsWith('node:') && !builtinModules.includes(name))
     .map((name) => name.split('/').slice(0, name.startsWith('@') ? 2 : 1).join('/'));
-}
-
-/** Explicitly reports imports whose computed targets cannot be statically traversed. */
-function computedImports(source: string, path: string): string[] {
-  const findings: string[] = [];
-  const syntax = ts.createSourceFile(path, source, ts.ScriptTarget.ESNext, true);
-  const visit = (node: ts.Node): void => {
-    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-      const argument = node.arguments[0];
-      if (argument !== undefined && !ts.isStringLiteralLike(argument)) {
-        findings.push(`Computed import prevents complete reachability analysis: ${path}`);
-      }
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(syntax);
-  return findings;
 }

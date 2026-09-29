@@ -123,7 +123,9 @@ The boundary has four independent witnesses:
 
 1. `tsconfig.publish.json` compiles supported package entrypoints and their
    transitive implementation. The publish build then prunes declarations outside
-   the five public type roots using `PrunePrivateDeclarations.ts`. The packed
+   the five public type roots using `PrunePrivateDeclarations.ts`, then prunes
+   unreachable emitted JavaScript using `@vercel/nft` through
+   `PrunePrivateJavaScript.ts`. The packed
    inventory test rejects declarations outside that closure. `tsconfig.maintainer.json` extends that build
    graph for performance and operator programs without publishing them.
 2. `package.json#files` names the only source and build path classes npm may
@@ -153,10 +155,43 @@ runtime asset, migration, or documentation path must update this contract and
 its executable policy in the same reviewed change. Raising a ceiling requires
 an artifact inventory and rationale; it is not a routine version-bump edit.
 
-Runtime-root traversal also identified 77 JavaScript candidates outside its
-static import closure. These outputs are tracked in
-[issue #908](https://github.com/git-stunts/git-warp/issues/908) and retained
-pending combined runtime, type, and asset review; this PR does not claim a minimal JavaScript tree.
+## Runtime file tracing
+
+The publish build retains `tsc` output byte-for-byte and uses `@vercel/nft`
+only to select whole JavaScript files under `dist/`. Runtime roots come from
+manifest export `import`/`default` conditions and published executables. The
+`bin/git-warp` launcher maps explicitly to `dist/bin/git-warp.js`; its checkout
+TypeScript fallback is not a published runtime. The supported legacy upgrade
+command is an additional explicit root. Unrecognized export shapes or launcher
+paths fail validation rather than silently disappearing from the root set.
+
+NFT traces literal dynamic imports and filesystem references. Trace warnings,
+missing roots, and computed dynamic imports block pruning before deletion.
+The computed-import guard is shared with the advisory analyzer; the analyzer's
+literal-reference traversal does not decide what gets deleted. Dependencies
+under `node_modules` stay external. Declarations, retained documentation, and
+shell assets have independent publication contracts and are never deleted by
+the JavaScript pruner. A new loading mechanism or export condition requires
+explicit review and packed-consumer evidence before this contract expands.
+
+The adoption experiment for [#908](https://github.com/git-stunts/git-warp/issues/908)
+matched the separately audited 77-file set exactly, without an exclusion list.
+Every retained JavaScript file was byte-identical to the pre-pruning tarball.
+Same-environment measurements (including the updated package metadata) were:
+
+| Metric | Before | NFT-pruned artifact |
+| --- | ---: | ---: |
+| Compressed bytes | 716,164 | 703,771 |
+| Unpacked bytes | 3,143,572 | 3,101,860 |
+| Entries | 993 | 916 |
+
+Compression can vary across npm/runtime environments. The isolated packed
+consumer passed public imports, strict declarations, CLI and migration behavior,
+private-subpath restrictions, and hook installation. Unit fixtures additionally
+check both platform-dependent import branches, filesystem-loaded JavaScript,
+lazy imports, refusal on uncertainty, and byte preservation. No bundling,
+minification, source deletion, or public API removal is involved. Rollup remains
+a separate potential experiment.
 
 ## Release Preflight bundle report
 

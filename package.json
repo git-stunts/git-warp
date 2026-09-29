@@ -84,7 +84,7 @@
   },
   "scripts": {
     "audit:locked": "npm audit --audit-level=low",
-    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.publish.json && node --input-type=module -e \"import prune from './scripts/package-payload/PrunePrivateDeclarations.ts'; prune('dist');\"",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.publish.json && node --input-type=module -e \"import prune from './scripts/package-payload/PrunePrivateDeclarations.ts'; prune('dist'); await (await import('./scripts/package-payload/PrunePrivateJavaScript.ts')).default('.');\"",
     "build:maintainer": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.maintainer.json",
     "generate:vocabulary-ir": "node scripts/GenerateV19VocabularyIr.ts",
     "check:vocabulary-ir": "node scripts/GenerateV19VocabularyIr.ts --check",
@@ -178,6 +178,7 @@
     "@types/node": "^22.15.29",
     "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.54.0",
+    "@vercel/nft": "1.11.0",
     "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9.17.0",
     "eslint-plugin-jsdoc": "^62.8.1",
