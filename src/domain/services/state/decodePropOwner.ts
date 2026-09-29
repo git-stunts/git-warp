@@ -19,7 +19,7 @@ import { tryDecodeEdgePropKey, decodePropKey, encodeEdgeKey, encodeEdgePropKey, 
  * to no owner and hide it; a sweep that trusted the same decode would instead
  * delete a live element's registers, so the decode must round-trip.
  *
- * A key with the wrong field count makes `tryDecodeEdgePropKey` throw.
+ * A key with the wrong field count makes `tryDecodeEdgePropKey` return null.
  * Full-state deserialization accepts prop-map keys without validating their
  * shape, so one malformed key would otherwise abort the whole sweep and,
  * through it, GC. Sweeping is an optimization; a key it cannot read is one it
