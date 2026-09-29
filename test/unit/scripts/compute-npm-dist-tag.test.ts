@@ -11,7 +11,7 @@
  * registry does not answer.
  */
 
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -22,18 +22,18 @@ function decide(
   tagVersion: string,
   probe?: { out: string; status?: number },
 ): { tag: string | null; status: number; stderr: string } {
-  const env: Record<string, string | undefined> = { ...process.env };
-  if (probe !== undefined) {
-    env['NPM_DIST_TAG_PROBE_OUT'] = probe.out;
-    env['NPM_DIST_TAG_PROBE_STATUS'] = String(probe.status ?? 0);
-  }
-  try {
-    const stdout = execFileSync(SCRIPT, [tagVersion], { env, encoding: 'utf8' });
-    return { tag: stdout.trim(), status: 0, stderr: '' };
-  } catch (error) {
-    const err = error as { status?: number; stderr?: string };
-    return { tag: null, status: err.status ?? -1, stderr: err.stderr ?? '' };
-  }
+  const result = spawnSync('env', [
+    `NPM_DIST_TAG_PROBE_OUT=${probe?.out ?? 'registry must not be consulted'}`,
+    `NPM_DIST_TAG_PROBE_STATUS=${probe?.status ?? 0}`,
+    SCRIPT,
+    tagVersion,
+  ], { encoding: 'utf8' });
+  if (result.error) throw result.error;
+  return {
+    tag: result.status === 0 ? result.stdout.trim() : null,
+    status: result.status ?? -1,
+    stderr: result.stderr,
+  };
 }
 
 describe('npm dist-tag decision', () => {
