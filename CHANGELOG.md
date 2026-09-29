@@ -139,6 +139,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documentation now use commit-pinned repository URLs. The payload policy
   rejects the withheld paths explicitly and lowers the unpacked ceiling to
   4,300,000 bytes.
+- Remove unused direct production dependencies on `boxen`, `chalk`,
+  `cli-table3`, `elkjs`, `figures`, `string-width`, and `wrap-ansi`.
+  Supported runtime and command imports retain their dependencies.
 - `dist/bin/` and `dist/scripts/` now publish JavaScript only. None of their
   80 declarations was reachable from the five public declaration entrypoints,
   so type consumers see no change. The payload policy rejects non-JavaScript
