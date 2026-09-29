@@ -14,8 +14,10 @@ import type CodecPort from '../../../ports/CodecPort.ts';
 import type { PropDiffEntry } from '../../types/PatchDiff.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import type WarpState from '../state/WarpState.ts';
+import type { PropValue } from '../../types/PropValue.ts';
+import { decodePropertyShard } from './PropertyIndexReader.ts';
 
-type PropertyBag = Record<string, unknown>; // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+type PropertyBag = Record<string, PropValue>;
 type PropertyShard = Map<string, PropertyBag>;
 type ShardLoader = (path: string) => Uint8Array | undefined;
 
@@ -30,7 +32,8 @@ export type PropertyShardUpdate = {
  * Creates a null-prototype record pre-populated with props from source.
  */
 function nullProtoBag(source: PropertyBag): PropertyBag {
-  const base: PropertyBag = Object.create(null) as PropertyBag;
+  const base: PropertyBag = {};
+  Reflect.setPrototypeOf(base, null);
   return Object.assign(base, source);
 }
 
@@ -69,29 +72,23 @@ export default class IndexPropertyUpdater {
   private _shardFor(shards: Map<string, PropertyShard>, shardKey: string, loadShard: ShardLoader): PropertyShard {
     let shard = shards.get(shardKey);
     if (shard === undefined) {
-      shard = this._loadShard(loadShard(propertyShardPath(shardKey)));
+      const path = propertyShardPath(shardKey);
+      shard = this._loadShard(loadShard(path), path);
       shards.set(shardKey, shard);
     }
     return shard;
   }
 
-  private _loadShard(buf: Uint8Array | undefined): PropertyShard {
+  private _loadShard(buf: Uint8Array | undefined, path: string): PropertyShard {
     const shard: PropertyShard = new Map();
-    if (!buf) {
+    if (buf === undefined) {
       return shard;
     }
-    const decoded = this._codec.decode<Array<[string, PropertyBag]>>(buf);
-    if (Array.isArray(decoded)) {
-      for (const [nodeId, props] of decoded) {
-        shard.set(nodeId, nullProtoBag(objectOrEmpty(props)));
-      }
+    for (const [nodeId, props] of decodePropertyShard(this._codec.decode(buf), path)) {
+      shard.set(nodeId, nullProtoBag(props));
     }
     return shard;
   }
-}
-
-function objectOrEmpty(props: PropertyBag | null | undefined): PropertyBag {
-  return (props !== null && props !== undefined && typeof props === 'object') ? props : {};
 }
 
 /** True when the node's current register for `key` is hidden by the lifecycle rule. */
@@ -101,7 +98,7 @@ function isHiddenProperty(state: WarpState, nodeId: string, key: string): boolea
 }
 
 function applyChangedProperty(shard: PropertyShard, prop: PropDiffEntry, state: WarpState): void {
-  if (isHiddenProperty(state, prop.nodeId, prop.key)) {
+  if (prop.value === undefined || isHiddenProperty(state, prop.nodeId, prop.key)) {
     deleteProperty(shard, prop.nodeId, prop.key);
     return;
   }

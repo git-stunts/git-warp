@@ -92,6 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject malformed persisted property shards during incremental lifecycle updates instead of silently replacing invalid bags.
+
 - Both full-state readers validate every full-v6 lifecycle entry through the
   shared lifecycle decoder before hydration. Invalid event tuples fail with
   structured decode errors instead of default events or raw TypeErrors.
