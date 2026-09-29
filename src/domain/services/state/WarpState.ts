@@ -1,3 +1,4 @@
+import type PropertySweepCandidates from './PropertySweepCandidates.ts';
 /**
  * WarpState — the core CRDT materialized state object.
  *
@@ -160,13 +161,13 @@ export default class WarpState {
    * compaction-frontier contract is documented on `sweepDeadProperties`
    * in `deadPropertySweep.ts`.
    */
-  compactDeadProperties(): number {
+  compactDeadProperties(candidates: PropertySweepCandidates): number {
     return sweepDeadProperties({
       prop: this.prop,
       nodeAlive: this.nodeAlive,
       edgeAlive: this.edgeAlive,
       edgeBirthEvent: this.edgeBirthEvent,
-    });
+    }, candidates);
   }
 
   /** Yields every node property register with decoded identity. */

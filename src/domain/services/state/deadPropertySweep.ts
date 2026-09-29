@@ -1,3 +1,4 @@
+import type PropertySweepCandidates from './PropertySweepCandidates.ts';
 /**
  * The dead-property sweep that GC runs after compacting the alive sets.
  *
@@ -41,23 +42,28 @@ export type DeadPropertySweepFields = {
  * compaction rather than liveness: an owner whose removal lies beyond
  * the compaction frontier still has its tombstoned dot in the set, so
  * its registers stay until the same `appliedVV` that compacts that dot
- * lets them go.
+ * lets them go. Owners absent before compaction are retained: their adds may
+ * still be in flight, so absence is not proof of a compacted removal.
  */
-export function sweepDeadProperties(fields: DeadPropertySweepFields): number {
+export function sweepDeadProperties(fields: DeadPropertySweepFields, candidates: PropertySweepCandidates): number {
   let pruned = 0;
   for (const encodedKey of fields.prop.keys()) {
-    if (ownerIsHeld(fields, encodedKey)) {
+    if (ownerMustBeRetained(fields, candidates, encodedKey)) {
       continue;
     }
     fields.prop.delete(encodedKey);
     pruned++;
   }
+  dropCompactedEdgeBirths(fields, candidates);
+  return pruned;
+}
+
+function dropCompactedEdgeBirths(fields: DeadPropertySweepFields, candidates: PropertySweepCandidates): void {
   for (const edgeKey of fields.edgeBirthEvent.keys()) {
-    if (!fields.edgeAlive.hasEntries(edgeKey)) {
+    if (candidates.heldEdge(edgeKey) && !fields.edgeAlive.hasEntries(edgeKey)) {
       fields.edgeBirthEvent.delete(edgeKey);
     }
   }
-  return pruned;
 }
 
 /**
@@ -70,13 +76,15 @@ export function sweepDeadProperties(fields: DeadPropertySweepFields): number {
  * as held — disabling the sweep with no signal that it had stopped
  * working.
  */
-function ownerIsHeld(fields: DeadPropertySweepFields, encodedKey: string): boolean {
+function ownerMustBeRetained(
+  fields: DeadPropertySweepFields, candidates: PropertySweepCandidates, encodedKey: string,
+): boolean {
   const owner = decodePropOwner(encodedKey);
   if (owner === null) {
     return true;
   }
   if (owner instanceof EdgePropertyOwner) {
-    return fields.edgeAlive.hasEntries(owner.edgeKey);
+    return fields.edgeAlive.hasEntries(owner.edgeKey) || !candidates.heldEdge(owner.edgeKey);
   }
-  return fields.nodeAlive.hasEntries(owner.nodeId);
+  return fields.nodeAlive.hasEntries(owner.nodeId) || !candidates.heldNode(owner.nodeId);
 }

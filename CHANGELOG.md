@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Property GC retains registers and edge lifecycle evidence for owners whose
+  adds have not arrived. Sweep candidates must have been held before the
+  current compaction cycle; an empty alive set alone is not proof of removal.
+
 - Garbage collection now reclaims the property registers of removed nodes and
   edges. Compaction previously cleared tombstoned dots from `nodeAlive` and
   `edgeAlive` but left every register keyed under the removed element in
