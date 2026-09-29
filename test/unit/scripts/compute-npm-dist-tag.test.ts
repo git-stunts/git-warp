@@ -111,6 +111,30 @@ describe('npm dist-tag decision', () => {
     });
   });
 
+  describe('strict SemVer precedence', () => {
+    it('promotes a stable release above its release candidate', () => {
+      expect(decide('19.2.0', { out: '19.2.0-rc.1' }).tag).toBe('latest');
+    });
+    it('ignores build metadata in precedence', () => {
+      expect(decide('19.2.0+aaa', { out: '19.2.0+zzz' }).tag).toBe('latest');
+    });
+    it.each(['19.1.0junk', '19.1.0\n20.0.0', '019.1.0', 'v19.1.0'])(
+      'rejects malformed registry version %s', (published) => {
+        expect(decide('20.0.0', { out: published }).status).toBe(1);
+      },
+    );
+    it.each(['bad', '019.1.0', '19.1.0-rc.01', '19.1.0-gamma.1'])(
+      'rejects unsupported or malformed target %s before registry access', (version) => {
+        expect(decide(version, { out: 'npm error code E404', status: 1 }).status).not.toBe(0);
+      },
+    );
+    it.each(['16.0.0junk', '15.0.0'])(
+      'rejects invalid maintenance answer %s', (published) => {
+        expect(decide('16.0.3', { out: '19.1.0' }, { out: published }).status).toBe(1);
+      },
+    );
+  });
+
   describe('it refuses rather than guessing', () => {
     it('refuses when the registry cannot be read', () => {
       const result = decide('16.0.1', { out: 'network timeout', status: 1 });

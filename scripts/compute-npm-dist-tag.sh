@@ -22,10 +22,33 @@ if [ -z "$TAG_VERSION" ]; then
   exit 2
 fi
 
-case "$TAG_VERSION" in
-  *-rc.*)    echo "next";  exit 0 ;;
-  *-beta.*)  echo "beta";  exit 0 ;;
-  *-alpha.*) echo "alpha"; exit 0 ;;
+# Use npm's SemVer implementation, declared as a direct development dependency.
+# Require canonical spelling; npm's tolerant leading `v` input is not a tag version.
+version_order() {
+  node -e '
+    const semver = require("semver");
+    const [left, right] = process.argv.slice(1);
+    const canonical = (value) => {
+      const parsed = semver.parse(value);
+      return parsed !== null && value === parsed.version +
+        (parsed.build.length ? "+" + parsed.build.join(".") : "");
+    };
+    if (!canonical(left) || !canonical(right)) {
+      console.error("Refusing to compare invalid SemVer versions.");
+      process.exit(1);
+    }
+    console.log(semver.compare(left, right));
+  ' "$1" "$2"
+}
+
+version_order "$TAG_VERSION" "$TAG_VERSION" >/dev/null
+prerelease="$(node -e 'const s=require("semver"); console.log(s.prerelease(process.argv[1])?.[0] ?? "")' "$TAG_VERSION")"
+case "$prerelease" in
+  rc)    echo "next"; exit 0 ;;
+  beta)  echo "beta"; exit 0 ;;
+  alpha) echo "alpha"; exit 0 ;;
+  '') ;;
+  *) echo "Refusing unsupported prerelease channel: $prerelease" >&2; exit 1 ;;
 esac
 
 if [ -n "${NPM_DIST_TAG_PROBE_OUT+x}" ]; then
@@ -55,18 +78,8 @@ fi
 
 current_latest="$probe_out"
 
-# A successful probe that yields no version is not an answer. Treating an
-# empty string as the published latest makes every tag sort above it, so
-# every release would claim `latest` — the exact failure this guards.
-if ! printf '%s' "$current_latest" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+'; then
-  echo "Registry returned no usable version for $PACKAGE_NAME: '$current_latest'" >&2
-  echo "Refusing to choose a dist-tag without knowing what 'latest' currently is." >&2
-  exit 1
-fi
-
-highest="$(printf '%s\n%s\n' "$TAG_VERSION" "$current_latest" | sort -V | tail -1)"
-
-if [ "$highest" = "$TAG_VERSION" ]; then
+order="$(version_order "$TAG_VERSION" "$current_latest")"
+if [ "$order" -ge 0 ]; then
   echo "latest"
 else
   maintenance_tag="maintenance-v${TAG_VERSION%%.*}"
@@ -84,8 +97,8 @@ else
     exit 1
   fi
   if [ -n "$maintenance_out" ]; then
-    maintenance_highest="$(printf '%s\n%s\n' "$TAG_VERSION" "$maintenance_out" | sort -V | tail -1)"
-    if [ "$maintenance_highest" != "$TAG_VERSION" ]; then
+    maintenance_order="$(version_order "$TAG_VERSION" "$maintenance_out")"
+    if [ "${maintenance_out%%.*}" != "${TAG_VERSION%%.*}" ] || [ "$maintenance_order" -lt 0 ]; then
       echo "Refusing to move $maintenance_tag backward from $maintenance_out to $TAG_VERSION." >&2
       exit 1
     fi

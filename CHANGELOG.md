@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release tag decisions validate complete SemVer inputs and compare precedence
+  with npm SemVer, including prereleases and precedence-neutral build metadata.
+  Unsupported prerelease channels and malformed registry answers fail closed.
+
 - Maintenance releases now inspect their existing npm channel and refuse to
   move it backward or publish when that channel cannot be inspected.
 - Release publication shares one non-cancelling concurrency group across tags,
