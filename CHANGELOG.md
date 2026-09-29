@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Release publication shares one non-cancelling concurrency group across tags,
+  keeping registry inspection and publication serialized between releases.
 - A stable release tag no longer claims the `latest` npm dist-tag
   unconditionally. `latest` is what a bare `npm install` resolves to, so a
   maintenance release of an older major would have moved every new install

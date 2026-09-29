@@ -16,7 +16,7 @@ permissions:
   issues: read
 
 concurrency:
-  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  group: release-${{ github.workflow }}
   cancel-in-progress: false
 
 jobs:
