@@ -24,9 +24,11 @@ type SpawnCall = {
 
 type PackSectionName = 'Tarball Contents' | 'Tarball Details';
 
+/** Executes npm without a shell, preserving argument boundaries. */
 const defaultCommandRunner: CommandRunner = (command, args, options) =>
   spawnSync(command, [...args], options);
 
+/** Runs a bounded npm command and requires successful process completion. */
 function runNpmCommand(
   args: readonly string[],
   runner: CommandRunner = defaultCommandRunner
@@ -41,11 +43,13 @@ function runNpmCommand(
   return `${result.stdout}\n${result.stderr}`;
 }
 
+/** Builds a clean publish tree before inspecting npm’s dry-run inventory. */
 function runNpmPackDryRun(): string {
   runNpmCommand(['run', 'build', '--silent']);
   return runNpmCommand(['pack', '--dry-run', '--ignore-scripts', '--no-json']);
 }
 
+/** Extracts only file paths from the npm tarball-contents section. */
 function packEntries(output: string): ReadonlySet<string> {
   const entries = new Set<string>();
   let inContents = false;
@@ -68,16 +72,19 @@ function packEntries(output: string): ReadonlySet<string> {
   return entries;
 }
 
+/** Recognizes both plain and decorated npm notice section headers. */
 function isPackSectionHeader(line: string, sectionName: PackSectionName): boolean {
   const normalizedHeader = line.replaceAll('=', '').replace(/\s+/gu, ' ').trim();
   return line.includes(sectionName) && normalizedHeader === `npm notice ${sectionName}`;
 }
 
+/** Reads one npm inventory row without interpreting unrelated output. */
 function packEntryPath(line: string): string | null {
   const match = /^npm notice\s+\S+\s+(.+)$/u.exec(line);
   return match?.[1] ?? null;
 }
 
+/** Admits migration entry modules and their adapter subtree. */
 function isSupportedV18ToV19Artifact(path: string): boolean {
   const prefix = 'dist/scripts/v18-to-v19/';
   if (!path.startsWith(prefix)) {
@@ -90,6 +97,7 @@ function isSupportedV18ToV19Artifact(path: string): boolean {
   );
 }
 
+/** Creates a completed process result for the command timeout regression. */
 function successfulSpawnResult(stdout: string): SpawnSyncReturns<string> {
   return {
     pid: 0,

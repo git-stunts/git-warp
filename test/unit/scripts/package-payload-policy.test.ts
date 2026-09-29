@@ -67,6 +67,7 @@ const WITHHELD_DOCUMENTATION_PATHS: readonly string[] = Object.freeze([
   'docs/ANTI_SLUDGE_POLICY.md',
 ]);
 
+/** Builds a validated unit-sized inventory for policy boundary tests. */
 function inventory(paths: readonly string[], packedBytes = 100): PackagePayloadInventory {
   const entries = paths.map((path) => new PackagePayloadEntry(path, 1));
   return new PackagePayloadInventory(packedBytes, entries.length, entries);

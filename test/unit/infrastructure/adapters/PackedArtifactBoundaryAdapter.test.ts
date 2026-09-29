@@ -8,6 +8,7 @@ import PackedArtifactBoundaryAdapter from '../../../../src/infrastructure/adapte
 const roots: string[] = [];
 const boundary = new PackedArtifactBoundaryAdapter();
 
+/** Creates an isolated packaged CLI module for capability-boundary tests. */
 function fixture(module: string): string {
   const root = mkdtempSync(join(tmpdir(), 'packed-boundary-'));
   roots.push(root);

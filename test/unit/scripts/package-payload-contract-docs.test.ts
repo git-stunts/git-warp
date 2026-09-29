@@ -15,6 +15,7 @@ const REPOSITORY_URL_PATTERN =
   /^https:\/\/github\.com\/git-stunts\/git-warp\/(?:blob|tree)\/(?<ref>[^/]+)\//u;
 const IMMUTABLE_REF_PATTERN = /^(?:[0-9a-f]{40}|v\d+\.\d+\.\d+)$/u;
 
+/** Validates the publication allowlist before checking documentation targets. */
 function readPackageFiles(): readonly string[] {
   const { files } = new PackedArtifactBoundaryAdapter().read(
     'package.json', z.object({ files: z.array(z.string()) })
@@ -22,21 +23,25 @@ function readPackageFiles(): readonly string[] {
   return files;
 }
 
+/** Collects inline and reference links from retained documentation. */
 function markdownLinkTargets(markdown: string): string[] {
   const inline = [...markdown.matchAll(/\]\((?<target>[^)\s]+)(?:\s+"[^"]*")?\)/gu)];
   const references = [...markdown.matchAll(/^\s*\[[^\]]+\]:\s*(?<target>\S+)/gmu)];
   return [...inline, ...references].map((match) => match.groups?.['target'] ?? '');
 }
 
+/** Identifies URLs and same-document anchors that need no packaged file. */
 function isExternalTarget(target: string): boolean {
   return /^(?:[a-z][a-z0-9+.-]*:|#)/iu.test(target);
 }
 
+/** Resolves a documentation target relative to its packaged document. */
 function packageRelativeTarget(document: string, target: string): string {
   const withoutFragment = target.split('#')[0] ?? '';
   return posix.normalize(posix.join(posix.dirname(document), withoutFragment));
 }
 
+/** Accepts a listed file or a directory with a listed README. */
 function isPublishedTarget(target: string): boolean {
   const trimmed = target.endsWith('/') ? target.slice(0, -1) : target;
   return PACKAGE_FILES.includes(trimmed) || PACKAGE_FILES.includes(`${trimmed}/README.md`);
