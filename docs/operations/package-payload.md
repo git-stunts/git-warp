@@ -33,7 +33,7 @@ the artifact inventory independently of the export map.
 
 ## Ceilings
 
-Revalidated with Node 26.10.0 and npm 11.12.0 on 2026-09-29.
+Revalidated with Node 26.10.0 and npm 11.19.1 on 2026-09-29.
 At `7b43e330c`, a clean publish build packed 1,679 files, 1,176,553
 compressed bytes, and 4,798,907 unpacked bytes. Withholding the changelog and
 the general documentation shelves removed 25 files and brought the artifact to
