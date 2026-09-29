@@ -39,7 +39,10 @@ it('shows largest files deterministically, preserves measurements, and bounds un
   const inventory = new PackagePayloadInventory(80, 275, entries);
   const report = packageBundleReport(inventory, policy, Array.from({ length: 30 }, () => '<bad>|`\n' + 'x'.repeat(500)));
   const largest = report.slice(report.indexOf('#### Largest files'));
-  expect(largest.indexOf('dist/src/a.js')).toBeLessThan(largest.indexOf('dist/src/b.js')); 
+  expect(largest).toContain('dist/src/a.js');
+  expect(largest.indexOf('dist/src/a.js')).toBeLessThan(largest.indexOf('dist/src/b.js'));
+  expect(largest.indexOf('dist/src/b.js')).toBeLessThan(largest.indexOf('dist/src/type.d.ts'));
+  expect(largest.indexOf('dist/src/type.d.ts')).toBeLessThan(largest.indexOf('| 25 |'));
   expect(report).toContain('| JavaScript | 200 |');
   expect(report).toContain('| Declarations | 50 |');
   expect(report).toContain('| Metadata, documentation, and assets | 25 |');

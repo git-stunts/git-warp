@@ -58,7 +58,7 @@ it('warns about unused files, dev-only imports, missing dependencies, and comput
   ]));
 });
 
-it.each(['file:../local', 'git+https://example.invalid/repo', '*', 'latest'])(
+it.each(['file:../local', 'git+https://example.invalid/repo', '*', 'latest', '1.x', '1.X', '^1.2.x', '^X'])(
   'warns about a nonportable or unbounded requirement %s', (requirement) => {
     const metadata = METADATA.replace('^1.0.0', requirement);
     expect(inspectPackageBundle(...fixture({ 'package.json': metadata }))).toContain(
@@ -88,4 +88,9 @@ it('recognizes declared peer and optional imports instead of calling them missin
     'package.json': metadata,
     'dist/index.js': BASE_FILES['dist/index.js'] + " import 'peer-lib'; import 'optional-lib';",
   }))).toEqual([]);
+});
+
+it.each(['^1.2.3', '1.2.3-x', '1.2.3+X'])('does not treat bounded version %s as a wildcard', (requirement) => {
+  const metadata = METADATA.replace('^1.0.0', requirement);
+  expect(inspectPackageBundle(...fixture({ 'package.json': metadata }))).toEqual([]);
 });

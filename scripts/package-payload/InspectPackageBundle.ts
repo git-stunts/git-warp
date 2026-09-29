@@ -20,6 +20,7 @@ type PackageMetadata = z.infer<typeof METADATA>;
 const SUPPORTED_COMMAND_ROOTS = ['dist/bin/git-warp.js', 'dist/scripts/upgrade-v16-to-v17.js'];
 const NON_REGISTRY_SPECIFIER = /^(?:file:|link:|workspace:|git(?:\+|:)|https?:|github:)/u;
 const MUTABLE_TAG = /^[a-zA-Z][a-zA-Z0-9._-]*$/u;
+const WILDCARD_RANGE = /(?:\*|(?:^|[.\s~^<>=|])[xX](?=$|[.\s|]))/u;
 
 /** Inspects the real packed tree from supported exports, executables, and legacy commands. */
 export default function inspectPackageBundle(directory: string, inventory: PackagePayloadInventory): string[] {
@@ -65,7 +66,7 @@ function declaresProductionDependency(metadata: PackageMetadata, name: string): 
 function dependencyRequirements(metadata: PackageMetadata): string[] {
   const requirements = { ...metadata.peerDependencies, ...metadata.optionalDependencies, ...metadata.dependencies };
   return Object.entries(requirements).filter(([, specifier]) =>
-    NON_REGISTRY_SPECIFIER.test(specifier) || MUTABLE_TAG.test(specifier) || specifier.includes('*'))
+    NON_REGISTRY_SPECIFIER.test(specifier) || MUTABLE_TAG.test(specifier) || WILDCARD_RANGE.test(specifier))
     .map(([name, specifier]) => `Review nonportable or unbounded dependency requirement: ${name}@${specifier}`).sort();
 }
 
