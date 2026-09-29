@@ -117,17 +117,18 @@ await graph.syncWith('http://peer:3000', {
 
 | Package | Type | Risk | Notes |
 |---|---|---|---|
+| `@flyingrobots/bijou` | CLI | Low | Terminal presentation primitives; graph-derived strings require terminal-safe rendering |
+| `@flyingrobots/bijou-node` | CLI | Medium | Node terminal and I/O adapters used by CLI presentation |
+| `@flyingrobots/bijou-tui` | CLI | Medium | Interactive terminal UI; handles user input and graph-derived presentation data |
+| `@git-stunts/git-cas` | Runtime | Medium | Git content-addressed storage, caches, and index pages; persisted data crosses a decoding and validation boundary |
+| `@noble/hashes` | Runtime | Medium | Hash primitives used for content identity; correctness is security-sensitive |
 | `@git-stunts/plumbing` | Runtime | Low | Internal package, spawns git processes with strict whitelist |
 | `@git-stunts/alfred` | Runtime | Low | Retry/backoff utility, no I/O |
 | `@git-stunts/trailer-codec` | Runtime | Low | Pure string encoding, no I/O |
 | `cbor-x` | Runtime | Medium | Binary parser processing untrusted sync payloads; mitigated by body size limit in HttpSyncServer (4 MB default) |
 | `roaring-wasm` | Runtime | Low-Medium | WebAssembly build of CRoaring. Synced peer-controlled graph data influences bitmap construction, and retained index shards are deserialized by bitmap readers. WASM memory isolation does not establish input trust or prevent wrong results, traps, or resource exhaustion |
 | `zod` | Runtime | Low | Schema validation, pure JS |
-| `chalk` | CLI-only | Negligible | Terminal coloring, no security surface |
-| `boxen` | CLI-only | Negligible | Terminal box drawing |
-| `cli-table3` | CLI-only | Negligible | Terminal table rendering |
-| `string-width` | CLI-only | Negligible | String measurement |
-| `strip-ansi` | Inlined | Negligible | ANSI escape removal; inlined into `src/visualization/utils/ansi.js` since v10.1.2, no longer a direct dependency |
+
 
 ## Accepted Risks
 
