@@ -6,7 +6,6 @@
  */
 
 import type { LWWRegister } from '../../crdt/LWW.ts';
-import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 import { compareStrings } from '../../utils/StringComparison.ts';
 import AttachmentKey from '../../graph/AttachmentKey.ts';
 import AttachmentRecord from '../../graph/AttachmentRecord.ts';
@@ -36,6 +35,9 @@ function nodeAttachmentRecordForProperty(
   register: LWWRegister<PropValue>,
 ): AttachmentRecord | null {
   const decoded = decodePropKey(propKey);
+  if (state.isStaleNodeRegister(decoded.nodeId, register)) {
+    return null;
+  }
   const owner = state.getNodeRecord(decoded.nodeId);
   if (owner === null) {
     return null;
@@ -59,7 +61,7 @@ function edgeAttachmentRecordForProperty(
     return null;
   }
   const edgeKey = encodeEdgeKey(decoded.from, decoded.to, decoded.label);
-  if (isStaleEdgeAttachment(register, state.edgeBirthEvent.get(edgeKey))) {
+  if (state.isStaleEdgeRegister(edgeKey, register)) {
     return null;
   }
   if (!state.edgeAlive.contains(edgeKey)) {
@@ -80,17 +82,6 @@ function edgeAttachmentRecordForProperty(
 /** Both endpoints must be visible before an edge-owned attachment can be read. */
 function endpointsVisible(state: WarpState, from: string, to: string): boolean {
   return state.hasNodeRecord(from) && state.hasNodeRecord(to);
-}
-
-/** Returns true when an edge attachment predates the current edge birth. */
-function isStaleEdgeAttachment(
-  register: LWWRegister<PropValue>,
-  birthEvent: EventId | undefined,
-): boolean {
-  if (birthEvent === undefined || register.eventId === null) {
-    return false;
-  }
-  return compareEventIds(register.eventId, birthEvent) < 0;
 }
 
 /** Compares attachment records by deterministic owner/key order. */

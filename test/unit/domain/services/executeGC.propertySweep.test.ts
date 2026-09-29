@@ -7,7 +7,7 @@
  * grows monotonically and is never reclaimed, so a long-lived process
  * ratchets heap even when a full GC runs.
  *
- * These tests pin the sweep's contract: dead elements' registers are pruned,
+ * These tests pin the sweep's contract: proven-stale dead registers are pruned,
  * live elements' registers are untouched, and the count is reported.
  */
 
@@ -18,6 +18,7 @@ import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { EDGE_PROP_PREFIX, encodeEdgeKey, encodeEdgePropKey, encodePropKey } from '../../../../src/domain/services/KeyCodec.ts';
+import { recordNodeAdd, recordNodeRemove } from '../../../../src/domain/services/state/NodeLifecycle.ts';
 import type WarpState from '../../../../src/domain/services/state/WarpState.ts';
 
 /** Distinct EventIds per call so LWW writes never collide on identity. */
@@ -44,9 +45,12 @@ function setEdgeProp(
   state.mutatePropLWW(encodeEdgePropKey(from, to, label, key), nextEventId(), value);
 }
 
-/** Adds a node, then tombstones its only dot, leaving it dead. */
+/** A prior remove/add proves old writes stale; a final removal leaves the owner dead. */
 function addThenRemoveNode(state: WarpState, nodeId: string, dot: Dot): void {
   state.nodeAlive.add(nodeId, dot);
+  recordNodeRemove(state, nodeId, nextEventId('A', 2));
+  recordNodeAdd(state, nodeId, nextEventId('A', 3));
+  recordNodeRemove(state, nodeId, nextEventId('A', 4));
   state.nodeAlive.remove(new Set([encodeDot(dot)]));
 }
 
@@ -105,6 +109,7 @@ describe('executeGC property sweep', () => {
     const dot = Dot.create('A', 1);
     state.edgeAlive.add(edgeKey, dot);
     state.edgeAlive.remove(new Set([encodeDot(dot)]));
+    state.edgeRemoveEvent.set(edgeKey, nextEventId('A', 3));
     setEdgeProp(state, 'file:a.ts', 'ast:root', 'contains_ast', 'weight', '1');
 
     const appliedVV = VersionVector.empty();
@@ -144,6 +149,7 @@ describe('executeGC property sweep', () => {
     const edgeDot = Dot.create('A', 2);
     state.edgeAlive.add(encodeEdgeKey(from, to, label), edgeDot);
     state.edgeAlive.remove(new Set([encodeDot(edgeDot)]));
+    state.edgeRemoveEvent.set(encodeEdgeKey(from, to, label), nextEventId('A', 3));
     setEdgeProp(state, from, to, label, 'kind', 'edge');
 
     const appliedVV = VersionVector.empty();
@@ -155,19 +161,20 @@ describe('executeGC property sweep', () => {
     expect(state.getNodeProp(encodeEdgeKey(from, to, label), 'kind')?.value).toBe('node');
   });
 
-  it('reclaims the edge birth event of a swept edge', () => {
+  it('retains edge birth evidence after compaction', () => {
     const state = createEmptyState();
     const edgeKey = encodeEdgeKey('file:a.ts', 'ast:root', 'contains_ast');
     const dot = Dot.create('A', 1);
     state.edgeAlive.add(edgeKey, dot);
     state.edgeBirthEvent.set(edgeKey, nextEventId());
     state.edgeAlive.remove(new Set([encodeDot(dot)]));
+    state.edgeRemoveEvent.set(edgeKey, nextEventId('A', 3));
 
     const appliedVV = VersionVector.empty();
     appliedVV.set('A', 1);
     executeGC(state, appliedVV);
 
-    expect(state.edgeBirthEvent.has(edgeKey)).toBe(false);
+    expect(state.edgeBirthEvent.has(edgeKey)).toBe(true);
   });
 
   it('retains a malformed edge-property key instead of aborting the sweep', () => {
@@ -228,6 +235,7 @@ describe('executeGC property sweep', () => {
     state.edgeAlive.add(edgeKey, dot);
     state.edgeBirthEvent.set(edgeKey, nextEventId());
     state.edgeAlive.remove(new Set([encodeDot(dot)]));
+    state.edgeRemoveEvent.set(edgeKey, nextEventId('A', 3));
     setEdgeProp(state, 'file:a.ts', 'ast:root', 'contains_ast', 'weight', '1');
 
     const appliedVV = VersionVector.empty();
@@ -260,7 +268,7 @@ describe('executeGC property sweep', () => {
     expect(result.propertiesPruned).toBe(0);
   });
 
-  it('bounds prop growth across repeated churn of the same element', () => {
+  it('retains legacy churn registers without lifecycle proof', () => {
     // The daemon's failure mode: re-index a file, removing every prior AST
     // anchor and adding fresh ones with the same seven properties each pass.
     // Without a sweep, prop grows by seven registers per generation forever.
@@ -283,8 +291,8 @@ describe('executeGC property sweep', () => {
       executeGC(state, appliedVV);
     }
 
-    // Only the final generation's anchor survives, so prop holds exactly one
-    // anchor's worth of registers rather than 25 generations of them.
-    expect(state.propSize()).toBe(propsPerAnchor.length);
+    // These legacy fixtures have no lifecycle events. Absence alone does not
+    // authorize losing properties that a later add could expose.
+    expect(state.propSize()).toBe(25 * propsPerAnchor.length);
   });
 });

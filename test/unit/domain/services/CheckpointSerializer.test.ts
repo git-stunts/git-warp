@@ -15,6 +15,10 @@ import {
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
+import CborFullStateLifecycleDecoder from '../../../../src/infrastructure/adapters/CborFullStateLifecycleDecoder.ts';
+
+/** Read options for full-v6 state: the codec and the lifecycle decoder that uses it. */
+const FULL_STATE_READ = { codec: defaultCodec, lifecycle: new CborFullStateLifecycleDecoder(defaultCodec) };
 
 /**
  * Helper to create a mock EventId for testing.
@@ -85,7 +89,7 @@ describe('CheckpointSerializer', () => {
     it('handles buffer with missing nodeAlive and edgeAlive fields', () => {
       // Craft a CBOR buffer where nodeAlive and edgeAlive are absent
       const buffer = encode({ version: 'full-v5', prop: [], observedFrontier: {} });
-      const restored = deserializeFullState(buffer, { codec: defaultCodec });
+      const restored = deserializeFullState(buffer, FULL_STATE_READ);
 
       expect(restored.nodeAlive.entries.size).toBe(0);
       expect(restored.edgeAlive.entries.size).toBe(0);
@@ -95,7 +99,7 @@ describe('CheckpointSerializer', () => {
     });
 
     it('throws on unsupported version', () => {
-      const buffer = encode({ version: 'full-v6' });
+      const buffer = encode({ version: 'full-v7' });
       expect(() => deserializeFullState(buffer, { codec: defaultCodec })).toThrow(/Unsupported full state version/);
     });
 
@@ -103,7 +107,7 @@ describe('CheckpointSerializer', () => {
       const state = createEmptyState();
 
       const buffer = serializeFullState(state, { codec: defaultCodec });
-      const restored = deserializeFullState(buffer, { codec: defaultCodec });
+      const restored = deserializeFullState(buffer, FULL_STATE_READ);
 
       expect(restored.nodeAlive.entries.size).toBe(0);
       expect(restored.nodeAlive.tombstones.size).toBe(0);
@@ -122,7 +126,7 @@ describe('CheckpointSerializer', () => {
       });
 
       const buffer = serializeFullState(state, { codec: defaultCodec });
-      const restored = deserializeFullState(buffer, { codec: defaultCodec });
+      const restored = deserializeFullState(buffer, FULL_STATE_READ);
 
       // Check nodeAlive entries
       expect(restored.nodeAlive.entries.size).toBe(2);
@@ -147,7 +151,7 @@ describe('CheckpointSerializer', () => {
       });
 
       const buffer = serializeFullState(state, { codec: defaultCodec });
-      const restored = deserializeFullState(buffer, { codec: defaultCodec });
+      const restored = deserializeFullState(buffer, FULL_STATE_READ);
 
       // Check edgeAlive entries
       expect(restored.edgeAlive.entries.size).toBe(1);
@@ -166,7 +170,7 @@ describe('CheckpointSerializer', () => {
       });
 
       const buffer = serializeFullState(state, { codec: defaultCodec });
-      const restored = deserializeFullState(buffer, { codec: defaultCodec });
+      const restored = deserializeFullState(buffer, FULL_STATE_READ);
 
       // Check props
       const propKey = encodePropKey('a', 'name');
@@ -187,7 +191,7 @@ describe('CheckpointSerializer', () => {
       });
 
       const buffer = serializeFullState(state, { codec: defaultCodec });
-      const restored = deserializeFullState(buffer, { codec: defaultCodec });
+      const restored = deserializeFullState(buffer, FULL_STATE_READ);
 
       // Check tombstones are preserved
       expect(restored.nodeAlive.tombstones.size).toBe(1);
@@ -200,7 +204,7 @@ describe('CheckpointSerializer', () => {
       state.observedFrontier.set('bob', 3);
 
       const buffer = serializeFullState(state, { codec: defaultCodec });
-      const restored = deserializeFullState(buffer, { codec: defaultCodec });
+      const restored = deserializeFullState(buffer, FULL_STATE_READ);
 
       expect(restored.observedFrontier.size).toBe(2);
       expect(restored.observedFrontier.get('alice')).toBe(5);
@@ -221,7 +225,7 @@ describe('CheckpointSerializer', () => {
       state.edgeBirthEvent.set(edgeKey, birthEventId);
 
       const buffer = serializeFullState(state, { codec: defaultCodec });
-      const restored = deserializeFullState(buffer, { codec: defaultCodec });
+      const restored = deserializeFullState(buffer, FULL_STATE_READ);
 
       expect(restored.edgeBirthEvent.size).toBe(1);
       const restoredEvent = (restored.edgeBirthEvent.get(edgeKey) as any);
@@ -243,7 +247,7 @@ describe('CheckpointSerializer', () => {
         edgeBirthEvent: [[edgeKey, 42]],
       });
 
-      const restored = deserializeFullState(buffer, { codec: defaultCodec });
+      const restored = deserializeFullState(buffer, FULL_STATE_READ);
 
       expect(restored.edgeBirthEvent.size).toBe(1);
       const event = (restored.edgeBirthEvent.get(edgeKey) as any);
@@ -275,7 +279,7 @@ describe('CheckpointSerializer', () => {
       state.observedFrontier.set('bob', 5);
 
       const buffer = serializeFullState(state, { codec: defaultCodec });
-      const restored = deserializeFullState(buffer, { codec: defaultCodec });
+      const restored = deserializeFullState(buffer, FULL_STATE_READ);
 
       // Verify nodes
       expect(restored.nodeAlive.entries.size).toBe(3);
@@ -489,7 +493,7 @@ describe('CheckpointSerializer', () => {
       const checkpoint = serializeFullState(state, { codec: defaultCodec });
 
       // 3. Deserialize (simulate resume)
-      const restored = deserializeFullState(checkpoint, { codec: defaultCodec });
+      const restored = deserializeFullState(checkpoint, FULL_STATE_READ);
 
       // 4. Compute appliedVV from restored state
       const appliedVV = computeAppliedVV(restored);
@@ -518,7 +522,7 @@ describe('CheckpointSerializer', () => {
 
       // Serialize and restore
       const buffer = serializeFullState(state, { codec: defaultCodec });
-      const restored = deserializeFullState(buffer, { codec: defaultCodec });
+      const restored = deserializeFullState(buffer, FULL_STATE_READ);
 
       // The entry should still exist (with the dot)
       expect(restored.nodeAlive.entries.has('temp')).toBe(true);

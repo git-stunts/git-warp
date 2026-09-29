@@ -16,6 +16,7 @@ import { LWWRegister } from '../../crdt/LWW.ts';
 import { EventId } from '../../utils/EventId.ts';
 import { reducePatches } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
+import { unlessStaleCheckpoint } from './StaleCheckpointMaterialization.ts';
 import { encodeEdgeKey, encodePropKey } from '../KeyCodec.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type { PropValue } from '../../types/PropValue.ts';
@@ -93,7 +94,10 @@ export interface MaterializeIncrementalOptions {
  * since the checkpoint frontier to reach the target frontier.
  *
  * Only supports the current checkpoint schema. Retired schemas will cause
- * loadCheckpoint to throw an explicit upgrade error.
+ * loadCheckpoint to throw an explicit upgrade error. A checkpoint whose
+ * materialization predates the current descriptor schema is not resumed
+ * from: its state predates the current visibility rules, so every writer's
+ * patches are replayed from the start, as materialize() does.
  *
  * @throws {PersistenceError} If checkpoint is a retired schema (upgrade required)
  * @throws {PersistenceError} If checkpoint is missing required envelope blobs
@@ -105,11 +109,11 @@ export async function materializeIncremental({
   targetFrontier,
   patchLoader,
 }: MaterializeIncrementalOptions): Promise<WarpState> {
-  const checkpoint = await loadCheckpoint(checkpointStore, checkpointSha, graphName);
-  const checkpointFrontier = checkpoint.frontier;
+  const checkpoint = await unlessStaleCheckpoint(loadCheckpoint(checkpointStore, checkpointSha, graphName));
+  const checkpointFrontier = checkpoint?.frontier ?? new Map<string, string>();
 
-  // 2. Use checkpoint state directly.
-  const initialState = checkpoint.state;
+  // 2. Use checkpoint state directly, or start empty for a stale checkpoint.
+  const initialState = checkpoint?.state ?? WarpState.empty();
 
   // 3. Collect patches since checkpoint frontier for each writer
   const allPatches: Array<{ patch: Patch; sha: string }> = [];

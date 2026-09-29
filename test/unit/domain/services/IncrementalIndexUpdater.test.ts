@@ -85,6 +85,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
@@ -126,6 +127,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
       const removed = updater.computeDirtyShards({
@@ -146,6 +148,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
       const readded = updater.computeDirtyShards({
         diff: readdDiff,
@@ -180,6 +183,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
@@ -217,6 +221,7 @@ describe('IncrementalIndexUpdater', () => {
           edgesAdded: [],
           edgesRemoved: [],
           propsChanged: [],
+          nodesCleared: [],
         },
         state,
         loadShard: (path) => tree1[path],
@@ -231,6 +236,7 @@ describe('IncrementalIndexUpdater', () => {
           edgesAdded: [],
           edgesRemoved: [],
           propsChanged: [],
+          nodesCleared: [],
         },
         state,
         loadShard: (path) => tree2[path],
@@ -247,6 +253,7 @@ describe('IncrementalIndexUpdater', () => {
           edgesAdded: [],
           edgesRemoved: [{ from: 'A', to: 'B', label: 'knows' }],
           propsChanged: [],
+          nodesCleared: [],
         },
         state,
         loadShard: (path) => tree3[path],
@@ -262,6 +269,7 @@ describe('IncrementalIndexUpdater', () => {
           edgesAdded: [],
           edgesRemoved: [],
           propsChanged: [],
+          nodesCleared: [],
         },
         state,
         loadShard: (path) => tree4[path],
@@ -276,6 +284,7 @@ describe('IncrementalIndexUpdater', () => {
           edgesAdded: [],
           edgesRemoved: [],
           propsChanged: [],
+          nodesCleared: [],
         },
         state,
         loadShard: (path) => tree5[path],
@@ -309,6 +318,7 @@ describe('IncrementalIndexUpdater', () => {
           edgesAdded: [],
           edgesRemoved: [],
           propsChanged: [],
+          nodesCleared: [],
         },
         state,
         loadShard: (path) => tree1[path],
@@ -324,6 +334,7 @@ describe('IncrementalIndexUpdater', () => {
           edgesAdded: [{ from: 'A', to: 'B', label: 'knows' }],
           edgesRemoved: [],
           propsChanged: [],
+          nodesCleared: [],
         },
         state,
         loadShard: (path) => tree2[path],
@@ -368,6 +379,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
@@ -394,6 +406,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
@@ -432,6 +445,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
@@ -489,6 +503,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [{ from: 'B', to: 'A', label: 'likes' }],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
@@ -540,6 +555,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [{ from: 'A', to: 'B', label: 'knows' }],
         propsChanged: [],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
@@ -579,6 +595,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [{ from: 'A', to: 'B', label: 'NEVER_REGISTERED' }],
         propsChanged: [],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
@@ -612,6 +629,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [{ nodeId: 'A', key: 'name', value: 'Bob', prevValue: 'Alice' }],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
@@ -648,6 +666,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [{ nodeId: '__proto__', key: 'x', value: 1, prevValue: undefined }],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
@@ -687,6 +706,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [{ nodeId: 'A', key: '__proto__', value: { polluted: true }, prevValue: undefined }],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
@@ -737,6 +757,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [{ nodeId: 'A', key: '__proto__', value: { polluted: true }, prevValue: undefined }],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec });
@@ -768,6 +789,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
 
       const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
@@ -862,6 +884,7 @@ describe('IncrementalIndexUpdater', () => {
           edgesAdded: [{ from: 'A', to: 'B', label: 'rel' }],
           edgesRemoved: [{ from: 'B', to: 'A', label: 'rel' }],
           propsChanged: [],
+          nodesCleared: [],
         },
         state,
         loadShard: () => undefined,
@@ -883,6 +906,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
 
       updater.computeDirtyShards({
@@ -897,6 +921,7 @@ describe('IncrementalIndexUpdater', () => {
           edgesAdded: [{ from: 'A', to: 'C', label: 'ghost' }],
           edgesRemoved: [{ from: 'A', to: 'B', label: 'rel' }],
           propsChanged: [],
+          nodesCleared: [],
         },
         state,
         loadShard: () => undefined,
@@ -921,6 +946,7 @@ describe('IncrementalIndexUpdater', () => {
           edgesAdded: [],
           edgesRemoved: [],
           propsChanged: [],
+          nodesCleared: [],
         },
         state,
         loadShard: (path) => tree1[path],
@@ -935,6 +961,7 @@ describe('IncrementalIndexUpdater', () => {
           edgesAdded: [{ from: 'A', to: 'C', label: 'rel' }],
           edgesRemoved: [],
           propsChanged: [],
+          nodesCleared: [],
         },
         state,
         loadShard: (path) => tree1[path],
@@ -961,6 +988,7 @@ describe('IncrementalIndexUpdater', () => {
           edgesAdded: [],
           edgesRemoved: [{ from: 'A', to: 'B', label: 'rel' }],
           propsChanged: [],
+          nodesCleared: [],
         },
         state,
         loadShard: () => undefined,
@@ -1004,6 +1032,7 @@ describe('IncrementalIndexUpdater', () => {
         edgesAdded: [{ from: 'B', to: 'C', label: 'manages' }],
         edgesRemoved: [],
         propsChanged: [{ nodeId: 'C', key: 'role', value: 'dev', prevValue: undefined }],
+        nodesCleared: [],
       };
 
       const result = mvs.applyDiff({ existingTree: tree1, diff, state: state2 });

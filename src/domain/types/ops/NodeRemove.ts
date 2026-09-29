@@ -6,6 +6,8 @@ import Op from './Op.ts';
 import { OP_SCOPE_BOTH } from './OpScope.ts';
 import { assertNonEmptyString, assertNoReservedBytes, assertArray } from './validate.ts';
 import type WarpState from '../../services/state/WarpState.ts';
+import { recordNodeRemove } from '../../services/state/NodeLifecycle.ts';
+import type { EventId } from '../../utils/EventId.ts';
 import type OpOutcomeResult from './OpOutcomeResult.ts';
 import type { MutablePatchDiff } from '../PatchDiff.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
@@ -32,9 +34,12 @@ export default class NodeRemove extends Op<'NodeRemove'> {
 
   validate(): void { /* validated in constructor */ }
 
-  mutate(state: WarpState): void {
+  mutate(state: WarpState, eventId: EventId): void {
     const dots = new Set(this.observedDots);
     state.nodeAlive.remove(dots);
+    if (dots.size > 0) {
+      recordNodeRemove(state, this.node, eventId);
+    }
   }
 
   outcome(state: WarpState): OpOutcomeResult {

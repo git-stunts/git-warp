@@ -430,6 +430,7 @@ describe('WarpCore coverage gaps', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
 
       const buildViewSpy = vi
@@ -458,6 +459,7 @@ describe('WarpCore coverage gaps', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
 
       const buildViewSpy = vi

@@ -4,6 +4,7 @@ import CheckpointTailBasisLoader, {
 import CheckpointShardFactReader, {
   type CheckpointShardNeighborhoodPage,
 } from './CheckpointShardFactReader.ts';
+import { readCheckpointNodeProperty } from './CheckpointNodePropertyWitness.ts';
 import CheckpointTailFactReducer from './CheckpointTailFactReducer.ts';
 import CheckpointTailReadFailure from './CheckpointTailReadFailure.ts';
 import CheckpointTailReadIdentityBuilder from './CheckpointTailReadIdentityBuilder.ts';
@@ -191,10 +192,13 @@ export default class CheckpointTailWitnessLocator {
     propertyKey: string,
   ): Promise<NodePropertyOpticReadResult> {
     const basis = await this._basisLoader.load();
-    const baseValue = await this._shardReader.readProperty(basis, nodeId, propertyKey);
+    const checkpoint = await readCheckpointNodeProperty({
+      basis, graphName: this._graphName, nodeId, propertyKey, shardReader: this._shardReader,
+    });
     const tail = await this._scanTailForProperty(basis, nodeId, propertyKey);
     const value = this._factReducer.reduceProperty({
-      baseValue,
+      baseValue: checkpoint.baseValue,
+      checkpointLifecycle: checkpoint.checkpointLifecycle,
       tailEntries: tail.entries,
       nodeId,
       propertyKey,
@@ -207,7 +211,7 @@ export default class CheckpointTailWitnessLocator {
         basis,
         nodeId,
         propertyKey,
-        checkpointIndexShards: this._shardReader.propertyShardIdentities(basis, nodeId),
+        checkpointIndexShards: checkpoint.checkpointIndexShards,
         tailWitnesses: tail.witnesses,
       }),
     });

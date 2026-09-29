@@ -5,6 +5,8 @@ import PatchError from '../../errors/PatchError.ts';
 import type MaterializationCoordinate from '../../materialization/MaterializationCoordinate.ts';
 import EdgeAdd from '../../types/ops/EdgeAdd.ts';
 import EdgePropSet from '../../types/ops/EdgePropSet.ts';
+import EdgeRemove from '../../types/ops/EdgeRemove.ts';
+import { predatesLifecycle } from '../state/ElementLifecycle.ts';
 import {
   copyPropValue,
   isPropValue,
@@ -22,12 +24,13 @@ type PropertyRegisters = Map<string, LWWRegister<PropValue>>;
 
 type TargetedEdgeReplay = {
   birthEvent: EventId | undefined;
+  removeEvent: EventId | undefined;
   readonly registers: PropertyRegisters;
 };
 
 /**
- * Replays one live edge's birth and property registers at an exact
- * materialization coordinate.
+ * Replays one live edge's birth, latest removal and property registers at an
+ * exact materialization coordinate.
  *
  * The retained roots prove edge and endpoint liveness before this reducer
  * runs. Its own resident state is proportional to one edge's property bag.
@@ -40,6 +43,7 @@ export async function replayTargetedEdgeProperties(options: {
 }): Promise<Readonly<Record<string, PropValue>>> {
   const replay: TargetedEdgeReplay = {
     birthEvent: undefined,
+    removeEvent: undefined,
     registers: new Map(),
   };
   const entries = options.patches.streamForFrontier(
@@ -79,11 +83,31 @@ function applyTargetedRawOp(options: {
   readonly replay: TargetedEdgeReplay;
 }): void {
   const { edge, entry, opIndex, rawOp, replay } = options;
-  const op = normalizeRawOp(rawOp);
-  if (op instanceof EdgeAdd && targetsEdge(op, edge)) {
-    recordBirthEvent(replay, eventIdFor(entry, opIndex));
-  } else if (op instanceof EdgePropSet && targetsEdge(op, edge)) {
+  const op = targetedEdgeOp(normalizeRawOp(rawOp), edge);
+  if (op instanceof EdgeAdd) {
+    replay.birthEvent = laterEvent(replay.birthEvent, eventIdFor(entry, opIndex));
+  } else if (op instanceof EdgeRemove) {
+    recordRemoval(replay, op, eventIdFor(entry, opIndex));
+  } else if (op instanceof EdgePropSet) {
     recordProperty(replay.registers, op, eventIdFor(entry, opIndex));
+  }
+}
+
+/** Returns the op when it adds, removes or sets a property on the target edge. */
+function targetedEdgeOp(
+  op: ReturnType<typeof normalizeRawOp>,
+  edge: MaterializationEdgeTarget,
+): EdgeAdd | EdgeRemove | EdgePropSet | null {
+  if (op instanceof EdgeAdd || op instanceof EdgeRemove || op instanceof EdgePropSet) {
+    return targetsEdge(op, edge) ? op : null;
+  }
+  return null;
+}
+
+/** A removal that observed no dots removed nothing and hides nothing. */
+function recordRemoval(replay: TargetedEdgeReplay, op: EdgeRemove, eventId: EventId): void {
+  if (op.observedDots.length > 0) {
+    replay.removeEvent = laterEvent(replay.removeEvent, eventId);
   }
 }
 
@@ -96,13 +120,11 @@ function eventIdFor(entry: PatchWithSha, opIndex: number): EventId {
   );
 }
 
-function recordBirthEvent(replay: TargetedEdgeReplay, eventId: EventId): void {
-  if (
-    replay.birthEvent === undefined
-    || compareEventIds(eventId, replay.birthEvent) > 0
-  ) {
-    replay.birthEvent = eventId;
+function laterEvent(current: EventId | undefined, eventId: EventId): EventId {
+  if (current === undefined || compareEventIds(eventId, current) > 0) {
+    return eventId;
   }
+  return current;
 }
 
 function recordProperty(
@@ -120,7 +142,7 @@ function recordProperty(
 }
 
 function targetsEdge(
-  op: EdgeAdd | EdgePropSet,
+  op: EdgeAdd | EdgeRemove | EdgePropSet,
   edge: MaterializationEdgeTarget,
 ): boolean {
   return op.from === edge.from
@@ -149,17 +171,8 @@ function freezeVisiblePropertyBag(
   replay: TargetedEdgeReplay,
 ): Readonly<Record<string, PropValue>> {
   const entries = [...replay.registers.entries()]
-    .filter(([, register]) => isVisibleAfterBirth(register, replay.birthEvent))
+    .filter(([, register]) => !predatesLifecycle(register.eventId, replay.birthEvent, replay.removeEvent))
     .sort(([left], [right]) => compareStrings(left, right))
     .map(([key, register]) => [key, register.value] as const);
   return Object.freeze(Object.fromEntries(entries));
-}
-
-function isVisibleAfterBirth(
-  register: LWWRegister<PropValue>,
-  birthEvent: EventId | undefined,
-): boolean {
-  return birthEvent === undefined
-    || register.eventId === null
-    || compareEventIds(register.eventId, birthEvent) >= 0;
 }

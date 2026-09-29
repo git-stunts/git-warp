@@ -17,7 +17,7 @@ import type CryptoPort from '../../ports/CryptoPort.ts';
 import {
   decodeCanonicalWarpFullState,
   encodeWarpFullState,
-} from '../codecs/WarpStateCborCodec.ts';
+} from './WarpStateCborCodec.ts';
 import type {
   GitCasStagingWorkspace,
 } from './GitCasMaterializationWorkspace.ts';

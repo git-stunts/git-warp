@@ -9,11 +9,14 @@ import type ORSet from '../../crdt/ORSet.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
 import type { EventId } from '../../utils/EventId.ts';
 import type { PropValue } from '../../types/PropValue.ts';
+import { isStaleNodeRegisterIn, type NodeLifecycleSource } from './NodeLifecycle.ts';
+import { isStaleEdgeRegisterIn, type EdgeLifecycleSource } from './ElementLifecycle.ts';
+import type NodePropertyOwner from './NodePropertyOwner.ts';
 import EdgePropertyOwner from './EdgePropertyOwner.ts';
 import decodePropOwner from './decodePropOwner.ts';
 
 /** The parts of a WarpState the sweep reads and prunes in place. */
-export type DeadPropertySweepFields = {
+export type DeadPropertySweepFields = NodeLifecycleSource & EdgeLifecycleSource & {
   readonly prop: Map<string, LWWRegister<PropValue>>;
   readonly nodeAlive: ORSet;
   readonly edgeAlive: ORSet;
@@ -21,49 +24,28 @@ export type DeadPropertySweepFields = {
 };
 
 /**
- * Drops every property register whose owning node or edge the alive set
- * no longer holds at all, along with those edges' birth events. Returns
- * the number of registers removed. Mutates the given maps in place.
+ * Drops permanently stale registers only when their owner was held before
+ * compaction and is absent afterward. Owner absence alone is insufficient:
+ * a later add may expose a register written after a removal. Lifecycle
+ * evidence is retained so delayed merges cannot make stale writes visible.
  *
- * Removing an element tombstones its dot in the alive set but leaves its
- * registers here, so a graph under churn — re-indexing the same file,
- * retiring one generation of anchors to add the next — accumulates
- * registers monotonically and never reclaims them.
- *
- * A swept element that is later re-added starts with no properties. A
- * replica that has not swept still holds the old registers, and shows
- * them for a re-added node, and for a re-added edge whose add sorts below
- * them; `edgeBirthEvent` hides them only when the edge's newest add sorts
- * above them.
- * Swept and unswept replicas can therefore differ after a re-add. Node
- * registers have no birth filter to make that rule the same everywhere.
- *
- * Call only from GC, after `ORSet.compact`. The sweep follows
- * compaction rather than liveness: an owner whose removal lies beyond
- * the compaction frontier still has its tombstoned dot in the set, so
- * its registers stay until the same `appliedVV` that compacts that dot
- * lets them go. Owners absent before compaction are retained: their adds may
- * still be in flight, so absence is not proof of a compacted removal.
+ * Legacy states without lifecycle evidence are conservatively retained.
+ * Call only from GC after ORSet compaction against the applied frontier.
  */
 export function sweepDeadProperties(fields: DeadPropertySweepFields, candidates: PropertySweepCandidates): number {
   let pruned = 0;
-  for (const encodedKey of fields.prop.keys()) {
-    if (ownerMustBeRetained(fields, candidates, encodedKey)) {
+  for (const [encodedKey, register] of fields.prop) {
+    const owner = decodePropOwner(encodedKey);
+    if (owner === null || ownerMustBeRetained(fields, candidates, owner)) {
+      continue;
+    }
+    if (!isPermanentlyStale(fields, owner, register)) {
       continue;
     }
     fields.prop.delete(encodedKey);
     pruned++;
   }
-  dropCompactedEdgeBirths(fields, candidates);
   return pruned;
-}
-
-function dropCompactedEdgeBirths(fields: DeadPropertySweepFields, candidates: PropertySweepCandidates): void {
-  for (const edgeKey of fields.edgeBirthEvent.keys()) {
-    if (candidates.heldEdge(edgeKey) && !fields.edgeAlive.hasEntries(edgeKey)) {
-      fields.edgeBirthEvent.delete(edgeKey);
-    }
-  }
 }
 
 /**
@@ -77,14 +59,20 @@ function dropCompactedEdgeBirths(fields: DeadPropertySweepFields, candidates: Pr
  * working.
  */
 function ownerMustBeRetained(
-  fields: DeadPropertySweepFields, candidates: PropertySweepCandidates, encodedKey: string,
+  fields: DeadPropertySweepFields, candidates: PropertySweepCandidates,
+  owner: NodePropertyOwner | EdgePropertyOwner,
 ): boolean {
-  const owner = decodePropOwner(encodedKey);
-  if (owner === null) {
-    return true;
-  }
   if (owner instanceof EdgePropertyOwner) {
     return fields.edgeAlive.hasEntries(owner.edgeKey) || !candidates.heldEdge(owner.edgeKey);
   }
   return fields.nodeAlive.hasEntries(owner.nodeId) || !candidates.heldNode(owner.nodeId);
+}
+
+function isPermanentlyStale(
+  fields: DeadPropertySweepFields, owner: NodePropertyOwner | EdgePropertyOwner,
+  register: LWWRegister<PropValue>,
+): boolean {
+  return owner instanceof EdgePropertyOwner
+    ? isStaleEdgeRegisterIn(fields, owner.edgeKey, register.eventId)
+    : isStaleNodeRegisterIn(fields, owner.nodeId, register.eventId);
 }

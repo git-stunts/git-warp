@@ -6,6 +6,9 @@ import Op from './Op.ts';
 import { OP_SCOPE_BOTH } from './OpScope.ts';
 import { assertNonEmptyString, assertNoReservedBytes, assertArray } from './validate.ts';
 import type WarpState from '../../services/state/WarpState.ts';
+import { advanceLifecycleEvent } from '../../services/state/ElementLifecycle.ts';
+import { encodeEdgeKey } from '../../services/KeyCodec.ts';
+import type { EventId } from '../../utils/EventId.ts';
 import type OpOutcomeResult from './OpOutcomeResult.ts';
 import type { MutablePatchDiff } from '../PatchDiff.ts';
 import type { SnapshotBeforeOp } from './SnapshotBeforeOp.ts';
@@ -40,9 +43,12 @@ export default class EdgeRemove extends Op<'EdgeRemove'> {
 
   validate(): void { /* validated in constructor */ }
 
-  mutate(state: WarpState): void {
+  mutate(state: WarpState, eventId: EventId): void {
     const dots = new Set(this.observedDots);
     state.edgeAlive.remove(dots);
+    if (dots.size > 0) {
+      advanceLifecycleEvent(state.edgeRemoveEvent, encodeEdgeKey(this.from, this.to, this.label), eventId);
+    }
   }
 
   outcome(state: WarpState): OpOutcomeResult {

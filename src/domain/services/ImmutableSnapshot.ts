@@ -58,10 +58,10 @@ class ReadonlySnapshotPropMap extends Map<string, LWWRegister<SnapshotPropValue>
   }
 }
 
-class ReadonlySnapshotEventMap extends Map<string, EventId> {
+class ReadonlySnapshotEventMap<V> extends Map<string, V> {
   #sealed = false;
 
-  constructor(source: Map<string, EventId>) {
+  constructor(source: Map<string, V>) {
     super();
     for (const [key, value] of source) {
       super.set(key, value);
@@ -69,7 +69,7 @@ class ReadonlySnapshotEventMap extends Map<string, EventId> {
     this.#sealed = true;
   }
 
-  override set(key: string, value: EventId): this {
+  override set(key: string, value: V): this {
     if (this.#sealed) {
       throw createReadonlyMutationError('Map', 'set');
     }
@@ -118,7 +118,7 @@ function createReadonlyPropMap(
   return snapshot;
 }
 
-function createReadonlyEventMap(source: Map<string, EventId>): ReadonlyMap<string, EventId> {
+function createReadonlyEventMap<V>(source: Map<string, V>): ReadonlyMap<string, V> {
   const snapshot = new ReadonlySnapshotEventMap(source);
   Object.freeze(snapshot);
   return snapshot;
@@ -189,7 +189,19 @@ export function createSnapshotWarpState(state: WarpState): SnapshotWarpState {
     prop: createReadonlyPropMap(state.allPropEntries()),
     observedFrontier: createSnapshotVersionVector(state.observedFrontier),
     edgeBirthEvent: createReadonlyEventMap(state.edgeBirthEvent),
+    nodeBirthEvent: createReadonlyEventMap(state.nodeBirthEvent),
+    nodeClearEvent: createReadonlyEventMap(state.nodeClearEvent),
+    nodePendingRemoveEvents: createReadonlyEventMap(frozenEventLists(state.nodePendingRemoveEvents)),
+    edgeRemoveEvent: createReadonlyEventMap(state.edgeRemoveEvent),
   });
+}
+
+function frozenEventLists(source: Map<string, readonly EventId[]>): Map<string, readonly EventId[]> {
+  const result = new Map<string, readonly EventId[]>();
+  for (const [key, events] of source) {
+    result.set(key, Object.freeze([...events]));
+  }
+  return result;
 }
 
 /**

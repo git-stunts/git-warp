@@ -25,6 +25,11 @@ import {
   type MutablePatchDiff,
 } from "../types/PatchDiff.ts";
 import { compareEventIds, EventId } from "../utils/EventId.ts";
+import { isEdgePropKey } from "./KeyCodec.ts";
+import { advanceLifecycleEvent } from "./state/ElementLifecycle.ts";
+import { isStaleNodeRegisterIn, type NodeLifecycleSource } from "./state/NodeLifecycle.ts";
+import { joinStateLifecycles, type StateLifecycleSource } from "./state/StateLifecycle.ts";
+import { optionalLifecycleMap, recordClearedNode, recordSessionLifecycleOp, watchNodeClear } from "./ReducerSessionLifecycle.ts";
 import {
   encodeEdgeKey,
   encodeEdgePropKey,
@@ -66,8 +71,12 @@ export class ReducerSessionFrame {
   readonly prop: Map<string, LWWRegister<ReducerPropValue>>;
   readonly observedFrontier: VersionVector;
   readonly edgeBirthEvent: Map<string, EventId>;
+  readonly nodeBirthEvent: Map<string, EventId>;
+  readonly nodeClearEvent: Map<string, EventId>;
+  readonly nodePendingRemoveEvents: Map<string, readonly EventId[]>;
+  readonly edgeRemoveEvent: Map<string, EventId>;
 
-  constructor(fields: {
+  constructor(fields: StateLifecycleSource & {
     readonly session: StateSession;
     readonly prop: Map<string, LWWRegister<ReducerPropValue>>;
     readonly observedFrontier: VersionVector;
@@ -89,6 +98,10 @@ export class ReducerSessionFrame {
     this.prop = fields.prop;
     this.observedFrontier = fields.observedFrontier;
     this.edgeBirthEvent = fields.edgeBirthEvent;
+    this.nodeBirthEvent = optionalLifecycleMap(fields.nodeBirthEvent, "nodeBirthEvent");
+    this.nodeClearEvent = optionalLifecycleMap(fields.nodeClearEvent, "nodeClearEvent");
+    this.nodePendingRemoveEvents = optionalLifecycleMap(fields.nodePendingRemoveEvents, "nodePendingRemoveEvents");
+    this.edgeRemoveEvent = optionalLifecycleMap(fields.edgeRemoveEvent, "edgeRemoveEvent");
     Object.freeze(this);
   }
 
@@ -216,7 +229,7 @@ export async function joinFrames(
     session: left.session,
     prop: mergePropMaps(left.prop, right.prop),
     observedFrontier: left.observedFrontier.merge(right.observedFrontier),
-    edgeBirthEvent: mergeEdgeBirthEvents(left.edgeBirthEvent, right.edgeBirthEvent),
+    ...joinStateLifecycles(left, right),
   });
 }
 
@@ -227,6 +240,7 @@ async function applyPatchInSession(
   mode: ReplayMode,
 ): Promise<{ readonly diff: PatchDiff; readonly receipt: TickReceipt }> {
   const diff = createPatchDiffAccumulator();
+  const nodesCleared: string[] = [];
   const receiptOps: OpOutcome[] = [];
 
   for (let i = 0; i < patch.ops.length; i += 1) {
@@ -247,16 +261,19 @@ async function applyPatchInSession(
     const before = mode === "diff"
       ? await snapshotForDiff(frame, canonOp)
       : { kind: "none" } satisfies ReplayDiffSnapshot;
+    const clearWatch = watchNodeClear(frame, canonOp);
     await mutateInSession(frame, canonOp, eventId);
+    recordSessionLifecycleOp(frame, canonOp, eventId);
     if (mode === "diff") {
       await accumulateDiff(diff, frame, before);
+      recordClearedNode(nodesCleared, frame, clearWatch);
     }
   }
 
   foldPatchIntoFrame(frame, patch);
 
   return {
-    diff: new PatchDiff(diff),
+    diff: new PatchDiff({ ...diff, nodesCleared }),
     receipt: createTickReceipt({
       patchSha,
       writer: patch.writer,
@@ -352,11 +369,8 @@ async function snapshotForDiff(
       aliveBefore: await frame.session.edgeContains(target),
     };
   }
-  if (op instanceof PropSet) {
-    return propertySnapshot(frame.prop, op.node, op.key, encodePropKey(op.node, op.key));
-  }
-  if (op instanceof NodePropSet) {
-    return propertySnapshot(frame.prop, op.node, op.key, encodePropKey(op.node, op.key));
+  if (op instanceof PropSet || op instanceof NodePropSet) {
+    return propertySnapshot(frame.prop, op.node, op.key, encodePropKey(op.node, op.key), frame);
   }
   if (op instanceof EdgePropSet) {
     return propertySnapshot(
@@ -385,10 +399,7 @@ async function mutateInSession(
   if (op instanceof EdgeAdd) {
     const edgeKey = encodeEdgeKey(op.from, op.to, op.label);
     await frame.session.addEdge(edgeKey, op.dot);
-    const previous = frame.edgeBirthEvent.get(edgeKey);
-    if (previous === undefined || compareEventIds(eventId, previous) > 0) {
-      frame.edgeBirthEvent.set(edgeKey, eventId);
-    }
+    advanceLifecycleEvent(frame.edgeBirthEvent, edgeKey, eventId);
     return;
   }
   if (op instanceof EdgeRemove) {
@@ -449,7 +460,10 @@ async function accumulateDiff(
     return;
   }
   if (before.kind === "prop") {
-    const nextValue = frame.prop.get(before.storageKey)?.value;
+    const nextValue = propertySnapshot(
+      frame.prop, before.nodeId, before.key, before.storageKey,
+      isEdgePropKey(before.storageKey) ? undefined : frame,
+    ).prevValue;
     if (nextValue !== before.prevValue) {
       diff.propsChanged.push({
         nodeId: before.nodeId,
@@ -476,14 +490,16 @@ function foldPatchIntoFrame(frame: ReducerSessionFrame, patch: PatchLike): void 
   }
 }
 
+/** Snapshots a register before a write; a node register `lifecycle` hides counts as absent. */
 function propertySnapshot(
   prop: ReadonlyMap<string, LWWRegister<ReducerPropValue>>,
   nodeId: string,
   key: string,
   storageKey: string,
-): ReplayDiffSnapshot {
+  lifecycle?: NodeLifecycleSource,
+): Extract<ReplayDiffSnapshot, { readonly kind: "prop" }> {
   const reg = prop.get(storageKey);
-  if (reg === undefined) {
+  if (reg === undefined || (lifecycle !== undefined && isStaleNodeRegisterIn(lifecycle, nodeId, reg.eventId))) {
     return {
       kind: "prop",
       nodeId,
@@ -541,20 +557,6 @@ function mergePropMaps(
     const winner = LWWRegister.max(merged.get(key), rightValue);
     if (winner !== null) {
       merged.set(key, winner);
-    }
-  }
-  return merged;
-}
-
-function mergeEdgeBirthEvents(
-  left: ReadonlyMap<string, EventId>,
-  right: ReadonlyMap<string, EventId>,
-): Map<string, EventId> {
-  const merged = new Map(left);
-  for (const [key, rightValue] of right) {
-    const current = merged.get(key);
-    if (current === undefined || compareEventIds(rightValue, current) > 0) {
-      merged.set(key, rightValue);
     }
   }
   return merged;
