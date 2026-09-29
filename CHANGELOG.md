@@ -92,6 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Validate checkpoint projection property values and preserve absent lifecycle witnesses instead of fabricating invalid birth events.
+
 - Checkpoint property owners now pass runtime `NodeId` validation, including
   rejection of empty and NUL-containing identifiers before key encoding.
 
