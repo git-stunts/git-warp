@@ -139,6 +139,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documentation now use commit-pinned repository URLs. The payload policy
   rejects the withheld paths explicitly and lowers the unpacked ceiling to
   4,300,000 bytes.
+- `dist/bin/` and `dist/scripts/` now publish JavaScript only. None of their
+  80 declarations was reachable from the five public declaration entrypoints,
+  so type consumers see no change. The payload policy rejects non-JavaScript
+  files there and lowers the ceilings to 1,000,000 compressed bytes and 1,650
+  entries; the measured artifact is 933,496 compressed bytes, 4,038,202
+  unpacked bytes, and 1,574 entries. The packed-artifact smoke now also
+  type-checks every public type surface from the installed tarball with
+  `skipLibCheck: false`, verifies the export and bin maps and sealed private
+  subpaths, resolves every relative import in the shipped JavaScript, installs
+  the post-merge hook from the shipped template, and runs CLI and migration
+  discovery against a disposable repository.
 
 ## [19.1.0] - 2026-08-25
 

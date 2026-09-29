@@ -84,8 +84,7 @@ function isSupportedV18ToV19Artifact(path: string): boolean {
   const relativePath = path.slice(prefix.length);
   return (
     relativePath.startsWith('adapters/') ||
-    (!relativePath.includes('/') &&
-      (relativePath.endsWith('.js') || relativePath.endsWith('.d.ts')))
+    (!relativePath.includes('/') && relativePath.endsWith('.js'))
   );
 }
 
@@ -154,15 +153,22 @@ describe('release artifact command evidence', () => {
         !isSupportedV18ToV19Artifact(entry) &&
         !entry.startsWith('dist/scripts/migrations/v17.0.0/') &&
         entry !== 'dist/scripts/formatFailure.js' &&
-        entry !== 'dist/scripts/formatFailure.d.ts' &&
-        entry !== 'dist/scripts/upgrade-v16-to-v17.js' &&
-        entry !== 'dist/scripts/upgrade-v16-to-v17.d.ts'
+        entry !== 'dist/scripts/upgrade-v16-to-v17.js'
+    );
+    const implementationNonJavaScript = [...entries].filter(
+      (entry) =>
+        (entry.startsWith('dist/bin/') || entry.startsWith('dist/scripts/')) &&
+        !entry.endsWith('.js')
     );
 
     expect(entries.has('dist/index.js')).toBe(true);
     expect(entries.has('dist/index.d.ts')).toBe(true);
     expect(entries.has('dist/scripts/upgrade-v16-to-v17.js')).toBe(true);
-    expect(entries.has('dist/scripts/upgrade-v16-to-v17.d.ts')).toBe(true);
+    expect(entries.has('dist/scripts/upgrade-v16-to-v17.d.ts')).toBe(false);
+    expect(entries.has('dist/scripts/v18-to-v19/migrate.js')).toBe(true);
+    expect(entries.has('dist/scripts/v18-to-v19/migrate.d.ts')).toBe(false);
+    expect(entries.has('dist/bin/git-warp.d.ts')).toBe(false);
+    expect(implementationNonJavaScript).toEqual([]);
     expect(entries.has('dist/browser.js')).toBe(false);
     expect(entries.has('dist/browser.d.ts')).toBe(false);
     expect(entries.has('dist/legacy.js')).toBe(false);

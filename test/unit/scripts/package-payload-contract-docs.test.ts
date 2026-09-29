@@ -57,11 +57,19 @@ describe('package payload contract documentation', () => {
 
   it('names the complete v18-to-v19 adapter publication path', () => {
     expect(PACKAGE_PAYLOAD_CONTRACT).toContain(
-      '`dist/scripts/v18-to-v19/*.{js,d.ts}`, `dist/scripts/v18-to-v19/adapters/**`'
+      '`dist/scripts/v18-to-v19/*.js`, `dist/scripts/v18-to-v19/adapters/**/*.js`'
     );
-    expect(PACKAGE_PAYLOAD_CONTRACT).not.toContain(
-      '`dist/scripts/v18-to-v19/*.{js,d.ts}`, `adapters/**`'
+    expect(PACKAGE_PAYLOAD_CONTRACT).not.toContain('`adapters/**`');
+    expect(PACKAGE_PAYLOAD_CONTRACT).not.toContain('{js,d.ts}`, `dist/scripts');
+  });
+
+  it('publishes executable implementation as JavaScript only', () => {
+    const implementationEntries = PACKAGE_FILES.filter(
+      (entry) => entry.startsWith('dist/bin') || entry.startsWith('dist/scripts')
     );
+
+    expect(implementationEntries.length).toBeGreaterThan(0);
+    expect(implementationEntries.filter((entry) => !entry.endsWith('.js'))).toEqual([]);
   });
 
   it('publishes only the retained documentation set', () => {

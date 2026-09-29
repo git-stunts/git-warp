@@ -37,12 +37,16 @@ At `7b43e330c`, a clean publish build packed 1,679 files, 1,176,780
 compressed bytes, and 4,798,907 unpacked bytes. Withholding the changelog and
 the general documentation shelves removed 25 files and brought the artifact to
 1,654 files, 951,990 compressed bytes, and 4,126,293 unpacked bytes.
+Publishing the executable implementation as JavaScript only then removed the
+80 declarations under `dist/bin/` and `dist/scripts/`, leaving 1,574 files,
+933,496 compressed bytes, and 4,038,202 unpacked bytes. `npm pack --dry-run`
+and the generated tarball report identical inventories.
 
 | Ceiling          | Value     | Headroom over the measured artifact |
 | ---------------- | --------- | ----------------------------------- |
-| Compressed bytes | 1,200,000 | 248,010 bytes                       |
-| Unpacked bytes   | 4,300,000 | 173,707 bytes (4.2%)                |
-| Entries          | 1,700     | 46 entries                          |
+| Compressed bytes | 1,000,000 | 66,504 bytes (7.1%)                 |
+| Unpacked bytes   | 4,300,000 | 261,798 bytes (6.5%)                |
+| Entries          | 1,650     | 76 entries (4.8%)                   |
 
 ## Allowlist
 
@@ -54,10 +58,10 @@ The package may contain only these path classes:
 | `README.md`, `LICENSE`, `NOTICE`                                             | User orientation and legal notices                                  |
 | `dist/{index,advanced,diagnostics,charts,testing}.{js,d.ts}`                 | Supported JavaScript and declaration entrypoints                    |
 | `dist/src/**`                                                                | Transitive runtime implementation required by supported entrypoints |
-| `dist/bin/**`, `bin/git-warp`                                                | Supported `git-warp` executable implementation and launcher         |
-| `dist/scripts/v18-to-v19/*.{js,d.ts}`, `dist/scripts/v18-to-v19/adapters/**` | Supported `git-warp-v18-to-v19` migration executable               |
-| `dist/scripts/upgrade-v16-to-v17.{js,d.ts}`                                 | Supported legacy `npm run upgrade` operator command                 |
-| `dist/scripts/migrations/v17.0.0/**`, `dist/scripts/formatFailure.{js,d.ts}` | Private implementation required by supported migration commands     |
+| `dist/bin/**/*.js`, `bin/git-warp`                                           | Supported `git-warp` executable implementation and launcher         |
+| `dist/scripts/v18-to-v19/*.js`, `dist/scripts/v18-to-v19/adapters/**/*.js`   | Supported `git-warp-v18-to-v19` migration executable               |
+| `dist/scripts/upgrade-v16-to-v17.js`                                         | Supported legacy `npm run upgrade` operator command                 |
+| `dist/scripts/migrations/v17.0.0/**/*.js`, `dist/scripts/formatFailure.js`   | Private implementation required by supported migration commands     |
 | `scripts/hooks/post-merge.sh`                                                | Runtime asset required by CLI hook installation and diagnostics     |
 | `scripts/{install-git-warp,uninstall-git-warp}.sh`                           | Existing explicit bootstrap and removal command surfaces            |
 | `docs/migrations/v19/README.md`                                              | Safety-critical guide for the supported migration executable        |
@@ -81,6 +85,18 @@ path the artifact does not contain. Links to withheld documentation use a
 release-tagged or commit-pinned repository URL. A unit test checks the source
 documents and the packed-artifact smoke checks the installed copies.
 
+## JavaScript-only executable implementation
+
+`dist/bin/` and `dist/scripts/` hold executable implementation. The five
+public declaration entrypoints and everything they import live under
+`dist/{index,advanced,diagnostics,charts,testing}.d.ts` and `dist/src/`; no
+public declaration imports a declaration under `dist/bin/` or `dist/scripts/`.
+The package therefore publishes only `.js` files from those two directories,
+and the policy rejects any other file type there. A declaration that becomes
+reachable from a public entrypoint must move under `dist/src/` or change this
+contract in the same reviewed change; the packed-artifact type check fails
+before release if it does not.
+
 ## Enforcement
 
 The boundary has four independent witnesses:
@@ -95,9 +111,14 @@ The boundary has four independent witnesses:
    path and enforces reviewed ceilings for compressed bytes, unpacked bytes,
    and entry count in both modes.
 4. The packed-artifact smoke installs that policy-conforming tarball into a
-   clean external consumer and exercises every supported export, package
-   metadata, CLI executable, migration executable, and private-subpath
-   firewall.
+   clean external consumer outside the checkout and exercises every supported
+   export, package metadata, CLI executable, migration executable, and
+   private-subpath firewall. It type-checks all five public type surfaces
+   against the installed declarations with `skipLibCheck: false`, resolves
+   every relative import in the shipped JavaScript inside the artifact,
+   installs the post-merge hook from the shipped template, runs the migration
+   commands' discovery against a disposable repository, and checks that
+   shipped documents link package-relative only to shipped files.
 
 npm 10 may prefix `--json` output with `prepare` output even when the nested
 pack requests `--ignore-scripts`. The inventory adapter therefore accepts a

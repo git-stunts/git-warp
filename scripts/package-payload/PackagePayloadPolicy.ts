@@ -17,14 +17,10 @@ const REQUIRED_PATHS = Object.freeze([
   'dist/testing.js',
   'dist/testing.d.ts',
   'dist/bin/git-warp.js',
-  'dist/bin/git-warp.d.ts',
   'bin/git-warp',
   'dist/scripts/v18-to-v19/migrate.js',
-  'dist/scripts/v18-to-v19/migrate.d.ts',
   'dist/scripts/formatFailure.js',
-  'dist/scripts/formatFailure.d.ts',
   'dist/scripts/upgrade-v16-to-v17.js',
-  'dist/scripts/upgrade-v16-to-v17.d.ts',
   'dist/scripts/migrations/v17.0.0/CheckpointMaterializationMigration.js',
   'scripts/hooks/post-merge.sh',
   'scripts/install-git-warp.sh',
@@ -53,10 +49,14 @@ const FORBIDDEN_PREFIXES = Object.freeze([
   'docs/operations/',
 ]);
 
+// Executable implementation roots. No public declaration reaches into them, so
+// they publish JavaScript only; a declaration here is an unwanted file.
+const JAVASCRIPT_ONLY_PREFIXES = Object.freeze(['dist/bin/', 'dist/scripts/']);
+
 export default class PackagePayloadPolicy {
-  readonly maxPackedBytes = 1_200_000;
+  readonly maxPackedBytes = 1_000_000;
   readonly maxUnpackedBytes = 4_300_000;
-  readonly maxEntryCount = 1_700;
+  readonly maxEntryCount = 1_650;
 
   assess(inventory: PackagePayloadInventory): PackagePayloadAssessment {
     const violations = inventory.entries
@@ -73,10 +73,7 @@ export default class PackagePayloadPolicy {
   }
 
   private allows(path: string): boolean {
-    if (
-      WITHHELD_DOCUMENTATION_PATHS.includes(path) ||
-      FORBIDDEN_PREFIXES.some((prefix) => path.startsWith(prefix))
-    ) {
+    if (isExcluded(path)) {
       return false;
     }
     return (
@@ -87,16 +84,27 @@ export default class PackagePayloadPolicy {
   }
 }
 
+function isExcluded(path: string): boolean {
+  return (
+    WITHHELD_DOCUMENTATION_PATHS.includes(path) ||
+    FORBIDDEN_PREFIXES.some((prefix) => path.startsWith(prefix)) ||
+    isNonJavaScriptImplementationArtifact(path)
+  );
+}
+
+function isNonJavaScriptImplementationArtifact(path: string): boolean {
+  return (
+    JAVASCRIPT_ONLY_PREFIXES.some((prefix) => path.startsWith(prefix)) && !path.endsWith('.js')
+  );
+}
+
 function isDirectV18ToV19Artifact(path: string): boolean {
   const prefix = 'dist/scripts/v18-to-v19/';
   if (!path.startsWith(prefix)) {
     return false;
   }
   const relativePath = path.slice(prefix.length);
-  return (
-    !relativePath.includes('/') &&
-    (relativePath.endsWith('.js') || relativePath.endsWith('.d.ts'))
-  );
+  return !relativePath.includes('/') && relativePath.endsWith('.js');
 }
 
 function appendLimitViolations(
