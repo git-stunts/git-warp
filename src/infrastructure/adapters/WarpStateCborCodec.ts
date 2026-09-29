@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import z from 'zod';
 import CborFullStateLifecycleDecoder from './CborFullStateLifecycleDecoder.ts';
 import type { FullStateLifecycle } from '../../ports/FullStateLifecycleDecoderPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
