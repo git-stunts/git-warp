@@ -10,6 +10,7 @@
  * @module domain/services/executeGC
  */
 
+import PropertySweepCandidates from './state/PropertySweepCandidates.ts';
 import VersionVector from '../crdt/VersionVector.ts';
 import WarpError from '../errors/WarpError.ts';
 import type WarpState from './state/WarpState.ts';
@@ -54,8 +55,9 @@ export default function executeGC(
   }
 
   const beforeMetrics = GCMetrics.fromState(state);
+  const candidates = new PropertySweepCandidates(state.nodeAlive, state.edgeAlive);
   compactORSets(state, appliedVV);
-  const propertiesPruned = state.compactDeadProperties();
+  const propertiesPruned = state.compactDeadProperties(candidates);
   const afterMetrics = GCMetrics.fromState(state);
 
   return new GCExecuteResult({

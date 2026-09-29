@@ -199,9 +199,59 @@ describe('executeGC property sweep', () => {
     const state = createEmptyState();
     setNodeProp(state, 'ast:doomed', 'type', 'identifier');
     const boom = new TypeError('alive-set fault');
-    state.nodeAlive.contains = (): boolean => { throw boom; };
+    state.nodeAlive.hasEntries = (): boolean => { throw boom; };
 
     expect(() => executeGC(state, VersionVector.empty())).toThrow(boom);
+  });
+
+  it('retains a dead node\'s registers while its removal is outside the compaction frontier', () => {
+    // appliedVV bounds what GC may forget. The removal's dot A:2 is past
+    // {A:1}, so compaction keeps the entry, and the sweep must keep the
+    // registers that entry still governs.
+    const state = createEmptyState();
+    addThenRemoveNode(state, 'ast:doomed', Dot.create('A', 2));
+    setNodeProp(state, 'ast:doomed', 'type', 'identifier');
+
+    const appliedVV = VersionVector.empty();
+    appliedVV.set('A', 1);
+    const result = executeGC(state, appliedVV);
+
+    expect(state.nodeAlive.countEntries()).toBe(1);
+    expect(result.propertiesPruned).toBe(0);
+    expect(state.hasNodeProp('ast:doomed', 'type')).toBe(true);
+  });
+
+  it('retains a dead edge\'s registers and birth event while its removal is outside the compaction frontier', () => {
+    const state = createEmptyState();
+    const edgeKey = encodeEdgeKey('file:a.ts', 'ast:root', 'contains_ast');
+    const dot = Dot.create('A', 2);
+    state.edgeAlive.add(edgeKey, dot);
+    state.edgeBirthEvent.set(edgeKey, nextEventId());
+    state.edgeAlive.remove(new Set([encodeDot(dot)]));
+    setEdgeProp(state, 'file:a.ts', 'ast:root', 'contains_ast', 'weight', '1');
+
+    const appliedVV = VersionVector.empty();
+    appliedVV.set('A', 1);
+    const result = executeGC(state, appliedVV);
+
+    expect(state.edgeAlive.countEntries()).toBe(1);
+    expect(result.propertiesPruned).toBe(0);
+    expect(state.getEdgeProp('file:a.ts', 'ast:root', 'contains_ast', 'weight')?.value).toBe('1');
+    expect(state.edgeBirthEvent.has(edgeKey)).toBe(true);
+  });
+
+  it('retains a register whose owner add has not arrived', () => {
+    // An absent owner may have an add in flight. No removal is proven,
+    // so GC must retain its registers even when there are no owner dots.
+    const state = createEmptyState();
+    setNodeProp(state, 'ast:never-added', 'type', 'identifier');
+    setEdgeProp(state, 'ast:never-added', 'ast:other', 'contains_ast', 'weight', '1');
+
+    const result = executeGC(state, VersionVector.empty());
+
+    expect(result.propertiesPruned).toBe(0);
+    expect(state.hasNodeProp('ast:never-added', 'type')).toBe(true);
+    expect(state.getEdgeProp('ast:never-added', 'ast:other', 'contains_ast', 'weight')?.value).toBe('1');
   });
 
   it('reports zero pruned properties for an empty state', () => {

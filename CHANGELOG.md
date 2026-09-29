@@ -58,15 +58,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prefix with `E_CHECKPOINT_INVALID_PROP_OWNER`. The visible projection
   carries node properties only, so that shape is one this library never
   writes and can arrive only through corruption or a foreign writer.
+- Property GC retains registers and edge lifecycle evidence for owners whose
+  adds have not arrived. Sweep candidates must have been held before the
+  current compaction cycle; an empty alive set alone is not proof of removal.
+
 - Garbage collection now reclaims the property registers of removed nodes and
   edges. Compaction previously cleared tombstoned dots from `nodeAlive` and
   `edgeAlive` but left every register keyed under the removed element in
   `WarpState.prop`, so a graph under churn — retiring one generation of
   elements to add the next — grew that map monotonically and never released
-  it, ratcheting heap in long-lived processes even across full GC runs. Dead
-  edges' `edgeBirthEvent` entries are reclaimed with them, and
-  `GCExecuteResult.propertiesPruned` reports the count. A key whose element id
-  embeds the `\0` field separator does not decode unambiguously and is always
+  it, ratcheting heap in long-lived processes even across full GC runs. The
+  sweep runs after compaction and drops a register once the alive set holds no
+  dot, live or tombstoned, for its element. For an element the set once held,
+  that happens only after compaction has removed its last dot, so the
+  `appliedVV` passed to `executeGC` bounds the sweep as it bounds compaction.
+  A register whose element was never added has no dot to wait for and is
+  dropped under any `appliedVV`, including an empty one. Those edges'
+  `edgeBirthEvent` entries are reclaimed with them, and
+  `GCExecuteResult.propertiesPruned` reports the count, including through
+  `graph.checkpoint.runGC()` and `maybeRunGC()`. A key whose element id embeds
+  the `\0` field separator does not decode unambiguously and is always
   retained, never pruned.
 - Idle Git reader retirement now completes when the child process closes
   before stdin reports its final flush. Storage shutdown no longer waits
@@ -128,20 +139,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Compatibility
 
-- Property-register sweeping gives re-added nodes a clean slate. Removing a
-  node and later adding the same id back no longer resurrects the properties
-  it carried before removal, once a GC run has swept them. This matches the
-  visibility edges already had through `edgeBirthEvent`, extending one
-  clean-slate rule to both element kinds. Visibility-filtered reads are
-  unchanged for any element that is not re-added, because a dead element's
-  registers were already hidden from them. The raw accessors — `getNodeProp`,
-  `getEdgeProp`, `getEncodedProp`, `hasProp` and `propSize` — do not filter by
-  liveness, so for a dead owner they return a register before a sweep and
-  nothing after it. Replicas that sweep and replicas that
-  do not can therefore disagree after a re-add, so run GC only at a frontier
-  every replica has observed — the stability contract `ORSet.compact` already
-  requires. Retained data needs no migration; GC remains opt-in and disabled
-  by default.
+- Property-register sweeping makes what a re-added element shows depend on
+  whether this replica has run GC. Removing a node or edge already hid its
+  properties from visibility-filtered reads; once GC compacts the removal, the
+  sweep deletes those registers. If the same id is added back later, a replica
+  that swept shows none of the pre-removal properties. A replica that has not
+  swept still shows them for a re-added node, and for a re-added edge whose
+  add carries a lower event id than the property, as a concurrent add can.
+  A re-added edge whose add is causally later hides them on both replicas
+  through `edgeBirthEvent`. Because `computeStateHash` covers visible node
+  properties, two replicas holding the same patches can report different
+  state hashes after a node is removed, swept on one of them, and re-added.
+  `runGC()`, `maybeRunGC()` and automatic GC compact against every dot this
+  replica holds, not against a frontier every replica has observed, and even
+  such a frontier would not prevent this divergence. For a graph that never
+  re-adds a removed id, visibility-filtered reads are unchanged. The raw accessors
+  `getNodeProp`, `getEdgeProp`, `getEncodedProp`, `hasProp` and `propSize` do
+  not filter by liveness, so for a swept owner they return a register before
+  the sweep and nothing after it. Retained data needs no migration, and
+  automatic GC remains disabled by default.
 - Singular `Lane.write(intent)` behavior and its admission-law/digest path are
   unchanged. Atomic arrays reuse the existing writer publication mechanism, so
   existing v19 repositories require no retained-data migration. New patches

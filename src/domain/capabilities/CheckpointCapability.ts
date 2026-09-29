@@ -4,12 +4,10 @@
  * 5 methods covering checkpoint creation, coverage sync, and GC.
  */
 
-/** GC execution result. */
-export type GCExecuteResult = {
-  nodesCompacted: number;
-  edgesCompacted: number;
-  tombstonesRemoved: number;
-};
+import type DomainGCExecuteResult from '../services/GCExecuteResult.ts';
+
+/** GC execution result: the value object executeGC produces, not a copy of its shape. */
+export type GCExecuteResult = DomainGCExecuteResult;
 
 /** GC metrics for the current state. */
 export type GCMetrics = {
