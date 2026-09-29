@@ -3,10 +3,11 @@ import { join, resolve } from 'node:path';
 import ts from 'typescript';
 import PackagePayloadError from './PackagePayloadError.ts';
 import { listFiles } from './PackedArtifactFiles.ts';
+import PUBLIC_PACKAGE_ENTRYPOINTS from './PublicPackageEntrypoints.ts';
 
 /** Keeps exactly the declaration closure required by the supported public exports. */
 export default function prunePrivateDeclarations(directory: string): void {
-  const roots = ['index', 'advanced', 'diagnostics', 'charts', 'testing']
+  const roots = PUBLIC_PACKAGE_ENTRYPOINTS
     .map((name) => join(directory, `${name}.d.ts`));
   const program = ts.createProgram(roots, {
     module: ts.ModuleKind.NodeNext,
@@ -21,6 +22,8 @@ export default function prunePrivateDeclarations(directory: string): void {
   }
   const required = new Set(program.getSourceFiles().map((file) => resolve(file.fileName)));
   for (const path of listFiles(directory, '.d.ts')) {
-    if (!required.has(resolve(path))) unlinkSync(path);
+    if (!required.has(resolve(path))) {
+      unlinkSync(path);
+    }
   }
 }

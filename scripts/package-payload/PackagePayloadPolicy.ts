@@ -1,21 +1,13 @@
 import PackagePayloadAssessment from './PackagePayloadAssessment.ts';
 import type PackagePayloadInventory from './PackagePayloadInventory.ts';
+import PUBLIC_PACKAGE_ENTRYPOINTS from './PublicPackageEntrypoints.ts';
 
 const REQUIRED_PATHS = Object.freeze([
   'package.json',
   'README.md',
   'LICENSE',
   'NOTICE',
-  'dist/index.js',
-  'dist/index.d.ts',
-  'dist/advanced.js',
-  'dist/advanced.d.ts',
-  'dist/diagnostics.js',
-  'dist/diagnostics.d.ts',
-  'dist/charts.js',
-  'dist/charts.d.ts',
-  'dist/testing.js',
-  'dist/testing.d.ts',
+  ...PUBLIC_PACKAGE_ENTRYPOINTS.flatMap((name) => [`dist/${name}.js`, `dist/${name}.d.ts`]),
   'dist/bin/git-warp.js',
   'bin/git-warp',
   'dist/scripts/v18-to-v19/migrate.js',
