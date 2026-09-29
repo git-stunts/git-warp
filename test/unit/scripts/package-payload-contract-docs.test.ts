@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
+import PackedArtifactBoundaryAdapter from '../../../src/infrastructure/adapters/PackedArtifactBoundaryAdapter.ts';
 
 const CHANGELOG = readFileSync(new URL('../../../CHANGELOG.md', import.meta.url), 'utf8');
 const PACKAGE_PAYLOAD_CONTRACT = readFileSync(
@@ -14,16 +16,9 @@ const REPOSITORY_URL_PATTERN =
 const IMMUTABLE_REF_PATTERN = /^(?:[0-9a-f]{40}|v\d+\.\d+\.\d+)$/u;
 
 function readPackageFiles(): readonly string[] {
-  const manifest: unknown = JSON.parse(
-    readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')
+  const { files } = new PackedArtifactBoundaryAdapter().read(
+    'package.json', z.object({ files: z.array(z.string()) })
   );
-  if (typeof manifest !== 'object' || manifest === null || !('files' in manifest)) {
-    throw new TypeError('package.json must declare files');
-  }
-  const { files } = manifest;
-  if (!Array.isArray(files) || !files.every((entry) => typeof entry === 'string')) {
-    throw new TypeError('package.json files must be a string array');
-  }
   return files;
 }
 

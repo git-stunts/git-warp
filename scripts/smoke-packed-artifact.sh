@@ -134,8 +134,9 @@ const expectedBins = {
   'git-warp': './bin/git-warp',
   'git-warp-v18-to-v19': './dist/scripts/v18-to-v19/migrate.js',
 };
-if (JSON.stringify(metadata.bin) !== JSON.stringify(expectedBins)) {
-  throw new PackedArtifactSmokeError(`unexpected bin map: ${JSON.stringify(metadata.bin)}`);
+if (Object.keys(metadata.bin).length !== Object.keys(expectedBins).length ||
+    Object.entries(expectedBins).some(([name, target]) => metadata.bin[name] !== target)) {
+  throw new PackedArtifactSmokeError('unexpected bin map');
 }
 if (metadata.main !== './dist/index.js' || metadata.types !== './dist/index.d.ts') {
   throw new PackedArtifactSmokeError('package main/types fields are malformed');

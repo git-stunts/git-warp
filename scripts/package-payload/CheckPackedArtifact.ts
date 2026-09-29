@@ -4,20 +4,20 @@
 // so nothing here resolves back into the checkout.
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
+import PackedArtifactBoundaryAdapter from '../../src/infrastructure/adapters/PackedArtifactBoundaryAdapter.ts';
 
 import { formatFailure } from '../formatFailure.ts';
 import PackagePayloadError from './PackagePayloadError.ts';
 import { findEscapingDocumentLinks, findUnresolvedImports } from './PackedArtifactFiles.ts';
 
-const INSTALL_RESULT = z.object({ action: z.literal('installed') });
+const boundary = new PackedArtifactBoundaryAdapter();
 const PACKAGE_METADATA = z.object({ version: z.string().min(1) });
 const WRITE_RESULT = z.object({
   lane: z.literal('events'),
   intent: z.object({ kind: z.literal('property.set') }),
 });
-const OBSERVATION = z.object({ readings: z.array(z.object({ value: z.unknown() })).min(1) });
+const OBSERVATION = z.object({ readings: z.array(z.object({ value: z.string() })).min(1) });
 const DOCTOR_REPORT = z.object({
   findings: z.array(
     z.object({ id: z.string(), code: z.string(), status: z.enum(['ok', 'warn', 'fail']) })
@@ -74,28 +74,12 @@ async function hook(args: readonly string[]): Promise<void> {
   const packageDir = argument(args, 0);
   const repo = argument(args, 1);
   const hooksDir = join(repo, '.git', 'hooks');
-  const shared: unknown = await import(
-    pathToFileURL(join(packageDir, 'dist/bin/cli/shared.js')).href
-  );
-  const installer = await callMethod(shared, 'createHookInstaller', [
-    { resolveHooksDir: () => Promise.resolve(hooksDir) },
-  ]);
-  INSTALL_RESULT.parse(await callMethod(installer, 'install', [repo, { strategy: 'install' }]));
+  await boundary.installHook(packageDir, repo);
   requireStampedExecutableHook(packageDir, join(hooksDir, 'post-merge'));
 }
 
-async function callMethod(target: unknown, name: string, args: readonly unknown[]): Promise<unknown> {
-  const method: unknown =
-    typeof target === 'object' && target !== null ? Reflect.get(target, name) : undefined;
-  if (typeof method !== 'function') {
-    throw new PackagePayloadError(`packaged CLI does not provide ${name}`);
-  }
-  const result: unknown = await Reflect.apply(method, target, args);
-  return result;
-}
-
 function requireStampedExecutableHook(packageDir: string, hookPath: string): void {
-  const { version } = PACKAGE_METADATA.parse(readJson(join(packageDir, 'package.json')));
+  const { version } = boundary.read(join(packageDir, 'package.json'), PACKAGE_METADATA);
   if (!readFileSync(hookPath, 'utf8').includes(`# warp-hook-version: ${version}`)) {
     throw new PackagePayloadError('installed hook was not stamped from the shipped template');
   }
@@ -107,14 +91,14 @@ function requireStampedExecutableHook(packageDir: string, hookPath: string): voi
 /** Validates the JSON the smoke captured from the packaged CLI and migrations. */
 function results(args: readonly string[]): Promise<void> {
   const workDir = argument(args, 0);
-  WRITE_RESULT.parse(readJson(join(workDir, 'write.json')));
-  const [reading] = OBSERVATION.parse(readJson(join(workDir, 'observe.json'))).readings;
+  boundary.read(join(workDir, 'write.json'), WRITE_RESULT);
+  const [reading] = boundary.read(join(workDir, 'observe.json'), OBSERVATION).readings;
   if (reading?.value !== 'admin') {
     throw new PackagePayloadError('git-warp observe did not read the written value');
   }
   requireHookFinding(join(workDir, 'doctor-before.json'), 'HOOKS_MISSING');
   requireHookFinding(join(workDir, 'doctor-after.json'), 'HOOKS_OK');
-  const upgrade = UPGRADE_REPORT.parse(readJson(join(workDir, 'upgrade.json')));
+  const upgrade = boundary.read(join(workDir, 'upgrade.json'), UPGRADE_REPORT);
   const lane = upgrade.graphs.find((graph) => graph.graphName === 'events');
   if (lane?.checkpoint.status !== 'already-current') {
     throw new PackagePayloadError('legacy upgrade dry run did not classify the Lane as current');
@@ -123,7 +107,7 @@ function results(args: readonly string[]): Promise<void> {
 }
 
 function requireHookFinding(path: string, expectedCode: string): void {
-  const { findings } = DOCTOR_REPORT.parse(readJson(path));
+  const { findings } = boundary.read(path, DOCTOR_REPORT);
   if (findings.some((finding) => finding.status === 'fail')) {
     throw new PackagePayloadError(`doctor reported failed checks in ${path}`);
   }
@@ -133,11 +117,7 @@ function requireHookFinding(path: string, expectedCode: string): void {
   }
 }
 
-function readJson(path: string): unknown {
-  return JSON.parse(readFileSync(path, 'utf8'));
-}
-
-main(process.argv.slice(2)).catch((error: unknown) => {
+main(process.argv.slice(2)).catch((error) => {
   process.stderr.write(`packed-artifact: ${formatFailure(error)}\n`);
   process.exitCode = 1;
 });
