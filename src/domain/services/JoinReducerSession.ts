@@ -25,6 +25,7 @@ import {
   type MutablePatchDiff,
 } from "../types/PatchDiff.ts";
 import { compareEventIds, EventId } from "../utils/EventId.ts";
+import { isEdgePropKey } from "./KeyCodec.ts";
 import { advanceLifecycleEvent } from "./state/ElementLifecycle.ts";
 import { isStaleNodeRegisterIn, type NodeLifecycleSource } from "./state/NodeLifecycle.ts";
 import { joinStateLifecycles, type StateLifecycleSource } from "./state/StateLifecycle.ts";
@@ -459,7 +460,10 @@ async function accumulateDiff(
     return;
   }
   if (before.kind === "prop") {
-    const nextValue = frame.prop.get(before.storageKey)?.value;
+    const nextValue = propertySnapshot(
+      frame.prop, before.nodeId, before.key, before.storageKey,
+      isEdgePropKey(before.storageKey) ? undefined : frame,
+    ).prevValue;
     if (nextValue !== before.prevValue) {
       diff.propsChanged.push({
         nodeId: before.nodeId,
@@ -493,7 +497,7 @@ function propertySnapshot(
   key: string,
   storageKey: string,
   lifecycle?: NodeLifecycleSource,
-): ReplayDiffSnapshot {
+): Extract<ReplayDiffSnapshot, { readonly kind: "prop" }> {
   const reg = prop.get(storageKey);
   if (reg === undefined || (lifecycle !== undefined && isStaleNodeRegisterIn(lifecycle, nodeId, reg.eventId))) {
     return {
