@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Checkpoint property owners now pass runtime `NodeId` validation, including
+  rejection of empty and NUL-containing identifiers before key encoding.
+
 - Property keys that cannot be decoded now follow one policy across every
   surface. `\x01` marks a key as edge-owned and `decodeEdgePropKey` then
   demands exactly four `\0`-separated fields, but nothing validated that

@@ -8,6 +8,7 @@
  * @see WARP Spec Section 10
  */
 
+import NodeId from '../../graph/NodeId.ts';
 import ORSet from '../../crdt/ORSet.ts';
 import { Dot } from '../../crdt/Dot.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
@@ -15,7 +16,7 @@ import { LWWRegister } from '../../crdt/LWW.ts';
 import { EventId } from '../../utils/EventId.ts';
 import { reducePatches } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
-import { encodeEdgeKey, encodePropKey, isEdgePropKey } from '../KeyCodec.ts';
+import { encodeEdgeKey, encodePropKey } from '../KeyCodec.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
@@ -194,8 +195,8 @@ export function reconstructStateFromCheckpoint(
 
   // Reconstruct props with LWW registers matching the legacy checkpoint shape.
   for (const p of props) {
-    requireNodeOwnedProperty(p.node, p.key);
-    const propKey = encodePropKey(p.node, p.key);
+    const owner = requireNodeOwnedProperty(p.node, p.key);
+    const propKey = encodePropKey(owner.toString(), p.key);
     prop.set(propKey, LWWRegister.set(syntheticEventId, p.value as PropValue));
   }
 
@@ -216,8 +217,8 @@ export function reconstructStateFromCheckpoint(
  *
  * The visible projection carries node properties only — `projectState` fills
  * `props[].node` from node property entries, skipping every edge-owned key —
- * so an owner bearing the edge-property prefix is a shape this library never
- * writes. Encoding it anyway would produce a key that later reads classify as
+ * so an empty owner, an owner containing NUL, or one bearing the reserved
+ * edge-property prefix is not a valid NodeId. Encoding it anyway would produce a key that later reads classify as
  * edge-owned but that carries the wrong field count, turning one bad row into
  * an unreadable property.
  *
@@ -225,10 +226,15 @@ export function reconstructStateFromCheckpoint(
  * only appear through corruption, truncation, or a foreign writer, never
  * through a checkpoint this library produced.
  */
-function requireNodeOwnedProperty(node: string, key: string): void {
-  if (isEdgePropKey(node)) {
+function requireNodeOwnedProperty(node: string, key: string): NodeId {
+  try {
+    return new NodeId(node);
+  } catch (error) {
+    if (!(error instanceof WarpError) || error.code !== 'E_VALIDATION') {
+      throw error;
+    }
     throw new WarpError(
-      'Checkpoint property owner is not a node id: the visible projection carries node properties only',
+      'Checkpoint property owner is not a valid node id',
       'E_CHECKPOINT_INVALID_PROP_OWNER',
       { context: { key } },
     );
