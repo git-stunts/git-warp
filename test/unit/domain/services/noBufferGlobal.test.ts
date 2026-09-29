@@ -67,6 +67,7 @@ describe('Buffer-free index paths', () => {
         edgesAdded: [],
         edgesRemoved: [],
         propsChanged: [{ nodeId: 'A', key: 'role', value: 'lead', prevValue: undefined }],
+        nodesCleared: [],
       };
       const dirtyShards = updater.computeDirtyShards({
         diff,

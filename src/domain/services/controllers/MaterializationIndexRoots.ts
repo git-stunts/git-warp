@@ -19,6 +19,7 @@ import {
 } from '../../materialization/MaterializationPropertyProfile.ts';
 import WarpStream from '../../stream/WarpStream.ts';
 import LogicalIndexBuildService from '../index/LogicalIndexBuildService.ts';
+import NodeLifecycleIndexBuilder from '../index/NodeLifecycleIndexBuilder.ts';
 import PropertyIndexBuilder from '../index/PropertyIndexBuilder.ts';
 import type WarpState from '../state/WarpState.ts';
 import PendingMaterializationIndexRootWrite
@@ -143,11 +144,22 @@ function prepareIndexRoot(args: {
   return prepareIndexWrite(args.state, args.store);
 }
 
+/**
+ * The checkpoint index root: the logical bitmap index, then the node
+ * lifecycle records bounded property reads need to agree with a full
+ * materialization.
+ */
 function prepareIndexWrite(state: WarpState, store: IndexStorePort): PreparedIndexRoot {
   const builder = new LogicalIndexBuildService().buildLogicalIndexBuilder(state);
-  const shardCount = requireMaterializationIndexShardCount(builder.shardCount());
+  const lifecycle = NodeLifecycleIndexBuilder.fromState(state);
+  const shardCount = requireMaterializationIndexShardCount(
+    builder.shardCount() + lifecycle.shardCount(),
+  );
   return new PendingMaterializationIndexRootWrite({
-    openShards: () => WarpStream.from(builder.yieldShards()),
+    openShards: () => WarpStream.from((function* () {
+      yield* builder.yieldShards();
+      yield* lifecycle.yieldShards();
+    })()),
     shardCount,
     store,
     options: Object.freeze({
@@ -202,7 +214,7 @@ function buildMaterializationPropertyIndex(state: WarpState): PropertyIndexBuild
     shardKey: materializationPropertyShardKey,
   });
   for (const entry of state.nodeProperties()) {
-    if (state.nodeAlive.contains(entry.nodeId)) {
+    if (state.nodeAlive.contains(entry.nodeId) && !state.isStaleNodeRegister(entry.nodeId, entry.register)) {
       builder.addProperty(entry.nodeId, entry.key, entry.register.value);
     }
   }

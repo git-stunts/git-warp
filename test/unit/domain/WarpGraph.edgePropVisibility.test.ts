@@ -92,13 +92,15 @@ describe('WarpCore edge property visibility (WT/VIS/1)', () => {
       .edge('a', 'b', 'rel', { counter: 3, lamport: 1 })
       .edgeProp('a', 'b', 'rel', 'weight', 42, { lamport: 1 })
       .removeEdge('a', 'b', 'rel', { observed: [{ writerId: 'w1', counter: 3 }] })
-      .edge('a', 'b', 'rel', { counter: 4, lamport: 3 })
-      .edgeProp('a', 'b', 'rel', 'color', 'red', { lamport: 3 })
+      // The remove above takes lamport 5 from the builder's counter, so the
+      // re-add and the new write come after it at lamport 6.
+      .edge('a', 'b', 'rel', { counter: 4, lamport: 6 })
+      .edgeProp('a', 'b', 'rel', 'color', 'red', { lamport: 6 })
       .seedGraph(graph);
 
     const props = await graph.getEdgeProps('a', 'b', 'rel');
-    // Old prop "weight" is filtered out (lamport 1 < birthLamport 3)
-    // New prop "color" is visible (lamport 3 >= birthLamport 3)
+    // Old prop "weight" is filtered out (lamport 1 < birthLamport 6)
+    // New prop "color" is visible (lamport 6 >= birthLamport 6)
     expect(props).toEqual({ color: 'red' });
 
     const edges = await graph.getEdges();

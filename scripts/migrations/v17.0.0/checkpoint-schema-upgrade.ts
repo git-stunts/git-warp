@@ -7,6 +7,7 @@ import {
 import { deserializeFullState } from '../../../src/domain/services/state/CheckpointSerializer.ts';
 import { deserializeFrontier } from '../../../src/domain/services/Frontier.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
+import CborFullStateLifecycleDecoder from '../../../src/infrastructure/adapters/CborFullStateLifecycleDecoder.ts';
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import { ProvenanceIndex } from '../../../src/domain/services/provenance/ProvenanceIndex.ts';
 import { computeStateHash } from '../../../src/domain/services/state/StateSerializer.ts';
@@ -231,8 +232,7 @@ async function loadRetiredCheckpointPayload(options: {
 }): Promise<CheckpointUpgradePayload> {
   const rawTreeOids = await options.persistence.readTreeOids(options.rootTreeOid);
   const { treeOids, indexShardOids } = partitionTreeOids(rawTreeOids);
-  const codecOpt = options.codec === undefined ? {} : { codec: options.codec };
-
+  const codecOpt = options.codec === undefined ? {} : { codec: options.codec, lifecycle: new CborFullStateLifecycleDecoder(options.codec) };
   const stateOid = requireTreeOid(options.checkpointSha, treeOids, 'state.cbor');
   const frontierOid = requireTreeOid(options.checkpointSha, treeOids, 'frontier.cbor');
 

@@ -1,38 +1,22 @@
 import PackagePayloadAssessment from './PackagePayloadAssessment.ts';
 import type PackagePayloadInventory from './PackagePayloadInventory.ts';
+import PUBLIC_PACKAGE_ENTRYPOINTS from './PublicPackageEntrypoints.ts';
 
 const REQUIRED_PATHS = Object.freeze([
   'package.json',
   'README.md',
-  'CHANGELOG.md',
   'LICENSE',
   'NOTICE',
-  'dist/index.js',
-  'dist/index.d.ts',
-  'dist/advanced.js',
-  'dist/advanced.d.ts',
-  'dist/diagnostics.js',
-  'dist/diagnostics.d.ts',
-  'dist/charts.js',
-  'dist/charts.d.ts',
-  'dist/testing.js',
-  'dist/testing.d.ts',
+  ...PUBLIC_PACKAGE_ENTRYPOINTS.flatMap((name) => [`dist/${name}.js`, `dist/${name}.d.ts`]),
   'dist/bin/git-warp.js',
-  'dist/bin/git-warp.d.ts',
   'bin/git-warp',
   'dist/scripts/v18-to-v19/migrate.js',
-  'dist/scripts/v18-to-v19/migrate.d.ts',
   'dist/scripts/formatFailure.js',
-  'dist/scripts/formatFailure.d.ts',
   'dist/scripts/upgrade-v16-to-v17.js',
-  'dist/scripts/upgrade-v16-to-v17.d.ts',
   'dist/scripts/migrations/v17.0.0/CheckpointMaterializationMigration.js',
   'scripts/hooks/post-merge.sh',
   'scripts/install-git-warp.sh',
   'scripts/uninstall-git-warp.sh',
-  'docs/topics/README.md',
-  'docs/operations/README.md',
-  'docs/operations/package-payload.md',
   'docs/migrations/v19/README.md',
   'docs/READINGS_AND_OPTICS.md',
 ]);
@@ -44,18 +28,30 @@ const ALLOWED_PREFIXES = Object.freeze([
   'dist/bin/',
   'dist/scripts/migrations/v17.0.0/',
   'dist/scripts/v18-to-v19/adapters/',
-  'docs/topics/',
-  'docs/operations/',
-  'docs/migrations/v19/',
 ]);
 
-const FORBIDDEN_PREFIXES = Object.freeze(['dist/scripts/v18-to-v19/performance/']);
+// Repository documentation that is deliberately withheld from the npm
+// artifact. Retained packaged documents link to commit-pinned repository
+// copies instead.
+const WITHHELD_DOCUMENTATION_PATHS = Object.freeze(['CHANGELOG.md']);
 
+const FORBIDDEN_PREFIXES = Object.freeze([
+  'dist/scripts/v18-to-v19/performance/',
+  'docs/topics/',
+  'docs/operations/',
+]);
+
+// Executable implementation roots. No public declaration reaches into them, so
+// they publish JavaScript only; a declaration here is an unwanted file.
+const JAVASCRIPT_ONLY_PREFIXES = Object.freeze(['dist/bin/', 'dist/scripts/']);
+
+/** Defines the supported published assets and payload ceilings. */
 export default class PackagePayloadPolicy {
-  readonly maxPackedBytes = 1_200_000;
-  readonly maxUnpackedBytes = 4_900_000;
-  readonly maxEntryCount = 1_700;
+  readonly maxPackedBytes = 760_000;
+  readonly maxUnpackedBytes = 3_300_000;
+  readonly maxEntryCount = 1_050;
 
+  /** Reports every missing asset, forbidden path, and exceeded size limit. */
   assess(inventory: PackagePayloadInventory): PackagePayloadAssessment {
     const violations = inventory.entries
       .filter((entry) => !this.allows(entry.path))
@@ -70,8 +66,9 @@ export default class PackagePayloadPolicy {
     return new PackagePayloadAssessment(violations);
   }
 
+  /** Admits supported assets only after applying explicit exclusions. */
   private allows(path: string): boolean {
-    if (FORBIDDEN_PREFIXES.some((prefix) => path.startsWith(prefix))) {
+    if (isExcluded(path)) {
       return false;
     }
     return (
@@ -82,18 +79,33 @@ export default class PackagePayloadPolicy {
   }
 }
 
+/** Rejects repository-only documents and executable declarations. */
+function isExcluded(path: string): boolean {
+  return (
+    WITHHELD_DOCUMENTATION_PATHS.includes(path) ||
+    FORBIDDEN_PREFIXES.some((prefix) => path.startsWith(prefix)) ||
+    isNonJavaScriptImplementationArtifact(path)
+  );
+}
+
+/** Keeps executable implementation roots JavaScript-only. */
+function isNonJavaScriptImplementationArtifact(path: string): boolean {
+  return (
+    JAVASCRIPT_ONLY_PREFIXES.some((prefix) => path.startsWith(prefix)) && !path.endsWith('.js')
+  );
+}
+
+/** Admits direct migration modules without admitting additional subtrees. */
 function isDirectV18ToV19Artifact(path: string): boolean {
   const prefix = 'dist/scripts/v18-to-v19/';
   if (!path.startsWith(prefix)) {
     return false;
   }
   const relativePath = path.slice(prefix.length);
-  return (
-    !relativePath.includes('/') &&
-    (relativePath.endsWith('.js') || relativePath.endsWith('.d.ts'))
-  );
+  return !relativePath.includes('/') && relativePath.endsWith('.js');
 }
 
+/** Checks compressed bytes, unpacked bytes, and entries independently. */
 function appendLimitViolations(
   violations: string[],
   inventory: PackagePayloadInventory,

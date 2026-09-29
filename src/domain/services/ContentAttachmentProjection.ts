@@ -12,7 +12,7 @@ import {
   CONTENT_SIZE_PROPERTY_KEY,
   encodeEdgeKey,
 } from './KeyCodec.ts';
-import { compareEventIds, type EventId } from '../utils/EventId.ts';
+import type { EventId } from '../utils/EventId.ts';
 import WarpState from './state/WarpState.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
 import type { PropValue } from '../types/PropValue.ts';
@@ -89,15 +89,24 @@ function requireWarpState(state: WarpState): WarpState {
 /** Builds a typed content attachment record for a visible node owner. */
 function contentRecordForNode(state: WarpState, owner: NodeRecord): ContentAttachmentRecord | null {
   const nodeId = owner.id.toString();
-  const content = state.getNodeProp(nodeId, CONTENT_PROPERTY_KEY);
+  const content = visibleNodeRegister(state, nodeId, CONTENT_PROPERTY_KEY);
   if (!isProjectableContentRegister(content)) {
     return null;
   }
   return contentRecordFromRegisters(owner, {
     content,
-    mime: state.getNodeProp(nodeId, CONTENT_MIME_PROPERTY_KEY) ?? null,
-    size: state.getNodeProp(nodeId, CONTENT_SIZE_PROPERTY_KEY) ?? null,
+    mime: visibleNodeRegister(state, nodeId, CONTENT_MIME_PROPERTY_KEY),
+    size: visibleNodeRegister(state, nodeId, CONTENT_SIZE_PROPERTY_KEY),
   });
+}
+
+/** Reads a node register unless it predates the node's latest add or remove. */
+function visibleNodeRegister(state: WarpState, nodeId: string, key: string): Register | null {
+  const register = state.getNodeProp(nodeId, key);
+  if (register === undefined || state.isStaleNodeRegister(nodeId, register)) {
+    return null;
+  }
+  return register;
 }
 
 /** Builds a typed content attachment record for a visible edge owner. */
@@ -106,18 +115,18 @@ function contentRecordForEdge(state: WarpState, owner: EdgeRecord): ContentAttac
   const to = owner.to.toString();
   const label = owner.typeId.toString();
   const edgeKey = encodeEdgeKey(from, to, label);
-  const birthEvent = state.edgeBirthEvent.get(edgeKey);
   const content = visibleEdgeRegister(
+    state,
+    edgeKey,
     state.getEdgeProp(from, to, label, CONTENT_PROPERTY_KEY),
-    birthEvent,
   );
   if (!isProjectableContentRegister(content)) {
     return null;
   }
   return contentRecordFromRegisters(owner, {
     content,
-    mime: visibleEdgeRegister(state.getEdgeProp(from, to, label, CONTENT_MIME_PROPERTY_KEY), birthEvent),
-    size: visibleEdgeRegister(state.getEdgeProp(from, to, label, CONTENT_SIZE_PROPERTY_KEY), birthEvent),
+    mime: visibleEdgeRegister(state, edgeKey, state.getEdgeProp(from, to, label, CONTENT_MIME_PROPERTY_KEY)),
+    size: visibleEdgeRegister(state, edgeKey, state.getEdgeProp(from, to, label, CONTENT_SIZE_PROPERTY_KEY)),
   });
 }
 
@@ -143,15 +152,13 @@ function isProjectableContentRegister(register: Register | null | undefined): re
     && isProjectableContentHandleValue(register.value);
 }
 
-/** Filters edge registers hidden by edge rebirth. */
+/** Filters edge registers that predate the edge's latest add or remove. */
 function visibleEdgeRegister(
+  state: WarpState,
+  edgeKey: string,
   register: Register | undefined,
-  birthEvent: EventId | undefined,
 ): Register | null {
-  if (register === undefined) {
-    return null;
-  }
-  if (birthEvent !== undefined && register.eventId !== null && compareEventIds(register.eventId, birthEvent) < 0) {
+  if (register === undefined || state.isStaleEdgeRegister(edgeKey, register)) {
     return null;
   }
   return register;

@@ -4,6 +4,13 @@ import { EdgeShard } from '../../domain/artifacts/EdgeShard.ts';
 import { LabelShard } from '../../domain/artifacts/LabelShard.ts';
 import { PropertyShard } from '../../domain/artifacts/PropertyShard.ts';
 import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.ts';
+import { NodeLifecycleReceipt } from '../../domain/artifacts/NodeLifecycleReceipt.ts';
+import { NodeLifecycleShard } from '../../domain/artifacts/NodeLifecycleShard.ts';
+import {
+  NODE_LIFECYCLE_RECEIPT_PATH,
+  nodeLifecycleShardPathForKey,
+} from '../../domain/services/index/NodeLifecycleShardReader.ts';
+import { nodeLifecycleShardPayload } from './NodeLifecycleShardPayload.ts';
 import type { IndexShard } from '../../domain/artifacts/IndexShard.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
@@ -78,6 +85,20 @@ export class IndexShardEncodeTransform extends Transform<IndexShard, [string, Ui
         requirePropertyShardEncodedSize(shard, path, this._maxBytes);
       }
       return this._encodePayload(path, propertyShardPayload(shard));
+    }
+    if (shard instanceof NodeLifecycleShard) {
+      return this._encodePayload(
+        nodeLifecycleShardPathForKey(shard.shardKey),
+        nodeLifecycleShardPayload(shard),
+      );
+    }
+    if (shard instanceof NodeLifecycleReceipt) {
+      return this._encodePayload(NODE_LIFECYCLE_RECEIPT_PATH, {
+        schemaVersion: shard.schemaVersion,
+        nodeCount: shard.nodeCount,
+        shardCount: shard.shardCount,
+        floatingTombstones: shard.floatingTombstones,
+      });
     }
     if (shard instanceof ReceiptShard) {
       return this._encodePayload(

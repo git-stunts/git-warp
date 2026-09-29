@@ -1,5 +1,6 @@
 import QueryError from '../../errors/QueryError.ts';
 import { isCurrentCheckpointSchema } from '../state/checkpointHelpers.ts';
+import { isStaleCheckpointMaterialization } from '../state/StaleCheckpointMaterialization.ts';
 import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
 import type { CheckpointBasis } from '../../../ports/CheckpointStorePort.ts';
 
@@ -42,11 +43,18 @@ async function verifyCheckpointBasis(
     requireCurrentSchema(source.graphName, basis.schema);
     requireIndexShards(source.graphName, basis);
   } catch (error) {
-    if (error instanceof QueryError && error.code === 'E_OPTIC_NO_BOUNDED_BASIS') {
-      throw error;
-    }
-    throwNoBoundedBasis(source.graphName, 'checkpoint-basis-unavailable');
+    throwUnavailableBasis(source.graphName, error instanceof Error ? error : null);
   }
+}
+
+function throwUnavailableBasis(graphName: string, error: Error | null): never {
+  if (error instanceof QueryError && error.code === 'E_OPTIC_NO_BOUNDED_BASIS') {
+    throw error;
+  }
+  if (error !== null && isStaleCheckpointMaterialization(error)) {
+    throwNoBoundedBasis(graphName, 'checkpoint-without-index-tree');
+  }
+  throwNoBoundedBasis(graphName, 'checkpoint-basis-unavailable');
 }
 
 function requireCurrentSchema(graphName: string, schema: number): void {

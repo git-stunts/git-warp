@@ -14,7 +14,6 @@ import {
   type LegacyEdgePropertyProjectionTarget,
 } from './LegacyPropertyProjectionTarget.ts';
 import WarpState from './state/WarpState.ts';
-import { compareEventIds, type EventId } from '../utils/EventId.ts';
 import { compareStrings } from '../utils/StringComparison.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
 import type { PropValue } from '../types/PropValue.ts';
@@ -142,7 +141,7 @@ function edgePropertyRecordForRegister(
     return null;
   }
   const edgeKey = encodeEdgeKey(keyParts.from, keyParts.to, keyParts.label);
-  const visibleRegister = visibleEdgeRegister(register, state.edgeBirthEvent.get(edgeKey));
+  const visibleRegister = visibleEdgeRegister(state, edgeKey, register);
   if (visibleRegister === null) {
     return null;
   }
@@ -170,10 +169,7 @@ function edgePropertyRecordForOwnerRegister(
     return null;
   }
   const edgeKey = encodeEdgeKey(keyParts.from, keyParts.to, keyParts.label);
-  const visibleRegister = visibleEdgeRegister(
-    projection.register,
-    projection.state.edgeBirthEvent.get(edgeKey),
-  );
+  const visibleRegister = visibleEdgeRegister(projection.state, edgeKey, projection.register);
   if (visibleRegister === null) {
     return null;
   }
@@ -277,18 +273,13 @@ function isNonEmptyString(value: string | undefined): value is string {
   return value !== undefined && value.length > 0;
 }
 
-/** Filters edge registers hidden by edge rebirth. */
+/** Filters edge registers that predate the edge's latest add or remove. */
 function visibleEdgeRegister(
+  state: WarpState,
+  edgeKey: string,
   register: LWWRegister<PropValue>,
-  birthEvent: EventId | undefined,
 ): LWWRegister<PropValue> | null {
-  if (birthEvent === undefined || register.eventId === null) {
-    return register;
-  }
-  if (compareEventIds(register.eventId, birthEvent) < 0) {
-    return null;
-  }
-  return register;
+  return state.isStaleEdgeRegister(edgeKey, register) ? null : register;
 }
 
 /** Compares edge property records by owner and key. */

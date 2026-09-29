@@ -21,7 +21,9 @@
  */
 
 import type { Dot } from '../crdt/Dot.ts';
-import { compareEventIds, type EventId } from '../utils/EventId.ts';
+import type { EventId } from '../utils/EventId.ts';
+import { advanceLifecycleEvent } from './state/ElementLifecycle.ts';
+import { recordNodeAdd, recordNodeRemove } from './state/NodeLifecycle.ts';
 import {
   encodeEdgeKey,
   encodePropKey,
@@ -67,8 +69,9 @@ function observedDotSet(op: OpLike): Set<string> { // nosemgrep: ts-no-like-type
 class NodeAddStrategy extends OpStrategy {
   readonly receiptName = 'NodeAdd';
   validate(op: OpLike): void { OpValidator.assertString(op, 'node'); OpValidator.assertDot(op); } // nosemgrep: ts-no-like-types -- 0025C
-  mutate(state: WarpState, op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
+  mutate(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
     state.nodeAlive.add(op.node as string, op.dot as Dot);
+    recordNodeAdd(state, op.node as string, eventId);
   }
   outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     return ReceiptBuilder.nodeAddOutcome(state.nodeAlive, { node: op.node as string, dot: op.dot as Dot });
@@ -86,8 +89,12 @@ class NodeAddStrategy extends OpStrategy {
 class NodeRemoveStrategy extends OpStrategy {
   readonly receiptName = 'NodeTombstone';
   validate(op: OpLike): void { OpValidator.assertIterable(op, 'observedDots'); } // nosemgrep: ts-no-like-types -- 0025C
-  mutate(state: WarpState, op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
-    state.nodeAlive.remove(observedDotSet(op));
+  mutate(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
+    const dots = observedDotSet(op);
+    state.nodeAlive.remove(dots);
+    if (dots.size > 0 && typeof op.node === 'string') {
+      recordNodeRemove(state, op.node, eventId);
+    }
   }
   outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     const outcomeOp: { node?: string; observedDots: Iterable<string> } = {
@@ -117,10 +124,7 @@ class EdgeAddStrategy extends OpStrategy {
   mutate(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
     const edgeKey = encodeEdgeKey(op.from as string, op.to as string, op.label as string);
     state.edgeAlive.add(edgeKey, op.dot as Dot);
-    const prev = state.edgeBirthEvent.get(edgeKey);
-    if (prev === undefined || compareEventIds(eventId, prev) > 0) {
-      state.edgeBirthEvent.set(edgeKey, eventId);
-    }
+    advanceLifecycleEvent(state.edgeBirthEvent, edgeKey, eventId);
   }
   outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     const edgeKey = encodeEdgeKey(op.from as string, op.to as string, op.label as string);
@@ -140,8 +144,12 @@ class EdgeAddStrategy extends OpStrategy {
 class EdgeRemoveStrategy extends OpStrategy {
   readonly receiptName = 'EdgeTombstone';
   validate(op: OpLike): void { OpValidator.assertIterable(op, 'observedDots'); } // nosemgrep: ts-no-like-types -- 0025C
-  mutate(state: WarpState, op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
-    state.edgeAlive.remove(observedDotSet(op));
+  mutate(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
+    const dots = observedDotSet(op);
+    state.edgeAlive.remove(dots);
+    if (dots.size > 0 && typeof op.from === 'string' && typeof op.to === 'string' && typeof op.label === 'string') {
+      advanceLifecycleEvent(state.edgeRemoveEvent, encodeEdgeKey(op.from, op.to, op.label), eventId);
+    }
   }
   outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     const outcomeOp: {

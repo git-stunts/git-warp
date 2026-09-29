@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Publish builds now use `@vercel/nft` to prune unreachable emitted JavaScript
+  after `tsc`, preserving retained bytes, compiler-selected declarations,
+  supported commands, and runtime assets. Runtime roots come from package
+  exports and executables plus the explicit CLI and legacy upgrade roots;
+  unresolved traces and computed dynamic imports abort before deletion.
+
+- Release Preflight PR comments now include an actual-tarball bundle analysis:
+  measured sizes and file count, limit utilization and remaining capacity,
+  warnings at 85% and critical headroom at 95%, largest files, payload
+  composition, and static file/dependency findings. Reports update one bot
+  comment and retain complete workflow evidence, including when gates fail.
+
 - `Lane.write()` now accepts a non-empty ordered array of validated Intents.
   The complete array lowers through one `PatchBuilder`, publishes exactly one
   patch, advances the target publication ref once, and returns one admission
@@ -38,6 +50,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Empty Lanes certify zero; cancellation, unavailable support, and Strand
   overlays fail closed without a completeness certificate.
 
+### Changed
+
+- **BREAKING:** A node property written before a remove of that node is
+  hidden once the node is added again, on every replica, as edges already did.
+  Removing a node and adding it back hides the properties written before the
+  removal; a property written after the removal stays visible. Which
+  came first is judged by event id, the same order that decides removes. A
+  property written before the node's first add stays visible, and adding a
+  node that is already live hides nothing, so graphs that never remove and
+  then re-add a node show the same properties as before.
+- **BREAKING:** Edges now also record their latest remove. An edge property
+  written before that remove stays hidden even when a concurrent add, whose
+  event id sorts below the remove, keeps the edge alive.
+- **BREAKING:** `computeStateHash` changes for graphs where the node rule
+  hides a node property that was visible before. The edge rule never changes
+  it, because edge properties are not part of the hash. Other graphs hash as
+  before.
+- `subscribe()` and `watch()` diffs report a node property that the node rule
+  hides as removed, and never report a hidden property as set.
+- A checkpoint's index root now carries node lifecycle records: per node, its
+  latest add, the remove that hides its older properties, the removes still
+  pending, and the event id of every property register that is not hidden.
+  A checkpoint-tail node property read uses them, and the node's liveness, to
+  answer as `materialize()` does in every delivery order, including a tail
+  that removes and re-adds the node and a concurrent writer's tail events
+  that sort below the checkpoint's.
+- A checkpoint-tail node property read over an index root without those
+  records refuses with `E_OPTIC_NO_BOUNDED_BASIS` when the tail adds the node
+  (cause `tail-node-add-needs-checkpoint-lifecycle-witnesses`) or writes the
+  property or removes the node (new cause
+  `tail-property-needs-checkpoint-lifecycle-witnesses`), because such a tail
+  event may sort below a checkpoint event it cannot see. A tail that touches
+  neither still reads the checkpoint value. Creating a new indexed checkpoint
+  recovers the read.
+- With the records, a checkpoint-tail node property read still refuses when a
+  tail remove may have removed the node's last live add
+  (`tail-node-remove-needs-raw-liveness-witnesses`), or when a tail add makes
+  a register visible whose value the checkpoint did not store because the node
+  was not live there (`tail-node-add-needs-checkpoint-lifecycle-witnesses`).
+
 ### Fixed
 
 - Property GC retains registers and edge lifecycle evidence for owners whose
@@ -61,6 +113,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `graph.checkpoint.runGC()` and `maybeRunGC()`. A key whose element id embeds
   the `\0` field separator does not decode unambiguously and is always
   retained, never pruned.
+- Validate full-state envelopes and entry keys at the CBOR adapter boundary; preserve supported legacy event defaults.
+
+- Reject full-state property registers with missing or invalid values before hydration.
+
+- Reject malformed persisted property shards during incremental lifecycle updates instead of silently replacing invalid bags.
+
+- Both full-state readers validate every full-v6 lifecycle entry through the
+  shared lifecycle decoder before hydration. Invalid event tuples fail with
+  structured decode errors instead of default events or raw TypeErrors.
+
+- Lifecycle index builders capture immutable records and floating tombstones
+  at construction, so deferred shard emission cannot mix later state mutations
+  with earlier property-register witnesses.
+
+- Session reducer diffs no longer expose a lifecycle-hidden node register when
+  an older property write loses to it. Before and after values use the same
+  lifecycle visibility rule.
+
+- Clear the locked dependency audit for Markdown tooling by updating
+  `markdown-it` to 14.3.2 and overriding only `markdownlint-cli`'s `js-yaml`
+  dependency to 5.4.2. The scoped override bridges the CLI's vulnerable
+  `~5.2.1` range; audit thresholds and production dependencies are unchanged.
+
 - Idle Git reader retirement now completes when the child process closes
   before stdin reports its final flush. Storage shutdown no longer waits
   indefinitely for that missing stream event. Requires Plumbing 3.3.1.
@@ -153,25 +228,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reopen cannot distinguish a canonical single-Intent patch created by
   `write(intent)` from one created by `write([intent])`; its graph
   transformation and one-patch boundary remain intact.
+- Materialized state is now written as `full-v6`. It adds, per node, the
+  latest add, the latest remove that sorts below it and the removes that sort
+  above it, and per edge the latest remove. The state codec still decodes
+  `full-v5` and unversioned state. Earlier releases cannot read `full-v6`.
+  A `full-v6` state whose lifecycle lists are missing or are not lists is
+  refused with `E_INVALID_FULL_STATE_LIFECYCLE` rather than read as empty.
+- The materialization descriptor schema is now 6, for cache entries and
+  checkpoints alike. A cache entry written under schema 5 misses. A checkpoint
+  written under schema 5 is treated as absent: `materialize()`, and, on a
+  runtime without a trie store (the only kind on which it runs), an explicit
+  `materializeAt()` of that checkpoint, replay the graph from its
+  patches instead of resuming from it, so the new visibility also applies to
+  history before that checkpoint, and a bounded checkpoint-tail read refuses
+  with `E_OPTIC_NO_BOUNDED_BASIS`. None of them throws a descriptor schema
+  error.
+- The node lifecycle records are a new shard family in the checkpoint index
+  root: `life_XX.cbor` shards (schema 1, one per index shard key) and one
+  `life_receipt.cbor`. The receipt marks a root that carries the family,
+  records its shard count, and lists the node dots the checkpoint's removes
+  observed without holding their adds. A checkpoint taken after one writer's
+  patches arrived but before the patches they observed can hold such a
+  remove; a bounded property read then treats a tail add of that dot as
+  removed, as
+  `materialize()` does. A read that finds the receipt with a schema
+  version other than 1, or with a shard count that differs from the
+  `life_XX.cbor` members present, refuses with `E_OPTIC_NO_BOUNDED_BASIS`. A
+  root without it, from any earlier writer, is read as having no records, and
+  the reads that need them refuse as above. This needs no descriptor or index
+  schema bump beyond schema 6. On
+  a 10,000-node graph with two properties per node the family adds about
+  170 to 230 bytes per node, 1.7 to 2.3 MB, which is 35 to 48 percent of the
+  `full-v6` state of the same graph.
+- Each `life_XX.cbor` shard must fit the index shard limits of 16 MiB and
+  2,000,000 CBOR items. A node's record takes 25 items when the node is live
+  with two properties and 30 when it was removed, plus 7 for each further
+  property, and about 175 to 260 bytes for node ids of up to 40 characters,
+  so one shard holds about 64,000 to
+  80,000 records. Spread evenly over the 256 shard keys, the family reaches a
+  limit at roughly 16 to 20 million recorded nodes. At 10,000 nodes its
+  largest shard is 8 to 11 times the size of the largest logical `meta_XX`
+  shard. Records of removed nodes are kept and never
+  pruned, so a graph with far fewer live nodes can reach it; the property
+  root already refuses more than 100,000 nodes with properties. Past the
+  limit, writing the index root fails with `E_INDEX_SHARD_TOO_LARGE` or
+  `E_INDEX_SHARD_MALFORMED`, and so do `materialize()` and
+  `createCheckpoint()`, which write it.
+- Migration: none is required. The next `createCheckpoint()` after upgrading
+  writes a schema 6 checkpoint for later reads to start from.
+- Under `.github/RELEASE.md` the visibility, state hash and storage format
+  changes above are breaking, so the release that ships them must be a MAJOR
+  version.
 
 ### Packaging
 
-- npm publication now uses an explicit package allowlist that retains required
-  Runtime implementation, supported migration commands, hook, bootstrap,
-  legal, topic, operations, and runtime-linked reading guidance while
-  excluding compiled tests, fixtures, maintainers' utilities, performance
-  drivers, maintainer-only policy documents, and plans. Repository builds
-  continue compiling
-  maintainer programs through a separate build profile for their own CI and
-  operator workflows without making those outputs part of the npm artifact.
-- Release and standalone prepack gates now inspect the actual npm inventory,
-  reject every unrecognized path, and enforce reviewed ceilings of 1,700
-  files, 1,200,000 compressed bytes, and 4,900,000 unpacked bytes. The typed
-  inventory boundary tolerates npm 10 prepare output only before a terminal
-  schema-valid JSON frame. The clean external-consumer smoke imports every
-  supported subpath and package metadata, starts both executables, verifies
-  required hook/bootstrap assets, and keeps the private storage subpath
-  inaccessible.
+- npm publication uses an explicit allowlist retaining the five public
+  JavaScript/type entrypoints and their dependencies, both published
+  executables, legacy upgrade, installer/uninstaller, post-merge hook,
+  `README.md`, the v19 migration guide, `docs/READINGS_AND_OPTICS.md`,
+  `LICENSE`, and `NOTICE`. `CHANGELOG.md`, topic and operator docs, compiled
+  tests, fixtures, maintainer utilities, performance drivers, policy documents,
+  and plans stay outside the artifact. Withheld documentation remains in Git;
+  retained documents link to it using commit-pinned repository URLs.
+- The publish build uses `tsc`, compiler-based declaration pruning, and NFT
+  whole-file JavaScript tracing. It retains 161 required declarations and
+  excludes 80 executable declarations plus 581 private declarations.
+  `dist/bin/` and `dist/scripts/` publish JavaScript only. NFT excludes the
+  77 audited unreachable JavaScript outputs without rewriting retained code.
+  Maintainer programs use a separate build profile.
+- Release and prepack gates reject unrecognized paths and enforce final
+  ceilings of **760,000 compressed bytes, 3,300,000 unpacked bytes, and 1,050
+  entries**. The inventory boundary tolerates npm 10 prepare output only before
+  a terminal schema-valid JSON frame. The external packed-consumer smoke checks
+  all public exports and declarations with `skipLibCheck: false`, metadata,
+  both executables, private-subpath restrictions, relative imports, hook
+  installation, CLI and migration behavior, assets, and documentation links.
+- Remove unused direct production dependencies on `boxen`, `chalk`,
+  `cli-table3`, `elkjs`, `figures`, `string-width`, and `wrap-ansi`.
+  Supported runtime and command imports retain their dependencies.
+- Bundle advisories recognize `*`, `x`, and `X` wildcard ranges. Report tests
+  enforce descending file sizes and deterministic ties. Release Preflight's
+  artifact upload and PR comment actions are pinned to verified commit SHAs.
 
 ## [19.1.0] - 2026-08-25
 

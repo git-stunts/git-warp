@@ -36,6 +36,13 @@ export default class MockIndexStorage extends IndexStorePort {
     return handle;
   }
 
+  /** Registers an index root over already written shard handles, as a damaged or partial writer would leave it. */
+  writeIndex(members: Readonly<Record<string, AssetHandle>>): BundleHandle {
+    const handle = new BundleHandle(`test-index:${String(this.#counter++).padStart(8, '0')}`);
+    this.#indexes.set(handle.toString(), Object.freeze({ ...members }));
+    return handle;
+  }
+
   override scanShards(_indexHandle: BundleHandle): WarpStream<IndexShard> {
     return WarpStream.of<IndexShard>();
   }
