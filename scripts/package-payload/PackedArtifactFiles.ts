@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import ts from 'typescript';
 
 const INLINE_LINK_PATTERN = /\]\((?<target>[^)\s]+)(?:\s+"[^"]*")?\)/gu;
@@ -72,5 +72,6 @@ export function findUnresolvedImports(packageDir: string): string[] {
 /** Checks that an existing target remains inside the installed package. */
 function isShippedPath(packageDir: string, path: string): boolean {
   const fromPackage = relative(packageDir, path);
-  return !fromPackage.startsWith('..') && !isAbsolute(fromPackage) && existsSync(path);
+  const escapes = fromPackage === '..' || fromPackage.startsWith(`..${sep}`);
+  return !escapes && !isAbsolute(fromPackage) && existsSync(path);
 }

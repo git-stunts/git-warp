@@ -46,6 +46,17 @@ describe('packed artifact documentation links', () => {
     expect(findEscapingDocumentLinks(root)).toEqual([]);
   });
 
+  it('accepts double-dot-prefixed names but rejects actual parent traversal', () => {
+    const root = packageFixture({
+      'README.md': '[inside](..guide.md) [parent](..) [outside](../outside.md)',
+      '..guide.md': '# Retained guide',
+    });
+    expect(findEscapingDocumentLinks(root)).toEqual([
+      'README.md -> ..',
+      'README.md -> ../outside.md',
+    ]);
+  });
+
   it('reports links into withheld or missing files and outside the package', () => {
     const root = packageFixture({
       'README.md': '[changelog](CHANGELOG.md) [escape](../elsewhere/README.md)',
