@@ -80,7 +80,7 @@ async function hook(args: readonly string[]): Promise<void> {
 
 function requireStampedExecutableHook(packageDir: string, hookPath: string): void {
   const { version } = boundary.read(join(packageDir, 'package.json'), PACKAGE_METADATA);
-  if (!readFileSync(hookPath, 'utf8').includes(`# warp-hook-version: ${version}`)) {
+  if (!readFileSync(hookPath, 'utf8').split(/\r?\n/u).includes(`# warp-hook-version: ${version}`)) {
     throw new PackagePayloadError('installed hook was not stamped from the shipped template');
   }
   if ((statSync(hookPath).mode & 0o111) === 0) {
