@@ -92,6 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Validate full-state envelopes and entry keys at the CBOR adapter boundary; preserve supported legacy event defaults.
+
 - Reject full-state property registers with missing or invalid values before hydration.
 
 - Reject malformed persisted property shards during incremental lifecycle updates instead of silently replacing invalid bags.

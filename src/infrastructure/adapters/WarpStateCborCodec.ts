@@ -1,7 +1,9 @@
-import CborFullStateLifecycleDecoder from '../adapters/CborFullStateLifecycleDecoder.ts';
+import { z } from 'zod';
+import CborFullStateLifecycleDecoder from './CborFullStateLifecycleDecoder.ts';
 import type { FullStateLifecycle } from '../../ports/FullStateLifecycleDecoderPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type { LWWRegister } from '../../domain/crdt/LWW.ts';
+import { compareStrings } from '../../domain/utils/StringComparison.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import { createEmptyState } from '../../domain/services/JoinReducer.ts';
@@ -12,7 +14,6 @@ import { mergeNodeLifecycles } from '../../domain/services/state/NodeLifecycle.t
 import {
   deserializeORSet,
   serializeORSet,
-  type ORSetWire,
 } from '../../domain/services/state/ORSetWireBoundary.ts';
 
 /** Current full-state version: adds node lifecycle records and edge removes. */
@@ -23,27 +24,34 @@ const LEGACY_PATCH_SHA_PLACEHOLDER = '0000';
 
 type FullStateVersion = typeof FULL_STATE_VERSION | typeof LEGACY_FULL_STATE_VERSION;
 
-type EdgeBirthWire = {
-  readonly writerId?: string;
-  readonly lamport?: number;
-  readonly patchSha?: string;
-  readonly opIndex?: number;
-};
-
 type EventWire = { lamport: number; writerId: string; patchSha: string; opIndex: number };
 
-interface DecodedFullState {
-  version?: string;
-  nodeAlive?: ORSetWire;
-  edgeAlive?: ORSetWire;
-  prop?: Array<[string, unknown]>;
-  observedFrontier?: { [x: string]: number };
-  edgeBirthEvent?: Array<[string, EdgeBirthWire]>;
-  edgeBirthLamport?: Array<[string, number]>;
-  nodeBirthEvent?: Array<[string, EdgeBirthWire]>;
-  nodeClearEvent?: Array<[string, EdgeBirthWire]>;
-  nodePendingRemoveEvents?: Array<[string, EdgeBirthWire[]]>;
-  edgeRemoveEvent?: Array<[string, EdgeBirthWire]>;
+const OR_SET_WIRE = z.object({
+  entries: z.array(z.tuple([z.string(), z.array(z.string())])).optional(),
+  tombstones: z.array(z.string()).optional(),
+});
+const EDGE_BIRTH_WIRE = z.object({
+  writerId: z.string().optional(), lamport: z.number().optional(),
+  patchSha: z.string().optional(), opIndex: z.number().optional(),
+});
+type EdgeBirthWire = z.infer<typeof EDGE_BIRTH_WIRE>;
+const FULL_STATE_ENVELOPE = z.object({
+  version: z.string().optional(),
+  nodeAlive: OR_SET_WIRE.optional(), edgeAlive: OR_SET_WIRE.optional(),
+  prop: z.unknown(),
+  observedFrontier: z.record(z.string(), z.number()).optional(),
+  edgeBirthEvent: z.unknown(), edgeBirthLamport: z.unknown(),
+});
+type DecodedFullState = z.infer<typeof FULL_STATE_ENVELOPE>;
+const PROPERTY_ENTRY = z.tuple([z.string(), z.unknown()]);
+const EDGE_BIRTH_ENTRY = z.tuple([z.string(), z.union([z.number(), EDGE_BIRTH_WIRE])]);
+
+function decodeEnvelope(value: unknown): DecodedFullState {
+  const parsed = FULL_STATE_ENVELOPE.safeParse(value);
+  if (!parsed.success) {
+    throw invalidCanonicalFullState();
+  }
+  return parsed.data;
 }
 
 export function encodeWarpFullState(state: WarpState, codec: CodecPort): Uint8Array {
@@ -71,7 +79,10 @@ function encodeFullStateVersion(state: WarpState, codec: CodecPort, version: Ful
   });
 }
 
-export function decodeWarpFullState(buffer: Uint8Array, codec: CodecPort): WarpState {
+export function decodeWarpFullState(buffer: Uint8Array | null | undefined, codec: CodecPort): WarpState {
+  if (buffer === null || buffer === undefined) {
+    return createEmptyState();
+  }
   const obj = decodeFullStatePayload(buffer, codec);
   if (obj === null) {
     return createEmptyState();
@@ -89,8 +100,8 @@ export function decodeWarpFullState(buffer: Uint8Array, codec: CodecPort): WarpS
  * encoder wrote it. Either must re-encode to the same bytes.
  */
 export function decodeCanonicalWarpFullState(buffer: Uint8Array, codec: CodecPort): WarpState {
-  const decoded: unknown = codec.decode(buffer);
-  if (!isRecord(decoded) || !isCanonicalVersion(decoded.version)) {
+  const decoded = decodeEnvelope(codec.decode(buffer));
+  if (!isCanonicalVersion(decoded.version)) {
     throw invalidCanonicalFullState();
   }
   const lifecycle = canonicalLifecycle(buffer, codec, decoded.version);
@@ -122,12 +133,9 @@ function isCanonicalVersion(version: unknown): version is FullStateVersion {
   return version === FULL_STATE_VERSION || version === LEGACY_FULL_STATE_VERSION;
 }
 
-function decodeFullStatePayload(buffer: Uint8Array | null | undefined, codec: CodecPort): DecodedFullState | null {
-  if (buffer === null || buffer === undefined) {
-    return null;
-  }
-  const obj = codec.decode<DecodedFullState | null | undefined>(buffer);
-  return obj ?? null;
+function decodeFullStatePayload(buffer: Uint8Array, codec: CodecPort): DecodedFullState | null {
+  const obj = codec.decode(buffer);
+  return obj === null || obj === undefined ? null : decodeEnvelope(obj);
 }
 
 function assertSupportedFullStateVersion(version: string | undefined): void {
@@ -155,22 +163,24 @@ function hydrateWarpState(obj: DecodedFullState, lifecycle: FullStateLifecycle |
 /** The fields every full-state version carries. */
 function hydrateLegacyFields(obj: DecodedFullState): WarpStateFields {
   return {
-    nodeAlive: deserializeORSet(obj.nodeAlive ?? {}),
-    edgeAlive: deserializeORSet(obj.edgeAlive ?? {}),
+    nodeAlive: decodeAliveSet(obj.nodeAlive),
+    edgeAlive: decodeAliveSet(obj.edgeAlive),
     prop: deserializeProps(obj.prop ?? []),
     observedFrontier: VersionVector.from(obj.observedFrontier ?? {}),
     edgeBirthEvent: deserializeEdgeBirthEvent(obj),
   };
 }
 
-function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister<unknown>]>): Array<[string, unknown]> {
+function decodeAliveSet(wire: z.infer<typeof OR_SET_WIRE> | undefined) {
+  return deserializeORSet({ entries: wire?.entries ?? [], tombstones: wire?.tombstones ?? [] });
+}
+
+function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister<PropValue>]>): Array<[string, unknown]> {
   const arr: Array<[string, unknown]> = [];
   for (const [key, register] of propEntries) {
     arr.push([key, serializeLWWRegister(register)]);
   }
-  arr.sort((left, right) => (
-    left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0
-  ));
+  arr.sort(compareWireKeys);
   return arr;
 }
 
@@ -184,7 +194,7 @@ function eventWire(eventId: EventId): EventWire {
 }
 
 function compareWireKeys<T>(left: readonly [string, T], right: readonly [string, T]): number {
-  return left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0;
+  return compareStrings(left[0], right[0]);
 }
 
 function serializeEventArray(events: ReadonlyMap<string, EventId>): Array<[string, EventWire]> {
@@ -203,12 +213,17 @@ function serializeEventListArray(events: ReadonlyMap<string, readonly EventId[]>
   return result.sort(compareWireKeys);
 }
 
-function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<PropValue>> {
+function deserializeProps(propArray: unknown): Map<string, LWWRegister<PropValue>> {
   const prop = new Map<string, LWWRegister<PropValue>>();
   if (!Array.isArray(propArray)) {
     return prop;
   }
-  for (const [key, registerObj] of propArray) {
+  for (const entry of propArray) {
+    const parsed = PROPERTY_ENTRY.safeParse(entry);
+    if (!parsed.success) {
+      throw invalidCanonicalFullState();
+    }
+    const [key, registerObj] = parsed.data;
     const register = deserializeLWWRegister(registerObj);
     if (register !== null) {
       prop.set(key, register);
@@ -223,13 +238,18 @@ function deserializeEdgeBirthEvent(obj: DecodedFullState): Map<string, EventId> 
   if (!Array.isArray(birthData)) {
     return result;
   }
-  for (const [key, val] of birthData) {
+  for (const entry of birthData) {
+    const parsed = EDGE_BIRTH_ENTRY.safeParse(entry);
+    if (!parsed.success) {
+      throw invalidCanonicalFullState();
+    }
+    const [key, val] = parsed.data;
     result.set(key, deserializeEdgeBirthValue(val));
   }
   return result;
 }
 
-function edgeBirthData(obj: DecodedFullState): Array<[string, EdgeBirthWire | number]> | undefined {
+function edgeBirthData(obj: DecodedFullState): unknown {
   return obj.edgeBirthEvent ?? obj.edgeBirthLamport;
 }
 
@@ -254,11 +274,8 @@ function edgeBirthWireToEventId(value: EdgeBirthWire): EventId {
 }
 
 function serializeLWWRegister(
-  register: LWWRegister<unknown>,
-): { eventId: { lamport: number; opIndex: number; patchSha: string; writerId: string }; value: unknown } | null {
-  if (register === null || register === undefined) {
-    return null;
-  }
+  register: LWWRegister<PropValue>,
+): { eventId: { lamport: number; opIndex: number; patchSha: string; writerId: string }; value: PropValue } {
   return {
     eventId: {
       lamport: register.eventId.lamport,
@@ -288,20 +305,14 @@ function propertyValue(obj: object): PropValue {
 }
 
 function eventIdFromUnknown(value: unknown): EventId {
-  if (typeof value !== 'object' || value === null) {
+  if (!isRecord(value)) {
     return legacyNumericEdgeBirth(0);
   }
-  const wire = value as {
-    lamport?: unknown;
-    writerId?: unknown;
-    patchSha?: unknown;
-    opIndex?: unknown;
-  };
   return {
-    lamport: numberOrZero(wire.lamport),
-    writerId: stringOr(wire.writerId, ''),
-    patchSha: stringOr(wire.patchSha, LEGACY_PATCH_SHA_PLACEHOLDER),
-    opIndex: numberOrZero(wire.opIndex),
+    lamport: numberOrZero(value['lamport']),
+    writerId: stringOr(value['writerId'], ''),
+    patchSha: stringOr(value['patchSha'], LEGACY_PATCH_SHA_PLACEHOLDER),
+    opIndex: numberOrZero(value['opIndex']),
   };
 }
 
@@ -313,7 +324,7 @@ function stringOr(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback;
 }
 
-function isRecord(value: unknown): value is DecodedFullState & Record<string, unknown> {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 

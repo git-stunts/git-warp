@@ -9,7 +9,7 @@ import {
   decodeCanonicalWarpFullState,
   decodeWarpFullState,
   encodeWarpFullState,
-} from '../../../../src/infrastructure/codecs/WarpStateCborCodec.ts';
+} from '../../../../src/infrastructure/adapters/WarpStateCborCodec.ts';
 import {
   deserializeFullState,
   serializeFullState,

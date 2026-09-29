@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import codec from '../../../../src/infrastructure/codecs/CborCodec.ts';
-import { decodeWarpFullState, decodeCanonicalWarpFullState } from '../../../../src/infrastructure/codecs/WarpStateCborCodec.ts';
+import { decodeWarpFullState, decodeCanonicalWarpFullState } from '../../../../src/infrastructure/adapters/WarpStateCborCodec.ts';
 
 const fields = ['nodeBirthEvent', 'nodeClearEvent', 'edgeRemoveEvent', 'nodePendingRemoveEvents'];
 const invalidEvents = [null, 3, {}, { lamport: 0, writerId: 'A', patchSha: 'abcd', opIndex: 0 }];

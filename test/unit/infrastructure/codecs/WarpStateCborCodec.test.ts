@@ -6,7 +6,7 @@ import {
   decodeCanonicalWarpFullState,
   decodeWarpFullState,
   encodeWarpFullState,
-} from '../../../../src/infrastructure/codecs/WarpStateCborCodec.ts';
+} from '../../../../src/infrastructure/adapters/WarpStateCborCodec.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 describe('WarpStateCborCodec', () => {
@@ -40,7 +40,7 @@ describe('WarpStateCborCodec', () => {
 
   it('decodes empty and legacy envelopes without inventing modern evidence', () => {
     const empty = decodeWarpFullState(
-      null as unknown as Uint8Array,
+      null,
       defaultCodec,
     );
     const legacy = decodeWarpFullState(defaultCodec.encode({

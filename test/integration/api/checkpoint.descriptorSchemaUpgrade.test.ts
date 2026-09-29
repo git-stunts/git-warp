@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import ContentAddressableStore, { type AssetHandle } from '@git-stunts/git-cas';
 import { buildCheckpointRef } from '../../../src/domain/utils/RefLayout.ts';
 import { computeStateHash, projectState } from '../../../src/domain/services/state/StateSerializer.ts';
-import { decodeCanonicalWarpFullState } from '../../../src/infrastructure/codecs/WarpStateCborCodec.ts';
+import { decodeCanonicalWarpFullState } from '../../../src/infrastructure/adapters/WarpStateCborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';

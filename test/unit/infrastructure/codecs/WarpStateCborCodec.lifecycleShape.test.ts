@@ -1,3 +1,4 @@
+import type CodecValue from '../../../../src/domain/types/codec/CodecValue.ts';
 /**
  * Both full-state readers refuse a full-v6 state whose lifecycle lists are
  * missing or malformed.
@@ -18,7 +19,7 @@ import {
   decodeCanonicalWarpFullState,
   decodeWarpFullState,
   encodeWarpFullState,
-} from '../../../../src/infrastructure/codecs/WarpStateCborCodec.ts';
+} from '../../../../src/infrastructure/adapters/WarpStateCborCodec.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 const OLDER = new EventId(1, 'writer-a', 'a1b2c3d4', 0);
@@ -40,8 +41,12 @@ function lifecycleState(): WarpState {
 }
 
 /** The fields of a real full-v6 state, as its writer emitted them. */
-function fullV6Fields(): Record<string, unknown> {
-  return defaultCodec.decode<Record<string, unknown>>(encodeWarpFullState(lifecycleState(), defaultCodec));
+function fullV6Fields(): { [key: string]: CodecValue } {
+  const fields = defaultCodec.decode(encodeWarpFullState(lifecycleState(), defaultCodec));
+  if (fields === null || typeof fields !== 'object' || Array.isArray(fields)) {
+    throw new Error('Expected full-state record fixture');
+  }
+  return Object.fromEntries(Object.entries(fields));
 }
 
 function withoutField(field: string): Uint8Array {
