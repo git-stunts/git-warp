@@ -71,6 +71,14 @@ describe('packed artifact JavaScript imports', () => {
     expect(relativeImportSpecifiers(source)).toEqual(['./a.js', '../b.js', './lazy.js']);
   });
 
+  it('rejects a relative import that resolves only to a directory', () => {
+    const root = packageFixture({
+      'dist/entry.js': "import './module';\n",
+      'dist/module/index.js': 'export {};\n',
+    });
+    expect(findUnresolvedImports(root)).toEqual(['dist/entry.js -> ./module']);
+  });
+
   it('reports shipped JavaScript whose relative imports are missing', () => {
     const root = packageFixture({
       'dist/bin/cli.js': "import './shared.js';\nimport '../scripts/missing.js';\n",

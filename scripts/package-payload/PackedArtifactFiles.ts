@@ -60,7 +60,8 @@ export function findUnresolvedImports(packageDir: string): string[] {
   const unresolved: string[] = [];
   for (const file of listFiles(join(packageDir, 'dist'), '.js')) {
     for (const specifier of relativeImportSpecifiers(readFileSync(file, 'utf8'))) {
-      if (!isShippedPath(packageDir, resolve(dirname(file), specifier))) {
+      const target = resolve(dirname(file), specifier);
+      if (!isShippedPath(packageDir, target) || !statSync(target).isFile()) {
         unresolved.push(`${relative(packageDir, file)} -> ${specifier}`);
       }
     }
