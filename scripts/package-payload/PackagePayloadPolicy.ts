@@ -53,11 +53,13 @@ const FORBIDDEN_PREFIXES = Object.freeze([
 // they publish JavaScript only; a declaration here is an unwanted file.
 const JAVASCRIPT_ONLY_PREFIXES = Object.freeze(['dist/bin/', 'dist/scripts/']);
 
+/** Defines the supported published assets and payload ceilings. */
 export default class PackagePayloadPolicy {
   readonly maxPackedBytes = 1_000_000;
   readonly maxUnpackedBytes = 4_300_000;
   readonly maxEntryCount = 1_650;
 
+  /** Reports every missing asset, forbidden path, and exceeded size limit. */
   assess(inventory: PackagePayloadInventory): PackagePayloadAssessment {
     const violations = inventory.entries
       .filter((entry) => !this.allows(entry.path))
@@ -72,6 +74,7 @@ export default class PackagePayloadPolicy {
     return new PackagePayloadAssessment(violations);
   }
 
+  /** Admits supported assets only after applying explicit exclusions. */
   private allows(path: string): boolean {
     if (isExcluded(path)) {
       return false;
@@ -84,6 +87,7 @@ export default class PackagePayloadPolicy {
   }
 }
 
+/** Rejects repository-only documents and executable declarations. */
 function isExcluded(path: string): boolean {
   return (
     WITHHELD_DOCUMENTATION_PATHS.includes(path) ||
@@ -92,12 +96,14 @@ function isExcluded(path: string): boolean {
   );
 }
 
+/** Keeps executable implementation roots JavaScript-only. */
 function isNonJavaScriptImplementationArtifact(path: string): boolean {
   return (
     JAVASCRIPT_ONLY_PREFIXES.some((prefix) => path.startsWith(prefix)) && !path.endsWith('.js')
   );
 }
 
+/** Admits direct migration modules without admitting additional subtrees. */
 function isDirectV18ToV19Artifact(path: string): boolean {
   const prefix = 'dist/scripts/v18-to-v19/';
   if (!path.startsWith(prefix)) {
@@ -107,6 +113,7 @@ function isDirectV18ToV19Artifact(path: string): boolean {
   return !relativePath.includes('/') && relativePath.endsWith('.js');
 }
 
+/** Checks compressed bytes, unpacked bytes, and entries independently. */
 function appendLimitViolations(
   violations: string[],
   inventory: PackagePayloadInventory,

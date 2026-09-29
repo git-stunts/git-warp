@@ -12,6 +12,7 @@ import {
 
 const roots: string[] = [];
 
+/** Creates an isolated artifact tree for file-resolution checks. */
 function packageFixture(files: Readonly<Record<string, string>>): string {
   const root = mkdtempSync(join(tmpdir(), 'packed-artifact-files-'));
   roots.push(root);
@@ -37,6 +38,7 @@ describe('packed artifact documentation links', () => {
 
   it('accepts shipped targets, directories, fragments, and external URLs', () => {
     const root = packageFixture({
+      'node_modules/dependency/README.md': '[missing](absent.md)',
       'README.md': '[g](docs/guide/) [h](docs/guide/README.md#top) [x](https://example.com) [s](#s)',
       'docs/guide/README.md': '[up](../../README.md)',
     });

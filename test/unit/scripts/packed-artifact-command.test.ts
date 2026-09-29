@@ -72,3 +72,61 @@ it.each(['# warp-hook-version: 19.1.01', '# text # warp-hook-version: 19.1.0'])(
     expect(result.stdout).toBe('');
   }
 );
+
+it.each([[], ['invalid'], ['documents'], ['documents', '']])(
+  'rejects invalid arguments %j',
+  async (...args) => {
+    const result = await check(args);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toMatch(/usage:|missing argument/u);
+  }
+);
+
+it.each(['documents', 'imports'])('accepts a closed artifact for %s', async (command) => {
+  const root = fixture({ 'README.md': '[self](README.md)', 'dist/index.js': 'export {};' });
+  const result = await check([command, root]);
+  expect(result.stdout).toContain(`${command} PASS`);
+  expect(result.exitCode).toBeUndefined();
+});
+
+it.each(['documents', 'imports'])('rejects an incomplete artifact for %s', async (command) => {
+  const root = fixture({ 'README.md': '[bad](missing.md)', 'dist/index.js': "import './missing.js';" });
+  const result = await check([command, root]);
+  expect(result.stderr).toContain('escape the artifact');
+  expect(result.exitCode).toBe(1);
+});
+
+it('accepts an exactly stamped executable hook', async () => {
+  const root = hookFixture('# warp-hook-version: 19.1.0');
+  expect((await check(['hook', root, root])).stdout).toContain('hook PASS');
+});
+
+it('rejects an exactly stamped hook without executable permissions', async () => {
+  const root = hookFixture('# warp-hook-version: 19.1.0', '0o644');
+  expect((await check(['hook', root, root])).stderr).toContain('not executable');
+});
+
+const VALID_RESULTS = Object.freeze({
+  'write.json': '{"lane":"events","intent":{"kind":"property.set"}}',
+  'observe.json': '{"readings":[{"value":"admin"}]}',
+  'doctor-before.json': '{"findings":[{"id":"hooks-installed","code":"HOOKS_MISSING","status":"warn"}]}',
+  'doctor-after.json': '{"findings":[{"id":"hooks-installed","code":"HOOKS_OK","status":"ok"}]}',
+  'upgrade.json': '{"dryRun":true,"graphs":[{"graphName":"events","checkpoint":{"status":"already-current"}}]}',
+});
+
+it('accepts complete CLI and migration smoke results', async () => {
+  expect((await check(['results', fixture(VALID_RESULTS)])).stdout).toContain('results PASS');
+});
+
+it.each([
+  ['observe.json', '{"readings":[{"value":"guest"}]}', 'did not read the written value'],
+  ['doctor-before.json', '{"findings":[{"id":"other","code":"FAILED","status":"fail"}]}', 'failed checks'],
+  ['doctor-before.json', '{"findings":[]}', 'is not HOOKS_MISSING'],
+  ['doctor-after.json', '{"findings":[{"id":"hooks-installed","code":"HOOKS_MISSING","status":"warn"}]}', 'is not HOOKS_OK'],
+  ['upgrade.json', '{"dryRun":true,"graphs":[{"graphName":"other","checkpoint":{"status":"already-current"}}]}', 'did not classify'],
+  ['upgrade.json', '{"dryRun":true,"graphs":[{"graphName":"events","checkpoint":{"status":"pending"}}]}', 'did not classify'],
+])('rejects incorrect smoke evidence in %s', async (path, content, message) => {
+  const result = await check(['results', fixture({ ...VALID_RESULTS, [path]: content })]);
+  expect(result.stderr).toContain(message);
+  expect(result.exitCode).toBe(1);
+});

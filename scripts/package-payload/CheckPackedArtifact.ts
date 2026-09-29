@@ -30,6 +30,7 @@ const UPGRADE_REPORT = z.object({
 
 const COMMANDS = Object.freeze({ documents, imports, hook, results });
 
+/** Dispatches one artifact check and reports success only after completion. */
 async function main(argv: readonly string[]): Promise<void> {
   const name = argv[0] ?? '';
   if (!isCommand(name)) {
@@ -39,10 +40,12 @@ async function main(argv: readonly string[]): Promise<void> {
   process.stdout.write(`packed-artifact: ${name} PASS\n`);
 }
 
+/** Restricts command dispatch to the checker’s own named operations. */
 function isCommand(name: string): name is keyof typeof COMMANDS {
   return Object.hasOwn(COMMANDS, name);
 }
 
+/** Requires a nonempty positional argument before filesystem access. */
 function argument(args: readonly string[], index: number): string {
   const value = args[index];
   if (value === undefined || value.length === 0) {
@@ -51,6 +54,7 @@ function argument(args: readonly string[], index: number): string {
   return value;
 }
 
+/** Rejects an artifact with any unresolved reference. */
 function requireEmpty(label: string, problems: readonly string[]): void {
   if (problems.length > 0) {
     throw new PackagePayloadError(`${label} escape the artifact:\n${problems.join('\n')}`);
@@ -78,6 +82,7 @@ async function hook(args: readonly string[]): Promise<void> {
   requireStampedExecutableHook(packageDir, join(hooksDir, 'post-merge'));
 }
 
+/** Requires an exact package-version stamp and executable permissions. */
 function requireStampedExecutableHook(packageDir: string, hookPath: string): void {
   const { version } = boundary.read(join(packageDir, 'package.json'), PACKAGE_METADATA);
   if (!readFileSync(hookPath, 'utf8').split(/\r?\n/u).includes(`# warp-hook-version: ${version}`)) {
@@ -106,6 +111,7 @@ function results(args: readonly string[]): Promise<void> {
   return Promise.resolve();
 }
 
+/** Checks hook status and rejects unrelated failed doctor checks. */
 function requireHookFinding(path: string, expectedCode: string): void {
   const { findings } = boundary.read(path, DOCTOR_REPORT);
   if (findings.some((finding) => finding.status === 'fail')) {

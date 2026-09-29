@@ -46,7 +46,7 @@ export function findEscapingDocumentLinks(packageDir: string): string[] {
       (target) => !EXTERNAL_TARGET_PATTERN.test(target)
     );
     for (const target of targets) {
-      const resolved = resolve(dirname(file), target.split('#')[0] ?? '');
+      const resolved = resolve(dirname(file), target.replace(/#.*$/su, ''));
       if (!isShippedPath(packageDir, resolved)) {
         escaping.push(`${relative(packageDir, file)} -> ${target}`);
       }
@@ -69,6 +69,7 @@ export function findUnresolvedImports(packageDir: string): string[] {
   return unresolved;
 }
 
+/** Checks that an existing target remains inside the installed package. */
 function isShippedPath(packageDir: string, path: string): boolean {
   const fromPackage = relative(packageDir, path);
   return !fromPackage.startsWith('..') && !isAbsolute(fromPackage) && existsSync(path);
