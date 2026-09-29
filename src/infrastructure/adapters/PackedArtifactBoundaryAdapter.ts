@@ -7,7 +7,7 @@ import WarpError from '../../domain/errors/WarpError.ts';
 /** Decodes installed-package files and dynamically loaded hook capabilities. */
 export default class PackedArtifactBoundaryAdapter {
   /** Parses an installed artifact file and validates its boundary schema. */
-  read<T>(path: string, schema: z.ZodType<T>): T {
+  read<T>(path: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>): T {
     const value: unknown = JSON.parse(readFileSync(path, 'utf8'));
     return schema.parse(value);
   }

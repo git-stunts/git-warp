@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Release Preflight PR comments now include an actual-tarball bundle analysis:
+  measured sizes and file count, limit utilization and remaining capacity,
+  warnings at 85% and critical headroom at 95%, largest files, payload
+  composition, and static file/dependency findings. Reports update one bot
+  comment and retain complete workflow evidence, including when gates fail.
+
 - `Lane.write()` now accepts a non-empty ordered array of validated Intents.
   The complete array lowers through one `PatchBuilder`, publishes exactly one
   patch, advances the target publication ref once, and returns one admission

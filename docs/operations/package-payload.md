@@ -158,6 +158,33 @@ static import closure. These outputs are tracked in
 [issue #908](https://github.com/git-stunts/git-warp/issues/908) and retained
 pending combined runtime, type, and asset review; this PR does not claim a minimal JavaScript tree.
 
+## Release Preflight bundle report
+
+The PR workflow packs and extracts an actual npm tarball after the build. Its
+bot comment and job summary show compressed bytes, unpacked bytes, file count,
+the matching policy limits, percentage used, remaining capacity, payload
+composition, and the ten largest files. Usage of at least 85% warns that a limit
+is approaching; at least 95% is critical headroom. Exceeding a limit still fails
+the existing payload gate.
+
+Static traversal starts from public runtime/type exports, published JavaScript
+executables, the compiled CLI, and the supported legacy upgrade command. It
+reports possibly unnecessary JavaScript, unreachable declarations, missing or
+dev-only imports, unused direct dependencies, and local/VCS/URL, wildcard, or
+mutable-tag dependency requirements. Declared peer and optional dependencies
+are recognized. Literal dynamic imports and declaration imports using `.ts`
+or `.js` specifiers are traversed; computed imports are explicitly flagged.
+These are advisory inspection findings, not proof that deleting a file is safe
+or a replacement for the vulnerability audit and packed-consumer smoke.
+
+One marked bot comment is updated on each same-repository PR run. It reports
+actual gate outcomes and still runs after failures; unavailable analysis is
+identified explicitly rather than reported as a pass. Fork runs retain the job
+summary and evidence without requiring a write-capable pull-request token.
+The `npm-bundle-analysis` workflow artifact retains the tarball, complete npm
+inventory, Markdown report, and full finding list for 14 days. Comments cap
+findings and file listings to stay readable; full evidence remains attached.
+
 ## Interpretation
 
 The export map remains the JavaScript API authority. The payload allowlist is a
