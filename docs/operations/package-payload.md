@@ -33,18 +33,30 @@ the artifact inventory independently of the export map.
 
 ## Ceilings
 
-At `7b43e330c`, a clean publish build packed 1,679 files, 1,176,780
+Revalidated with Node 26.10.0 and npm 11.12.0 on 2026-09-29.
+At `7b43e330c`, a clean publish build packed 1,679 files, 1,176,553
 compressed bytes, and 4,798,907 unpacked bytes. Withholding the changelog and
 the general documentation shelves removed 25 files and brought the artifact to
-1,654 files, 951,990 compressed bytes, and 4,126,293 unpacked bytes.
+1,654 files, 951,677 compressed bytes, and 4,126,293 unpacked bytes.
 Publishing the executable implementation as JavaScript only then removed the
 80 declarations under `dist/bin/` and `dist/scripts/`, leaving 1,574 files,
-933,496 compressed bytes, and 4,038,202 unpacked bytes. `npm pack --dry-run`
+933,202 compressed bytes, and 4,038,202 unpacked bytes. `npm pack --dry-run`
 and the generated tarball report identical inventories.
+The documentation-only inventory is from `878652ba`; the final inventory is
+from `1b24b3f0`. Direct tarball inspection independently confirmed every file
+path and byte size, as well as the compressed archive size. Across both stages,
+the only removed paths were the 25 documentation files and 80 executable
+implementation declarations; no JavaScript or supported shell asset was removed.
+
+For each of those three clean builds, a TypeScript program rooted at all five
+public declaration entrypoints loaded the same 161 package declarations under
+both NodeNext and Bundler resolution, with `skipLibCheck: false` and zero
+diagnostics. None resolved under `dist/bin/` or `dist/scripts/`. The final
+isolated packed-consumer smoke also passed with both resolution modes.
 
 | Ceiling          | Value     | Headroom over the measured artifact |
 | ---------------- | --------- | ----------------------------------- |
-| Compressed bytes | 1,000,000 | 66,504 bytes (7.1%)                 |
+| Compressed bytes | 1,000,000 | 66,798 bytes (7.2%)                 |
 | Unpacked bytes   | 4,300,000 | 261,798 bytes (6.5%)                |
 | Entries          | 1,650     | 76 entries (4.8%)                   |
 
