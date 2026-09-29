@@ -6,7 +6,7 @@ import VersionVector from '../../domain/crdt/VersionVector.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import { createEmptyState } from '../../domain/services/JoinReducer.ts';
 import WarpState, { type WarpStateFields } from '../../domain/services/state/WarpState.ts';
-import type { PropValue } from '../../domain/types/PropValue.ts';
+import { isPropValue, type PropValue } from '../../domain/types/PropValue.ts';
 import { compareEventIds, type EventId } from '../../domain/utils/EventId.ts';
 import { mergeNodeLifecycles } from '../../domain/services/state/NodeLifecycle.ts';
 import {
@@ -274,11 +274,17 @@ function deserializeLWWRegister(obj: unknown): LWWRegister<PropValue> | null {
   if (typeof obj !== 'object' || obj === null) {
     return null;
   }
-  const wire = obj as { eventId?: unknown; value?: unknown };
   return {
-    eventId: eventIdFromUnknown(wire.eventId),
-    value: wire.value as PropValue,
+    eventId: eventIdFromUnknown('eventId' in obj ? obj.eventId : undefined),
+    value: propertyValue(obj),
   };
+}
+
+function propertyValue(obj: object): PropValue {
+  if (!('value' in obj) || !isPropValue(obj.value)) {
+    throw invalidCanonicalFullState();
+  }
+  return obj.value;
 }
 
 function eventIdFromUnknown(value: unknown): EventId {
