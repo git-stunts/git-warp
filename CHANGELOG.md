@@ -80,6 +80,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Lifecycle index builders capture immutable records and floating tombstones
+  at construction, so deferred shard emission cannot mix later state mutations
+  with earlier property-register witnesses.
+
 - Session reducer diffs no longer expose a lifecycle-hidden node register when
   an older property write loses to it. Before and after values use the same
   lifecycle visibility rule.

@@ -20,16 +20,15 @@ import type WarpState from '../state/WarpState.ts';
 const NODE_LIFECYCLE_RECEIPT_SHARDS = 1;
 
 export default class NodeLifecycleIndexBuilder {
-  /** Shard key to node id to that node's register EventIds, by property key. */
-  private readonly _nodesByShard: ReadonlyMap<string, ReadonlyMap<string, Map<string, EventId>>>;
-  private readonly _state: WarpState;
+  private readonly _recordsByShard: ReadonlyMap<string, readonly NodeLifecycleRecord[]>;
+  private readonly _floatingTombstones: readonly string[];
 
   private constructor(
-    state: WarpState,
-    nodesByShard: ReadonlyMap<string, ReadonlyMap<string, Map<string, EventId>>>,
+    recordsByShard: ReadonlyMap<string, readonly NodeLifecycleRecord[]>,
+    floatingTombstones: readonly string[],
   ) {
-    this._state = state;
-    this._nodesByShard = nodesByShard;
+    this._recordsByShard = recordsByShard;
+    this._floatingTombstones = Object.freeze([...floatingTombstones]);
     Object.freeze(this);
   }
 
@@ -48,43 +47,53 @@ export default class NodeLifecycleIndexBuilder {
     }
     for (const entry of state.nodeProperties()) {
       if (!state.isStaleNodeRegister(entry.nodeId, entry.register)) {
-        registersOf(entry.nodeId).set(entry.key, entry.register.eventId);
+        registersOf(entry.nodeId).set(entry.key, eventIdOf(entry.register.eventId));
       }
     }
-    return new NodeLifecycleIndexBuilder(state, nodesByShard);
+    return new NodeLifecycleIndexBuilder(
+      NodeLifecycleIndexBuilder.captureRecords(state, nodesByShard), floatingNodeTombstones(state),
+    );
+  }
+
+  private static captureRecords(
+    state: WarpState,
+    nodesByShard: ReadonlyMap<string, ReadonlyMap<string, Map<string, EventId>>>,
+  ): ReadonlyMap<string, readonly NodeLifecycleRecord[]> {
+    const recordsByShard = new Map<string, readonly NodeLifecycleRecord[]>();
+    for (const [shardKey, nodes] of nodesByShard) {
+      recordsByShard.set(shardKey, Object.freeze(
+        [...nodes.keys()].sort(compareStrings).map((nodeId) => new NodeLifecycleRecord({
+          nodeId,
+          birth: optionalEvent(state.nodeBirthEvent.get(nodeId)),
+          clear: optionalEvent(state.nodeClearEvent.get(nodeId)),
+          pendingRemoves: (state.nodePendingRemoveEvents.get(nodeId) ?? []).map(eventIdOf),
+          registers: [...(nodes.get(nodeId) ?? new Map<string, EventId>()).entries()]
+            .sort(([left], [right]) => compareStrings(left, right)),
+        })),
+      ));
+    }
+    return recordsByShard;
   }
 
   /** Record shards plus the receipt. */
   shardCount(): number {
-    return this._nodesByShard.size + NODE_LIFECYCLE_RECEIPT_SHARDS;
+    return this._recordsByShard.size + NODE_LIFECYCLE_RECEIPT_SHARDS;
   }
 
   *yieldShards(): Generator<IndexShard> {
     let nodeCount = 0;
-    for (const shardKey of [...this._nodesByShard.keys()].sort(compareStrings)) {
-      const records = this._shardRecords(shardKey);
+    for (const shardKey of [...this._recordsByShard.keys()].sort(compareStrings)) {
+      const records = this._recordsByShard.get(shardKey) ?? [];
       nodeCount += records.length;
       yield new NodeLifecycleShard({ shardKey, records });
     }
     yield new NodeLifecycleReceipt({
       nodeCount,
-      shardCount: this._nodesByShard.size,
-      floatingTombstones: floatingNodeTombstones(this._state),
+      shardCount: this._recordsByShard.size,
+      floatingTombstones: this._floatingTombstones,
     });
   }
 
-  private _shardRecords(shardKey: string): readonly NodeLifecycleRecord[] {
-    const nodes = this._nodesByShard.get(shardKey) ?? new Map<string, Map<string, EventId>>();
-    return [...nodes.keys()].sort(compareStrings).map((nodeId) => new NodeLifecycleRecord({
-      nodeId,
-      birth: optionalEvent(this._state.nodeBirthEvent.get(nodeId)),
-      clear: optionalEvent(this._state.nodeClearEvent.get(nodeId)),
-      pendingRemoves: (this._state.nodePendingRemoveEvents.get(nodeId) ?? []).map(eventIdOf),
-      registers: [...(nodes.get(nodeId) ?? new Map<string, EventId>()).entries()]
-        .sort(([left], [right]) => compareStrings(left, right))
-        .map(([key, event]) => [key, eventIdOf(event)]),
-    }));
-  }
 }
 
 function optionalEvent(event: EventId | undefined): EventId | null {
