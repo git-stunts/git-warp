@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import PackagePayloadPolicy from '../../../scripts/package-payload/PackagePayloadPolicy.ts';
 import PackedArtifactBoundaryAdapter from '../../../src/infrastructure/adapters/PackedArtifactBoundaryAdapter.ts';
 
 const CHANGELOG = readFileSync(new URL('../../../CHANGELOG.md', import.meta.url), 'utf8');
@@ -48,11 +49,13 @@ function isPublishedTarget(target: string): boolean {
 }
 
 describe('package payload contract documentation', () => {
-  it('distinguishes published operator policy from excluded maintainer-only policy', () => {
-    expect(CHANGELOG).toContain(
-      'drivers, maintainer-only policy documents, and plans.'
+  it('documents only the current package payload ceilings', () => {
+    const packaging = CHANGELOG.split('### Packaging\n')[1]?.split('\n## ')[0] ?? '';
+    const policy = new PackagePayloadPolicy();
+    expect(packaging.match(/\b\d{1,3}(?:,\d{3})+\b/gu)).toEqual(
+      [policy.maxPackedBytes, policy.maxUnpackedBytes, policy.maxEntryCount]
+        .map((limit) => limit.toLocaleString('en-US'))
     );
-    expect(CHANGELOG).not.toContain('drivers, policy documents, and plans.');
   });
 
   it('names the complete v18-to-v19 adapter publication path', () => {
