@@ -80,6 +80,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Both full-state readers validate every full-v6 lifecycle entry through the
+  shared lifecycle decoder before hydration. Invalid event tuples fail with
+  structured decode errors instead of default events or raw TypeErrors.
+
 - Lifecycle index builders capture immutable records and floating tombstones
   at construction, so deferred shard emission cannot mix later state mutations
   with earlier property-register witnesses.

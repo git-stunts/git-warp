@@ -1,3 +1,5 @@
+import CborFullStateLifecycleDecoder from '../adapters/CborFullStateLifecycleDecoder.ts';
+import type { FullStateLifecycle } from '../../ports/FullStateLifecycleDecoderPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type { LWWRegister } from '../../domain/crdt/LWW.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
@@ -75,37 +77,10 @@ export function decodeWarpFullState(buffer: Uint8Array, codec: CodecPort): WarpS
     return createEmptyState();
   }
   assertSupportedFullStateVersion(obj.version);
-  if (obj.version === FULL_STATE_VERSION) {
-    assertLifecycleLists(obj);
-  }
-  return hydrateWarpState(obj);
-}
-
-const LIFECYCLE_LIST_FIELDS = ['nodeBirthEvent', 'nodeClearEvent', 'nodePendingRemoveEvents', 'edgeRemoveEvent'] as const;
-
-/**
- * The full-v6 writer emits all four lifecycle lists, empty or not. A missing
- * list, or one that is not a list, is refused rather than read as empty,
- * which would make a hidden property visible again.
- */
-function assertLifecycleLists(obj: DecodedFullState): void {
-  for (const field of LIFECYCLE_LIST_FIELDS) {
-    if (!Array.isArray(obj[field])) {
-      throw invalidLifecycleList(field);
-    }
-  }
-  const pendingRemoves: readonly unknown[] = obj.nodePendingRemoveEvents ?? [];
-  if (!pendingRemoves.every(isPendingRemoveEntry)) {
-    throw invalidLifecycleList('nodePendingRemoveEvents');
-  }
-}
-
-function isPendingRemoveEntry(entry: unknown): boolean {
-  return Array.isArray(entry) && entry.length === 2 && Array.isArray(entry[1]);
-}
-
-function invalidLifecycleList(field: string): WarpError {
-  return new WarpError(`Full state ${field} is missing or is not a list`, 'E_INVALID_FULL_STATE_LIFECYCLE');
+  const lifecycle = obj.version === FULL_STATE_VERSION
+    ? new CborFullStateLifecycleDecoder(codec).decode(buffer)
+    : null;
+  return hydrateWarpState(obj, lifecycle);
 }
 
 /**
@@ -118,11 +93,29 @@ export function decodeCanonicalWarpFullState(buffer: Uint8Array, codec: CodecPor
   if (!isRecord(decoded) || !isCanonicalVersion(decoded.version)) {
     throw invalidCanonicalFullState();
   }
-  const state = hydrateWarpState(decoded);
+  const lifecycle = canonicalLifecycle(buffer, codec, decoded.version);
+  const state = hydrateWarpState(decoded, lifecycle);
   if (!equalBytes(buffer, encodeFullStateVersion(state, codec, decoded.version))) {
     throw invalidCanonicalFullState();
   }
   return state;
+}
+
+function canonicalLifecycle(
+  buffer: Uint8Array, codec: CodecPort, version: FullStateVersion,
+): FullStateLifecycle | null {
+  let lifecycle: FullStateLifecycle | null = null;
+  if (version === FULL_STATE_VERSION) {
+    try {
+      lifecycle = new CborFullStateLifecycleDecoder(codec).decode(buffer);
+    } catch (error) {
+      if (error instanceof WarpError && error.code === 'E_INVALID_FULL_STATE_LIFECYCLE') {
+        throw invalidCanonicalFullState();
+      }
+      throw error;
+    }
+  }
+  return lifecycle;
 }
 
 function isCanonicalVersion(version: unknown): version is FullStateVersion {
@@ -147,19 +140,15 @@ function assertSupportedFullStateVersion(version: string | undefined): void {
   );
 }
 
-function hydrateWarpState(obj: DecodedFullState): WarpState {
+function hydrateWarpState(obj: DecodedFullState, lifecycle: FullStateLifecycle | null): WarpState {
   const legacyFields = hydrateLegacyFields(obj);
-  if (obj.version !== FULL_STATE_VERSION) {
+  if (lifecycle === null) {
     return new WarpState(legacyFields);
   }
   return new WarpState({
     ...legacyFields,
-    ...mergeNodeLifecycles({}, {
-      nodeBirthEvent: deserializeEventArray(obj.nodeBirthEvent),
-      nodeClearEvent: deserializeEventArray(obj.nodeClearEvent),
-      nodePendingRemoveEvents: deserializeEventListArray(obj.nodePendingRemoveEvents),
-    }),
-    edgeRemoveEvent: deserializeEventArray(obj.edgeRemoveEvent),
+    ...mergeNodeLifecycles({}, lifecycle),
+    edgeRemoveEvent: lifecycle.edgeRemoveEvent,
   });
 }
 
@@ -212,28 +201,6 @@ function serializeEventListArray(events: ReadonlyMap<string, readonly EventId[]>
     result.push([key, [...eventIds].sort(compareEventIds).map(eventWire)]);
   }
   return result.sort(compareWireKeys);
-}
-
-function deserializeEventListArray(data: Array<[string, EdgeBirthWire[]]> | undefined): Map<string, readonly EventId[]> {
-  const result = new Map<string, readonly EventId[]>();
-  if (!Array.isArray(data)) {
-    return result;
-  }
-  for (const [key, list] of data) {
-    result.set(key, Array.isArray(list) ? list.map(edgeBirthWireToEventId) : []);
-  }
-  return result;
-}
-
-function deserializeEventArray(data: Array<[string, EdgeBirthWire]> | undefined): Map<string, EventId> {
-  const result = new Map<string, EventId>();
-  if (!Array.isArray(data)) {
-    return result;
-  }
-  for (const [key, val] of data) {
-    result.set(key, edgeBirthWireToEventId(val));
-  }
-  return result;
 }
 
 function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<PropValue>> {
