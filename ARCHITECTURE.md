@@ -275,3 +275,14 @@ produces an immutable `SettlementPlan` bound to the exact source and target
 frontiers, proposal, law, and policy. Execution must revalidate those bindings;
 any bound-input change invalidates the plan rather than silently applying it to
 a different history.
+
+### Unreleased lifecycle compatibility
+
+The next major lifecycle contract separates observed-remove node membership
+from node-wide LWW property clearing. A qualifying removal permanently hides
+registers ordered before its clear EventId, including unobserved concurrent
+writes; adding the node asserts membership without restoring cleared contents.
+Readings and observation receipts identify `observed-remove/node-lww-clear`.
+Upgrade interpreters together and rebuild derived checkpoints from patches;
+identical Git history does not imply identical readings across this change.
+Property reclamation retains clear evidence and does not bound total metadata.

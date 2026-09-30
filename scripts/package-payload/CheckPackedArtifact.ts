@@ -17,7 +17,11 @@ const WRITE_RESULT = z.object({
   lane: z.literal('events'),
   intent: z.object({ kind: z.literal('property.set') }),
 });
-const OBSERVATION = z.object({ readings: z.array(z.object({ value: z.string() })).min(1) });
+const READING_INTERPRETATION = z.literal('observed-remove/node-lww-clear');
+const OBSERVATION = z.object({
+  readings: z.array(z.object({ value: z.string(), reducerVersion: READING_INTERPRETATION })).min(1),
+  receipt: z.object({ reducerVersion: READING_INTERPRETATION }),
+});
 const DOCTOR_REPORT = z.object({
   findings: z.array(
     z.object({ id: z.string(), code: z.string(), status: z.enum(['ok', 'warn', 'fail']) })

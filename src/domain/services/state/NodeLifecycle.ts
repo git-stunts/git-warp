@@ -1,31 +1,15 @@
 /**
- * NodeLifecycle — which removes of a node hide its property registers.
- *
- * A node property register is stale when a remove of the node sorts between
- * the write and the node's latest add. A write before the node's first add,
- * or an add of a node that is already live, hides nothing.
- *
- * Each node keeps three records:
- *
- * - its birth, the EventId of its latest add;
- * - its clear event, the latest remove that sorts below the birth. A register
- *   that sorts below the clear event is stale;
- * - its pending removes, the removes that sort above the birth, in ascending
- *   order. They hide nothing yet. A later add that sorts above one of them
- *   turns it into a candidate clear event, so each is kept until an add
- *   passes it.
- *
- * Together these answer "which remove is the latest one below the latest add"
- * exactly, whatever order adds and removes arrive in. Recording an add or a
- * remove only moves the birth and the clear event forward, and a merge
- * records one side's events into the other, so the outcome is independent of
- * delivery order and a stale register stays stale.
- *
- * @module domain/services/state/NodeLifecycle
+ * Observed-remove membership and node-wide LWW property clears are separate.
+ * Each qualifying removal immediately advances the clear by EventId max.
+ * Adds assert membership; they never restore cleared values. A concurrent,
+ * unobserved write can lose to a later-ordered clear.
  */
 
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 import { advanceLifecycleEvent } from './ElementLifecycle.ts';
+
+/** Immutable interpretation identifier; retain beside historical hashes and receipts. */
+export const NODE_PROPERTY_CLEAR_SEMANTICS = 'observed-remove/node-lww-clear';
 
 /** Mutable node lifecycle records, keyed by node id. */
 export type NodeLifecycleEvents = {
@@ -45,7 +29,7 @@ export type NodeLifecycleSource = {
   readonly nodePendingRemoveEvents?: ReadonlyMap<string, readonly EventId[]>;
 };
 
-/** Returns true when a remove of the node sorts between the register and the node's latest add. */
+/** Returns true when the register sorts strictly below the retained clear. */
 export function isStaleNodeRegisterIn(
   source: NodeLifecycleSource,
   nodeId: string,
@@ -69,42 +53,27 @@ export function emptyNodeLifecycle(): NodeLifecycleEvents {
 
 /** Copies node lifecycle records into fresh mutable maps. */
 export function copyNodeLifecycle(source: NodeLifecycleSource): NodeLifecycleEvents {
-  return {
-    nodeBirthEvent: new Map(source.nodeBirthEvent ?? []),
-    nodeClearEvent: new Map(source.nodeClearEvent ?? []),
-    nodePendingRemoveEvents: new Map(source.nodePendingRemoveEvents ?? []),
-  };
+  const events = emptyNodeLifecycle();
+  recordEach(events, source.nodeBirthEvent, recordNodeAdd);
+  recordEach(events, source.nodeClearEvent, recordNodeRemove);
+  // Normalize removal evidence from pre-clear in-memory snapshots. Persisted
+  // readings still require an explicitly compatible semantic version.
+  for (const [nodeId, removals] of source.nodePendingRemoveEvents ?? []) {
+    for (const removal of removals) {
+      recordNodeRemove(events, nodeId, removal);
+    }
+  }
+  return events;
 }
 
-/** Records an add of `nodeId`. An add below the current birth changes nothing. */
+/** Adds advance birth metadata only; they cannot undo a property clear. */
 export function recordNodeAdd(events: NodeLifecycleEvents, nodeId: string, eventId: EventId): void {
-  const birth = events.nodeBirthEvent.get(nodeId);
-  if (birth !== undefined && compareEventIds(eventId, birth) <= 0) {
-    return;
-  }
-  events.nodeBirthEvent.set(nodeId, eventId);
-  const pending = events.nodePendingRemoveEvents.get(nodeId) ?? [];
-  const passed = pending.filter((removal) => compareEventIds(removal, eventId) < 0);
-  const latestPassed = passed.at(-1);
-  if (latestPassed === undefined) {
-    return;
-  }
-  advanceLifecycleEvent(events.nodeClearEvent, nodeId, latestPassed);
-  setPendingRemoves(events, nodeId, pending.slice(passed.length));
+  advanceLifecycleEvent(events.nodeBirthEvent, nodeId, eventId);
 }
 
-/** Records a remove of `nodeId` that observed at least one of its dots. */
+/** Records a remove whose operation carries at least one observed addition dot. */
 export function recordNodeRemove(events: NodeLifecycleEvents, nodeId: string, eventId: EventId): void {
-  const birth = events.nodeBirthEvent.get(nodeId);
-  if (birth !== undefined && compareEventIds(eventId, birth) < 0) {
-    advanceLifecycleEvent(events.nodeClearEvent, nodeId, eventId);
-    return;
-  }
-  const pending = events.nodePendingRemoveEvents.get(nodeId) ?? [];
-  if (pending.some((removal) => compareEventIds(removal, eventId) === 0)) {
-    return;
-  }
-  setPendingRemoves(events, nodeId, [...pending, eventId].sort(compareEventIds));
+  advanceLifecycleEvent(events.nodeClearEvent, nodeId, eventId);
 }
 
 /** Merges two sets of node lifecycle records. Pure. */
@@ -131,12 +100,4 @@ function recordEach(
   for (const [nodeId, eventId] of source ?? []) {
     record(events, nodeId, eventId);
   }
-}
-
-function setPendingRemoves(events: NodeLifecycleEvents, nodeId: string, removals: readonly EventId[]): void {
-  if (removals.length === 0) {
-    events.nodePendingRemoveEvents.delete(nodeId);
-    return;
-  }
-  events.nodePendingRemoveEvents.set(nodeId, Object.freeze([...removals]));
 }

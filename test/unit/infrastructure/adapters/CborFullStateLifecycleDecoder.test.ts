@@ -1,10 +1,10 @@
 /**
- * The full-v6 lifecycle records are decoded at the infrastructure boundary.
+ * The full-v7 lifecycle records are decoded at the infrastructure boundary.
  *
- * A full-v6 state carries each node's latest add, its clear event and its
+ * A full-v7 state carries each node's latest add, its clear event and its
  * pending removes, and each edge's latest remove. The adapter turns those
  * wire arrays into validated EventIds, so the domain full-state reader never
- * handles their untyped form. The full-v6 writer always emits all four
+ * handles their untyped form. The full-v7 writer always emits all four
  * lists, so a missing list, or one that is not a list, is a malformed
  * checkpoint: reading it as empty would make a hidden property visible again.
  */
@@ -24,10 +24,10 @@ function wire(event: EventId): object {
 
 const LIFECYCLE_FIELDS = ['nodeBirthEvent', 'nodeClearEvent', 'nodePendingRemoveEvents', 'edgeRemoveEvent'];
 
-/** A full-v6 envelope with every lifecycle list present and empty, then the overrides. */
+/** A full-v7 envelope with every lifecycle list present and empty, then the overrides. */
 function complete(overrides: Record<string, unknown>): Record<string, unknown> {
   return {
-    version: 'full-v6',
+    version: 'full-v7',
     nodeBirthEvent: [],
     nodeClearEvent: [],
     nodePendingRemoveEvents: [],
@@ -39,9 +39,9 @@ function complete(overrides: Record<string, unknown>): Record<string, unknown> {
 describe('CborFullStateLifecycleDecoder', () => {
   const decoder = new CborFullStateLifecycleDecoder(defaultCodec);
 
-  it('decodes every lifecycle record of a full-v6 envelope into EventIds', () => {
+  it('decodes every lifecycle record of a full-v7 envelope into EventIds', () => {
     const lifecycle = decoder.decode(defaultCodec.encode({
-      version: 'full-v6',
+      version: 'full-v7',
       nodeBirthEvent: [['n', wire(BIRTH)]],
       nodeClearEvent: [['n', wire(CLEAR)]],
       nodePendingRemoveEvents: [['n', [wire(PENDING)]]],
@@ -64,7 +64,7 @@ describe('CborFullStateLifecycleDecoder', () => {
     expect(lifecycle.edgeRemoveEvent.size).toBe(0);
   });
 
-  it.each(LIFECYCLE_FIELDS)('refuses a full-v6 envelope without %s', (field) => {
+  it.each(LIFECYCLE_FIELDS)('refuses a full-v7 envelope without %s', (field) => {
     const envelope: Record<string, unknown> = complete({});
     delete envelope[field];
 
@@ -73,7 +73,7 @@ describe('CborFullStateLifecycleDecoder', () => {
     );
   });
 
-  it.each(LIFECYCLE_FIELDS)('refuses a full-v6 envelope whose %s is not a list', (field) => {
+  it.each(LIFECYCLE_FIELDS)('refuses a full-v7 envelope whose %s is not a list', (field) => {
     expect(() => decoder.decode(defaultCodec.encode(complete({ [field]: { n: wire(CLEAR) } })))).toThrow(
       expect.objectContaining({ code: 'E_INVALID_FULL_STATE_LIFECYCLE' }),
     );

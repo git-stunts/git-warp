@@ -112,7 +112,7 @@ export function materializedValue(scenario: HarnessScenario): PropValue | null {
  */
 export type HarnessRootDamage = 'drop-node-lifecycle-shard' | 'receipt-schema-version';
 
-const UNREAD_RECEIPT_SCHEMA_VERSION = 2;
+const UNREAD_RECEIPT_SCHEMA_VERSION = 3;
 
 /** Reads the property through CheckpointTailWitnessLocator over a written basis. */
 export async function tailRead(

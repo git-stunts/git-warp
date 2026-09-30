@@ -42,8 +42,8 @@ interface SerializedLWWRegister {
 // Full State Serialization (for Checkpoints)
 // ============================================================================
 
-/** Current full-state version: adds node lifecycle records and edge removes. */
-const FULL_STATE_VERSION = 'full-v6';
+/** Current full-state interpretation: immediate node-wide LWW property clears. */
+const FULL_STATE_VERSION = 'full-v7';
 /** Previous version, still read: it carries no node or remove events. */
 const LEGACY_FULL_STATE_VERSION = 'full-v5';
 
@@ -110,7 +110,7 @@ function serializeEventArray(
 /**
  * Deserializes full state. Used for resume.
  *
- * A full-v6 state's node lifecycle records and edge removes are decoded by
+ * A full-v7 state's node lifecycle records and edge removes are decoded by
  * the injected `lifecycle` decoder, which owns their wire form.
  */
 export function deserializeFullState(

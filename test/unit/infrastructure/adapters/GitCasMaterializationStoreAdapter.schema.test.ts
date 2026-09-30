@@ -22,7 +22,6 @@ import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
 const CACHE_NAMESPACE = 'git-warp/materializations';
 const LANE = 'events';
-const OLDER_DESCRIPTOR_SCHEMA_VERSION = 5;
 
 async function nodeAliveOnlyRoots(cas: InMemoryGitCasFacade): Promise<MaterializationRoots> {
   const page = await cas.pages.put({ source: new Uint8Array([1]) });
@@ -49,7 +48,7 @@ function requireMember(members: readonly [string, string][], path: string): stri
 }
 
 describe('materialization cache entries across a descriptor schema bump', () => {
-  it('does not serve an entry written under descriptor schema 5', async () => {
+  it.each([5, 6])('does not serve an entry written under descriptor schema %s', async (olderSchema) => {
     const cas = new InMemoryGitCasFacade({ history: new InMemoryGraphAdapter(), storage: new InMemoryBlobStorageAdapter() });
     const crypto = new NodeCryptoAdapter();
     const adapter = new GitCasMaterializationStoreAdapter({ cas, codec: defaultCodec, crypto, laneName: LANE });
@@ -62,7 +61,7 @@ describe('materialization cache entries across a descriptor schema bump', () => 
     const descriptorPage = requireMember(cas.readBundleMembers(retained.bundle.toString()), 'meta/descriptor');
     cas.replaceStoredPage(descriptorPage, defaultCodec.encode({
       ...materializationDescriptorData({ coordinate, stateHash: null, laneName: LANE, roots }),
-      schemaVersion: OLDER_DESCRIPTOR_SCHEMA_VERSION,
+      schemaVersion: olderSchema,
     }));
     const cache = await cas.caches.open({ namespace: CACHE_NAMESPACE });
     const [currentKey] = cas.readCacheKeys(CACHE_NAMESPACE);
@@ -71,7 +70,7 @@ describe('materialization cache entries across a descriptor schema bump', () => 
       throw new Error('Expected the retained materialization in the cache');
     }
     const olderKey = await new GitCasMaterializationCacheKey({ codec: defaultCodec, crypto, laneName: LANE })
-      .forCoordinate(coordinate, OLDER_DESCRIPTOR_SCHEMA_VERSION);
+      .forCoordinate(coordinate, olderSchema);
     await cache.remove(currentKey);
     await cache.put(olderKey, hit.handle);
 

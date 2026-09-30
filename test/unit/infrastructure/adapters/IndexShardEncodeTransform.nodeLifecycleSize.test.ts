@@ -6,8 +6,8 @@
  * Fixed input: 10,000 nodes named `node:000000` onwards, one writer, a
  * 40-hex patch sha, two properties per node. `once`: each node added and
  * written. `removed`: each node added, written and then removed, never added
- * again, which is the costliest record (birth, one pending remove and two
- * registers). The logical `meta_XX` shards of the `once` state are measured
+ * again, which retains a birth and clear but drops its two
+ * registers. The logical `meta_XX` shards of the `once` state are measured
  * beside them, because both families share the same 256 shard keys and the
  * same limits (`MATERIALIZATION_INDEX_SHARD_LIMITS`).
  */
@@ -104,14 +104,14 @@ async function largestLifecycleShard(shape: Shape): Promise<LargestShard> {
 }
 
 describe('node lifecycle shard size at 10,000 nodes', () => {
-  // A live record is 25 CBOR items and a removed one 30, plus 5 for the
+  // A live record is 25 CBOR items and a removed one 15, plus 5 for the
   // shard envelope; the largest shard holds 50 of the 10,000 nodes.
   it('pins the largest lifecycle shard when every node is live', async () => {
     await expect(largestLifecycleShard('once')).resolves.toEqual({ bytes: 8_828, nodes: 50, items: 1_255 });
   });
 
   it('pins the largest lifecycle shard when every node was removed and never added again', async () => {
-    await expect(largestLifecycleShard('removed')).resolves.toEqual({ bytes: 11_278, nodes: 50, items: 1_505 });
+    await expect(largestLifecycleShard('removed')).resolves.toEqual({ bytes: 5_728, nodes: 50, items: 755 });
   });
 
   it('pins the largest logical meta shard of the same live graph', async () => {
@@ -151,20 +151,18 @@ describe('node lifecycle shard ceiling', () => {
     return sizes;
   }
 
-  // (2,000,000 - 5) / 30 = 66,666 removed-node records fit one shard under
-  // the item limit. With 40-hex node ids that shard is already past 16 MiB
-  // (about 261 bytes a record), so for these records the byte limit binds
-  // first, near 64,000; with the 11-character ids above (about 226 bytes a
-  // record) the item limit binds first.
-  it('admits one shard of 66,666 removed-node records under the item limit', async () => {
-    const sizes = await encodeWithinIndexLimits(removedInOneShard(66_666));
+  // A cleared record is 15 CBOR items. The envelope costs 5, so
+  // floor((2,000,000 - 5) / 15) = 133,333 records fit the item limit.
+  // This fixture crosses the separate byte limit first.
+  it('admits one shard of 133,333 removed-node records under the item limit', async () => {
+    const sizes = await encodeWithinIndexLimits(removedInOneShard(133_333));
     expect([...sizes.keys()]).toEqual(['life_aa.cbor', 'life_receipt.cbor']);
-    expect(sizes.get('life_aa.cbor')).toBe(17_401_841);
+    expect(sizes.get('life_aa.cbor')).toBe(19_667_643);
     expect(sizes.get('life_aa.cbor')).toBeGreaterThan(MATERIALIZATION_INDEX_SHARD_LIMITS.maxBytes);
   }, 60_000);
 
-  it('refuses one shard of 66,667 removed-node records', async () => {
-    await expect(encodeWithinIndexLimits(removedInOneShard(66_667))).rejects.toMatchObject({
+  it('refuses one shard of 133,334 removed-node records', async () => {
+    await expect(encodeWithinIndexLimits(removedInOneShard(133_334))).rejects.toMatchObject({
       code: 'E_INDEX_SHARD_MALFORMED',
       context: { reason: 'decoded item count exceeds the configured maximum' },
     });

@@ -1,7 +1,7 @@
 /**
- * The domain full-state reader does not decode full-v6 lifecycle records
+ * The domain full-state reader does not decode full-v7 lifecycle records
  * itself. It takes them from an injected decoder, and without one it refuses
- * a full-v6 state rather than read it with its lifecycle records missing.
+ * a full-v7 state rather than read it with its lifecycle records missing.
  */
 import { describe, expect, it } from 'vitest';
 import { Dot, encodeDot } from '../../../../../src/domain/crdt/Dot.ts';
@@ -25,7 +25,7 @@ function removedAndReadded() {
 }
 
 describe('deserializeFullState lifecycle decoding', () => {
-  it('takes full-v6 lifecycle records from the injected decoder', () => {
+  it('takes full-v7 lifecycle records from the injected decoder', () => {
     const state = removedAndReadded();
     const restored = deserializeFullState(serializeFullState(state, { codec: defaultCodec }), {
       codec: defaultCodec,
@@ -38,7 +38,7 @@ describe('deserializeFullState lifecycle decoding', () => {
     expect(restored.edgeRemoveEvent).toEqual(state.edgeRemoveEvent);
   });
 
-  it('refuses a full-v6 state whose node clear events are missing', () => {
+  it('refuses a full-v7 state whose node clear events are missing', () => {
     const envelope = defaultCodec.decode<Record<string, object>>(
       serializeFullState(removedAndReadded(), { codec: defaultCodec }),
     );
@@ -68,7 +68,7 @@ describe('deserializeFullState lifecycle decoding', () => {
     expect(restored.edgeRemoveEvent).toEqual(new Map());
   });
 
-  it('refuses a full-v6 state without a lifecycle decoder', () => {
+  it('refuses a full-v7 state without a lifecycle decoder', () => {
     const bytes = serializeFullState(removedAndReadded(), { codec: defaultCodec });
 
     expect(() => deserializeFullState(bytes, { codec: defaultCodec })).toThrow(

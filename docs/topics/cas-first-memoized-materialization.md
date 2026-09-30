@@ -124,9 +124,11 @@ Retained materializations can now satisfy the same two resume cases without a
 separate state-cache hit. A complete descriptor retains a canonical replay
 basis beside the node, edge, and property roots. An exact retained hit validates
 and loads that basis, reuses the retained roots, and performs no patch replay.
-Descriptor schema v6 is the first whose property roots and replay basis hide
-node properties written before a remove that precedes the node's latest add;
-entries an older runtime wrote under v5 miss and are rebuilt once per graph.
+Descriptor schema v7 identifies observed-remove membership with node-wide LWW
+property clears. A qualifying removal clears every earlier-ordered register,
+independent of the latest add. Older descriptor entries miss and are rebuilt
+from patches. See [property reclamation](property-reclamation.md) for the
+mixed-interpreter and historical-reading compatibility requirements.
 The descriptor schema also admits explicitly partial handles: `stateHash: null`
 means the roots can answer only the reads whose root status is retained or
 empty, and the handle cannot resume a whole-state snapshot. When there is no

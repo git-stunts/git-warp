@@ -100,8 +100,8 @@ export default class WarpState {
   }
 
   /**
-   * Returns true when a remove of the node sorts between the property
-   * register and the node's latest add. Stale registers are never visible
+   * Returns true when the property register sorts before the node's
+   * retained removal clear. Stale registers are never visible
    * and never become visible again, so garbage collection may delete them.
    */
   isStaleNodeRegister(nodeId: string, register: LWWRegister<PropValue>): boolean {

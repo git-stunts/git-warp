@@ -3,7 +3,7 @@
  *
  * An edge property register written before the edge's latest add, or before
  * its latest remove, is stale. A node property register is stale when a
- * remove of the node sorts between the write and the node's latest add. No
+ * qualifying removal of the node sorts after the write. No
  * replica shows a stale register, whatever order the operations arrive in,
  * and it stays hidden after any later operation. That
  * is what lets garbage collection delete stale registers without changing
@@ -118,12 +118,11 @@ describe('property visibility across remove and re-add', () => {
     }
   });
 
-  it('shows a node property when the only remove sorts after the latest add, in every order', async () => {
+  it('clears a node property even when a concurrent lower add keeps membership alive', async () => {
     const add: Step = [new NodeAdd('n', Dot.create('A', 1)), event(1, 'A')];
     const set: Step = [new PropSet('n', 'color', 'red'), event(2, 'A')];
     const remove: Step = [new NodeRemove('n', [encodeDot(Dot.create('A', 1))]), event(3, 'A')];
-    // B's add keeps the node alive and is its latest add, but no remove sorts
-    // between the property write and that add.
+    // B's add preserves membership, but cannot restore a cleared value.
     const concurrentAdd: Step = [new NodeAdd('n', Dot.create('B', 1)), event(1, 'B')];
 
     const states = permutations([set, remove, concurrentAdd]).map((order) => replay([add, ...order]));
@@ -133,7 +132,7 @@ describe('property visibility across remove and re-add', () => {
       expect(projectState(state)).toEqual({
         nodes: ['n'],
         edges: [],
-        props: [{ node: 'n', key: 'color', value: 'red' }],
+        props: [],
       });
     }
     expect(hashes.size).toBe(1);

@@ -390,7 +390,7 @@ function descriptor(
   overrides: Readonly<Record<string, object | string | number | null>> = {},
 ): object {
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     laneName: 'events',
     stateHash: 'state-hash',
     roots: ROOT_NAMES.map((name) => [name, 'retained']),

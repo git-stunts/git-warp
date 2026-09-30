@@ -4,11 +4,11 @@
  * Validates one decoded `life_XX.cbor` payload into NodeLifecycleRecords,
  * and the `life_receipt.cbor` payload against the root's record shards.
  * Only the canonical form the encoder writes is accepted: records in
- * ascending node id order, pending removes ascending above the birth, and
+ * ascending node id order, an empty reserved pending-removal slot, and
  * registers in ascending key order. Anything else is a malformed shard.
  *
- * Payload, schema 1:
- *   { schemaVersion: 1, entries: [[nodeId, [birth, clear, [pending...], [[key, event]...]]]...] }
+ * Payload, schema 2:
+ *   { schemaVersion: 2, entries: [[nodeId, [birth, clear, [], [[key, event]...]]]...] }
  * where each event is [lamport, writerId, patchSha, opIndex], and birth and
  * clear are null when absent.
  *

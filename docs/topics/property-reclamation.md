@@ -1,8 +1,9 @@
 # Property reclamation
 
 Design and acceptance plan for [#885](https://github.com/git-stunts/git-warp/issues/885).
-This document describes proposed work; it does not change the runtime contract.
-The lifecycle decision below is pending.
+The accepted contract is **observed-remove node membership plus a node-wide
+LWW property clear**. This is a breaking lifecycle change, targeting a major
+release together with #893. Implementation and validation are tracked in #910.
 
 ## Reproduced failure
 
@@ -27,62 +28,88 @@ never acquires a clear witness. An older concurrent add can also make a
 pre-removal value visible again. Deleting that value only on the replica
 that ran GC would change its future reads and state hash.
 
-## Lifecycle decision
+## Accepted lifecycle contract
 
-Two implementations are sound, but they promise different behavior:
+Each removal carrying at least one observed addition dot immediately advances
+`clear(node)` by EventId maximum. Qualification comes from the operation's
+nonempty observed-dot collection, even if those dots have not arrived locally.
+A removal with no observed dots does not establish a clear.
 
-1. **Removal clears older properties.** An observed node removal advances a
-   monotone property-clear event immediately, independent of the latest add.
-   A concurrent add can preserve node liveness but cannot restore a register
-   ordered before that removal. Registers ordered after removal remain
-   eligible to survive. Adds alone do not clear properties, and a removal
-   with no observed dots establishes no clear event.
-2. **Preserve current visibility exactly.** Values that can still become
-   visible must remain recoverable. Reduce resident memory through a
-   storage-backed register representation and bounded caching, with explicit
-   ports and checkpoint/replay support. Merely deleting those values from
-   the property map is not an implementation of this option.
+Membership retains its observed-remove set rule. Adding a node asserts
+existence only: it neither clears properties nor restores cleared contents.
+A register is permanently cleared exactly when `register.eventId < clear(node)`.
+Equality is not cleared. Later-ordered writes remain eligible, including while
+the node is absent. "Later" means deterministic EventId order, not arrival
+order, wall-clock time, or causal observation.
 
-Option 1 is the smaller proposed repair for ordinary remove-driven churn.
-It changes observable concurrent-remove behavior and needs an explicit
-compatibility decision. Option 2 is a storage architecture change, not a
-small GC predicate adjustment.
+A clear can defeat a concurrent property write that the remover never observed.
+That is the chosen LWW conflict policy; only membership removal is limited to
+observed addition dots. Causally observed-only property resets would require a
+separate register design capable of retaining otherwise losing concurrent values.
 
-## Implementation slices after the decision
+## Reclamation and future merges
 
-1. Pin the selected semantics with failing regressions for fresh-ID churn,
-   concurrent surviving adds, late properties, and reordered delivery.
-2. Establish one authoritative lifecycle rule across eager reduction,
-   session reduction, state joins, materialized indexes, and bounded reads.
-   GC continues to require permanent invisibility and the compaction frontier.
-3. Preserve removal evidence through clone, snapshot, checkpoint, and merge.
-   Version derived materialization/index contracts so an older cached result
-   cannot be mistaken for a result under changed visibility semantics.
-4. Prove the packed public API behavior and replay compatibility. Document
-   migration/replay requirements and the exact memory guarantee.
+The retained clear can only advance. A dominated register can therefore be
+reclaimed even if its node is alive, or if original membership records have
+already been compacted. Node-register reclamation does not require a membership
+compaction frontier. The existing edge compaction guard remains unchanged.
 
-## Acceptance evidence
+Required observational invariant, within this interpretation:
 
-For option 1:
+```text
+observe(merge(GC(S), T)) == observe(merge(S, T))
+```
 
-- Twenty-five generations with seven properties each retain seven active
-  property registers after GC and reclaim 168 obsolete registers.
-- Run the same history with GC disabled: visible nodes, properties,
-  attachments, and state hashes agree with the collected replica.
-- Compare reordered histories and replica partitions, including a concurrent
-  lower-ordered add, late pre-removal writes, and writes after removal.
-- Re-add retired IDs and merge with unswept replicas without restoring stale
-  values or losing newer ones.
-- Round-trip checkpoints and compare eager, incremental, and bounded reads.
-- Retain values where the removal, owner identity, or stability evidence is
-  insufficient. Legacy state without removal witnesses requires replay or
-  conservative retention; do not infer historical removals from absence.
-- Preserve existing no-coordination behavior and run the runtime matrix,
-  type checks, lint, coverage, and packed-consumer checks.
+The same equivalence must hold after subsequent valid operations. Property
+sweeping supports arbitrary later state joins with an empty membership-compaction
+frontier. Existing membership compaction can resurrect stale additions if its
+retirement assumptions are violated; [#911](https://github.com/git-stunts/git-warp/issues/911)
+tracks that independent hazard. Do not infer safe membership retirement from
+this property's monotone clear proof. Tests compare
+visible nodes, properties, attachments and hashes, as well as retained-register
+counts. Delayed stale registers may enter a joined state, but the next sweep
+reclaims them using the retained clear without requiring their owner to reappear.
 
-For option 2, replace the register-count target with a measured resident-byte
-and cache-entry bound, while proving retrieval of every value the unchanged
-visibility contract may expose.
+## Compatibility and historical readings
+
+| Artifact | Current interpretation marker |
+| --- | --- |
+| Full state | `full-v7` |
+| Materialization/cache descriptor | schema 7 |
+| Lifecycle shard and receipt | schema 2 |
+| Public read receipt `reducerVersion` | `observed-remove/node-lww-clear` |
+| Bounded read identity `reducerVersion` | `checkpoint-tail-locator/observed-remove/node-lww-clear` |
+
+Older cache descriptors miss. Older checkpoint descriptors require replay from
+immutable patches; rebuild indexed checkpoints afterward. Direct decoding of
+intermediate `full-v6` states is refused. Legacy `full-v5` decoding remains
+available for legacy tooling, but does not reconstruct missing lifecycle evidence
+and is not a substitute for replay under the new interpretation.
+
+Upgrade all writers and readers together before resuming shared operation.
+There is no mixed-interpreter agreement guarantee or automatic fencing of an old
+client replaying old patches. A cache/schema bump cannot impose new semantics on
+that client. Do not backport this visibility change as a maintenance GC patch.
+
+Git history is unchanged. Replaying that history under this interpreter may
+produce a different visible reading and state hash. Preserve old receipts and
+hashes with their original interpreter identity; an unqualified historical hash
+is not evidence of the current interpretation. Recompute derived readings and
+receipts instead of relabeling historical evidence. State hashes remain hashes
+of visible projections; their bytes alone do not identify the interpreter.
+
+## Acceptance
+
+- Fresh-ID churn: 25 generations of seven properties retain seven registers
+  and reclaim 168, with the same visible projection as unswept replay.
+- Live concurrent membership and delayed reintroduction remain reclaimable.
+- Earlier concurrent writes lose; later-ordered writes survive a clear.
+- Adds, empty removals, replay permutations, partitioned joins and checkpoint
+  round trips preserve the contract.
+- Eager, session, targeted and checkpoint-tail reads agree. Ambiguous keys and
+  missing removal witnesses are retained conservatively.
+- Runtime, type, lint, coverage and isolated packed-consumer validation remain
+  required before this draft is ready to merge.
 
 ## Scope of the memory guarantee
 
@@ -94,3 +121,20 @@ this issue concerns the live materialized state, not destructive history GC.
 
 The existing dependency stack is #893, then #883. This work starts from the
 lifecycle-safe #883 branch and must preserve its late-write and merge tests.
+
+## Validation status and remaining acceptance
+
+The reducer/GC regression initially failed four cases and now passes them.
+A 256-pair partition test compares projections, attachments and hashes after
+property collection, checkpoint round trips, future joins and subsequent writes.
+The changed lifecycle predicate, sweep and lifecycle-record model have 100%
+statement, branch, function and line coverage.
+
+The isolated tarball smoke validates existing public CLI behavior, all public
+exports/types, and reading/receipt interpretation markers. Its attempted public
+remove/re-add scenario exposed [#912](https://github.com/git-stunts/git-warp/issues/912):
+a reopened public writer lacks the bounded basis required to publish a removal.
+That public-only lifecycle acceptance case remains blocked; internal graph API
+and checkpoint/replay tests exercise the lifecycle behavior. This PR stays draft
+until the acceptance gap is resolved. Do not claim the removal occurred from a
+successful process exit; inspect the write receipt for a derived outcome.

@@ -60,7 +60,7 @@ async function* single(bytes: Uint8Array): AsyncIterable<Uint8Array> {
   yield bytes;
 }
 
-/** Re-encodes a full-v6 replay basis as the full-v5 bytes 19.1.0 wrote. */
+/** Re-encodes a full-v7 replay basis as the full-v5 bytes 19.1.0 wrote. */
 function fullV5Bytes(repo: TestRepo, fullV6: Uint8Array): Uint8Array {
   const { nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent } =
     repo.codec.decode<FullStateLegacyFields>(fullV6);

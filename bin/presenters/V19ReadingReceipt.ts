@@ -30,6 +30,7 @@ export type V19Receipt =
 export function readingEnvelope(reading: ObservedReading): McpJsonValue {
   return Object.freeze({
     type: 'Reading',
+    reducerVersion: reading.reducerVersion,
     value: readingValueToJson(reading.value),
     coordinate: readingCoordinateEnvelope(reading.coordinate),
     support: toMcpJson(reading.support),
@@ -93,6 +94,7 @@ function observationReceiptEnvelope(receipt: ObservationReceipt): McpJsonValue {
   const inventory = findEntityAdmissionInventoryCertificate(receipt);
   return Object.freeze({
     type: 'Receipt',
+    reducerVersion: receipt.reducerVersion,
     operation: receipt.operation,
     lane: receipt.lane,
     writer: receipt.writer,

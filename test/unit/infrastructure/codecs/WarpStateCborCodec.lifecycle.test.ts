@@ -33,7 +33,7 @@ function baseState(): WarpState {
 
 /**
  * The full-v5 envelope, field for field, as the v5 encoder wrote it. Its
- * sha256 was pinned against that encoder before full-v6 existed.
+ * sha256 was pinned against that encoder before full-v7 existed.
  */
 function fullV5Bytes(): Uint8Array {
   const state = baseState();
@@ -58,7 +58,7 @@ function lifecycleState(): WarpState {
   const state = baseState();
   state.nodeBirthEvent.set('node:a', NEWER);
   state.nodeClearEvent.set('node:a', OLDER);
-  state.nodePendingRemoveEvents.set('node:b', [OLDER, NEWER]);
+  state.nodeClearEvent.set('node:b', NEWER);
   state.edgeRemoveEvent.set('node:a\0node:a\0self', NEWER);
   return state;
 }
@@ -91,19 +91,19 @@ describe('full state format across the node lifecycle bump', () => {
     }
   });
 
-  it('round-trips full-v6 byte for byte with every lifecycle map', () => {
+  it('round-trips full-v7 byte for byte with every lifecycle map', () => {
     const encoded = encodeWarpFullState(lifecycleState(), defaultCodec);
     const decoded = decodeCanonicalWarpFullState(encoded, defaultCodec);
 
     expect([...encodeWarpFullState(decoded, defaultCodec)]).toEqual([...encoded]);
-    expect(defaultCodec.decode<{ version: string }>(encoded).version).toBe('full-v6');
+    expect(defaultCodec.decode<{ version: string }>(encoded).version).toBe('full-v7');
     expect(decoded.nodeBirthEvent).toEqual(new Map([['node:a', NEWER]]));
-    expect(decoded.nodeClearEvent).toEqual(new Map([['node:a', OLDER]]));
-    expect(decoded.nodePendingRemoveEvents).toEqual(new Map([['node:b', [OLDER, NEWER]]]));
+    expect(decoded.nodeClearEvent).toEqual(new Map([['node:a', OLDER], ['node:b', NEWER]]));
+    expect(decoded.nodePendingRemoveEvents).toEqual(new Map());
     expect(decoded.edgeRemoveEvent).toEqual(new Map([['node:a\0node:a\0self', NEWER]]));
   });
 
-  it('refuses a full-v6 envelope whose pending remove sorts below the node birth', () => {
+  it('refuses a full-v7 envelope whose pending remove sorts below the node birth', () => {
     const state = lifecycleState();
     state.nodePendingRemoveEvents.set('node:a', [OLDER]);
     const inconsistent = encodeWarpFullState(state, defaultCodec);
@@ -113,7 +113,7 @@ describe('full state format across the node lifecycle bump', () => {
     );
   });
 
-  it('writes the checkpoint serializer format as the same full-v6 bytes', () => {
+  it('writes the checkpoint serializer format as the same full-v7 bytes', () => {
     const state = lifecycleState();
     const bytes = serializeFullState(state, { codec: defaultCodec });
     const decoded = deserializeFullState(bytes, {
@@ -125,7 +125,7 @@ describe('full state format across the node lifecycle bump', () => {
     expect([...serializeFullState(decoded, { codec: defaultCodec })]).toEqual([...bytes]);
   });
 
-  it('refuses a full-v5 envelope that carries full-v6 fields', () => {
+  it('refuses a full-v5 envelope that carries full-v7 fields', () => {
     const mixed = defaultCodec.encode({
       ...defaultCodec.decode<object>(encodeWarpFullState(lifecycleState(), defaultCodec)),
       version: 'full-v5',

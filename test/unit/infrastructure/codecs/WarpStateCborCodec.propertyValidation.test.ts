@@ -42,7 +42,7 @@ it('does not hide unexpected lifecycle decoder failures', () => {
   const failure = new Error('decoder unavailable');
   const decoder = vi.spyOn(CborFullStateLifecycleDecoder.prototype, 'decode').mockImplementation(() => { throw failure; });
   try {
-    expect(() => decodeCanonicalWarpFullState(codec.encode({ version: 'full-v6' }), codec)).toThrow(failure);
+    expect(() => decodeCanonicalWarpFullState(codec.encode({ version: 'full-v7' }), codec)).toThrow(failure);
   } finally {
     decoder.mockRestore();
   }

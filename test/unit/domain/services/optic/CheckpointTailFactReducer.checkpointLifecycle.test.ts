@@ -79,8 +79,8 @@ describe('checkpoint-tail property read with a pending remove in the checkpoint'
   const full = replay([...CHECKPOINT_STEPS, ...TAIL_STEPS]);
 
   it('starts from a checkpoint that shows the property and holds the remove as pending', () => {
-    expect(visibleProperty(checkpoint)).toBe('v');
-    expect(checkpoint.nodePendingRemoveEvents.get(NODE)).toEqual([event(5, 'A')]);
+    expect(visibleProperty(checkpoint)).toBeUndefined();
+    expect(checkpoint.nodeClearEvent.get(NODE)).toEqual(event(5, 'A'));
     expect(visibleProperty(full)).toBeUndefined();
   });
 

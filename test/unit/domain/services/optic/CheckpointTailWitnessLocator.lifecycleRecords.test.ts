@@ -153,10 +153,10 @@ describe('checkpoint-tail property reads the records cannot decide', () => {
     });
   });
 
-  it('refuses when a tail add revives a node whose checkpoint register holds a value the basis does not store', async () => {
+  it('does not restore a cleared checkpoint register when a concurrent tail add survives', async () => {
     // The node is removed at the checkpoint, so its property is not in the
-    // property shard. A concurrent add that sorts below the remove keeps the
-    // register visible again, and only its value would answer the read.
+    // property shard. A concurrent add that sorts below the remove preserves
+    // membership but cannot restore the cleared property.
     const scenario: HarnessScenario = {
       checkpoint: [
         { writer: 'A', lamport: 1, sha: 'aaaa0001', ops: [add('A', 1)] },
@@ -165,11 +165,10 @@ describe('checkpoint-tail property reads the records cannot decide', () => {
       ],
       tail: [{ writer: 'B', lamport: 2, sha: 'bbbb0002', ops: [add('B', 1)] }],
     };
-    expect(materializedValue(scenario)).toBe('v');
+    expect(materializedValue(scenario)).toBeNull();
 
     await expect(tailRead(scenario)).resolves.toEqual({
-      kind: 'refused',
-      reason: 'tail-node-add-needs-checkpoint-lifecycle-witnesses',
+      kind: 'value', value: null,
     });
   });
 

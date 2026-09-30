@@ -520,3 +520,14 @@ Copyright © 2026 James Ross • [FlyingRobots](https://github.com/flyingrobots)
 <p align="center">
 <sub>Built by <a href="https://github.com/flyingrobots">FLYING ROBOTS</a></sub>
 </p>
+
+### Unreleased lifecycle compatibility
+
+The next major lifecycle contract separates observed-remove node membership
+from node-wide LWW property clearing. A qualifying removal permanently hides
+registers ordered before its clear EventId, including unobserved concurrent
+writes; adding the node asserts membership without restoring cleared contents.
+Readings and observation receipts identify `observed-remove/node-lww-clear`.
+Upgrade interpreters together and rebuild derived checkpoints from patches;
+identical Git history does not imply identical readings across this change.
+Property reclamation retains clear evidence and does not bound total metadata.

@@ -98,8 +98,8 @@ describe('node lifecycle shards', () => {
     };
 
     expect(recordOf('readded')).toMatchObject({
-      birth: event(4), clear: event(3), pendingRemoves: [event(6, 'x')],
-      registers: new Map([['new', event(5)]]),
+      birth: event(4), clear: event(6, 'x'), pendingRemoves: [],
+      registers: new Map(),
     });
     expect(recordOf('early')).toMatchObject({
       birth: event(8), clear: null, pendingRemoves: [], registers: new Map([['k', event(7)]]),
@@ -112,27 +112,27 @@ describe('node lifecycle shards', () => {
     const record = (nodeId: string, pending: CodecValue[]): CodecValue => [nodeId, [[4, 'w', SHA, 0], null, pending, []]];
     const malformed = expect.objectContaining({ code: 'E_INDEX_SHARD_MALFORMED' });
 
-    expect(refusal({ schemaVersion: 2, entries: [] }, path)).toThrow(malformed);
-    expect(refusal({ schemaVersion: 1, entries: [], extra: true }, path)).toThrow(malformed);
+    expect(refusal({ schemaVersion: 0, entries: [] }, path)).toThrow(malformed);
+    expect(refusal({ schemaVersion: 2, entries: [], extra: true }, path)).toThrow(malformed);
     expect(refusal({
-      schemaVersion: 1,
+      schemaVersion: 2,
       entries: [record('readded', [[7, 'w', SHA, 0], [6, 'w', SHA, 0]])],
     }, path)).toThrow(malformed);
-    expect(refusal({ schemaVersion: 1, entries: [record('plain', [])] }, path)).toThrow(malformed);
+    expect(refusal({ schemaVersion: 2, entries: [record('plain', [])] }, path)).toThrow(malformed);
     expect(refusal({
-      schemaVersion: 1,
+      schemaVersion: 2,
       entries: [['readded', [[4, 'w', SHA, 0], null, [], [['b', [1, 'w', SHA, 0]], ['a', [1, 'w', SHA, 0]]]]]],
     }, path)).toThrow(malformed);
-    expect(refusal({ schemaVersion: 1, entries: [['readded', [[0, 'w', SHA, 0], null, [], []]]] }, path))
+    expect(refusal({ schemaVersion: 2, entries: [['readded', [[0, 'w', SHA, 0], null, [], []]]] }, path))
       .toThrow(malformed);
   });
 });
 
 const PINNED_SHA256: Readonly<Record<string, string>> = {
-  'life_67.cbor': 'ddbed744de462c866f77c32345a5065844fd661142d4c252298b592f753ce749',
-  'life_9c.cbor': 'e6785b2fccea6a69c9c1211aef84627f9ea2f1e378ae18b6a9844de3bec98082',
-  'life_b2.cbor': '580a16494d4724cc5f6d91092b0151f1dab8362a82a0aa34b1fafa129e28414c',
-  'life_receipt.cbor': 'b298c86c4476d8a52c4d7684bec1d664b4b55358221477a4b5f759255c701d98',
+  'life_67.cbor': '848cffe39b3b7485c0d4fafc5d709118a552c03fa94e5928dd3311e2539470af',
+  'life_9c.cbor': 'e474a9629b66510714a7861d59e5f2fd0838822bb06d40fe7292549e21afa63a',
+  'life_b2.cbor': '68b76f460bcd447465e6f822d275dfb413df79fc952f57d220e55d627da0cff1',
+  'life_receipt.cbor': '795b03bc3efd341115d39668faf2ad970ad634f13c64680e326882bab46a76de',
 };
 
 describe('node lifecycle receipt', () => {
@@ -163,7 +163,7 @@ describe('node lifecycle receipt', () => {
   it('refuses floating tombstones that are not ascending encoded dots', () => {
     const paths = ['life_67.cbor'];
     const receipt = (floatingTombstones: CodecValue): () => void => () => decodeNodeLifecycleReceipt(
-      codec.decode<CodecValue>(codec.encode({ schemaVersion: 1, nodeCount: 1, shardCount: 1, floatingTombstones })),
+      codec.decode<CodecValue>(codec.encode({ schemaVersion: 2, nodeCount: 1, shardCount: 1, floatingTombstones })),
       paths,
     );
     const malformed = expect.objectContaining({ code: 'E_INDEX_SHARD_MALFORMED' });

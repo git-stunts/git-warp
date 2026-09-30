@@ -3,7 +3,7 @@ import { IndexShard } from './IndexShard.ts';
 import { NodeLifecycleRecord } from './NodeLifecycleRecord.ts';
 
 /** The only node lifecycle shard schema. */
-export const NODE_LIFECYCLE_SHARD_SCHEMA_VERSION = 1;
+export const NODE_LIFECYCLE_SHARD_SCHEMA_VERSION = 2;
 
 /**
  * Node lifecycle records for the nodes of one index shard key, in ascending

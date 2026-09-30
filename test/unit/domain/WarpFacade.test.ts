@@ -427,6 +427,7 @@ describe('v19 Warp facade', () => {
 
     expect(propertyResult).toBeInstanceOf(ReadingResult);
     expect(propertyResult.receipt).toBeInstanceOf(ReadReceipt);
+    expect(propertyResult.receipt.reducerVersion).toBe('observed-remove/node-lww-clear');
     expect(propertyResult.value).toBe('admin');
     expect(propertyResult.receipt.outcome).toBe('accepted');
     expect(propertyResult.receipt.operation).toBe('read');

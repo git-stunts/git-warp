@@ -24,8 +24,8 @@ export type DeadPropertySweepFields = NodeLifecycleSource & EdgeLifecycleSource 
 };
 
 /**
- * Drops permanently stale registers only when their owner was held before
- * compaction and is absent afterward. Owner absence alone is insufficient:
+ * Drops node registers dominated by a retained clear even for live owners.
+ * Edges retain the conservative compaction guard. Owner absence alone is insufficient:
  * a later add may expose a register written after a removal. Lifecycle
  * evidence is retained so delayed merges cannot make stale writes visible.
  *
@@ -65,7 +65,9 @@ function ownerMustBeRetained(
   if (owner instanceof EdgePropertyOwner) {
     return fields.edgeAlive.hasEntries(owner.edgeKey) || !candidates.heldEdge(owner.edgeKey);
   }
-  return fields.nodeAlive.hasEntries(owner.nodeId) || !candidates.heldNode(owner.nodeId);
+  // A retained node clear permanently dominates the register regardless of
+  // membership, including after all original addition records are compacted.
+  return false;
 }
 
 function isPermanentlyStale(

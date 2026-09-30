@@ -16,9 +16,9 @@ export type StateLifecycleSource = {
   readonly edgeBirthEvent?: Map<string, EventId>;
   /** NodeId → EventId of the most recent NodeAdd. */
   readonly nodeBirthEvent?: Map<string, EventId>;
-  /** NodeId → latest NodeRemove sorting below the node's latest add. */
+  /** NodeId → maximum EventId of qualifying NodeRemoves, independent of additions. */
   readonly nodeClearEvent?: Map<string, EventId>;
-  /** NodeId → NodeRemoves sorting above the node's latest add, ascending. */
+  /** NodeId → legacy in-memory removal evidence; current reducers leave this empty. */
   readonly nodePendingRemoveEvents?: Map<string, readonly EventId[]>;
   /** EdgeKey → EventId of the most recent EdgeRemove. */
   readonly edgeRemoveEvent?: Map<string, EventId>;

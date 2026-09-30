@@ -8,7 +8,7 @@ const invalidEvents = [null, 3, {}, { lamport: 0, writerId: 'A', patchSha: 'abcd
 describe.each(fields)('full-state lifecycle entries: %s', (field) => {
   it.each(invalidEvents)('rejects malformed event %# through both readers', (event) => {
     const payload = codec.encode({
-      version: 'full-v6', nodeAlive: {}, edgeAlive: {}, prop: [], observedFrontier: {}, edgeBirthEvent: [],
+      version: 'full-v7', nodeAlive: {}, edgeAlive: {}, prop: [], observedFrontier: {}, edgeBirthEvent: [],
       nodeBirthEvent: [], nodeClearEvent: [], edgeRemoveEvent: [], nodePendingRemoveEvents: [],
       [field]: [['n', field === 'nodePendingRemoveEvents' ? [event] : event]],
     });
