@@ -22,7 +22,7 @@ import type WarpState from '../../src/domain/services/state/WarpState.ts';
 import {
   decodeCanonicalWarpFullState,
   encodeWarpFullState,
-} from '../../src/infrastructure/codecs/WarpStateCborCodec.ts';
+} from '../../src/infrastructure/adapters/WarpStateCborCodec.ts';
 import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 
 export class InMemoryMaterializationWorkspace extends MaterializationWorkspacePort {

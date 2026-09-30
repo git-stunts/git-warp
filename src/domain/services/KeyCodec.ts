@@ -1,3 +1,6 @@
+import NodeId from '../graph/NodeId.ts';
+import EdgeTypeId from '../graph/EdgeTypeId.ts';
+import AttachmentKey from '../graph/AttachmentKey.ts';
 /**
  * Key encoding/decoding for WARP graph CRDT state maps.
  *
@@ -95,6 +98,50 @@ export function decodePropKey(key: string): { nodeId: string; propKey: string } 
  */
 export function encodeEdgePropKey(from: string, to: string, label: string, propKey: string): string {
   return `${EDGE_PROP_PREFIX}${from}\0${to}\0${label}\0${propKey}`;
+}
+
+/**
+ * Decodes an edge property key, or returns null when it cannot be read.
+ *
+ * `decodeEdgePropKey` throws, which is right at a boundary that can still
+ * refuse bad input. Readers cannot refuse — they are handed whatever is
+ * already in state — so they need a decode that reports failure instead of
+ * aborting the read. Callers skip a null the way they already skip a key
+ * that resolves to no owner.
+ *
+ * @param encoded - Possibly malformed encoded edge property key
+ * @returns Decoded components, or null if the key is not a well-formed one
+ * @see decodeEdgePropKey - The throwing form, for validating boundaries
+ */
+export function tryDecodeEdgePropKey(
+  encoded: string,
+): { from: string; to: string; label: string; propKey: string } | null {
+  if (!isEdgePropKey(encoded)) {
+    return null;
+  }
+  const parts = encoded.slice(1).split('\0');
+  if (parts.length !== 4) {
+    return null;
+  }
+  return validateEdgePropertyFields({
+    from: parts[0] ?? '', to: parts[1] ?? '', label: parts[2] ?? '', propKey: parts[3] ?? '',
+  });
+}
+
+function validateEdgePropertyFields(fields: { from: string; to: string; label: string; propKey: string }) {
+  try {
+    return {
+      from: new NodeId(fields.from).toString(),
+      to: new NodeId(fields.to).toString(),
+      label: new EdgeTypeId(fields.label).toString(),
+      propKey: new AttachmentKey(fields.propKey).toString(),
+    };
+  } catch (error) {
+    if (error instanceof WarpError && error.code === 'E_VALIDATION') {
+      return null;
+    }
+    throw error;
+  }
 }
 
 // -------------------------------------------------------------------------

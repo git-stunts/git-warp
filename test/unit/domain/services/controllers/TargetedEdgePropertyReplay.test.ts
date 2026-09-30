@@ -4,7 +4,8 @@ import PatchCollector, {
   type CheckpointData,
   type PatchWithSha,
 } from '../../../../../src/domain/capabilities/PatchCollector.ts';
-import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../../../../src/domain/crdt/Dot.ts';
+import EdgeRemove from '../../../../../src/domain/types/ops/EdgeRemove.ts';
 import PatchError from '../../../../../src/domain/errors/PatchError.ts';
 import MaterializationCoordinate from '../../../../../src/domain/materialization/MaterializationCoordinate.ts';
 import { replayTargetedEdgeProperties } from '../../../../../src/domain/services/controllers/TargetedEdgePropertyReplay.ts';
@@ -128,6 +129,45 @@ describe('replayTargetedEdgeProperties', () => {
       status: 'writer-b',
     });
     expect(patches.loadedTips).toEqual(['tip-a', 'tip-b']);
+  });
+
+  it('hides properties a removal covers when a concurrent re-add sorts below it', async () => {
+    const patches = new ChainPatchCollector(new Map([
+      ['tip-a', [
+        patchEntry({
+          lamport: 1,
+          ops: [new EdgeAdd({ ...TARGET_EDGE, dot: Dot.create('writer-a', 1) })],
+          sha: 'aaaa',
+          writer: 'writer-a',
+        }),
+        patchEntry({
+          lamport: 2,
+          ops: [edgeProp('weight', 'heavy')],
+          sha: 'bbbb',
+          writer: 'writer-a',
+        }),
+        patchEntry({
+          lamport: 3,
+          ops: [new EdgeRemove({ ...TARGET_EDGE, observedDots: [encodeDot(Dot.create('writer-a', 1))] })],
+          sha: 'cccc',
+          writer: 'writer-a',
+        }),
+      ]],
+      ['tip-b', [
+        patchEntry({
+          lamport: 1,
+          ops: [new EdgeAdd({ ...TARGET_EDGE, dot: Dot.create('writer-b', 1) })],
+          sha: 'dddd',
+          writer: 'writer-b',
+        }),
+      ]],
+    ]));
+
+    await expect(replayTargetedEdgeProperties({
+      coordinate: coordinate(new Map([['writer-a', 'tip-a'], ['writer-b', 'tip-b']]), null),
+      edge: TARGET_EDGE,
+      patches,
+    })).resolves.toEqual({});
   });
 
   it('uses original operation indexes to order writes within one patch', async () => {

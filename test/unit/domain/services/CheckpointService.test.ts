@@ -53,7 +53,7 @@ describe('checkpoint domain lifecycle', () => {
     expect(checkpointStore.lastPublished?.stateHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('compacts a cloned checkpoint state without mutating the live state', async () => {
+  it('collects a cloned checkpoint without retiring membership evidence', async () => {
     const checkpointStore = new InMemoryCheckpointStore();
     const state = createEmptyState();
     const dot = Dot.create('alice', 1);
@@ -70,8 +70,8 @@ describe('checkpoint domain lifecycle', () => {
     });
 
     expect(state.nodeAlive.entries.has('deleted')).toBe(true);
-    expect(checkpointStore.lastPublished?.state.nodeAlive.entries.has('deleted')).toBe(false);
-    expect(checkpointStore.lastPublished?.state.nodeAlive.tombstones.size).toBe(0);
+    expect(checkpointStore.lastPublished?.state.nodeAlive.entries.has('deleted')).toBe(true);
+    expect(checkpointStore.lastPublished?.state.nodeAlive.tombstones.size).toBe(1);
   });
 
   it('preserves tombstones when compaction is disabled', async () => {

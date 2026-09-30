@@ -2,7 +2,8 @@
  * WarpState — the core CRDT materialized state object.
  *
  * Holds the alive sets (OR-Set for nodes and edges), property registers
- * (LWW), the observed version vector frontier, and edge birth events.
+ * (LWW), the observed version vector frontier, and the birth and remove
+ * events that decide which property registers are current.
  *
  * @module domain/services/state/WarpState
  */
@@ -10,15 +11,19 @@
 import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { lwwMax, lwwSet, type LWWRegister } from '../../crdt/LWW.ts';
-import { compareEventIds, type EventId } from '../../utils/EventId.ts';
-import AttachmentKey from '../../graph/AttachmentKey.ts';
-import AttachmentRecord from '../../graph/AttachmentRecord.ts';
-import AttachmentSchemaVersion from '../../graph/AttachmentSchemaVersion.ts';
+import type { EventId } from '../../utils/EventId.ts';
+import { isStaleEdgeRegisterIn } from './ElementLifecycle.ts';
+import { isStaleNodeRegisterIn } from './NodeLifecycle.ts';
+import { copyStateLifecycle, joinStateLifecycles, type StateLifecycleSource } from './StateLifecycle.ts';
+import { compareStrings } from '../../utils/StringComparison.ts';
+import type AttachmentRecord from '../../graph/AttachmentRecord.ts';
 import EdgeId from '../../graph/EdgeId.ts';
 import EdgeRecord from '../../graph/EdgeRecord.ts';
 import NodeId from '../../graph/NodeId.ts';
 import NodeRecord from '../../graph/NodeRecord.ts';
-import { decodeEdgeKey, decodeEdgePropKey, decodePropKey, encodeEdgeKey, encodeEdgePropKey, encodePropKey, isEdgePropKey } from '../KeyCodec.ts';
+import { sweepDeadProperties } from './deadPropertySweep.ts';
+import { attachmentRecordForProperty, compareAttachmentRecords } from './stateAttachmentRecords.ts';
+import { decodeEdgeKey, tryDecodeEdgePropKey, decodePropKey, encodeEdgePropKey, encodePropKey, isEdgePropKey } from '../KeyCodec.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 
 /** Decoded node property entry yielded by WarpState.nodeProperties(). */
@@ -39,6 +44,14 @@ export type EdgePropertyEntry = {
   readonly register: LWWRegister<PropValue>;
 };
 
+/** Constructor fields; absent lifecycle maps start empty. */
+export type WarpStateFields = StateLifecycleSource & {
+  readonly nodeAlive: ORSet;
+  readonly edgeAlive: ORSet;
+  readonly prop: Map<string, LWWRegister<PropValue>>;
+  readonly observedFrontier: VersionVector;
+};
+
 export type WarpStatePropertyRegisterSource = {
   readonly prop: Map<string, LWWRegister<PropValue>>;
 };
@@ -57,19 +70,22 @@ export default class WarpState {
   observedFrontier: VersionVector;
   /** EdgeKey → EventId of most recent EdgeAdd (for clean-slate prop visibility). */
   edgeBirthEvent: Map<string, EventId>;
+  /** Node lifecycle records and edge removes; each map is described on StateLifecycleSource. */
+  nodeBirthEvent: Map<string, EventId>;
+  nodeClearEvent: Map<string, EventId>;
+  nodePendingRemoveEvents: Map<string, readonly EventId[]>;
+  edgeRemoveEvent: Map<string, EventId>;
 
-  constructor(fields: {
-    nodeAlive: ORSet;
-    edgeAlive: ORSet;
-    prop: Map<string, LWWRegister<PropValue>>;
-    observedFrontier: VersionVector;
-    edgeBirthEvent?: Map<string, EventId>;
-  }) {
+  constructor(fields: WarpStateFields) {
     this.nodeAlive = fields.nodeAlive;
     this.edgeAlive = fields.edgeAlive;
     this.prop = fields.prop;
     this.observedFrontier = fields.observedFrontier;
     this.edgeBirthEvent = fields.edgeBirthEvent ?? new Map<string, EventId>();
+    this.nodeBirthEvent = fields.nodeBirthEvent ?? new Map<string, EventId>();
+    this.nodeClearEvent = fields.nodeClearEvent ?? new Map<string, EventId>();
+    this.nodePendingRemoveEvents = fields.nodePendingRemoveEvents ?? new Map<string, readonly EventId[]>();
+    this.edgeRemoveEvent = fields.edgeRemoveEvent ?? new Map<string, EventId>();
   }
 
   /** Creates an empty state with fresh OR-Sets and version vector. */
@@ -79,8 +95,24 @@ export default class WarpState {
       edgeAlive: ORSet.empty(),
       prop: new Map(),
       observedFrontier: VersionVector.empty(),
-      edgeBirthEvent: new Map(),
     });
+  }
+
+  /**
+   * Returns true when the property register sorts before the node's
+   * retained removal clear. Stale registers are never visible
+   * and never become visible again, so garbage collection may delete them.
+   */
+  isStaleNodeRegister(nodeId: string, register: LWWRegister<PropValue>): boolean {
+    return isStaleNodeRegisterIn(this, nodeId, register.eventId);
+  }
+
+  /**
+   * Returns true when an edge property register predates the edge's latest
+   * add or remove. Same monotone contract as `isStaleNodeRegister`.
+   */
+  isStaleEdgeRegister(edgeKey: string, register: LWWRegister<PropValue>): boolean {
+    return isStaleEdgeRegisterIn(this, edgeKey, register.eventId);
   }
 
   /** Returns live graph nodes as deterministic runtime-backed records. */
@@ -151,6 +183,16 @@ export default class WarpState {
     this.prop.set(encodedKey, winner);
   }
 
+  /** Reclaims permanently dominated registers; retains membership and lifecycle evidence. */
+  compactDeadProperties(): number {
+    return sweepDeadProperties({
+      prop: this.prop,
+      nodeClearEvent: this.nodeClearEvent,
+      edgeRemoveEvent: this.edgeRemoveEvent,
+      edgeBirthEvent: this.edgeBirthEvent,
+    });
+  }
+
   /** Yields every node property register with decoded identity. */
   *nodeProperties(): Generator<NodePropertyEntry> {
     for (const [encodedKey, register] of this.prop) {
@@ -164,8 +206,8 @@ export default class WarpState {
   /** Yields every edge property register with decoded identity. */
   *edgeProperties(): Generator<EdgePropertyEntry> {
     for (const [encodedKey, register] of this.prop) {
-      if (isEdgePropKey(encodedKey)) {
-        const decoded = decodeEdgePropKey(encodedKey);
+      const decoded = tryDecodeEdgePropKey(encodedKey);
+      if (decoded !== null) {
         yield { encodedKey, from: decoded.from, to: decoded.to, label: decoded.label, key: decoded.propKey, register };
       }
     }
@@ -203,8 +245,8 @@ export default class WarpState {
    */
   static *edgePropertiesFromMap(prop: Map<string, LWWRegister<PropValue>>): Generator<EdgePropertyEntry> {
     for (const [encodedKey, register] of prop) {
-      if (isEdgePropKey(encodedKey)) {
-        const decoded = decodeEdgePropKey(encodedKey);
+      const decoded = tryDecodeEdgePropKey(encodedKey);
+      if (decoded !== null) {
         yield { encodedKey, from: decoded.from, to: decoded.to, label: decoded.label, key: decoded.propKey, register };
       }
     }
@@ -216,8 +258,8 @@ export default class WarpState {
    */
   static *edgePropertiesFromState(state: WarpState | WarpStatePropertyRegisterSource): Generator<EdgePropertyEntry> {
     for (const [encodedKey, register] of WarpState.allPropEntriesFromState(state)) {
-      if (isEdgePropKey(encodedKey)) {
-        const decoded = decodeEdgePropKey(encodedKey);
+      const decoded = tryDecodeEdgePropKey(encodedKey);
+      if (decoded !== null) {
         yield { encodedKey, from: decoded.from, to: decoded.to, label: decoded.label, key: decoded.propKey, register };
       }
     }
@@ -296,7 +338,7 @@ export default class WarpState {
       edgeAlive: this.edgeAlive.clone(),
       prop: new Map(this.prop),
       observedFrontier: this.observedFrontier.clone(),
-      edgeBirthEvent: new Map(this.edgeBirthEvent),
+      ...copyStateLifecycle(this),
     });
   }
 
@@ -306,13 +348,7 @@ export default class WarpState {
    * reducer and checkpoint loader to accept either class instances or
    * hydrated POJOs at the boundary.
    */
-  static cloneFromSnapshot(state: WarpState | {
-    readonly nodeAlive: ORSet;
-    readonly edgeAlive: ORSet;
-    readonly prop: Map<string, LWWRegister<PropValue>>;
-    readonly observedFrontier: VersionVector;
-    readonly edgeBirthEvent?: Map<string, EventId>;
-  }): WarpState {
+  static cloneFromSnapshot(state: WarpState | WarpStateFields): WarpState {
     if (state instanceof WarpState) {
       return state.clone();
     }
@@ -321,7 +357,7 @@ export default class WarpState {
       edgeAlive: state.edgeAlive.clone(),
       prop: new Map(state.prop),
       observedFrontier: state.observedFrontier.clone(),
-      edgeBirthEvent: new Map(state.edgeBirthEvent ?? []),
+      ...copyStateLifecycle(state),
     });
   }
 
@@ -331,7 +367,7 @@ export default class WarpState {
    * - `nodeAlive` / `edgeAlive`: OR-Set join
    * - `prop`: LWW-Max per key
    * - `observedFrontier`: VersionVector merge (component-wise max)
-   * - `edgeBirthEvent`: EventId max per edge key
+   * - birth, clear and remove events: StateLifecycle join
    */
   join(other: WarpState): WarpState {
     return new WarpState({
@@ -339,7 +375,7 @@ export default class WarpState {
       edgeAlive: this.edgeAlive.join(other.edgeAlive),
       prop: WarpState._mergeProps(this.prop, other.prop),
       observedFrontier: this.observedFrontier.merge(other.observedFrontier),
-      edgeBirthEvent: WarpState._mergeEdgeBirthEvent(this.edgeBirthEvent, other.edgeBirthEvent),
+      ...joinStateLifecycles(this, other),
     });
   }
 
@@ -376,23 +412,6 @@ export default class WarpState {
     }
     return result;
   }
-
-  /** EventId-max merge of two edge-birth-event maps. */
-  private static _mergeEdgeBirthEvent(
-    a: Map<string, EventId> | null | undefined,
-    b: Map<string, EventId> | null | undefined,
-  ): Map<string, EventId> {
-    const result = new Map(a ?? []);
-    if (b) {
-      for (const [key, eventId] of b) {
-        const existing = result.get(key);
-        if (!existing || compareEventIds(eventId, existing) > 0) {
-          result.set(key, eventId);
-        }
-      }
-    }
-    return result;
-  }
 }
 
 /** Normalizes an edge id carrier for state record reads. */
@@ -414,96 +433,4 @@ function normalizeNodeId(value: string | NodeId): NodeId {
 /** Compares edge records by deterministic id order. */
 function compareEdgeRecords(left: EdgeRecord, right: EdgeRecord): number {
   return compareStrings(left.id.toString(), right.id.toString());
-}
-
-/** Builds a visible attachment record from a legacy property map entry. */
-function attachmentRecordForProperty(
-  state: WarpState,
-  propKey: string,
-  register: LWWRegister<PropValue>,
-): AttachmentRecord | null {
-  if (isEdgePropKey(propKey)) {
-    return edgeAttachmentRecordForProperty(state, propKey, register);
-  }
-  return nodeAttachmentRecordForProperty(state, propKey, register);
-}
-
-/** Builds a node-owned attachment record from a legacy node property. */
-function nodeAttachmentRecordForProperty(
-  state: WarpState,
-  propKey: string,
-  register: LWWRegister<PropValue>,
-): AttachmentRecord | null {
-  const decoded = decodePropKey(propKey);
-  const owner = state.getNodeRecord(decoded.nodeId);
-  if (owner === null) {
-    return null;
-  }
-  return new AttachmentRecord({
-    owner,
-    key: new AttachmentKey(decoded.propKey),
-    value: register.value,
-    schemaVersion: AttachmentSchemaVersion.current(),
-  });
-}
-
-/** Builds an edge-owned attachment record from a legacy edge property. */
-function edgeAttachmentRecordForProperty(
-  state: WarpState,
-  propKey: string,
-  register: LWWRegister<PropValue>,
-): AttachmentRecord | null {
-  const decoded = decodeEdgePropKey(propKey);
-  const edgeKey = encodeEdgeKey(decoded.from, decoded.to, decoded.label);
-  if (isStaleEdgeAttachment(register, state.edgeBirthEvent.get(edgeKey))) {
-    return null;
-  }
-  if (!state.edgeAlive.contains(edgeKey)) {
-    return null;
-  }
-  if (!state.hasNodeRecord(decoded.from) || !state.hasNodeRecord(decoded.to)) {
-    return null;
-  }
-  const owner = EdgeRecord.fromLegacyEdge(decoded);
-  return new AttachmentRecord({
-    owner,
-    key: new AttachmentKey(decoded.propKey),
-    value: register.value,
-    schemaVersion: AttachmentSchemaVersion.current(),
-  });
-}
-
-/** Returns true when an edge attachment predates the current edge birth. */
-function isStaleEdgeAttachment(
-  register: LWWRegister<PropValue>,
-  birthEvent: EventId | undefined,
-): boolean {
-  if (birthEvent === undefined || register.eventId === null) {
-    return false;
-  }
-  return compareEventIds(register.eventId, birthEvent) < 0;
-}
-
-/** Compares attachment records by deterministic owner/key order. */
-function compareAttachmentRecords(left: AttachmentRecord, right: AttachmentRecord): number {
-  return compareStrings(attachmentRecordSortKey(left), attachmentRecordSortKey(right));
-}
-
-/** Returns the deterministic sort key for an attachment record. */
-function attachmentRecordSortKey(record: AttachmentRecord): string {
-  if (record.owner instanceof NodeRecord) {
-    return `node:${record.owner.id.toString()}:${record.key.toString()}`;
-  }
-  return `edge:${record.owner.id.toString()}:${record.key.toString()}`;
-}
-
-/** Compares protocol strings without locale-sensitive collation. */
-function compareStrings(left: string, right: string): number {
-  if (left < right) {
-    return -1;
-  }
-  if (left > right) {
-    return 1;
-  }
-  return 0;
 }

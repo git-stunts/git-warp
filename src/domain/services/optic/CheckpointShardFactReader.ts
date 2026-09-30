@@ -5,6 +5,15 @@ import PersistenceError from '../../errors/PersistenceError.ts';
 import QueryError from '../../errors/QueryError.ts';
 import LogicalIndexReader from '../index/LogicalIndexReader.ts';
 import PropertyIndexReader from '../index/PropertyIndexReader.ts';
+import {
+  decodeNodeLifecycleReceipt,
+  decodeNodeLifecycleShard,
+  NODE_LIFECYCLE_RECEIPT_PATH,
+  nodeLifecycleShardPath,
+} from '../index/NodeLifecycleShardReader.ts';
+import type { NodeLifecycleReceipt } from '../../artifacts/NodeLifecycleReceipt.ts';
+import type { NodeLifecycleRecord } from '../../artifacts/NodeLifecycleRecord.ts';
+import type CodecValue from '../../types/codec/CodecValue.ts';
 import CheckpointNeighborhoodPageReader, {
   type CheckpointShardNeighborhoodPage,
   type CheckpointShardNeighborhoodReadOptions,
@@ -22,6 +31,16 @@ export type {
   CheckpointShardNeighborhoodPage,
   CheckpointShardNeighborhoodReadOptions,
 } from './CheckpointNeighborhoodPageReader.ts';
+
+/**
+ * A node's lifecycle record at the checkpoint, with the root's floating node
+ * tombstones, or `unwitnessed` when the basis does not carry records.
+ */
+export type CheckpointNodeLifecycleRecord =
+  | Readonly<{ kind: 'witnessed'; record: NodeLifecycleRecord | null; floatingTombstones: ReadonlySet<string> }>
+  | Readonly<{ kind: 'unwitnessed' }>;
+
+const UNWITNESSED_NODE_LIFECYCLE: CheckpointNodeLifecycleRecord = Object.freeze({ kind: 'unwitnessed' });
 
 const INDEX_SHARD_MISSING_CODE = 'E_INDEX_SHARD_MISSING';
 const INDEX_SHARD_MALFORMED_CODE = 'E_INDEX_SHARD_MALFORMED';
@@ -130,6 +149,43 @@ export default class CheckpointShardFactReader {
     }
   }
 
+  /**
+   * The checkpoint's lifecycle record for one node. An index root without
+   * the node lifecycle receipt was written without the records, so the read
+   * is unwitnessed. With the receipt, which must match the root's record
+   * shards, a missing shard or entry means the node had no lifecycle record
+   * and no register that was not stale.
+   */
+  async readNodeLifecycle(
+    basis: CheckpointTailIndexBasis,
+    nodeId: string,
+  ): Promise<CheckpointNodeLifecycleRecord> {
+    const receiptToken = basis.manifest.livenessRoots.get(NODE_LIFECYCLE_RECEIPT_PATH);
+    if (receiptToken === undefined) {
+      return UNWITNESSED_NODE_LIFECYCLE;
+    }
+    const receipt = await this._requireNodeLifecycleReceipt(basis, receiptToken);
+    const floatingTombstones: ReadonlySet<string> = new Set(receipt.floatingTombstones);
+    const path = nodeLifecycleShardPath(nodeId);
+    const token = basis.manifest.livenessRoots.get(path);
+    if (token === undefined) {
+      return Object.freeze({ kind: 'witnessed', record: null, floatingTombstones });
+    }
+    const records = await this._readNodeLifecycleShard(basis, path, token);
+    return Object.freeze({ kind: 'witnessed', record: records.get(nodeId) ?? null, floatingTombstones });
+  }
+
+  nodeLifecycleShardIdentities(
+    basis: CheckpointTailIndexBasis,
+    nodeId: string,
+  ): readonly ReadIdentityIndexShard[] {
+    const path = nodeLifecycleShardPath(nodeId);
+    return shardIdentities([
+      { path: NODE_LIFECYCLE_RECEIPT_PATH, oid: basis.manifest.livenessRoots.get(NODE_LIFECYCLE_RECEIPT_PATH) },
+      { path, oid: basis.manifest.livenessRoots.get(path) },
+    ]);
+  }
+
   nodeLivenessShardIdentities(
     basis: CheckpointTailIndexBasis,
     nodeId: string,
@@ -144,6 +200,47 @@ export default class CheckpointShardFactReader {
   ): readonly ReadIdentityIndexShard[] {
     const path = this._propertyPath(basis, nodeId);
     return shardIdentities([{ path, oid: basis.manifest.propertyRoots.get(path) }]);
+  }
+
+  private async _readNodeLifecycleShard(
+    basis: CheckpointTailIndexBasis,
+    path: string,
+    token: string,
+  ): Promise<ReadonlyMap<string, NodeLifecycleRecord>> {
+    return await this._decodeLivenessMember(basis, { path, token }, (decoded) => decodeNodeLifecycleShard(decoded, path));
+  }
+
+  private async _requireNodeLifecycleReceipt(
+    basis: CheckpointTailIndexBasis,
+    token: string,
+  ): Promise<NodeLifecycleReceipt> {
+    const memberPaths = basis.manifest.livenessRoots.paths();
+    return await this._decodeLivenessMember(
+      basis,
+      { path: NODE_LIFECYCLE_RECEIPT_PATH, token },
+      (decoded) => decodeNodeLifecycleReceipt(decoded, memberPaths),
+    );
+  }
+
+  private async _decodeLivenessMember<T>(
+    basis: CheckpointTailIndexBasis,
+    { path, token }: Readonly<{ path: string; token: string }>,
+    decode: (decoded: CodecValue) => T,
+  ): Promise<T> {
+    const bytes = await readBoundShard({
+      graphName: this._source.graphName,
+      indexStore: this._source._indexStore,
+      path,
+      shard: requireBoundShard(basis, path, token),
+    });
+    try {
+      return decode(this._source._codec.decode<CodecValue>(bytes));
+    } catch (error) {
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+      return rethrowLogicalShardReadFailure(error, { graphName: this._source.graphName, path, oid: token });
+    }
   }
 
   private _metaPath(nodeId: string): string {

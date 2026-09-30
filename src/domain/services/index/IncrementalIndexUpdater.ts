@@ -10,7 +10,8 @@
 
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type ORSet from '../../crdt/ORSet.ts';
-import type { PatchDiff, PropDiffEntry, EdgeDiffEntry } from '../../types/PatchDiff.ts';
+import type { PatchDiff, EdgeDiffEntry } from '../../types/PatchDiff.ts';
+import type WarpState from '../state/WarpState.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
@@ -18,6 +19,7 @@ import { decodeEdgeKey } from '../KeyCodec.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
 import IndexNodeUpdater from './IndexNodeUpdater.ts';
 import IndexEdgeUpdater, { type EdgeUpdateContext } from './IndexEdgeUpdater.ts';
+import IndexPropertyUpdater from './IndexPropertyUpdater.ts';
 import type { WorkingMetaShard, EdgeShardData } from './types.ts';
 
 /**
@@ -27,25 +29,12 @@ function createNullProto<T>(): Record<string, T> {
   return Object.create(null) as Record<string, T>;
 }
 
-/**
- * Creates a null-prototype record pre-populated with props from source.
- */
-function mergeIntoNullProto(source: Record<string, unknown>): Record<string, unknown> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  const base: Record<string, unknown> = createNullProto(); // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  return Object.assign(base, source);
-}
-
-/** Shape of the WarpState fields consumed by the updater. */
-type WarpStateLike = { // nosemgrep: ts-no-like-types -- 0025C
-  nodeAlive: { contains(key: string): boolean };
-  edgeAlive: ORSet;
-};
-
 export default class IncrementalIndexUpdater {
   private readonly _codec: CodecPort;
   private readonly _edgeAdjacencyCache: WeakMap<ORSet, Map<string, Set<string>>>;
   private readonly _nodeUpdater: IndexNodeUpdater;
   private readonly _edgeUpdater: IndexEdgeUpdater;
+  private readonly _propertyUpdater: IndexPropertyUpdater;
 
   /**
    * Cached next label ID — avoids O(L) max-scan per new label.
@@ -60,6 +49,7 @@ export default class IncrementalIndexUpdater {
     this._nextLabelId = null;
     this._nodeUpdater = new IndexNodeUpdater();
     this._edgeUpdater = new IndexEdgeUpdater();
+    this._propertyUpdater = new IndexPropertyUpdater(this._codec);
   }
 
   /**
@@ -69,7 +59,7 @@ export default class IncrementalIndexUpdater {
    */
   computeDirtyShards({ diff, state, loadShard }: {
     diff: PatchDiff;
-    state: WarpStateLike; // nosemgrep: ts-no-like-types -- 0025C
+    state: WarpState;
     loadShard: (path: string) => Uint8Array | undefined;
   }): Record<string, Uint8Array> {
     const dirtyKeys = this._collectDirtyShardKeys(diff);
@@ -174,7 +164,11 @@ export default class IncrementalIndexUpdater {
       out['labels.cbor'] = this._saveLabels(labels);
     }
 
-    this._handleProps(diff.propsChanged, loadShard, out);
+    Object.assign(out, this._propertyUpdater.computeDirtyPropertyShards({
+      propsChanged: diff.propsChanged,
+      nodesCleared: diff.nodesCleared,
+      state,
+    }, loadShard));
 
     return out;
   }
@@ -198,6 +192,9 @@ export default class IncrementalIndexUpdater {
     for (const p of diff.propsChanged) {
       keys.add(computeShardKey(p.nodeId));
     }
+    for (const nodeId of diff.nodesCleared) {
+      keys.add(computeShardKey(nodeId));
+    }
     return keys;
   }
 
@@ -220,37 +217,6 @@ export default class IncrementalIndexUpdater {
     labels[label] = this._nextLabelId;
     this._nextLabelId++;
     return true;
-  }
-
-  private _handleProps(
-    propsChanged: readonly PropDiffEntry[],
-    loadShard: (path: string) => Uint8Array | undefined,
-    out: Record<string, Uint8Array>,
-  ): void {
-    if (propsChanged.length === 0) {
-      return;
-    }
-
-    const shardMap = new Map<string, Map<string, Record<string, unknown>>>(); // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-
-    for (const prop of propsChanged) {
-      const shardKey = computeShardKey(prop.nodeId);
-      if (!shardMap.has(shardKey)) {
-        shardMap.set(shardKey, this._loadProps(shardKey, loadShard));
-      }
-      const shard = shardMap.get(shardKey)!;
-      let nodeProps = shard.get(prop.nodeId);
-      if (!nodeProps) {
-        const fresh: Record<string, unknown> = createNullProto(); // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-        nodeProps = fresh;
-        shard.set(prop.nodeId, fresh);
-      }
-      nodeProps[prop.key] = prop.value;
-    }
-
-    for (const [shardKey, shard] of shardMap) {
-      out[`props_${shardKey}.cbor`] = this._saveProps(shard);
-    }
   }
 
   private _getOrLoadMeta(
@@ -382,31 +348,6 @@ export default class IncrementalIndexUpdater {
     return this._codec.encode(entries).slice();
   }
 
-  private _loadProps(
-    shardKey: string,
-    loadShard: (path: string) => Uint8Array | undefined,
-  ): Map<string, Record<string, unknown>> { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-    const buf = loadShard(`props_${shardKey}.cbor`);
-    const map = new Map<string, Record<string, unknown>>(); // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-    if (!buf) {
-      return map;
-    }
-    const decoded = this._codec.decode<Array<[string, Record<string, unknown>]>>(buf); // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-    if (Array.isArray(decoded)) {
-      for (const [nodeId, props] of decoded) {
-        const source = (props !== null && props !== undefined && typeof props === 'object') ? props : {};
-        const safeProps = mergeIntoNullProto(source);
-        map.set(nodeId, safeProps);
-      }
-    }
-    return map;
-  }
-
-  private _saveProps(shard: Map<string, Record<string, unknown>>): Uint8Array { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-    const entries = [...shard.entries()];
-    return this._codec.encode(entries).slice();
-  }
-
   private _collectReaddedEdgeKeys(
     adjacency: Map<string, Set<string>>,
     readdedNodes: Set<string>,
@@ -425,7 +366,7 @@ export default class IncrementalIndexUpdater {
   }
 
   private _getOrBuildAliveEdgeAdjacency(
-    state: WarpStateLike, // nosemgrep: ts-no-like-types -- 0025C
+    state: WarpState,
     diff: PatchDiff,
   ): Map<string, Set<string>> {
     const { edgeAlive } = state;

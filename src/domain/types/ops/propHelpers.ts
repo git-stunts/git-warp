@@ -27,6 +27,17 @@ export function snapshotProp(state: WarpState, propKey: string): SnapshotBeforeO
   return { prevPropValue: reg !== undefined ? reg.value : undefined, propKey };
 }
 
+/**
+ * Pre-op snapshot for a node property register. A register the node
+ * lifecycle rule hides has no visible value, so a later write of the same
+ * value still shows up as a change.
+ */
+export function snapshotNodeProp(state: WarpState, nodeId: string, propKey: string): SnapshotBeforeOp {
+  const reg = state.getEncodedProp(propKey);
+  const visible = reg !== undefined && !state.isStaleNodeRegister(nodeId, reg);
+  return { prevPropValue: visible ? reg.value : undefined, propKey };
+}
+
 /** Post-op diff accumulation for a property register. */
 export function accumulatePropDiff(
   diff: MutablePatchDiff,

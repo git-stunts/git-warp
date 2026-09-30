@@ -1,3 +1,4 @@
+import { NODE_PROPERTY_CLEAR_SEMANTICS } from '../services/state/NodeLifecycle.ts';
 import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import type Evidence from './Evidence.ts';
@@ -32,6 +33,8 @@ type ReadingOptions<TValue extends ReadingValue> = {
 
 /** One bounded semantic value emitted by an Observation. */
 export default class Reading<TValue extends ReadingValue = ReadingValue> {
+  /** Immutable reducer interpretation, independent of the history coordinate. */
+  readonly reducerVersion = NODE_PROPERTY_CLEAR_SEMANTICS;
   readonly coordinate: ReadingCoordinate;
   readonly support: SupportReport;
   readonly value: TValue;

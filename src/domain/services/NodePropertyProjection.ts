@@ -59,7 +59,7 @@ export default class NodePropertyProjection {
       if (!encodedKey.startsWith(ownerKeyPrefix)) {
         continue;
       }
-      const record = nodePropertyRecordForOwnerRegister(checkedOwner, encodedKey, register);
+      const record = nodePropertyRecordForOwnerRegister(checkedState, checkedOwner, { encodedKey, register });
       if (record !== null) {
         records.push(record);
       }
@@ -103,7 +103,7 @@ function nodePropertyRecordForRegister(
   register: LWWRegister<PropValue>,
 ): VisibleNodePropertyRecord | null {
   const keyParts = decodeVisibleNodePropertyKey(encodedKey);
-  if (keyParts === null) {
+  if (keyParts === null || state.isStaleNodeRegister(keyParts.nodeId, register)) {
     return null;
   }
   const owner = state.getNodeRecord(keyParts.nodeId);
@@ -119,12 +119,16 @@ function nodePropertyRecordForRegister(
 
 /** Builds a node property record when it belongs to the requested owner. */
 function nodePropertyRecordForOwnerRegister(
+  state: WarpState,
   owner: NodeRecord,
-  encodedKey: string,
-  register: LWWRegister<PropValue>,
+  entry: { readonly encodedKey: string; readonly register: LWWRegister<PropValue> },
 ): VisibleNodePropertyRecord | null {
+  const { encodedKey, register } = entry;
   const keyParts = decodeVisibleNodePropertyKey(encodedKey);
   if (keyParts === null || keyParts.nodeId !== owner.id.toString()) {
+    return null;
+  }
+  if (state.isStaleNodeRegister(keyParts.nodeId, register)) {
     return null;
   }
   return new VisibleNodePropertyRecord({

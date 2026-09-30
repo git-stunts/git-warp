@@ -16,6 +16,7 @@ import {
   CURRENT_CHECKPOINT_SCHEMA,
   isCurrentCheckpointSchema,
 } from '../state/checkpointHelpers.ts';
+import { unlessStaleCheckpoint } from '../state/StaleCheckpointMaterialization.ts';
 import { loadCheckpoint, type LoadedCheckpoint } from '../state/checkpointLoad.ts';
 import { create as createCheckpointCommit } from '../state/checkpointCreate.ts';
 import executeGC from '../executeGC.ts';
@@ -315,12 +316,11 @@ export default class CheckpointController {
     }
 
     const checkpointSha = await h._checkpointStore.resolveHead(h._graphName);
-
     if (typeof checkpointSha !== 'string' || checkpointSha.length === 0) {
       return null;
     }
 
-    return await loadCheckpoint(h._checkpointStore, checkpointSha, h._graphName);
+    return await unlessStaleCheckpoint(loadCheckpoint(h._checkpointStore, checkpointSha, h._graphName));
   }
 
   async _loadPatchesSince(checkpoint: CheckpointFrontier): Promise<Array<{ patch: Patch; sha: string }>> {

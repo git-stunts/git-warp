@@ -7,7 +7,8 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
-import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import type WarpState from '../../../../src/domain/services/state/WarpState.ts';
+import { createPatchBuilderMockPersistence } from './PatchBuilderTestHarness.ts';
 import { createStateBuilder } from '../../../helpers/stateBuilder.ts';
 
 /**
@@ -15,13 +16,15 @@ import { createStateBuilder } from '../../../helpers/stateBuilder.ts';
  * @param {Function} getCurrentState
  * @returns {PatchBuilder}
  */
-function makeBuilder(getCurrentState) {
-  return new PatchBuilder((({
+function makeBuilder(getCurrentState: () => WarpState | null) {
+  return new PatchBuilder({
+    persistence: createPatchBuilderMockPersistence(),
+    graphName: 'events',
     writerId: 'w1',
     lamport: 1,
-    versionVector: VersionVector.empty(),
+    versionVector: createStateBuilder().build().observedFrontier,
     getCurrentState,
-  }) as any));
+  });
 }
 
 describe('PatchBuilder snapshot (C4)', () => {
@@ -64,7 +67,7 @@ describe('PatchBuilder snapshot (C4)', () => {
     const builder = makeBuilder(spy);
 
     // removeNode with null state must throw — can't observe dots without state
-    expect(() => builder.removeNode('nonexistent')).toThrow('must be materialized');
+    expect(() => builder.removeNode('nonexistent')).toThrow(expect.objectContaining({ code: 'E_PATCH_NO_STATE' }));
 
     // getCurrentState was called (snapshot attempted)
     expect(spy).toHaveBeenCalledTimes(1);

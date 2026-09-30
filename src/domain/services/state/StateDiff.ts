@@ -13,6 +13,7 @@ import { decodeEdgeKey, decodePropKey, isEdgePropKey } from '../KeyCodec.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import WarpStateClass from './WarpState.ts';
+import { isStaleNodeRegisterIn } from './NodeLifecycle.ts';
 import { compareEdgeChanges, comparePropChanges } from './StateDiffOrdering.ts';
 import { stateDiffValuesEqual } from './StateDiffValueEquality.ts';
 
@@ -119,17 +120,31 @@ function diffProps(
   const propsSet: PropSet[] = [];
   const propsRemoved: PropRemoved[] = [];
   const beforeProps = before
-    ? new Map<string, LWWRegister<PropValue>>(WarpStateClass.allPropEntriesFromState(before))
+    ? unhiddenNodePropEntries(before)
     : new Map<string, LWWRegister<PropValue>>();
-  const afterProps = new Map<string, LWWRegister<PropValue>>(WarpStateClass.allPropEntriesFromState(after));
+  const afterProps = unhiddenNodePropEntries(after);
   const allPropKeys = new Set([...beforeProps.keys(), ...afterProps.keys()]);
 
   for (const key of allPropKeys) {
-    if (isEdgePropKey(key)) { continue; }
     accumulatePropChange(key, { beforeProps, afterProps, propsSet, propsRemoved });
   }
 
   return { propsSet, propsRemoved };
+}
+
+/**
+ * Node property registers that the node lifecycle rule does not hide. A
+ * register a remove and re-add made stale is absent here, so the diff
+ * reports it as removed, as every read path sees it.
+ */
+function unhiddenNodePropEntries(state: WarpState): Map<string, LWWRegister<PropValue>> {
+  const entries = new Map<string, LWWRegister<PropValue>>();
+  for (const [key, register] of WarpStateClass.allPropEntriesFromState(state)) {
+    if (!isEdgePropKey(key) && !isStaleNodeRegisterIn(state, decodePropKey(key).nodeId, register.eventId)) {
+      entries.set(key, register);
+    }
+  }
+  return entries;
 }
 
 interface PropAccumCtx {

@@ -138,6 +138,15 @@ export default class ORSet {
   }
 
   /**
+   * Returns true while the set still holds any dot for the element,
+   * tombstoned or live. After `compact`, an element whose every dot was
+   * compacted away is no longer held at all.
+   */
+  hasEntries(element: string): boolean {
+    return this.entries.has(element);
+  }
+
+  /**
    * Returns all present elements.
    * Only returns elements that have at least one non-tombstoned dot.
    */

@@ -15,6 +15,7 @@
   },
   "include": [
     "plumbing-declarations.d.ts",
+    "checkpoint-gc-result.ts",
     "../fixtures/generated-sdk/users.generated.ts",
     "../fixtures/generated-sdk/users.wesley.generated.ts",
     "v19-consumer.ts",

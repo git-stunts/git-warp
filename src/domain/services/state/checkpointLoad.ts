@@ -8,6 +8,7 @@
  * @see WARP Spec Section 10
  */
 
+import NodeId from '../../graph/NodeId.ts';
 import ORSet from '../../crdt/ORSet.ts';
 import { Dot } from '../../crdt/Dot.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
@@ -15,8 +16,11 @@ import { LWWRegister } from '../../crdt/LWW.ts';
 import { EventId } from '../../utils/EventId.ts';
 import { reducePatches } from '../JoinReducer.ts';
 import WarpState from './WarpState.ts';
+import { unlessStaleCheckpoint } from './StaleCheckpointMaterialization.ts';
 import { encodeEdgeKey, encodePropKey } from '../KeyCodec.ts';
-import type { PropValue } from '../../types/PropValue.ts';
+import WarpError from '../../errors/WarpError.ts';
+import { isPropValue, type PropValue } from '../../types/PropValue.ts';
+import type CodecValue from '../../types/codec/CodecValue.ts';
 import type CheckpointStorePort from '../../../ports/CheckpointStorePort.ts';
 import type AssetHandle from '../../storage/AssetHandle.ts';
 import type BundleHandle from '../../storage/BundleHandle.ts';
@@ -24,7 +28,7 @@ import type Patch from '../../types/Patch.ts';
 import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 
 /** The result of loading a checkpoint. */
-export interface LoadedCheckpoint {
+export type LoadedCheckpoint = {
   state: WarpState;
   frontier: Map<string, string>;
   stateHash: string;
@@ -34,7 +38,7 @@ export interface LoadedCheckpoint {
   indexShardHandles: Readonly<Record<string, AssetHandle>> | null;
   indexRoot: BundleHandle | null;
   propertyRoot: BundleHandle | null;
-}
+};
 
 /**
  * Loads a current checkpoint from a commit SHA.
@@ -55,7 +59,7 @@ export async function loadCheckpoint(
   expectedGraphName?: string,
 ): Promise<LoadedCheckpoint> {
   const checkpoint = await checkpointStore.loadCheckpoint(checkpointSha, expectedGraphName);
-  const result: LoadedCheckpoint = {
+  return {
     state: checkpoint.state,
     frontier: checkpoint.frontier,
     stateHash: checkpoint.stateHash,
@@ -64,15 +68,13 @@ export async function loadCheckpoint(
     indexShardHandles: checkpoint.indexShardHandles,
     indexRoot: checkpoint.indexRoot,
     propertyRoot: checkpoint.propertyRoot,
+    ...(checkpoint.provenanceIndex === null || checkpoint.provenanceIndex === undefined
+      ? {} : { provenanceIndex: checkpoint.provenanceIndex }),
   };
-  if (checkpoint.provenanceIndex !== null && checkpoint.provenanceIndex !== undefined) {
-    result.provenanceIndex = checkpoint.provenanceIndex;
-  }
-  return result;
 }
 
 /** Options for materializeIncremental. */
-export interface MaterializeIncrementalOptions {
+export type MaterializeIncrementalOptions = {
   checkpointStore: CheckpointStorePort;
   graphName: string;
   checkpointSha: string;
@@ -82,7 +84,7 @@ export interface MaterializeIncrementalOptions {
     fromSha: string | null,
     toSha: string,
   ) => Promise<Array<{ patch: Patch; sha: string }>>;
-}
+};
 
 /**
  * Materializes state incrementally from a current checkpoint.
@@ -91,7 +93,10 @@ export interface MaterializeIncrementalOptions {
  * since the checkpoint frontier to reach the target frontier.
  *
  * Only supports the current checkpoint schema. Retired schemas will cause
- * loadCheckpoint to throw an explicit upgrade error.
+ * loadCheckpoint to throw an explicit upgrade error. A checkpoint whose
+ * materialization predates the current descriptor schema is not resumed
+ * from: its state predates the current visibility rules, so every writer's
+ * patches are replayed from the start, as materialize() does.
  *
  * @throws {PersistenceError} If checkpoint is a retired schema (upgrade required)
  * @throws {PersistenceError} If checkpoint is missing required envelope blobs
@@ -103,11 +108,11 @@ export async function materializeIncremental({
   targetFrontier,
   patchLoader,
 }: MaterializeIncrementalOptions): Promise<WarpState> {
-  const checkpoint = await loadCheckpoint(checkpointStore, checkpointSha, graphName);
-  const checkpointFrontier = checkpoint.frontier;
+  const checkpoint = await unlessStaleCheckpoint(loadCheckpoint(checkpointStore, checkpointSha, graphName));
+  const checkpointFrontier = checkpoint?.frontier ?? new Map<string, string>();
 
-  // 2. Use checkpoint state directly.
-  const initialState = checkpoint.state;
+  // 2. Use checkpoint state directly, or start empty for a stale checkpoint.
+  const initialState = checkpoint?.state ?? WarpState.empty();
 
   // 3. Collect patches since checkpoint frontier for each writer
   const allPatches: Array<{ patch: Patch; sha: string }> = [];
@@ -133,11 +138,11 @@ export async function materializeIncremental({
 }
 
 /** Visible projection used for reconstructStateFromCheckpoint. */
-export interface VisibleProjection {
+export type VisibleProjection = {
   nodes: string[];
   edges: Array<{ from: string; to: string; label: string }>;
-  props: Array<{ node: string; key: string; value: unknown }>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-}
+  props: Array<{ node: string; key: string; value: CodecValue }>;
+};
 
 /**
  * Reconstructs WarpState (ORSet-based) from a checkpoint's visible projection.
@@ -159,21 +164,12 @@ export function reconstructStateFromCheckpoint(
   // lamport=1 is the minimum valid value. Using a deterministic checkpoint
   // EventId means any subsequent real write (lamport >= 1 with a later total
   // order) will supersede checkpoint-loaded props correctly.
-  // NOTE: lamport=1 is used here because EventId validates lamport>0. The
-  // edgeBirthEvent sentinel below uses lamport=0 (via a structural bypass)
-  // which is below all real event lamports, making all props visible.
   const syntheticEventId = new EventId(
     1,
     '__checkpoint__',
     '0000000000000000000000000000000000000000',
     0,
   );
-
-  // Sentinel birthEvent for checkpoint-loaded edges.
-  // lamport=0 is below all real EventId lamports (>= 1), so all checkpoint-loaded
-  // props pass the visibility filter. EventId constructor disallows lamport=0,
-  // so we use a structural bypass here — this is intentional, not a type error.
-  const sentinelBirthEvent = { lamport: 0, writerId: '', patchSha: '0000', opIndex: 0 } as unknown as EventId; // nosemgrep: ts-no-double-cast -- 0025A; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
 
   const nodeAlive = ORSet.empty();
   const edgeAlive = ORSet.empty();
@@ -193,18 +189,47 @@ export function reconstructStateFromCheckpoint(
 
   // Reconstruct props with LWW registers matching the legacy checkpoint shape.
   for (const p of props) {
-    const propKey = encodePropKey(p.node, p.key);
-    prop.set(propKey, LWWRegister.set(syntheticEventId, p.value as PropValue));
+    const owner = requireNodeOwnedProperty(p.node, p.key);
+    const propKey = encodePropKey(owner.toString(), p.key);
+    prop.set(propKey, LWWRegister.set(syntheticEventId, requireCheckpointPropertyValue(p.value)));
   }
 
-  // Reconstruct edgeBirthEvent with the lamport=0 sentinel so all
-  // checkpoint-loaded props (and any real event with lamport>=1) pass
-  // the visibility filter.
-  const edgeBirthEvent = new Map<string, EventId>();
-  for (const edge of edges) {
-    const edgeKey = encodeEdgeKey(edge.from, edge.to, edge.label);
-    edgeBirthEvent.set(edgeKey, sentinelBirthEvent);
-  }
+  // Visible projections carry no lifecycle witnesses; leave birth maps empty.
+  return new WarpState({ nodeAlive, edgeAlive, prop, observedFrontier });
+}
 
-  return new WarpState({ nodeAlive, edgeAlive, prop, observedFrontier, edgeBirthEvent });
+/**
+ * Refuses a checkpoint property whose owner is not a node id.
+ *
+ * The visible projection carries node properties only — `projectState` fills
+ * `props[].node` from node property entries, skipping every edge-owned key —
+ * so an empty owner, an owner containing NUL, or one bearing the reserved
+ * edge-property prefix is not a valid NodeId. Encoding it anyway would produce a key that later reads classify as
+ * edge-owned but that carries the wrong field count, turning one bad row into
+ * an unreadable property.
+ *
+ * Rejecting here is safe precisely because the shape is unwritable: it can
+ * only appear through corruption, truncation, or a foreign writer, never
+ * through a checkpoint this library produced.
+ */
+function requireNodeOwnedProperty(node: string, key: string): NodeId {
+  try {
+    return new NodeId(node);
+  } catch (error) {
+    if (!(error instanceof WarpError) || error.code !== 'E_VALIDATION') {
+      throw error;
+    }
+    throw new WarpError(
+      'Checkpoint property owner is not a valid node id',
+      'E_CHECKPOINT_INVALID_PROP_OWNER',
+      { context: { key } },
+    );
+  }
+}
+
+function requireCheckpointPropertyValue(value: CodecValue): PropValue {
+  if (!isPropValue(value)) {
+    throw new WarpError('Checkpoint property value is invalid', 'E_CHECKPOINT_INVALID_PROP_VALUE');
+  }
+  return value;
 }

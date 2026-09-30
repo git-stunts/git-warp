@@ -50,10 +50,107 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Empty Lanes certify zero; cancellation, unavailable support, and Strand
   overlays fail closed without a completeness certificate.
 
+### Changed
+
+- Reopened public writers prepare bounded node-removal observations through the
+  journal, bind the captured frontier/context to admission, and publish real
+  observed-dot removals (#912). Oversized or unsupported observations refuse
+  without a whole-graph materialization fallback. Writer-parent context is
+  restored before allocating additions so reopen cannot reuse removed dots.
+
+- GC and checkpoint collection retain all node/edge membership evidence until
+  a sufficient retirement contract exists (#911). Applied vectors alone no
+  longer authorize dropping tombstones. Dominated property payloads are still
+  reclaimed using retained lifecycle boundaries; session-only GC reclaims zero.
+
+- **BREAKING:** Every qualifying node removal immediately clears property
+  registers ordered before it, even while concurrent membership keeps the node
+  alive. Adds assert membership only. Later-ordered property writes remain
+  eligible, and empty observed-dot removals do not clear anything.
+- **BREAKING:** Edges now also record their latest remove. An edge property
+  written before that remove stays hidden even when a concurrent add, whose
+  event id sorts below the remove, keeps the edge alive.
+- **BREAKING:** `computeStateHash` changes for graphs where the node rule
+  hides a node property that was visible before. The edge rule never changes
+  it, because edge properties are not part of the hash. Other graphs hash as
+  before.
+- `subscribe()` and `watch()` diffs report a node property that the node rule
+  hides as removed, and never report a hidden property as set.
+- A checkpoint's index root now carries node lifecycle records: per node, its
+  latest add, the monotone removal clear, and the event id of every property register that is not hidden.
+  A checkpoint-tail node property read uses them, and the node's liveness, to
+  answer as `materialize()` does in every delivery order, including a tail
+  that removes and re-adds the node and a concurrent writer's tail events
+  that sort below the checkpoint's.
+- A checkpoint-tail node property read over an index root without those
+  records refuses with `E_OPTIC_NO_BOUNDED_BASIS` when the tail adds the node
+  (cause `tail-node-add-needs-checkpoint-lifecycle-witnesses`) or writes the
+  property or removes the node (new cause
+  `tail-property-needs-checkpoint-lifecycle-witnesses`), because such a tail
+  event may sort below a checkpoint event it cannot see. A tail that touches
+  neither still reads the checkpoint value. Creating a new indexed checkpoint
+  recovers the read.
+- With the records, a checkpoint-tail node property read still refuses when a
+  tail remove may have removed the node's last live add
+  (`tail-node-remove-needs-raw-liveness-witnesses`), or when a tail add makes
+  a register visible whose value the checkpoint did not store because the node
+  was not live there (`tail-node-add-needs-checkpoint-lifecycle-witnesses`).
+
 ### Fixed
+
+- Skip edge-property rows with invalid runtime identifier or slot fields, consistently across iterators and attachment projections, while retaining their stored registers.
+
+- Validate checkpoint projection property values and preserve absent lifecycle witnesses instead of fabricating invalid birth events.
+
+- Checkpoint property owners now pass runtime `NodeId` validation, including
+  rejection of empty and NUL-containing identifiers before key encoding.
+
+- Property keys that cannot be decoded now follow one policy across every
+  surface. `\x01` marks a key as edge-owned and `decodeEdgePropKey` then
+  demands exactly four `\0`-separated fields, but nothing validated that
+  shape on the way in and the read paths disagreed on what to do about it:
+  the node branch resolved an unreadable key to no owner and hid the row,
+  while `attachmentRecords()`, `edgeProperties()`, `edgePropertiesFromMap()`
+  and `edgePropertiesFromState()` threw and took the whole read with them.
+  Readers now skip such a key, matching what the node branch already did, via
+  the new `tryDecodeEdgePropKey`; the throwing `decodeEdgePropKey` remains for
+  boundaries that can still refuse bad input. Skipping is a read decision and
+  never deletes the register — only GC removes one.
+  Checkpoint loading refuses a `props[].node` bearing the edge-property
+  prefix with `E_CHECKPOINT_INVALID_PROP_OWNER`. The visible projection
+  carries node properties only, so that shape is one this library never
+  writes and can arrive only through corruption or a foreign writer.
+- Keep validated checkpoint lifecycle register evidence private; mutating an
+  exposed enumeration snapshot cannot alter subsequent reads or serialization.
 
 - Update the locked development-tool `brace-expansion` resolutions to patched
   versions 1.1.21, 2.1.7, and 5.0.12; retain the full dependency audit gate.
+
+- Garbage collection reclaims node property registers dominated by a retained
+  removal clear, including live owners and stale values reintroduced after
+  membership compaction. Clear evidence remains retained. Later-ordered writes,
+  ambiguous keys, and registers without removal evidence remain intact. Edge registers use retained monotone birth/removal boundaries;
+  membership evidence is retained for both nodes and edges. `propertiesPruned` reports the
+  reclaimed count. The 25-generation, seven-property churn regression retains
+  seven registers and reclaims 168 (#885).
+
+- Validate full-state envelopes and entry keys at the CBOR adapter boundary; preserve supported legacy event defaults.
+
+- Reject full-state property registers with missing or invalid values before hydration.
+
+- Reject malformed persisted property shards during incremental lifecycle updates instead of silently replacing invalid bags.
+
+- Both full-state readers validate every full-v7 lifecycle entry through the
+  shared lifecycle decoder before hydration. Invalid event tuples fail with
+  structured decode errors instead of default events or raw TypeErrors.
+
+- Lifecycle index builders capture immutable records and floating tombstones
+  at construction, so deferred shard emission cannot mix later state mutations
+  with earlier property-register witnesses.
+
+- Session reducer diffs no longer expose a lifecycle-hidden node register when
+  an older property write loses to it. Before and after values use the same
+  lifecycle visibility rule.
 
 - Release promotion probes `@git-stunts/git-warp@latest` explicitly so npm
   default-tag configuration cannot substitute another publication channel.
@@ -87,6 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `markdown-it` to 14.3.2 and overriding only `markdownlint-cli`'s `js-yaml`
   dependency to 5.4.2. The scoped override bridges the CLI's vulnerable
   `~5.2.1` range; audit thresholds and production dependencies are unchanged.
+
 
 - Idle Git reader retirement now completes when the child process closes
   before stdin reports its final flush. Storage shutdown no longer waits
@@ -148,6 +246,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Compatibility
 
+- **BREAKING:** Node membership remains observed-remove; every qualifying
+  removal also advances a node-wide LWW property clear immediately. Adds only
+  assert membership. A property ordered before the retained clear remains
+  hidden even if a concurrent add survives. This deliberately clears earlier-
+  ordered concurrent writes the remover did not observe. Later-ordered writes
+  remain eligible. See `docs/topics/property-reclamation.md` for migration and
+  the precise memory guarantee. Automatic GC remains disabled by default.
 - Singular `Lane.write(intent)` behavior and its admission-law/digest path are
   unchanged. Atomic arrays reuse the existing writer publication mechanism, so
   existing v19 repositories require no retained-data migration. New patches
@@ -161,6 +266,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reopen cannot distinguish a canonical single-Intent patch created by
   `write(intent)` from one created by `write([intent])`; its graph
   transformation and one-patch boundary remain intact.
+- Materialized state now uses `full-v7`, descriptors use schema 7, and node
+  lifecycle shards/receipts use schema 2. Clears are independent of births;
+  the reserved pending-removal slot is empty in canonical current state.
+  Older descriptors miss or trigger checkpoint replay. Direct `full-v6`
+  decoding is refused; legacy `full-v5` decoding remains available without
+  invented removal evidence. Rebuild derived checkpoints from patches.
+- Public readings and observation/read receipts identify `observed-remove/node-lww-clear` through
+  `reducerVersion`; bounded read identities include the same interpretation.
+  Upgrade readers and writers together. Old clients replaying identical
+  patches can still produce old readings; schema bumps do not fence them.
+  Preserve historical hashes/receipts with their original interpreter identity
+  and recompute new evidence, rather than relabeling old evidence.
+- Lifecycle shards retain clear metadata, subject to existing 16 MiB and
+  2,000,000-item bounds. With two properties a live record costs 25 items;
+  a cleared record costs 15. Retiring property payloads does not establish
+  constant total metadata memory, and does not remove historical Git data.
+- Under `.github/RELEASE.md` the visibility, state hash and storage format
+  changes above are breaking, so the release that ships them must be a MAJOR
+  version.
 
 ### Packaging
 

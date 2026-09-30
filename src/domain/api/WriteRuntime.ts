@@ -83,7 +83,7 @@ type ObstructionReceiptFields = Omit<FailedWriteFields, 'attempt' | 'error'> & {
 const MATERIALIZE_HINT = Object.freeze([
   Object.freeze({
     code: 'materialize_write_basis',
-    message: 'Materialize the timeline before retrying this state-dependent intent.',
+    message: 'Retry with a supported bounded write basis; requests exceeding its profile are refused.',
   }),
 ]);
 export async function executeIntentWrite(
@@ -127,8 +127,13 @@ async function publishIntentWrite(
   attempt: WriteAttempt
 ): Promise<PatchCommitResult> {
   return await fields.commit(async (patch) => {
-    attempt.basis = readPatchBuilderCausalBasis(patch);
-    attempt.evaluation = await prepareWriteAdmission({ ...fields, basis: attempt.basis });
+    try {
+      await patch.prepareWriteBasis(fields.sequence.intents.flatMap((intent) =>
+        intent.descriptor.kind === 'node.remove' ? [intent.descriptor.subject] : []));
+    } finally {
+      attempt.basis = readPatchBuilderCausalBasis(patch);
+      attempt.evaluation = await prepareWriteAdmission({ ...fields, basis: attempt.basis });
+    }
     applyIntentSequenceToPatch(fields.sequence, patch);
     attempt.publishedEntities = inspectPublishedIntentSequence(fields.sequence, patch.build());
   });

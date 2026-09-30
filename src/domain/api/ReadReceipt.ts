@@ -1,3 +1,4 @@
+import { NODE_PROPERTY_CLEAR_SEMANTICS } from '../services/state/NodeLifecycle.ts';
 import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import type Evidence from './Evidence.ts';
@@ -35,6 +36,8 @@ export type ReadReceiptOptions = ReadReceiptFields &
 const READ_RECEIPT_OUTCOMES: ReadonlySet<ReadReceiptOutcome> = READ_JOIN_RECEIPT_OUTCOMES;
 
 export default class ReadReceipt {
+  /** Interpretation used to produce this reading, independent of immutable history. */
+  readonly reducerVersion = NODE_PROPERTY_CLEAR_SEMANTICS;
   readonly evidence: Evidence | undefined;
   readonly operation: 'read' = 'read';
   readonly outcome: ReadReceiptOutcome;

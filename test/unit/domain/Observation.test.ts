@@ -38,6 +38,11 @@ function receipt(plan: Observer): ObservationReceipt {
 }
 
 describe('Observation', () => {
+  it('identifies the interpretation of both readings and terminal receipts', () => {
+    expect(reading('admin').reducerVersion).toBe('observed-remove/node-lww-clear');
+    expect(receipt(observer()).reducerVersion).toBe('observed-remove/node-lww-clear');
+  });
+
   it('validates its Observer and execution boundaries', async () => {
     const plan = observer();
     expect(() => new Observation({

@@ -62,6 +62,7 @@ describe('PatchDiff', () => {
           value: 'Ada',
           prevValue: undefined,
         })],
+        nodesCleared: [],
       });
 
       expect(Object.isFrozen(diff.nodesAdded)).toBe(true);
@@ -162,6 +163,7 @@ describe('PatchDiff', () => {
         edgesAdded: [{ from: 'n1', to: 'n2', label: 'x' }],
         edgesRemoved: [],
         propsChanged: [],
+        nodesCleared: [],
       };
       const b = {
         nodesAdded: ['n3'],
@@ -169,6 +171,7 @@ describe('PatchDiff', () => {
         edgesAdded: [],
         edgesRemoved: [{ from: 'n1', to: 'n2', label: 'x' }],
         propsChanged: [],
+        nodesCleared: [],
       };
       const merged = mergeDiffs(a, b);
 
@@ -185,6 +188,7 @@ describe('PatchDiff', () => {
         edgesAdded: [{ from: 'a', to: 'b', label: 'l' }],
         edgesRemoved: [{ from: 'c', to: 'd', label: 'm' }],
         propsChanged: [{ nodeId: 'n1', key: 'k', value: 'v', prevValue: undefined }],
+        nodesCleared: [],
       };
       const merged = mergeDiffs(a, createEmptyDiff());
       expect(merged.nodesAdded).toEqual(a.nodesAdded);

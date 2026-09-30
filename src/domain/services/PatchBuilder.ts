@@ -11,16 +11,18 @@ import nullLogger from '../utils/nullLogger.ts';
 import VersionVector from '../crdt/VersionVector.ts';
 import Patch from '../types/Patch.ts';
 import NodeAdd from '../types/ops/NodeAdd.ts';
+import PropSet from '../types/ops/PropSet.ts';
+import BoundedNodeRemovalBasis from './BoundedNodeRemovalBasis.ts';
+import NodeRemovalObservation from './NodeRemovalObservation.ts';
 import NodeRemove from '../types/ops/NodeRemove.ts';
 import EdgeAdd from '../types/ops/EdgeAdd.ts';
 import EdgeRemove from '../types/ops/EdgeRemove.ts';
-import type { PatchOp, CanonicalPatchOp } from '../types/ops/unions.ts';
+import type { PatchOp } from '../types/ops/unions.ts';
 import { encodeEdgeKey } from './KeyCodec.ts';
 import { lowerCanonicalOp } from './OpNormalizer.ts';
 import PatchError from '../errors/PatchError.ts';
 import { canonicalStringify } from '../utils/canonicalStringify.ts';
 import {
-  findAttachedData,
   assertNoReservedBytes,
   assertObservedDotsForRemove,
   resolveEffectId,
@@ -31,7 +33,7 @@ import PatchBuilderPropertyRuntime from './PatchBuilderPropertyRuntime.ts';
 import type { EntityCapturePayload } from '../types/EntityCapturePayload.ts';
 import EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
 import EntityAdmissionOrigin from '../types/EntityAdmissionOrigin.ts';
-import { capturePatchBuilderCausalBasis } from './admission/PatchBuilderCausalBasis.ts';
+import { capturePatchBuilderCausalBasis, readPatchBuilderCausalBasis } from './admission/PatchBuilderCausalBasis.ts';
 import { requireCommitMessageCodec } from './codec/CommitMessageCodecRequirement.ts';
 import { commitPatch } from './PatchCommitter.ts';
 import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
@@ -69,8 +71,9 @@ export class PatchBuilder {
   private readonly _graphName: string;
   private readonly _writerId: string;
   private readonly _targetRefPath: string | null;
-  private readonly _lamport: number;
-  private readonly _vv: VersionVector;
+  private _lamport: number;
+  private _removalBasis: BoundedNodeRemovalBasis | null = null;
+  private _vv: VersionVector;
   private readonly _getCurrentState: () => WarpState | null;
   private readonly _expectedParentSha: string | null;
   private readonly _onCommitSuccess: ((result: PatchCommitResult) => void | Promise<void>) | null;
@@ -207,67 +210,56 @@ export class PatchBuilder {
     }));
     return this;
   }
+  /** Captures one bounded membership observation before any operations are lowered. */
+  async prepareWriteBasis(nodeIds: readonly string[]): Promise<void> {
+    this._assertNotCommitted();
+    if (this._ops.length > 0) {throw new PatchError('Write callback supplied operations before intent lowering', { code: 'E_WRITE_INTENT_PUBLICATION' });}
+    await this._restoreWriterContext();
+    if (nodeIds.length === 0 || this._getSnapshotState() !== null) {return;}
+    if (this._ops.length > 0 || this._targetRefPath !== null || this._patchJournal === null) {
+      throw new PatchError('Bounded node removal requires a worldline journal before lowering', { code: 'E_PATCH_NO_STATE' });
+    }
+    nodeIds.forEach((nodeId) => assertNoReservedBytes(nodeId, 'nodeId'));
+    const basis = await BoundedNodeRemovalBasis.capture({
+      refs: this._persistence, journal: this._patchJournal, graphName: this._graphName,
+      writerId: this._writerId, expectedParentSha: this._expectedParentSha, targets: new Set(nodeIds),
+    });
+    this._assertNotCommitted();
+    if (this._ops.length > 0) {throw new PatchError('Write changed during basis capture', { code: 'E_PATCH_NO_STATE' });}
+    this._removalBasis = basis;
+    this._vv = this._vv.merge(basis.context());
+    this._lamport = Math.max(this._lamport, basis.lamport + 1);
+    capturePatchBuilderCausalBasis(this, {
+      ...readPatchBuilderCausalBasis(this), evaluationCoordinateRef: basis.coordinateRef,
+    });
+  }
+
+  private async _restoreWriterContext(): Promise<void> {
+    if (this._patchJournal === null || this._expectedParentSha === null) { return; }
+    const history = this._patchJournal.scanPatchHistory(this._writerId, this._expectedParentSha)[Symbol.asyncIterator]();
+    try {
+      const head = await history.next();
+      if (head.done === true) { throw new PatchError('Writer parent is unavailable', { code: 'E_PATCH_NO_STATE' }); }
+      this._assertNotCommitted();
+      this._vv = this._vv.merge(VersionVector.from(head.value.patch.context));
+    } finally {
+      await history.return?.();
+    }
+  }
+
   removeNode(nodeId: string): PatchBuilder {
     this._assertNotCommitted();
     const state = this._getSnapshotState();
-
-    if (this._onDeleteWithData === 'cascade' && state) {
-      const { edges } = findAttachedData(state, nodeId);
-      for (const edgeKey of edges) {
-        const parts = edgeKey.split('\0');
-        const edgeDots = [...state.edgeAlive.getDots(edgeKey)];
-        this._ops.push(
-          new EdgeRemove({
-            from: parts[0]!,
-            to: parts[1]!,
-            label: parts[2]!,
-            observedDots: edgeDots,
-          })
-        );
-        this._observedOperands.add(edgeKey);
-      }
+    const observation = this._removalBasis !== null
+      ? this._removalBasis.node(nodeId)
+      : state === null ? null : NodeRemovalObservation.fromState(state, nodeId);
+    if (observation === null) {
+      throw new PatchError(`Cannot remove node '${nodeId}': graph must be materialized or a bounded removal basis prepared`, { code: 'E_PATCH_NO_STATE' });
     }
-
-    if (state && this._onDeleteWithData !== 'cascade') {
-      const { edges, props, hasData } = findAttachedData(state, nodeId);
-      if (hasData) {
-        const details: string[] = [];
-        if (edges.length > 0) {
-          details.push(`${edges.length} edge(s)`);
-        }
-        if (props.length > 0) {
-          details.push(`${props.length} propert${props.length === 1 ? 'y' : 'ies'}`);
-        }
-        const summary = details.join(' and ');
-
-        if (this._onDeleteWithData === 'reject') {
-          throw new PatchError(
-            `Cannot delete node '${nodeId}': node has attached data (${summary}). ` +
-              `Remove edges and properties first, or set onDeleteWithData to 'cascade'.`,
-            {
-              code: 'E_PATCH_DELETE_WITH_DATA',
-              context: { nodeId, edges: edges.length, props: props.length },
-            }
-          );
-        }
-        if (this._onDeleteWithData === 'warn') {
-          this._logger.warn(
-            `[warp] Deleting node '${nodeId}' which has attached data (${summary}). Orphaned data will remain in state.`
-          );
-        }
-      }
+    for (const op of observation.operations(this._onDeleteWithData, this._logger)) {
+      this._ops.push(op);
+      this._observedOperands.add(op instanceof NodeRemove ? op.node : encodeEdgeKey(op.from, op.to, op.label));
     }
-
-    if (!state) {
-      throw new PatchError(
-        `Cannot remove node '${nodeId}': graph must be materialized before removing nodes`,
-        { code: 'E_PATCH_NO_STATE' }
-      );
-    }
-    const observedDots = [...state.nodeAlive.getDots(nodeId)];
-    assertObservedDotsForRemove(observedDots, 'node', { nodeId });
-    this._ops.push(new NodeRemove(nodeId, observedDots));
-    this._observedOperands.add(nodeId);
     return this;
   }
 
@@ -371,7 +363,7 @@ export class PatchBuilder {
 
   build(): Patch {
     const schema = this._properties.hasEdgeProperties ? 3 : 2;
-    const rawOps = this._ops.map((op) => lowerCanonicalOp(op as CanonicalPatchOp));
+    const rawOps = this._ops.map((op) => op instanceof PropSet ? op : lowerCanonicalOp(op));
     return new Patch({
       schema,
       writer: this._writerId,
