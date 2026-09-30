@@ -6,9 +6,9 @@ import FullStateLifecycleDecoderPort, {
 } from '../../ports/FullStateLifecycleDecoderPort.ts';
 
 /**
- * Decodes full-v6 node lifecycle records and edge removes from CBOR.
+ * Decodes full-v7 node lifecycle records and edge removes from CBOR.
  *
- * The full-v6 writer emits all four lists, empty or not, so every list is
+ * The full-v7 writer emits all four lists, empty or not, so every list is
  * required: a missing list, or one that is not a list, is refused rather
  * than read as empty, which would make a hidden property visible again.
  * full-v5 states carry no lifecycle records and never reach this decoder.

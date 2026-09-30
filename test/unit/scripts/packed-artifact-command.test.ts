@@ -108,7 +108,7 @@ it('rejects an exactly stamped hook without executable permissions', async () =>
 
 const VALID_RESULTS = Object.freeze({
   'write.json': '{"lane":"events","intent":{"kind":"property.set"}}',
-  'observe.json': '{"readings":[{"value":"admin"}]}',
+  'observe.json': '{"readings":[{"value":"admin","reducerVersion":"observed-remove/node-lww-clear"}],"receipt":{"reducerVersion":"observed-remove/node-lww-clear"}}',
   'doctor-before.json': '{"findings":[{"id":"hooks-installed","code":"HOOKS_MISSING","status":"warn"}]}',
   'doctor-after.json': '{"findings":[{"id":"hooks-installed","code":"HOOKS_OK","status":"ok"}]}',
   'upgrade.json': '{"dryRun":true,"graphs":[{"graphName":"events","checkpoint":{"status":"already-current"}}]}',
@@ -119,7 +119,7 @@ it('accepts complete CLI and migration smoke results', async () => {
 });
 
 it.each([
-  ['observe.json', '{"readings":[{"value":"guest"}]}', 'did not read the written value'],
+  ['observe.json', '{"readings":[{"value":"guest","reducerVersion":"observed-remove/node-lww-clear"}],"receipt":{"reducerVersion":"observed-remove/node-lww-clear"}}', 'did not read the written value'],
   ['doctor-before.json', '{"findings":[{"id":"other","code":"FAILED","status":"fail"}]}', 'failed checks'],
   ['doctor-before.json', '{"findings":[]}', 'is not HOOKS_MISSING'],
   ['doctor-after.json', '{"findings":[{"id":"hooks-installed","code":"HOOKS_MISSING","status":"warn"}]}', 'is not HOOKS_OK'],
@@ -128,5 +128,12 @@ it.each([
 ])('rejects incorrect smoke evidence in %s', async (path, content, message) => {
   const result = await check(['results', fixture({ ...VALID_RESULTS, [path]: content })]);
   expect(result.stderr).toContain(message);
+  expect(result.exitCode).toBe(1);
+});
+
+it('rejects readings that omit their reducer interpretation', async () => {
+  const result = await check(['results', fixture({
+    ...VALID_RESULTS, 'observe.json': '{"readings":[{"value":"admin"}]}',
+  })]);
   expect(result.exitCode).toBe(1);
 });

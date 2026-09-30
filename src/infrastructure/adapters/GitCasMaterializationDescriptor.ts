@@ -14,7 +14,7 @@ import WarpError from '../../domain/errors/WarpError.ts';
  * lifecycle visibility rule. Entries an older runtime wrote under schema 5
  * miss and are rebuilt, once per graph.
  */
-export const MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 6;
+export const MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 7;
 export const MATERIALIZATION_DESCRIPTOR_MAX_BYTES = 1024 * 1024;
 
 export type DecodedMaterializationDescriptor = Readonly<{

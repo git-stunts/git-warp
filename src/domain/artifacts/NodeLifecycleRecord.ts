@@ -1,16 +1,16 @@
 import WarpError from '../errors/WarpError.ts';
-import { compareEventIds, EventId } from '../utils/EventId.ts';
+import { EventId } from '../utils/EventId.ts';
 
 /**
  * One node's lifecycle records at a checkpoint, with the EventId of every
  * property register of the node that is not stale there.
  *
  * `birth`, `clear` and `pendingRemoves` are the node's entries in
- * `nodeBirthEvent`, `nodeClearEvent` and `nodePendingRemoveEvents`. A stale
+ * `nodeBirthEvent`, `nodeClearEvent` and the reserved empty removal slot. A stale
  * register is left out: a later write that beats it is compared on its own,
  * and a later write it beats is stale too, so it never decides a read.
  * Registers are kept whether or not the node is live, because a later add
- * can make a live node's register visible again.
+ * can make a later-ordered register visible again.
  */
 export class NodeLifecycleRecord {
   readonly nodeId: string;
@@ -31,8 +31,7 @@ export class NodeLifecycleRecord {
     this.nodeId = fields.nodeId;
     this.birth = requireOptionalEvent(fields.birth, 'birth');
     this.clear = requireOptionalEvent(fields.clear, 'clear');
-    requireClearBelowBirth(this.birth, this.clear);
-    this.pendingRemoves = requirePendingRemoves(fields.pendingRemoves, this.birth);
+    this.pendingRemoves = requirePendingRemoves(fields.pendingRemoves);
     this.registers = requireRegisters(fields.registers);
     Object.freeze(this);
   }
@@ -56,24 +55,12 @@ function requireOptionalEvent(event: EventId | null, field: string): EventId | n
   return event;
 }
 
-function requireClearBelowBirth(birth: EventId | null, clear: EventId | null): void {
-  if (clear !== null && (birth === null || compareEventIds(clear, birth) >= 0)) {
-    throw recordError('clear must sort below birth');
+/** Reserved transport slot: every qualifying removal now clears immediately. */
+function requirePendingRemoves(removes: readonly EventId[]): readonly EventId[] {
+  if (removes.length !== 0) {
+    throw recordError('pendingRemoves must be empty under node-wide LWW clear semantics');
   }
-}
-
-function requirePendingRemoves(removes: readonly EventId[], birth: EventId | null): readonly EventId[] {
-  let previous = birth;
-  for (const removal of removes) {
-    if (!(removal instanceof EventId)) {
-      throw recordError('pendingRemoves must hold EventIds');
-    }
-    if (previous !== null && compareEventIds(previous, removal) >= 0) {
-      throw recordError('pendingRemoves must sort above birth in strictly ascending order');
-    }
-    previous = removal;
-  }
-  return Object.freeze([...removes]);
+  return Object.freeze([]);
 }
 
 function requireRegisters(

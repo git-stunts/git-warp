@@ -61,7 +61,7 @@ function stateCodecOptions(stateCodec: CodecPort | undefined): StateCodecOptions
   return stateCodec === undefined ? {} : { codec: stateCodec };
 }
 
-/** The state codec plus the adapter that decodes full-v6 lifecycle records with it. */
+/** The state codec plus the adapter that decodes full-v7 lifecycle records with it. */
 function fullStateReadOptions(stateCodec: CodecPort | undefined): Parameters<typeof deserializeFullState>[1] {
   return stateCodec === undefined
     ? {}

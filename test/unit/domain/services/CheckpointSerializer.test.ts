@@ -17,7 +17,7 @@ import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { lwwSet } from '../../../../src/domain/crdt/LWW.ts';
 import CborFullStateLifecycleDecoder from '../../../../src/infrastructure/adapters/CborFullStateLifecycleDecoder.ts';
 
-/** Read options for full-v6 state: the codec and the lifecycle decoder that uses it. */
+/** Read options for full-v7 state: the codec and the lifecycle decoder that uses it. */
 const FULL_STATE_READ = { codec: defaultCodec, lifecycle: new CborFullStateLifecycleDecoder(defaultCodec) };
 
 /**
@@ -99,7 +99,7 @@ describe('CheckpointSerializer', () => {
     });
 
     it('throws on unsupported version', () => {
-      const buffer = encode({ version: 'full-v7' });
+      const buffer = encode({ version: 'full-v999' });
       expect(() => deserializeFullState(buffer, { codec: defaultCodec })).toThrow(/Unsupported full state version/);
     });
 

@@ -1,4 +1,3 @@
-import type PropertySweepCandidates from './PropertySweepCandidates.ts';
 /**
  * WarpState — the core CRDT materialized state object.
  *
@@ -100,8 +99,8 @@ export default class WarpState {
   }
 
   /**
-   * Returns true when a remove of the node sorts between the property
-   * register and the node's latest add. Stale registers are never visible
+   * Returns true when the property register sorts before the node's
+   * retained removal clear. Stale registers are never visible
    * and never become visible again, so garbage collection may delete them.
    */
   isStaleNodeRegister(nodeId: string, register: LWWRegister<PropValue>): boolean {
@@ -184,24 +183,14 @@ export default class WarpState {
     this.prop.set(encodedKey, winner);
   }
 
-  /**
-   * Drops every property register whose owning node or edge the alive set
-   * no longer holds at all, along with those edges' birth events. Returns
-   * the number of registers removed. Mutates in place.
-   *
-   * @internal Call only from GC, after `ORSet.compact`. The re-add and
-   * compaction-frontier contract is documented on `sweepDeadProperties`
-   * in `deadPropertySweep.ts`.
-   */
-  compactDeadProperties(candidates: PropertySweepCandidates): number {
+  /** Reclaims permanently dominated registers; retains membership and lifecycle evidence. */
+  compactDeadProperties(): number {
     return sweepDeadProperties({
       prop: this.prop,
       nodeClearEvent: this.nodeClearEvent,
       edgeRemoveEvent: this.edgeRemoveEvent,
-      nodeAlive: this.nodeAlive,
-      edgeAlive: this.edgeAlive,
       edgeBirthEvent: this.edgeBirthEvent,
-    }, candidates);
+    });
   }
 
   /** Yields every node property register with decoded identity. */

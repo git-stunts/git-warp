@@ -1,5 +1,6 @@
 import type { OpticFixtureGraph } from './V17CheckpointTailOpticGraphFixture.ts';
-import V17CheckpointShardIndexFixture from './V17CheckpointShardIndexFixture.ts';
+import { materializationPropertyShardPath } from '../../../src/domain/materialization/MaterializationPropertyProfile.ts';
+import V17CheckpointTailOpticFixtureError from './V17CheckpointTailOpticFixtureError.ts';
 import V17CheckpointTargetShardFixture from './V17CheckpointTargetShardFixture.ts';
 
 export default class V17CheckpointPropertyShardFixture {
@@ -11,11 +12,16 @@ export default class V17CheckpointPropertyShardFixture {
   }
 
   static async forNode(graph: OpticFixtureGraph, nodeId: string): Promise<V17CheckpointPropertyShardFixture> {
-    const shardIndex = await V17CheckpointShardIndexFixture.load(graph);
+    const sha = await graph._checkpointStore.resolveHead(graph.graphName);
+    if (sha === null) throw new V17CheckpointTailOpticFixtureError('checkpoint required');
+    const basis = await graph._checkpointStore.loadBasis(sha);
+    const root = basis.propertyRoot;
+    if (root === null) throw new V17CheckpointTailOpticFixtureError('checkpoint root required');
     return new V17CheckpointPropertyShardFixture(
       new V17CheckpointTargetShardFixture({
         graph,
-        shardOid: shardIndex.propertyShardOid(nodeId),
+        root,
+        path: materializationPropertyShardPath(nodeId),
       }),
     );
   }

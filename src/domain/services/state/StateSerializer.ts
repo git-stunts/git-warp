@@ -45,7 +45,7 @@ export function edgeVisible(state: WarpState, edgeKey: string): boolean {
 /**
  * Checks if a property is visible.
  * Property is visible if the owning node is visible and no remove of the
- * node sorts between the register and the node's latest add.
+ * node sorts after the register.
  * Callers obtain entries from WarpState property iterators — prop existence is implied.
  */
 export function propertyVisible(state: WarpState, entry: NodePropertyEntry): boolean {

@@ -17,7 +17,11 @@ const WRITE_RESULT = z.object({
   lane: z.literal('events'),
   intent: z.object({ kind: z.literal('property.set') }),
 });
-const OBSERVATION = z.object({ readings: z.array(z.object({ value: z.string() })).min(1) });
+const READING_INTERPRETATION = z.literal('observed-remove/node-lww-clear');
+const OBSERVATION = z.object({
+  readings: z.array(z.object({ value: z.string(), reducerVersion: READING_INTERPRETATION })).min(1),
+  receipt: z.object({ reducerVersion: READING_INTERPRETATION }),
+});
 const DOCTOR_REPORT = z.object({
   findings: z.array(
     z.object({ id: z.string(), code: z.string(), status: z.enum(['ok', 'warn', 'fail']) })
@@ -28,7 +32,7 @@ const UPGRADE_REPORT = z.object({
   graphs: z.array(z.object({ graphName: z.string(), checkpoint: z.object({ status: z.string() }) })),
 });
 
-const COMMANDS = Object.freeze({ documents, imports, hook, results });
+const COMMANDS = Object.freeze({ documents, imports, hook, results, removal, derived, lifecycle });
 
 /** Dispatches one artifact check and reports success only after completion. */
 async function main(argv: readonly string[]): Promise<void> {
@@ -43,6 +47,28 @@ async function main(argv: readonly string[]): Promise<void> {
 /** Restricts command dispatch to the checker’s own named operations. */
 function isCommand(name: string): name is keyof typeof COMMANDS {
   return Object.hasOwn(COMMANDS, name);
+}
+
+/** Requires publication before checking any lifecycle result. */
+function derived(args: readonly string[]): Promise<void> {
+  boundary.read(argument(args, 0), z.object({ outcome: z.object({ kind: z.literal('derived') }) }));
+  return Promise.resolve();
+}
+
+/** Checks the actual retained operation independently of the write receipt. */
+async function removal(args: readonly string[]): Promise<void> {
+  await boundary.removal({ packageDir: argument(args, 0), repo: argument(args, 1), writer: argument(args, 2), expectedDots: argument(args, 3).split(',') });
+}
+
+/** Checks a bounded public reading produced in a separate process. */
+function lifecycle(args: readonly string[]): Promise<void> {
+  const expected = argument(args, 1);
+  const values = boundary.read(argument(args, 0), z.object({ readings: z.tuple([z.object({ value: z.union([z.string(), z.boolean(), z.null()]).optional() })]), receipt: z.object({ status: z.literal('completed'), reducerVersion: READING_INTERPRETATION }) })).readings;
+  const value = values[0].value ?? null;
+  const valid = expected === 'missing' ? value === null
+    : expected === 'alive' ? value === true : value === expected;
+  if (!valid) { throw new PackagePayloadError(`Unexpected lifecycle reading: expected ${expected}`); }
+  return Promise.resolve();
 }
 
 /** Requires a nonempty positional argument before filesystem access. */

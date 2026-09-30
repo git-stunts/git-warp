@@ -110,7 +110,7 @@ describe('GCPolicy', () => {
   });
 
   describe('executeGC', () => {
-    it('removes tombstoned dots that are <= appliedVV', () => {
+    it('retains tombstoned dots even when dominated by appliedVV', () => {
       const state = createEmptyState();
 
       // Add nodes with dots
@@ -137,14 +137,14 @@ describe('GCPolicy', () => {
 
       const result = executeGC(state, appliedVV);
 
-      // dot1 (A:1) should be removed (tombstoned AND <= VV)
+      // Both removed dots stay tombstoned: appliedVV is not retirement proof.
       // dot2 (A:2) should remain (tombstoned but > VV)
       // dot3 (B:1) should remain (not tombstoned)
-      expect(result.nodesCompacted).toBe(1);
-      expect(result.tombstonesRemoved).toBe(1);
+      expect(result.nodesCompacted).toBe(0);
+      expect(result.tombstonesRemoved).toBe(0);
 
-      // node1 entry should be gone entirely
-      expect(state.nodeAlive.entries.has('node1')).toBe(false);
+      // node1 removal evidence remains available for stale joins
+      expect(state.nodeAlive.entries.has('node1')).toBe(true);
       // node2 entry should still exist with tombstoned dot
       expect(state.nodeAlive.entries.has('node2')).toBe(true);
       // node3 should still be alive
@@ -187,10 +187,10 @@ describe('GCPolicy', () => {
 
       const result = executeGC(state, appliedVV);
 
-      expect(result.edgesCompacted).toBe(1);
+      expect(result.edgesCompacted).toBe(0);
       expect(result.nodesCompacted).toBe(0);
-      expect(result.tombstonesRemoved).toBe(1);
-      expect(result.tombstonesRemoved).toBe(1);
+      expect(result.tombstonesRemoved).toBe(0);
+      expect(result.tombstonesRemoved).toBe(0);
     });
 
     it('throws E_GC_INVALID_VV when appliedVV is not a VersionVector', () => {
@@ -201,7 +201,7 @@ describe('GCPolicy', () => {
       // executeGC with values the compiler would reject, and rely on
       // `@ts-expect-error` to assert the violation is intentional and
       // well-understood.
-      const bads: readonly unknown[] = [{}, null, undefined];
+      const bads = [{}, null, undefined];
       for (const bad of bads) {
         expect(() => {
           // @ts-expect-error — runtime guard test: deliberately passes non-VersionVector
@@ -218,7 +218,7 @@ describe('GCPolicy', () => {
       }
     });
 
-    it('compacts both nodes and edges in one call', () => {
+    it('retains both node and edge membership evidence', () => {
       const state = createEmptyState();
 
       const dot1 = Dot.create('A', 1);
@@ -235,9 +235,9 @@ describe('GCPolicy', () => {
 
       const result = executeGC(state, appliedVV);
 
-      expect(result.nodesCompacted).toBe(1);
-      expect(result.edgesCompacted).toBe(1);
-      expect(result.tombstonesRemoved).toBe(2);
+      expect(result.nodesCompacted).toBe(0);
+      expect(result.edgesCompacted).toBe(0);
+      expect(result.tombstonesRemoved).toBe(0);
     });
   });
 });

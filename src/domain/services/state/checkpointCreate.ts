@@ -3,6 +3,7 @@ import { computeStateHash } from './StateSerializer.ts';
 import { computeAppliedVV } from './CheckpointSerializer.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
 import { requireCrypto } from '../crypto/CryptoRequirement.ts';
+import executeGC from '../executeGC.ts';
 import { cloneState } from '../JoinReducer.ts';
 import type WarpState from './WarpState.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
@@ -12,7 +13,7 @@ import type StateHashService from './StateHashService.ts';
 import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import type MaterializationHandle from '../../materialization/MaterializationHandle.ts';
 
-export interface CreateCheckpointOptions {
+export type CreateCheckpointOptions = {
   checkpointStore: CheckpointStorePort;
   graphName: string;
   state: WarpState;
@@ -56,8 +57,7 @@ export async function createCheckpointEnvelope({
   let checkpointState = state;
   if (compact && materialization === undefined) {
     checkpointState = cloneState(state);
-    checkpointState.nodeAlive.compact(appliedVV);
-    checkpointState.edgeAlive.compact(appliedVV);
+    executeGC(checkpointState, appliedVV);
   }
 
   const stateHash = stateHashService !== undefined && stateHashService !== null

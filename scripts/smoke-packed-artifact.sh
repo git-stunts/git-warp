@@ -292,4 +292,6 @@ node "$LEGACY_UPGRADE" --repo "$REPO" --dry-run --json > upgrade.json
 test "$(git -C "$REPO" for-each-ref)" = "$REFS_BEFORE"
 node "$CHECK_PACKED" results "$FIXTURE_DIR"
 
+bash "$ROOT/scripts/smoke-packed-node-removal.sh" "$ROOT" "$PACKAGE_DIR" "$TMP_ROOT/lifecycle"
+
 echo "packed artifact smoke passed"

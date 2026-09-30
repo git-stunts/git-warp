@@ -193,7 +193,7 @@ describe('replayTargetedNodeProperties', () => {
     })).resolves.toEqual({ color: 'red' });
   });
 
-  it('keeps properties when the only removal sorts after the latest add', async () => {
+  it('clears properties independently of the latest add', async () => {
     const patches = new ChainPatchCollector(new Map([
       ['tip-a', [
         patchEntry({
@@ -223,7 +223,7 @@ describe('replayTargetedNodeProperties', () => {
       coordinate: coordinate(new Map([['writer-a', 'tip-a'], ['writer-b', 'tip-b']]), null),
       nodeId: TARGET_NODE,
       patches,
-    })).resolves.toEqual({ color: 'red' });
+    })).resolves.toEqual({});
   });
 
   it('returns a sorted frozen bag with a safe own __proto__ property', async () => {

@@ -16,8 +16,8 @@ import {
   serializeORSet,
 } from '../../domain/services/state/ORSetWireBoundary.ts';
 
-/** Current full-state version: adds node lifecycle records and edge removes. */
-const FULL_STATE_VERSION = 'full-v6';
+/** Current full-state interpretation: immediate node-wide LWW property clears. */
+const FULL_STATE_VERSION = 'full-v7';
 /** Previous version, still read: it carries no node or remove events. */
 const LEGACY_FULL_STATE_VERSION = 'full-v5';
 const LEGACY_PATCH_SHA_PLACEHOLDER = '0000';

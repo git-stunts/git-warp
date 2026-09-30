@@ -1,3 +1,4 @@
+import { NODE_PROPERTY_CLEAR_SEMANTICS } from '../state/NodeLifecycle.ts';
 import { EventId, compareEventIds } from '../../utils/EventId.ts';
 import type { CheckpointTailIndexBasis } from './CheckpointTailBasisLoader.ts';
 import ReadIdentity, {
@@ -6,7 +7,7 @@ import ReadIdentity, {
   type ReadIdentityTailWitness,
 } from './ReadIdentity.ts';
 
-const REDUCER_VERSION = 'checkpoint-tail-locator';
+const REDUCER_VERSION = `checkpoint-tail-locator/${NODE_PROPERTY_CLEAR_SEMANTICS}`;
 const PROJECTION_VERSION = 'optic-read-foundation';
 
 export default class CheckpointTailReadIdentityBuilder {

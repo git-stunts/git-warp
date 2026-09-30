@@ -1,9 +1,9 @@
 import type CodecValue from '../../../../src/domain/types/codec/CodecValue.ts';
 /**
- * Both full-state readers refuse a full-v6 state whose lifecycle lists are
+ * Both full-state readers refuse a full-v7 state whose lifecycle lists are
  * missing or malformed.
  *
- * The full-v6 writer emits all four lifecycle lists, empty or not, so a
+ * The full-v7 writer emits all four lifecycle lists, empty or not, so a
  * missing list, or one that is not a list, is a malformed state: reading it
  * as empty would make a hidden property visible again. The non-canonical
  * reader refuses with E_INVALID_FULL_STATE_LIFECYCLE, the code the
@@ -40,8 +40,8 @@ function lifecycleState(): WarpState {
   return state;
 }
 
-/** The fields of a real full-v6 state, as its writer emitted them. */
-function fullV6Fields(): { [key: string]: CodecValue } {
+/** The fields of a real full-v7 state, as its writer emitted them. */
+function currentFields(): { [key: string]: CodecValue } {
   const fields = defaultCodec.decode(encodeWarpFullState(lifecycleState(), defaultCodec));
   if (fields === null || typeof fields !== 'object' || Array.isArray(fields)) {
     throw new Error('Expected full-state record fixture');
@@ -50,32 +50,33 @@ function fullV6Fields(): { [key: string]: CodecValue } {
 }
 
 function withoutField(field: string): Uint8Array {
-  const fields = fullV6Fields();
+  const fields = currentFields();
   delete fields[field];
   return defaultCodec.encode(fields);
 }
 
-describe('full-v6 lifecycle lists in the full-state readers', () => {
-  it('decodes a complete full-v6 state through the non-canonical reader', () => {
-    const decoded = decodeWarpFullState(defaultCodec.encode(fullV6Fields()), defaultCodec);
+describe('full-v7 lifecycle lists in the full-state readers', () => {
+  it('decodes a complete full-v7 state through the non-canonical reader', () => {
+    const decoded = decodeWarpFullState(defaultCodec.encode(currentFields()), defaultCodec);
 
     expect(decoded.nodeBirthEvent).toEqual(new Map([['node:a', NEWER]]));
-    expect(decoded.nodePendingRemoveEvents).toEqual(new Map([['node:b', [OLDER, NEWER]]]));
+    expect(decoded.nodePendingRemoveEvents).toEqual(new Map());
+    expect(decoded.nodeClearEvent.get('node:b')).toEqual(NEWER);
   });
 
-  it.each(LIFECYCLE_FIELDS)('refuses a full-v6 state without %s', (field) => {
+  it.each(LIFECYCLE_FIELDS)('refuses a full-v7 state without %s', (field) => {
     expect(() => decodeWarpFullState(withoutField(field), defaultCodec)).toThrow(LIFECYCLE_REFUSAL);
   });
 
-  it.each(LIFECYCLE_FIELDS)('refuses a full-v6 state whose %s is not a list', (field) => {
-    const bytes = defaultCodec.encode({ ...fullV6Fields(), [field]: { n: 1 } });
+  it.each(LIFECYCLE_FIELDS)('refuses a full-v7 state whose %s is not a list', (field) => {
+    const bytes = defaultCodec.encode({ ...currentFields(), [field]: { n: 1 } });
 
     expect(() => decodeWarpFullState(bytes, defaultCodec)).toThrow(LIFECYCLE_REFUSAL);
   });
 
-  it('refuses a full-v6 state with a node whose pending removes are not a list', () => {
+  it('refuses a full-v7 state with a node whose pending removes are not a list', () => {
     const bytes = defaultCodec.encode({
-      ...fullV6Fields(),
+      ...currentFields(),
       nodePendingRemoveEvents: [['node:b', { lamport: 1, writerId: 'writer-a', patchSha: 'a1b2c3d4', opIndex: 0 }]],
     });
 
@@ -83,7 +84,7 @@ describe('full-v6 lifecycle lists in the full-state readers', () => {
   });
 
   it('still decodes a full-v5 state, which carries no lifecycle lists, with empty lifecycle maps', () => {
-    const fields = fullV6Fields();
+    const fields = currentFields();
     for (const field of LIFECYCLE_FIELDS) {
       delete fields[field];
     }
@@ -96,7 +97,7 @@ describe('full-v6 lifecycle lists in the full-state readers', () => {
     expect(decoded.edgeRemoveEvent).toEqual(new Map());
   });
 
-  it.each(LIFECYCLE_FIELDS)('the canonical reader refuses a full-v6 state without %s', (field) => {
+  it.each(LIFECYCLE_FIELDS)('the canonical reader refuses a full-v7 state without %s', (field) => {
     expect(() => decodeCanonicalWarpFullState(withoutField(field), defaultCodec)).toThrow(
       expect.objectContaining({ code: 'E_FULL_STATE_INVALID' }),
     );

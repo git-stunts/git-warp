@@ -139,7 +139,7 @@ describe('lifecycle events travel with every copy of the state', () => {
 
     expect(lifecycleMaps(frame)).toEqual(lifecycleMaps(inMemory));
     expect(frame.nodeClearEvent.get('n')).toEqual(new EventId(2, 'A', SHA_B, 0));
-    expect(frame.nodePendingRemoveEvents.get('x')).toEqual([new EventId(2, 'A', SHA_B, 3)]);
+    expect(frame.nodeClearEvent.get('x')).toEqual(new EventId(2, 'A', SHA_B, 3));
   });
 
   it('the session-backed reducer reports the nodes it cleared, as the in-memory reducer does', async () => {
@@ -148,8 +148,8 @@ describe('lifecycle events travel with every copy of the state', () => {
       [...(applyWithDiff(inMemory, patch, sha).diff.nodesCleared ?? [])]);
     const { diff } = await reducePatchesInSession(lifecyclePatches(), await openFrame(), { trackDiff: true });
 
-    expect(inMemoryCleared).toEqual(['n']);
-    expect(diff.nodesCleared).toEqual(['n']);
+    expect(inMemoryCleared).toEqual(['n', 'x']);
+    expect(diff.nodesCleared).toEqual(['n', 'x']);
   });
 
   it('joining session-backed frames keeps the latest event of each side', async () => {

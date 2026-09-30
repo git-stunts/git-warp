@@ -44,5 +44,7 @@ function emptyIndexBasis(basis: CheckpointBasis): CheckpointBasis {
   return Object.freeze({
     ...basis,
     indexShardHandles: Object.freeze({}),
+    indexRoot: null,
+    propertyRoot: null,
   });
 }
