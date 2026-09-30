@@ -40,18 +40,17 @@ async function expectSameReading(left: WarpState, right: WarpState): Promise<voi
 }
 
 it('preserves observations through GC, checkpoint round trips, every partition join and later operations', async () => {
-  // #911: membership compaction cannot admit arbitrary stale additions.
-  // An empty frontier isolates the property-clear equivalence for all joins.
+  // An applied frontier is not a retirement certificate for removed additions.
   for (let leftMask = 0; leftMask < 16; leftMask++) {
     const original = partition(leftMask);
     const collected = original.clone();
-    executeGC(collected, VersionVector.empty());
+    executeGC(collected, VersionVector.from({ A: 10, B: 10, C: 10 }));
     const restored = decodeCanonicalWarpFullState(encodeWarpFullState(collected, codec), codec);
     for (let rightMask = 0; rightMask < 16; rightMask++) {
       const later = partition(rightMask);
       const expected = original.join(later);
       const actual = restored.join(later);
-      executeGC(actual, VersionVector.empty());
+      executeGC(actual, VersionVector.from({ A: 10, B: 10, C: 10 }));
       await expectSameReading(actual, expected);
       for (const state of [actual, expected]) {
         applyPatchOp(state, new NodeAdd('n', new Dot('C', 1)), event(6, 'C'));
@@ -62,4 +61,21 @@ it('preserves observations through GC, checkpoint round trips, every partition j
         !key.startsWith('n\0') || !actual.isStaleNodeRegister('n', register))).toBe(true);
     }
   }
+});
+
+it('retains removed edge evidence while allowing an unobserved concurrent addition', async () => {
+  const original = createEmptyState();
+  const edge = 'a\0b\0rel';
+  original.nodeAlive.add('a', new Dot('A', 1));
+  original.nodeAlive.add('b', new Dot('A', 2));
+  original.edgeAlive.add(edge, new Dot('A', 3));
+  const stale = original.clone();
+  original.edgeAlive.remove(new Set([Dot.encode(new Dot('A', 3))]));
+  original.edgeRemoveEvent.set(edge, event(4));
+  const collected = original.clone();
+  expect(executeGC(collected, VersionVector.from({ A: 10 })).tombstonesRemoved).toBe(0);
+  expect(collected.join(stale).edgeAlive.contains(edge)).toBe(false);
+  stale.edgeAlive.add(edge, new Dot('B', 1));
+  expect(collected.join(stale).edgeAlive.contains(edge)).toBe(true);
+  await expectSameReading(collected.join(stale), original.join(stale));
 });

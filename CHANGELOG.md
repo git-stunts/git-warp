@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- GC and checkpoint collection retain all node/edge membership evidence until
+  a sufficient retirement contract exists (#911). Applied vectors alone no
+  longer authorize dropping tombstones. Dominated property payloads are still
+  reclaimed using retained lifecycle boundaries; session-only GC reclaims zero.
+
 - **BREAKING:** Every qualifying node removal immediately clears property
   registers ordered before it, even while concurrent membership keeps the node
   alive. Adds assert membership only. Later-ordered property writes remain

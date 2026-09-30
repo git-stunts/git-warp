@@ -58,6 +58,8 @@ it('reclaims cleared properties of a node kept alive by a concurrent add', () =>
 it('reclaims delayed stale registers after original membership records have gone', () => {
   const unswept = removedNode();
   const swept = unswept.clone();
+  // Simulate a legacy state that already retired its owner records.
+  swept.nodeAlive.compact(VersionVector.from({ A: 1 }));
   executeGC(swept, VersionVector.from({ A: 1 }));
   const delayed = createEmptyState();
   applyPatchOp(delayed, new PropSet('n', 'k', 'old'), event(2));

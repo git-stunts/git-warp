@@ -1,13 +1,10 @@
-import type PropertySweepCandidates from './PropertySweepCandidates.ts';
 /**
- * The dead-property sweep that GC runs after compacting the alive sets.
+ * The property sweep retains all membership and lifecycle evidence.
  *
  * @module domain/services/state/deadPropertySweep
  */
 
-import type ORSet from '../../crdt/ORSet.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
-import type { EventId } from '../../utils/EventId.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import { isStaleNodeRegisterIn, type NodeLifecycleSource } from './NodeLifecycle.ts';
 import { isStaleEdgeRegisterIn, type EdgeLifecycleSource } from './ElementLifecycle.ts';
@@ -18,25 +15,22 @@ import decodePropOwner from './decodePropOwner.ts';
 /** The parts of a WarpState the sweep reads and prunes in place. */
 export type DeadPropertySweepFields = NodeLifecycleSource & EdgeLifecycleSource & {
   readonly prop: Map<string, LWWRegister<PropValue>>;
-  readonly nodeAlive: ORSet;
-  readonly edgeAlive: ORSet;
-  readonly edgeBirthEvent: Map<string, EventId>;
 };
 
 /**
  * Drops node registers dominated by a retained clear even for live owners.
- * Edges retain the conservative compaction guard. Owner absence alone is insufficient:
+ * Edge birth/removal boundaries likewise only advance. Owner absence is insufficient:
  * a later add may expose a register written after a removal. Lifecycle
  * evidence is retained so delayed merges cannot make stale writes visible.
  *
  * Legacy states without lifecycle evidence are conservatively retained.
- * Call only from GC after ORSet compaction against the applied frontier.
+ * Membership evidence is never retired by this sweep.
  */
-export function sweepDeadProperties(fields: DeadPropertySweepFields, candidates: PropertySweepCandidates): number {
+export function sweepDeadProperties(fields: DeadPropertySweepFields): number {
   let pruned = 0;
   for (const [encodedKey, register] of fields.prop) {
     const owner = decodePropOwner(encodedKey);
-    if (owner === null || ownerMustBeRetained(fields, candidates, owner)) {
+    if (owner === null) {
       continue;
     }
     if (!isPermanentlyStale(fields, owner, register)) {
@@ -46,28 +40,6 @@ export function sweepDeadProperties(fields: DeadPropertySweepFields, candidates:
     pruned++;
   }
   return pruned;
-}
-
-/**
- * Returns true while the alive set still holds any dot, live or
- * tombstoned, for the element owning an encoded prop key, and whenever
- * that owner cannot be determined.
- *
- * The guard covers decoding only. A fault in the alive-set read is a
- * bug, not malformed data, and swallowing it would report every owner
- * as held — disabling the sweep with no signal that it had stopped
- * working.
- */
-function ownerMustBeRetained(
-  fields: DeadPropertySweepFields, candidates: PropertySweepCandidates,
-  owner: NodePropertyOwner | EdgePropertyOwner,
-): boolean {
-  if (owner instanceof EdgePropertyOwner) {
-    return fields.edgeAlive.hasEntries(owner.edgeKey) || !candidates.heldEdge(owner.edgeKey);
-  }
-  // A retained node clear permanently dominates the register regardless of
-  // membership, including after all original addition records are compacted.
-  return false;
 }
 
 function isPermanentlyStale(

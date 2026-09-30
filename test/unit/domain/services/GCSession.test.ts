@@ -70,7 +70,7 @@ describe("GCMetrics.fromSession", () => {
 });
 
 describe("executeGCInSession", () => {
-  it("removes compactable tombstoned node dots and persists the compacted roots across close and reopen", async () => {
+  it("retains tombstoned node dots across collection, close and reopen", async () => {
     const { session, store } = await openSession();
     const compactableDot = Dot.create("alice", 1);
     const retainedDot = Dot.create("alice", 2);
@@ -85,9 +85,9 @@ describe("executeGCInSession", () => {
       VersionVector.from({ alice: 1 }),
     );
 
-    expect(result.nodesCompacted).toBe(1);
+    expect(result.nodesCompacted).toBe(0);
     expect(result.edgesCompacted).toBe(0);
-    expect(result.tombstonesRemoved).toBe(1);
+    expect(result.tombstonesRemoved).toBe(0);
 
     const closeResult = await session.close();
     const reopened = await StateSession.open({
@@ -98,7 +98,9 @@ describe("executeGCInSession", () => {
       geometry: GEOMETRY,
     });
 
-    expect(await reopened.nodeElementState("node:1")).toBeNull();
+    expect(await reopened.nodeElementState("node:1")).not.toBeNull();
+    await reopened.addNode("node:1", compactableDot);
+    expect(await reopened.nodeContains("node:1")).toBe(false);
     expect(await reopened.nodeContains("node:2")).toBe(false);
   });
 
@@ -120,7 +122,7 @@ describe("executeGCInSession", () => {
     expect(await session.edgeContains("edge:1")).toBe(true);
   });
 
-  it("compacts both node and edge engines in one call", async () => {
+  it("retains both node and edge evidence in a session", async () => {
     const { session } = await openSession();
     const nodeDot = Dot.create("alice", 1);
     const edgeDot = Dot.create("alice", 2);
@@ -135,14 +137,14 @@ describe("executeGCInSession", () => {
       VersionVector.from({ alice: 2 }),
     );
 
-    expect(result.nodesCompacted).toBe(1);
-    expect(result.edgesCompacted).toBe(1);
-    expect(result.tombstonesRemoved).toBe(2);
+    expect(result.nodesCompacted).toBe(0);
+    expect(result.edgesCompacted).toBe(0);
+    expect(result.tombstonesRemoved).toBe(0);
   });
 
   it("rejects invalid version vectors with E_GC_INVALID_VV", async () => {
     const { session } = await openSession();
-    const invalidVectors: readonly unknown[] = [{}, null, undefined];
+    const invalidVectors = [{}, null, undefined];
 
     for (const invalidVector of invalidVectors) {
       await expect(async () => {

@@ -52,7 +52,8 @@ separate register design capable of retaining otherwise losing concurrent values
 The retained clear can only advance. A dominated register can therefore be
 reclaimed even if its node is alive, or if original membership records have
 already been compacted. Node-register reclamation does not require a membership
-compaction frontier. The existing edge compaction guard remains unchanged.
+compaction frontier. Edge registers use their existing monotone birth/removal
+boundaries. Neither sweep retires membership or lifecycle evidence.
 
 Required observational invariant, within this interpretation:
 
@@ -61,11 +62,13 @@ observe(merge(GC(S), T)) == observe(merge(S, T))
 ```
 
 The same equivalence must hold after subsequent valid operations. Property
-sweeping supports arbitrary later state joins with an empty membership-compaction
-frontier. Existing membership compaction can resurrect stale additions if its
-retirement assumptions are violated; [#911](https://github.com/git-stunts/git-warp/issues/911)
-tracks that independent hazard. Do not infer safe membership retirement from
-this property's monotone clear proof. Tests compare
+sweeping supports arbitrary later state joins even with a nonempty applied
+frontier. All supported GC and checkpoint collection paths retain node and edge
+membership entries and tombstones: an applied vector is not proof that stale
+additions can no longer arrive. Session GC currently reclaims nothing because
+sessions own only membership. [#911](https://github.com/git-stunts/git-warp/issues/911)
+tracks the future retirement contract; the unsafe primitive is not called by
+these shipping paths. Tests compare
 visible nodes, properties, attachments and hashes, as well as retained-register
 counts. Delayed stale registers may enter a joined state, but the next sweep
 reclaims them using the retained clear without requiring their owner to reappear.
