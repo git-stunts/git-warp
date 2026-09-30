@@ -322,6 +322,7 @@ describe('EdgePropSetStrategy', () => {
 it('refuses a malformed node-add operand before mutating membership or lifecycle', () => {
   const state = WarpState.empty();
   expect(() => strategy('NodeAdd').mutate(
+    // @ts-expect-error deliberate invalid runtime operand: node identity must be a string
     state, { type: 'NodeAdd', node: 42, dot: dot('writer-a', 1) }, eventId(1, 'writer-a'),
   )).toThrow();
   expect(state.nodeAlive.elements()).toEqual([]);
