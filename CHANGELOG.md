@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Update the locked development-tool `brace-expansion` resolutions to patched
+  versions 1.1.21, 2.1.7, and 5.0.12; retain the full dependency audit gate.
+
 - Release promotion probes `@git-stunts/git-warp@latest` explicitly so npm
   default-tag configuration cannot substitute another publication channel.
 
