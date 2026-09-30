@@ -35,7 +35,7 @@ type TargetedNodeReplay = NodeLifecycleEvents & {
  * This reducer never constructs WarpState, adjacency, receipts, diffs, or
  * provenance. Its own resident state is proportional to the requested node's
  * winning property bag plus its node lifecycle records, which hide registers
- * written before a remove that precedes the node's latest add.
+ * ordered before the retained removal clear, independently of additions.
  * PatchCollector may still buffer one writer chain while producing the
  * coordinate stream.
  */

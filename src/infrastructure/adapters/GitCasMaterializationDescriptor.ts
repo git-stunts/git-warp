@@ -10,9 +10,9 @@ import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 
 /**
- * Descriptor schema 6: property roots and the replay basis apply the node
- * lifecycle visibility rule. Entries an older runtime wrote under schema 5
- * miss and are rebuilt, once per graph.
+ * Descriptor schema 7: property roots and the replay basis apply immediate
+ * node-wide LWW property clears. Earlier descriptor schemas are treated
+ * as misses and rebuilt under the current interpretation.
  */
 export const MATERIALIZATION_DESCRIPTOR_SCHEMA_VERSION = 7;
 export const MATERIALIZATION_DESCRIPTOR_MAX_BYTES = 1024 * 1024;

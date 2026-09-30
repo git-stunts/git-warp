@@ -100,7 +100,7 @@ function contentRecordForNode(state: WarpState, owner: NodeRecord): ContentAttac
   });
 }
 
-/** Reads a node register unless it predates the node's latest add or remove. */
+/** Reads a node register unless it predates the retained node-wide removal clear. */
 function visibleNodeRegister(state: WarpState, nodeId: string, key: string): Register | null {
   const register = state.getNodeProp(nodeId, key);
   if (register === undefined || state.isStaleNodeRegister(nodeId, register)) {
