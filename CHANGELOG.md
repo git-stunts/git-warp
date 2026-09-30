@@ -101,8 +101,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Garbage collection reclaims node property registers dominated by a retained
   removal clear, including live owners and stale values reintroduced after
   membership compaction. Clear evidence remains retained. Later-ordered writes,
-  ambiguous keys, and registers without removal evidence remain intact. Edges
-  retain the conservative compaction guard. `propertiesPruned` reports the
+  ambiguous keys, and registers without removal evidence remain intact. Edge registers use retained monotone birth/removal boundaries;
+  membership evidence is retained for both nodes and edges. `propertiesPruned` reports the
   reclaimed count. The 25-generation, seven-property churn regression retains
   seven registers and reclaims 168 (#885).
 
