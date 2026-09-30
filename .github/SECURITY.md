@@ -117,27 +117,27 @@ await graph.syncWith('http://peer:3000', {
 
 | Package | Type | Risk | Notes |
 |---|---|---|---|
+| `@flyingrobots/bijou` | CLI | Low | Terminal presentation primitives; graph-derived strings require terminal-safe rendering |
+| `@flyingrobots/bijou-node` | CLI | Medium | Node terminal and I/O adapters used by CLI presentation |
+| `@flyingrobots/bijou-tui` | CLI | Medium | Interactive terminal UI; handles user input and graph-derived presentation data |
+| `@git-stunts/git-cas` | Runtime | Medium | Git content-addressed storage, caches, and index pages; persisted data crosses a decoding and validation boundary |
+| `@noble/hashes` | Runtime | Medium | Hash primitives used for content identity; correctness is security-sensitive |
 | `@git-stunts/plumbing` | Runtime | Low | Internal package, spawns git processes with strict whitelist |
 | `@git-stunts/alfred` | Runtime | Low | Retry/backoff utility, no I/O |
 | `@git-stunts/trailer-codec` | Runtime | Low | Pure string encoding, no I/O |
 | `cbor-x` | Runtime | Medium | Binary parser processing untrusted sync payloads; mitigated by body size limit in HttpSyncServer (4 MB default) |
-| `roaring` | Runtime | Medium | Native C++ bindings (N-API); largest attack surface but sandboxed by N-API boundary, no network-facing input |
+| `roaring-wasm` | Runtime | Low-Medium | WebAssembly build of CRoaring. Synced peer-controlled graph data influences bitmap construction, and retained index shards are deserialized by bitmap readers. WASM memory isolation does not establish input trust or prevent wrong results, traps, or resource exhaustion |
 | `zod` | Runtime | Low | Schema validation, pure JS |
-| `elkjs` | Runtime (lazy) | Low | ELK layout engine, pure JS, lazy-loaded only for `--view` |
-| `chalk` | CLI-only | Negligible | Terminal coloring, no security surface |
-| `boxen` | CLI-only | Negligible | Terminal box drawing |
-| `cli-table3` | CLI-only | Negligible | Terminal table rendering |
-| `string-width` | CLI-only | Negligible | String measurement |
-| `strip-ansi` | Inlined | Negligible | ANSI escape removal; inlined into `src/visualization/utils/ansi.js` since v10.1.2, no longer a direct dependency |
+
 
 ## Accepted Risks
 
 | Risk | Severity | Owner | Expiry | Mitigation |
 |---|---|---|---|---|
-| `roaring` native bindings could have memory-safety bugs | Medium | @jross | 2026-08-01 | N-API sandbox; no untrusted input reaches bitmap code directly |
-| `cbor-x` parser handles untrusted sync payloads | Medium | @jross | 2026-08-01 | 4 MB body size limit in HttpSyncServer; schema validation post-parse |
-| Nonce cache lost on restart allows replay within clock skew window | Low | @jross | 2026-08-01 | 5-minute TTL; recommend TLS in production |
-| No rate limiting on sync endpoint | Low | @jross | 2026-08-01 | Deploy behind reverse proxy with rate limiting |
+| `roaring-wasm` bitmap faults could corrupt results or exhaust resources | Medium | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | WASM memory isolation limits host-memory exposure but does not validate peer-controlled graph data or retained bitmap shards; correctness and availability remain in scope. Input validation and resource bounds require owner re-review |
+| `cbor-x` parser handles untrusted sync payloads | Medium | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | 4 MB body size limit in HttpSyncServer; schema validation post-parse |
+| Nonce cache lost on restart allows replay within clock skew window | Low | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | 5-minute TTL; recommend TLS in production |
+| No rate limiting on sync endpoint | Low | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | Deploy behind reverse proxy with rate limiting |
 
 ## Threat Model Boundaries
 
