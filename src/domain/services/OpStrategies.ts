@@ -70,8 +70,10 @@ class NodeAddStrategy extends OpStrategy {
   readonly receiptName = 'NodeAdd';
   validate(op: OpLike): void { OpValidator.assertString(op, 'node'); OpValidator.assertDot(op); } // nosemgrep: ts-no-like-types -- 0025C
   mutate(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
-    state.nodeAlive.add(op.node as string, op.dot as Dot);
-    recordNodeAdd(state, op.node as string, eventId);
+    const { node } = op;
+    if (typeof node !== 'string') { throw new PatchError('NodeAdd requires a string node'); }
+    state.nodeAlive.add(node, op.dot as Dot);
+    recordNodeAdd(state, node, eventId);
   }
   outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
     return ReceiptBuilder.nodeAddOutcome(state.nodeAlive, { node: op.node as string, dot: op.dot as Dot });

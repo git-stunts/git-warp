@@ -318,3 +318,12 @@ describe('EdgePropSetStrategy', () => {
     expect(state.getEdgeProp('node:a', 'node:b', 'knows', 'since')?.value).toBe(2026);
   });
 });
+
+it('refuses a malformed node-add operand before mutating membership or lifecycle', () => {
+  const state = WarpState.empty();
+  expect(() => strategy('NodeAdd').mutate(
+    state, { type: 'NodeAdd', node: 42, dot: dot('writer-a', 1) }, eventId(1, 'writer-a'),
+  )).toThrow();
+  expect(state.nodeAlive.elements()).toEqual([]);
+  expect(state.nodeBirthEvent.size).toBe(0);
+});
