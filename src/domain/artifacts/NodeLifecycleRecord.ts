@@ -18,7 +18,7 @@ export class NodeLifecycleRecord {
   readonly clear: EventId | null;
   readonly pendingRemoves: readonly EventId[];
   /** Property key to register EventId, in ascending key order. */
-  readonly registers: ReadonlyMap<string, EventId>;
+  readonly #registers: ReadonlyMap<string, EventId>;
 
   constructor(fields: {
     readonly nodeId: string;
@@ -32,13 +32,18 @@ export class NodeLifecycleRecord {
     this.birth = requireOptionalEvent(fields.birth, 'birth');
     this.clear = requireOptionalEvent(fields.clear, 'clear');
     this.pendingRemoves = requirePendingRemoves(fields.pendingRemoves);
-    this.registers = requireRegisters(fields.registers);
+    this.#registers = requireRegisters(fields.registers);
     Object.freeze(this);
+  }
+
+  /** Detached enumeration snapshot; callers cannot mutate retained evidence. */
+  get registers(): ReadonlyMap<string, EventId> {
+    return new Map(this.#registers);
   }
 
   /** The EventId of the node's register for `key`, or null when it has none that is not stale. */
   registerEvent(key: string): EventId | null {
-    return this.registers.get(key) ?? null;
+    return this.#registers.get(key) ?? null;
   }
 }
 

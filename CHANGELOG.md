@@ -98,6 +98,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep validated checkpoint lifecycle register evidence private; mutating an
+  exposed enumeration snapshot cannot alter subsequent reads or serialization.
+
 - Garbage collection reclaims node property registers dominated by a retained
   removal clear, including live owners and stale values reintroduced after
   membership compaction. Clear evidence remains retained. Later-ordered writes,
