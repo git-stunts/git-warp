@@ -98,6 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Staged-file and committed-tree path guards now reject machine-local temporary
+  worktree paths as well as personal home paths. A real pre-commit regression
+  verifies that cleaning the working copy cannot conceal unsafe staged content.
+
 - Developer hook installation now configures a working-tree-relative hooks path,
   so dependency installation in one linked worktree cannot redirect every other
   checkout to its hook scripts (#891).
