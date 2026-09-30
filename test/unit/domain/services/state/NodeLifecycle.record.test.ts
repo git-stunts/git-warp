@@ -24,3 +24,11 @@ it('returns register evidence or null without inventing missing events', () => {
   expect(record.registerEvent('k')).toBe(clear);
   expect(record.registerEvent('missing')).toBeNull();
 });
+
+it('keeps validated register evidence intact when a caller mutates the exposed map', () => {
+  const record = new NodeLifecycleRecord({ ...fields, registers: [['k', clear]] });
+  const exposed = record.registers;
+  if (exposed instanceof Map) exposed.clear();
+  expect(record.registerEvent('k')).toBe(clear);
+  expect([...record.registers]).toEqual([['k', clear]]);
+});

@@ -10,7 +10,7 @@ type EncodedNodeLifecycleRecord = readonly [
 ];
 
 /**
- * The schema 1 payload of one node lifecycle shard. Records, pending
+ * The current-schema payload of one node lifecycle shard. Records, pending
  * removes and registers are already in canonical order on the shard, so
  * equal shards encode to equal bytes. `NodeLifecycleShardReader` is the
  * decoder.

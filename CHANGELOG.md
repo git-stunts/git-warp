@@ -120,6 +120,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prefix with `E_CHECKPOINT_INVALID_PROP_OWNER`. The visible projection
   carries node properties only, so that shape is one this library never
   writes and can arrive only through corruption or a foreign writer.
+- Keep validated checkpoint lifecycle register evidence private; mutating an
+  exposed enumeration snapshot cannot alter subsequent reads or serialization.
+
+- Update the locked development-tool `brace-expansion` resolutions to patched
+  versions 1.1.21, 2.1.7, and 5.0.12; retain the full dependency audit gate.
+
 - Garbage collection reclaims node property registers dominated by a retained
   removal clear, including live owners and stale values reintroduced after
   membership compaction. Clear evidence remains retained. Later-ordered writes,
