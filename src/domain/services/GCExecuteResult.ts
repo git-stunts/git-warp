@@ -14,7 +14,7 @@ export default class GCExecuteResult {
   /** Total tombstones removed across both alive sets. */
   readonly tombstonesRemoved: number;
 
-  /** Property registers dropped because compaction removed every dot of their node or edge. */
+  /** Property registers reclaimed because retained lifecycle evidence permanently dominates them. */
   readonly propertiesPruned: number;
 
   constructor(fields: {
