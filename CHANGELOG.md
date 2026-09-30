@@ -52,6 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Reopened public writers prepare bounded node-removal observations through the
+  journal, bind the captured frontier/context to admission, and publish real
+  observed-dot removals (#912). Oversized or unsupported observations refuse
+  without a whole-graph materialization fallback. Writer-parent context is
+  restored before allocating additions so reopen cannot reuse removed dots.
+
 - GC and checkpoint collection retain all node/edge membership evidence until
   a sufficient retirement contract exists (#911). Applied vectors alone no
   longer authorize dropping tombstones. Dominated property payloads are still

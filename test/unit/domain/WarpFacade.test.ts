@@ -344,9 +344,14 @@ describe('v19 Warp facade', () => {
     if (exposed.kind !== 'property.set') {
       throw new Error('property intent descriptor kind must be stable');
     }
-    const exposedValue = exposed.value as { roles: string[]; evidence: Uint8Array };
-    exposedValue.roles[0] = 'auditor';
-    exposedValue.evidence[0] = 7;
+    const exposedValue = exposed.value;
+    if (exposedValue === null || typeof exposedValue !== 'object' || Array.isArray(exposedValue)
+      || !('roles' in exposedValue) || !Array.isArray(exposedValue['roles'])
+      || !('evidence' in exposedValue) || !(exposedValue['evidence'] instanceof Uint8Array)) {
+      throw new Error('property value must preserve roles and evidence bytes');
+    }
+    exposedValue['roles'][0] = 'auditor';
+    exposedValue['evidence'][0] = 7;
 
     expect(propertyIntent.descriptor).toMatchObject({
       kind: 'property.set',
@@ -369,15 +374,13 @@ describe('v19 Warp facade', () => {
       throw new Error('state-dependent write without a basis must produce an obstruction');
     }
     expect(receipt.outcome.witness.reason).toMatchObject({
-      family: 'unsupported-evidence',
-      code: 'git-warp.write.missing-bounded-basis',
+      family: 'law-violation',
+      code: 'git-warp.write.entity-not-found',
     });
     expect(receipt.outcome.witness.retry.disposition).toBe('after-change');
     expect(receipt.evidence.support).toEqual([]);
-    expect(receipt.reason).toBe('git-warp.write.missing-bounded-basis');
-    expect(receipt.repairHints).toEqual([
-      expect.objectContaining({ code: 'materialize_write_basis' }),
-    ]);
+    expect(receipt.reason).toBe('git-warp.write.entity-not-found');
+    expect(receipt.repairHints).toEqual([]);
   });
 
   it('reads public readings and returns accepted read receipts', async () => {

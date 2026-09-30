@@ -530,4 +530,8 @@ writes; adding the node asserts membership without restoring cleared contents.
 Readings and observation receipts identify `observed-remove/node-lww-clear`.
 Upgrade interpreters together and rebuild derived checkpoints from patches;
 identical Git history does not imply identical readings across this change.
-Property reclamation retains clear evidence and does not bound total metadata.
+Property reclamation retains clear and membership evidence; neither GC nor
+checkpoint creation retires membership tombstones. Total metadata remains
+unbounded. Reopened public writers automatically capture a bounded journal
+observation for node removal and restore their persisted addition counter.
+Requests outside the bounded profile refuse without whole-graph fallback.

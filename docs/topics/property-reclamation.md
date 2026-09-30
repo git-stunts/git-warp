@@ -133,11 +133,43 @@ property collection, checkpoint round trips, future joins and subsequent writes.
 The changed lifecycle predicate, sweep and lifecycle-record model have 100%
 statement, branch, function and line coverage.
 
-The isolated tarball smoke validates existing public CLI behavior, all public
-exports/types, and reading/receipt interpretation markers. Its attempted public
-remove/re-add scenario exposed [#912](https://github.com/git-stunts/git-warp/issues/912):
-a reopened public writer lacks the bounded basis required to publish a removal.
-That public-only lifecycle acceptance case remains blocked; internal graph API
-and checkpoint/replay tests exercise the lifecycle behavior. This PR stays draft
-until the acceptance gap is resolved. Do not claim the removal occurred from a
-successful process exit; inspect the write receipt for a derived outcome.
+The isolated tarball smoke validates public exports/types and interpretation
+markers, then runs lifecycle writes and reads in separate installed CLI processes.
+Every write must return a derived receipt. Before lifecycle assertions, the
+checker reads the actual persisted removal from installed artifact modules and
+verifies its nonempty observed dots. Reopening the original writer, re-adding,
+and explicitly replacing a property all pass. An isolated second repository
+proves that a concurrent unobserved add survives while the old property clears.
+
+## Public bounded removal basis (#912)
+
+`Runtime` / `Lane.write` prepares node removals automatically before lowering.
+It captures writer heads, pins the publishing writer to its existing CAS parent,
+and scans immutable journal histories newest-first. The observation retains only
+membership dots, incident edges, and property names needed by the existing
+reject/cascade/warn deletion policy. It does not construct or cache a whole-graph
+`WarpState`, load property payloads into the observation, or materialize as a
+fallback. Its frontier identifies the admission evaluation coordinate; its
+observed context and maximum Lamport advance the removal patch's causal basis.
+Foreign additions published after capture remain unobserved and can survive.
+
+The initial profile admits at most 1,024 writer refs, 10,000 patches, 50,000
+operations, 50,000 charged evidence names/dots/context entries, and 8,388,608
+UTF-16 text units. Repeated evidence is charged conservatively. These are bounds
+on the observation and scan work, not a new bound on a single decoded patch in
+the journal adapter. Oversized observations refuse publication; this is not yet
+a checkpoint-accelerated removal path for arbitrarily long histories.
+State-dependent Strand removals still require their existing scoped basis: the
+worldline scan is never substituted for a Strand coordinate.
+
+All public writes restore the persisted writer-parent context before allocating
+new dots, preventing a reopened writer from reusing an already removed addition
+counter. Empty observed-dot removals still do not establish a clear, and missing
+nodes return a law-violation obstruction rather than a fabricated removal.
+
+The five checkpoint-tail refusal cases in #913 now inject faults into the current
+root-backed index/property members. Missing roots and missing/malformed shards
+still refuse without materialization fallback; no expectation was weakened.
+The four neighbor-provider contract failures remain separately tracked in #913.
+
+#910 stays draft pending final-head gates and independent review.
