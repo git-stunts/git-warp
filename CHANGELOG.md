@@ -52,6 +52,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Update the locked development-tool `brace-expansion` resolutions to patched
+  versions 1.1.21, 2.1.7, and 5.0.12; retain the full dependency audit gate.
+
+- Release promotion probes `@git-stunts/git-warp@latest` explicitly so npm
+  default-tag configuration cannot substitute another publication channel.
+
+- Release registry probes decode npm JSON responses and require a structured
+  `E404` code before treating a lookup failure as an unpublished package.
+  Error descriptions cannot authorize a `latest` publication.
+
+- Release tag decisions validate complete SemVer inputs and compare precedence
+  with npm SemVer, including prereleases and precedence-neutral build metadata.
+  Unsupported prerelease channels and malformed registry answers fail closed.
+
+- Maintenance releases now inspect their existing npm channel and refuse to
+  move it backward or publish when that channel cannot be inspected.
+- Release publication shares one non-cancelling concurrency group across tags,
+  keeping registry inspection and publication serialized between releases.
+- A stable release tag no longer claims the `latest` npm dist-tag
+  unconditionally. `latest` is what a bare `npm install` resolves to, so a
+  maintenance release of an older major would have moved every new install
+  backwards — irreversibly, since a published version cannot be withdrawn, and
+  silently, since nothing in the pipeline inspected the dist-tag. A tag now
+  claims `latest` only when it is at or above the version the registry serves,
+  and publishes under `maintenance-vX` otherwise. The decision refuses rather
+  than guessing when the registry cannot be read or answers with no usable
+  version, and treats `E404` as a first publish. It lives in
+  `scripts/compute-npm-dist-tag.sh` so it is testable rather than trusted.
+  `.github/RELEASE.md` already required "an explicit maintenance tag policy
+  before publication"; that policy is now written down and enforced, alongside
+  a procedure for releasing from a maintenance line.
 - Clear the locked dependency audit for Markdown tooling by updating
   `markdown-it` to 14.3.2 and overriding only `markdownlint-cli`'s `js-yaml`
   dependency to 5.4.2. The scoped override bridges the CLI's vulnerable
