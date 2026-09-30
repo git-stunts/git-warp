@@ -98,6 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Developer hook installation now configures a working-tree-relative hooks path,
+  so dependency installation in one linked worktree cannot redirect every other
+  checkout to its hook scripts (#891).
+
 - Skip edge-property rows with invalid runtime identifier or slot fields, consistently across iterators and attachment projections, while retaining their stored registers.
 
 - Validate checkpoint projection property values and preserve absent lifecycle witnesses instead of fabricating invalid birth events.

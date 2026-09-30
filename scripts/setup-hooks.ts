@@ -29,9 +29,9 @@ if (!existsSync(hooksDir)) {
 
 try {
   process.chdir(repoRoot);
-  execSync(`git config core.hooksPath "${hooksDir}"`, { stdio: 'inherit' });
+  execSync('git config --local core.hooksPath scripts/hooks', { stdio: 'inherit' });
   console.log('✅ Git hooks configured successfully');
-  console.log(`   Hooks directory: ${hooksDir}`);
+  console.log('   Hooks directory: scripts/hooks (relative to each working tree)');
 } catch (err) {
   console.error('❌ Failed to configure git hooks:', err instanceof Error ? err.message : String(err));
   process.exit(1);
