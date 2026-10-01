@@ -29,6 +29,7 @@ function trackedNonTypeScriptTail(): string[] {
 describe('non-TS tail shape', () => {
   it('keeps the tracked non-TS tail explicit and bounded', () => {
     expect(trackedNonTypeScriptTail()).toEqual([
+      'src/docker-guard.d.ts',
       'src/globals.d.ts',
       'test/type-check/plumbing-declarations.d.ts',
       'test/type-check/runtime-declarations.d.ts',

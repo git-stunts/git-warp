@@ -65,6 +65,20 @@ npm install
 npm run test:local
 ```
 
+## Test isolation
+
+All tests and benchmarks run inside Docker. `npm test` and the test/benchmark
+scripts build a COPY-based image and execute there, without mounting the host
+checkout or its Git directory. Direct Vitest, BATS, and Deno runs fail on the
+host before their test bodies execute. An exported environment flag or GitHub
+Actions environment is not a substitute for container isolation.
+
+For a targeted run:
+
+```bash
+bash scripts/run-in-docker.sh npx --no-install vitest run test/unit/domain/services/SyncSecret.test.ts
+```
+
 ## Useful checks
 
 ```bash

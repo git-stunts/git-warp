@@ -6,12 +6,14 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+node "$ROOT/scripts/RequireDockerTests.ts"
 OUTPUT="${1:?usage: calibrate.sh <receipt.json>}"
 mkdir -p "$(dirname "$OUTPUT")"
 OUTPUT=$(cd "$(dirname "$OUTPUT")" && pwd)/$(basename "$OUTPUT")
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/git-warp-closure-calibration.XXXXXX")
 trap 'rm -rf "$WORK"' EXIT
-mkdir -p "$WORK/tree/scripts/release-closure" "$WORK/tree/test/bats/fixtures"
+mkdir -p "$WORK/tree/scripts/release-closure" "$WORK/tree/test/bats/fixtures" "$WORK/tree/test/bats/helpers"
+cp "$ROOT/test/bats/helpers/docker.bash" "$WORK/tree/test/bats/helpers/"
 cp "$ROOT/test/bats/release-closure.bats" "$WORK/tree/test/bats/"
 cp "$ROOT/test/bats/fixtures/release-closure-command.sh" "$WORK/tree/test/bats/fixtures/"
 export LC_ALL=C TZ=UTC

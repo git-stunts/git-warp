@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import './RequireDockerTests.ts';
 
 import { execFile as execFileCallback } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';

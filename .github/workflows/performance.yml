@@ -30,6 +30,7 @@ jobs:
   compare:
     name: v19 base/head performance
     runs-on: ubuntu-24.04
+    container: node:22
     timeout-minutes: 45
     env:
       RUNNER_ENVIRONMENT: github-actions-ubuntu-24.04
