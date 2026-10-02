@@ -39,7 +39,9 @@ non-negative safe integer. The storage adapter checks the plaintext stream
 before forwarding each chunk to CAS. A chunk that would exceed the declaration
 is rejected before CAS receives it, producer iteration closes, and staging
 cannot return a successful asset. EOF before the declared length also rejects
-staging. The returned storage receipt is checked independently.
+staging. The returned storage receipt is checked independently for unencrypted assets.
+Encrypted CAS receipts describe stored ciphertext size; WARP records the fully
+consumed plaintext count instead. Storage cannot return success before input EOF.
 
 An absent declaration retains streaming storage behavior without imposing an
 arbitrary attachment-size cap. This boundary does not collect the asset and

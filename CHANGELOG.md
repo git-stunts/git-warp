@@ -111,6 +111,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Attachment metadata reports consumed plaintext size under framed encryption,
+  independently of ciphertext overhead in CAS receipts. Staging rejects receipts
+  returned before full input consumption and still checks unencrypted byte counts.
+
 - Transfer plans retain attachment handles and metadata instead of loading and
   accumulating payload bytes. Existing canonical transfer digest inputs remain
   unchanged; planning no longer requires attachment storage reads (#818).

@@ -48,14 +48,13 @@ async function* chunks(): AsyncGenerator<Uint8Array> {
 }
 
 describe('GitCasAssetStorageAdapter', () => {
-  it('hands the original stream to git-cas and round-trips through an opaque handle', async () => {
+  it('streams input to git-cas and round-trips through an opaque handle', async () => {
     const { adapter, put } = createFixture();
     const source = chunks();
 
     const staged = await adapter.stage(source, { slug: 'streamed' });
 
     expect(put).toHaveBeenCalledWith(expect.objectContaining({
-      source,
       slug: 'streamed',
       filename: 'content',
     }));
