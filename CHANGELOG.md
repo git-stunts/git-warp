@@ -52,6 +52,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Test and benchmark entry points enforce COPY-based Docker execution (#921).
+  Direct package commands resolve their installed binaries; watch mode copies
+  source edits into its service. Coverage reports and ratchet snapshots survive
+  cleanup, with original source identity retained for snapshots. Threshold
+  updates require a successful full coverage run and unchanged host config.
+  Performance CI copies both revisions into a pinned image, exports raw evidence
+  and preserves failure status; owned containers are cleaned up on termination.
+  Artifact destinations reject case aliases of Git metadata, dependency trees,
+  and tracked files before starting Docker. Cleanup removes uniquely owned
+  comparison and Compose project image tags without pruning shared images.
+  Manual performance commands export their reports and source identity, forward
+  measurement settings, and compare copied clean sibling checkouts without mounts.
+
 - Reopened public writers prepare bounded node-removal observations through the
   journal, bind the captured frontier/context to admission, and publish real
   observed-dot removals (#912). Oversized or unsupported observations refuse

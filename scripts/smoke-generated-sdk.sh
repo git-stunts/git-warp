@@ -2,6 +2,8 @@
 # Compile and execute the generated SDK against the packed package and real Git.
 set -euo pipefail
 
+source "$(dirname "$0")/SmokeTestDockerEntry.sh"
+
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/git-warp-sdk-smoke.XXXXXX")
 PACK_DIR="$TMP_ROOT/pack"

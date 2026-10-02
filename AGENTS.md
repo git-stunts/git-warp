@@ -250,6 +250,13 @@ DTO and stop there**. Do not hallucinate fake domain models.
 
 ## Tests and Coverage
 
+- All tests and benchmarks must execute inside Docker, including targeted runs,
+  smoke tests, BATS, Deno, coverage, and performance witnesses. Never set an
+  environment flag to bypass isolation. Use the COPY-based Docker images; do
+  not mount host repositories or Git directories into test containers.
+- `npm test` and test/benchmark scripts route through `scripts/run-in-docker.sh`.
+  Direct Vitest invocations are guarded before test modules load.
+
 - Useful commands:
   - `npm run test:local`
   - `npm run test:coverage`

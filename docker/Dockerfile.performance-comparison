@@ -1,0 +1,11 @@
+FROM node:22-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c
+RUN apt-get update && apt-get install -y --no-install-recommends git python3 make g++ time \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /comparison
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+# Preserve the copied source Git identities without mounting runner checkouts.
+COPY base ./base
+COPY head ./head
+RUN npm --prefix base ci \
+    && npm --prefix head ci \
+    && npm --prefix head/fixtures/v18/retained-substrate-medium ci --ignore-scripts

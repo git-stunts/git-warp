@@ -2,6 +2,8 @@
 # Smoke the actual npm tarball in a clean consumer fixture.
 set -euo pipefail
 
+source "$(dirname "$0")/SmokeTestDockerEntry.sh"
+
 ARTIFACTS_PREPARED=0
 case "${1:-}" in
   "") ;;

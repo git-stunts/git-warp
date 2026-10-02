@@ -1,3 +1,4 @@
+import '../RequireDockerTests.ts';
 import { execFileSync, spawn } from 'node:child_process';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';

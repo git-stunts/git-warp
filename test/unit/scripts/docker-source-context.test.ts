@@ -7,6 +7,7 @@ const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 
 const COMPOSE_FILES = Object.freeze([
   Object.freeze({ path: 'docker/docker-compose.yml', buildCount: 2 }),
+  Object.freeze({ path: 'docker/docker-compose.watch.yml', buildCount: 1 }),
   Object.freeze({ path: 'docker/docker-compose.test.yml', buildCount: 4 }),
 ]);
 
