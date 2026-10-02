@@ -76,6 +76,68 @@ Read the deeply illustrated
 or [CHANGELOG.md](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/CHANGELOG.md) for the complete evidence and compatibility
 notes.
 
+## Quick install
+
+### Native application use
+
+Use Node.js 22 or newer and make Git available on `PATH`. Install the published
+package in your application, then check its local CLI:
+
+```bash
+node --version
+git --version
+npm install @git-stunts/git-warp
+npx --no-install git-warp --help
+```
+
+The package is ESM. Import `Runtime` from `@git-stunts/git-warp`; advanced
+builders have the supported `@git-stunts/git-warp/advanced` export. A registry
+install supplies the published version, not unreleased capabilities described
+by a newer source checkout. Before opening retained v18 data, follow the
+migration requirement below.
+
+### Docker from source
+
+For a disposable CLI environment built from a checkout, install Docker and Git:
+
+```bash
+git clone https://github.com/git-stunts/git-warp.git
+cd git-warp
+docker build --file docker/Dockerfile.node22-slim --tag git-warp:local .
+docker run --rm --init git-warp:local git-warp --help
+```
+
+The image copies source and creates its own Git repository; these commands do
+not mount a host repository. This runs checkout code, not a published image or
+a registry-release verification. Data created in the disposable container is
+removed with it; use the native application path for your persistent repository.
+
+### Contributor setup and tests
+
+Source development uses a current Node.js 22 release (at least 22.18), npm 10,
+Git and Docker. The source scripts depend on Node's
+[default TypeScript execution](https://nodejs.org/en/blog/release/v22.18.0).
+In your clone:
+
+```bash
+npm ci
+npm run test:local
+```
+
+`npm ci` runs the source `prepare` script, which applies dependency patches and
+sets up Git hooks. Hook setup can change the enclosing repository's local
+`core.hooksPath` to `scripts/hooks`; linked worktrees share that local setting.
+It preserves existing custom/global/worktree overrides and migrates recognized
+legacy local paths. Run it only in the intended source clone, not from an
+installed dependency inside an application repository. Package use does not
+require manually running `npm run setup:hooks`.
+
+Contributor tests, benchmarks, smoke tests and coverage execute in COPY-based
+Docker containers. The npm test commands arrange this isolation; do not invoke
+test runners directly on the host or mount host Git repositories into test
+containers. For installed-package acceptance from source, run
+`bash scripts/run-in-docker.sh bash scripts/smoke-packed-artifact.sh`.
+
 ## v19 First-Use API
 
 Application code enters through one production composition root. Wesley-generated
@@ -458,11 +520,9 @@ obstructions do not enter history. No global lock is required.
 
 ### How do I install and set it up?
 
-```bash
-npm install @git-stunts/git-warp
-```
-
-Works alongside any existing Git repo. Full setup: [Getting started](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/getting-started.md).
+Start with [Quick install](#quick-install) for native package use, a disposable
+Docker CLI, and isolated contributor tests. Full application setup:
+[Getting started](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/getting-started.md).
 
 ### How does syncing work?
 
