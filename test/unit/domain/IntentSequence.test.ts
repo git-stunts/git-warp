@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import * as canonical from '../../../src/domain/utils/canonicalStringify.ts';
 
 import Intent from '../../../src/domain/api/Intent.ts';
 import IntentSequence, {
@@ -7,6 +8,19 @@ import IntentSequence, {
 } from '../../../src/domain/api/IntentSequence.ts';
 
 describe('IntentSequence', () => {
+  it('refuses oversized text before canonical serialization', () => {
+    const requested = Intent.setProperty({ subject: 'n', key: 'p', value: '\u0000'.repeat(4 * 1024 * 1024) });
+    const encode = vi.spyOn(canonical, 'canonicalStringify');
+    try {
+      expect(() => IntentSequence.from([requested])).toThrowError(
+        expect.objectContaining({ code: 'E_INTENT_SEQUENCE_SIZE' }),
+      );
+      expect(encode).not.toHaveBeenCalled();
+    } finally {
+      encode.mockRestore();
+    }
+  });
+
   it('copies and freezes an ordered caller-owned array', () => {
     const first = Intent.addNode({ subject: 'capture:first' });
     const second = Intent.addNode({ subject: 'capture:second' });

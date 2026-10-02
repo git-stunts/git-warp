@@ -456,6 +456,13 @@ descriptor, and 50,000 lowered patch operations. A one-member array remains an
 atomic-sequence request and therefore has a different proposal and law digest
 from the legacy singular call, even though both publish one patch.
 
+Descriptor admission must count canonical UTF-8 bytes before constructing the
+complete encoded descriptor (#916). The preflight includes escaping, nested
+values and the aggregate sequence envelope, stops when the budget is exceeded,
+and retains the canonical encoder for admitted requests so receipt identities
+remain stable. Caller-owned Intent data and its normalization snapshots are
+separate from the encoded-byte budget.
+
 `WriteReceipt.intents` preserves normalized member order.
 `WriteReceipt.occurrences` preserves the order of every `entity.add` birth in
 the published patch. `WriteReceipt.occurrence` remains the singular convenience
