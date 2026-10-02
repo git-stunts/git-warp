@@ -1,10 +1,9 @@
 import WarpError from '../errors/WarpError.ts';
-import { textEncode } from '../utils/bytes.ts';
-import { canonicalStringify } from '../utils/canonicalStringify.ts';
+import AtomicDescriptorByteBudgetReader from './AtomicDescriptorByteBudgetReader.ts';
+export { MAX_ATOMIC_WRITE_DESCRIPTOR_BYTES } from './AtomicDescriptorByteBudgetReader.ts';
 import Intent, { type IntentDescriptor, type IntentKind } from './Intent.ts';
 
 export const MAX_ATOMIC_WRITE_INTENTS = 50_000;
-export const MAX_ATOMIC_WRITE_DESCRIPTOR_BYTES = 16 * 1024 * 1024;
 
 export type AtomicIntentArray = readonly [Intent, ...Intent[]];
 export type WriteIntentInput = Intent | readonly Intent[];
@@ -106,7 +105,6 @@ function normalizeAtomicIntentArray(input: readonly Intent[]): NormalizedIntentS
   const first = requireIntent(input[0], 0);
   const intents = freezeIntentArray(first, input.slice(1));
   const descriptor = atomicDescriptor(intents);
-  requireAtomicDescriptorSize(descriptor);
   return Object.freeze({ atomic: true, descriptor, input: intents, intents });
 }
 
@@ -144,18 +142,15 @@ function requireIntent(candidate: Intent | undefined, index: number): Intent {
 }
 
 function atomicDescriptor(intents: AtomicIntentArray): AtomicIntentDescriptor {
+  const budget = new AtomicDescriptorByteBudgetReader();
+  const descriptors: IntentDescriptor[] = [];
+  for (const intent of intents) {
+    const descriptor = intent.descriptorWithinAtomicBudget(budget);
+    budget.include(descriptor);
+    descriptors.push(descriptor);
+  }
   return Object.freeze({
     kind: 'intent.sequence',
-    intents: Object.freeze(intents.map(({ descriptor }) => descriptor)),
+    intents: Object.freeze(descriptors),
   });
-}
-
-function requireAtomicDescriptorSize(descriptor: AtomicIntentDescriptor): void {
-  const encodedBytes = textEncode(canonicalStringify(descriptor)).byteLength;
-  if (encodedBytes > MAX_ATOMIC_WRITE_DESCRIPTOR_BYTES) {
-    throw new WarpError(
-      `Atomic intent descriptor exceeds ${String(MAX_ATOMIC_WRITE_DESCRIPTOR_BYTES)} bytes`,
-      'E_INTENT_SEQUENCE_SIZE',
-    );
-  }
 }

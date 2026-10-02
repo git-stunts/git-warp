@@ -43,7 +43,7 @@ import type VersionVector from './VersionVector.ts';
  */
 function _assertValidDot(dot: Dot): void {
   if (dot === null || dot === undefined || typeof dot.writerId !== 'string' || !Number.isInteger(dot.counter)) {
-    throw new CrdtError(`ORSet.add: invalid dot -- expected {writerId: string, counter: integer}, got ${JSON.stringify(dot)}`, { // nosemgrep: ts-no-json-stringify-in-core -- 0025B
+    throw new CrdtError('ORSet.add: invalid dot -- expected {writerId: string, counter: integer}', {
       code: 'E_CRDT_MALFORMED',
       context: { dot },
     });
@@ -139,8 +139,7 @@ export default class ORSet {
 
   /**
    * Returns true while the set still holds any dot for the element,
-   * tombstoned or live. After `compact`, an element whose every dot was
-   * compacted away is no longer held at all.
+   * tombstoned or live. Compaction retains these entries as removal evidence.
    */
   hasEntries(element: string): boolean {
     return this.entries.has(element);
@@ -289,18 +288,13 @@ export default class ORSet {
   }
 
   /**
-   * Compacts the ORSet by removing tombstoned dots that are <= includedVV.
-   * Mutates the set.
-   *
-   * ## GC Safety Invariant
-   *
-   * Only compact dots that ALL replicas have observed. The `includedVV`
-   * parameter represents the "stable frontier" — the version vector that
-   * all known replicas have reached.
+   * Retains all membership evidence; retires no entries or tombstones.
+   * The supplied vector alone cannot establish removal stability or exclude
+   * stale replay/joins. Keeping the signature preserves existing callers.
+   * This no-op does not establish a bound on retained metadata (#911).
    */
-  compact(includedVV: VersionVector): void {
-    const toDelete = _collectCompactableDots(this, includedVV);
-    _applyCompaction(this, toDelete);
+  compact(_includedVV: VersionVector): void {
+    // Membership retirement requires a separate enforceable stability contract.
   }
 
   /** Creates a deep clone. */
@@ -363,33 +357,5 @@ function _mergeEntries(source: Map<string, Set<string>>, target: Map<string, Set
 function _unionSets(source: Set<string>, target: Set<string>): void {
   for (const item of source) {
     target.add(item);
-  }
-}
-
-/** Identifies dots eligible for compaction: tombstoned AND within the stable frontier. */
-function _collectCompactableDots(set: ORSet, includedVV: VersionVector): Array<{ element: string; dot: string }> {
-  const toDelete: Array<{ element: string; dot: string }> = [];
-  for (const [element, dots] of set.entries) {
-    for (const encodedDot of dots) {
-      const dot = Dot.decode(encodedDot);
-      if (set.tombstones.has(encodedDot) && includedVV.contains(dot)) {
-        toDelete.push({ element, dot: encodedDot });
-      }
-    }
-  }
-  return toDelete;
-}
-
-/** Applies compaction by removing identified dots from entries and tombstones. */
-function _applyCompaction(set: ORSet, toDelete: Array<{ element: string; dot: string }>): void {
-  for (const { element, dot: encodedDot } of toDelete) {
-    const dots = set.entries.get(element);
-    if (dots !== undefined) {
-      dots.delete(encodedDot);
-      if (dots.size === 0) {
-        set.entries.delete(element);
-      }
-    }
-    set.tombstones.delete(encodedDot);
   }
 }

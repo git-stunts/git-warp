@@ -291,8 +291,8 @@ grep -qF 'confirmation requires an interactive terminal' migrate.txt
 node "$LEGACY_UPGRADE" --repo "$REPO" --dry-run --json > upgrade.json
 test "$(git -C "$REPO" for-each-ref)" = "$REFS_BEFORE"
 node "$CHECK_PACKED" results "$FIXTURE_DIR"
-
 bash "$ROOT/scripts/smoke-packed-node-removal.sh" "$ROOT" "$PACKAGE_DIR" "$TMP_ROOT/lifecycle"
-
 bash "$ROOT/scripts/smoke-packed-attachments.sh" "$ROOT" "$FIXTURE_DIR"
+cp "$ROOT/test/fixtures/packed-atomic-budget.mjs" ./packed-atomic-budget.mjs
+node packed-atomic-budget.mjs
 echo "packed artifact smoke passed"
