@@ -36,12 +36,14 @@ Runtime @ index.ts#L13
 
 ### Type exports
 
-Source: `index.ts`. Count: 43.
+Source: `index.ts`. Count: 45.
 
 ```text
 AdmissionOutcome @ index.ts#L63
+ContentAttachment @ index.ts#L67
 ContentInput @ index.ts#L24
 ContentMetadataInput @ index.ts#L25
+ContentOwnerDescriptor @ index.ts#L68
 CoordinateReference @ index.ts#L28
 EntityAdmission @ index.ts#L55
 EntityAdmissionInitialProperties @ index.ts#L56
@@ -90,13 +92,15 @@ Bounded formal reads and runtime-backed construction for generated SDK infrastru
 
 ### Value exports
 
-Source: `advanced.ts`. Count: 9.
+Source: `advanced.ts`. Count: 11.
 
 ```text
 captureCoordinate @ advanced.ts#L9
 Coordinate @ advanced.ts#L10
+createEdgeContentObserver @ advanced.ts#L35
 createEntityAdmissionInventoryObserver @ advanced.ts#L18
 createManyObserver @ advanced.ts#L15
+createNodeContentObserver @ advanced.ts#L35
 createObserver @ advanced.ts#L16
 intent @ advanced.ts#L12
 Optic @ advanced.ts#L11

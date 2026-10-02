@@ -63,3 +63,6 @@ export type { default as EntityAdmissionInventoryCertificate } from './src/domai
 export type { AdmissionOutcome } from './src/domain/api/AdmissionOutcome.ts';
 export type { Receipt } from './src/domain/api/PublicReceipt.ts';
 export type { RepairHint } from './src/domain/api/ReceiptSupport.ts';
+
+export type { default as ContentAttachment } from './src/domain/api/ContentAttachment.ts';
+export type { ContentOwnerDescriptor } from './src/domain/api/ContentOwner.ts';

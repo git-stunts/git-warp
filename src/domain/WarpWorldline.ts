@@ -5,6 +5,7 @@
  * application workflows. `WarpWorldline` is migration-only compatibility.
  */
 import WarpError from './errors/WarpError.ts';
+import { bindContentReadRuntime } from './services/ContentReadRuntime.ts';
 import type AssetStoragePort from '../ports/AssetStoragePort.ts';
 import QueryError from './errors/QueryError.ts';
 
@@ -377,6 +378,7 @@ function createWarpWorldline(worldlineName: string, graph: RuntimeGraph): WarpWo
     getFrontier: async () => await graph.getFrontier(),
     inventory: new PatchJournalEntityAdmissionInventory({ journal: graph._patchJournal }),
   });
+  bindContentReadRuntime(worldline, { refs: graph._persistence, journal: graph._patchJournal });
   return worldline;
 }
 

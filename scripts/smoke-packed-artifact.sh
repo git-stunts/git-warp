@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Smoke the actual npm tarball in a clean consumer fixture.
 set -euo pipefail
-
 source "$(dirname "$0")/SmokeTestDockerEntry.sh"
 
 ARTIFACTS_PREPARED=0
@@ -25,7 +24,6 @@ ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/git-warp-packed-smoke.XXXXXX")
 PACK_DIR="$TMP_ROOT/pack"
 FIXTURE_DIR="$TMP_ROOT/consumer"
-
 cleanup() {
   rm -rf "$TMP_ROOT"
 }
@@ -296,4 +294,6 @@ node "$CHECK_PACKED" results "$FIXTURE_DIR"
 
 bash "$ROOT/scripts/smoke-packed-node-removal.sh" "$ROOT" "$PACKAGE_DIR" "$TMP_ROOT/lifecycle"
 
+cp "$ROOT/test/fixtures/packed-content.mjs" ./packed-content.mjs
+node packed-content.mjs
 echo "packed artifact smoke passed"

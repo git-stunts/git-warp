@@ -1,3 +1,5 @@
+import { contentObserverOwner } from '../domain/api/ContentObserverRuntime.ts';
+import { startContentObservation, startStrandContentObservation } from './RuntimeContentObservation.ts';
 import type ReadingResult from '../domain/api/ReadingResult.ts';
 import type DraftTimeline from '../domain/api/DraftTimeline.ts';
 import { createDraftReadingTarget } from '../domain/api/DraftTimelineRuntime.ts';
@@ -176,6 +178,8 @@ function startObserver<TValue extends ReadingValue>(
   observer: Observer<TValue>,
   activity: RuntimeActivity,
 ): Promise<ObservationExecution<TValue>> {
+  const owner = contentObserverOwner(observer);
+  if (owner !== null) { return startContentObservation({ timeline, observer, owner, activity }); }
   return isEntityAdmissionInventoryObserver(observer)
     ? startEntityAdmissionInventory(timeline, observer, activity)
     : startBoundedObserver(timeline, observer, activity);
@@ -215,6 +219,8 @@ async function startStrandObserver<TValue extends ReadingValue>(
   observer: Observer<TValue>,
   activity: RuntimeActivity,
 ): Promise<ObservationExecution<TValue>> {
+  const owner = contentObserverOwner(observer);
+  if (owner !== null) { return await startStrandContentObservation({ draft, observer, owner, activity }); }
   if (isEntityAdmissionInventoryObserver(observer)) {
     return unsupportedStrandEntityAdmissionInventory(draft, observer);
   }

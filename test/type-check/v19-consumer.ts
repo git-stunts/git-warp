@@ -152,3 +152,18 @@ async function stageContent(lane: Lane, content: ContentInput, metadata: Content
   await lane.stageContent(new ArrayBuffer(4));
   return staged;
 }
+
+async function readContent(lane: Lane): Promise<void> {
+  const { createNodeContentObserver, createEdgeContentObserver } = await import('@git-stunts/git-warp/advanced');
+  const node = await lane.observe(createNodeContentObserver({ subject: 'document' })).one();
+  const edge = await lane.observe(createEdgeContentObserver({ from: 'document', to: 'related', label: 'links' })).one();
+  for (const reading of [node, edge]) {
+    if (reading.value === null) { continue; }
+    const stream: AsyncIterable<Uint8Array> = reading.value.open();
+    const size: number | null = reading.value.size;
+    void stream;
+    void size;
+    // @ts-expect-error Public content has no eager byte getter.
+    reading.value.bytes();
+  }
+}

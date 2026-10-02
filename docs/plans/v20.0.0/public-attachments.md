@@ -1,8 +1,8 @@
 # Public node and edge byte attachments
 
-Status: implementation plan for [#901](https://github.com/git-stunts/git-warp/issues/901). This document describes work to implement and verify, not an available public API. Prerequisite: [#818](https://github.com/git-stunts/git-warp/issues/818), delivered by [#926](https://github.com/git-stunts/git-warp/pull/926). All slices remain in one #901 PR, which lands after #818.
+Status: implementation plan for [#901](https://github.com/git-stunts/git-warp/issues/901). The API is implemented on draft PR #927; this record distinguishes completed witnesses from remaining merge gates. Prerequisite: [#818](https://github.com/git-stunts/git-warp/issues/818), delivered by [#926](https://github.com/git-stunts/git-warp/pull/926). All slices remain in one #901 PR, which lands after #818.
 
-Implementation checkpoint: #926 is merged. Draft #927 implements `Lane.stageContent()` and node/edge attach/clear intents with Runtime-owned staging provenance, atomic publication roots, bounded owner observation, retained-intent recovery and strand settlement. Real-Git tests cover replacement, clearing, rollback, foreign staging, pruned staging and bytes surviving settlement/reopen/GC. Pinned public observer reads, the remaining acceptance matrix and packed-consumer evidence are still required before this PR can merge. Existing internal readers in the write tests do not establish supported public stream-read reachability.
+Implementation checkpoint: #926 is merged. Draft #927 implements `Lane.stageContent()` and node/edge attach/clear intents with Runtime-owned staging provenance, atomic publication roots, bounded owner observation, retained-intent recovery and strand settlement. Real-Git tests cover replacement, clearing, rollback, foreign staging, pruned staging and bytes surviving settlement/reopen/GC. Pinned public node/edge observers now stream through Runtime-owned activity leases using bounded full-history projection. Docker regressions cover historical reads, concurrent writes, strand reopening and GC. The installed packed-artifact witness covers both owner types, staging failures, rollback, historical reads, checkpoint/reopen/GC and a 64 MiB generated stream. Full validation and final review are still required before this PR can merge. Existing internal readers in the write tests do not establish supported public stream-read reachability.
 
 ## Observable outcome
 
@@ -45,4 +45,4 @@ Runtime remains the sole runtime value exported from the package root. Public se
 
 Byte attachments do not establish recursive structural WARP ownership (#903). No eager unbounded getter and no git-warp release are part of this issue. #902 expands the consumer gate; it does not receive missing minimum proof from this PR.
 
-Completion requires the complete acceptance matrix, current-head independent review, green CI, a normal merge to main and linked issue/PR/integration evidence in GitHub and Linear. No implementation or validation result is claimed by this plan.
+Completion requires the complete acceptance matrix, current-head independent review, green CI, a normal merge to main and linked issue/PR/integration evidence in GitHub and Linear. The implementation checkpoint above records completed evidence; it is not a release announcement.

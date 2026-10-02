@@ -29,8 +29,8 @@ that content is attached; blob storage stores the bytes.
 Internal attachment reads expose metadata, opaque handles, and streams.
 The eager `getContent` and `getEdgeContent` methods have been removed from core,
 graph, app, and query facades. Runtime/Lane staging and attachment-write intents
-are available on the #901 implementation branch; public observer stream reads
-and packed-consumer acceptance remain unfinished. Keep `Buffer`, filesystem details, and host-specific streams
+and public observer stream reads are available on the #901 implementation branch;
+packed-consumer acceptance covers the installed artifact. Keep `Buffer`, filesystem details, and host-specific streams
 inside adapters.
 
 ## Declared-size staging contract
@@ -76,8 +76,49 @@ Worldline owner checks use a captured, bounded journal observation, not an impli
 full graph materialization. They share its refusal limits with node removal:
 1,024 writers, 10,000 patches, 50,000 operations and membership/text bounds.
 Long histories or high incident-edge fanout can exceed that profile; an obstruction
-is not evidence that the requested owner is absent. Public historical stream reads
-and the complete packed-consumer witness remain delivery gates for #901.
+is not evidence that the requested owner is absent. The packed-consumer witness exercises both owner types through the installed artifact.
+
+## Stream observations
+
+Use `createNodeContentObserver({ subject })` or
+`createEdgeContentObserver({ from, to, label })` from the advanced subpath:
+
+```typescript
+import { createNodeContentObserver } from '@git-stunts/git-warp/advanced';
+
+const observation = lane.observe(createNodeContentObserver({ subject: 'document' }));
+const reading = await observation.one();
+if (reading.value !== null) {
+  const { owner, mime, size } = reading.value;
+  console.log(owner, mime, size, reading.coordinate);
+  for await (const chunk of reading.value.open()) {
+    await destination.write(chunk);
+  }
+}
+console.log((await observation.receipt).status);
+```
+
+The example assumes the open `lane` above and a consumer-owned asynchronous
+`destination.write(Uint8Array)`. No eager payload collector is exposed.
+A reading contains a frozen owner, opaque content identity, MIME and byte length.
+Absent content emits `null`; legacy metadata without the winning content's causal
+lineage remains `null`. A captured reading opens its original bytes after later
+replacement, clearing or owner removal. It requires the originating Runtime to
+remain open and the retained history/storage to remain available.
+
+Content observations capture writer heads once and replay those immutable histories,
+retaining only the selected owner's membership and content registers. This is a
+bounded full-history scan, not an indexed checkpoint-tail lookup. Its refusal profile
+is 1,024 writers, 10,000 patches, 50,000 operations, 50,000 retained text entries and
+8 Mi UTF-16 text units; artifact decoding also has the existing 64 MiB bound.
+An exceeded profile or unavailable history yields an obstructed observation,
+not a claim of absent content. Strands use their pinned parent and overlay heads.
+
+An unused reading or unused `open()` iterable holds no activity lease. Consumption
+acquires a lease; Runtime close waits for active consumption to finish. Breaking
+iteration forwards cancellation to storage and releases the lease, including when
+storage throws. Starting consumption after close is refused. Cancel a stream you
+stop consuming before awaiting Runtime close; close does not forcibly abort it.
 
 ## Storage size validation
 
