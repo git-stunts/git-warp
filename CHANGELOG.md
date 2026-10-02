@@ -127,6 +127,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   core, graph, app and query facades; callers use metadata, handles or streams.
   Small fixture assertions collect streams only in bounded test helpers (#818).
 
+- Snapshot inline property values while charging each binary copy against the
+  64 KiB budget, preventing getter changes and caller mutation from bypassing it.
 - Reject new inline binary property writes exceeding 64 KiB in aggregate,
   including nested binary values, before intent copying or patch mutation.
   Larger binary payloads must use streaming content assets (#818).

@@ -33,8 +33,7 @@ export type StageContentAttachmentOptions = Omit<
 /** Validates public patch property values before intent construction. */
 export function requirePatchPropertyValue<T>(value: T): PropValue {
   if (isPropValue(value)) {
-    InlineBinaryBudget.require(value);
-    return value;
+    return InlineBinaryBudget.copy(value);
   }
   throw new PatchError('Property value must be property-compatible data', {
     code: 'E_PATCH_INVALID_PROPERTY_VALUE',

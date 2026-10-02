@@ -3,24 +3,24 @@ import type { PropValue } from './PropValue.ts';
 
 const MAX_INLINE_BINARY_BYTES = 64 * 1024;
 
-/** Counts binary occurrences in one already-validated property before copying. */
+/** Snapshots one property while charging every binary allocation against its budget. */
 export default class InlineBinaryBudget {
   #remaining = MAX_INLINE_BINARY_BYTES;
 
   constructor() { Object.freeze(this); }
 
-  static require(value: PropValue): void {
-    new InlineBinaryBudget().#consume(value);
+  static copy(value: PropValue): PropValue {
+    return new InlineBinaryBudget().#copy(value);
   }
 
-  #consume(value: PropValue): void {
+  #copy(value: PropValue): PropValue {
     if (value instanceof Uint8Array) {
       this.#consumeBytes(value.byteLength);
-      return;
+      return new Uint8Array(value);
     }
-    if (value === null || typeof value !== 'object') { return; }
-    const entries = Object.values(value);
-    for (const entry of entries) { this.#consume(entry); }
+    if (value === null || typeof value !== 'object') { return value; }
+    if (Array.isArray(value)) { return value.map((entry) => this.#copy(entry)); }
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, this.#copy(entry)]));
   }
 
   #consumeBytes(length: number): void {
