@@ -4,7 +4,7 @@ import {
   type AssetPutOptions,
   type StagedAsset as GitCasStagedAsset,
 } from '@git-stunts/git-cas';
-import AssetSizeMismatchError from '../../domain/errors/AssetSizeMismatchError.ts';
+import AssetSizeExpectation from '../../domain/storage/AssetSizeExpectation.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import AssetStoragePort, {
   type AssetWriteOptions,
@@ -36,14 +36,15 @@ export default class GitCasAssetStorageAdapter extends AssetStoragePort {
     source: AsyncIterable<Uint8Array>,
     options: AssetWriteOptions,
   ): Promise<StagedAsset> {
+    const expectation = sizeExpectation(options.expectedSize);
     const putOptions: AssetPutOptions = {
-      source,
+      source: expectation === null ? source : expectation.stream(source),
       slug: options.slug,
       filename: options.filename ?? 'content',
       ...this.#contentEncryption.toStoreOptions(),
     };
     const staged = await this.#cas.assets.put(putOptions);
-    requireExpectedSize(staged.asset.size, options.expectedSize);
+    expectation?.verify(staged.asset.size);
     return stagedAsset(staged);
   }
 
@@ -85,8 +86,8 @@ function stagedAsset(staged: GitCasStagedAsset): StagedAsset {
   });
 }
 
-function requireExpectedSize(actualSize: number, expectedSize: number | null | undefined): void {
-  if (expectedSize !== null && expectedSize !== undefined && actualSize !== expectedSize) {
-    throw new AssetSizeMismatchError(expectedSize, actualSize);
-  }
+function sizeExpectation(expectedSize: number | null | undefined): AssetSizeExpectation | null {
+  return expectedSize === null || expectedSize === undefined
+    ? null
+    : new AssetSizeExpectation(expectedSize);
 }

@@ -98,6 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Declared attachment sizes are enforced as bytes arrive: storage never receives
+  an overflowing chunk, truncation rejects staging, and invalid size declarations
+  fail before storage or the producer starts. Producer iteration closes on overflow.
+
 - Skip edge-property rows with invalid runtime identifier or slot fields, consistently across iterators and attachment projections, while retaining their stored registers.
 
 - Validate checkpoint projection property values and preserve absent lifecycle witnesses instead of fabricating invalid birth events.

@@ -30,6 +30,25 @@ Use the public content read surfaces when the caller needs content OIDs,
 metadata, byte payloads, or streams. Keep `Buffer`, filesystem details, and
 host-specific stream types inside adapters.
 
+## Declared-size staging contract
+
+When staging an asset with `expectedSize`, the declaration must be a
+non-negative safe integer. The storage adapter checks the plaintext stream
+before forwarding each chunk to CAS. A chunk that would exceed the declaration
+is rejected before CAS receives it, producer iteration closes, and staging
+cannot return a successful asset. EOF before the declared length also rejects
+staging. The returned storage receipt is checked independently.
+
+An absent declaration retains streaming storage behavior without imposing an
+arbitrary attachment-size cap. This boundary does not collect the asset and
+cannot prevent a producer from allocating an oversized chunk before yielding
+it. Producer allocation limits and bounded convenience collectors are separate
+requirements of issue #818.
+
+This internal safety change does not restore node/edge attachment operations
+through Runtime/Lane. Their public capability and packed-consumer evidence are
+tracked in #901 and #902; byte assets do not establish recursive graph ownership.
+
 ## Encryption policy
 
 Observer redaction is not encryption. Redaction changes what a selected read
