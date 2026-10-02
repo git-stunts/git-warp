@@ -23,6 +23,7 @@ import {
 } from './RuntimeSettlement.ts';
 import type { RuntimeSettlementOptions } from './RuntimeSettlementOptions.ts';
 import { openWarp } from './openWarp.ts';
+import ContentStagingAuthority from '../domain/services/ContentStagingAuthority.ts';
 
 export type { RuntimeSettlementOptions } from './RuntimeSettlementOptions.ts';
 
@@ -66,6 +67,7 @@ const STRAND_LANE_OWNERSHIP_FAILURE = Object.freeze({
 
 /** Production composition root for one local git-warp runtime. */
 export default class Runtime {
+  readonly #content = new ContentStagingAuthority();
   readonly #activity: RuntimeActivity;
   readonly #laneOwner: object;
   readonly #mutations: RuntimeMutationGate;
@@ -112,7 +114,7 @@ export default class Runtime {
       return createWorldlineLane(
         timeline,
         this.#activity,
-        { mutations: this.#mutations, owner: this.#laneOwner },
+        { mutations: this.#mutations, owner: this.#laneOwner, content: this.#content },
       );
     });
   }

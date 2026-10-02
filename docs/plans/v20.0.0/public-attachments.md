@@ -2,6 +2,8 @@
 
 Status: implementation plan for [#901](https://github.com/git-stunts/git-warp/issues/901). This document describes work to implement and verify, not an available public API. Prerequisite: [#818](https://github.com/git-stunts/git-warp/issues/818), delivered by [#926](https://github.com/git-stunts/git-warp/pull/926). All slices remain in one #901 PR, which lands after #818.
 
+Implementation checkpoint: #926 is merged. Draft #927 implements `Lane.stageContent()` with Runtime-owned provenance, immutable metadata, real-storage failure propagation, and shutdown lifetime. Attach/clear intents, pinned observer reads, publication retention and packed-consumer acceptance are still required before this PR can merge. Staging alone does not complete any node/edge attachment workflow.
+
 ## Observable outcome
 
 A consumer importing the packed supported package can attach, replace, clear and stream bytes on nodes and edges through Runtime/Lane, with explicit ownership, admission and observation evidence. The same operations survive reopen, checkpoint, garbage collection, historical observation and concurrent writes.

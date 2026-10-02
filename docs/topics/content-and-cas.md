@@ -34,6 +34,10 @@ inside adapters.
 
 ## Declared-size staging contract
 
+`Lane.stageContent(source, { mime, size })` accepts text, `Uint8Array`, `ReadableStream<Uint8Array>` or `AsyncIterable<Uint8Array>`. Both metadata fields are optional; `size` declares the expected plaintext byte count. The immutable result exposes `id`, `mime` and the measured `size`, without retaining the input bytes.
+
+Staging is owned by the Runtime and works on worldline and strand lanes. Closing the Runtime waits for active staging to finish and refuses new staging work. A staging or producer failure publishes no graph patch. The returned value records staging provenance; copied metadata cannot substitute for that value. It does not establish durable retention or constitute a node/edge attachment by itself. The remaining attach, clear and observer-stream operations are tracked in #901.
+
 When staging an asset with `expectedSize`, the declaration must be a
 non-negative safe integer. The storage adapter checks the plaintext stream
 before forwarding each chunk to CAS. A chunk that would exceed the declaration
