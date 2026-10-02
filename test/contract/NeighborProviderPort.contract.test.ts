@@ -3,7 +3,7 @@
  *
  * Every provider implementation must satisfy these contracts.
  * Run the same battery against AdjacencyNeighborProvider (sync)
- * BitmapNeighborProvider (async-local, commit DAG — unlabeled only),
+ * BitmapNeighborProvider (async-local, commit DAG — emits an empty-label sentinel),
  * and the logical bitmap provider (labeled graph edges).
  */
 
@@ -301,9 +301,11 @@ labelContractSuite('LogicalBitmapNeighborProvider', makeLogicalBitmapProvider);
 bitmapLabelFilterSuite();
 
 // A commit-DAG sentinel is not an admissible logical EdgeAdd label.
-it('rejects an empty logical edge label at the runtime admission boundary', () => {
-  const fixture = makeFixture({
-    nodes: ['A', 'B'], edges: [{ from: 'A', to: 'B', label: '' }],
+describe('LogicalBitmapNeighborProvider admission', () => {
+  it('rejects an empty logical edge label at the runtime admission boundary', () => {
+    const fixture = makeFixture({
+      nodes: ['A', 'B'], edges: [{ from: 'A', to: 'B', label: '' }],
+    });
+    expect(() => makeLogicalBitmapProvider(fixture)).toThrow(PatchError);
   });
-  expect(() => makeLogicalBitmapProvider(fixture)).toThrow(PatchError);
 });
