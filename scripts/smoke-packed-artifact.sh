@@ -294,6 +294,5 @@ node "$CHECK_PACKED" results "$FIXTURE_DIR"
 
 bash "$ROOT/scripts/smoke-packed-node-removal.sh" "$ROOT" "$PACKAGE_DIR" "$TMP_ROOT/lifecycle"
 
-cp "$ROOT/test/fixtures/packed-content.mjs" ./packed-content.mjs
-node packed-content.mjs
+bash "$ROOT/scripts/smoke-packed-attachments.sh" "$ROOT" "$FIXTURE_DIR"
 echo "packed artifact smoke passed"
