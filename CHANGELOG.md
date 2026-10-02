@@ -59,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   updates require a successful full coverage run and unchanged host config.
   Performance CI copies both revisions into a pinned image, exports raw evidence
   and preserves failure status; owned containers are cleaned up on termination.
+  Artifact destinations reject case aliases of Git metadata, dependency trees,
+  and tracked files before starting Docker.
   Manual performance commands export their reports and source identity, forward
   measurement settings, and compare copied clean sibling checkouts without mounts.
 

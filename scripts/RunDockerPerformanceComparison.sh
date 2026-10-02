@@ -21,9 +21,9 @@ case "$output" in "$ROOT/"*) output=${output#"$ROOT/"};; esac
 while [[ "$output" == ./* ]]; do output=${output#./}; done
 validate_output() {
   local path=$output tracked links
-  case "/$path/" in *'/../'*|*'/./'*|*'/.git/'*|*'/node_modules/'*|*'//'*) return 1;; esac
+  case "/$path/" in *'/../'*|*'/./'*|*/.[gG][iI][tT]/*|*/[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS]/*|*'//'*) return 1;; esac
   [[ -n "$path" && "$path" != . ]] || return 1
-  tracked=$(git -C "$ROOT" ls-files -- "$path") || return 1
+  tracked=$(git -C "$ROOT" ls-files -- ":(icase,literal)$path") || return 1
   [[ -z "$tracked" ]] || return 1
   while [[ "$path" != . ]]; do
     [[ ! -L "$ROOT/$path" ]] || return 1

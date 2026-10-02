@@ -92,7 +92,7 @@ describe('manual copied-revision comparison', () => {
     expect(actual.stderr).toContain('checkout must be clean');
     expect(existsSync(join(input.directory, 'trace'))).toBe(false);
   });
-  it.each(['../outside', 'source.txt', '/tmp/outside'])('refuses unsafe or tracked output %s before building', (path) => {
+  it.each(['../outside', 'source.txt', '/tmp/outside', '.GIT/config', '.GiT/config', 'cache/.GIT/config', 'NODE_MODULES/outputs', 'SOURCE.txt'])('refuses unsafe or tracked output %s before building', (path) => {
     const input = fixture();
     expect(run(input, 0, path).status).toBe(2);
     expect(existsSync(join(input.directory, 'trace'))).toBe(false);
