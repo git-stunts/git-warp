@@ -16,15 +16,14 @@ it('retains removed node/edge evidence across trie branches, compaction, GC and 
   let session = await StateSession.open({
     store, codec, geometry: GEOMETRY, nodeAliveRootOid: null, edgeAliveRootOid: null,
   });
-  const removed = new Dot('A', 1);
-  const concurrent = new Dot('B', 1);
-  const observed = new Set([Dot.encode(removed)]);
   for (let index = 0; index < 12; index++) {
     const name = `owner:${String(index)}`;
-    await session.addNode(name, removed);
-    await session.addEdge(name, removed);
-    await session.removeNode(name, observed);
-    await session.removeEdge(name, observed);
+    const nodeDot = new Dot('A', index * 2 + 1);
+    const edgeDot = new Dot('A', index * 2 + 2);
+    await session.addNode(name, nodeDot);
+    await session.addEdge(name, edgeDot);
+    await session.removeNode(name, new Set([Dot.encode(nodeDot)]));
+    await session.removeEdge(name, new Set([Dot.encode(edgeDot)]));
   }
   const before = await GCMetrics.fromSession(session);
   for (let round = 0; round < 2; round++) {
@@ -40,16 +39,20 @@ it('retains removed node/edge evidence across trie branches, compaction, GC and 
   }
   for (let index = 0; index < 12; index++) {
     const name = `owner:${String(index)}`;
-    await session.addNode(name, removed);
-    await session.addEdge(name, removed);
+    const nodeDot = new Dot('A', index * 2 + 1);
+    const edgeDot = new Dot('A', index * 2 + 2);
+    const concurrentNode = new Dot('B', index * 2 + 1);
+    const concurrentEdge = new Dot('B', index * 2 + 2);
+    await session.addNode(name, nodeDot);
+    await session.addEdge(name, edgeDot);
     expect(await session.nodeContains(name)).toBe(false);
     expect(await session.edgeContains(name)).toBe(false);
-    expect((await session.nodeElementState(name))?.tombstonedDots).toEqual(observed);
-    expect((await session.edgeElementState(name))?.tombstonedDots).toEqual(observed);
-    await session.addNode(name, concurrent);
-    await session.addEdge(name, concurrent);
-    expect(await session.nodeDots(name)).toEqual(new Set([Dot.encode(concurrent)]));
-    expect(await session.edgeDots(name)).toEqual(new Set([Dot.encode(concurrent)]));
+    expect((await session.nodeElementState(name))?.tombstonedDots).toEqual(new Set([Dot.encode(nodeDot)]));
+    expect((await session.edgeElementState(name))?.tombstonedDots).toEqual(new Set([Dot.encode(edgeDot)]));
+    await session.addNode(name, concurrentNode);
+    await session.addEdge(name, concurrentEdge);
+    expect(await session.nodeDots(name)).toEqual(new Set([Dot.encode(concurrentNode)]));
+    expect(await session.edgeDots(name)).toEqual(new Set([Dot.encode(concurrentEdge)]));
   }
   await session.compact(APPLIED);
   expect((await GCMetrics.fromSession(session)).totalLiveDots).toBe(24);
