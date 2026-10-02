@@ -18,8 +18,8 @@ function fixture(source: string) {
   symlinkSync(resolve('node_modules'), join(root, 'node_modules'), 'dir');
   writeFileSync(join(root, 'package.json'), `{
     "type": "module", "scripts": {
-      "test:coverage": "node ${runner}",
-      "test:coverage:ci": "node ${runner}"
+      "test:coverage": "node ${runner} ratchet",
+      "test:coverage:ci": "node ${runner} report"
     }
   }`);
   writeFileSync(join(root, 'vitest.config.ts'), baseline);
@@ -45,6 +45,13 @@ afterEach(() => {
 });
 
 describe('coverage runner completion and ratchet boundary', () => {
+  it.each([{ args: [] }, { args: ['invalid'] }])('refuses a missing or invalid update intent $args', ({ args }) => {
+    const root = fixture(passingTest);
+    const result = spawnSync(process.execPath, [runner, ...args], { cwd: root, encoding: 'utf8', timeout: 10000 });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('expected ratchet or report mode');
+    expect(readFileSync(join(root, 'vitest.config.ts'), 'utf8')).toBe(baseline);
+  });
   it('raises the threshold after a complete actual npm coverage command', () => {
     const result = run(fixture(passingTest));
     expect(result.error).toBeUndefined();

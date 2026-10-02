@@ -15,8 +15,9 @@ const INSTRUMENTED_WORKERS = 1;
 const COVERAGE_PROCESSING_CONCURRENCY = 1;
 
 async function runCoverageTests(): Promise<void> {
-  const args = process.argv.slice(2);
-  const ratchetRequested = process.env['npm_lifecycle_event'] === 'test:coverage' && args.length === 0;
+  const [intent, ...args] = process.argv.slice(2);
+  if (intent !== 'ratchet' && intent !== 'report') throw new Error('coverage-tests: expected ratchet or report mode');
+  const ratchetRequested = intent === 'ratchet' && args.length === 0;
   const configurationPath = resolve('vitest.config.ts');
   const baseline = readFileSync(configurationPath, 'utf8');
   const { filter, options } = parseCLI(['vitest', 'run', ...args]);

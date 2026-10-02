@@ -14,7 +14,10 @@ throughput for predictable startup pressure; the normal unit runner retains its
 separate worker policy. Test, worker-start and teardown deadlines are unchanged.
 
 Only an argument-free `npm run test:coverage` can raise the committed line
-threshold. Vitest's own automatic configuration writes are always disabled.
+threshold. The npm command carries explicit update intent in the command
+arguments across the Docker boundary; it does not depend on npm lifecycle
+environment being present in the receiving container. Vitest's own automatic
+configuration writes are always disabled.
 The runner first verifies a nonempty selected manifest, a terminal result for
 every selected file, at least one passing test, zero unhandled errors and a
 successful teardown. It then validates the fresh coverage summary and raises
