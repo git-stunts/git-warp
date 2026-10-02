@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Invoked inside the isolated consumer; all writes/reads use its installed CLI.
 set -euo pipefail
+
+DOCKER_TEST_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+node "$DOCKER_TEST_ROOT/scripts/RequireDockerTests.ts"
 ROOT=$1
 PACKAGE_DIR=$2
 REPO=$3

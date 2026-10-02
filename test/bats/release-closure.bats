@@ -3,6 +3,12 @@
 # Oracle: .github/RELEASE.md, Registry-backed closure contract. Fixtures violate
 # one promise at a time; success requires the public CLI's receipt and exit code.
 
+load helpers/docker.bash
+
+setup_file() {
+  require_docker_tests
+}
+
 setup() {
   REPO_ROOT=$(cd "$BATS_TEST_DIRNAME/../.." && pwd)
   export CLOSURE_FIXTURE_DIR

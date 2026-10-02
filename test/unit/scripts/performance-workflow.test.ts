@@ -157,6 +157,12 @@ const performanceReadme = readFileSync(
   resolve(root, 'benchmarks/v19/README.md'),
   'utf8',
 );
+const dockerPerformanceEntry = readFileSync(
+  resolve(root, 'scripts/RunDockerPerformance.sh'), 'utf8',
+);
+const dockerComparisonEntry = readFileSync(
+  resolve(root, 'scripts/RunDockerPerformanceComparison.sh'), 'utf8',
+);
 
 describe('v19 performance workflow', () => {
   it.each(['calibration.json', 'policy.json'])(
@@ -191,8 +197,12 @@ describe('v19 performance workflow', () => {
     expect(workflow).not.toContain('npm --prefix base run build --silent');
     expect(workflow).not.toContain('npm --prefix head run build --silent');
     expect(packageJson.scripts['build:maintainer']).toContain('tsconfig.maintainer.json');
+    expect(dockerPerformanceEntry).toContain('npm run build:maintainer --silent');
+    expect(dockerComparisonEntry).toContain('npm --prefix base run build:maintainer --silent');
+    expect(dockerComparisonEntry).toContain('npm --prefix head run build:maintainer --silent');
     for (const scriptName of MAINTAINER_PERFORMANCE_SCRIPT_NAMES) {
-      expect(packageJson.scripts[scriptName]).toContain('npm run build:maintainer --silent');
+      expect(packageJson.scripts[scriptName])
+        .toBe(`bash scripts/RunDockerPerformance.sh ${scriptName.slice('performance:'.length)}`);
     }
   });
 
