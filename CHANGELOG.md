@@ -111,6 +111,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Raw Git graph blob reads use the same explicit 64 MiB artifact budget and
+  producer-buffer snapshots as semantic asset reads, while preserving empty-blob
+  existence checks (#818).
+
 - Remove eager `getContent` and `getEdgeContent` attachment reads from internal
   core, graph, app and query facades; callers use metadata, handles or streams.
   Small fixture assertions collect streams only in bounded test helpers (#818).
