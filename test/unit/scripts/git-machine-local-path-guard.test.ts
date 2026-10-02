@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,6 +55,29 @@ describe('Git machine-local path guard', () => {
 
     expect(guard.findStagedPaths()).toEqual(['fixture.txt']);
     expect(guard.findWorkingTreePaths()).toEqual([]);
+  });
+
+  it('blocks a real commit containing a staged temporary-worktree path', () => {
+    const repository = createRepository();
+    cpSync(fileURLToPath(new URL('../../../scripts/', import.meta.url)),
+      join(repository, 'scripts'), { recursive: true });
+    git(repository, 'config', 'core.hooksPath', 'scripts/hooks');
+    const fixture = 'staged evidence.txt';
+    writeFileSync(join(repository, fixture), ['', 'private', 'tmp', 'worktree', 'source.ts'].join('/'));
+    git(repository, 'add', fixture);
+    writeFileSync(join(repository, fixture), 'portable working copy');
+
+    const result = spawnSync('git', ['commit', '-m', 'Must be refused'], {
+      cwd: repository,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Machine-local absolute paths are forbidden in --staged content:');
+    expect(result.stderr).toContain(fixture);
+    expect(result.stdout).not.toContain('Running TS policy check');
+    expect(spawnSync('git', ['rev-parse', '--verify', 'HEAD'], { cwd: repository }).status)
+      .not.toBe(0);
   });
 
   it('runs the exact-index scanner from the pre-commit hook', () => {
@@ -147,10 +170,13 @@ describe('Git machine-local path guard', () => {
     expect(hook).toContain('node scripts/check-machine-local-paths.ts --pre-push "$REMOTE_NAME"');
   });
 
-  it('scans an exact committed tree instead of mutable working-tree bytes', async () => {
+  it.each([
+    personalHome('git', 'project'),
+    ['', 'private', 'tmp', 'worktree', 'source.ts'].join('/'),
+  ])('scans an exact committed tree instead of mutable working-tree bytes (%#)', async (leak) => {
     const repository = createRepository();
     const fixturePath = join(repository, 'fixture.txt');
-    writeFileSync(fixturePath, personalHome('git', 'project'), 'utf8');
+    writeFileSync(fixturePath, leak, 'utf8');
     git(repository, 'add', 'fixture.txt');
     git(repository, 'commit', '--quiet', '-m', 'committed leak');
     const committedObject = gitText(repository, 'rev-parse', 'HEAD');
