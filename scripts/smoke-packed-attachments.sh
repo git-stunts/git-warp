@@ -10,14 +10,10 @@ cp "$ROOT/test/type-check/packed/attachments.ts" ./packed-content-types.ts
 cp "$ROOT/test/fixtures/packed-content-consumer.mjs" ./packed-content-consumer.mjs
 cp "$ROOT/test/fixtures/packed-content.mjs" ./packed-content.mjs
 
-# Every package import must resolve through a supported package export. Reject
-# checkout-relative, absolute, file:, and private imports before execution.
-for fixture in attachments.mjs packed-content-types.ts packed-content-consumer.mjs packed-content.mjs; do
-  if grep -nE "(from |import\\()['\"](\\.|/|file:|@git-stunts/git-warp/(src|dist|storage))" "$fixture"; then
-    echo "attachment consumer fixture escaped supported package imports: $fixture" >&2
-    exit 1
-  fi
-done
+# Parse all module-load forms and refuse computed targets before any execution.
+node "$ROOT/scripts/package-payload/CalibrateAttachmentConsumerImports.ts"
+node "$ROOT/scripts/package-payload/CheckAttachmentConsumerImports.ts" \
+  attachments.mjs packed-content-types.ts packed-content-consumer.mjs packed-content.mjs
 node_modules/.bin/tsc --noEmit --strict --exactOptionalPropertyTypes --noUncheckedIndexedAccess \
   --skipLibCheck false --target ESNext --lib ESNext,DOM --types node --allowJs --checkJs \
   --module NodeNext --moduleResolution NodeNext attachments.mjs packed-content-types.ts
