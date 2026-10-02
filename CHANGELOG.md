@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Restore public node and edge content observers with frozen owner/metadata, historical streaming, bounded causal projection, and Runtime-owned stream cleanup (#901).
+
+- `Lane.stageContent()` streams bytes into Runtime-owned storage and returns immutable identity, MIME and plaintext-size metadata without publishing a graph write. Worldline and strand lanes share the Runtime's staging provenance and shutdown lifetime. Staging alone does not establish durable attachment retention.
+- Advanced `intent.node.attachContent` / `intent.edge.attachContent` and their `clearContent` counterparts support atomic attachment writes through `Lane.write()`. Attach replaces existing content and requires a value staged by the same Runtime. Publication retains the asset with its owner metadata; retained strand replay preserves the attachment intent and retention roots. Invalid owners obstruct the complete write, including owners removed earlier in that write.
+
 - Publish builds now use `@vercel/nft` to prune unreachable emitted JavaScript
   after `tsc`, preserving retained bytes, compiler-selected declarations,
   supported commands, and runtime assets. Runtime roots come from package
@@ -110,6 +115,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was not live there (`tail-node-add-needs-checkpoint-lifecycle-witnesses`).
 
 ### Fixed
+
+- Targeted content reads apply observed membership-removal dots independently of the declared owner, matching canonical retained-history reduction while charging tombstones against read bounds (#901).
+
+- Retained strand recovery recognizes only complete, valid attachment triples; scalar writes resembling invalid attachment metadata remain scalar and can be reopened (#901).
+
+- Asset staging preserves the original typed producer or validation error when storage wraps it as a stream failure. Unrelated storage failures retain their original error.
 
 - Inline property snapshots reject absent array indexes even when a prototype supplies their values.
 

@@ -1,3 +1,4 @@
+import StagedContent from './StagedContent.ts';
 import InlineBinaryBudget from '../types/InlineBinaryBudget.ts';
 import WarpError from '../errors/WarpError.ts';
 import {
@@ -13,7 +14,11 @@ export type IntentKind =
   | 'edge.add'
   | 'edge.remove'
   | 'property.set'
-  | 'entity.add';
+  | 'entity.add'
+  | 'node.content.attach'
+  | 'node.content.clear'
+  | 'edge.content.attach'
+  | 'edge.content.clear';
 
 export type NodeIntentFields = {
   readonly subject: string;
@@ -56,6 +61,15 @@ export type EdgeIntentFields = {
   readonly label: string;
 };
 
+export type NodeContentIntentFields = NodeIntentFields & { readonly content: StagedContent };
+export type EdgeContentIntentFields = EdgeIntentFields & { readonly content: StagedContent };
+
+export type ContentIntentDescriptor =
+  | (NodeContentIntentFields & { readonly kind: 'node.content.attach' })
+  | (NodeIntentFields & { readonly kind: 'node.content.clear' })
+  | (EdgeContentIntentFields & { readonly kind: 'edge.content.attach' })
+  | (EdgeIntentFields & { readonly kind: 'edge.content.clear' });
+
 export type PropertyIntentFields = {
   readonly subject: string;
   readonly key: string;
@@ -63,6 +77,7 @@ export type PropertyIntentFields = {
 };
 
 export type IntentDescriptor =
+  | ContentIntentDescriptor
   | (NodeIntentFields & { readonly kind: 'node.add' })
   | (NodeIntentFields & { readonly kind: 'node.remove' })
   | (EdgeIntentFields & { readonly kind: 'edge.add' })
@@ -114,6 +129,22 @@ export default class Intent {
     return new Intent(entityDescriptor(fields));
   }
 
+  static attachNodeContent(fields: NodeContentIntentFields): Intent {
+    return new Intent({ ...requireIntentFields(fields), kind: 'node.content.attach' });
+  }
+
+  static clearNodeContent(fields: NodeIntentFields): Intent {
+    return new Intent({ ...requireIntentFields(fields), kind: 'node.content.clear' });
+  }
+
+  static attachEdgeContent(fields: EdgeContentIntentFields): Intent {
+    return new Intent({ ...requireIntentFields(fields), kind: 'edge.content.attach' });
+  }
+
+  static clearEdgeContent(fields: EdgeIntentFields): Intent {
+    return new Intent({ ...requireIntentFields(fields), kind: 'edge.content.clear' });
+  }
+
   get kind(): IntentKind {
     return this.#descriptor.kind;
   }
@@ -141,6 +172,11 @@ function normalizeKnownDescriptor(descriptor: IntentDescriptor): IntentDescripto
   if (isEdgeDescriptor(descriptor)) {
     return edgeDescriptor(descriptor.kind, descriptor);
   }
+  return normalizePayloadDescriptor(descriptor);
+}
+
+function normalizePayloadDescriptor(descriptor: IntentDescriptor): IntentDescriptor {
+  if (isContentIntentDescriptor(descriptor)) { return contentDescriptor(descriptor); }
   if (descriptor.kind === PROPERTY_SET) {
     return propertyDescriptor(descriptor);
   }
@@ -291,4 +327,32 @@ function requireIntentValue(value: PropValue): PropValue {
     return InlineBinaryBudget.copy(value);
   }
   throw new WarpError('Intent value must be property-compatible data', 'E_INTENT_VALUE');
+}
+
+export function isContentIntentDescriptor(descriptor: IntentDescriptor): descriptor is ContentIntentDescriptor {
+  return descriptor.kind === 'node.content.attach' || descriptor.kind === 'node.content.clear'
+    || descriptor.kind === 'edge.content.attach' || descriptor.kind === 'edge.content.clear';
+}
+
+function contentDescriptor(descriptor: ContentIntentDescriptor): ContentIntentDescriptor {
+  const { kind } = descriptor;
+  if (kind === 'node.content.attach' || kind === 'node.content.clear') {
+    const { subject } = descriptor;
+    requireNonEmptyString(subject, 'intent.subject');
+    return kind === 'node.content.clear' ? Object.freeze({ kind, subject })
+      : Object.freeze({ kind, subject, content: requireStagedContent(descriptor.content) });
+  }
+  const { from, to, label } = descriptor;
+  requireNonEmptyString(from, 'intent.from');
+  requireNonEmptyString(to, 'intent.to');
+  requireNonEmptyString(label, 'intent.label');
+  return kind === 'edge.content.clear' ? Object.freeze({ kind, from, to, label })
+    : Object.freeze({ kind, from, to, label, content: requireStagedContent(descriptor.content) });
+}
+
+function requireStagedContent(content: StagedContent): StagedContent {
+  if (!(content instanceof StagedContent)) {
+    throw new WarpError('Attachment intents require staged content', 'E_CONTENT_METADATA');
+  }
+  return content;
 }

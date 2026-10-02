@@ -8,6 +8,8 @@ const ROOT_VALUE_EXPORTS = ['Runtime'] as const;
 
 const ROOT_TYPE_EXPORTS = [
   'AdmissionOutcome',
+  'ContentInput',
+  'ContentMetadataInput',
   'CoordinateReference',
   'Evidence',
   'EvidenceHandle',
@@ -42,6 +44,9 @@ const ROOT_TYPE_EXPORTS = [
   'SettlementPlan',
   'SettlementPreview',
   'SettlementReceipt',
+  'StagedContent',
+  'ContentAttachment',
+  'ContentOwnerDescriptor',
   'SupportReport',
   'Tick',
   'WitnessReference',
@@ -213,6 +218,8 @@ describe('v19 public API boundary', () => {
         'Optic',
         'captureCoordinate',
         'createEntityAdmissionInventoryObserver',
+        'createNodeContentObserver',
+        'createEdgeContentObserver',
         'createManyObserver',
         'createObserver',
         'intent',

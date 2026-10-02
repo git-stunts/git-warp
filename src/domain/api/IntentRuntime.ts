@@ -1,7 +1,9 @@
+import type ContentStagingAuthority from '../services/ContentStagingAuthority.ts';
+import { applyContentIntentToPatch, contentIntentFromOperations, CONTENT_INTENT_OPERATION_COUNT } from './ContentIntentRuntime.ts';
 import type { PatchBuilder } from '../services/PatchBuilder.ts';
 import type Patch from '../types/Patch.ts';
 import { isPropValue, type PropValue } from '../types/PropValue.ts';
-import Intent, { type IntentDescriptor, type IntentKind } from './Intent.ts';
+import Intent, { isContentIntentDescriptor, type IntentDescriptor, type IntentKind } from './Intent.ts';
 import WarpError from '../errors/WarpError.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
 import type EntityAdmissionBoundary from '../types/EntityAdmissionBoundary.ts';
@@ -20,8 +22,12 @@ const lowerers: ReadonlyMap<IntentKind, IntentLowerer> = new Map([
   ['entity.add', lowerEntityAdd],
 ]);
 
-export function applyIntentToPatch(intent: Intent, patch: PatchBuilder): void {
+export function applyIntentToPatch(intent: Intent, patch: PatchBuilder, authority?: ContentStagingAuthority): void {
   const { descriptor } = intent;
+  if (isContentIntentDescriptor(descriptor)) {
+    applyContentIntentToPatch(intent, patch, authority);
+    return;
+  }
   const retainedOrigin = findRetainedEntityIntentOrigin(intent);
   if (retainedOrigin !== null) {
     lowerRetainedEntity(descriptor, retainedOrigin, patch);
@@ -51,7 +57,7 @@ export function intentFromPatch(patch: Patch): Intent {
   if (isCascadingNodeRemoval(patch.ops, terminal)) {
     return Intent.removeNode({ subject: terminal.node });
   }
-  const entity = entityIntent(patch);
+  const entity = wholeContentIntent(patch) ?? entityIntent(patch);
   if (entity !== null) {
     return entity;
   }
@@ -285,4 +291,8 @@ function assertDescriptorKind<K extends IntentKind>(
   if (descriptor.kind !== kind) {
     throw new WarpError('Intent lowerer received a mismatched descriptor', 'E_INTENT_KIND');
   }
+}
+
+function wholeContentIntent(patch: Patch): Intent | null {
+  return patch.ops.length === CONTENT_INTENT_OPERATION_COUNT ? contentIntentFromOperations(patch.ops, 0) : null;
 }

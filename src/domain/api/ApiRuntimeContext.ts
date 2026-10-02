@@ -1,3 +1,4 @@
+import type ContentStagingAuthority from '../services/ContentStagingAuthority.ts';
 import type ReadIdentity from '../services/optic/ReadIdentity.ts';
 import type { Receipt } from './Receipt.ts';
 
@@ -18,6 +19,7 @@ export type ReceiptProvenance =
 export type OpaqueIdPart = string | number;
 
 export type ApiRuntimeContext = {
+  readonly content?: ContentStagingAuthority;
   readonly createOpaqueId: (
     namespace: 'tick' | 'evidence' | 'admission',
     parts: readonly OpaqueIdPart[]

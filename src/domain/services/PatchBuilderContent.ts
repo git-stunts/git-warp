@@ -10,13 +10,11 @@ import type { AssetWriteOptions } from '../../ports/AssetStoragePort.ts';
 import { isPropValue, type PropValue } from '../types/PropValue.ts';
 import { isStreamingInput, normalizeToAsyncIterable } from '../utils/streamUtils.ts';
 import { normalizeContentMetadata } from './PatchBuilderValidation.ts';
+import type { ContentInput } from '../api/ContentInput.ts';
+import type { ContentMetadataInput } from '../api/ContentMetadataInput.ts';
 
-export type ContentInput =
-  | AsyncIterable<Uint8Array>
-  | ReadableStream<Uint8Array>
-  | Uint8Array
-  | string;
-export type ContentMetadataInput = { mime?: string | null; size?: number | null };
+export type { ContentInput } from '../api/ContentInput.ts';
+export type { ContentMetadataInput } from '../api/ContentMetadataInput.ts';
 
 export type StoreContentAttachmentPayloadOptions = {
   readonly assetStorage: AssetStoragePort;

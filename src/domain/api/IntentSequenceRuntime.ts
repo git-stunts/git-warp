@@ -1,3 +1,5 @@
+import type ContentStagingAuthority from '../services/ContentStagingAuthority.ts';
+import { contentIntentFromOperations, CONTENT_INTENT_OPERATION_COUNT } from './ContentIntentRuntime.ts';
 import WarpError from '../errors/WarpError.ts';
 import type { PatchBuilder } from '../services/PatchBuilder.ts';
 import type Patch from '../types/Patch.ts';
@@ -13,9 +15,10 @@ export const MAX_ATOMIC_WRITE_OPERATIONS = 50_000;
 export function applyIntentSequenceToPatch(
   sequence: IntentSequence,
   patch: PatchBuilder,
+  authority?: ContentStagingAuthority,
 ): void {
   for (const intent of sequence.intents) {
-    applyIntentToPatch(intent, patch);
+    applyIntentToPatch(intent, patch, authority);
   }
   if (sequence.atomic) {
     requireAtomicOperationLimit(patch);
@@ -28,7 +31,7 @@ export function intentSequenceFromPatch(patch: Patch): IntentSequence {
   if (singular !== null) {
     return singular;
   }
-  return atomicIntentSequenceFromPatch(patch);
+  return IntentSequence.from(retainedIntentArray(patch));
 }
 
 function singularIntentSequenceFromPatch(patch: Patch): IntentSequence | null {
@@ -45,17 +48,7 @@ function singularIntentSequenceFromPatch(patch: Patch): IntentSequence | null {
   return null;
 }
 
-function atomicIntentSequenceFromPatch(patch: Patch): IntentSequence {
-  return patch.entityAdmissions === undefined
-    ? IntentSequence.from(primitiveIntentArray(patch))
-    : markedIntentSequence(patch);
-}
-
-function markedIntentSequence(patch: Patch): IntentSequence {
-  return IntentSequence.from(markedIntentArray(patch));
-}
-
-function markedIntentArray(patch: Patch): AtomicIntentArray {
+function retainedIntentArray(patch: Patch): AtomicIntentArray {
   const boundaries = new Map(
     patch.entityAdmissions?.map((boundary) => [boundary.operationIndex, boundary]),
   );
@@ -64,8 +57,9 @@ function markedIntentArray(patch: Patch): AtomicIntentArray {
   while (operationIndex < patch.ops.length) {
     const boundary = boundaries.get(operationIndex);
     if (boundary === undefined) {
-      intents.push(intentFromOperation(patch.ops[operationIndex]!));
-      operationIndex += 1;
+      const recovered = retainedPrimitive(patch, operationIndex);
+      intents.push(recovered.intent);
+      operationIndex += recovered.count;
       continue;
     }
     intents.push(intentFromEntityAdmissionBoundary(patch, boundary).intent);
@@ -101,19 +95,16 @@ function isAtomicHydrationFailure(error: WarpError, patch: Patch): boolean {
     && patch.ops.length !== 1;
 }
 
-function primitiveIntentArray(patch: Patch): AtomicIntentArray {
-  const [firstOperation, ...remainingOperations] = patch.ops;
-  if (firstOperation === undefined) {
-    throw emptyPatchError();
-  }
-  const first = intentFromOperation(firstOperation);
-  const remaining = remainingOperations.map(intentFromOperation);
-  return Object.freeze([first, ...remaining]);
-}
-
 function emptyPatchError(): WarpError {
   return new WarpError(
     'Persisted atomic intent patch has no operations',
     'E_DRAFT_INTENT_HYDRATION',
   );
+}
+
+function retainedPrimitive(patch: Patch, index: number): Readonly<{ intent: ReturnType<typeof intentFromOperation>; count: number }> {
+  const content = contentIntentFromOperations(patch.ops, index);
+  return content === null
+    ? { intent: intentFromOperation(patch.ops[index]!), count: 1 }
+    : { intent: content, count: CONTENT_INTENT_OPERATION_COUNT };
 }

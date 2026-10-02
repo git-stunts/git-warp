@@ -21,6 +21,9 @@ export type { default as Evidence, EvidenceHandle } from './src/domain/api/Evide
 export type { default as Intent } from './src/domain/api/Intent.ts';
 export type { WriteIntentInput } from './src/domain/api/IntentSequence.ts';
 export type { default as Lane } from './src/domain/api/Lane.ts';
+export type { ContentInput } from './src/domain/api/ContentInput.ts';
+export type { ContentMetadataInput } from './src/domain/api/ContentMetadataInput.ts';
+export type { default as StagedContent } from './src/domain/api/StagedContent.ts';
 export type {
   CoordinateReference,
   LaneDescriptor,
@@ -60,3 +63,6 @@ export type { default as EntityAdmissionInventoryCertificate } from './src/domai
 export type { AdmissionOutcome } from './src/domain/api/AdmissionOutcome.ts';
 export type { Receipt } from './src/domain/api/PublicReceipt.ts';
 export type { RepairHint } from './src/domain/api/ReceiptSupport.ts';
+
+export type { default as ContentAttachment } from './src/domain/api/ContentAttachment.ts';
+export type { ContentOwnerDescriptor } from './src/domain/api/ContentOwner.ts';

@@ -31,3 +31,5 @@ export type {
   ReadIdentityOptions,
   ReadIdentityTailWitness,
 } from './src/domain/services/optic/ReadIdentity.ts';
+
+export { createNodeContentObserver, createEdgeContentObserver } from './src/domain/api/ContentObserverRuntime.ts';

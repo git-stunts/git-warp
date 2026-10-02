@@ -36,49 +36,54 @@ Runtime @ index.ts#L13
 
 ### Type exports
 
-Source: `index.ts`. Count: 40.
+Source: `index.ts`. Count: 45.
 
 ```text
-AdmissionOutcome @ index.ts#L60
-CoordinateReference @ index.ts#L25
-EntityAdmission @ index.ts#L52
-EntityAdmissionInitialProperties @ index.ts#L53
-EntityAdmissionInventoryCertificate @ index.ts#L59
-EntityAdmissionOccurrenceReference @ index.ts#L54
-EntityAdmissionOrdering @ index.ts#L55
-EntityAdmissionOriginReading @ index.ts#L56
-EntityAdmissionRepresentationReference @ index.ts#L57
-EntityCausalRelation @ index.ts#L49
-EntityOccurrence @ index.ts#L48
+AdmissionOutcome @ index.ts#L63
+ContentAttachment @ index.ts#L67
+ContentInput @ index.ts#L24
+ContentMetadataInput @ index.ts#L25
+ContentOwnerDescriptor @ index.ts#L68
+CoordinateReference @ index.ts#L28
+EntityAdmission @ index.ts#L55
+EntityAdmissionInitialProperties @ index.ts#L56
+EntityAdmissionInventoryCertificate @ index.ts#L62
+EntityAdmissionOccurrenceReference @ index.ts#L57
+EntityAdmissionOrdering @ index.ts#L58
+EntityAdmissionOriginReading @ index.ts#L59
+EntityAdmissionRepresentationReference @ index.ts#L60
+EntityCausalRelation @ index.ts#L52
+EntityOccurrence @ index.ts#L51
 Evidence @ index.ts#L20
 EvidenceHandle @ index.ts#L20
 Intent @ index.ts#L21
 Lane @ index.ts#L23
-LaneDescriptor @ index.ts#L26
-LaneKind @ index.ts#L27
-LaneReference @ index.ts#L28
-Observation @ index.ts#L30
-ObservationReceipt @ index.ts#L31
-ObservationStatus @ index.ts#L32
-Observer @ index.ts#L33
-ObserverCardinality @ index.ts#L34
-Reading @ index.ts#L35
-ReadingCoordinate @ index.ts#L37
-ReadingValue @ index.ts#L38
-Receipt @ index.ts#L61
-RepairHint @ index.ts#L62
+LaneDescriptor @ index.ts#L29
+LaneKind @ index.ts#L30
+LaneReference @ index.ts#L31
+Observation @ index.ts#L33
+ObservationReceipt @ index.ts#L34
+ObservationStatus @ index.ts#L35
+Observer @ index.ts#L36
+ObserverCardinality @ index.ts#L37
+Reading @ index.ts#L38
+ReadingCoordinate @ index.ts#L40
+ReadingValue @ index.ts#L41
+Receipt @ index.ts#L64
+RepairHint @ index.ts#L65
 RuntimeForkOptions @ index.ts#L15
 RuntimeOpenOptions @ index.ts#L16
 RuntimeSettlementOptions @ index.ts#L17
 RuntimeStrandOptions @ index.ts#L18
-SettlementPlan @ index.ts#L45
-SettlementPreview @ index.ts#L43
-SettlementReceipt @ index.ts#L44
-SupportReport @ index.ts#L39
-Tick @ index.ts#L42
-WitnessReference @ index.ts#L40
+SettlementPlan @ index.ts#L48
+SettlementPreview @ index.ts#L46
+SettlementReceipt @ index.ts#L47
+StagedContent @ index.ts#L26
+SupportReport @ index.ts#L42
+Tick @ index.ts#L45
+WitnessReference @ index.ts#L43
 WriteIntentInput @ index.ts#L22
-WriteReceipt @ index.ts#L46
+WriteReceipt @ index.ts#L49
 ```
 
 ## Advanced export surface
@@ -87,13 +92,15 @@ Bounded formal reads and runtime-backed construction for generated SDK infrastru
 
 ### Value exports
 
-Source: `advanced.ts`. Count: 9.
+Source: `advanced.ts`. Count: 11.
 
 ```text
 captureCoordinate @ advanced.ts#L9
 Coordinate @ advanced.ts#L10
+createEdgeContentObserver @ advanced.ts#L35
 createEntityAdmissionInventoryObserver @ advanced.ts#L18
 createManyObserver @ advanced.ts#L15
+createNodeContentObserver @ advanced.ts#L35
 createObserver @ advanced.ts#L16
 intent @ advanced.ts#L12
 Optic @ advanced.ts#L11

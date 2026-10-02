@@ -2,6 +2,9 @@
 
 import {
   Runtime,
+  type ContentInput,
+  type ContentMetadataInput,
+  type StagedContent,
   type AdmissionOutcome,
   type EntityAdmission,
   type Evidence,
@@ -26,6 +29,7 @@ import {
   type WriteReceipt,
 } from '../../index.ts';
 import { users } from '../fixtures/generated-sdk/users.generated.ts';
+import { intent as buildIntent } from '../../advanced.ts';
 
 const options: RuntimeOpenOptions = { at: '.', writer: 'agent-1' };
 const runtime: Runtime = await Runtime.open(options);
@@ -128,3 +132,38 @@ void receipt;
 void manyReceipt;
 void settlementPublicReceipt;
 await runtime.close();
+
+/** Portable staging metadata is available without importing storage implementation types. */
+async function stageContent(lane: Lane, content: ContentInput, metadata: ContentMetadataInput): Promise<StagedContent> {
+  const staged = await lane.stageContent(content, metadata);
+  await lane.write([
+    buildIntent.node.attachContent({ subject: 'document', content: staged }),
+    buildIntent.edge.attachContent({ from: 'document', to: 'related', label: 'links', content: staged }),
+    buildIntent.node.clearContent({ subject: 'document' }),
+    buildIntent.edge.clearContent({ from: 'document', to: 'related', label: 'links' }),
+  ]);
+  // @ts-expect-error Attachment writes require a staged value, not raw bytes.
+  buildIntent.node.attachContent({ subject: 'document', content: new Uint8Array([1]) });
+  // @ts-expect-error An edge attachment requires its complete owner identity.
+  buildIntent.edge.attachContent({ from: 'document', content: staged });
+  // @ts-expect-error Staged metadata is immutable.
+  staged.size = 42;
+  // @ts-expect-error Raw ArrayBuffer is not a supported byte source.
+  await lane.stageContent(new ArrayBuffer(4));
+  return staged;
+}
+
+async function readContent(lane: Lane): Promise<void> {
+  const { createNodeContentObserver, createEdgeContentObserver } = await import('@git-stunts/git-warp/advanced');
+  const node = await lane.observe(createNodeContentObserver({ subject: 'document' })).one();
+  const edge = await lane.observe(createEdgeContentObserver({ from: 'document', to: 'related', label: 'links' })).one();
+  for (const reading of [node, edge]) {
+    if (reading.value === null) { continue; }
+    const stream: AsyncIterable<Uint8Array> = reading.value.open();
+    const size: number | null = reading.value.size;
+    void stream;
+    void size;
+    // @ts-expect-error Public content has no eager byte getter.
+    reading.value.bytes();
+  }
+}

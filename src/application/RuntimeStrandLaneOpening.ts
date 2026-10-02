@@ -16,8 +16,10 @@ import {
 } from '../domain/api/TickRuntime.ts';
 import type RuntimeActivity from './RuntimeActivity.ts';
 import type RuntimeMutationGate from './RuntimeMutationGate.ts';
+import type RuntimeContentStaging from './RuntimeContentStaging.ts';
 
 export type WorldlineLaneSource = Readonly<{
+  readonly content?: RuntimeContentStaging;
   readonly activity: RuntimeActivity;
   readonly mutations: RuntimeMutationGate;
   readonly owner: object;
@@ -29,6 +31,7 @@ export type WorldlineLaneSource = Readonly<{
 }>;
 
 export type StrandLaneOptions = Readonly<{
+  readonly content?: RuntimeContentStaging;
   readonly activity: RuntimeActivity;
   readonly draft: DraftTimeline;
   readonly forkedAt: Readonly<{
@@ -97,6 +100,7 @@ function strandOptions(
   tickId: string,
 ): StrandLaneOptions {
   return {
+    ...(source.content === undefined ? {} : { content: source.content }),
     activity: source.activity,
     draft,
     forkedAt: Object.freeze({ id: tickId, lane: source.parent }),

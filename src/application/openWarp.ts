@@ -1,3 +1,4 @@
+import type ContentStagingAuthority from '../domain/services/ContentStagingAuthority.ts';
 import Warp from '../domain/api/Warp.ts';
 import { assertWriterIdentity } from '../domain/api/assertIdentity.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from '../domain/api/OpenWarpIdentityFailure.ts';
@@ -10,6 +11,7 @@ import WarpStorage from './WarpStorage.ts';
 import { resolveWarpStorage } from './WarpStorageRegistry.ts';
 
 export type OpenWarpOptions = {
+  readonly content?: ContentStagingAuthority;
   readonly storage: WarpStorage;
   readonly writer: string;
 };
@@ -35,7 +37,7 @@ export function openWarp(options: OpenWarpOptions): Promise<Warp> {
         });
         return createTimeline(
           runtime,
-          createApiRuntimeContext(options.storage, runtimePorts.crypto)
+          createApiRuntimeContext(options.storage, runtimePorts.crypto, options.content)
         );
       },
     });

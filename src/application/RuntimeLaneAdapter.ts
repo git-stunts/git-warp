@@ -1,3 +1,5 @@
+import { contentObserverOwner } from '../domain/api/ContentObserverRuntime.ts';
+import { startContentObservation, startStrandContentObservation } from './RuntimeContentObservation.ts';
 import type ReadingResult from '../domain/api/ReadingResult.ts';
 import type DraftTimeline from '../domain/api/DraftTimeline.ts';
 import { createDraftReadingTarget } from '../domain/api/DraftTimelineRuntime.ts';
@@ -17,13 +19,15 @@ import {
   observerReadings,
 } from '../domain/api/ObserverRuntime.ts';
 import { isEntityAdmissionInventoryObserver } from '../domain/api/EntityAdmissionInventoryObserverRuntime.ts';
-import ObservationReceipt from '../domain/api/ObservationReceipt.ts';
+import ObservationReceipt, { type ObservationReceiptOptions } from '../domain/api/ObservationReceipt.ts';
 import Reading, { type ReadingValue } from '../domain/api/ObservedReading.ts';
 import type ReadReceipt from '../domain/api/ReadReceipt.ts';
 import type Tick from '../domain/api/Tick.ts';
 import WarpError from '../domain/errors/WarpError.ts';
 import WarpStream from '../domain/stream/WarpStream.ts';
 import type RuntimeActivity from './RuntimeActivity.ts';
+import ContentStagingAuthority from '../domain/services/ContentStagingAuthority.ts';
+import RuntimeContentStaging from './RuntimeContentStaging.ts';
 import type { RuntimeActivityLease } from './RuntimeActivity.ts';
 import RuntimeMutationGate from './RuntimeMutationGate.ts';
 import { bindStrandLaneRuntime } from './RuntimeStrandLaneBinding.ts';
@@ -40,7 +44,7 @@ import {
 
 type ReceiptSettlement = Readonly<{
   promise: Promise<ObservationReceipt>;
-  reject(reason: unknown): void;
+  reject<T>(reason: T): void;
   resolve(receipt: ObservationReceipt): void;
 }>;
 type ReadTarget = Pick<Timeline, 'read'> | Pick<TimelineView, 'read'>;
@@ -52,6 +56,7 @@ type ReadingStreamOutcome =
   | Readonly<{ kind: 'completed'; receipt: ReadReceipt | null }>
   | Readonly<{ kind: 'settled' }>;
 type RuntimeLaneOptions = Readonly<{
+  readonly content?: ContentStagingAuthority;
   readonly mutations?: RuntimeMutationGate;
   readonly owner?: object;
 }>;
@@ -63,7 +68,9 @@ export function createWorldlineLane(
 ): Lane {
   const mutations = options.mutations ?? new RuntimeMutationGate();
   const owner = options.owner ?? Object.freeze({});
+  const content = createContentStaging(timeline, activity, options.content);
   const lane = new Lane({
+    stageContent: content.stage.bind(content),
     descriptor: { kind: 'worldline', name: timeline.name },
     writer: timeline.writer,
     writeIntent: async (intent) =>
@@ -73,23 +80,33 @@ export function createWorldlineLane(
     startObserver: <TValue extends ReadingValue>(observer: Observer<TValue>) =>
       startObserver(timeline, observer, activity),
   });
-  const parent = worldlineParent(timeline.name);
   bindWorldlineLaneRuntime({
+    content,
     activity,
     lane,
     mutations,
     owner,
-    parent,
+    parent: worldlineParent(timeline.name),
     timeline,
   });
   return lane;
 }
 
-function worldlineParent(name: string) {
-  return Object.freeze({ kind: 'worldline' as const, name });
+function createContentStaging(
+  timeline: Timeline, activity: RuntimeActivity, authority = new ContentStagingAuthority(),
+): RuntimeContentStaging {
+  return new RuntimeContentStaging({
+    activity, authority,
+    storage: () => requireTimelineRuntime(timeline).assetStorage, slug: timeline.name,
+  });
+}
+
+function worldlineParent(name: string): Readonly<{ kind: 'worldline'; name: string }> {
+  return Object.freeze({ kind: 'worldline', name });
 }
 
 function bindWorldlineLaneRuntime(options: {
+  readonly content: RuntimeContentStaging;
   readonly activity: RuntimeActivity;
   readonly lane: Lane;
   readonly mutations: RuntimeMutationGate;
@@ -98,6 +115,7 @@ function bindWorldlineLaneRuntime(options: {
   readonly timeline: Timeline;
 }): void {
   const source: WorldlineLaneSource = Object.freeze({
+    content: options.content,
     activity: options.activity,
     mutations: options.mutations,
     owner: options.owner,
@@ -130,6 +148,7 @@ async function captureWorldlineCoordinate(
 function createStrandLane(options: StrandLaneOptions): Lane {
   const { activity, draft, mutations } = options;
   const lane = new Lane({
+    ...(options.content === undefined ? {} : { stageContent: options.content.stage.bind(options.content) }),
     descriptor: {
       kind: 'strand',
       name: draft.name,
@@ -159,6 +178,8 @@ function startObserver<TValue extends ReadingValue>(
   observer: Observer<TValue>,
   activity: RuntimeActivity,
 ): Promise<ObservationExecution<TValue>> {
+  const owner = contentObserverOwner(observer);
+  if (owner !== null) { return startContentObservation({ timeline, observer, owner, activity }); }
   return isEntityAdmissionInventoryObserver(observer)
     ? startEntityAdmissionInventory(timeline, observer, activity)
     : startBoundedObserver(timeline, observer, activity);
@@ -198,6 +219,8 @@ async function startStrandObserver<TValue extends ReadingValue>(
   observer: Observer<TValue>,
   activity: RuntimeActivity,
 ): Promise<ObservationExecution<TValue>> {
+  const owner = contentObserverOwner(observer);
+  if (owner !== null) { return await startStrandContentObservation({ draft, observer, owner, activity }); }
   if (isEntityAdmissionInventoryObserver(observer)) {
     return unsupportedStrandEntityAdmissionInventory(draft, observer);
   }
@@ -314,7 +337,7 @@ function finishReadingStream<TValue extends ReadingValue>(
 }
 
 function createReceiptSettlement(): ReceiptSettlement {
-  let rejectPromise: (reason: unknown) => void = () => undefined;
+  let rejectPromise: <T>(reason: T) => void = () => undefined;
   let resolvePromise: (receipt: ObservationReceipt) => void = () => undefined;
   const promise = new Promise<ObservationReceipt>((resolve, reject) => {
     rejectPromise = reject;
@@ -365,13 +388,13 @@ function cancelledObservationReceipt(
   observer: Observer,
   tick: Tick | null,
 ): ObservationReceipt {
-  const fields = {
+  const fields: ObservationReceiptOptions = {
     lane: timeline.name,
     observer,
     reason: 'consumer_cancelled',
     status: 'obstructed',
     writer: timeline.writer,
-  } as const;
+  };
   return new ObservationReceipt(
     tick === null ? fields : { ...fields, evidence: tickEvidence(tick) },
   );
@@ -458,14 +481,14 @@ function unresolvedObservationReceipt(options: {
   readonly timeline: ObservationLane;
 }): ObservationReceipt {
   const { observer, receipt, status, timeline } = options;
-  const fields = {
+  const fields: ObservationReceiptOptions = {
     lane: timeline.name,
     observer,
     reason: receipt.reason ?? 'observation_unresolved',
     repairHints: receipt.repairHints,
     status,
     writer: timeline.writer,
-  } as const;
+  };
   return new ObservationReceipt(
     receipt.evidence === undefined ? fields : { ...fields, evidence: receipt.evidence },
   );

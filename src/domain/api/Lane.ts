@@ -6,6 +6,9 @@ import Observation, { type ObservationExecution } from './Observation.ts';
 import Observer from './Observer.ts';
 import type { ReadingValue } from './ObservedReading.ts';
 import type WriteReceipt from './WriteReceipt.ts';
+import type { ContentInput } from './ContentInput.ts';
+import type { ContentMetadataInput } from './ContentMetadataInput.ts';
+import type StagedContent from './StagedContent.ts';
 
 export type LaneKind = 'worldline' | 'strand';
 
@@ -37,6 +40,7 @@ type StartObserver = <TValue extends ReadingValue>(
 ) => ObservationExecution<TValue> | Promise<ObservationExecution<TValue>>;
 
 type LaneOptions = {
+  readonly stageContent?: (content: ContentInput, metadata?: ContentMetadataInput) => Promise<StagedContent>;
   readonly descriptor: LaneDescriptor;
   readonly startObserver: StartObserver;
   readonly writeIntent: WriteIntent;
@@ -45,6 +49,7 @@ type LaneOptions = {
 
 /** One admitted worldline or counterfactual strand owned by a Runtime. */
 export default class Lane {
+  readonly #stageContent: LaneOptions['stageContent'];
   readonly #descriptor: LaneDescriptor;
   readonly #startObserver: StartObserver;
   readonly #writeIntent: WriteIntent;
@@ -63,6 +68,7 @@ export default class Lane {
       throw new WarpError('Lane requires an intent writer', 'E_LANE_WRITER');
     }
     this.#writer = options.writer;
+    this.#stageContent = optionalContentStager(options.stageContent);
     this.#startObserver = options.startObserver;
     this.#writeIntent = options.writeIntent;
     Object.freeze(this);
@@ -88,6 +94,14 @@ export default class Lane {
     return this.#writer;
   }
 
+  /** Stages bytes without publishing a graph change; a later attachment write establishes retention. */
+  async stageContent(content: ContentInput, metadata?: ContentMetadataInput): Promise<StagedContent> {
+    if (this.#stageContent === undefined) {
+      throw new WarpError('Lane has no content staging capability', 'NO_ASSET_STORAGE');
+    }
+    return await this.#stageContent(content, metadata);
+  }
+
   observe<TValue extends ReadingValue>(observer: Observer<TValue>): Observation<TValue> {
     if (!(observer instanceof Observer)) {
       throw new WarpError('Lane.observe requires an Observer', 'E_LANE_OBSERVE_OBSERVER');
@@ -107,6 +121,13 @@ export default class Lane {
     }
     return await this.#writeIntent(IntentSequence.from(intent).input);
   }
+}
+
+function optionalContentStager(stage: LaneOptions['stageContent']): LaneOptions['stageContent'] {
+  if (stage !== undefined && typeof stage !== 'function') {
+    throw new WarpError('Lane content staging capability must be callable', 'E_LANE_CONTENT');
+  }
+  return stage;
 }
 
 function normalizeDescriptor(descriptor: LaneDescriptor): LaneDescriptor {

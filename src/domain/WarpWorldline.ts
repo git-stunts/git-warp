@@ -5,6 +5,8 @@
  * application workflows. `WarpWorldline` is migration-only compatibility.
  */
 import WarpError from './errors/WarpError.ts';
+import { bindContentReadRuntime } from './services/ContentReadRuntime.ts';
+import type AssetStoragePort from '../ports/AssetStoragePort.ts';
 import QueryError from './errors/QueryError.ts';
 
 import { type WarpGraphDeps } from './WarpGraph.ts';
@@ -83,6 +85,7 @@ type PrepareStrandOptic = (
   checkpointSha: string,
 ) => Promise<WarpStrandOpticBasis>;
 type WarpWorldlineConstructionOptions = {
+  readonly assetStorage?: AssetStoragePort | null;
   readonly worldlineName: string;
   readonly writerId: string;
   readonly commitPatch: CommitPatch;
@@ -104,6 +107,7 @@ type WarpWorldlineConstructionOptions = {
 };
 
 export default class WarpWorldline {
+  readonly assetStorage: AssetStoragePort | null;
   readonly worldlineName: string;
   readonly writerId: string;
   private readonly _commitPatch: CommitPatch;
@@ -124,6 +128,7 @@ export default class WarpWorldline {
   private readonly _admitIntent: AdmitIntent;
 
   constructor(options: WarpWorldlineConstructionOptions) {
+    this.assetStorage = options.assetStorage ?? null;
     assertNonEmpty(options.worldlineName, 'worldlineName');
     assertNonEmpty(options.writerId, 'writerId');
     this.worldlineName = options.worldlineName;
@@ -357,8 +362,7 @@ function createWarpWorldline(worldlineName: string, graph: RuntimeGraph): WarpWo
     return preparedOpticBasis;
   };
   const worldline = new WarpWorldline({
-    worldlineName,
-    writerId: graph.writerId,
+    worldlineName, writerId: graph.writerId, assetStorage: graph._assetStorage,
     commitPatch: async (build) => await graph.patch(build),
     commitPatchWithEvidence: async (build) => await graph.patchWithEvidence(build),
     ...draftWorldlineOptions(graph),
@@ -374,6 +378,7 @@ function createWarpWorldline(worldlineName: string, graph: RuntimeGraph): WarpWo
     getFrontier: async () => await graph.getFrontier(),
     inventory: new PatchJournalEntityAdmissionInventory({ journal: graph._patchJournal }),
   });
+  bindContentReadRuntime(worldline, { refs: graph._persistence, journal: graph._patchJournal });
   return worldline;
 }
 

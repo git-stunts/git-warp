@@ -23,6 +23,7 @@ import {
 } from './RuntimeSettlement.ts';
 import type { RuntimeSettlementOptions } from './RuntimeSettlementOptions.ts';
 import { openWarp } from './openWarp.ts';
+import ContentStagingAuthority from '../domain/services/ContentStagingAuthority.ts';
 
 export type { RuntimeSettlementOptions } from './RuntimeSettlementOptions.ts';
 
@@ -66,13 +67,15 @@ const STRAND_LANE_OWNERSHIP_FAILURE = Object.freeze({
 
 /** Production composition root for one local git-warp runtime. */
 export default class Runtime {
+  readonly #content: ContentStagingAuthority;
   readonly #activity: RuntimeActivity;
   readonly #laneOwner: object;
   readonly #mutations: RuntimeMutationGate;
   readonly #storage: GitStorage;
   readonly #warp: Warp;
 
-  private constructor(warp: Warp, storage: GitStorage) {
+  private constructor(warp: Warp, storage: GitStorage, content: ContentStagingAuthority) {
+    this.#content = content;
     this.#warp = warp;
     this.#storage = storage;
     this.#activity = new RuntimeActivity();
@@ -86,8 +89,9 @@ export default class Runtime {
     assertRuntimeOpenOptions(options);
     const storage = await GitStorage.open({ cwd: options.at });
     try {
-      const warp = await openWarp({ storage, writer: options.writer });
-      return new Runtime(warp, storage);
+      const content = new ContentStagingAuthority();
+      const warp = await openWarp({ storage, writer: options.writer, content });
+      return new Runtime(warp, storage, content);
     } catch (error) {
       try {
         await storage.close();
@@ -112,7 +116,7 @@ export default class Runtime {
       return createWorldlineLane(
         timeline,
         this.#activity,
-        { mutations: this.#mutations, owner: this.#laneOwner },
+        { mutations: this.#mutations, owner: this.#laneOwner, content: this.#content },
       );
     });
   }

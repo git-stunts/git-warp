@@ -32,6 +32,22 @@ describe('Lane', () => {
     })).toThrow(expect.objectContaining({ code: 'E_LANE_WRITER' }));
   });
 
+  it('refuses staging when no content capability was injected', async () => {
+    const lane = new Lane({
+      descriptor: { kind: 'worldline', name: 'events' }, startObserver, writeIntent, writer: 'agent-1',
+    });
+    await expect(lane.stageContent('bytes')).rejects.toMatchObject({ code: 'NO_ASSET_STORAGE' });
+    expect(writeIntent).not.toHaveBeenCalled();
+  });
+
+  it('validates an injected staging capability at construction', () => {
+    expect(() => new Lane({
+      descriptor: { kind: 'worldline', name: 'events' }, startObserver, writeIntent, writer: 'agent-1',
+      // @ts-expect-error Exercise the JavaScript constructor boundary.
+      stageContent: 'invalid',
+    })).toThrow(expect.objectContaining({ code: 'E_LANE_CONTENT' }));
+  });
+
   it('exposes its identity and delegates admitted writes', async () => {
     const lane = new Lane({
       descriptor: { kind: 'worldline', name: 'events' },
