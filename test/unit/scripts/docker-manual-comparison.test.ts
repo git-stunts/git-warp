@@ -64,12 +64,12 @@ esac
   chmodSync(docker, 0o755);
   return { directory, root, base, commands, copied };
 }
-function run(input: ReturnType<typeof fixture>, status = 0, output = '.performance/comparison', link = false) {
+function run(input: ReturnType<typeof fixture>, status = 0, output = '.performance/comparison', options = { payloadLink: false }) {
   return spawnSync(shell, [join(input.root, 'scripts/RunDockerPerformanceComparison.sh'),
     '--base-directory', input.base, '--head-directory', '.', '--output-directory', output, '--order-seed', '1'], {
     cwd: input.root, encoding: 'utf8', timeout: 15000,
     env: { PATH: [input.commands, dirname(shell)].join(delimiter), TRACE: join(input.directory, 'trace'),
-      COPIED: input.copied, COMMAND_STATUS: String(status), PAYLOAD_LINK: link ? '1' : '0' },
+      COPIED: input.copied, COMMAND_STATUS: String(status), PAYLOAD_LINK: options.payloadLink ? '1' : '0' },
   });
 }
 describe('manual copied-revision comparison', () => {
@@ -100,7 +100,7 @@ describe('manual copied-revision comparison', () => {
   });
   it('refuses a symlink payload and still removes the container', () => {
     const input = fixture();
-    const actual = run(input, 0, '.performance/comparison', true);
+    const actual = run(input, 0, '.performance/comparison', { payloadLink: true });
     expect(actual.status).toBe(1);
     expect(existsSync(join(input.root, '.performance/comparison'))).toBe(false);
     expect(existsSync(join(input.copied, 'removed'))).toBe(true);
