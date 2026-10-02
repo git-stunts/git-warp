@@ -1,3 +1,5 @@
+import AssetByteCount from './AssetByteCount.ts';
+import assetByteLength from './assetByteLength.ts';
 import requireAssetByteChunk from './requireAssetByteChunk.ts';
 import WarpError from '../errors/WarpError.ts';
 import AssetSizeExpectation from './AssetSizeExpectation.ts';
@@ -6,7 +8,7 @@ import AssetSizeExpectation from './AssetSizeExpectation.ts';
 export default class AssetStreamConsumption {
   readonly #expectation: AssetSizeExpectation | null;
   #phase: 'fresh' | 'consuming' | 'complete' = 'fresh';
-  #bytes = 0;
+  readonly #bytes = new AssetByteCount();
 
   constructor(expectedSize: number | null | undefined) {
     this.#expectation = expectedSize === null || expectedSize === undefined
@@ -22,11 +24,8 @@ export default class AssetStreamConsumption {
     const checked = this.#expectation === null ? source : this.#expectation.stream(source);
     for await (const inputChunk of checked) {
       const chunk = requireAssetByteChunk(inputChunk);
-      const next = this.#bytes + chunk.byteLength;
-      if (!Number.isSafeInteger(next)) {
-        throw new WarpError('Consumed asset size exceeds safe integer range', 'E_ASSET_SIZE_INVALID');
-      }
-      this.#bytes = next;
+      const chunkBytes = assetByteLength(chunk);
+      this.#bytes.add(chunkBytes);
       yield chunk;
     }
     this.#phase = 'complete';
@@ -36,7 +35,7 @@ export default class AssetStreamConsumption {
     if (this.#phase !== 'complete') {
       throw new WarpError('Storage returned before asset input completed', 'E_ASSET_INPUT_INCOMPLETE');
     }
-    return this.#bytes;
+    return this.#bytes.value;
   }
 
   verifyPlaintextReceipt(bytes: number): void {

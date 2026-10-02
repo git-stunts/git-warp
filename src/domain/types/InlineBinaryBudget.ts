@@ -1,5 +1,6 @@
+import assetByteLength from '../storage/assetByteLength.ts';
 import WarpError from '../errors/WarpError.ts';
-import type { PropValue } from './PropValue.ts';
+import { isPropValue, type PropValue } from './PropValue.ts';
 
 const MAX_INLINE_BINARY_BYTES = 64 * 1024;
 
@@ -10,17 +11,41 @@ export default class InlineBinaryBudget {
   constructor() { Object.freeze(this); }
 
   static copy(value: PropValue): PropValue {
-    return new InlineBinaryBudget().#copy(value);
+    const snapshot = new InlineBinaryBudget().#copy(value);
+    if (!isPropValue(snapshot)) {
+      throw new WarpError('Inline snapshot contains an invalid property value', 'E_INLINE_PROPERTY_VALUE');
+    }
+    return snapshot;
   }
 
   #copy(value: PropValue): PropValue {
     if (value instanceof Uint8Array) {
-      this.#consumeBytes(value.byteLength);
-      return new Uint8Array(value);
+      const length = assetByteLength(value);
+      this.#consumeBytes(length);
+      const snapshot = new Uint8Array(length);
+      snapshot.set(value);
+      return snapshot;
     }
     if (value === null || typeof value !== 'object') { return value; }
-    if (Array.isArray(value)) { return value.map((entry) => this.#copy(entry)); }
+    if (Array.isArray(value)) { return this.#copyArray(value); }
+    requirePlainPropertyObject(value);
     return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, this.#copy(entry)]));
+  }
+
+  #copyArray(value: PropValue[]): PropValue[] {
+    const snapshot: PropValue[] = [];
+    const { length } = value;
+    for (let index = 0; index < length; index += 1) {
+      if (!Object.hasOwn(value, index)) {
+        throw new WarpError('Inline array contains an absent property value', 'E_INLINE_PROPERTY_VALUE');
+      }
+      const { [index]: entry } = value;
+      if (entry === undefined) {
+        throw new WarpError('Inline array contains an absent property value', 'E_INLINE_PROPERTY_VALUE');
+      }
+      snapshot.push(this.#copy(entry));
+    }
+    return snapshot;
   }
 
   #consumeBytes(length: number): void {
@@ -32,5 +57,11 @@ export default class InlineBinaryBudget {
       );
     }
     this.#remaining -= length;
+  }
+}
+
+function requirePlainPropertyObject(value: PropValue): void {
+  if (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
+    throw new WarpError('Inline snapshot requires plain property objects', 'E_INLINE_PROPERTY_VALUE');
   }
 }

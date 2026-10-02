@@ -27,12 +27,12 @@ it('counts an undeclared empty stream and verifies the storage receipt', async (
   expect(() => consumption.verifyPlaintextReceipt(1)).toThrow(expect.objectContaining({ code: 'E_ASSET_SIZE_MISMATCH' }));
 });
 
-it('refuses unsafe size arithmetic before forwarding an overflowing chunk', async () => {
-  // A hostile producer lies about a typed-array view size; no giant allocation.
+it('ignores a forged huge size when counting the actual one-byte stream', async () => {
+  // Forged metadata is not evidence of an actual huge allocation or byte count.
   const lyingChunk = new Uint8Array();
   Object.defineProperty(lyingChunk, 'byteLength', { value: Number.MAX_SAFE_INTEGER });
   async function* source() { yield lyingChunk; yield new Uint8Array([1]); }
-  const iterator = new AssetStreamConsumption(undefined).stream(source())[Symbol.asyncIterator]();
-  expect((await iterator.next()).done).toBe(false);
-  await expect(iterator.next()).rejects.toMatchObject({ code: 'E_ASSET_SIZE_INVALID' });
+  const consumption = new AssetStreamConsumption(undefined);
+  for await (const chunk of consumption.stream(source())) expect(chunk).toBeInstanceOf(Uint8Array);
+  expect(consumption.size).toBe(1);
 });

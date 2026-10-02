@@ -111,6 +111,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline property snapshots reject absent array indexes even when a prototype supplies their values.
+
 - Attachment metadata reports consumed plaintext size under framed encryption,
   independently of ciphertext overhead in CAS receipts. Staging rejects receipts
   returned before full input consumption and still checks unencrypted byte counts.
@@ -133,6 +135,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   errors before storage forwarding; finalize rejected producers.
 - Snapshot inline property values while charging each binary copy against the
   64 KiB budget, preventing getter changes and caller mutation from bypassing it.
+  Validate the resulting snapshot and traverse array indexes directly so changing
+  getters and overridden array methods cannot inject invalid values or evade copying.
+  Asset limits, plaintext accounting, collectors and direct-content metadata read
+  native typed-array lengths rather than caller-shadowable `byteLength` properties.
 - Reject new inline binary property writes exceeding 64 KiB in aggregate,
   including nested binary values, before intent copying or patch mutation.
   Larger binary payloads must use streaming content assets (#818).

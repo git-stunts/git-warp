@@ -1,3 +1,4 @@
+import assetByteLength from './assetByteLength.ts';
 import requireAssetByteChunk from './requireAssetByteChunk.ts';
 import AssetSizeMismatchError from '../errors/AssetSizeMismatchError.ts';
 import WarpError from '../errors/WarpError.ts';
@@ -19,8 +20,9 @@ export default class AssetSizeExpectation {
     let observed = 0;
     for await (const inputChunk of source) {
       const chunk = requireAssetByteChunk(inputChunk);
-      const next = observed + chunk.byteLength;
-      if (chunk.byteLength > this.#bytes - observed) {
+      const chunkBytes = assetByteLength(chunk);
+      const next = observed + chunkBytes;
+      if (chunkBytes > this.#bytes - observed) {
         throw new AssetSizeMismatchError(this.#bytes, next);
       }
       observed = next;

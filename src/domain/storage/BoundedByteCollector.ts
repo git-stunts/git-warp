@@ -1,3 +1,4 @@
+import assetByteLength from './assetByteLength.ts';
 import requireAssetByteChunk from './requireAssetByteChunk.ts';
 import WarpError from '../errors/WarpError.ts';
 
@@ -20,12 +21,13 @@ export default class BoundedByteCollector {
     let length = 0;
     for await (const inputChunk of source) {
       const chunk = requireAssetByteChunk(inputChunk);
-      if (chunk.byteLength > this.#maxBytes - length) {
+      const chunkBytes = assetByteLength(chunk);
+      if (chunkBytes > this.#maxBytes - length) {
         throw collectionLimit('Byte collection exceeds its explicit limit; use streaming assets', this.#maxBytes);
       }
-      bytes = this.#grow(bytes, length + chunk.byteLength);
+      bytes = this.#grow(bytes, length + chunkBytes);
       bytes.set(chunk, length);
-      length += chunk.byteLength;
+      length += chunkBytes;
     }
     return length === bytes.byteLength ? bytes : bytes.slice(0, length);
   }

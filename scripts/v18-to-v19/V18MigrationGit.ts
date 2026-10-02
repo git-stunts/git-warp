@@ -44,17 +44,17 @@ export async function runV18MigrationGit(
     child.once('error', reject);
     child.once('close', resolve);
   });
-  let stdinFailure: Error | null = null;
-  child.stdin.on('error', (error: Error) => { stdinFailure = error; });
+  let stdinFailure = '';
+  child.stdin.on('error', (error: Error) => { stdinFailure = `stdin: ${error.message}`; });
   const stdout = collectAsyncIterable(child.stdout, MAX_BUFFERED_ARTIFACT_BYTES);
   const stderr = collectAsyncIterable(child.stderr, MAX_GIT_DIAGNOSTIC_BYTES);
   child.stdin.end(options.input);
   try {
     const [bytes, diagnostics, exitCode] = await Promise.all([stdout, stderr, exit]);
-    if (exitCode !== 0 || stdinFailure !== null) {
+    if (exitCode !== 0 || stdinFailure !== '') {
       throw new V18MigrationGitError({
         args, exitCode,
-        stderr: Buffer.from(diagnostics).toString('utf8').trim(),
+        stderr: [Buffer.from(diagnostics).toString('utf8').trim(), stdinFailure].filter(Boolean).join('\n'),
       });
     }
     return bytes;
