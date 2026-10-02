@@ -52,6 +52,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Test and benchmark entry points enforce COPY-based Docker execution (#921).
+  Direct package commands resolve their installed binaries; watch mode copies
+  source edits into its service. Coverage reports and ratchet snapshots survive
+  cleanup, with original source identity retained for snapshots. Threshold
+  updates require a successful full coverage run and unchanged host config.
+  Performance CI copies both revisions into a pinned image, exports raw evidence
+  and preserves failure status; owned containers are cleaned up on termination.
+  Artifact destinations reject case aliases of Git metadata, dependency trees,
+  and tracked files before starting Docker. Cleanup removes uniquely owned
+  comparison and Compose project image tags without pruning shared images.
+  Manual performance commands export their reports and source identity, forward
+  measurement settings, and compare copied clean sibling checkouts without mounts.
+
 - Reopened public writers prepare bounded node-removal observations through the
   journal, bind the captured frontier/context to admission, and publish real
   observed-dot removals (#912). Oversized or unsupported observations refuse
@@ -101,6 +114,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Declared attachment sizes are enforced as bytes arrive: storage never receives
   an overflowing chunk, truncation rejects staging, and invalid size declarations
   fail before storage or the producer starts. Producer iteration closes on overflow.
+
+- Attachment reads after checkpoint and Git GC recover from a stale mktree
+  process with one fresh-process retry. Broken-pipe and closed-input errors are
+  classified at the dependency protocol boundary; unrelated errors still fail.
+  This now uses published git-cas 6.5.11 and Plumbing 3.3.2; the temporary
+  source-checkout Plumbing patch is removed.
+
+- Staged-file and committed-tree path guards now reject machine-local temporary
+  worktree paths as well as personal home paths. A real pre-commit regression
+  verifies that cleaning the working copy cannot conceal unsafe staged content.
+
+- Developer hook installation now configures a working-tree-relative hooks path,
+  so `npm prepare` (including npm 10 pack) in one linked worktree cannot redirect
+  every other checkout to its hook scripts (#891). It repairs legacy absolute
+  paths to registered worktrees' `scripts/hooks` while preserving explicit
+  custom paths and global, worktree, or command-scoped configuration.
 
 - Skip edge-property rows with invalid runtime identifier or slot fields, consistently across iterators and attachment projections, while retaining their stored registers.
 

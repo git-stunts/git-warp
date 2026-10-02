@@ -2,6 +2,7 @@
  * Shared Deno test helpers.
  * Uses npm: specifiers for git-warp imports.
  */
+import '../../../scripts/RequireDockerTests.ts';
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";

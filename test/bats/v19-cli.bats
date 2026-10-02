@@ -2,6 +2,12 @@
 
 load helpers/setup.bash
 
+load helpers/docker.bash
+
+setup_file() {
+  require_docker_tests
+}
+
 setup() {
   setup_test_repo
 }

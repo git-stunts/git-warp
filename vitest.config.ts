@@ -1,3 +1,4 @@
+import './scripts/RequireDockerTests.ts';
 import { defineConfig } from 'vitest/config';
 import { shouldAutoUpdateCoverageRatchet } from './scripts/coverage-ratchet.ts';
 
