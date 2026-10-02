@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../../src/domain/storage/BufferedArtifactLimit.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   BundleHandle as GitCasBundleHandle,
@@ -121,7 +122,7 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     const indexHandle = await indexes.writeShards(WarpStream.from(shards()));
     const recovered = await indexes.scanShards(indexHandle).collect();
     const streamed = await collectAsyncIterable(
-      indexes.openShardAt(indexHandle, 'meta_a0.cbor'),
+      indexes.openShardAt(indexHandle, 'meta_a0.cbor'), MAX_BUFFERED_ARTIFACT_BYTES,
     );
 
     expect(indexHandle).toBeInstanceOf(BundleHandle);
@@ -131,7 +132,7 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     });
     await expect(collectAsyncIterable(indexes.openShardAt(indexHandle, 'meta_a0.cbor', {
       maxBytes: 1,
-    }))).rejects.toMatchObject({ code: 'E_INDEX_SHARD_TOO_LARGE' });
+    }), MAX_BUFFERED_ARTIFACT_BYTES)).rejects.toMatchObject({ code: 'E_INDEX_SHARD_TOO_LARGE' });
     expect(recovered).toHaveLength(6);
     expect(recovered.some((shard) => shard instanceof MetaShard)).toBe(true);
     expect(recovered.some((shard) => shard instanceof EdgeShard && shard.direction === 'fwd')).toBe(true);
@@ -280,12 +281,12 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     });
     const opened = await collectAsyncIterable(indexes.openShardAt(indexHandle, path, {
       maxBytes: 1024,
-    }));
+    }), MAX_BUFFERED_ARTIFACT_BYTES);
     expect(defaultCodec.decode(opened)).toEqual({
       schemaVersion: 2,
       entries: [[nodeId, [['status', 'ready']]]],
     });
-    await expect(collectAsyncIterable(indexes.openShardAt(indexHandle, 'missing.cbor')))
+    await expect(collectAsyncIterable(indexes.openShardAt(indexHandle, 'missing.cbor'), MAX_BUFFERED_ARTIFACT_BYTES))
       .rejects.toMatchObject({ code: 'E_INDEX_SHARD_MISSING' });
     await expect(indexes.decodeShardAt(indexHandle, path, {
       maxBytes: 1024,
@@ -372,7 +373,7 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
       throw new Error('expected receipt shard handle');
     }
 
-    const bytes = await collectAsyncIterable(indexes.openShard(receiptHandle));
+    const bytes = await collectAsyncIterable(indexes.openShard(receiptHandle), MAX_BUFFERED_ARTIFACT_BYTES);
     expect(defaultCodec.decode(bytes)).toEqual({
       version: 1,
       nodeCount: 2,

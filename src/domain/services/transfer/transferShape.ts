@@ -1,3 +1,4 @@
+import WarpError from '../../errors/WarpError.ts';
 /**
  * transferShape — shape delta computation, property collectors, and sync/content aggregators.
  *
@@ -8,7 +9,6 @@ import type { VisibleStateTransferOperation } from '../../types/CoordinateCompar
 import {
   compareStrings,
   collectEdgeRefs,
-  type ContentMeta,
   type EdgeRef,
   type VisibleStateReader,
 } from './transferKeys.ts';
@@ -71,7 +71,7 @@ export function buildRemoveEdgeOps(
   targetEdgesByKey: Map<string, EdgeRef>,
 ): VisibleStateTransferOperation[] {
   return removedKeys.map((key) => {
-    const edge = targetEdgesByKey.get(key) as EdgeRef;
+    const edge = requireTransferEdge(targetEdgesByKey, key);
     return {
       op: 'remove_edge',
       from: edge.from,
@@ -102,10 +102,10 @@ export function collectEdgeShapeDelta(
 
   const addedEdgeRefs = sourceEdgeKeys
     .filter((key) => !targetEdgeSet.has(key))
-    .map((key) => sourceEdgesByKey.get(key) as EdgeRef);
+    .map((key) => requireTransferEdge(sourceEdgesByKey, key));
   const retainedEdgeRefs = sourceEdgeKeys
     .filter((key) => targetEdgeSet.has(key))
-    .map((key) => sourceEdgesByKey.get(key) as EdgeRef);
+    .map((key) => requireTransferEdge(sourceEdgesByKey, key));
   const removedKeys = targetEdgeKeys.filter((key) => !sourceEdgesByKey.has(key));
 
   return {
@@ -186,30 +186,32 @@ export type AllContentOpsParams = {
   targetReader: VisibleStateReader;
   nodeShape: NodeShapeDelta;
   edgeShape: EdgeShapeDelta;
-  loaders: {
-    loadNodeContent: (nodeId: string, meta: ContentMeta) => Promise<Uint8Array>;
-    loadEdgeContent: (edge: EdgeRef, meta: ContentMeta) => Promise<Uint8Array>;
-  };
 };
 
 /**
  * Collect async content attach/clear ops for all nodes and edges.
  */
-export async function collectAllContentOps(params: AllContentOpsParams): Promise<{
+export function collectAllContentOps(params: AllContentOpsParams): {
   nodeContentOps: VisibleStateTransferOperation[];
   edgeContentOps: VisibleStateTransferOperation[];
-}> {
-  const nodeContentOps = await collectNodeContentOps({
+} {
+  const nodeContentOps = collectNodeContentOps({
     sourceReader: params.sourceReader,
     targetReader: params.targetReader,
     nodeIds: params.nodeShape.propertyNodeIds,
-    loadContent: params.loaders.loadNodeContent,
   });
-  const edgeContentOps = await collectEdgeContentOps({
+  const edgeContentOps = collectEdgeContentOps({
     sourceReader: params.sourceReader,
     targetReader: params.targetReader,
     edges: params.edgeShape.edgeRefs,
-    loadContent: params.loaders.loadEdgeContent,
   });
   return { nodeContentOps, edgeContentOps };
+}
+
+function requireTransferEdge(edges: ReadonlyMap<string, EdgeRef>, key: string): EdgeRef {
+  const edge = edges.get(key);
+  if (edge === undefined) {
+    throw new WarpError('Transfer edge is absent from the indexed graph shape', 'E_TRANSFER_EDGE_MISSING');
+  }
+  return edge;
 }

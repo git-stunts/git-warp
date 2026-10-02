@@ -4,7 +4,7 @@ import {
   type AssetPutOptions,
   type StagedAsset as GitCasStagedAsset,
 } from '@git-stunts/git-cas';
-import AssetSizeMismatchError from '../../domain/errors/AssetSizeMismatchError.ts';
+import AssetStreamConsumption from '../../domain/storage/AssetStreamConsumption.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import AssetStoragePort, {
   type AssetWriteOptions,
@@ -36,15 +36,16 @@ export default class GitCasAssetStorageAdapter extends AssetStoragePort {
     source: AsyncIterable<Uint8Array>,
     options: AssetWriteOptions,
   ): Promise<StagedAsset> {
+    const consumption = new AssetStreamConsumption(options.expectedSize);
     const putOptions: AssetPutOptions = {
-      source,
+      source: consumption.stream(source),
       slug: options.slug,
       filename: options.filename ?? 'content',
       ...this.#contentEncryption.toStoreOptions(),
     };
     const staged = await this.#cas.assets.put(putOptions);
-    requireExpectedSize(staged.asset.size, options.expectedSize);
-    return stagedAsset(staged);
+    if (!this.#contentEncryption.enabled) { consumption.verifyPlaintextReceipt(staged.asset.size); }
+    return stagedAsset(staged, consumption.size);
   }
 
   override async *open(handle: AssetHandle): AsyncIterable<Uint8Array> {
@@ -73,20 +74,14 @@ export default class GitCasAssetStorageAdapter extends AssetStoragePort {
   }
 }
 
-function stagedAsset(staged: GitCasStagedAsset): StagedAsset {
+function stagedAsset(staged: GitCasStagedAsset, plaintextSize: number): StagedAsset {
   return Object.freeze({
     handle: new AssetHandle(staged.handle.toString()),
-    size: staged.asset.size,
+    size: plaintextSize,
     observedAt: staged.observedAt,
     retention: Object.freeze({
       reachability: staged.retention.reachability,
       protection: staged.retention.protection,
     }),
   });
-}
-
-function requireExpectedSize(actualSize: number, expectedSize: number | null | undefined): void {
-  if (expectedSize !== null && expectedSize !== undefined && actualSize !== expectedSize) {
-    throw new AssetSizeMismatchError(expectedSize, actualSize);
-  }
 }

@@ -1,3 +1,4 @@
+import { collectNodeContent, collectEdgeContent } from '../../helpers/CollectAttachmentTestBytes.ts';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpCore from '../../../src/domain/WarpCore.ts';
 import CryptoPort from '../../../src/ports/CryptoPort.ts';
@@ -15,12 +16,10 @@ function createMockCoreSurfaceForAdopt() {
   let effectPipeline: EffectPipeline | null = null;
   const crypto = new TestCryptoPort();
   return {
-    getContent: vi.fn(async () => new Uint8Array([1, 2, 3])),
-    getContentStream: vi.fn(async () => (async function* () { yield new Uint8Array([1]); })()),
+    getContentStream: vi.fn(async () => (async function* () { yield new Uint8Array([1, 2, 3]); })()),
     getContentHandle: vi.fn(async () => 'asset:node'),
     getContentMeta: vi.fn(async () => ({ handle: 'asset:node', mime: 'text/plain', size: 42 })),
-    getEdgeContent: vi.fn(async () => new Uint8Array([4, 5, 6])),
-    getEdgeContentStream: vi.fn(async () => (async function* () { yield new Uint8Array([2]); })()),
+    getEdgeContentStream: vi.fn(async () => (async function* () { yield new Uint8Array([4, 5, 6]); })()),
     getEdgeContentHandle: vi.fn(async () => 'asset:edge'),
     getEdgeContentMeta: vi.fn(async () => ({ handle: 'asset:edge', mime: null, size: 10 })),
     get _effectPipeline() {
@@ -95,16 +94,16 @@ describe('WarpCore', () => {
     });
 
     it('getContent delegates to the adopted surface method', async () => {
-      const result = await core.getContent('node:1');
+      const result = await collectNodeContent(core, 'node:1');
 
-      expect(surface.getContent).toHaveBeenCalledWith('node:1');
+      expect(surface.getContentStream).toHaveBeenCalledWith('node:1');
       expect(result).toEqual(new Uint8Array([1, 2, 3]));
     });
 
     it('getContent returns null when content is absent', async () => {
-      surface.getContent.mockResolvedValue(null);
+      surface.getContentStream.mockResolvedValue(null);
 
-      const result = await core.getContent('missing');
+      const result = await collectNodeContent(core, 'missing');
       expect(result).toBeNull();
     });
 
@@ -142,9 +141,9 @@ describe('WarpCore', () => {
     });
 
     it('getEdgeContent delegates to the adopted surface method', async () => {
-      const result = await core.getEdgeContent('a', 'b', 'knows');
+      const result = await collectEdgeContent(core, { from: 'a', to: 'b', label: 'knows' });
 
-      expect(surface.getEdgeContent).toHaveBeenCalledWith('a', 'b', 'knows');
+      expect(surface.getEdgeContentStream).toHaveBeenCalledWith('a', 'b', 'knows');
       expect(result).toEqual(new Uint8Array([4, 5, 6]));
     });
 

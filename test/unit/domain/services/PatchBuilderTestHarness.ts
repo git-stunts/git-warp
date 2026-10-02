@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../../../src/domain/storage/BufferedArtifactLimit.ts';
 import { vi, type Mock } from 'vitest';
 import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
@@ -173,7 +174,7 @@ export class RecordingAssetStorage extends AssetStoragePort {
     if (this.failure !== null) {
       throw this.failure;
     }
-    const bytes = await collectAsyncIterable(source);
+    const bytes = await collectAsyncIterable(source, MAX_BUFFERED_ARTIFACT_BYTES);
     const token = this.#handles[this.calls.length] ?? `asset:test-content-${this.calls.length}`;
     const handle = new AssetHandle(token);
     this.calls.push({ bytes, options });

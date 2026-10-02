@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../../../src/domain/storage/BufferedArtifactLimit.ts';
 import { describe, expect, it } from 'vitest';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 import { collectAsyncIterable } from '../../../../src/domain/utils/streamUtils.ts';
@@ -26,7 +27,7 @@ describe('InMemoryBlobStorageAdapter asset semantics', () => {
       reachability: 'unanchored',
       protection: 'not-established',
     });
-    await expect(collectAsyncIterable(storage.open(staged.handle)))
+    await expect(collectAsyncIterable(storage.open(staged.handle), MAX_BUFFERED_ARTIFACT_BYTES))
       .resolves.toEqual(new TextEncoder().encode('hello world'));
   });
 
@@ -42,9 +43,9 @@ describe('InMemoryBlobStorageAdapter asset semantics', () => {
   it('rejects unknown handles when the stream is consumed', async () => {
     const storage = new InMemoryBlobStorageAdapter();
 
-    await expect(collectAsyncIterable(storage.open(new AssetHandle('missing'))))
+    await expect(collectAsyncIterable(storage.open(new AssetHandle('missing')), MAX_BUFFERED_ARTIFACT_BYTES))
       .rejects.toThrow(/unknown asset/);
-    await expect(collectAsyncIterable(storage.retrieveStream('missing')))
+    await expect(collectAsyncIterable(storage.retrieveStream('missing'), MAX_BUFFERED_ARTIFACT_BYTES))
       .rejects.toThrow(/unknown asset/);
   });
 

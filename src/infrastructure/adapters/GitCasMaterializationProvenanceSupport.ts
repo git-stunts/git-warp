@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../domain/storage/BufferedArtifactLimit.ts';
 import type {
   AssetCapability,
   AssetHandle,
@@ -52,7 +53,7 @@ export default class GitCasMaterializationProvenanceSupport {
     });
     const asset = requireProvenanceAsset(member);
     return ProvenanceIndex.deserialize(
-      await collectAsyncIterable(this.#cas.assets.open({ handle: asset })),
+      await collectAsyncIterable(this.#cas.assets.open({ handle: asset }), MAX_BUFFERED_ARTIFACT_BYTES),
       { codec: this.#codec },
     );
   }

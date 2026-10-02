@@ -5,6 +5,7 @@
  * @module domain/services/PatchBuilderValidation
  */
 
+import assetByteLength from '../storage/assetByteLength.ts';
 import { FIELD_SEPARATOR, EDGE_PROP_PREFIX, EFFECT_NODE_PREFIX } from './KeyCodec.ts';
 import PatchError from '../errors/PatchError.ts';
 import type { WarpState } from './JoinReducer.ts';
@@ -105,7 +106,7 @@ export function assertObservedDotsForRemove(
 export function byteSizeOfContent(content: Uint8Array | string): number {
   return typeof content === 'string'
     ? new TextEncoder().encode(content).byteLength
-    : content.byteLength;
+    : assetByteLength(content);
 }
 
 /**

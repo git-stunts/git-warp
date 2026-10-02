@@ -1,4 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import type { SnapshotPropValue } from '../../../../src/domain/services/snapshot/SnapshotPropValue.ts';
+import type { ContentMeta, EdgeRef, VisibleStateReader } from '../../../../src/domain/services/transfer/transferKeys.ts';
+
+type ReaderFixture = {
+  nodes: string[];
+  edges: EdgeRef[];
+  nodeProps?: Record<string, Record<string, SnapshotPropValue>>;
+  edgeProps?: Record<string, Record<string, SnapshotPropValue>>;
+  nodeContentMeta?: Record<string, ContentMeta>;
+  edgeContentMeta?: Record<string, ContentMeta>;
+};
+
+import { describe, expect, it } from 'vitest';
 
 import {
   planVisibleStateTransfer,
@@ -6,20 +18,10 @@ import {
 } from '../../../../src/domain/services/transfer/VisibleStateTransferPlanner.ts';
 import { CONTENT_PROPERTY_KEY } from '../../../../src/domain/services/KeyCodec.ts';
 
-/**
- * @param {string} from
- * @param {string} to
- * @param {string} label
- * @returns {string}
- */
-function makeEdgeKey(from, to, label) {
+function makeEdgeKey(from: string, to: string, label: string) {
   return `${from}\0${to}\0${label}`;
 }
 
-/**
- * @param {{ nodes: string[], edges: Array<{from: string, to: string, label: string}>, nodeProps?: Record<string, unknown>, edgeProps?: Record<string, unknown>, nodeContentMeta?: Record<string, unknown>, edgeContentMeta?: Record<string, unknown> }} opts
- * @returns {any}
- */
 function createReader({
   nodes,
   edges,
@@ -27,31 +29,35 @@ function createReader({
   edgeProps = {},
   nodeContentMeta = {},
   edgeContentMeta = {},
-}) {
+}: ReaderFixture): VisibleStateReader {
   return {
+    project() { throw new Error('Transfer planning must not request a full projection'); },
+    hasNode(nodeId) { return nodes.includes(nodeId); },
+    neighbors() { throw new Error('Transfer planning must not expand neighborhoods'); },
+    inspectNode() { throw new Error('Transfer planning must use the selected read seam'); },
     getNodes() {
       return [...nodes];
     },
     getEdges() {
-      return edges.map((/** @type {any} */ edge) => ({ ...edge }));
+      return edges.map((edge) => ({ ...edge, props: edgeProps[makeEdgeKey(edge.from, edge.to, edge.label)] ?? {} }));
     },
-    getNodeProps(/** @type {string} */ nodeId) {
+    getNodeProps(nodeId) {
       return (nodeProps)[nodeId] ?? null;
     },
-    getEdgeProps(/** @type {string} */ from, /** @type {string} */ to, /** @type {string} */ label) {
+    getEdgeProps(from, to, label) {
       return (edgeProps)[makeEdgeKey(from, to, label)] ?? null;
     },
-    getNodeContentMeta(/** @type {string} */ nodeId) {
+    getNodeContentMeta(nodeId) {
       return (nodeContentMeta)[nodeId] ?? null;
     },
-    getEdgeContentMeta(/** @type {string} */ from, /** @type {string} */ to, /** @type {string} */ label) {
+    getEdgeContentMeta(from, to, label) {
       return (edgeContentMeta)[makeEdgeKey(from, to, label)] ?? null;
     },
   };
 }
 
 describe('VisibleStateTransferPlanner', () => {
-  it('plans deterministic node, edge, property, and content transfer operations', async () => {
+  it('plans deterministic node, edge, property, and content transfer operations', () => {
     const sharedEdgeKey = makeEdgeKey('alpha', 'alpha', 'shared');
     const newEdgeKey = makeEdgeKey('alpha', 'beta', 'fresh');
     const oldEdgeKey = makeEdgeKey('legacy', 'alpha', 'old');
@@ -123,17 +129,7 @@ describe('VisibleStateTransferPlanner', () => {
       },
     });
 
-    const loadNodeContent = vi.fn(async (nodeId) => {
-      return new TextEncoder().encode(`node:${nodeId}`);
-    });
-    const loadEdgeContent = vi.fn(async (edge) => {
-      return new TextEncoder().encode(`edge:${edge.from}->${edge.to}:${edge.label}`);
-    });
-
-    const plan = await planVisibleStateTransfer(sourceReader as any, targetReader as any, {
-      loadNodeContent,
-      loadEdgeContent,
-    });
+    const plan = planVisibleStateTransfer(sourceReader, targetReader);
 
     expect(plan.transferVersion).toBe(VISIBLE_STATE_TRANSFER_PLAN_VERSION);
     expect(plan.ops).toEqual([
@@ -149,7 +145,7 @@ describe('VisibleStateTransferPlanner', () => {
       {
         op: 'attach_node_content',
         nodeId: 'beta',
-        content: new TextEncoder().encode('node:beta'),
+
         contentHandle: 'node-beta',
         mime: 'text/plain',
         size: 4,
@@ -163,7 +159,7 @@ describe('VisibleStateTransferPlanner', () => {
         from: 'alpha',
         to: 'beta',
         label: 'fresh',
-        content: new TextEncoder().encode('edge:alpha->beta:fresh'),
+
         contentHandle: 'edge-new',
         mime: 'application/octet-stream',
         size: 3,
@@ -194,16 +190,9 @@ describe('VisibleStateTransferPlanner', () => {
       clearEdgeContentCount: 1,
     });
 
-    expect(loadNodeContent).toHaveBeenCalledTimes(1);
-    expect(loadNodeContent).toHaveBeenCalledWith('beta', { handle: 'node-beta', mime: 'text/plain', size: 4 });
-    expect(loadEdgeContent).toHaveBeenCalledTimes(1);
-    expect(loadEdgeContent).toHaveBeenCalledWith(
-      { from: 'alpha', to: 'beta', label: 'fresh' },
-      { handle: 'edge-new', mime: 'application/octet-stream', size: 3 },
-    );
   });
 
-  it('returns an empty plan when source and target visible state already match', async () => {
+  it('returns an empty plan when source and target visible state already match', () => {
     const reader = createReader({
       nodes: ['alpha'],
       edges: [{ from: 'alpha', to: 'alpha', label: 'self' }],
@@ -213,17 +202,9 @@ describe('VisibleStateTransferPlanner', () => {
       edgeContentMeta: { [makeEdgeKey('alpha', 'alpha', 'self')]: { handle: 'same-edge', mime: 'text/plain', size: 4 } },
     });
 
-    const loadNodeContent = vi.fn();
-    const loadEdgeContent = vi.fn();
-
-    const plan = await planVisibleStateTransfer((reader as any), (reader as any), {
-      loadNodeContent,
-      loadEdgeContent,
-    });
+    const plan = planVisibleStateTransfer(reader, reader);
 
     expect(plan.ops).toEqual([]);
     expect(plan.summary.opCount).toBe(0);
-    expect(loadNodeContent).not.toHaveBeenCalled();
-    expect(loadEdgeContent).not.toHaveBeenCalled();
   });
 });

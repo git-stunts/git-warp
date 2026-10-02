@@ -1,8 +1,11 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../src/domain/storage/BufferedArtifactLimit.ts';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 
 import { V18MigrationGitError } from './V18MigrationGit.ts';
 
 const OID_PATTERN = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/u;
+const DISCARD_WINDOW_BYTES = 64 * 1024;
+const MAX_GIT_DIAGNOSTIC_BYTES = 1024 * 1024;
 const CAT_FILE_BATCH_ARGS = Object.freeze(['cat-file', '--batch']);
 
 class V18MigrationGitObjectError extends Error {
@@ -27,6 +30,7 @@ export class V18MigrationGitObjectReader {
   readonly #stderr: Uint8Array[] = [];
   readonly #chunks: Buffer[] = [];
   #bufferedBytes = 0;
+  #stderrBytes = 0;
   #closePromise: Promise<void> | null = null;
   #closed = false;
   #tail: Promise<void> = Promise.resolve();
@@ -34,7 +38,7 @@ export class V18MigrationGitObjectReader {
   constructor(cwd: string) {
     this.#child = spawn('git', CAT_FILE_BATCH_ARGS, { cwd });
     this.#iterator = this.#child.stdout[Symbol.asyncIterator]();
-    this.#child.stderr.on('data', (chunk: Uint8Array) => this.#stderr.push(chunk));
+    this.#child.stderr.on('data', (chunk: Uint8Array) => this.#recordStderr(chunk));
     this.#child.stdin.on('error', () => {
       // Individual writes and the process exit surface the actionable error.
     });
@@ -86,6 +90,10 @@ export class V18MigrationGitObjectReader {
     if (!Number.isSafeInteger(size) || size < 0) {
       throw this.#objectError(`cat-file returned invalid size for ${oid}: ${sizeText}`);
     }
+    if (size > MAX_BUFFERED_ARTIFACT_BYTES) {
+      await this.#discardPayload(size);
+      throw this.#objectError(`object ${oid} exceeds migration byte limit ${MAX_BUFFERED_ARTIFACT_BYTES}`);
+    }
     const bytes = await this.#readBytes(size);
     const delimiter = await this.#readBytes(1);
     if (delimiter[0] !== 0x0a) {
@@ -95,6 +103,25 @@ export class V18MigrationGitObjectReader {
       throw this.#objectError(`object ${oid} has type ${actualType}; expected ${expectedType}`);
     }
     return bytes;
+  }
+
+  #recordStderr(chunk: Uint8Array): void {
+    const retained = chunk.slice(0, MAX_GIT_DIAGNOSTIC_BYTES - this.#stderrBytes);
+    if (retained.byteLength > 0) {
+      this.#stderr.push(retained);
+      this.#stderrBytes += retained.byteLength;
+    }
+  }
+
+  async #discardPayload(size: number): Promise<void> {
+    let remaining = size;
+    while (remaining > 0) {
+      const length = Math.min(remaining, DISCARD_WINDOW_BYTES);
+      await this.#readBytes(length);
+      remaining -= length;
+    }
+    const delimiter = await this.#readBytes(1);
+    if (delimiter[0] !== 0x0a) { throw this.#objectError('invalid oversized object delimiter'); }
   }
 
   async #write(value: string): Promise<void> {

@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../domain/storage/BufferedArtifactLimit.ts';
 import type {
   AssetCapability,
   AssetHandle,
@@ -78,7 +79,7 @@ export default class GitCasMaterializationReplayBasis {
       path: REPLAY_BASIS_PATH,
     });
     const asset = requireReplayAsset(member);
-    const bytes = await collectAsyncIterable(this.#cas.assets.open({ handle: asset }));
+    const bytes = await collectAsyncIterable(this.#cas.assets.open({ handle: asset }), MAX_BUFFERED_ARTIFACT_BYTES);
     const state = decodeCanonicalWarpFullState(bytes, this.#codec);
     await this.#requireMatchingHash(state, expectedStateHash);
     return state;

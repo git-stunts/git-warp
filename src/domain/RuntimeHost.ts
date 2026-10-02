@@ -712,10 +712,8 @@ export default class RuntimeHost {
   translationCost: QueryCapability['translationCost'] = (...args) => this._queryController.translationCost(...args);
   getContentHandle: QueryCapability['getContentHandle'] = (...args) => this._queryController.getContentHandle(...args);
   getContentMeta: QueryCapability['getContentMeta'] = (...args) => this._queryController.getContentMeta(...args);
-  getContent: QueryCapability['getContent'] = (...args) => this._queryController.getContent(...args);
   getEdgeContentHandle: QueryCapability['getEdgeContentHandle'] = (...args) => this._queryController.getEdgeContentHandle(...args);
   getEdgeContentMeta: QueryCapability['getEdgeContentMeta'] = (...args) => this._queryController.getEdgeContentMeta(...args);
-  getEdgeContent: QueryCapability['getEdgeContent'] = (...args) => this._queryController.getEdgeContent(...args);
   getContentStream: QueryCapability['getContentStream'] = (...args) => this._queryController.getContentStream(...args);
   getEdgeContentStream: QueryCapability['getEdgeContentStream'] = (...args) => this._queryController.getEdgeContentStream(...args);
 

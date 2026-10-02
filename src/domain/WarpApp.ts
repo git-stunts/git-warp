@@ -40,11 +40,9 @@ type AppSurface = {
   translationCost(configA: Aperture, configB: Aperture): Promise<TranslationCostResult>;
   subscribe(options: SubscribeOptions): SubscriptionHandle;
   watch(pattern: string | string[], options: WatchOptions): SubscriptionHandle;
-  getContent(nodeId: string): Promise<Uint8Array | null>;
   getContentStream(nodeId: string): Promise<AsyncIterable<Uint8Array> | null>;
   getContentHandle(nodeId: string): Promise<string | null>;
   getContentMeta(nodeId: string): Promise<ContentMeta>;
-  getEdgeContent(from: string, to: string, label: string): Promise<Uint8Array | null>;
   getEdgeContentStream(from: string, to: string, label: string): Promise<AsyncIterable<Uint8Array> | null>;
   getEdgeContentHandle(from: string, to: string, label: string): Promise<string | null>;
   getEdgeContentMeta(from: string, to: string, label: string): Promise<ContentMeta>;
@@ -185,10 +183,6 @@ export default class WarpApp {
     return this._surface().watch(pattern, options);
   }
 
-  async getContent(nodeId: string): Promise<Uint8Array | null> {
-    return await this._surface().getContent(nodeId);
-  }
-
   async getContentStream(nodeId: string): Promise<AsyncIterable<Uint8Array> | null> {
     return await this._surface().getContentStream(nodeId);
   }
@@ -199,10 +193,6 @@ export default class WarpApp {
 
   async getContentMeta(nodeId: string): Promise<ContentMeta> {
     return await this._surface().getContentMeta(nodeId);
-  }
-
-  async getEdgeContent(from: string, to: string, label: string): Promise<Uint8Array | null> {
-    return await this._surface().getEdgeContent(from, to, label);
   }
 
   async getEdgeContentStream(from: string, to: string, label: string): Promise<AsyncIterable<Uint8Array> | null> {

@@ -355,7 +355,7 @@ async function readBoundShard(options: {
   readonly shard: BoundCheckpointShard;
 }): Promise<Uint8Array> {
   try {
-    return await collectAsyncIterable(openBoundShard(options));
+    return await collectAsyncIterable(openBoundShard(options), MAX_MATERIALIZATION_INDEX_SHARD_BYTES);
   } catch (error) {
     const failure = error instanceof Error
       ? checkpointLogicalShardReadFailure(error, {

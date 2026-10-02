@@ -9,9 +9,7 @@
  */
 
 import QueryError from '../../errors/QueryError.ts';
-import AssetHandle from '../../storage/AssetHandle.ts';
 import { computeChecksum } from '../../utils/checksumUtils.ts';
-import { collectAsyncIterable } from '../../utils/streamUtils.ts';
 import {
   buildCoordinateComparisonFact,
   buildCoordinateTransferPlanFact,
@@ -36,7 +34,6 @@ import type {
   PlanCoordinateTransferOptions,
 } from '../../capabilities/ComparisonCapability.ts';
 import type Patch from '../../types/Patch.ts';
-import type { ContentMeta } from '../../types/ContentMeta.ts';
 import {
   type ComparisonHost,
   type ComparisonSelectorContext,
@@ -207,15 +204,6 @@ function normalizeIntoSelector(
 
 // ── Blob reading ─────────────────────────────────────────────────────
 
-async function readContentByHandle(graph: ComparisonHost, handle: string): Promise<Uint8Array> {
-  if (graph._assetStorage === null || graph._assetStorage === undefined) {
-    throw new QueryError('content asset storage is unavailable', {
-      code: 'invalid_coordinate', context: { handle },
-    });
-  }
-  return await collectAsyncIterable(graph._assetStorage.open(new AssetHandle(handle)));
-}
-
 // ── Core comparison ──────────────────────────────────────────────────
 
 function extractComparisonInputs(options: CompareCoordinatesOptions): {
@@ -379,17 +367,9 @@ export async function planCoordinateTransferImpl(
   });
   const sourceSide = await normalizedSource.resolve(selectorContext, scope, liveFrontier);
   const targetSide = await normalizedTarget.resolve(selectorContext, scope, liveFrontier);
-  const loadNodeContent = async (_nodeId: string, meta: ContentMeta) =>
-    await readContentByHandle(graph, meta.handle);
-  const loadEdgeContent = async (
-    _edge: { from: string; to: string; label: string },
-    meta: ContentMeta,
-  ) =>
-    await readContentByHandle(graph, meta.handle);
-  const transfer = await planVisibleStateTransfer(
+  const transfer = planVisibleStateTransfer(
     createStateReader(sourceSide.state),
     createStateReader(targetSide.state),
-    { loadNodeContent, loadEdgeContent },
   );
   return await finalizeTransferPlan({
     graph, sourceSide, targetSide, transfer,

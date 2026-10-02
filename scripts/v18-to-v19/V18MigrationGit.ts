@@ -1,4 +1,8 @@
+import { collectAsyncIterable } from '../../src/domain/utils/streamUtils.ts';
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../src/domain/storage/BufferedArtifactLimit.ts';
 import { spawn } from 'node:child_process';
+
+const MAX_GIT_DIAGNOSTIC_BYTES = 1024 * 1024;
 
 export type V18MigrationGitOptions = Readonly<{
   env?: Readonly<Record<string, string>>;
@@ -32,55 +36,34 @@ export async function runV18MigrationGit(
   args: readonly string[],
   options: V18MigrationGitOptions = {},
 ): Promise<Uint8Array> {
-  return await new Promise<Uint8Array>((resolve, reject) => {
-    const child = spawn('git', args, {
-      cwd,
-      env: options.env === undefined
-        ? process.env
-        : { ...process.env, ...options.env },
-    });
-    const stdout: Uint8Array[] = [];
-    const stderr: Uint8Array[] = [];
-    let settled = false;
-    const fail = (error: unknown): void => {
-      if (!settled) {
-        settled = true;
-        reject(error);
-      }
-    };
-    child.stdout.on('data', (chunk: Uint8Array) => stdout.push(chunk));
-    child.stderr.on('data', (chunk: Uint8Array) => stderr.push(chunk));
-    child.on('error', fail);
-    child.stdin.on('error', (error) => {
-      fail(new V18MigrationGitError({
-        args,
-        exitCode: null,
-        stderr: [
-          Buffer.concat(stderr).toString('utf8').trim(),
-          `stdin: ${error.message}`,
-        ].filter(Boolean).join('\n'),
-      }));
-    });
-    child.on('close', (exitCode) => {
-      if (settled) {
-        return;
-      }
-      if (exitCode === 0) {
-        settled = true;
-        resolve(Buffer.concat(stdout));
-        return;
-      }
-      fail(new V18MigrationGitError({
-        args,
-        exitCode,
-        stderr: Buffer.concat(stderr).toString('utf8').trim(),
-      }));
-    });
-    if (options.input !== undefined) {
-      child.stdin.write(options.input);
-    }
-    child.stdin.end();
+  const child = spawn('git', args, {
+    cwd,
+    env: options.env === undefined ? process.env : { ...process.env, ...options.env },
   });
+  const exit = new Promise<number | null>((resolve, reject) => {
+    child.once('error', reject);
+    child.once('close', resolve);
+  });
+  let stdinFailure = '';
+  child.stdin.on('error', (error: Error) => { stdinFailure = `stdin: ${error.message}`; });
+  const stdout = collectAsyncIterable(child.stdout, MAX_BUFFERED_ARTIFACT_BYTES);
+  const stderr = collectAsyncIterable(child.stderr, MAX_GIT_DIAGNOSTIC_BYTES);
+  child.stdin.end(options.input);
+  try {
+    const [bytes, diagnostics, exitCode] = await Promise.all([stdout, stderr, exit]);
+    if (exitCode !== 0 || stdinFailure !== '') {
+      throw new V18MigrationGitError({
+        args, exitCode,
+        stderr: [Buffer.from(diagnostics).toString('utf8').trim(), stdinFailure].filter(Boolean).join('\n'),
+      });
+    }
+    return bytes;
+  } catch (error) {
+    child.kill();
+    child.stdin.destroy();
+    await exit.catch(() => undefined);
+    throw error;
+  }
 }
 
 /** Runs one Git plumbing command and trims its UTF-8 stdout. */

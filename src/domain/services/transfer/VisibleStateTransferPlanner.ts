@@ -12,8 +12,6 @@ import type {
 } from '../../types/CoordinateComparison.ts';
 import {
   compareStrings,
-  type ContentMeta,
-  type EdgeRef,
   type VisibleStateReader,
 } from './transferKeys.ts';
 import {
@@ -56,11 +54,6 @@ export function assembleOps(parts: AssembleOpsParams): VisibleStateTransferOpera
   ];
 }
 
-export type TransferLoaders = {
-  loadNodeContent: (nodeId: string, meta: ContentMeta) => Promise<Uint8Array>;
-  loadEdgeContent: (edge: EdgeRef, meta: ContentMeta) => Promise<Uint8Array>;
-};
-
 export type TransferPlanResult = {
   transferVersion: string;
   ops: VisibleStateTransferOperation[];
@@ -72,17 +65,16 @@ type BuildOpsParams = {
   targetReader: VisibleStateReader;
   nodeShape: NodeShapeDelta;
   edgeShape: EdgeShapeDelta;
-  loaders: TransferLoaders;
 };
 
 /**
  * Collect all shape, property, and content ops and assemble them into order.
  */
-async function buildOps(params: BuildOpsParams): Promise<VisibleStateTransferOperation[]> {
-  const { sourceReader, targetReader, nodeShape, edgeShape, loaders } = params;
+function buildOps(params: BuildOpsParams): VisibleStateTransferOperation[] {
+  const { sourceReader, targetReader, nodeShape, edgeShape } = params;
   const syncOps = collectSyncPropertyOps({ sourceReader, targetReader, nodeShape, edgeShape });
-  const contentOps = await collectAllContentOps({
-    sourceReader, targetReader, nodeShape, edgeShape, loaders,
+  const contentOps = collectAllContentOps({
+    sourceReader, targetReader, nodeShape, edgeShape,
   });
   return assembleOps({
     nodeShape, edgeShape,
@@ -96,16 +88,15 @@ async function buildOps(params: BuildOpsParams): Promise<VisibleStateTransferOpe
 /**
  * Produce a complete visible-state transfer plan that transforms target into source.
  */
-export async function planVisibleStateTransfer(
+export function planVisibleStateTransfer(
   sourceReader: VisibleStateReader,
   targetReader: VisibleStateReader,
-  loaders: TransferLoaders,
-): Promise<TransferPlanResult> {
+): TransferPlanResult {
   const nodeShape = collectNodeShapeDelta(
     sourceReader.getNodes().sort(compareStrings),
     targetReader.getNodes().sort(compareStrings),
   );
   const edgeShape = collectEdgeShapeDelta(sourceReader, targetReader);
-  const ops = await buildOps({ sourceReader, targetReader, nodeShape, edgeShape, loaders });
+  const ops = buildOps({ sourceReader, targetReader, nodeShape, edgeShape });
   return { transferVersion: VISIBLE_STATE_TRANSFER_PLAN_VERSION, ops, summary: summarizeOps(ops) };
 }

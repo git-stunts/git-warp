@@ -114,17 +114,11 @@ export default abstract class QueryCapability {
   /** Return content metadata attached to a node, if any. */
   abstract getContentMeta(_nodeId: string): Promise<ContentMeta | null>;
 
-  /** Return content bytes attached to a node, if any. */
-  abstract getContent(_nodeId: string): Promise<Uint8Array | null>;
-
   /** Return the opaque content asset handle attached to an edge, if any. */
   abstract getEdgeContentHandle(_from: string, _to: string, _label: string): Promise<string | null>;
 
   /** Return content metadata attached to an edge, if any. */
   abstract getEdgeContentMeta(_from: string, _to: string, _label: string): Promise<ContentMeta | null>;
-
-  /** Return content bytes attached to an edge, if any. */
-  abstract getEdgeContent(_from: string, _to: string, _label: string): Promise<Uint8Array | null>;
 
   /** Return a node content byte stream, if content exists. */
   abstract getContentStream(_nodeId: string): Promise<AsyncIterable<Uint8Array> | null>;

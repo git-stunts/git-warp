@@ -1,9 +1,10 @@
+import InlineBinaryBudget from '../types/InlineBinaryBudget.ts';
 import WarpError from '../errors/WarpError.ts';
 import {
   isEntityCapturePayloadRecord,
   type EntityCapturePayload,
 } from '../types/EntityCapturePayload.ts';
-import { copyPropValue, isPropValue, type PropValue } from '../types/PropValue.ts';
+import { isPropValue, type PropValue } from '../types/PropValue.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 
 export type IntentKind =
@@ -287,7 +288,7 @@ function requireIntentFields<TFields>(fields: TFields | null | undefined): TFiel
 
 function requireIntentValue(value: PropValue): PropValue {
   if (isPropValue(value)) {
-    return copyPropValue(value);
+    return InlineBinaryBudget.copy(value);
   }
   throw new WarpError('Intent value must be property-compatible data', 'E_INTENT_VALUE');
 }

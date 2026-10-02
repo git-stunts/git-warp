@@ -560,7 +560,7 @@ describe('WarpCore strand foundation', () => {
       value: null,
     });
     const attachOp =
-      /** @type {import('../../../src/domain/types/CoordinateComparison.ts').VisibleStateTransferOperation & { op: 'attach_node_content', nodeId: string, content: Uint8Array, contentHandle: string, mime?: string|null, size?: number|null }} */ transferPlan.ops.find(
+      /** @type {import('../../../src/domain/types/CoordinateComparison.ts').VisibleStateTransferOperation & { op: 'attach_node_content', nodeId: string, contentHandle: string, mime?: string|null, size?: number|null }} */ transferPlan.ops.find(
         (op) => op.op === 'attach_node_content' && op.nodeId === 'doc:1'
       );
     expect(attachOp).toMatchObject({
@@ -570,7 +570,7 @@ describe('WarpCore strand foundation', () => {
       mime: 'text/plain',
       size: 14,
     });
-    expect(Buffer.from(attachOp.content).toString('utf8')).toBe('worldline-body');
+    expect(attachOp).not.toHaveProperty('content');
 
     const factExport = exportCoordinateTransferPlanFact(transferPlan);
     expect(factExport).toEqual({

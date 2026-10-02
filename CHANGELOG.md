@@ -111,6 +111,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline property snapshots reject absent array indexes even when a prototype supplies their values.
+
+- Attachment metadata reports consumed plaintext size under framed encryption,
+  independently of ciphertext overhead in CAS receipts. Staging rejects receipts
+  returned before full input consumption and still checks unencrypted byte counts.
+
+- Transfer plans retain attachment handles and metadata instead of loading and
+  accumulating payload bytes. Existing canonical transfer digest inputs remain
+  unchanged; planning no longer requires attachment storage reads (#818).
+
+- Raw Git graph blob reads use the same explicit 64 MiB artifact budget and
+  producer-buffer snapshots as semantic asset reads, while preserving empty-blob
+  existence checks (#818).
+
+- Remove eager `getContent` and `getEdgeContent` attachment reads from internal
+  core, graph, app and query facades; callers use metadata, handles or streams.
+  Small fixture assertions collect streams only in bounded test helpers (#818).
+
+- Bound v18 migration patch-tree and Git output collection to 64 MiB; drain
+  oversized batch objects in bounded windows while preserving synchronization.
+- Reject malformed attachment input and non-byte stream chunks with typed domain
+  errors before storage forwarding; finalize rejected producers.
+- Snapshot inline property values while charging each binary copy against the
+  64 KiB budget, preventing getter changes and caller mutation from bypassing it.
+  Validate the resulting snapshot and traverse array indexes directly so changing
+  getters and overridden array methods cannot inject invalid values or evade copying.
+  Asset limits, plaintext accounting, collectors and direct-content metadata read
+  native typed-array lengths rather than caller-shadowable `byteLength` properties.
+- Reject new inline binary property writes exceeding 64 KiB in aggregate,
+  including nested binary values, before intent copying or patch mutation.
+  Larger binary payloads must use streaming content assets (#818).
+
+- Internal artifact collection now requires an explicit byte ceiling and rejects
+  overflow before copying the excess chunk. Collection snapshots producer buffers
+  instead of retaining mutable aliases; readable stream cancellation releases the
+  producer and reader lock. Legacy whole-artifact decoders refuse above 64 MiB,
+  while checkpoint optic shards retain their 16 MiB limit (#818).
+
+- Declared attachment sizes are enforced as bytes arrive: storage never receives
+  an overflowing chunk, truncation rejects staging, and invalid size declarations
+  fail before storage or the producer starts. Producer iteration closes on overflow.
+
 - Attachment reads after checkpoint and Git GC recover from a stale mktree
   process with one fresh-process retry. Broken-pipe and closed-input errors are
   classified at the dependency protocol boundary; unrelated errors still fail.

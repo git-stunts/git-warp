@@ -26,7 +26,7 @@ import { encodeEdgeKey, encodePropKey } from '../../../../../src/domain/services
 import { LWWRegister } from '../../../../../src/domain/crdt/LWW.ts';
 import { EventId } from '../../../../../src/domain/utils/EventId.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
-import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
+import type { TransferPlanResult } from '../../../../../src/domain/services/transfer/VisibleStateTransferPlanner.ts';
 import WarpStream from '../../../../../src/domain/stream/WarpStream.ts';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ vi.mock('../../../../../src/domain/services/comparison/VisibleStateComparison.ts
 }));
 
 const { planVisibleStateTransferMock } = vi.hoisted(() => ({
-  planVisibleStateTransferMock: vi.fn(async () => ({
+  planVisibleStateTransferMock: vi.fn((): TransferPlanResult => ({
     transferVersion: 'visible-state-transfer-plan/v1',
     summary: {
       opCount: 0,
@@ -729,7 +729,7 @@ describe('ComparisonController', () => {
     });
 
     it('reports changed=true when transfer has ops', async () => {
-      planVisibleStateTransferMock.mockResolvedValueOnce({
+      planVisibleStateTransferMock.mockReturnValueOnce({
         transferVersion: 'visible-state-transfer-plan/v1',
         summary: {
           opCount: 2,
@@ -740,10 +740,10 @@ describe('ComparisonController', () => {
           attachNodeContentCount: 0, clearNodeContentCount: 0,
           attachEdgeContentCount: 0, clearEdgeContentCount: 0,
         },
-        ops: (([
+        ops: [
           { op: 'add_node', nodeId: 'x' },
           { op: 'remove_node', nodeId: 'y' },
-        ]) as any),
+        ],
       });
 
       const result = await controller.planCoordinateTransfer({
@@ -767,49 +767,23 @@ describe('ComparisonController', () => {
       expect(result['scope']).toEqual(scope);
     });
 
-    it('loads content through the semantic asset storage port', async () => {
-      const open = vi.fn(() => WarpStream.from([
-        new Uint8Array([10]),
-        new Uint8Array([20]),
-      ]));
+    it('does not open attachment payloads while planning', async () => {
+      const open = vi.fn(() => { throw new Error('Planning must not open assets'); });
       host['_assetStorage'] = { open };
-
-      planVisibleStateTransferMock.mockImplementationOnce(((async (_src, _tgt, loaders) => {
-          if (loaders.loadNodeContent) {
-            await loaders.loadNodeContent('n1', {
-              handle: 'asset-handle',
-              mime: null,
-              size: 2,
-            });
-          }
-          return { summary: { opCount: 0 }, ops: [] };
-        }) as any));
-
       await controller.planCoordinateTransfer({
         source: { kind: 'live' },
         target: { kind: 'live' },
       });
-
-      expect(open).toHaveBeenCalledWith(new AssetHandle('asset-handle'));
+      expect(open).not.toHaveBeenCalled();
+      expect(planVisibleStateTransferMock.mock.calls[0]).toHaveLength(2);
     });
 
-    it('fails closed when semantic asset storage is unavailable', async () => {
+    it('can plan when attachment storage is unavailable', async () => {
       host['_assetStorage'] = null;
-
-      planVisibleStateTransferMock.mockImplementationOnce(((async (_src, _tgt, loaders) => {
-          if (loaders.loadEdgeContent) {
-            await loaders.loadEdgeContent(
-              { from: 'a', to: 'b', label: 'rel' },
-              { handle: 'asset-handle-2', mime: null, size: 1 },
-            );
-          }
-          return { summary: { opCount: 0 }, ops: [] };
-        }) as any));
-
       await expect(controller.planCoordinateTransfer({
         source: { kind: 'live' },
         target: { kind: 'live' },
-      })).rejects.toMatchObject({ code: 'invalid_coordinate' });
+      })).resolves.toMatchObject({ changed: false });
     });
   });
 

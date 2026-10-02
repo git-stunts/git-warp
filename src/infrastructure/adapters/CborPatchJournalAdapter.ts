@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../domain/storage/BufferedArtifactLimit.ts';
 import type {
   BundleCapability,
   PublicationCapability,
@@ -136,7 +137,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
 
   override async readPatch(message: PatchCommitMessage): Promise<Patch> {
     const handle = message.patchHandle;
-    const bytes = await collectAsyncIterable(this.#assetStorage.open(handle));
+    const bytes = await collectAsyncIterable(this.#assetStorage.open(handle), MAX_BUFFERED_ARTIFACT_BYTES);
     return hydratePatchAtDecodeBoundary(this.#codec.decode(bytes));
   }
 

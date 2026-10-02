@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../storage/BufferedArtifactLimit.ts';
 import { IndexError, ShardLoadError, ShardCorruptionError } from '../../errors/index.ts';
 import nullLogger from '../../utils/nullLogger.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
@@ -294,7 +295,7 @@ export default class BitmapIndexReader {
 
   private async _loadShardBuffer(path: string, handle: AssetHandle): Promise<Uint8Array> {
     try {
-      return await collectAsyncIterable(this.indexStore.openShard(handle));
+      return await collectAsyncIterable(this.indexStore.openShard(handle), MAX_BUFFERED_ARTIFACT_BYTES);
     } catch (cause) {
       const errorCause = cause instanceof Error
         ? cause

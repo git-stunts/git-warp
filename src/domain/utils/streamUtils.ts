@@ -1,3 +1,6 @@
+import WarpError from '../errors/WarpError.ts';
+import BoundedByteCollector from '../storage/BoundedByteCollector.ts';
+
 /**
  * Stream normalization utilities for content attachment I/O.
  *
@@ -57,23 +60,20 @@ export function isStreamingInput(
  * - `string` — encoded to UTF-8, wrapped as single-element async iterable
  */
 export function normalizeToAsyncIterable(content: StreamInput): AsyncIterable<Uint8Array> {
+  if (isReadableStream(content)) {
+    return readableStreamToAsyncIterable(content);
+  }
   if (isAsyncIterable(content)) {
     return content;
-  }
-
-  if (isReadableStream(content)) {
-    // ReadableStream implements Symbol.asyncIterator in modern runtimes.
-    // For those that don't, use getReader() manually.
-    if (Symbol.asyncIterator in content) {
-      return content as AsyncIterable<Uint8Array>;
-    }
-    return readableStreamToAsyncIterable(content);
   }
 
   const bytes = typeof content === 'string'
     ? _encoder.encode(content)
     : content;
 
+  if (!(bytes instanceof Uint8Array)) {
+    throw new WarpError('Content input must be bytes, text, or a byte stream', 'E_CONTENT_INPUT_INVALID');
+  }
   return singleValueAsyncIterable(bytes);
 }
 
@@ -100,46 +100,32 @@ function singleValueAsyncIterable(value: Uint8Array): AsyncIterable<Uint8Array> 
 /**
  * Adapts a ReadableStream to an async iterable via getReader().
  */
-function readableStreamToAsyncIterable(stream: ReadableStream<Uint8Array>): AsyncIterable<Uint8Array> {
-  return {
-    [Symbol.asyncIterator]() {
-      const reader = stream.getReader();
-      return {
-        async next(): Promise<IteratorResult<Uint8Array>> {
-          const { value, done } = await reader.read();
-          if (done) {
-            reader.releaseLock();
-            return { value: undefined, done: true };
-          }
-          return { value, done: false };
-        },
-        return(): Promise<IteratorResult<Uint8Array>> {
-          reader.releaseLock();
-          return Promise.resolve({ value: undefined, done: true });
-        },
-      };
-    },
-  };
+async function* readableStreamToAsyncIterable(
+  stream: ReadableStream<Uint8Array>,
+): AsyncIterable<Uint8Array> {
+  const reader = stream.getReader();
+  let completed = false;
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) { completed = true; return; }
+      yield next.value;
+    }
+  } finally {
+    try {
+      if (!completed) { await reader.cancel(); }
+    } finally {
+      reader.releaseLock();
+    }
+  }
 }
 
 /**
- * Collects an async iterable into a single Uint8Array.
+ * Collects a small artifact within an explicit byte budget. Closes on overflow.
  */
-export async function collectAsyncIterable(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = [];
-  let totalLength = 0;
-  for await (const chunk of source) {
-    chunks.push(chunk);
-    totalLength += chunk.byteLength;
-  }
-  if (chunks.length === 1) {
-    return chunks[0]!;
-  }
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return result;
+export async function collectAsyncIterable(
+  source: AsyncIterable<Uint8Array>,
+  maxBytes: number,
+): Promise<Uint8Array> {
+  return await new BoundedByteCollector(maxBytes).collect(source);
 }

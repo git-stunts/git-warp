@@ -51,10 +51,6 @@ export default class WarpCore {
    */
   declare readonly getContentMeta: WarpCoreRuntimeSurface['getContentMeta'];
   /**
-   * Returns the decoded content payload attached to a node.
-   */
-  declare readonly getContent: WarpCoreRuntimeSurface['getContent'];
-  /**
    * Returns the opaque content asset handle attached to an edge.
    */
   declare readonly getEdgeContentHandle: WarpCoreRuntimeSurface['getEdgeContentHandle'];
@@ -62,10 +58,6 @@ export default class WarpCore {
    * Returns metadata for the content asset attached to an edge.
    */
   declare readonly getEdgeContentMeta: WarpCoreRuntimeSurface['getEdgeContentMeta'];
-  /**
-   * Returns the decoded content payload attached to an edge.
-   */
-  declare readonly getEdgeContent: WarpCoreRuntimeSurface['getEdgeContent'];
   /**
    * Opens a stream for the content asset attached to a node.
    */

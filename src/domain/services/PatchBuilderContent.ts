@@ -1,3 +1,4 @@
+import InlineBinaryBudget from '../types/InlineBinaryBudget.ts';
 import ContentAttachmentHandle from '../graph/ContentAttachmentHandle.ts';
 import ContentAttachmentMime from '../graph/ContentAttachmentMime.ts';
 import ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
@@ -32,7 +33,7 @@ export type StageContentAttachmentOptions = Omit<
 /** Validates public patch property values before intent construction. */
 export function requirePatchPropertyValue<T>(value: T): PropValue {
   if (isPropValue(value)) {
-    return value;
+    return InlineBinaryBudget.copy(value);
   }
   throw new PatchError('Property value must be property-compatible data', {
     code: 'E_PATCH_INVALID_PROPERTY_VALUE',
@@ -60,9 +61,10 @@ export async function stageContentAttachment(
 export async function storeContentAttachmentPayload(
   options: StoreContentAttachmentPayloadOptions
 ): Promise<ContentAttachmentPayload> {
+  const source = normalizeToAsyncIterable(options.content);
   const metadata = contentMetadata(options.content, options.metadata);
   const staged = await options.assetStorage.stage(
-    normalizeToAsyncIterable(options.content),
+    source,
     assetWriteOptions(options.slug, metadata.expectedSize)
   );
   return new ContentAttachmentPayload({
