@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 project="git-warp-watch-$$"
-compose=(docker compose --project-name "$project" --file "$ROOT/docker/docker-compose.yml" --profile watch)
+compose=(docker compose --project-name "$project" --file "$ROOT/docker/docker-compose.watch.yml")
 scratch=$(mktemp -d)
 watch_pid=''
 test_pid=''

@@ -14,24 +14,3 @@ services:
     environment:
       - GIT_STUNTS_DOCKER=1
     command: ["node", "benchmarks/benchmark.js"]
-
-  test-watch:
-    init: true
-    profiles: [watch]
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.node22-slim
-    command: ["sleep", "infinity"]
-    develop:
-      watch:
-        - action: sync
-          path: ..
-          target: /app
-          initial_sync: true
-          ignore:
-            - .git/
-            - node_modules/
-            - dist/
-            - coverage/
-            - .ratchet/
-            - performance-results/
