@@ -1,8 +1,8 @@
 # v20.0.0 — Memory safety and usable public attachments
 
-Planning status: proposed delivery plan for the accepted [v20.0.0 milestone](https://github.com/git-stunts/git-warp/milestone/14) and matching milestone in the [Linear project](https://linear.app/flyingrobots/project/git-warp-bfebc768d452). Owner: James Ross. No target date is assigned. [All release plans](../README.md).
+Planning status: accepted delivery plan for the [v20.0.0 milestone](https://github.com/git-stunts/git-warp/milestone/14) and matching milestone in the [Linear project](https://linear.app/flyingrobots/project/git-warp-bfebc768d452). Owner: James Ross. No target date is assigned. [All release plans](../README.md).
 
-Snapshot: 2026-10-01 Pacific; source baseline `94b40dac64034cd8caab9bb05efe14a0c22bd735`. Live issue homes/titles and recorded GitHub prerequisites were reconciled with Linear at `2026-10-02T04:24:27.613318+00:00`. Inventory: **23 cards** (13 must ship; 1 required disposition; 8 may slip; 1 tracking). This describes intended capability, not current implementation or release readiness.
+Snapshot: 2026-10-01 Pacific; source baseline `94b40dac64034cd8caab9bb05efe14a0c22bd735`. Live issue homes/titles and recorded GitHub prerequisites were reconciled with Linear at `2026-10-02T04:24:27.613318+00:00`. Historical inventory: **23 cards** (21 must ship; 1 required disposition; 1 tracking), with commitment categories corrected by the maintainer on 2026-10-02. Later-assigned milestone issues are also mandatory; this historical inventory is not a scope ceiling. This describes intended capability, not current implementation or release readiness.
 
 ## Release proposition
 
@@ -43,13 +43,17 @@ A complete graph may still encounter the legacy retained-state architecture. Thi
 
 ### Must ship
 
-The 13 implementation commitments are [#818](https://github.com/git-stunts/git-warp/issues/818), [#865](https://github.com/git-stunts/git-warp/issues/865), [#870](https://github.com/git-stunts/git-warp/issues/870), [#882](https://github.com/git-stunts/git-warp/issues/882), [#891](https://github.com/git-stunts/git-warp/issues/891), [#895](https://github.com/git-stunts/git-warp/issues/895), [#901](https://github.com/git-stunts/git-warp/issues/901), [#902](https://github.com/git-stunts/git-warp/issues/902), [#903](https://github.com/git-stunts/git-warp/issues/903), [#904](https://github.com/git-stunts/git-warp/issues/904), [#911](https://github.com/git-stunts/git-warp/issues/911), [#913](https://github.com/git-stunts/git-warp/issues/913), and [#916](https://github.com/git-stunts/git-warp/issues/916). They cover allocation/retention safety, supported byte attachments, contract correctness, and the delivery environment. [#894](https://github.com/git-stunts/git-warp/issues/894) additionally requires a fix if reproduced, or closure with a deterministic disproof and an explanation of what the witness covers.
+The original 13 implementation commitments are [#818](https://github.com/git-stunts/git-warp/issues/818), [#865](https://github.com/git-stunts/git-warp/issues/865), [#870](https://github.com/git-stunts/git-warp/issues/870), [#882](https://github.com/git-stunts/git-warp/issues/882), [#891](https://github.com/git-stunts/git-warp/issues/891), [#895](https://github.com/git-stunts/git-warp/issues/895), [#901](https://github.com/git-stunts/git-warp/issues/901), [#902](https://github.com/git-stunts/git-warp/issues/902), [#903](https://github.com/git-stunts/git-warp/issues/903), [#904](https://github.com/git-stunts/git-warp/issues/904), [#911](https://github.com/git-stunts/git-warp/issues/911), [#913](https://github.com/git-stunts/git-warp/issues/913), and [#916](https://github.com/git-stunts/git-warp/issues/916). They cover allocation/retention safety, supported byte attachments, contract correctness, and the delivery environment. [#894](https://github.com/git-stunts/git-warp/issues/894) additionally requires a fix if reproduced, or closure with a deterministic disproof and an explanation of what the witness covers.
 
 [#876](https://github.com/git-stunts/git-warp/issues/876) owns release coordination and artifact closure; it is not a fourteenth implementation feature. PR [#914](https://github.com/git-stunts/git-warp/issues/914) (hooks) and PR [#915](https://github.com/git-stunts/git-warp/issues/915) (Docker isolation) must satisfy normal review and CI before dependent delivery work. Their inclusion is a delivery gate, not an invented edge from every issue to a PR.
 
+### Additional required work
+
+[#118](https://github.com/git-stunts/git-warp/issues/118)/[#125](https://github.com/git-stunts/git-warp/issues/125) improve cross-runtime installation evidence and guidance; [#189](https://github.com/git-stunts/git-warp/issues/189)/[#205](https://github.com/git-stunts/git-warp/issues/205) harden constructor inputs; [#221](https://github.com/git-stunts/git-warp/issues/221) removes global in-memory adapter state; [#706](https://github.com/git-stunts/git-warp/issues/706) reduces sequential guard I/O; [#869](https://github.com/git-stunts/git-warp/issues/869) publishes the session-retention proof; [#900](https://github.com/git-stunts/git-warp/issues/900) repairs the older symlinked migration entry point. All eight are required release commitments. They have the same completion and merge requirements as the original implementation set. Every subsequently assigned milestone issue is also required, including registry consumer isolation in [#922](https://github.com/git-stunts/git-warp/issues/922).
+
 ### May slip
 
-[#118](https://github.com/git-stunts/git-warp/issues/118)/[#125](https://github.com/git-stunts/git-warp/issues/125) improve cross-runtime installation evidence and guidance; [#189](https://github.com/git-stunts/git-warp/issues/189)/[#205](https://github.com/git-stunts/git-warp/issues/205) harden constructor inputs; [#221](https://github.com/git-stunts/git-warp/issues/221) removes global in-memory adapter state; [#706](https://github.com/git-stunts/git-warp/issues/706) reduces sequential guard I/O; [#869](https://github.com/git-stunts/git-warp/issues/869) publishes the session-retention proof; [#900](https://github.com/git-stunts/git-warp/issues/900) repairs the older symlinked migration entry point. These eight are candidates. Promote a candidate if release validation demonstrates it is necessary for a must-ship outcome; otherwise defer it explicitly.
+None. The release waits until all assigned work is complete and all required implementation changes are merged.
 
 ### Discovery
 
@@ -119,31 +123,31 @@ These are required future release witnesses, not results produced by writing thi
 
 ## Slip policy
 
-Any of the eight candidates can move after checking whether a must-ship witness now needs it. [#894](https://github.com/git-stunts/git-warp/issues/894) cannot simply disappear as "not reproduced": record a falsifiable disposition. Deferring memory safety, public attachment operations, their packed-consumer proof, or the major-version compatibility disclosure changes the release proposition and requires a revised milestone thesis. Do not substitute a minor version on current main.
+No assigned issue may slip. Complete and merge all implementation work with its acceptance evidence before publication. Do not move issues to later milestones, remove their release targets, or close unfinished work merely to clear the release gate. Only an explicit subsequent maintainer decision can change this scope.
 
-Before release preparation, complete or explicitly move every unfinished candidate, discovery, and container to an appropriate later release home in both trackers; update affected prerequisites and regenerate this inventory. The [release guard](../../../scripts/release-guard.sh) requires zero open non-`type:release` issues in the target milestone and zero open issues in prior version milestones. It also checks repository-wide `priority:asap` work. A prose "may slip" category never bypasses those gates. Required work cannot be removed merely to make the count zero.
+[#894](https://github.com/git-stunts/git-warp/issues/894) still requires a deterministic fix or disproof under its stated acceptance criteria; disposition is required work, not deferral. Tracking and release cards must finish their stated closure work without creating duplicate implementation PRs. The [release guard](../../../scripts/release-guard.sh) continues to require zero open non-`type:release` issues in the target milestone and zero open prior-release issues, alongside its repository-wide urgent-work checks. Normal publication, registry verification and retrospective requirements remain in force.
 
 ## Completion criteria
 
 The milestone is complete only when every applicable condition below is true; missing evidence is an unmet condition.
 
-- Every must-ship issue is integrated and independently verified; [#894](https://github.com/git-stunts/git-warp/issues/894) has its required disposition.
+- Every assigned implementation issue is complete, integrated and independently verified; [#894](https://github.com/git-stunts/git-warp/issues/894) has its required disposition.
 - Node and edge consumers pass the same public attachment matrix from the release artifact.
 - Unsafe membership retirement is prevented and memory-negative controls demonstrate the declared gates are effective.
 - [#876](https://github.com/git-stunts/git-warp/issues/876) links the reviewed release source, immutable tag, registry and consumer evidence, and completed retrospective. No later-release capability is claimed by the v20 documentation.
-- Every selected executable issue links one coherent PR and its resulting mainline integration commit, with issue-specific acceptance evidence; tracking parents add no duplicate implementation credit.
-- Required label axes, milestone assignments, prerequisite disposition, and the actual release guard pass; unselected work is rehomed before release preparation.
+- Every assigned executable issue links one coherent PR and its resulting mainline integration commit, with issue-specific acceptance evidence; tracking parents add no duplicate implementation credit.
+- Required label axes, milestone assignments, prerequisite disposition, and the actual release guard pass; no unfinished work is removed or rehomed to satisfy the gate.
 - Required CI, compatibility and Docker witnesses pass on the exact release source. Metadata, changelog, architecture, topics, and operator guidance describe what shipped.
 - The normal release process completes review, immutable tagging, registry verification, and the post-release retrospective before the next train activates. This plan does not itself authorize merging or publication.
 
 ## Issue inventory
 
 <!-- BEGIN GENERATED ISSUE INVENTORY -->
-Generated from the GitHub/Linear reconciliation captured at `2026-10-02T04:24:27.613318+00:00` (2026-10-01 Pacific). This is the complete **23-issue planning inventory** for this milestone, not a live completion counter. Titles retain tracker wording, including historical names; each linked issue's current scope/disposition governs implementation.
+Generated from the GitHub/Linear reconciliation captured at `2026-10-02T04:24:27.613318+00:00` (2026-10-01 Pacific). This is the original **23-issue planning inventory**, not the current complete milestone inventory or a live completion counter. The 2026-10-02 maintainer decision promotes all eight formerly optional cards to required work; all later-assigned milestone cards are required too. Titles retain tracker wording, including historical names; each linked issue's current scope/disposition governs implementation.
 
 Every issue has one release home, one commitment category, and one workstream below. A dash in prerequisites means no accepted open-issue prerequisite in this graph; it does not establish independence. Earlier-release prerequisites remain visible.
 
-### Must ship (13)
+### Must ship — original implementation set (13)
 
 | GitHub issue | Linear | Workstream | Accepted prerequisites |
 | --- | --- | --- | --- |
@@ -167,7 +171,7 @@ Every issue has one release home, one commitment category, and one workstream be
 | --- | --- | --- | --- |
 | [#894](https://github.com/git-stunts/git-warp/issues/894) — Bounded node liveness read counts a tail add as live when a checkpoint remove observed its dot | [FLY-251](https://linear.app/flyingrobots/issue/FLY-251/bounded-node-liveness-read-counts-a-tail-add-as-live-when-a-checkpoint) | safety | — |
 
-### May slip (8)
+### Must ship — formerly optional set (8)
 
 | GitHub issue | Linear | Workstream | Accepted prerequisites |
 | --- | --- | --- | --- |
