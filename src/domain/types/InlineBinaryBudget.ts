@@ -23,9 +23,22 @@ export default class InlineBinaryBudget {
       return new Uint8Array(value);
     }
     if (value === null || typeof value !== 'object') { return value; }
-    if (Array.isArray(value)) { return value.map((entry) => this.#copy(entry)); }
+    if (Array.isArray(value)) { return this.#copyArray(value); }
     requirePlainPropertyObject(value);
     return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, this.#copy(entry)]));
+  }
+
+  #copyArray(value: PropValue[]): PropValue[] {
+    const snapshot: PropValue[] = [];
+    const { length } = value;
+    for (let index = 0; index < length; index += 1) {
+      const { [index]: entry } = value;
+      if (entry === undefined) {
+        throw new WarpError('Inline array contains an absent property value', 'E_INLINE_PROPERTY_VALUE');
+      }
+      snapshot.push(this.#copy(entry));
+    }
+    return snapshot;
   }
 
   #consumeBytes(length: number): void {
