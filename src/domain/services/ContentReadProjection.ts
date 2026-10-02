@@ -67,14 +67,26 @@ export default class ContentReadProjection {
     entry.patch.ops.forEach((op, index) => {
       if (!this.#relevant(op)) { return; }
       this.#chargeOperation(op);
-      applyPatchOp(this.#state, op, new EventId(entry.patch.lamport, entry.patch.writer, entry.sha, index));
+      this.#applySelected(op, new EventId(entry.patch.lamport, entry.patch.writer, entry.sha, index));
     });
   }
 
   #relevant(op: PatchOp): boolean {
-    if (op instanceof NodeAdd || op instanceof NodeRemove) { return this.#node(op.node); }
-    if (op instanceof EdgeAdd || op instanceof EdgeRemove) { return this.#edge(op); }
+    if (op instanceof NodeRemove) { return true; }
+    if (op instanceof EdgeRemove) { return this.#owner.descriptor.kind === 'edge'; }
+    if (op instanceof NodeAdd) { return this.#node(op.node); }
+    if (op instanceof EdgeAdd) { return this.#edge(op); }
     return this.#property(op);
+  }
+
+  #applySelected(op: PatchOp, event: EventId): void {
+    // Accepted histories remove observed dots globally, even when naming another owner.
+    // Retain their charged tombstones without retaining unrelated owner lifecycle maps.
+    if (op instanceof NodeRemove && !this.#node(op.node)) {
+      this.#state.nodeAlive.remove(new Set(op.observedDots));
+    } else if (op instanceof EdgeRemove && !this.#edge(op)) {
+      this.#state.edgeAlive.remove(new Set(op.observedDots));
+    } else { applyPatchOp(this.#state, op, event); }
   }
 
   #property(op: PatchOp): boolean {

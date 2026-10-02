@@ -116,6 +116,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Targeted content reads apply observed membership-removal dots independently of the declared owner, matching canonical retained-history reduction while charging tombstones against read bounds (#901).
+
 - Retained strand recovery recognizes only complete, valid attachment triples; scalar writes resembling invalid attachment metadata remain scalar and can be reopened (#901).
 
 - Asset staging preserves the original typed producer or validation error when storage wraps it as a stream failure. Unrelated storage failures retain their original error.
