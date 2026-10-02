@@ -30,7 +30,6 @@ jobs:
   compare:
     name: v19 base/head performance
     runs-on: ubuntu-24.04
-    container: node:22
     timeout-minutes: 45
     env:
       RUNNER_ENVIRONMENT: github-actions-ubuntu-24.04
@@ -75,64 +74,77 @@ jobs:
             head/package-lock.json
             head/fixtures/v18/retained-substrate-medium/package-lock.json
 
-      - name: Install base
-        working-directory: base
-        run: npm ci
-
-      - name: Install head
-        working-directory: head
-        run: npm ci
-
-      - name: Install published v18 fixture runtime
-        working-directory: head/fixtures/v18/retained-substrate-medium
-        run: npm ci --ignore-scripts
-
-      - name: Build base and head
+      - name: Run copied performance comparison
+        env:
+          ORDER_SEED: ${{ github.event.pull_request.number || github.run_number }}
         shell: bash
         run: |
+          set -euo pipefail
+          image="git-warp-performance:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          container="git-warp-performance-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          created=0
+          cleanup() {
+            status=$?
+            trap - EXIT
+            if [[ "$created" == 1 ]]; then
+              docker stop --time 10 "$container" >/dev/null || true
+              docker cp "$container:/comparison/performance-results" performance-results || {
+                echo "Failed to export performance evidence" >&2
+                if [[ "$status" == 0 ]]; then status=1; fi
+              }
+              docker rm "$container" >/dev/null || {
+                echo "Failed to remove performance container" >&2
+                if [[ "$status" == 0 ]]; then status=1; fi
+              }
+            fi
+            if [[ -f performance-results/summary.md ]]; then
+              cat performance-results/summary.md >> "$GITHUB_STEP_SUMMARY"
+            fi
+            if [[ -f performance-results/migrated-read/summary.md ]]; then
+              cat performance-results/migrated-read/summary.md >> "$GITHUB_STEP_SUMMARY"
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          docker build --file head/docker/Dockerfile.performance-comparison --tag "$image" .
+          docker create --interactive --init --name "$container" \
+            --env RUNNER_ENVIRONMENT --env ORDER_SEED "$image" bash -s >/dev/null
+          created=1
+          attach_status=0
+          docker start --attach --interactive "$container" <<'MEASUREMENT' || attach_status=$?
+          set -euo pipefail
           npm --prefix base run build:maintainer --silent
           npm --prefix head run build:maintainer --silent
-
-      - name: Measure counterbalanced base and head
-        shell: bash
-        run: |
           node head/dist/scripts/performance/RunPerformanceComparison.js \
             --base-directory base \
             --head-directory head \
             --output-directory performance-results \
-            --order-seed "${{ github.event.pull_request.number || github.run_number }}"
-
-      - name: Gate performance evidence
-        shell: bash
-        run: |
+            --order-seed "$ORDER_SEED"
           gate_status=0
           node head/dist/scripts/performance/GatePerformance.js \
             --comparison performance-results/comparison.json \
             --policy head/benchmarks/v19/policy.json \
             --summary performance-results/summary.md || gate_status=$?
-          if [[ -f performance-results/summary.md ]]; then
-            cat performance-results/summary.md >> "$GITHUB_STEP_SUMMARY"
-          fi
-          exit "$gate_status"
-
-      - name: Gate migrated published-v18 retained reads
-        env:
-          GIT_WARP_MIGRATED_READ_RUNS: '5'
-          GIT_WARP_MIGRATED_READ_WARMUPS: '1'
-        shell: bash
-        run: |
           migrated_status=0
-          node head/dist/scripts/v18-to-v19/performance/RunMigratedReadPerformance.js \
+          GIT_WARP_MIGRATED_READ_RUNS=5 GIT_WARP_MIGRATED_READ_WARMUPS=1 \
+            node head/dist/scripts/v18-to-v19/performance/RunMigratedReadPerformance.js \
             --output performance-results/migrated-read/report.json \
             --policy head/benchmarks/v19/migrated-read-policy.json \
             --manifest head/fixtures/v18/retained-substrate-medium/manifest.json \
             --fixture-package head/fixtures/v18/retained-substrate-medium \
             || migrated_status=$?
-          if [[ -f performance-results/migrated-read/summary.md ]]; then
-            cat performance-results/migrated-read/summary.md \
-              >> "$GITHUB_STEP_SUMMARY"
-          fi
+          if [[ "$gate_status" != 0 ]]; then exit "$gate_status"; fi
           exit "$migrated_status"
+          MEASUREMENT
+          command_status=$(docker inspect --format '{{.State.ExitCode}}' "$container")
+          if [[ ! "$command_status" =~ ^[0-9]+$ ]]; then
+            echo "Docker returned an invalid performance exit status" >&2
+            exit 1
+          fi
+          if [[ "$command_status" != 0 ]]; then exit "$command_status"; fi
+          exit "$attach_status"
 
       - name: Retain raw samples and environment evidence
         if: ${{ always() }}
