@@ -79,6 +79,27 @@ For a targeted run:
 bash scripts/run-in-docker.sh npx --no-install vitest run test/unit/domain/services/SyncSecret.test.ts
 ```
 
+`npm run test:watch -- <filters>` runs Vitest watch in a copied service and
+uses [Compose Watch](https://docs.docker.com/compose/how-tos/file-watch/) to
+synchronize edits. Compose must support `develop.watch.initial_sync`. Host Git
+metadata, dependencies and generated reports are excluded from synchronization.
+Exiting the test client, interrupting it, or losing synchronization cleans up
+the service.
+
+Coverage commands export `coverage/` before container cleanup. Only
+`npm run test:coverage` may apply updated thresholds to `vitest.config.ts`, and
+only after a successful run with the host configuration unchanged. A conflict
+or failed run preserves the candidate under `.ratchet/docker-results/`.
+`npm run ratchet:snapshot` exports its selected relative output root and uses
+copied source refs to retain the original branch, commit and merge base;
+WARP data refs and host Git configuration are excluded.
+
+For other generated evidence, declare exports before the command with
+`--export-directory <relative-path>` or `--export-file <relative-path>` and a
+`--` separator. Export targets must be untracked and free of symlinks; tracked
+source files and Git metadata are protected. Failed commands still export their
+evidence and retain their exit status.
+
 ## Useful checks
 
 ```bash

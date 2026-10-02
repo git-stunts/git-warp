@@ -25,7 +25,7 @@ function executable(path: string, source: string): void {
   chmodSync(path, 0o755);
 }
 
-function runComparison(gateStatus: number, migratedStatus: number, exportStatus = 0) {
+function runComparison(gateStatus: number, migratedStatus: number, exportStatus = 0, signal = 0) {
   const directory = mkdtempSync(join(tmpdir(), 'warp copied performance '));
   fixtures.push(directory);
   const commands = join(directory, 'commands');
@@ -43,6 +43,12 @@ function runComparison(gateStatus: number, migratedStatus: number, exportStatus 
         echo fixture-container
         ;;
       start)
+        if [[ "$SIGNAL" == 1 ]]; then
+          mkdir -p "$COPIED/performance-results"
+          echo partial > "$COPIED/performance-results/summary.md"
+          kill -TERM "$PPID"
+          exec sleep 30
+        fi
         status=0
         (cd "$COPIED"; bash -s) || status=$?
         echo "$status" > "$COPIED/exit-status"
@@ -83,14 +89,14 @@ function runComparison(gateStatus: number, migratedStatus: number, exportStatus 
     esac`);
   const result = spawnSync(shell, ['-c', comparisonStep()], {
     cwd: directory,
-    encoding: 'utf8',
+    encoding: 'utf8', timeout: 10000,
     env: {
       PATH: [commands, dirname(shell)].join(delimiter),
       TRACE: join(directory, 'trace'), COPIED: copied,
       GITHUB_RUN_ID: '17', GITHUB_RUN_ATTEMPT: '1', ORDER_SEED: '17',
       GITHUB_STEP_SUMMARY: join(directory, 'summary'),
       GATE_STATUS: String(gateStatus), MIGRATED_STATUS: String(migratedStatus),
-      EXPORT_STATUS: String(exportStatus),
+      EXPORT_STATUS: String(exportStatus), SIGNAL: String(signal),
     },
   });
   return { directory, copied, result };
@@ -128,6 +134,14 @@ describe('copied performance execution', () => {
       ]);
     },
   );
+
+  it('exports partial evidence and removes the container on termination', () => {
+    const { directory, copied, result } = runComparison(0, 0, 0, 1);
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(143);
+    expect(readFileSync(join(directory, 'summary'), 'utf8')).toBe('partial\n');
+    expect(existsSync(join(copied, 'removed'))).toBe(true);
+  });
 
   it.each([[0, 1], [7, 7]])('fails closed on export failure while preserving prior failure (%i)',
     (gate, expectedStatus) => {

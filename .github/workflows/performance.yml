@@ -83,9 +83,15 @@ jobs:
           image="git-warp-performance:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           container="git-warp-performance-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           created=0
+          attach_pid=''
           cleanup() {
             status=$?
             trap - EXIT
+            trap '' INT TERM
+            if [[ -n "$attach_pid" ]]; then
+              kill "$attach_pid" 2>/dev/null || true
+              wait "$attach_pid" 2>/dev/null || true
+            fi
             if [[ "$created" == 1 ]]; then
               docker stop --time 10 "$container" >/dev/null || true
               docker cp "$container:/comparison/performance-results" performance-results || {
@@ -113,7 +119,7 @@ jobs:
             --env RUNNER_ENVIRONMENT --env ORDER_SEED "$image" bash -s >/dev/null
           created=1
           attach_status=0
-          docker start --attach --interactive "$container" <<'MEASUREMENT' || attach_status=$?
+          docker start --attach --interactive "$container" <<'MEASUREMENT' &
           set -euo pipefail
           npm --prefix base run build:maintainer --silent
           npm --prefix head run build:maintainer --silent
@@ -138,6 +144,8 @@ jobs:
           if [[ "$gate_status" != 0 ]]; then exit "$gate_status"; fi
           exit "$migrated_status"
           MEASUREMENT
+          attach_pid=$!
+          wait "$attach_pid" || attach_status=$?
           command_status=$(docker inspect --format '{{.State.ExitCode}}' "$container")
           if [[ ! "$command_status" =~ ^[0-9]+$ ]]; then
             echo "Docker returned an invalid performance exit status" >&2
