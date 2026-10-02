@@ -460,8 +460,15 @@ Descriptor admission must count canonical UTF-8 bytes before constructing the
 complete encoded descriptor (#916). The preflight includes escaping, nested
 values and the aggregate sequence envelope, stops when the budget is exceeded,
 and retains the canonical encoder for admitted requests so receipt identities
-remain stable. Caller-owned Intent data and its normalization snapshots are
-separate from the encoded-byte budget.
+remain stable. The preflight reads validated Intent data before allocating another property
+snapshot. Caller-owned inputs and initial Intent construction remain separate
+from this admission budget.
+
+Run `bash scripts/run-in-docker.sh node scripts/AtomicDescriptorMemoryWitness.ts`
+for the controlled allocation witness. Both workers use the same 8 MiB escaped
+property and 32 MiB V8 heap cap: the eager pre-fix encoding must exhaust the
+heap, while the preflight must return `E_INTENT_SEQUENCE_SIZE`. The heap cap
+bounds this additional encoding behavior, not process RSS or caller input size.
 
 `WriteReceipt.intents` preserves normalized member order.
 `WriteReceipt.occurrences` preserves the order of every `entity.add` birth in

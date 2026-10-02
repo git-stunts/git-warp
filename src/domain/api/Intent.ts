@@ -1,4 +1,5 @@
 import StagedContent from './StagedContent.ts';
+import type AtomicDescriptorByteBudgetReader from './AtomicDescriptorByteBudgetReader.ts';
 import InlineBinaryBudget from '../types/InlineBinaryBudget.ts';
 import WarpError from '../errors/WarpError.ts';
 import {
@@ -151,6 +152,12 @@ export default class Intent {
 
   get descriptor(): IntentDescriptor {
     return normalizeKnownDescriptor(this.#descriptor);
+  }
+
+  /** Checks the validated private snapshot before allocating its normalized copy. */
+  descriptorWithinAtomicBudget(budget: AtomicDescriptorByteBudgetReader): IntentDescriptor {
+    budget.preview(this.#descriptor);
+    return this.descriptor;
   }
 }
 

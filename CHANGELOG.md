@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Atomic Intent arrays reject descriptors exceeding 16 MiB before allocating
+  their complete canonical string or UTF-8 buffer. Exact byte accounting covers
+  aggregate members, escaping, Unicode, nested properties and inline binary
+  values; admitted canonical bytes and receipt identities stay compatible (#916).
+
 ### Added
 
 - Restore public node and edge content observers with frozen owner/metadata, historical streaming, bounded causal projection, and Runtime-owned stream cleanup (#901).

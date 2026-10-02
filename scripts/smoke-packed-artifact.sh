@@ -296,4 +296,6 @@ bash "$ROOT/scripts/smoke-packed-node-removal.sh" "$ROOT" "$PACKAGE_DIR" "$TMP_R
 
 cp "$ROOT/test/fixtures/packed-content.mjs" ./packed-content.mjs
 node packed-content.mjs
+cp "$ROOT/test/fixtures/packed-atomic-budget.mjs" ./packed-atomic-budget.mjs
+node packed-atomic-budget.mjs
 echo "packed artifact smoke passed"
