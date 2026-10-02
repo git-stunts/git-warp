@@ -1,5 +1,5 @@
 import WarpError from '../errors/WarpError.ts';
-import type { PropValue } from './PropValue.ts';
+import { isPropValue, type PropValue } from './PropValue.ts';
 
 const MAX_INLINE_BINARY_BYTES = 64 * 1024;
 
@@ -10,7 +10,11 @@ export default class InlineBinaryBudget {
   constructor() { Object.freeze(this); }
 
   static copy(value: PropValue): PropValue {
-    return new InlineBinaryBudget().#copy(value);
+    const snapshot = new InlineBinaryBudget().#copy(value);
+    if (!isPropValue(snapshot)) {
+      throw new WarpError('Inline snapshot contains an invalid property value', 'E_INLINE_PROPERTY_VALUE');
+    }
+    return snapshot;
   }
 
   #copy(value: PropValue): PropValue {
@@ -20,6 +24,7 @@ export default class InlineBinaryBudget {
     }
     if (value === null || typeof value !== 'object') { return value; }
     if (Array.isArray(value)) { return value.map((entry) => this.#copy(entry)); }
+    requirePlainPropertyObject(value);
     return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, this.#copy(entry)]));
   }
 
@@ -32,5 +37,11 @@ export default class InlineBinaryBudget {
       );
     }
     this.#remaining -= length;
+  }
+}
+
+function requirePlainPropertyObject(value: PropValue): void {
+  if (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
+    throw new WarpError('Inline snapshot requires plain property objects', 'E_INLINE_PROPERTY_VALUE');
   }
 }
