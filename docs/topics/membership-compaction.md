@@ -29,5 +29,5 @@ account for admissible stale joins before it can discard evidence.
 The deterministic acceptance witness compares removed and concurrent node/edge
 membership across eager joins, direct replay, GC, serialized checkpoints, trie
 branches and repeated close/reopen. The unchanged unsafe implementation fails
-stale-join and retained-evidence checks. Public checkpoint/GC regression checks
+stale-join and retained-evidence checks. Internal WarpCore checkpoint/GC regression checks
 must also stay green; retaining evidence does not change visible membership.
