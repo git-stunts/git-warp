@@ -1,5 +1,6 @@
 services:
   test:
+    init: true
     build:
       context: ..
       dockerfile: docker/Dockerfile.node22-slim
@@ -10,8 +11,6 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.benchmark
-    volumes:
-      - ../benchmarks:/app/benchmarks
     environment:
       - GIT_STUNTS_DOCKER=1
     command: ["node", "benchmarks/benchmark.js"]

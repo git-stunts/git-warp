@@ -6,6 +6,8 @@ FROM node:20-slim
 # make/g++: native module compilation (roaring bitmaps).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bats \
+    jq \
+    curl \
     git \
     python3 \
     make \

@@ -1,0 +1,6 @@
+**/node_modules
+**/dist
+**/coverage
+**/.ratchet
+**/performance-results
+**/.DS_Store

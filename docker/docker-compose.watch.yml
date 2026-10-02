@@ -1,0 +1,20 @@
+services:
+  test-watch:
+    init: true
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.node22-slim
+    command: ["sleep", "infinity"]
+    develop:
+      watch:
+        - action: sync
+          path: ..
+          target: /app
+          initial_sync: true
+          ignore:
+            - .git/
+            - node_modules/
+            - dist/
+            - coverage/
+            - .ratchet/
+            - performance-results/
