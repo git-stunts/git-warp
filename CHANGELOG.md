@@ -103,8 +103,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verifies that cleaning the working copy cannot conceal unsafe staged content.
 
 - Developer hook installation now configures a working-tree-relative hooks path,
-  so dependency installation in one linked worktree cannot redirect every other
-  checkout to its hook scripts (#891).
+  so `npm prepare` (including npm 10 pack) in one linked worktree cannot redirect
+  every other checkout to its hook scripts (#891). It repairs legacy absolute
+  paths to registered worktrees' `scripts/hooks` while preserving explicit
+  custom paths and global, worktree, or command-scoped configuration.
 
 - Skip edge-property rows with invalid runtime identifier or slot fields, consistently across iterators and attachment projections, while retaining their stored registers.
 
