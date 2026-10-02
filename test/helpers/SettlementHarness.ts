@@ -115,6 +115,7 @@ function bindTargetLane(owner: object): Lane {
   const lane = createLane({ kind: 'worldline', name: 'events' });
   bindLaneRuntime(lane, {
     captureCoordinate: unavailableCoordinate,
+    optic: unavailableOptic,
     fork: null,
     openStrand: null,
     owner,
@@ -142,6 +143,7 @@ function bindSourceLane(
   });
   bindLaneRuntime(lane, {
     captureCoordinate: unavailableCoordinate,
+    optic: unavailableOptic,
     fork: null,
     openStrand: null,
     owner: options.owner,
@@ -178,4 +180,8 @@ function settlementPlan(): SettlementPlan {
 
 function unavailableCoordinate(): Promise<never> {
   return Promise.reject(new Error('not exercised'));
+}
+
+function unavailableOptic(): never {
+  throw new Error('not exercised');
 }
