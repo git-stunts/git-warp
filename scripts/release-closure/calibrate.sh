@@ -16,12 +16,19 @@ mkdir -p "$WORK/tree/scripts/release-closure" "$WORK/tree/test/bats/fixtures" "$
 cp "$ROOT/test/bats/helpers/docker.bash" "$WORK/tree/test/bats/helpers/"
 cp "$ROOT/test/bats/release-closure.bats" "$WORK/tree/test/bats/"
 cp "$ROOT/test/bats/fixtures/release-closure-command.sh" "$WORK/tree/test/bats/fixtures/"
+cp "$ROOT/test/bats/fixtures/release-consumer-docker.sh" "$WORK/tree/test/bats/fixtures/"
+cp "$ROOT/test/bats/fixtures/HideDockerMarker.mjs" "$WORK/tree/test/bats/fixtures/"
+ln -s "$ROOT/node_modules" "$WORK/tree/node_modules"
 export LC_ALL=C TZ=UTC
 RESULTS="$WORK/results.jsonl"
 : > "$RESULTS"
 INPUT_DIGEST=$(cat "$ROOT/scripts/verify-published-release.sh" \
   "$ROOT/scripts/release-closure/consumer.sh" "$ROOT/scripts/release-closure/calibrate.sh" \
   "$ROOT/scripts/release-closure/budget.sh" \
+  "$ROOT/scripts/RequireDockerTests.ts" "$ROOT/scripts/release-closure/RunDockerConsumer.sh" \
+  "$ROOT/scripts/release-closure/Dockerfile" \
+  "$ROOT/test/bats/fixtures/release-consumer-docker.sh" \
+  "$ROOT/test/bats/fixtures/HideDockerMarker.mjs" \
   "$ROOT/test/bats/release-closure.bats" "$ROOT/test/bats/fixtures/release-closure-command.sh" |
   openssl dgst -sha256 -binary | openssl base64 -A)
 NODE_VERSION=$(node --version)
@@ -31,6 +38,9 @@ reset_subject() {
   cp "$ROOT/scripts/verify-published-release.sh" "$WORK/tree/scripts/"
   cp "$ROOT/scripts/release-closure/consumer.sh" "$WORK/tree/scripts/release-closure/"
   cp "$ROOT/scripts/release-closure/budget.sh" "$WORK/tree/scripts/release-closure/"
+  cp "$ROOT/scripts/RequireDockerTests.ts" "$WORK/tree/scripts/"
+  cp "$ROOT/scripts/release-closure/RunDockerConsumer.sh" "$ROOT/scripts/release-closure/Dockerfile" \
+    "$WORK/tree/scripts/release-closure/"
 }
 
 replace_once() {
@@ -74,6 +84,7 @@ calibrate() {
   bash -n "$WORK/tree/scripts/verify-published-release.sh"
   bash -n "$WORK/tree/scripts/release-closure/consumer.sh"
   bash -n "$WORK/tree/scripts/release-closure/budget.sh"
+  bash -n "$WORK/tree/scripts/release-closure/RunDockerConsumer.sh"
   timeout --kill-after=5s 30s bats --formatter tap --filter "^$test$" \
     "$WORK/tree/test/bats/release-closure.bats" > "$WORK/run.log" 2>&1 || code=$?
   # Exit 1 alone could be a setup crash or no selected test. Require the exact
@@ -96,7 +107,7 @@ BUDGET=scripts/release-closure/budget.sh
 NONZERO='assertion: invalid release must exit nonzero'
 SUCCESS='[ "$status" -eq 0 ]'
 calibrate receipt-claim 'release closure proves public identity and an independent consumer' \
-  'jq -e' "$CONSUMER" 'registrySignatures:"verified"' 'registrySignatures:"unverified"'
+  "$SUCCESS" "$CONSUMER" 'registrySignatures:"verified"' 'registrySignatures:"unverified"'
 calibrate propagation-budget 'release closure retries delayed visibility in both registries' \
   "$SUCCESS" "$DRIVER" 'attempt=$((attempt + 1))' 'attempt=$((attempt + 2))'
 calibrate finite-budget 'release closure exhausts a finite visibility budget' \
@@ -137,6 +148,20 @@ calibrate dist-tag-ownership 'new publication must own its intended dist-tag' \
   "$NONZERO" "$DRIVER" '[ "$REQUIRE_DIST_TAG" -eq 1 ]' '[ "$REQUIRE_DIST_TAG" -eq 2 ]'
 calibrate historical-dist-tag 'immutable historical verification records an advanced dist-tag honestly' \
   'jq -e' "$DRIVER" 'ownsTag:($owner[0]==$version)' 'ownsTag:true'
+calibrate consumer-host-guard 'direct consumer refuses forged Docker and CI flags before package operations' \
+  '[ "$status" -ne 0 ]' "$CONSUMER" 'node "$ROOT/RequireDockerTests.ts"' ':'
+calibrate image-preparation-budget 'consumer image preparation consumes the original aggregate budget' \
+  "$NONZERO" "$BUDGET" 'CLOSURE_DEADLINE=$((SECONDS + $1))' 'CLOSURE_DEADLINE=$((SECONDS + 720))'
+calibrate consumer-remaining-budget 'consumer receives only the budget left after image preparation' \
+  'consumer-budget' scripts/release-closure/RunDockerConsumer.sh \
+  '"$PACKAGE" "$VERSION" "$REMAINING" > "$WORK/create.log"' \
+  '"$PACKAGE" "$VERSION" 720 > "$WORK/create.log"'
+calibrate consumer-export-proof 'consumer export rejects missing malformed and incomplete success receipts' \
+  "$NONZERO" scripts/release-closure/RunDockerConsumer.sh \
+  '[ "$code" -ne 0 ] || code=1' 'code=0'
+calibrate consumer-cleanup-proof 'consumer cleanup failure cannot report verified closure' \
+  "$NONZERO" scripts/release-closure/RunDockerConsumer.sh \
+  '[ "$evidence" = complete ] && [ "$cleanup" = complete ]' '[ "$evidence" = complete ]'
 jq '.status="verified"' "$OUTPUT" > "$WORK/complete.json"
 mv "$WORK/complete.json" "$OUTPUT"
 echo 'release calibration: all named violations detected at their target assertions'

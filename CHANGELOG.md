@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Public-registry release consumers install, verify signatures and execute
+  imports and the installed CLI only in an owned COPY Docker image. Image
+  preparation shares the closure deadline; validated receipts and diagnostics
+  survive removal, and failed export or cleanup refuses verified closure (#922).
+
 - Bounded checkpoint-tail node reads honor checkpoint tombstones for late
   arriving adds and refuse unwitnessed adds instead of resurrecting a node
   already removed by the checkpoint (#894).
