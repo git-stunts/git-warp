@@ -48,7 +48,7 @@ export default class ContentReadProjection {
   async #scan(journal: PatchJournalPort, source: { writer: string; head: string }): Promise<void> {
     let first = true;
     for await (const entry of journal.scanPatchHistory(source.writer, source.head)) {
-      if (!matchesCapturedHistory(entry, source, first)) {
+      if (!matchesCapturedHistory(entry, source.writer, first ? source.head : null)) {
         throw new WarpError('Content history does not match captured heads', 'E_CONTENT_READ_HISTORY');
       }
       first = false;
@@ -130,6 +130,6 @@ export default class ContentReadProjection {
   }
 }
 
-function matchesCapturedHistory(entry: PatchEntry, source: { writer: string; head: string }, first: boolean): boolean {
-  return entry.patch.writer === source.writer && (!first || entry.sha === source.head);
+function matchesCapturedHistory(entry: PatchEntry, writer: string, expectedHead: string | null): boolean {
+  return entry.patch.writer === writer && (expectedHead === null || entry.sha === expectedHead);
 }
