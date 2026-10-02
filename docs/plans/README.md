@@ -8,7 +8,7 @@ Owner: James Ross. The sequence has no assigned calendar dates or effort estimat
 
 | Version | Release proposition | Cards | Must ship | Required disposition | May slip | Discovery | Tracking |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| [v20.0.0](./v20.0.0/README.md) | Memory safety and usable public attachments | 23 | 13 | 1 | 8 | 0 | 1 |
+| [v20.0.0](./v20.0.0/README.md) | Memory safety and usable public attachments | 23 | 21 | 1 | 0 | 0 | 1 |
 | [v20.1.0](./v20.1.0/README.md) | Observable causal histories | 16 | 5 | 0 | 6 | 5 | 0 |
 | [v20.2.0](./v20.2.0/README.md) | Repeatable engineering and consumer evidence | 78 | 10 | 0 | 51 | 14 | 3 |
 | [v21.0.0](./v21.0.0/README.md) | Bounded retained storage and recursive WARP | 75 | 14 | 0 | 23 | 31 | 7 |
@@ -16,16 +16,16 @@ Owner: James Ross. The sequence has no assigned calendar dates or effort estimat
 | [v21.2.0](./v21.2.0/README.md) | Reusable packages and generated domain clients | 7 | 6 | 0 | 0 | 0 | 1 |
 | [v22.0.0](./v22.0.0/README.md) | Witnessed merge and local reversibility | 20 | 9 | 0 | 2 | 9 | 0 |
 
-The inventory contains **234 active issues**: 60 must-ship implementation commitments, one required disposition, 96 may-slip candidates, 65 discovery cards, and 12 tracking containers. Containers are not extra executable PRs; discovery requires a decision before executable scope is claimed. v20.0.0 additionally requires release coordination/closure under [#876](https://github.com/git-stunts/git-warp/issues/876).
+The historical inventory contains **234 issues**: 68 must-ship implementation commitments, one required disposition, 88 may-slip candidates, 65 discovery cards, and 12 tracking containers. Containers are not extra executable PRs; discovery requires a decision before executable scope is claimed. These counts preserve the original issue snapshot while reflecting the 2026-10-02 v20.0.0 commitment correction; later milestone additions are not counted here. Every issue assigned to v20.0.0 is mandatory, including formerly optional cards and later additions. No assigned issue may slip. v20.0.0 additionally requires release coordination/closure under [#876](https://github.com/git-stunts/git-warp/issues/876).
 
 ## How to use the plans
 
-- Read the release proposition and exit invariants before selecting work. Scope categories distinguish commitments from candidates; a release home alone does not make every card mandatory.
+- Read the release proposition and exit invariants before selecting work. For v20.0.0, every assigned card is mandatory and none may slip. Other release snapshots retain their recorded categories; do not apply their candidate policy to v20.0.0.
 - Resolve a discovery card against current source before implementing a historical title. Record one observable outcome, exclusions, acceptance evidence, and a working intermediate state for each executable PR.
 - Treat `from → to` as "from must already be integrated for to to be correct." Workstreams, parent/child hierarchy, shared files, and similar topics do not create edges.
 - The accepted graph has **79 direct prerequisites**. The plans include every edge once, under the dependent release, with its recorded reason and evidence. Some are explicit ownership decisions; no recorded blocker is not proof of independence.
 - Parallel fronts describe paths not ordered by the accepted graph. Shared contracts and unresolved external readiness still require review before declaring work independently mergeable.
-- Before release preparation, move unfinished optional/discovery/container cards to an appropriate later milestone in both trackers. The executable guard requires zero open non-release issues in the target and zero open issues in earlier version milestones; it also gates repository-wide urgent work. Do not weaken it to accommodate prose categories.
+- For release snapshots that explicitly permit deferral, move unfinished optional/discovery/container cards to an appropriate later milestone in both trackers. The executable guard requires zero open non-release issues in the target and zero open issues in earlier version milestones; it also gates repository-wide urgent work. Do not weaken it to accommodate prose categories. v20.0.0 permits no such deferral: complete its assigned work and merge required changes instead of moving or dropping issues to clear the gate.
 - Use [.github/RELEASE.md](../../.github/RELEASE.md), the [release profile](../../.continuum/release.yml), and the issue/PR evidence for execution. All tests and benchmarks run in COPY-based Docker without host repository/Git mounts.
 
 ## Inventory provenance and refresh
