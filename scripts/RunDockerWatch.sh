@@ -46,5 +46,9 @@ test_pid=$!
 monitor_pid=$!
 status=0
 wait "$test_pid" || status=$?
+# Settle the monitor before reading its verdict: both clients can finish
+# during its polling interval. A stopped synchronizer cannot certify success.
+wait "$monitor_pid" || status=1
+monitor_pid=''
 if [[ -f "$scratch/watch-failed" ]]; then exit 1; fi
 exit "$status"

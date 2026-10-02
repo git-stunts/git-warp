@@ -26,6 +26,7 @@ case "$1" in
   watch)
     touch "$TRACE.ready"
     if [[ "$MODE" == failed-watch ]]; then exit 8; fi
+    if [[ "$MODE" == completed-after-watch-failure ]]; then sleep 0.05; exit 8; fi
     exec sleep 30
     ;;
   exec)
@@ -40,6 +41,7 @@ case "$1" in
     case "$MODE" in
       failed-watch) exec sleep 30;;
       signal) kill -TERM "$PPID"; exec sleep 30;;
+      completed-after-watch-failure) sleep 0.15; exit 0;;
       *) exit "$EXIT_STATUS";;
     esac
     ;;
@@ -79,6 +81,14 @@ describe('Docker watch lifecycle', () => {
     const { result, trace } = runWatch('signal', 0);
     expect(result.error).toBeUndefined();
     expect(result.status).toBe(143);
+    expect(trace.at(-1)).toBe('down');
+  });
+
+  it('fails closed when synchronization and tests finish before the monitor polls', () => {
+    const { result, trace } = runWatch('completed-after-watch-failure', 0);
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Docker source synchronization stopped');
     expect(trace.at(-1)).toBe('down');
   });
 });
