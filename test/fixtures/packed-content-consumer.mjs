@@ -41,6 +41,9 @@ async function pair(lane) {
   const attachedEdge = (await lane.observe(edgeObserver).one()).value;
   assert.ok(node); assert.ok(attachedEdge);
   assert.equal(node.id, attachedEdge.id);
+  assert.equal(node.mime, attachedEdge.mime);
+  assert.equal(node.size, attachedEdge.size);
+  assert.deepEqual(node.owner, { kind: 'node', subject: edge.from });
   assert.deepEqual(attachedEdge.owner, { kind: 'edge', ...edge });
   return node;
 }
