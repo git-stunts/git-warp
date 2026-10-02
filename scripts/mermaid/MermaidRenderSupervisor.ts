@@ -20,6 +20,7 @@ export default class MermaidRenderSupervisor {
   #stderr = '';
   #timer: ReturnType<typeof setTimeout> | undefined;
   #started = false;
+  #reclamationDeadline: bigint | undefined;
 
   constructor(deadlines = new MermaidValidationDeadline(), worker = WORKER) {
     this.#deadlines = deadlines;
@@ -84,7 +85,7 @@ export default class MermaidRenderSupervisor {
   #observeExit(child: ChildProcess, finish: (error: Error | null) => void): void {
     child.once('error', error => { finish(error); });
     child.once('exit', () => {
-      try { for (const pid of this.#groups) { killOwnedGroup(pid); } }
+      try { this.#terminateOwnedGroups(); }
       catch (error) { finish(new Error('Mermaid owned process reclamation failed', { cause: error })); }
     });
     child.once('close', code => { finish(this.#exitFailure(code)); });
@@ -133,15 +134,28 @@ export default class MermaidRenderSupervisor {
   }
 
   async #reclaim(child: ChildProcess): Promise<void> {
-    const deadline = process.hrtime.bigint() + BigInt(this.#deadlines.reclamationMs) * NANOSECONDS_PER_MILLISECOND;
+    const deadline = this.#cleanupDeadline();
     if (child.connected) {
       child.send('abort', error => { if (error !== null) { child.kill('SIGKILL'); } });
     }
-    await waitForExit(child, Math.min(GRACEFUL_ABORT_MS, Math.max(1, Math.floor(this.#deadlines.reclamationMs / 4))));
-    for (const pid of this.#groups) { killOwnedGroup(pid, remainingMilliseconds(deadline)); }
+    await waitForExit(child, Math.min(GRACEFUL_ABORT_MS, Math.max(1, Math.floor(this.#deadlines.reclamationMs / 4)), remainingMilliseconds(deadline)));
+    this.#terminateOwnedGroups();
     while (ownedGroupsRemain(this.#groups)) {
       if (process.hrtime.bigint() >= deadline) { throw new Error('Mermaid browser reclamation timed out'); }
       await new Promise<void>(resolve => { setTimeout(resolve, POLL_MS); });
+    }
+  }
+
+  #cleanupDeadline(): bigint {
+    this.#reclamationDeadline ??= process.hrtime.bigint()
+      + BigInt(this.#deadlines.reclamationMs) * NANOSECONDS_PER_MILLISECOND;
+    return this.#reclamationDeadline;
+  }
+
+  #terminateOwnedGroups(): void {
+    const deadline = this.#cleanupDeadline();
+    for (const pid of this.#groups) {
+      if (groupExists(pid)) { killOwnedGroup(pid, remainingMilliseconds(deadline)); }
     }
   }
 }
@@ -155,7 +169,7 @@ async function waitForExit(child: ChildProcess, milliseconds: number): Promise<b
   });
 }
 
-function killOwnedGroup(pid: number, remainingMs = WINDOWS_TREE_KILL_DEADLINE_MS): void {
+function killOwnedGroup(pid: number, remainingMs: number): void {
   if (process.platform === 'win32') {
     if (!groupExists(pid)) { return; }
     const result = childProcess.spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], {
@@ -183,5 +197,7 @@ function isMissingProcess<T>(error: T): boolean {
 }
 
 function remainingMilliseconds(deadline: bigint): number {
-  return Math.max(1, Number((deadline - process.hrtime.bigint()) / NANOSECONDS_PER_MILLISECOND));
+  const remaining = deadline - process.hrtime.bigint();
+  if (remaining <= 0n) { throw new Error('Mermaid browser reclamation timed out'); }
+  return Math.max(1, Number(remaining / NANOSECONDS_PER_MILLISECOND));
 }
