@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counters and snapshots caller-owned maps so later mutations cannot corrupt
   causal state (#205).
 
+- Bounded checkpoint-tail node reads honor checkpoint tombstones for late
+  arriving adds and refuse unwitnessed adds instead of resurrecting a node
+  already removed by the checkpoint (#894).
+
 - Atomic Intent arrays reject descriptors exceeding 16 MiB before allocating
   their complete canonical string or UTF-8 buffer. Exact byte accounting covers
   aggregate members, escaping, Unicode, nested properties and inline binary
