@@ -51,7 +51,7 @@ describe('v16 to v17 top-level upgrade utility', () => {
     expect(direct.error).toBeUndefined();
     expect(direct.status).toBe(0);
     expect(direct.stdout).toContain('Usage:');
-    const imported = spawnSync(process.execPath, ['--input-type=module', '-e', 'await import(process.env.UPGRADE_ENTRY_URL);'], { encoding: 'utf8', timeout: 10000, env: { ...process.env, UPGRADE_ENTRY_URL: scriptUrl.href } });
+    const imported = spawnSync(process.execPath, ['--input-type=module', '-e', 'await import(process.argv[1]);', scriptUrl.href], { encoding: 'utf8', timeout: 10000 });
     expect(imported.error).toBeUndefined();
     expect(imported.status).toBe(0);
     expect(imported.stdout).toBe('');
