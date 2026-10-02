@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import packageJson from '../../../package.json' with { type: 'json' };
 import publishTsconfig from '../../../tsconfig.publish.json' with { type: 'json' };
 import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
@@ -22,6 +27,37 @@ function oid(hex: string): string {
 }
 
 describe('v16 to v17 top-level upgrade utility', () => {
+  it.each(['file', 'directory'])('executes help through a %s symlink', (kind) => {
+    const root = mkdtempSync(join(tmpdir(), 'warp-upgrade-entry-'));
+    const script = fileURLToPath(new URL('../../../scripts/upgrade-v16-to-v17.ts', import.meta.url));
+    try {
+      const link = join(root, kind === 'file' ? 'upgrade.ts' : 'scripts');
+      symlinkSync(kind === 'file' ? script : fileURLToPath(new URL('../../../scripts/', import.meta.url)), link);
+      const invoked = kind === 'file' ? link : join(link, 'upgrade-v16-to-v17.ts');
+      const result = spawnSync(process.execPath, [invoked, '--help'], { encoding: 'utf8', timeout: 10000 });
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('Usage:');
+      expect(result.stdout).toContain('--dry-run');
+      expect(result.stderr).toBe('');
+    } finally {
+      rmSync(root, { recursive: true });
+    }
+  });
+
+  it('runs direct help and stays inert when imported', () => {
+    const scriptUrl = new URL('../../../scripts/upgrade-v16-to-v17.ts', import.meta.url);
+    const direct = spawnSync(process.execPath, [fileURLToPath(scriptUrl), '--help'], { encoding: 'utf8', timeout: 10000 });
+    expect(direct.error).toBeUndefined();
+    expect(direct.status).toBe(0);
+    expect(direct.stdout).toContain('Usage:');
+    const imported = spawnSync(process.execPath, ['--input-type=module', '-e', 'await import(process.env.UPGRADE_ENTRY_URL);'], { encoding: 'utf8', timeout: 10000, env: { ...process.env, UPGRADE_ENTRY_URL: scriptUrl.href } });
+    expect(imported.error).toBeUndefined();
+    expect(imported.status).toBe(0);
+    expect(imported.stdout).toBe('');
+    expect(imported.stderr).toBe('');
+  });
+
   it('parses repeated graph names and defaults repo to cwd', () => {
     const args = parseArgs([
       '--graph', 'alpha',
