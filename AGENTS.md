@@ -106,6 +106,9 @@ DTO and stop there**. Do not hallucinate fake domain models.
 - NEVER force any git operation.
 - NEVER use destructive cleanup or history rewrite commands like `git reset --hard`, `git clean -f`, `git checkout .`, or `git restore .`.
 - This repo stores graph data as Git commits; rewriting history can destroy user data.
+- NEVER use hard-coded full (absolute) filesystem paths in source code. They
+  expose machine-specific information and break portability. Use relative paths
+  or resolve required locations at runtime through the appropriate boundary.
 - NEVER publish machine-local absolute paths. This applies to tracked files,
   generated evidence, PR and issue bodies, comments, and reviews. Use
   repository-relative paths, `~`, `$HOME`, or an explicit placeholder such as

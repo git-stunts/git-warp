@@ -1,6 +1,7 @@
 const POSIX_PATH_PREFIXES = Object.freeze([
   ['', 'Users', ''].join('/'),
   ['', 'home', ''].join('/'),
+  ['', 'private', 'tmp', ''].join('/'),
   ['', 'private', 'var', 'folders', ''].join('/'),
   ['', 'var', 'folders', ''].join('/'),
 ]);
