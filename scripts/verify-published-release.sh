@@ -64,12 +64,18 @@ finish() {
     wait "$CONSUMER_CLIENT" 2>/dev/null || true
   fi
   local evidence="${OUTPUT%.json}.consumer"
-  mkdir -p "$evidence"
-  for log in image create start container export install signatures cli; do
-    if [ -f "$WORK/$log.log" ]; then
-      cp "$WORK/$log.log" "$evidence/$log.log" || { STATUS=failed; STAGE=consumer-evidence; code=1; }
-    fi
-  done
+  if [ -L "$evidence" ] || { [ -e "$evidence" ] && [ ! -d "$evidence" ]; }; then
+    STATUS=failed; STAGE=consumer-evidence; code=1
+  elif ! mkdir -p "$evidence"; then
+    STATUS=failed; STAGE=consumer-evidence; code=1
+  else
+    for log in image create start container export install signatures cli; do
+      rm -f "$evidence/$log.log" || { STATUS=failed; STAGE=consumer-evidence; code=1; continue; }
+      if [ -f "$WORK/$log.log" ]; then
+        cp "$WORK/$log.log" "$evidence/$log.log" || { STATUS=failed; STAGE=consumer-evidence; code=1; }
+      fi
+    done
+  fi
   jq -n --arg status "$STATUS" --arg stage "$STAGE" --arg tag "$TAG" \
     --arg version "$VERSION" --arg commit "$EXPECTED_COMMIT" --arg distTag "$DIST_TAG" \
     --argjson limit "$TOTAL_TIMEOUT" --argjson remaining "$((CLOSURE_DEADLINE - SECONDS))" \

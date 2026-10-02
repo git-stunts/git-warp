@@ -304,6 +304,25 @@ assert_failed() {
   jq -e '.consumer.execution.cleanup=="failed"' "$RECEIPT"
 }
 
+@test "consumer diagnostics belong to the current run and refuse symlink destinations" {
+  verify_release
+  [ "$status" -eq 0 ]
+  [ -f "$CLOSURE_FIXTURE_DIR/receipt.consumer/cli.log" ]
+  export CLOSURE_FIXTURE_MODE=image-failed
+  verify_release
+  assert_failed consumer
+  [ ! -e "$CLOSURE_FIXTURE_DIR/receipt.consumer/cli.log" ]
+  [ ! -e "$CLOSURE_FIXTURE_DIR/receipt.consumer/signatures.log" ]
+  grep -F 'controlled image failure' "$CLOSURE_FIXTURE_DIR/receipt.consumer/image.log"
+  rm -rf "$CLOSURE_FIXTURE_DIR/receipt.consumer"
+  mkdir "$CLOSURE_FIXTURE_DIR/unrelated"
+  ln -s "$CLOSURE_FIXTURE_DIR/unrelated" "$CLOSURE_FIXTURE_DIR/receipt.consumer"
+  export CLOSURE_FIXTURE_MODE=success
+  verify_release
+  assert_failed consumer-evidence
+  [ -z "$(ls -A "$CLOSURE_FIXTURE_DIR/unrelated")" ]
+}
+
 @test "consumer cancellation removes its container and retains a failed receipt" {
   export CLOSURE_FIXTURE_MODE=canceled-consumer
   bash "$REPO_ROOT/scripts/verify-published-release.sh" \

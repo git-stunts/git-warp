@@ -162,6 +162,9 @@ calibrate consumer-export-proof 'consumer export rejects missing malformed and i
 calibrate consumer-cleanup-proof 'consumer cleanup failure cannot report verified closure' \
   "$NONZERO" scripts/release-closure/RunDockerConsumer.sh \
   '[ "$evidence" = complete ] && [ "$cleanup" = complete ]' '[ "$evidence" = complete ]'
+calibrate current-consumer-diagnostics 'consumer diagnostics belong to the current run and refuse symlink destinations' \
+  'receipt.consumer/cli.log' "$DRIVER" \
+  'rm -f "$evidence/$log.log" || { STATUS=failed; STAGE=consumer-evidence; code=1; continue; }' ':'
 jq '.status="verified"' "$OUTPUT" > "$WORK/complete.json"
 mv "$WORK/complete.json" "$OUTPUT"
 echo 'release calibration: all named violations detected at their target assertions'
