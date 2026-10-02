@@ -127,6 +127,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   core, graph, app and query facades; callers use metadata, handles or streams.
   Small fixture assertions collect streams only in bounded test helpers (#818).
 
+- Bound v18 migration patch-tree and Git output collection to 64 MiB; drain
+  oversized batch objects in bounded windows while preserving synchronization.
 - Reject malformed attachment input and non-byte stream chunks with typed domain
   errors before storage forwarding; finalize rejected producers.
 - Snapshot inline property values while charging each binary copy against the

@@ -1,3 +1,5 @@
+import { collectAsyncIterable } from '../../src/domain/utils/streamUtils.ts';
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../src/domain/storage/BufferedArtifactLimit.ts';
 import ContentAddressableStore, {
   AssetHandle as GitCasAssetHandle,
   CborCodec as GitCasCborCodec,
@@ -142,10 +144,10 @@ export default class V18PatchTranslator {
       throw new Error(`commit ${patch.commit.sha} is already current`);
     }
     const adopted = await this.#cas.assets.adopt({ treeOid: patch.storage.oid });
-    return await collectChunks(this.#cas.assets.open({
+    return await collectAsyncIterable(this.#cas.assets.open({
       handle: adopted.handle,
       ...this.#decryptionOptions(patch.storage.encrypted),
-    }));
+    }), MAX_BUFFERED_ARTIFACT_BYTES);
   }
 
   async #rewriteContentHandles(
@@ -272,14 +274,6 @@ function requireArray(value: unknown, label: string): readonly unknown[] {
     throw new Error(`${label} must be an array`);
   }
   return value;
-}
-
-async function collectChunks(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = [];
-  for await (const chunk of source) {
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
 }
 
 async function drain(source: AsyncIterable<Uint8Array>): Promise<void> {
