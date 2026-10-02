@@ -46,6 +46,7 @@ function runComparison(gateStatus: number, migratedStatus: number, exportStatus 
         if [[ "$SIGNAL" == 1 ]]; then
           mkdir -p "$COPIED/performance-results"
           echo partial > "$COPIED/performance-results/summary.md"
+          echo "$$" > "$TRACE.client"
           kill -TERM "$PPID"
           exec sleep 30
         fi
@@ -54,7 +55,9 @@ function runComparison(gateStatus: number, migratedStatus: number, exportStatus 
         echo "$status" > "$COPIED/exit-status"
         ;;
       inspect) cat "$COPIED/exit-status";;
-      stop) ;;
+      stop)
+        if [[ -f "$TRACE.client" ]]; then kill "$(cat "$TRACE.client")" 2>/dev/null || true; fi
+        ;;
       cp)
         if [[ "$EXPORT_STATUS" != 0 ]]; then exit "$EXPORT_STATUS"; fi
         cp -R "$COPIED/performance-results" "$3"

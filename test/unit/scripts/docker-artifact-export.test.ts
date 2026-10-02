@@ -42,10 +42,16 @@ case "$1" in
     ;;
   exec)
     if [[ "$CHANGE_HOST_CONFIG" == 1 ]]; then echo concurrent-edit > "$ROOT/vitest.config.ts"; fi
-    if [[ "$SIGNAL" == 1 ]]; then kill -TERM "$PPID"; exec sleep 30; fi
+    if [[ "$SIGNAL" == 1 ]]; then
+      echo "$$" > "$TRACE.client"
+      kill -TERM "$PPID"
+      exec sleep 30
+    fi
     exit "$EXEC_STATUS"
     ;;
-  stop) ;;
+  stop)
+    if [[ -f "$TRACE.client" ]]; then kill "$(cat "$TRACE.client")" 2>/dev/null || true; fi
+    ;;
   cp)
     case "$2" in
       */source.git/.)

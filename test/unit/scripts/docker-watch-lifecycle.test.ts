@@ -37,7 +37,9 @@ echo "$1" >> "$TRACE"
 case "$1" in
   up) ;;
   ps) echo fixture-watch;;
-  stop) ;;
+  stop)
+    if [[ -f "$TRACE.client" ]]; then kill "$(cat "$TRACE.client")" 2>/dev/null || true; fi
+    ;;
   watch)
     touch "$TRACE.ready"
     if [[ "$MODE" == failed-watch ]]; then exit 8; fi
@@ -56,7 +58,7 @@ case "$1" in
     case "$MODE" in
       snapshot-update) echo updated > "$COPIED/test/__snapshots__/fixture.test.ts.snap"; exit "$EXIT_STATUS";;
       failed-watch) exec sleep 30;;
-      signal) kill -TERM "$PPID"; exec sleep 30;;
+      signal) echo "$$" > "$TRACE.client"; kill -TERM "$PPID"; exec sleep 30;;
       completed-after-watch-failure) sleep 0.15; exit 0;;
       *) exit "$EXIT_STATUS";;
     esac
