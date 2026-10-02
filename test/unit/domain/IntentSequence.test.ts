@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import * as canonical from '../../../src/domain/utils/canonicalStringify.ts';
 
 import Intent from '../../../src/domain/api/Intent.ts';
+import InlineBinaryBudget from '../../../src/domain/types/InlineBinaryBudget.ts';
 import IntentSequence, {
   MAX_ATOMIC_WRITE_DESCRIPTOR_BYTES,
   MAX_ATOMIC_WRITE_INTENTS,
@@ -23,7 +24,7 @@ describe('IntentSequence', () => {
 
   it('refuses nested oversized descriptors before allocating another property snapshot', () => {
     const requested = Intent.setProperty({ subject: 'n', key: 'p', value: { nested: ['\u0000'.repeat(4 * 1024 * 1024)] } });
-    const snapshot = vi.spyOn(Intent.prototype, 'descriptor', 'get');
+    const snapshot = vi.spyOn(InlineBinaryBudget, 'copy');
     try {
       expect(() => IntentSequence.from([requested])).toThrowError(
         expect.objectContaining({ code: 'E_INTENT_SEQUENCE_SIZE' }),

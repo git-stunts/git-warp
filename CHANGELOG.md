@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Atomic Intent arrays reject descriptors exceeding 16 MiB before allocating
   their complete canonical string or UTF-8 buffer. Exact byte accounting covers
   aggregate members, escaping, Unicode, nested properties and inline binary
-  values; admitted canonical bytes and receipt identities stay compatible (#916).
+  values, including enumerable binary metadata and sparse array holes.
+  Overridden getters and circular-reference errors preserve canonical behavior;
+  admitted canonical bytes and receipt identities stay compatible (#916).
 
 ### Added
 

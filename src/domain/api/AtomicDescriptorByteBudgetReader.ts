@@ -1,7 +1,7 @@
 import WarpError from '../errors/WarpError.ts';
-import type { PropValue } from '../types/PropValue.ts';
+import assetByteLength from '../storage/assetByteLength.ts';
 import type { IntentDescriptor } from './Intent.ts';
-import StagedContent from './StagedContent.ts';
+import { canonicalStringify } from '../utils/canonicalStringify.ts';
 
 export const MAX_ATOMIC_WRITE_DESCRIPTOR_BYTES = 16 * 1024 * 1024;
 
@@ -9,6 +9,8 @@ export const MAX_ATOMIC_WRITE_DESCRIPTOR_BYTES = 16 * 1024 * 1024;
 const EMPTY_SEQUENCE_BYTES = '{"intents":[],"kind":"intent.sequence"}'.length;
 const JSON_DELIMITERS_BYTES = 2;
 const JSON_NULL_BYTES = 4;
+const MINIMUM_BINARY_MEMBER_BYTES = 6;
+const MINIMUM_RECORD_VALUE_BYTES = 1;
 const HIGH_SURROGATE_START = 0xd800;
 const LOW_SURROGATE_START = 0xdc00;
 const SURROGATE_END = 0xe000;
@@ -16,18 +18,11 @@ const ASCII_END = 0x80;
 const TWO_BYTE_UTF8_END = 0x800;
 const SHORT_ESCAPE_CODES = new Set([8, 9, 10, 12, 13, 34, 92]);
 
-// Transport values only: no raw input is trusted or hydrated here.
-type DescriptorValue =
-  | PropValue
-  | undefined
-  | StagedContent
-  | readonly DescriptorValue[]
-  | { readonly [key: string]: DescriptorValue };
-
 /** Size-only canonical boundary reader; never creates an encoded string or buffer. */
 export default class AtomicDescriptorByteBudgetReader {
   #remaining = MAX_ATOMIC_WRITE_DESCRIPTOR_BYTES - EMPTY_SEQUENCE_BYTES;
   #members = 0;
+  readonly #activeReferences = new WeakSet<object>();
 
   constructor() { Object.freeze(this); }
 
@@ -60,64 +55,83 @@ export default class AtomicDescriptorByteBudgetReader {
     this.#remaining -= bytes;
   }
 
-  #readValue(value: DescriptorValue): void {
+  #readValue<T>(value: T): void {
     if (typeof value === 'string') { this.#readString(value); return; }
-    if (value === null || value === undefined) { this.#charge(JSON_NULL_BYTES); return; }
-    if (typeof value !== 'object') { this.#readScalar(value); return; }
-    this.#readComposite(value);
+    if (value === null || isOmittedValue(value)) { this.#charge(JSON_NULL_BYTES); return; }
+    if (typeof value === 'object') { this.#readComposite(value); return; }
+    this.#readScalar(value);
   }
 
-  #readScalar(value: number | boolean): void {
+  #readScalar<T>(value: T): void {
     if (typeof value === 'number' && !Number.isFinite(value)) {
       this.#charge(JSON_NULL_BYTES);
       return;
     }
+    // BigInt is not a PropValue. Preserve the encoder's existing failure if a
+    // substituted descriptor nevertheless contains it, without inventing a restriction.
+    if (typeof value === 'bigint') { canonicalStringify(value); return; }
     this.#charge(String(value).length);
   }
 
-  #readComposite(value: Exclude<DescriptorValue, string | number | boolean | null | undefined>): void {
-    if (value instanceof StagedContent) {
-      this.#readRecord({ id: value.id, mime: value.mime, size: value.size });
-      return;
+  #readComposite(value: object): void {
+    this.#enterReference(value);
+    try {
+      if (Array.isArray(value)) { this.#readArray(value); return; }
+      if (value instanceof Uint8Array) { this.#requireBinaryMinimum(value); }
+      this.#readRecord(value);
+    } finally {
+      this.#activeReferences.delete(value);
     }
-    if (value instanceof Uint8Array) { this.#readBinary(value); return; }
-    if (isDescriptorArray(value)) { this.#readArray(value); return; }
-    this.#readRecord(value);
   }
 
-  #readArray(values: readonly DescriptorValue[]): void {
+  #enterReference(value: object): void {
+    if (this.#activeReferences.has(value)) {
+      throw new WarpError('Circular reference detected in canonicalStringify', 'E_CIRCULAR_REFERENCE');
+    }
+    this.#activeReferences.add(value);
+  }
+
+  #readArray<T>(values: readonly T[]): void {
     this.#charge(JSON_DELIMITERS_BYTES);
     for (let index = 0; index < values.length; index += 1) {
       if (index > 0) { this.#charge(1); }
-      this.#readValue(values[index]);
+      // canonicalStringify maps before joining: holes have no literal, while
+      // inherited elements and explicit undefined values are visited by map.
+      if (index in values) { this.#readValue(values[index]); }
     }
   }
 
-  #readRecord(value: { readonly [key: string]: DescriptorValue }): void {
+  #readRecord(value: object): void {
     this.#charge(JSON_DELIMITERS_BYTES);
-    let members = 0;
-    // Ordering changes bytes, but never their length. No key array or sort is needed.
+    const keys = this.#selectedRecordKeys(value);
+    keys.sort();
+    // Canonical encoding reads once to select keys, then again in sorted order.
+    for (const key of keys) {
+      this.#remaining += MINIMUM_RECORD_VALUE_BYTES;
+      this.#readValue(Reflect.get(value, key));
+    }
+  }
+
+  #selectedRecordKeys(value: object): string[] {
+    const keys: string[] = [];
     for (const key in value) {
-      if (Object.hasOwn(value, key) && value[key] !== undefined) {
-        this.#readMember(key, value[key], members);
-        members += 1;
-      }
+      if (!Object.hasOwn(value, key) || isOmittedValue(Reflect.get(value, key))) { continue; }
+      // Bound selected-key storage before collection; never create Object.keys
+      // for a binary input whose native length already proves it cannot fit.
+      if (keys.length > 0) { this.#charge(1); }
+      this.#readString(key);
+      this.#charge(1 + MINIMUM_RECORD_VALUE_BYTES); // colon and minimum value
+      keys.push(key);
     }
+    return keys;
   }
 
-  #readMember(key: string, value: DescriptorValue, index: number): void {
-    if (index > 0) { this.#charge(1); }
-    this.#readString(key);
-    this.#charge(1); // colon
-    this.#readValue(value);
-  }
-
-  #readBinary(value: Uint8Array): void {
-    // canonicalStringify treats Uint8Array as an object with decimal index keys.
-    this.#charge(JSON_DELIMITERS_BYTES);
-    for (let index = 0; index < value.length; index += 1) {
-      this.#readMember(String(index), value[index], index);
-    }
+  #requireBinaryMinimum(value: Uint8Array): void {
+    // Every native byte has at least a one-digit quoted key, colon, value and
+    // separator. Reject impossible inputs before enumerating numeric keys.
+    const length = assetByteLength(value);
+    const minimum = length === 0 ? JSON_DELIMITERS_BYTES : length * MINIMUM_BINARY_MEMBER_BYTES + 1;
+    if (minimum > this.#remaining) { this.#charge(minimum); }
   }
 
   #readString(value: string): void {
@@ -135,8 +149,8 @@ export default class AtomicDescriptorByteBudgetReader {
   }
 }
 
-function isDescriptorArray(value: DescriptorValue): value is readonly DescriptorValue[] {
-  return Array.isArray(value);
+function isOmittedValue<T>(value: T): boolean {
+  return value === undefined || typeof value === 'function' || typeof value === 'symbol';
 }
 
 function isSurrogatePair(first: number, second: number): boolean {

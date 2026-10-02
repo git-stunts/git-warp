@@ -156,7 +156,7 @@ export default class Intent {
 
   /** Checks the validated private snapshot before allocating its normalized copy. */
   descriptorWithinAtomicBudget(budget: AtomicDescriptorByteBudgetReader): IntentDescriptor {
-    budget.preview(this.#descriptor);
+    if (usesBaseDescriptorGetter(this)) { budget.preview(this.#descriptor); }
     return this.descriptor;
   }
 }
@@ -362,4 +362,17 @@ function requireStagedContent(content: StagedContent): StagedContent {
     throw new WarpError('Attachment intents require staged content', 'E_CONTENT_METADATA');
   }
   return content;
+}
+
+
+const baseDescriptorGetter = Reflect.get(Object.getOwnPropertyDescriptor(Intent.prototype, 'descriptor') ?? {}, 'get');
+
+function usesBaseDescriptorGetter(intent: Intent): boolean {
+  let owner: object | null = intent;
+  while (owner !== null) {
+    const descriptor = Object.getOwnPropertyDescriptor(owner, 'descriptor');
+    if (descriptor !== undefined) { return Reflect.get(descriptor, 'get') === baseDescriptorGetter; }
+    owner = Reflect.getPrototypeOf(owner);
+  }
+  return false;
 }
