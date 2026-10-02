@@ -21,9 +21,9 @@ case "$output" in "$ROOT/"*) output=${output#"$ROOT/"};; esac
 while [[ "$output" == ./* ]]; do output=${output#./}; done
 validate_output() {
   local path=$output tracked links
-  case "/$path/" in *'/../'*|*'/./'*|*'/.git/'*|*'/node_modules/'*|*'//'*) return 1;; esac
+  case "/$path/" in *'/../'*|*'/./'*|*/.[gG][iI][tT]/*|*/[nN][oO][dD][eE]_[mM][oO][dD][uU][lL][eE][sS]/*|*'//'*) return 1;; esac
   [[ -n "$path" && "$path" != . ]] || return 1
-  tracked=$(git -C "$ROOT" ls-files -- "$path") || return 1
+  tracked=$(git -C "$ROOT" ls-files -- ":(icase,literal)$path") || return 1
   [[ -z "$tracked" ]] || return 1
   while [[ "$path" != . ]]; do
     [[ ! -L "$ROOT/$path" ]] || return 1
@@ -40,6 +40,7 @@ scratch=$(mktemp -d)
 container="git-warp-comparison-$$-${scratch##*/}"
 image="git-warp-comparison:$$-${scratch##*/}"
 created=0
+image_built=0
 attach_pid=''
 export_results() {
   local links
@@ -64,6 +65,12 @@ cleanup() {
     fi
     docker rm "$container" >/dev/null || { if [[ "$status" == 0 ]]; then status=1; fi; }
   fi
+  if [[ "$image_built" == 1 ]]; then
+    docker image rm "$image" >/dev/null || {
+      echo 'Failed to remove owned comparison image' >&2
+      if [[ "$status" == 0 ]]; then status=1; fi
+    }
+  fi
   rm -rf "$scratch"
   exit "$status"
 }
@@ -87,9 +94,10 @@ copy_revision "$base" base
 copy_revision "$head" head
 cp "$ROOT/docker/Dockerfile.performance-comparison" "$ROOT/docker/Dockerfile.performance-comparison.dockerignore" "$scratch/context/docker/"
 docker build --file "$scratch/context/docker/Dockerfile.performance-comparison" --tag "$image" "$scratch/context"
-created=1
+image_built=1
 docker create --interactive --init --name "$container" --env "ORDER_SEED=$seed" \
   --env RUNNER_ENVIRONMENT "$image" bash -s >/dev/null
+created=1
 attach_status=0
 docker start --attach --interactive "$container" <<'MEASUREMENT' &
 set -euo pipefail

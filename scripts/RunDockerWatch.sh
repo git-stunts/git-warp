@@ -29,7 +29,7 @@ cleanup() {
       if [[ "$status" == 0 ]]; then status=1; fi
     fi
   fi
-  "${compose[@]}" down --timeout 10 || {
+  "${compose[@]}" down --timeout 10 --rmi local || {
     echo 'Failed to clean up Docker watch service' >&2
     if [[ "$status" == 0 ]]; then status=1; fi
   }

@@ -38,6 +38,9 @@ echo "$1" >> "$TRACE"
 case "$1" in
   compose)
     for arg in "$@"; do case "$arg" in --rm|--mount|--volume|-v) exit 91;; esac; done
+    if [[ "$*" == *" down "* ]]; then
+      [[ "$*" == *"--rmi local"* ]]
+    fi
     echo fixture-container
     ;;
   exec)
@@ -141,7 +144,7 @@ describe('Docker artifact exports', () => {
       expect(existsSync(join(input.copied, 'removed'))).toBe(true);
     });
 
-  it.each(['file:tracked.ts', 'file:vitest.config.ts', 'directory:../escape', 'file:a//b'])(
+  it.each(['file:tracked.ts', 'file:vitest.config.ts', 'directory:../escape', 'file:a//b', 'file:.GIT/config', 'file:.GiT/config', 'file:cache/.GIT/config', 'file:NODE_MODULES/package.json', 'file:TRACKED.ts', 'file:VITEST.CONFIG.TS'])(
     'refuses unsafe or tracked export destination %s before starting Docker', (entry) => {
       const input = fixture();
       const result = run(input, [entry]);
