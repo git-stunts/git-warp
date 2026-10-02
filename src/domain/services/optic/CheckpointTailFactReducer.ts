@@ -1,3 +1,4 @@
+import type { CheckpointNodeLifecycleRecord } from './CheckpointShardFactReader.ts';
 import { LWWRegister } from '../../crdt/LWW.ts';
 import QueryError from '../../errors/QueryError.ts';
 import NodeAdd from '../../types/ops/NodeAdd.ts';
@@ -95,16 +96,22 @@ export default class CheckpointTailFactReducer {
     return Object.freeze([...nodeIds].sort());
   }
 
-  reduceNodeLiveness(
-    baseAlive: boolean,
-    tailEntries: readonly CheckpointTailPatchEntry[],
-    nodeId: string,
-  ): boolean {
-    let alive = baseAlive;
-    for (const entry of tailEntries) {
-      alive = this._reduceNodeLivenessEntry(alive, entry, nodeId);
+  reduceNodeLiveness(options: {
+    readonly baseAlive: boolean;
+    readonly lifecycle: CheckpointNodeLifecycleRecord;
+    readonly tailEntries: readonly CheckpointTailPatchEntry[];
+    readonly nodeId: string;
+  }): boolean {
+    this._assertNoNodeRemoves(options.tailEntries, options.nodeId);
+    const tail = CheckpointTailNodeScan.scan(options.tailEntries, options.nodeId);
+    if (options.lifecycle.kind === 'unwitnessed') {
+      if (tail.hasAdd()) {
+        throwNoBoundedBasis(this._graphName, 'tail-node-add-needs-checkpoint-lifecycle-witnesses');
+      }
+      return options.baseAlive;
     }
-    return alive;
+    // Tail removes were refused above, so this scan cannot be undecided.
+    return tail.livenessAfter(options.baseAlive, options.lifecycle.floatingTombstones) === 'alive';
   }
 
   reduceProperty(options: {
@@ -185,30 +192,12 @@ export default class CheckpointTailFactReducer {
     }
   }
 
-  private _reduceNodeLivenessEntry(
-    currentAlive: boolean,
-    entry: CheckpointTailPatchEntry,
-    nodeId: string,
-  ): boolean {
-    let alive = currentAlive;
-    for (const rawOp of entry.patch.ops) {
-      alive = this._reduceNodeLivenessOp(alive, normalizeRawOp(rawOp), nodeId);
+  private _assertNoNodeRemoves(entries: readonly CheckpointTailPatchEntry[], nodeId: string): void {
+    for (const entry of entries) {
+      if (entry.patch.ops.some((op) => isTargetNodeRemove(normalizeRawOp(op), nodeId))) {
+        throwNoBoundedBasis(this._graphName, 'tail-node-remove-needs-raw-liveness-witnesses');
+      }
     }
-    return alive;
-  }
-
-  private _reduceNodeLivenessOp(
-    currentAlive: boolean,
-    op: NormalizedTailOperation,
-    nodeId: string,
-  ): boolean {
-    if (isTargetNodeAdd(op, nodeId)) {
-      return true;
-    }
-    if (isTargetNodeRemove(op, nodeId)) {
-      throwNoBoundedBasis(this._graphName, 'tail-node-remove-needs-raw-liveness-witnesses');
-    }
-    return currentAlive;
   }
 
   private _tailPropertyRegister(options: {

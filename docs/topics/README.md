@@ -47,6 +47,8 @@ performance narrative lives in the root [CHANGELOG](../../CHANGELOG.md).
   compound retention, hosted performance, compatibility, and publication.
 - [Content and CAS](content-and-cas.md): handle content attachments,
   content-addressed storage, and encrypted CAS payloads.
+- [Structural attachment ownership](structural-attachments.md): distinguish
+  finite owned descendants from opaque bytes and external/live references.
 - [WARP state-cache materialization](cas-first-memoized-materialization.md):
   skip redundant live materialization replay through coordinate-addressed
   state-cache snapshots backed by `git-cas`.
