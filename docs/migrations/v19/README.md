@@ -597,6 +597,24 @@ switch (receipt.outcome.kind) {
 `conflict` and `obstruction` are different recovery classes. Runtime failures
 remain outside this four-way causal union.
 
+## Attachment API Restoration (unreleased source)
+
+The restored attachment operations below describe unreleased source-built packages after [#901](https://github.com/git-stunts/git-warp/issues/901) and [#902](https://github.com/git-stunts/git-warp/issues/902). They do not change the published `v19.1.0` migration instructions or imply that installing that release provides these operations. The next release must publish the restored API before applications can rely on it from the registry.
+
+Replace the retired PatchBuilder content workflow with Runtime-owned staging and advanced intents. Do not import PatchBuilder or implementations from private package paths. The owner must already exist or be created earlier in the same ordered array write; check the resulting receipt for obstruction. The staged value must come from the same Runtime that publishes it.
+
+| Retired operation | Restored supported source API |
+| --- | --- |
+| `attachContent(nodeId, bytes, metadata)` | `lane.stageContent(bytes, metadata)`, then `intent.node.attachContent({ subject: nodeId, content })` through `lane.write(...)` |
+| `attachEdgeContent(from, to, label, bytes, metadata)` | Stage once, then `intent.edge.attachContent({ from, to, label, content })` through `lane.write(...)` |
+| `clearContent(nodeId)` | `intent.node.clearContent({ subject: nodeId })` through `lane.write(...)` |
+| `clearEdgeContent(from, to, label)` | `intent.edge.clearContent({ from, to, label })` through `lane.write(...)` |
+| Eager `getContent` / `getEdgeContent` collection | Observe with `createNodeContentObserver` / `createEdgeContentObserver`, inspect the bounded Reading's metadata, and iterate its captured attachment's `open()` stream |
+
+The [existing executable consumer example](../../../examples/attachments.mjs) covers both owners, replacement, clearing, metadata and historical stream reopening using only supported exports. [Content and CAS](../../topics/content-and-cas.md#run-the-installed-package-example) explains its Docker tarball execution, atomicity, concurrency, history, cancellation, limits and failures. Staging is not publication or durable retention; replacing/clearing a byte association does not erase causal history.
+
+A graph identifier stored as a property or byte payload remains opaque data. External/live references and finite owned structural attachments have distinct authority, descent and retention semantics under the [structural ownership contract](../../topics/structural-attachments.md); the byte API does not implement recursive ownership or Paper II ticks. Encoding, traversal and retention implementations remain [#819](https://github.com/git-stunts/git-warp/issues/819), [#820](https://github.com/git-stunts/git-warp/issues/820) and [#821](https://github.com/git-stunts/git-warp/issues/821).
+
 ## Observation Migration
 
 Before:
