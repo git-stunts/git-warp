@@ -76,6 +76,52 @@ describe('coverage runner completion and ratchet boundary', () => {
     expect(admissions.length).toBeGreaterThan(0);
     expect(Math.max(...admissions)).toBe(1);
   });
+  it('keeps an already attained threshold unchanged after a complete run', () => {
+    const root = fixture(passingTest);
+    const attained = baseline.replace('lines: 0,', 'lines: 100,');
+    writeFileSync(join(root, 'vitest.config.ts'), attained);
+    const result = run(root);
+    expect(result.status, result.output).toBe(0);
+    expect(result.config).toBe(attained);
+  });
+  it('refuses a failed coverage threshold even when all assertions pass', () => {
+    const root = fixture(passingTest);
+    const expected = baseline.replace('lines: 0,', 'lines: 100,');
+    writeFileSync(join(root, 'vitest.config.ts'), expected);
+    writeFileSync(join(root, 'src/value.ts'), 'export function value() { return 42; }\nexport function uncovered() { return 99; }\n');
+    const result = run(root);
+    expect(result.status, result.output).toBe(1);
+    expect(result.output).toContain('1 passed');
+    expect(result.config).toBe(expected);
+  });
+  it('preserves a concurrent configuration edit instead of applying a candidate', () => {
+    const root = fixture(passingTest + `import { afterAll } from 'vitest';
+      import { readFileSync, writeFileSync } from 'node:fs';
+      afterAll(() => writeFileSync('vitest.config.ts', readFileSync('vitest.config.ts', 'utf8') + '// concurrent edit\\n'));
+    `);
+    const result = run(root);
+    expect(result.status, result.output).toBe(1);
+    expect(result.config).toBe(baseline + '// concurrent edit\n');
+  });
+  it('refuses a malformed fresh report before applying a candidate', () => {
+    const root = fixture(passingTest);
+    writeFileSync(join(root, 'summary-control.ts'), `import { writeFileSync } from 'node:fs';
+      export default class SummaryControl {
+        onFinishedReportCoverage() { writeFileSync('coverage/coverage-summary.json', '{"total":{"lines":{"pct":101}}}'); }
+      }`);
+    writeFileSync(join(root, 'vitest.config.ts'), baseline.replace('test: {', "test: { reporters: ['default', './summary-control.ts'],"));
+    const original = readFileSync(join(root, 'vitest.config.ts'), 'utf8');
+    const result = run(root);
+    expect(result.status, result.output).toBe(1);
+    expect(result.config).toBe(original);
+  });
+  it('refuses a failed atomic candidate launch without modifying the config', () => {
+    const root = fixture(passingTest);
+    writeFileSync(join(root, 'vitest.config.ts.coverage-candidate'), 'existing candidate');
+    const result = run(root);
+    expect(result.status, result.output).toBe(1);
+    expect(result.config).toBe(baseline);
+  });
   it.each(['test:coverage:ci', 'targeted'])('keeps reporting-only %s runs unchanged', command => {
     const root = fixture(passingTest);
     const result = command === 'targeted' ? run(root, 'test:coverage', ['test/unit/value.test.ts']) : run(root, command);

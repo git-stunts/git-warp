@@ -48,7 +48,7 @@ describe('non-TS tail shape', () => {
     expect(trackedNonTypeScriptTail()).not.toContain('src/infrastructure/adapters/sha1sync.d.ts');
   });
 
-  it('keeps the coverage ratchet hook and removes stale .js glob assumptions from vitest and tsconfig', () => {
+  it('disables automatic coverage writes and removes stale .js glob assumptions from vitest and tsconfig', () => {
     expect(vitestConfig.test?.coverage?.thresholds?.autoUpdate).toBe(false);
     expect(vitestConfig.test?.include).toEqual([
       '**/*.{test,spec}.?(c|m)[jt]s?(x)',

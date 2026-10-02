@@ -18,5 +18,5 @@ export function raisedLineThreshold(configuration: string, percentage: number): 
     throw new Error('coverage-ratchet: invalid line threshold or configuration');
   }
   if (percentage <= Number(threshold[1])) return configuration;
-  return configuration.replace(threshold[0], threshold[0].replace(threshold[1] ?? '', String(percentage)));
+  return configuration.replace(threshold[0], threshold[0].replace(/\d+(?:\.\d+)?/u, String(percentage)));
 }
