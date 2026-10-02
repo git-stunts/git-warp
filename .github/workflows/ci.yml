@@ -154,6 +154,15 @@ jobs:
       - name: 'Gate 5f: All twelve v19 acceptance gates'
         run: npm run test:v19-acceptance
 
+  type-firewall-packed-consumer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - name: Installed-package public API and attachment consumer gate
+        run: bash scripts/smoke-packed-artifact.sh
+
   type-firewall-docs:
     runs-on: ubuntu-latest
     steps:
@@ -201,6 +210,7 @@ jobs:
       - type-firewall-surface
       - type-firewall-generated-sdk
       - type-firewall-docs
+      - type-firewall-packed-consumer
       - type-firewall-audit
     if: ${{ always() }}
     steps:
@@ -213,6 +223,7 @@ jobs:
           echo "quarantine: ${{ needs['type-firewall-quarantine'].result }}"
           echo "surface:    ${{ needs['type-firewall-surface'].result }}"
           echo "sdk:        ${{ needs['type-firewall-generated-sdk'].result }}"
+          echo "packed:     ${{ needs['type-firewall-packed-consumer'].result }}"
           echo "docs:       ${{ needs['type-firewall-docs'].result }}"
           echo "audit:      ${{ needs['type-firewall-audit'].result }}"
 
@@ -223,6 +234,7 @@ jobs:
           test "${{ needs['type-firewall-quarantine'].result }}" = "success"
           test "${{ needs['type-firewall-surface'].result }}" = "success"
           test "${{ needs['type-firewall-generated-sdk'].result }}" = "success"
+          test "${{ needs['type-firewall-packed-consumer'].result }}" = "success"
           test "${{ needs['type-firewall-docs'].result }}" = "success"
           test "${{ needs['type-firewall-audit'].result }}" = "success"
 
