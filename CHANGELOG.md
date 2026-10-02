@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keep in-memory adapter hash capabilities instance-owned; a successful or failed
   crypto probe can no longer determine another adapter's hashing behavior (#221).
 
+- VersionVector construction validates writer/counter entries, omits zero
+  counters and snapshots caller-owned maps so later mutations cannot corrupt
+  causal state (#205).
+
 - Bounded checkpoint-tail node reads honor checkpoint tombstones for late
   arriving adds and refuse unwitnessed adds instead of resurrecting a node
   already removed by the checkpoint (#894).
