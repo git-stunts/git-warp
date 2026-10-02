@@ -1,5 +1,5 @@
-import { spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { delimiter, dirname, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // Calibrate host refusal inside Docker: hide only container evidence from
@@ -14,6 +14,17 @@ syncBuiltinESMExports();
 const PRELOAD = `data:text/javascript,${encodeURIComponent(HIDE_CONTAINER_MARKER)}`;
 
 describe('Docker test isolation', () => {
+  it('resolves a direct package command without npm adding its binary directory', () => {
+    const shell = execFileSync('sh', ['-c', 'command -v bash'], { encoding: 'utf8' }).trim();
+    const result = spawnSync(shell, ['scripts/run-in-docker.sh', 'vitest', '--version'], {
+      encoding: 'utf8',
+      env: { PATH: [dirname(process.execPath), dirname(shell)].join(delimiter) },
+    });
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/vitest\/\d+/u);
+  });
+
   it('accepts actual container evidence without environment flags', () => {
     const result = spawnSync(process.execPath, ['scripts/RequireDockerTests.ts'], {
       encoding: 'utf8',
