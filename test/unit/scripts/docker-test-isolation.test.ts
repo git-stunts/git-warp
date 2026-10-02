@@ -14,6 +14,18 @@ syncBuiltinESMExports();
 const PRELOAD = `data:text/javascript,${encodeURIComponent(HIDE_CONTAINER_MARKER)}`;
 
 describe('Docker test isolation', () => {
+  it.each([
+    { args: [] }, { args: ['--export-directory'] }, { args: ['--export-file'] },
+    { args: ['--export-file', '--', 'true'] },
+  ])(
+    'reports invalid command arguments $args with an explicit usage error', ({ args }) => {
+      const result = spawnSync('bash', ['scripts/run-in-docker.sh', ...args], { encoding: 'utf8' });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('Usage:');
+      expect(result.stderr).not.toContain('unbound variable');
+    },
+  );
+
   it('resolves a direct package command without npm adding its binary directory', () => {
     const shell = execFileSync('sh', ['-c', 'command -v bash'], { encoding: 'utf8' }).trim();
     const result = spawnSync(shell, ['scripts/run-in-docker.sh', 'vitest', '--version'], {

@@ -6,17 +6,24 @@ entries=(none)
 source_history=0
 update_ratchet=0
 snapshot=0
+usage() {
+  echo 'Usage: run-in-docker.sh [--export-directory PATH | --export-file PATH | --coverage-ratchet | --snapshot] [--] COMMAND [ARGS...]' >&2
+  exit 2
+}
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
-    --export-directory) entries+=("directory:$2"); shift 2;;
-    --export-file) entries+=("file:$2"); shift 2;;
+    --export-directory|--export-file)
+      [[ "$#" -ge 2 && -n "$2" && "$2" != -* ]] || usage
+      if [[ "$1" == --export-directory ]]; then entries+=("directory:$2");
+      else entries+=("file:$2"); fi
+      shift 2;;
     --coverage-ratchet) update_ratchet=1; entries+=(directory:coverage); shift;;
     --snapshot) snapshot=1; source_history=1; shift;;
     --) shift; break;;
     *) break;;
   esac
 done
-[[ "$#" -gt 0 ]]
+[[ "$#" -gt 0 ]] || usage
 if [[ "$snapshot" == 1 ]]; then
   output_root=.ratchet
   for arg in "$@"; do
