@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bound Mermaid validation rendering and browser shutdown separately, reclaim
   validator-owned worker/browser processes on success, failure, timeout and
   interruption, and fail the documentation gate if reclamation cannot be
-  established. Completed SVG files alone cannot pass validation (#870).
+  established. Node Docker images provide Chromium and reap adopted children.
+  Completed SVG files alone cannot pass validation (#870).
 
 - Atomic Intent arrays reject descriptors exceeding 16 MiB before allocating
   their complete canonical string or UTF-8 buffer. Exact byte accounting covers

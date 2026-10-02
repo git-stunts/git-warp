@@ -21,6 +21,11 @@ its endpoint or worker connection, so failed startup IPC cannot orphan it.
 Browser profiles and render artifacts live in the validator's temporary
 directory, which is removed afterward.
 
+The Node test Docker images install system Chromium and declare its executable
+for Puppeteer. They disable Chromium sandboxing inside the already isolated
+container. Native-browser regressions run in ordinary unit and coverage gates.
+Both Node Compose services use an init process to reap adopted descendants.
+
 Run regression checks through Docker:
 
 ```sh
