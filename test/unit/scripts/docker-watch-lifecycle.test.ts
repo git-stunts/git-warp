@@ -63,7 +63,7 @@ case "$1" in
       *) exit "$EXIT_STATUS";;
     esac
     ;;
-  down) ;;
+  down) [[ "$*" == *"--rmi local"* ]];;
   *) exit 91;;
 esac
 `);

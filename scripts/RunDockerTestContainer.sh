@@ -105,7 +105,7 @@ cleanup() {
     }
   fi
   if [[ "$orchestration_started" == 1 ]]; then
-    "${compose[@]}" down --timeout 10 || {
+    "${compose[@]}" down --timeout 10 --rmi local || {
       echo 'Failed to clean up Docker test project' >&2
       if [[ "$status" == 0 ]]; then status=1; fi
     }

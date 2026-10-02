@@ -38,6 +38,9 @@ echo "$1" >> "$TRACE"
 case "$1" in
   compose)
     for arg in "$@"; do case "$arg" in --rm|--mount|--volume|-v) exit 91;; esac; done
+    if [[ "$*" == *" down "* ]]; then
+      [[ "$*" == *"--rmi local"* ]]
+    fi
     echo fixture-container
     ;;
   exec)
