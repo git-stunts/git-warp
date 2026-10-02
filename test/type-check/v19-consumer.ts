@@ -2,6 +2,9 @@
 
 import {
   Runtime,
+  type ContentInput,
+  type ContentMetadataInput,
+  type StagedContent,
   type AdmissionOutcome,
   type EntityAdmission,
   type Evidence,
@@ -128,3 +131,13 @@ void receipt;
 void manyReceipt;
 void settlementPublicReceipt;
 await runtime.close();
+
+/** Portable staging metadata is available without importing storage implementation types. */
+async function stageContent(lane: Lane, content: ContentInput, metadata: ContentMetadataInput): Promise<StagedContent> {
+  const staged = await lane.stageContent(content, metadata);
+  // @ts-expect-error Staged metadata is immutable.
+  staged.size = 42;
+  // @ts-expect-error Raw ArrayBuffer is not a supported byte source.
+  await lane.stageContent(new ArrayBuffer(4));
+  return staged;
+}
