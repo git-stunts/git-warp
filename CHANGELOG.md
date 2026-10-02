@@ -135,6 +135,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   64 KiB budget, preventing getter changes and caller mutation from bypassing it.
   Validate the resulting snapshot and traverse array indexes directly so changing
   getters and overridden array methods cannot inject invalid values or evade copying.
+  Asset limits, plaintext accounting, collectors and direct-content metadata read
+  native typed-array lengths rather than caller-shadowable `byteLength` properties.
 - Reject new inline binary property writes exceeding 64 KiB in aggregate,
   including nested binary values, before intent copying or patch mutation.
   Larger binary payloads must use streaming content assets (#818).

@@ -1,3 +1,4 @@
+import assetByteLength from '../storage/assetByteLength.ts';
 import WarpError from '../errors/WarpError.ts';
 import { isPropValue, type PropValue } from './PropValue.ts';
 
@@ -19,8 +20,11 @@ export default class InlineBinaryBudget {
 
   #copy(value: PropValue): PropValue {
     if (value instanceof Uint8Array) {
-      this.#consumeBytes(value.byteLength);
-      return new Uint8Array(value);
+      const length = assetByteLength(value);
+      this.#consumeBytes(length);
+      const snapshot = new Uint8Array(length);
+      snapshot.set(value);
+      return snapshot;
     }
     if (value === null || typeof value !== 'object') { return value; }
     if (Array.isArray(value)) { return this.#copyArray(value); }
