@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Install the Bun test image's reviewed npm dependency graph with `npm ci`
+  before copying it into Bun, include every current workspace manifest in the
+  install layer, and refuse manifest or installed dependency drift (#865).
+
 - Atomic Intent arrays reject descriptors exceeding 16 MiB before allocating
   their complete canonical string or UTF-8 buffer. Exact byte accounting covers
   aggregate members, escaping, Unicode, nested properties and inline binary
