@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Register the existing `checkpoint-basis-unavailable` optic failure cause so
+  checkpoint verifier refusals can be represented by typed failure contexts.
+  Bounded-basis helpers accept only registered cause identifiers (#895).
+
 - Atomic Intent arrays reject descriptors exceeding 16 MiB before allocating
   their complete canonical string or UTF-8 buffer. Exact byte accounting covers
   aggregate members, escaping, Unicode, nested properties and inline binary
