@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { createTestRepo } from './helpers/setup.ts';
 
-it('preserves stale and concurrent node/edge semantics through public GC, checkpoint reopen and later writer replay', async () => {
+it('preserves stale and concurrent node/edge semantics through internal WarpCore GC, checkpoint reopen and later writer replay', async () => {
   const repo = await createTestRepo('membership-compaction-safety');
   try {
     const alice = await repo.openGraph('safety', 'alice');
