@@ -889,7 +889,7 @@ refs. No v18 compatibility runtime remains in the product code.
 
 The exact merged-main Node 22/Linux release gate measured a representative
 16-property scan over the authentic approximately 2 MiB migrated-v18 fixture at
-31.1% lower cold wall time, 32.1% lower warm wall time, 20.1–21.3% lower
+31.1% lower cold wall time, 32.1% lower warm wall time, 20.0–21.3% lower
 operation CPU, and 46.6% fewer Git commands than published v18.2.1. The
 one-shot migration cost is measured and reported separately from steady-state
 reads.
