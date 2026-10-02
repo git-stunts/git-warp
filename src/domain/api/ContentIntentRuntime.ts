@@ -85,9 +85,8 @@ export function contentIntentFromOperations(
   operations: readonly PatchOp[], index: number,
 ): Intent | null {
   const triple = contentTriple(operations, index);
-  if (triple === null || triple[0].key !== CONTENT_PROPERTY_KEY) { return null; }
-  const intent = intentFromTriple(triple);
-  return intent !== null && matchesRecovered(intent, operations, index) ? intent : null;
+  if (triple === null) { return null; }
+  return contentKeysMatch(triple) && contentOwnersMatch(triple) ? recognizeAttachment(triple) : null;
 }
 
 type ContentTriple = readonly [ContentPropertyOperation, ContentPropertyOperation, ContentPropertyOperation];
@@ -97,6 +96,29 @@ function contentTriple(operations: readonly PatchOp[], index: number): ContentTr
   const mime = operations[index + 2];
   return isContentPropertyOperation(identity) && isContentPropertyOperation(size) && isContentPropertyOperation(mime)
     ? [identity, size, mime] : null;
+}
+
+function contentKeysMatch([identity, size, mime]: ContentTriple): boolean {
+  return identity.key === CONTENT_PROPERTY_KEY && size.key === CONTENT_SIZE_PROPERTY_KEY
+    && mime.key === CONTENT_MIME_PROPERTY_KEY;
+}
+
+function contentOwnersMatch([identity, size, mime]: ContentTriple): boolean {
+  const owner = propertyOwner(identity);
+  return propertyOwner(size) === owner && propertyOwner(mime) === owner;
+}
+
+function propertyOwner(operation: ContentPropertyOperation): string {
+  return operation instanceof EdgePropSet
+    ? encodeLegacyEdgePropNode(operation.from, operation.to, operation.label) : operation.node;
+}
+
+/** Scalar history remains scalar when it cannot establish valid attachment metadata. */
+function recognizeAttachment(triple: ContentTriple): Intent | null {
+  try { return intentFromTriple(triple); } catch (error) {
+    if (error instanceof WarpError) { return null; }
+    throw error;
+  }
 }
 
 function intentFromTriple([identity, size, mime]: ContentTriple): Intent | null {
@@ -126,12 +148,6 @@ function contentFromMetadata(
 
 function isContentMime<T>(value: T | string | null): value is string | null {
   return value === null || typeof value === 'string';
-}
-
-function matchesRecovered(intent: Intent, operations: readonly PatchOp[], index: number): boolean {
-  const { descriptor } = intent;
-  return isContentIntentDescriptor(descriptor)
-    && contentIntentMatchesOperations(descriptor, operations.slice(index, index + CONTENT_INTENT_OPERATION_COUNT));
 }
 
 function clearIntentFor(operation: ContentPropertyOperation): Intent {

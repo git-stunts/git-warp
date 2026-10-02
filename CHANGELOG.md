@@ -116,6 +116,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Retained strand recovery recognizes only complete, valid attachment triples; scalar writes resembling invalid attachment metadata remain scalar and can be reopened (#901).
+
 - Asset staging preserves the original typed producer or validation error when storage wraps it as a stream failure. Unrelated storage failures retain their original error.
 
 - Inline property snapshots reject absent array indexes even when a prototype supplies their values.

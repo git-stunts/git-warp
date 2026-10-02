@@ -12,6 +12,7 @@ import EdgePropSet from '../../../src/domain/types/ops/EdgePropSet.ts';
 import NodePropSet from '../../../src/domain/types/ops/NodePropSet.ts';
 import PropSet from '../../../src/domain/types/ops/PropSet.ts';
 import Patch from '../../../src/domain/types/Patch.ts';
+import { encodeLegacyEdgePropNode } from '../../../src/domain/services/KeyCodec.ts';
 import { createPatchBuilder, RecordingAssetStorage } from './services/PatchBuilderTestHarness.ts';
 
 const EDGE = Object.freeze({ from: 'a', to: 'b', label: 'links' });
@@ -147,6 +148,31 @@ describe('attachment intent runtime', () => {
     applyIntentSequenceToPatch(sequence, target);
     expect(target.contentAssets.map(String)).toEqual(['asset:retained']);
     expect(target.build().ops.slice(3)).toEqual(patch.ops);
+  });
+
+  it.each([
+    { id: 'asset:scalar', size: -1, mime: 'text/plain' },
+    { id: 'asset:scalar', size: Number.MAX_SAFE_INTEGER + 1, mime: 'text/plain' },
+    { id: 'asset:scalar', size: 1, mime: '' },
+    { id: 'asset:scalar', size: 1, mime: 'text/\0plain' },
+    { id: '', size: 1, mime: null },
+    { id: 'asset:\0scalar', size: 1, mime: null },
+    { id: 'asset:\nscalar', size: 1, mime: null },
+    { id: 'x'.repeat(4097), size: 1, mime: null },
+  ])('preserves invalid attachment metadata as scalar operations: %j', ({ id, size, mime }) => {
+    for (const operations of [
+      [new NodePropSet('a', '_content', id), new NodePropSet('a', '_content.size', size),
+        new NodePropSet('a', '_content.mime', mime)],
+      [new EdgePropSet({ ...EDGE, key: '_content', value: id }),
+        new EdgePropSet({ ...EDGE, key: '_content.size', value: size }),
+        new EdgePropSet({ ...EDGE, key: '_content.mime', value: mime })],
+    ]) {
+      expect(contentIntentFromOperations(operations, 0)).toBeNull();
+      const persisted = operations.map((op) => op instanceof EdgePropSet
+        ? new PropSet(encodeLegacyEdgePropNode(op.from, op.to, op.label), op.key, op.value) : op);
+      const recovered = intentSequenceFromPatch(new Patch({ schema: 2, writer: 'old', lamport: 1, context: {}, ops: persisted }));
+      expect(recovered.kinds).toEqual(['property.set', 'property.set', 'property.set']);
+    }
   });
 
   it('rejects tampered attachment metadata during exact publication inspection', async () => {
