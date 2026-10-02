@@ -1,3 +1,4 @@
+import { runAttachmentMemoryWitnessWithCleanup } from './AttachmentMemoryWitnessCleanup.mjs';
 import process from 'node:process';
 import console from 'node:console';
 import { ensureDocker } from '@git-stunts/docker-guard';
@@ -45,7 +46,7 @@ if (mode === 'eager') {
     ? CasContentEncryptionPolicy.fromInternalResolvedKey({ encryptionKey: new Uint8Array(32).fill(7), scheme: 'framed', frameBytes: CHUNK })
     : CasContentEncryptionPolicy.disabled();
   const storage = new GitCasRepositoryAdapter({ plumbing, history: persistence, contentEncryption });
-  try {
+  await runAttachmentMemoryWitnessWithCleanup(async () => {
     const graph = await WarpCore.open({ runtimeStorage: storage, stateCache: null, persistence,
       graphName: 'memory', writerId: 'writer', commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC, codec, crypto: new WebCryptoAdapter() });
     const patch = await graph.createPatch();
@@ -62,9 +63,9 @@ if (mode === 'eager') {
     const actual = actualHash.digest('hex');
     if (drained !== TOTAL || produced !== TOTAL || actual !== expected) throw new Error('byte mismatch');
     console.log(JSON.stringify({ mode, produced, drained, sha256: actual, memory: process.memoryUsage() }));
-  } finally {
-    await storage.close();
-    await persistence.close();
-    await rm(directory, { recursive: true });
-  }
+  }, [
+    async () => await storage.close(),
+    async () => await persistence.close(),
+    async () => await rm(directory, { recursive: true }),
+  ]);
 }
