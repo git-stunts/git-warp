@@ -111,6 +111,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline property snapshots reject absent array indexes even when a prototype supplies their values.
+
 - Attachment metadata reports consumed plaintext size under framed encryption,
   independently of ciphertext overhead in CAS receipts. Staging rejects receipts
   returned before full input consumption and still checks unencrypted byte counts.

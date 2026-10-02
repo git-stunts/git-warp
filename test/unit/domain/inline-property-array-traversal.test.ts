@@ -27,6 +27,30 @@ describe('inline array snapshot traversal', () => {
       .toThrow(expect.objectContaining({ code: 'E_INLINE_PROPERTY_VALUE' }));
   });
 
+  it('rejects sparse arrays with inherited values at the patch boundary', () => {
+    const value: number[] = [];
+    value.length = 1;
+    Object.setPrototypeOf(value, [42]);
+    expect(() => requirePatchPropertyValue(value))
+      .toThrow(expect.objectContaining({ code: 'E_INLINE_PROPERTY_VALUE' }));
+  });
+
+  it('rejects inherited array entries at the intent boundary', () => {
+    const value: number[] = [];
+    value.length = 1;
+    Object.setPrototypeOf(value, [42]);
+    expect(() => new Intent({ kind: 'property.set', subject: 'n', key: 'data', value }))
+      .toThrow(expect.objectContaining({ code: 'E_INLINE_PROPERTY_VALUE' }));
+  });
+
+  it('rejects own array entries that become undefined during copying', () => {
+    const value = [42];
+    let reads = 0;
+    Object.defineProperty(value, 0, { get: () => reads++ === 0 ? 42 : undefined });
+    expect(() => requirePatchPropertyValue(value))
+      .toThrow(expect.objectContaining({ code: 'E_INLINE_PROPERTY_VALUE' }));
+  });
+
   it('copies null-prototype property records', () => {
     const value = { nested: [1, null] };
     Object.setPrototypeOf(value, null);

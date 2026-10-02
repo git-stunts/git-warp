@@ -36,6 +36,9 @@ export default class InlineBinaryBudget {
     const snapshot: PropValue[] = [];
     const { length } = value;
     for (let index = 0; index < length; index += 1) {
+      if (!Object.hasOwn(value, index)) {
+        throw new WarpError('Inline array contains an absent property value', 'E_INLINE_PROPERTY_VALUE');
+      }
       const { [index]: entry } = value;
       if (entry === undefined) {
         throw new WarpError('Inline array contains an absent property value', 'E_INLINE_PROPERTY_VALUE');
