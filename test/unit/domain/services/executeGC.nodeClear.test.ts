@@ -59,7 +59,9 @@ it('reclaims delayed stale registers after original membership records have gone
   const unswept = removedNode();
   const swept = unswept.clone();
   // Simulate a legacy state that already retired its owner records.
-  swept.nodeAlive.compact(VersionVector.from({ A: 1 }));
+  // Model a state missing the entry while retaining its floating tombstone.
+  // The property-clear contract must remain independent of entry retention.
+  swept.nodeAlive.entries.delete('n');
   executeGC(swept, VersionVector.from({ A: 1 }));
   const delayed = createEmptyState();
   applyPatchOp(delayed, new PropSet('n', 'k', 'old'), event(2));

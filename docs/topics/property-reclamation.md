@@ -66,9 +66,10 @@ sweeping supports arbitrary later state joins even with a nonempty applied
 frontier. All supported GC and checkpoint collection paths retain node and edge
 membership entries and tombstones: an applied vector is not proof that stale
 additions can no longer arrive. Session GC currently reclaims nothing because
-sessions own only membership. [#911](https://github.com/git-stunts/git-warp/issues/911)
-tracks the future retirement contract; the unsafe primitive is not called by
-these shipping paths. Tests compare
+sessions own only membership. Low-level eager and trie compaction also retain
+all membership evidence under the [preservation contract](membership-compaction.md)
+for [#911](https://github.com/git-stunts/git-warp/issues/911). Those calls retire
+no dots or tombstones and establish no metadata bound. Tests compare
 visible nodes, properties, attachments and hashes, as well as retained-register
 counts. Delayed stale registers may enter a joined state, but the next sweep
 reclaims them using the retained clear without requiring their owner to reappear.

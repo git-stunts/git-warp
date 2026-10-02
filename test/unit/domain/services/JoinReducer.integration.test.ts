@@ -844,7 +844,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     expect(hashAfter).toBe(hashBefore);
   });
 
-  it('compaction removes only tombstoned dots within VV', () => {
+  it('compaction retains removed dots even within the applied VV', () => {
     // Create state with known structure
     const patchA = {
       patch: createPatch({
@@ -871,7 +871,7 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     // Node should be gone
     expect(nodeVisible(state, 'x')).toBe(false);
 
-    // Compaction should clean up
+    // An applied frontier cannot prove that stale additions will never rejoin.
     const vv = VersionVector.empty();
     vv.set('A', 2);
     state.nodeAlive.compact(vv);
@@ -879,8 +879,9 @@ describe('KILLER TEST 4: Compaction Safety Test (GC warranty)', () => {
     // State should still have same visible projection (empty)
     expect(nodeVisible(state, 'x')).toBe(false);
 
-    // Internal cleanup: entries should be empty
-    expect(state.nodeAlive.entries.size).toBe(0);
+    expect(state.nodeAlive.entries.size).toBe(1);
+    expect(state.nodeAlive.tombstones.has('A:1')).toBe(true);
+    expect(state.join(reducePatches([patchA])).nodeAlive.contains('x')).toBe(false);
   });
 
   it('compaction preserves live dots even when <= VV', () => {
