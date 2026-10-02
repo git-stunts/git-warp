@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Define finite structural attachment ownership, preservation, conflict and
+  atomicity laws with paper-backed node/edge reference witnesses (#903). The
+  executable model is test-only; the public Runtime still exposes opaque byte
+  attachments rather than recursive structural ownership.
+
 - Restore public node and edge content observers with frozen owner/metadata, historical streaming, bounded causal projection, and Runtime-owned stream cleanup (#901).
 
 - `Lane.stageContent()` streams bytes into Runtime-owned storage and returns immutable identity, MIME and plaintext-size metadata without publishing a graph write. Worldline and strand lanes share the Runtime's staging provenance and shutdown lifetime. Staging alone does not establish durable attachment retention.
