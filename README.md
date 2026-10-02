@@ -539,7 +539,7 @@ Check [CHANGELOG.md](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c1
 ### What about performance and scale?
 
 The exact merged-main v19 release gate measured its representative migrated-v18
-retained scan at 31.1–32.1% lower wall time, 20.1–21.3% lower operation CPU,
+retained scan at 31.1–32.1% lower wall time, 20.0–21.3% lower operation CPU,
 and 46.6% fewer Git commands than v18.2.1. A separate 256 MiB logical Observer
 stream completes under a 64 MiB old-space cap. These are bounded workload
 contracts, not a claim that every repository or query has the same speedup. For
