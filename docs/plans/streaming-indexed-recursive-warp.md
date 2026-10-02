@@ -1,8 +1,15 @@
 # Streaming, Indexed, Recursive WARP
 
-Status: proposed
+Status: proposed technical design; historical release sequencing superseded
 
-Target: v20.0.0
+Target: [v21.0.0 — Bounded retained storage and recursive WARP](./v21.0.0/README.md)
+
+The accepted 2026-10-01 roadmap moves this capability to v21.0.0 and reserves
+v20.0.0 for immediate memory safety and public byte attachments. The versioned
+plan owns current scope, prerequisites, and release evidence. The incident,
+source anchors, and former release decision below are retained as historical
+design evidence; they do not direct the current release sequence or establish
+current implementation status.
 
 Priority: release-defining
 
@@ -49,7 +56,10 @@ opens each referenced graph lazily, uses that graph's local indexes, detects
 cycles, observes explicit limits, and records every resolved graph basis in its
 receipt.
 
-## Release Decision
+## Historical Release Decision (Superseded)
+
+This section records the original proposal. Follow the
+[versioned release plans](./README.md) for the accepted sequence.
 
 This work takes priority over the existing v19.0.1 migration UX and
 documentation roadmap.
