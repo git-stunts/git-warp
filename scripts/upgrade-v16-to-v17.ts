@@ -256,7 +256,6 @@ async function discoverGraphNames(persistence: V16ToV17MigrationHistory): Promis
       names.add(graphName);
     }
   }
-
   return [...names].sort();
 }
 
