@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- VersionVector construction validates writer/counter entries, omits zero
+  counters and snapshots caller-owned maps so later mutations cannot corrupt
+  causal state (#205).
+
 - Atomic Intent arrays reject descriptors exceeding 16 MiB before allocating
   their complete canonical string or UTF-8 buffer. Exact byte accounting covers
   aggregate members, escaping, Unicode, nested properties and inline binary
