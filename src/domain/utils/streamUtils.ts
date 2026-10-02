@@ -1,3 +1,4 @@
+import WarpError from '../errors/WarpError.ts';
 import BoundedByteCollector from '../storage/BoundedByteCollector.ts';
 
 /**
@@ -70,6 +71,9 @@ export function normalizeToAsyncIterable(content: StreamInput): AsyncIterable<Ui
     ? _encoder.encode(content)
     : content;
 
+  if (!(bytes instanceof Uint8Array)) {
+    throw new WarpError('Content input must be bytes, text, or a byte stream', 'E_CONTENT_INPUT_INVALID');
+  }
   return singleValueAsyncIterable(bytes);
 }
 

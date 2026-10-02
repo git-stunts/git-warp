@@ -1,3 +1,4 @@
+import requireAssetByteChunk from './requireAssetByteChunk.ts';
 import WarpError from '../errors/WarpError.ts';
 
 const INITIAL_CAPACITY = 1024;
@@ -17,7 +18,8 @@ export default class BoundedByteCollector {
   async collect(source: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
     let bytes: Uint8Array = new Uint8Array();
     let length = 0;
-    for await (const chunk of source) {
+    for await (const inputChunk of source) {
+      const chunk = requireAssetByteChunk(inputChunk);
       if (chunk.byteLength > this.#maxBytes - length) {
         throw collectionLimit('Byte collection exceeds its explicit limit; use streaming assets', this.#maxBytes);
       }

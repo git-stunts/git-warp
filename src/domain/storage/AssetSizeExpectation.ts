@@ -1,3 +1,4 @@
+import requireAssetByteChunk from './requireAssetByteChunk.ts';
 import AssetSizeMismatchError from '../errors/AssetSizeMismatchError.ts';
 import WarpError from '../errors/WarpError.ts';
 
@@ -16,7 +17,8 @@ export default class AssetSizeExpectation {
   /** Rejects excess bytes before forwarding a chunk; verifies EOF length. */
   async *stream(source: AsyncIterable<Uint8Array>): AsyncIterable<Uint8Array> {
     let observed = 0;
-    for await (const chunk of source) {
+    for await (const inputChunk of source) {
+      const chunk = requireAssetByteChunk(inputChunk);
       const next = observed + chunk.byteLength;
       if (chunk.byteLength > this.#bytes - observed) {
         throw new AssetSizeMismatchError(this.#bytes, next);

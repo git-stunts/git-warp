@@ -61,9 +61,10 @@ export async function stageContentAttachment(
 export async function storeContentAttachmentPayload(
   options: StoreContentAttachmentPayloadOptions
 ): Promise<ContentAttachmentPayload> {
+  const source = normalizeToAsyncIterable(options.content);
   const metadata = contentMetadata(options.content, options.metadata);
   const staged = await options.assetStorage.stage(
-    normalizeToAsyncIterable(options.content),
+    source,
     assetWriteOptions(options.slug, metadata.expectedSize)
   );
   return new ContentAttachmentPayload({
