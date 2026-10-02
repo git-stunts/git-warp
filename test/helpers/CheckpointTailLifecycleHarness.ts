@@ -26,6 +26,7 @@ import CheckpointTailOpticSource, {
 import CheckpointTailFactReducer from '../../src/domain/services/optic/CheckpointTailFactReducer.ts';
 import CheckpointTailWitnessLocator from '../../src/domain/services/optic/CheckpointTailWitnessLocator.ts';
 import Optic from '../../src/domain/services/optic/Optic.ts';
+import type NodeOpticReadResult from '../../src/domain/services/optic/NodeOpticReadResult.ts';
 import OpticAperturePosture from '../../src/domain/services/optic/OpticAperturePosture.ts';
 import OpticBasisPosture from '../../src/domain/services/optic/OpticBasisPosture.ts';
 import OpticCoordinatePosture from '../../src/domain/services/optic/OpticCoordinatePosture.ts';
@@ -129,8 +130,27 @@ export async function tailRead(
     const result = await locator.readNodeProperty(propertyOptic());
     return { kind: 'value', value: result.value ?? null };
   } catch (error) {
+    if (!(error instanceof QueryError)) { throw error; }
     return { kind: 'refused', reason: refusalReason(error) };
   }
+}
+
+/** Reads node membership through the production locator over checkpoint-writer roots. */
+export async function tailNodeRead(
+  scenario: HarnessScenario,
+  options: Readonly<{ recordsAbsent?: boolean; damage?: HarnessRootDamage }> = {},
+): Promise<NodeOpticReadResult> {
+  const indexStore = new MockIndexStorage();
+  const written = await writeBasis(replay(stepsOf(scenario.checkpoint)), indexStore, options.recordsAbsent ?? false);
+  const roots = options.damage === undefined ? written : await damageRoot(written, indexStore, options.damage);
+  const locator = new CheckpointTailWitnessLocator({ source: new HarnessSource({ indexStore, scenario, roots }) });
+  return await locator.readNode(Optic.node({
+    coordinatePosture: OpticCoordinatePosture.capturedCoordinate(),
+    aperturePosture: OpticAperturePosture.defaultFullRead(),
+    basisPosture: OpticBasisPosture.checkpointTailBasisVerified(),
+    evidencePosture: ContinuumEvidencePosture.translatedGitWarpEvidence(),
+    nodeId: HARNESS_NODE,
+  }));
 }
 
 /**
@@ -254,15 +274,9 @@ function propertyOptic(): Optic {
   });
 }
 
-function refusalReason(error: unknown): string {
-  if (!(error instanceof Error)) {
-    throw error;
-  }
-  const context: unknown = Reflect.get(error, 'context');
-  const cause = typeof context === 'object' && context !== null ? Reflect.get(context, 'cause') : undefined;
-  if (typeof cause !== 'string') {
-    throw error;
-  }
+function refusalReason(error: QueryError): string {
+  const cause = error.context['cause'];
+  if (typeof cause !== 'string') { throw error; }
   return cause;
 }
 
