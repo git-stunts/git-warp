@@ -98,6 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Attachment reads after checkpoint and Git GC recover from a stale mktree
+  process with one fresh-process retry. Broken-pipe and closed-input errors are
+  classified at the dependency protocol boundary; unrelated errors still fail.
+
 - Skip edge-property rows with invalid runtime identifier or slot fields, consistently across iterators and attachment projections, while retaining their stored registers.
 
 - Validate checkpoint projection property values and preserve absent lifecycle witnesses instead of fabricating invalid birth events.
