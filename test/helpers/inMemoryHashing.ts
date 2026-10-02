@@ -24,65 +24,27 @@ export function toBytes(data: string | Uint8Array): Uint8Array {
 }
 
 // ---------------------------------------------------------------------------
-// Lazy node:crypto probe (module-level singleton)
-// ---------------------------------------------------------------------------
-
-type CreateHashFn = (algorithm: string) => {
-  update(data: Uint8Array): { digest(encoding: string): string };
-};
-
-let _nodeCreateHash: CreateHashFn | null = null;
-let _cryptoProbed = false;
-
-/**
- * Lazily probes for node:crypto on first call. Avoids top-level await
- * which forces the module into async evaluation.
- */
-async function probeNodeCrypto(): Promise<CreateHashFn | null> {
-  if (_cryptoProbed) {
-    return _nodeCreateHash;
-  }
-  try {
-    const nodeCrypto = await import('node:crypto');
-    _nodeCreateHash = nodeCrypto.createHash as CreateHashFn;
-    _cryptoProbed = true;
-  } catch {
-    // Browser, non-Node runtime, or test-level module mock: callers decide
-    // whether missing ambient hashing is acceptable for their boundary.
-    _cryptoProbed = false;
-  }
-  return _nodeCreateHash;
-}
-
-/** Default hash function using node:crypto SHA-1. */
-export function defaultHash(data: Uint8Array): string {
-  const createHash = _nodeCreateHash;
-  if (createHash === null) {
-    throw new WarpError(
-      'defaultHash called before node:crypto initialization completed',
-      'E_HASH_NOT_READY',
-    );
-  }
-  return createHash('sha1').update(data).digest('hex');
-}
-
-/**
- * Eagerly kicks off the async crypto probe when no custom hash is provided.
- * Returns a promise that resolves when the probe completes.
- */
-export async function initCryptoReady(hash: HashFn | undefined): Promise<boolean> {
-  if (hash !== null && hash !== undefined) {
-    return true;
-  }
-  const createHash = await probeNodeCrypto();
-  return createHash !== null;
-}
-
-// ---------------------------------------------------------------------------
-// Hash function type
+// Instance-owned hash capability preparation
 // ---------------------------------------------------------------------------
 
 export type HashFn = (data: Uint8Array) => string;
+
+/** Capture hashing for one adapter; no process-wide probe state is retained. */
+export async function prepareHash(hash: HashFn | undefined): Promise<HashFn | null> {
+  if (hash !== undefined) {
+    return typeof hash === 'function' ? hash : null;
+  }
+  try {
+    const { createHash } = await import('node:crypto');
+    if (typeof createHash !== 'function') {
+      return null;
+    }
+    return data => createHash('sha1').update(data).digest('hex');
+  } catch {
+    // An unavailable host capability belongs only to this adapter instance.
+    return null;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Git SHA helpers
