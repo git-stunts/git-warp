@@ -44,6 +44,8 @@ import type LoggerPort from '../../ports/LoggerPort.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type AssetHandle from '../storage/AssetHandle.ts';
+import type ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
+import type { ContentAttachmentEdgeWriteTarget } from '../graph/ContentAttachmentWriteIntent.ts';
 
 type DeletePolicy = 'reject' | 'cascade' | 'warn';
 
@@ -338,6 +340,20 @@ export class PatchBuilder {
   clearContent(nodeId: string): PatchBuilder {
     this._assertNotCommitted();
     this._properties.clearNodeContent(nodeId);
+    return this;
+  }
+
+  /** Internal lowering boundary for payloads authorized by the owning Runtime. */
+  attachStagedContent(nodeId: string, payload: ContentAttachmentPayload): PatchBuilder {
+    this._assertNotCommitted();
+    this._properties.attachStagedNodeContent(nodeId, payload);
+    return this;
+  }
+
+  /** Includes a pre-staged edge attachment in this patch's atomic publication. */
+  attachStagedEdgeContent(edge: ContentAttachmentEdgeWriteTarget, payload: ContentAttachmentPayload): PatchBuilder {
+    this._assertNotCommitted();
+    this._properties.attachStagedEdgeContent(edge, payload);
     return this;
   }
 

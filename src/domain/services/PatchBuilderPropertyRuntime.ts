@@ -1,5 +1,6 @@
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
-import ContentAttachmentWriteIntent from '../graph/ContentAttachmentWriteIntent.ts';
+import ContentAttachmentWriteIntent, { type ContentAttachmentEdgeWriteTarget } from '../graph/ContentAttachmentWriteIntent.ts';
+import type ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
 import EdgePropertyWriteIntent from '../graph/EdgePropertyWriteIntent.ts';
 import NodePropertyWriteIntent from '../graph/NodePropertyWriteIntent.ts';
 import type AssetHandle from '../storage/AssetHandle.ts';
@@ -113,6 +114,13 @@ export default class PatchBuilderPropertyRuntime {
       metadata,
     });
     this.#options.assertMutable();
+    this.attachStagedNodeContent(nodeId, payload);
+  }
+
+  /** Lowers an already-staged payload and includes it in this patch's retention roots. */
+  attachStagedNodeContent(nodeId: string, payload: ContentAttachmentPayload): void {
+    assertNoReservedBytes(nodeId, 'nodeId');
+    this.#assertNodeExistsForContent(nodeId);
     const intent = ContentAttachmentWriteIntent.forNode(nodeId, payload);
     this.#lowerNodeContentIntent(intent);
     this.#contentAssets.push(intent.handle());
@@ -141,6 +149,16 @@ export default class PatchBuilderPropertyRuntime {
       metadata,
     });
     this.#options.assertMutable();
+    this.attachStagedEdgeContent({ from, to, label }, payload);
+  }
+
+  /** Lowers an already-staged edge payload through the same metadata and retention boundary. */
+  attachStagedEdgeContent(edge: ContentAttachmentEdgeWriteTarget, payload: ContentAttachmentPayload): void {
+    const { from, to, label } = edge;
+    assertNoReservedBytes(from, 'from');
+    assertNoReservedBytes(to, 'to');
+    assertNoReservedBytes(label, 'label');
+    this.#assertEdgeExists(from, to, label);
     const intent = ContentAttachmentWriteIntent.forEdge({ from, to, label }, payload);
     this.#lowerEdgeContentIntent(intent);
     this.#contentAssets.push(intent.handle());
