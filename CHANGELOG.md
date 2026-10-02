@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   established. Node Docker images provide Chromium and reap adopted children.
   Completed SVG files alone cannot pass validation (#870).
 
+- VersionVector construction validates writer/counter entries, omits zero
+  counters and snapshots caller-owned maps so later mutations cannot corrupt
+  causal state (#205).
+
 - Bounded checkpoint-tail node reads honor checkpoint tombstones for late
   arriving adds and refuse unwitnessed adds instead of resurrecting a node
   already removed by the checkpoint (#894).
