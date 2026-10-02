@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Coverage runs bound instrumented workers and coverage processing to one task
+  at a time. Thresholds can rise only after an argument-free full coverage
+  command completes every selected file with zero errors and successful
+  teardown; failed, incomplete and targeted runs cannot rewrite the ratchet
+  (#882).
+
 - Atomic Intent arrays reject descriptors exceeding 16 MiB before allocating
   their complete canonical string or UTF-8 buffer. Exact byte accounting covers
   aggregate members, escaping, Unicode, nested properties and inline binary
