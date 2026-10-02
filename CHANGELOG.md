@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (#882). Authorized update intent is carried through Docker command arguments
   rather than depending on npm lifecycle environment in the container.
 
+- Bounded checkpoint-tail node reads honor checkpoint tombstones for late
+  arriving adds and refuse unwitnessed adds instead of resurrecting a node
+  already removed by the checkpoint (#894).
+
 - Atomic Intent arrays reject descriptors exceeding 16 MiB before allocating
   their complete canonical string or UTF-8 buffer. Exact byte accounting covers
   aggregate members, escaping, Unicode, nested properties and inline binary
@@ -24,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   admitted canonical bytes and receipt identities stay compatible (#916).
 
 ### Added
+
+- Publish the restored node/edge byte attachment guide and reuse the installed-
+  package lifecycle example, with migration, history, concurrency, retention,
+  cancellation and failure semantics. Structural ownership remains a separate
+  contract and implementation rather than an implied byte capability (#904).
+
+- Define finite structural attachment ownership, preservation, conflict and
+  atomicity laws with paper-backed node/edge reference witnesses (#903). The
+  executable model is test-only; the public Runtime still exposes opaque byte
+  attachments rather than recursive structural ownership.
 
 - Restore public node and edge content observers with frozen owner/metadata, historical streaming, bounded causal projection, and Runtime-owned stream cleanup (#901).
 

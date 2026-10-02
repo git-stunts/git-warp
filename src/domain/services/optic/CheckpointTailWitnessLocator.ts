@@ -174,14 +174,18 @@ export default class CheckpointTailWitnessLocator {
     const basis = await this._basisLoader.load();
     const baseAlive = await this._shardReader.readNodeAlive(basis, nodeId);
     const tail = await this._scanTailForNode(basis, nodeId);
-    const alive = this._factReducer.reduceNodeLiveness(baseAlive, tail.entries, nodeId);
+    const lifecycle = await this._shardReader.readNodeLifecycle(basis, nodeId);
+    const alive = this._factReducer.reduceNodeLiveness({ baseAlive, lifecycle, tailEntries: tail.entries, nodeId });
     return new NodeOpticReadResult({
       nodeId,
       alive,
       readIdentity: this._readIdentityBuilder.nodeLiveness({
         basis,
         nodeId,
-        checkpointIndexShards: this._shardReader.nodeLivenessShardIdentities(basis, nodeId),
+        checkpointIndexShards: [
+          ...this._shardReader.nodeLivenessShardIdentities(basis, nodeId),
+          ...this._shardReader.nodeLifecycleShardIdentities(basis, nodeId),
+        ],
         tailWitnesses: tail.witnesses,
       }),
     });
