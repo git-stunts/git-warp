@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../src/domain/storage/BufferedArtifactLimit.ts';
 import {
   AssetHandle as GitCasAssetHandle,
   BundleHandle,
@@ -195,7 +196,7 @@ export default class InMemoryGitCasFacade {
   async #putAsset(
     request: Parameters<AssetCapability['put']>[0],
   ): Promise<StagedAsset> {
-    const sourceBytes = await collectAsyncIterable(request.source);
+    const sourceBytes = await collectAsyncIterable(request.source, MAX_BUFFERED_ARTIFACT_BYTES);
     const storedBytes = request.encryptionKey === undefined
       ? sourceBytes
       : await encryptAsset(sourceBytes, request.encryptionKey);
@@ -769,7 +770,7 @@ async function collectPageSource(
   if (source instanceof Uint8Array) {
     return source.slice();
   }
-  return await collectAsyncIterable(toAsyncIterable(source));
+  return await collectAsyncIterable(toAsyncIterable(source), MAX_BUFFERED_ARTIFACT_BYTES);
 }
 
 async function* toAsyncIterable(

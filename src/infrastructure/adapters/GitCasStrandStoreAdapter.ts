@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../domain/storage/BufferedArtifactLimit.ts';
 import type {
   BundleCapability,
   PublicationCapability,
@@ -63,7 +64,7 @@ export default class GitCasStrandStoreAdapter extends StrandStorePort {
     const trailers = decodeDescriptorMessage(node.message);
     requireDescriptorIdentity(trailers, { graphName, strandId, revision });
     return await collectAsyncIterable(
-      this.#assets.open(new AssetHandle(trailers.descriptorHandle)),
+      this.#assets.open(new AssetHandle(trailers.descriptorHandle)), MAX_BUFFERED_ARTIFACT_BYTES,
     );
   }
 

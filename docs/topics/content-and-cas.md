@@ -49,6 +49,25 @@ This internal safety change does not restore node/edge attachment operations
 through Runtime/Lane. Their public capability and packed-consumer evidence are
 tracked in #901 and #902; byte assets do not establish recursive graph ownership.
 
+## Bounded artifact decoding
+
+Internal eager decoders now pass an explicit byte ceiling to `collectAsyncIterable`.
+Legacy patch, audit, trust, strand, intent, replay, provenance, index, and migration artifacts use a 64 MiB refusal boundary; checkpoint optic shard reads retain their stricter 16 MiB boundary.
+This is a defensive decoding limit, not an attachment-size limit or a claim that legacy formats have become streaming.
+Artifacts exceeding the applicable ceiling fail with `E_BYTE_COLLECTION_LIMIT` instead of allocating the full payload; they require a streaming or partitioned format before they can be decoded through that path.
+
+The bounded accumulator copies a chunk before advancing its producer, preserving bytes when the producer reuses a buffer.
+Its geometric buffer growth bounds accumulator memory by a constant multiple of the requested ceiling and does not retain one object per incoming chunk.
+The ceiling excludes memory already allocated by the producer and objects allocated by a subsequent decoder.
+ReadableStream adaptation cancels unfinished consumption and releases its reader lock on completion, cancellation, and failure.
+
+## Remaining attachment delivery gates
+
+Issue #818 still requires retirement of eager attachment reads, inline binary write limits, a generated multi-GiB stream witness and an eager negative control under the same Docker memory budget.
+Issues #646 and #737 are already closed; their storage-plane and semantic-port outcomes remain compatibility constraints, not proof that the remaining eager readers are safe.
+Issue #901 then restores supported Runtime/Lane attach, replace, clear, and stream reads, with atomic staging, retention and a packed consumer witness.
+These are sequential independently mergeable PRs; no intermediate mainline may expose incomplete public attachment operations.
+
 ## Encryption policy
 
 Observer redaction is not encryption. Redaction changes what a selected read

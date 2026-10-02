@@ -111,6 +111,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Internal artifact collection now requires an explicit byte ceiling and rejects
+  overflow before copying the excess chunk. Collection snapshots producer buffers
+  instead of retaining mutable aliases; readable stream cancellation releases the
+  producer and reader lock. Legacy whole-artifact decoders refuse above 64 MiB,
+  while checkpoint optic shards retain their 16 MiB limit (#818).
+
 - Declared attachment sizes are enforced as bytes arrive: storage never receives
   an overflowing chunk, truncation rejects staging, and invalid size declarations
   fail before storage or the producer starts. Producer iteration closes on overflow.

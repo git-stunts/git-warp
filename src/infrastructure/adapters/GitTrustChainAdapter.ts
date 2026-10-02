@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../domain/storage/BufferedArtifactLimit.ts';
 /**
  * Git-backed trust chain adapter.
  *
@@ -227,7 +228,7 @@ export default class GitTrustChainAdapter extends TrustChainPort {
 
   private async _readAssetTree(treeOid: string): Promise<Uint8Array> {
     const staged = await this._cas.assets.adopt({ treeOid });
-    return await collectAsyncIterable(this._cas.assets.open({ handle: staged.handle }));
+    return await collectAsyncIterable(this._cas.assets.open({ handle: staged.handle }), MAX_BUFFERED_ARTIFACT_BYTES);
   }
 
   // -- Port implementation: persistRecord -------------------------------------

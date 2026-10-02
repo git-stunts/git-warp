@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../domain/storage/BufferedArtifactLimit.ts';
 import type {
   BundleCapability,
   BundleMemberReference,
@@ -167,7 +168,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
         if (shard === null) {
           continue;
         }
-        const bytes = await collectAsyncIterable(adapter._assets.open(handle));
+        const bytes = await collectAsyncIterable(adapter._assets.open(handle), MAX_BUFFERED_ARTIFACT_BYTES);
         const data = adapter._codec.decode(bytes);
         yield shard(data);
       }
@@ -248,7 +249,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
   ): Promise<TDecoded> {
     const maxBytes = optionalPositiveInteger(options.maxBytes, 'maxBytes');
     const bytes = maxBytes === undefined
-      ? await collectAsyncIterable(this._assets.open(shardHandle))
+      ? await collectAsyncIterable(this._assets.open(shardHandle), MAX_BUFFERED_ARTIFACT_BYTES)
       : await collectBoundedShard(this._assets.open(shardHandle), maxBytes);
     validateRequestedStructure(bytes, options);
     return this._codec.decode<TDecoded>(bytes);
@@ -343,7 +344,7 @@ async function readMemberBytes(args: {
   }
   const source = args.assets.open(new AssetHandle(args.member.handle.toString()));
   return args.maxBytes === undefined
-    ? await collectAsyncIterable(source)
+    ? await collectAsyncIterable(source, MAX_BUFFERED_ARTIFACT_BYTES)
     : await collectBoundedShard(source, args.maxBytes);
 }
 

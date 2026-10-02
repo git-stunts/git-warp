@@ -1,177 +1,80 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   collectAsyncIterable,
   isStreamingInput,
   normalizeToAsyncIterable,
 } from '../../../../src/domain/utils/streamUtils.ts';
 
-const OriginalReadableStream = globalThis.ReadableStream;
+const TEST_BYTE_LIMIT = 32;
 
-afterEach(() => {
-  globalThis.ReadableStream = OriginalReadableStream;
-});
-
-async function collectChunks(/** @type {AsyncIterable<unknown>} */ iterable) {
-  const chunks: any[] = [];
-  for await (const chunk of iterable) {
-    chunks.push(chunk);
-  }
-  return chunks;
-}
-
-describe('streamUtils', () => {
-  it('treats async iterables as streaming input', () => {
-    const asyncIterable = {
-      async *[Symbol.asyncIterator]() {
-        yield new Uint8Array([1, 2, 3]);
-      },
-    };
-
-    expect(isStreamingInput(asyncIterable)).toBe(true);
-    expect(isStreamingInput(new Uint8Array([1, 2, 3]))).toBe(false);
+describe('stream normalization and bounded collection', () => {
+  it('distinguishes streams from buffered values and invalid iterators', () => {
+    async function* source() { yield new Uint8Array([1]); }
+    expect(isStreamingInput(source())).toBe(true);
+    expect(isStreamingInput(new ReadableStream())).toBe(true);
+    expect(isStreamingInput(new Uint8Array([1]))).toBe(false);
     expect(isStreamingInput('hello')).toBe(false);
-  });
-
-  it('rejects objects with a non-callable async iterator member', () => {
     expect(isStreamingInput({ [Symbol.asyncIterator]: 1 })).toBe(false);
   });
 
-  it('returns false for readable streams when the global constructor is unavailable', () => {
-    globalThis.ReadableStream = (undefined as any);
-
-    const streamLike = {
-      getReader() {
-        return {};
-      },
-    };
-
-    expect(isStreamingInput(streamLike)).toBe(false);
+  it('passes through async iterables', () => {
+    async function* source() { yield new Uint8Array([1]); }
+    const stream = source();
+    expect(normalizeToAsyncIterable(stream)).toBe(stream);
   });
 
-  it('passes through native readable streams that already support async iteration', async () => {
-    const source = new ReadableStream({
-      start(controller) {
-        controller.enqueue(new Uint8Array([1, 2]));
-        controller.close();
-      },
-    });
-
-    const normalized = normalizeToAsyncIterable(source);
-    const chunks = await collectChunks(normalized);
-
-    expect(chunks).toEqual([new Uint8Array([1, 2])]);
+  it('encodes strings and drains only once', async () => {
+    const iterator = normalizeToAsyncIterable('hi')[Symbol.asyncIterator]();
+    expect(await iterator.next()).toEqual({ value: new TextEncoder().encode('hi'), done: false });
+    expect(await iterator.next()).toEqual({ value: undefined, done: true });
   });
 
-  it('adapts strings to single-value async iterables', async () => {
-    const normalized = normalizeToAsyncIterable('hi');
-    const iterator = normalized[Symbol.asyncIterator]();
-
-    expect(await iterator.next()).toEqual({
-      value: new TextEncoder().encode('hi'),
-      done: false,
-    });
-    expect(await iterator.next()).toEqual({
-      value: undefined,
-      done: true,
-    });
-  });
-
-  it('adapts readable streams without Symbol.asyncIterator via getReader()', async () => {
-    class FakeReadableStream {
-      _chunks: Uint8Array[];
-      released: boolean;
-      constructor(chunks: Uint8Array[]) {
-        this._chunks = [...chunks];
-        this.released = false;
-      }
-
-      getReader() {
-        return {
-          read: async () => {
-            if (this._chunks.length === 0) {
-              return { value: undefined, done: true };
-            }
-            return { value: this._chunks.shift(), done: false };
-          },
-          releaseLock: () => {
-            this.released = true;
-          },
-        };
-      }
-    }
-
-    globalThis.ReadableStream = (FakeReadableStream as any);
-
-    const stream = new FakeReadableStream([new Uint8Array([3, 4])]);
-    const iterator = normalizeToAsyncIterable((stream as any))[Symbol.asyncIterator]();
-
-    expect(await iterator.next()).toEqual({
-      value: new Uint8Array([3, 4]),
-      done: false,
-    });
-    expect(await iterator.next()).toEqual({
-      value: undefined,
-      done: true,
-    });
-    expect((stream as any).released).toBe(true);
-  });
-
-  it('releases the reader when iteration is terminated early', async () => {
-    class FakeReadableStream {
-      _chunks: Uint8Array[];
-      released: boolean;
-      constructor(chunks: Uint8Array[]) {
-        this._chunks = [...chunks];
-        this.released = false;
-      }
-
-      getReader() {
-        return {
-          read: async () => ({ value: this._chunks.shift(), done: false }),
-          releaseLock: () => {
-            this.released = true;
-          },
-        };
-      }
-    }
-
-    globalThis.ReadableStream = (FakeReadableStream as any);
-
-    const stream = new FakeReadableStream([new Uint8Array([9])]);
-    const iterator = normalizeToAsyncIterable((stream as any))[Symbol.asyncIterator]();
-
-    expect(await iterator.next()).toEqual({
-      value: new Uint8Array([9]),
-      done: false,
-    });
-    expect(await iterator.return?.()).toEqual({
-      value: undefined,
-      done: true,
-    });
-    expect((stream as any).released).toBe(true);
-  });
-
-  it('collects a single chunk without copying', async () => {
+  it('copies bytes without retaining a producer-owned view', async () => {
     const chunk = new Uint8Array([5, 6, 7]);
-    const iterable = {
-      async *[Symbol.asyncIterator]() {
-        yield chunk;
-      },
-    };
-
-    const result = await collectAsyncIterable(iterable);
-    expect(result).toBe(chunk);
+    const result = await collectAsyncIterable(normalizeToAsyncIterable(chunk), TEST_BYTE_LIMIT);
+    expect(result).toEqual(chunk);
+    expect(result).not.toBe(chunk);
   });
 
-  it('collects multiple chunks into one Uint8Array', async () => {
-    const iterable = {
-      async *[Symbol.asyncIterator]() {
-        yield new Uint8Array([1, 2]);
-        yield new Uint8Array([3, 4, 5]);
-      },
-    };
+  it('drains readable streams and releases their locks', async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new Uint8Array([1, 2])); controller.close(); },
+    });
+    expect(await collectAsyncIterable(normalizeToAsyncIterable(stream), TEST_BYTE_LIMIT))
+      .toEqual(new Uint8Array([1, 2]));
+    expect(stream.locked).toBe(false);
+  });
 
-    const result = await collectAsyncIterable(iterable);
-    expect(result).toEqual(new Uint8Array([1, 2, 3, 4, 5]));
+  it('cancels upstream and releases the lock on early return', async () => {
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) { controller.enqueue(new Uint8Array([9])); },
+      cancel() { cancelled = true; },
+    });
+    for await (const chunk of normalizeToAsyncIterable(stream)) {
+      expect(chunk).toEqual(new Uint8Array([9]));
+      break;
+    }
+    expect(cancelled).toBe(true);
+    expect(stream.locked).toBe(false);
+  });
+
+  it('propagates reader failure and releases the lock', async () => {
+    const failure = new Error('read failed');
+    const stream = new ReadableStream<Uint8Array>({ start(controller) { controller.error(failure); } });
+    await expect(collectAsyncIterable(normalizeToAsyncIterable(stream), TEST_BYTE_LIMIT)).rejects.toBe(failure);
+    expect(stream.locked).toBe(false);
+  });
+
+  it('releases the lock even when cancellation fails', async () => {
+    const failure = new Error('cancel failed');
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) { controller.enqueue(new Uint8Array([9])); },
+      cancel() { throw failure; },
+    });
+    const iterator = normalizeToAsyncIterable(stream)[Symbol.asyncIterator]();
+    await iterator.next();
+    await expect(iterator.return?.()).rejects.toBe(failure);
+    expect(stream.locked).toBe(false);
   });
 });

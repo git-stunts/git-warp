@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../storage/BufferedArtifactLimit.ts';
 /**
  * QueryContent — content register lookup and blob access.
  *
@@ -50,7 +51,7 @@ function edgeContentAttachment(state: WarpState, edge: EdgeId): ContentAttachmen
 // ── Blob resolution ─────────────────────────────────────────────────
 
 async function resolveAsset(host: QueryContentHost, handle: string): Promise<Uint8Array> {
-  return await collectAsyncIterable(resolveAssetStream(host, handle));
+  return await collectAsyncIterable(resolveAssetStream(host, handle), MAX_BUFFERED_ARTIFACT_BYTES);
 }
 
 function resolveAssetStream(host: QueryContentHost, handle: string): AsyncIterable<Uint8Array> {

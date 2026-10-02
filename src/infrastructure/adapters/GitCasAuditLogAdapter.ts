@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../domain/storage/BufferedArtifactLimit.ts';
 import type {
   AssetCapability,
   PublicationCapability,
@@ -96,7 +97,7 @@ export default class GitCasAuditLogAdapter extends AuditLogPort {
   async #readReceiptRoot(treeOid: string): Promise<Uint8Array> {
     const staged = await this.#cas.assets.adopt({ treeOid });
     return await collectAsyncIterable(
-      this.#assets.open(new AssetHandle(staged.handle.toString())),
+      this.#assets.open(new AssetHandle(staged.handle.toString())), MAX_BUFFERED_ARTIFACT_BYTES,
     );
   }
 }

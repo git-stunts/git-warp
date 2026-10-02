@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../storage/BufferedArtifactLimit.ts';
 /**
  * ComparisonEngine — coordinate comparison and transfer planning logic.
  *
@@ -213,7 +214,7 @@ async function readContentByHandle(graph: ComparisonHost, handle: string): Promi
       code: 'invalid_coordinate', context: { handle },
     });
   }
-  return await collectAsyncIterable(graph._assetStorage.open(new AssetHandle(handle)));
+  return await collectAsyncIterable(graph._assetStorage.open(new AssetHandle(handle)), MAX_BUFFERED_ARTIFACT_BYTES);
 }
 
 // ── Core comparison ──────────────────────────────────────────────────

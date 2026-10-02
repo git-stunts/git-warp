@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../domain/storage/BufferedArtifactLimit.ts';
 import type {
   PublicationCapability,
 } from '@git-stunts/git-cas';
@@ -197,7 +198,7 @@ async function* streamIntentDescriptors(
   for (let index = handles.length - 1; index >= 0; index -= 1) {
     const handle = handles[index];
     if (handle !== undefined) {
-      yield decodeIntentDescriptor(codec.decode(await collectAsyncIterable(assets.open(handle))));
+      yield decodeIntentDescriptor(codec.decode(await collectAsyncIterable(assets.open(handle), MAX_BUFFERED_ARTIFACT_BYTES)));
     }
   }
 }

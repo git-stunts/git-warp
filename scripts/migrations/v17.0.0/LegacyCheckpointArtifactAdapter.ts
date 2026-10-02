@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../../src/domain/storage/BufferedArtifactLimit.ts';
 import AssetHandle from '../../../src/domain/storage/AssetHandle.ts';
 import PersistenceError from '../../../src/domain/errors/PersistenceError.ts';
 import { collectAsyncIterable } from '../../../src/domain/utils/streamUtils.ts';
@@ -30,7 +31,7 @@ export default class LegacyCheckpointArtifactAdapter {
     if (assetToken === null) {
       return bytes;
     }
-    return await collectAsyncIterable(this.#assets.open(new AssetHandle(assetToken)));
+    return await collectAsyncIterable(this.#assets.open(new AssetHandle(assetToken)), MAX_BUFFERED_ARTIFACT_BYTES);
   }
 }
 

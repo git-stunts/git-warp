@@ -1,3 +1,4 @@
+import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../src/domain/storage/BufferedArtifactLimit.ts';
 import { AssetHandle as GitCasAssetHandle } from '@git-stunts/git-cas';
 import AssetHandle from '../../src/domain/storage/AssetHandle.ts';
 import AssetSizeMismatchError from '../../src/domain/errors/AssetSizeMismatchError.ts';
@@ -25,7 +26,7 @@ export default class InMemoryBlobStorageAdapter extends AssetStoragePort {
     source: AsyncIterable<Uint8Array>,
     options: AssetWriteOptions,
   ): Promise<StagedAsset> {
-    const bytes = await collectAsyncIterable(source);
+    const bytes = await collectAsyncIterable(source, MAX_BUFFERED_ARTIFACT_BYTES);
     requireExpectedSize(bytes.byteLength, options.expectedSize);
     const oid = await contentHash(bytes);
     const casHandle = new GitCasAssetHandle({
