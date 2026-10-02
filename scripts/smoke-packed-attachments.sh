@@ -6,7 +6,7 @@ CONSUMER=$2
 node "$ROOT/scripts/RequireDockerTests.ts"
 cd "$CONSUMER"
 cp "$ROOT/examples/attachments.mjs" ./attachments.mjs
-cp "$ROOT/test/fixtures/packed-content-types.ts" ./packed-content-types.ts
+cp "$ROOT/test/type-check/packed/attachments.ts" ./packed-content-types.ts
 cp "$ROOT/test/fixtures/packed-content-consumer.mjs" ./packed-content-consumer.mjs
 cp "$ROOT/test/fixtures/packed-content.mjs" ./packed-content.mjs
 
