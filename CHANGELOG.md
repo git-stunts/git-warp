@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Publish the restored node/edge byte attachment guide and reuse the installed-
+  package lifecycle example, with migration, history, concurrency, retention,
+  cancellation and failure semantics. Structural ownership remains a separate
+  contract and implementation rather than an implied byte capability (#904).
+
 - Define finite structural attachment ownership, preservation, conflict and
   atomicity laws with paper-backed node/edge reference witnesses (#903). The
   executable model is test-only; the public Runtime still exposes opaque byte
