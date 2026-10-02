@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Atomic Intent arrays reject descriptors exceeding 16 MiB before allocating
+  their complete canonical string or UTF-8 buffer. Exact byte accounting covers
+  aggregate members, escaping, Unicode, nested properties and inline binary
+  values, including enumerable binary metadata and sparse array holes.
+  Overridden getters and circular-reference errors preserve canonical behavior;
+  admitted canonical bytes and receipt identities stay compatible (#916).
+
 ### Added
 
 - Restore public node and edge content observers with frozen owner/metadata, historical streaming, bounded causal projection, and Runtime-owned stream cleanup (#901).
@@ -115,6 +124,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was not live there (`tail-node-add-needs-checkpoint-lifecycle-witnesses`).
 
 ### Fixed
+
+- Low-level eager and trie membership compaction retains entries and tombstones,
+  preventing stale additions from resurrecting removed nodes or edges (#911).
+  Existing signatures remain available as no-op preservation calls; they perform
+  no retirement or trie reshaping and do not bound retained metadata.
 
 - Targeted content reads apply observed membership-removal dots independently of the declared owner, matching canonical retained-history reduction while charging tombstones against read bounds (#901).
 

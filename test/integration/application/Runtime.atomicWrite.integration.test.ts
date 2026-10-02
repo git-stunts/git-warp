@@ -19,6 +19,26 @@ describe('Runtime atomic intent-array writes', () => {
     await repository.cleanup();
   });
 
+  it('rejects aggregate descriptor overflow without advancing an existing writer ref', async () => {
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'agent-1' });
+    try {
+      const lane = await runtime.lane(LANE);
+      await lane.write(intent.node.add({ subject: 'existing' }));
+      const before = await repository.persistence.readRef(WRITER_REF);
+      const oversized = intent.property.set({ subject: 'existing', key: 'p', value: '\u0000'.repeat(4 * 1024 * 1024) });
+      await expect(lane.write([
+        intent.node.add({ subject: 'never-published' }), oversized,
+      ])).rejects.toMatchObject({ code: 'E_INTENT_SEQUENCE_SIZE' });
+      expect(await repository.persistence.readRef(WRITER_REF)).toBe(before);
+      expect(await repository.persistence.countNodes(WRITER_REF)).toBe(1);
+    } finally {
+      await runtime.close();
+    }
+    const graph = await repository.openGraph(LANE, 'verifier');
+    const state = await graph.materialize();
+    expect(state.nodeAlive.contains('never-published')).toBe(false);
+  });
+
   it('publishes several ordered graph edits as one patch and one receipt', async () => {
     const runtime = await Runtime.open({ at: repository.tempDir, writer: 'agent-1' });
     try {
