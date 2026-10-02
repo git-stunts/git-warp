@@ -111,6 +111,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Attachment reads after checkpoint and Git GC recover from a stale mktree
+  process with one fresh-process retry. Broken-pipe and closed-input errors are
+  classified at the dependency protocol boundary; unrelated errors still fail.
+  This now uses published git-cas 6.5.11 and Plumbing 3.3.2; the temporary
+  source-checkout Plumbing patch is removed.
+
 - Staged-file and committed-tree path guards now reject machine-local temporary
   worktree paths as well as personal home paths. A real pre-commit regression
   verifies that cleaning the working copy cannot conceal unsafe staged content.
