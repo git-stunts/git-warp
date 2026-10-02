@@ -1,4 +1,3 @@
-import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../storage/BufferedArtifactLimit.ts';
 /**
  * QueryContent — content register lookup and blob access.
  *
@@ -13,7 +12,6 @@ import type { ContentMeta } from '../../types/ContentMeta.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { QueryContentHost } from './ReadGraphHost.ts';
 import AssetHandle from '../../storage/AssetHandle.ts';
-import { collectAsyncIterable } from '../../utils/streamUtils.ts';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -50,10 +48,6 @@ function edgeContentAttachment(state: WarpState, edge: EdgeId): ContentAttachmen
 
 // ── Blob resolution ─────────────────────────────────────────────────
 
-async function resolveAsset(host: QueryContentHost, handle: string): Promise<Uint8Array> {
-  return await collectAsyncIterable(resolveAssetStream(host, handle), MAX_BUFFERED_ARTIFACT_BYTES);
-}
-
 function resolveAssetStream(host: QueryContentHost, handle: string): AsyncIterable<Uint8Array> {
   if (host._assetStorage === null) {
     throw new QueryError('Content asset storage is unavailable', { code: 'E_CONTENT_STORAGE' });
@@ -83,13 +77,6 @@ export async function getContentMetaImpl(host: QueryContentHost, nodeId: string)
   return record === null ? null : contentMetaFromRecord(record);
 }
 
-export async function getContentImpl(host: QueryContentHost, nodeId: string): Promise<Uint8Array | null> {
-  const state = await ensureAndGetState(host);
-  const record = nodeContentAttachment(state, nodeId);
-  if (record === null) { return null; }
-  return await resolveAsset(host, contentHandleFromRecord(record));
-}
-
 export async function getContentStreamImpl(host: QueryContentHost, nodeId: string): Promise<AsyncIterable<Uint8Array> | null> {
   const state = await ensureAndGetState(host);
   const record = nodeContentAttachment(state, nodeId);
@@ -109,13 +96,6 @@ export async function getEdgeContentMetaImpl(host: QueryContentHost, edge: EdgeI
   const state = await ensureAndGetState(host);
   const record = edgeContentAttachment(state, edge);
   return record === null ? null : contentMetaFromRecord(record);
-}
-
-export async function getEdgeContentImpl(host: QueryContentHost, edge: EdgeId): Promise<Uint8Array | null> {
-  const state = await ensureAndGetState(host);
-  const record = edgeContentAttachment(state, edge);
-  if (record === null) { return null; }
-  return await resolveAsset(host, contentHandleFromRecord(record));
 }
 
 export async function getEdgeContentStreamImpl(host: QueryContentHost, edge: EdgeId): Promise<AsyncIterable<Uint8Array> | null> {

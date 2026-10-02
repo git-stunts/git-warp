@@ -1,3 +1,4 @@
+import { collectNodeContent, collectEdgeContent } from '../../helpers/CollectAttachmentTestBytes.ts';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import { createEmptyState, encodeEdgeKey, encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.ts';
@@ -190,7 +191,7 @@ describe('WarpGraph content attachment queries', () => {
         state.prop.set(propKey, { eventId: null, value: 'abc123' });
       });
 
-      const content = await graph.getContent('doc:1');
+      const content = await collectNodeContent(graph, 'doc:1');
       expect(content).toEqual(buf);
       expectOpenedHandle(assetStorage, 'abc123');
     });
@@ -200,7 +201,7 @@ describe('WarpGraph content attachment queries', () => {
         addNode(state, 'doc:1', 1);
       });
 
-      const content = await graph.getContent('doc:1');
+      const content = await collectNodeContent(graph, 'doc:1');
       expect(content).toBeNull();
       expect(mockPersistence.readBlob).not.toHaveBeenCalled();
     });
@@ -208,7 +209,7 @@ describe('WarpGraph content attachment queries', () => {
     it('returns null for nonexistent node', async () => {
       setupGraphState(graph, () => {});
 
-      const content = await graph.getContent('nonexistent');
+      const content = await collectNodeContent(graph, 'nonexistent');
       expect(content).toBeNull();
     });
   });
@@ -225,7 +226,7 @@ describe('WarpGraph content attachment queries', () => {
         state.prop.set(propKey, { eventId: null, value: 'asset:document' });
       });
 
-      const content = await graph.getContent('doc:1');
+      const content = await collectNodeContent(graph, 'doc:1');
 
       expect(content).toEqual(casBuf);
       expectOpenedHandle(assetStorage, 'asset:document');
@@ -243,7 +244,7 @@ describe('WarpGraph content attachment queries', () => {
         state.prop.set(propKey, { eventId: null, value: 'asset:runtime-provided' });
       });
 
-      const content = await graph.getContent('doc:1');
+      const content = await collectNodeContent(graph, 'doc:1');
 
       expect(content).toEqual(rawBuf);
       expectOpenedHandle(assetStorage, 'asset:runtime-provided');
@@ -270,7 +271,7 @@ describe('WarpGraph content attachment queries', () => {
         state.prop.set(propKey, { eventId: null, value: 'asset:missing' });
       });
 
-      await expect(graph.getContent('doc:1'))
+      await expect(collectNodeContent(graph, 'doc:1'))
         .rejects.toMatchObject({ code: PersistenceError.E_MISSING_OBJECT });
     });
   });
@@ -289,7 +290,7 @@ describe('WarpGraph content attachment queries', () => {
         state.prop.set(propKey, { eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 }, value: 'asset:edge' });
       });
 
-      const content = await graph.getEdgeContent('a', 'b', 'rel');
+      const content = await collectEdgeContent(graph, { from: 'a', to: 'b', label: 'rel' });
 
       expect(content).toEqual(casBuf);
       expectOpenedHandle(assetStorage, 'asset:edge');
@@ -321,7 +322,7 @@ describe('WarpGraph content attachment queries', () => {
         });
       });
 
-      await expect(graph.getEdgeContent('a', 'b', 'rel'))
+      await expect(collectEdgeContent(graph, { from: 'a', to: 'b', label: 'rel' }))
         .rejects.toMatchObject({ code: PersistenceError.E_MISSING_OBJECT });
     });
   });
@@ -441,7 +442,7 @@ describe('WarpGraph content attachment queries', () => {
         state.prop.set(propKey, { eventId: { lamport: 2, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 }, value: 'def456' });
       });
 
-      const content = await graph.getEdgeContent('a', 'b', 'rel');
+      const content = await collectEdgeContent(graph, { from: 'a', to: 'b', label: 'rel' });
       expect(content).toEqual(buf);
       expectOpenedHandle(assetStorage, 'def456');
     });
@@ -453,7 +454,7 @@ describe('WarpGraph content attachment queries', () => {
         addEdge(state, 'a', 'b', 'rel', 3);
       });
 
-      const content = await graph.getEdgeContent('a', 'b', 'rel');
+      const content = await collectEdgeContent(graph, { from: 'a', to: 'b', label: 'rel' });
       expect(content).toBeNull();
     });
   });

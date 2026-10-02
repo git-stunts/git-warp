@@ -40,8 +40,8 @@ import {
 } from './QueryReads.ts';
 
 import {
-  getContentHandleImpl, getContentMetaImpl, getContentImpl, getContentStreamImpl,
-  getEdgeContentHandleImpl, getEdgeContentMetaImpl, getEdgeContentImpl, getEdgeContentStreamImpl,
+  getContentHandleImpl, getContentMetaImpl, getContentStreamImpl,
+  getEdgeContentHandleImpl, getEdgeContentMetaImpl, getEdgeContentStreamImpl,
 } from './QueryContent.ts';
 
 // ── Observer source helpers ─────────────────────────────────────────
@@ -266,10 +266,8 @@ export default class QueryController {
   declare translationCost: QueryCapability['translationCost'];
   declare getContentHandle: QueryCapability['getContentHandle'];
   declare getContentMeta: QueryCapability['getContentMeta'];
-  declare getContent: QueryCapability['getContent'];
   declare getEdgeContentHandle: QueryCapability['getEdgeContentHandle'];
   declare getEdgeContentMeta: QueryCapability['getEdgeContentMeta'];
-  declare getEdgeContent: QueryCapability['getEdgeContent'];
   declare getContentStream: QueryCapability['getContentStream'];
   declare getEdgeContentStream: QueryCapability['getEdgeContentStream'];
 
@@ -369,11 +367,9 @@ wire('getPropertyCount', function (this: QueryController) { return getPropertyCo
 // QueryContent delegates
 wire('getContentHandle', function (this: QueryController, nodeId: string) { return getContentHandleImpl(host(this), nodeId); });
 wire('getContentMeta', function (this: QueryController, nodeId: string) { return getContentMetaImpl(host(this), nodeId); });
-wire('getContent', function (this: QueryController, nodeId: string) { return getContentImpl(host(this), nodeId); });
 wire('getContentStream', function (this: QueryController, nodeId: string) { return getContentStreamImpl(host(this), nodeId); });
 wireEdge('getEdgeContentHandle', getEdgeContentHandleImpl);
 wireEdge('getEdgeContentMeta', getEdgeContentMetaImpl);
-wireEdge('getEdgeContent', getEdgeContentImpl);
 wireEdge('getEdgeContentStream', getEdgeContentStreamImpl);
 
 // Factory methods

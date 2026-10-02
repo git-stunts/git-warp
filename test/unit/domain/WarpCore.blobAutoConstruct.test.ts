@@ -1,3 +1,4 @@
+import { collectNodeContent } from '../../helpers/CollectAttachmentTestBytes.ts';
 import { describe, expect, it } from 'vitest';
 import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
@@ -44,7 +45,7 @@ describe('runtime storage composition', () => {
     });
     await runtime.materialize();
 
-    const content = await runtime.getContent('doc:readme');
+    const content = await collectNodeContent(runtime, 'doc:readme');
     expect(new TextDecoder().decode(content ?? new Uint8Array())).toBe('hello');
     expect(await runtime.getContentHandle('doc:readme')).toMatch(/^git-cas:/u);
   });

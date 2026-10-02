@@ -1,3 +1,4 @@
+import { collectNodeContent, collectEdgeContent } from '../../../../helpers/CollectAttachmentTestBytes.ts';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import QueryController from '../../../../../src/domain/services/controllers/QueryController.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
@@ -770,7 +771,7 @@ describe('QueryController', () => {
 
   describe('getContent()', () => {
     it('returns null when node has no content', async () => {
-      const buf = await ctrl.getContent('alice');
+      const buf = await collectNodeContent(ctrl, 'alice');
       expect(buf).toBeNull();
     });
 
@@ -782,7 +783,7 @@ describe('QueryController', () => {
         ],
       });
       host._cachedState = s;
-      const buf = await ctrl.getContent('alice');
+      const buf = await collectNodeContent(ctrl, 'alice');
       expect(buf).toEqual(new Uint8Array([1, 2, 3]));
       expect(host._assetStorage.open).toHaveBeenCalledWith(new AssetHandle('deadbeef'));
     });
@@ -799,7 +800,7 @@ describe('QueryController', () => {
         ],
       });
       host._cachedState = s;
-      const buf = await ctrl.getContent('alice');
+      const buf = await collectNodeContent(ctrl, 'alice');
       expect(buf).toEqual(new Uint8Array([4, 5, 6]));
       expect(assetStorage.open).toHaveBeenCalledWith(new AssetHandle('deadbeef'));
     });
@@ -811,7 +812,7 @@ describe('QueryController', () => {
         props: [{ nodeId: 'alice', key: CONTENT_PROPERTY_KEY, value: 'deadbeef' }],
       });
 
-      await expect(ctrl.getContent('alice')).rejects.toMatchObject({ code: 'E_CONTENT_STORAGE' });
+      await expect(collectNodeContent(ctrl, 'alice')).rejects.toMatchObject({ code: 'E_CONTENT_STORAGE' });
     });
   });
 
@@ -898,7 +899,7 @@ describe('QueryController', () => {
 
   describe('getEdgeContent()', () => {
     it('returns null when edge has no content', async () => {
-      const buf = await ctrl.getEdgeContent('alice', 'bob', 'knows');
+      const buf = await collectEdgeContent(ctrl, { from: 'alice', to: 'bob', label: 'knows' });
       expect(buf).toBeNull();
     });
 
@@ -911,7 +912,7 @@ describe('QueryController', () => {
         ],
       });
       host._cachedState = s;
-      const buf = await ctrl.getEdgeContent('alice', 'bob', 'knows');
+      const buf = await collectEdgeContent(ctrl, { from: 'alice', to: 'bob', label: 'knows' });
       expect(buf).toEqual(new Uint8Array([1, 2, 3]));
       expect(host._assetStorage.open).toHaveBeenCalledWith(new AssetHandle('cafebabe'));
     });
@@ -929,7 +930,7 @@ describe('QueryController', () => {
         ],
       });
       host._cachedState = s;
-      const buf = await ctrl.getEdgeContent('alice', 'bob', 'knows');
+      const buf = await collectEdgeContent(ctrl, { from: 'alice', to: 'bob', label: 'knows' });
       expect(buf).toEqual(new Uint8Array([7, 8, 9]));
       expect(assetStorage.open).toHaveBeenCalledWith(new AssetHandle('cafebabe'));
     });

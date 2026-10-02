@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { collectNodeContent, collectEdgeContent } from '../../helpers/CollectAttachmentTestBytes.ts';
+import { describe, it, expect, assert, beforeEach, afterEach } from 'vitest';
 import { execSync } from 'node:child_process';
 import { AssetHandle as GitCasAssetHandle } from '@git-stunts/git-cas';
 import { createTestRepo } from './helpers/setup.ts';
@@ -17,6 +18,14 @@ describe('API: Content Attachment', () => {
     await repo?.cleanup();
   });
 
+  it('offers streams and no eager attachment byte methods', async () => {
+    const graph = await repo.openGraph('stream-contract', 'alice');
+    expect(Reflect.has(graph, 'getContent')).toBe(false);
+    expect(Reflect.has(graph, 'getEdgeContent')).toBe(false);
+    expect(typeof graph.getContentStream).toBe('function');
+    expect(typeof graph.getEdgeContentStream).toBe('function');
+  });
+
   it('attach → materialize → getContent returns exact buffer', async () => {
     const graph = await repo.openGraph('test', 'alice');
 
@@ -26,9 +35,9 @@ describe('API: Content Attachment', () => {
     await patch.commit();
 
     await graph.materialize();
-    const content = await graph.getContent('doc:1');
+    const content = await collectNodeContent(graph, 'doc:1');
     expect(content).not.toBeNull();
-    expect(new TextDecoder().decode(content)).toBe('# Hello World\n\nThis is content.');
+    assert(content !== null, "Expected attachment fixture bytes");    expect(new TextDecoder().decode(content)).toBe('# Hello World\n\nThis is content.');
   });
 
   it('getContentHandle returns an opaque storage handle', async () => {
@@ -75,7 +84,7 @@ describe('API: Content Attachment', () => {
     await patch.commit();
 
     await graph.materialize();
-    expect(await graph.getContent('doc:1')).toBeNull();
+    expect(await collectNodeContent(graph, 'doc:1')).toBeNull();
     expect(await graph.getContentHandle('doc:1')).toBeNull();
   });
 
@@ -83,7 +92,7 @@ describe('API: Content Attachment', () => {
     const graph = await repo.openGraph('test', 'alice');
     await graph.materialize();
 
-    expect(await graph.getContent('nonexistent')).toBeNull();
+    expect(await collectNodeContent(graph, 'nonexistent')).toBeNull();
     expect(await graph.getContentHandle('nonexistent')).toBeNull();
   });
 
@@ -99,7 +108,7 @@ describe('API: Content Attachment', () => {
     await patch1.commit();
 
     await graph.materialize();
-    expect(await graph.getContent('doc:1')).not.toBeNull();
+    expect(await collectNodeContent(graph, 'doc:1')).not.toBeNull();
     expect(await graph.getContentMeta('doc:1')).toMatchObject({
       mime: 'text/plain',
       size: 8,
@@ -110,7 +119,7 @@ describe('API: Content Attachment', () => {
     await patch2.commit();
 
     await graph.materialize();
-    expect(await graph.getContent('doc:1')).toBeNull();
+    expect(await collectNodeContent(graph, 'doc:1')).toBeNull();
     expect(await graph.getContentHandle('doc:1')).toBeNull();
     expect(await graph.getContentMeta('doc:1')).toBeNull();
   });
@@ -124,9 +133,9 @@ describe('API: Content Attachment', () => {
     await p1.commit();
 
     await graph.materialize();
-    const content = await graph.getEdgeContent('a', 'b', 'rel');
+    const content = await collectEdgeContent(graph, { from: 'a', to: 'b', label: 'rel' });
     expect(content).not.toBeNull();
-    expect(new TextDecoder().decode(content)).toBe('edge payload');
+    assert(content !== null, "Expected attachment fixture bytes");    expect(new TextDecoder().decode(content)).toBe('edge payload');
 
     const handle = await graph.getEdgeContentHandle('a', 'b', 'rel');
     expect(handle).toEqual(expect.any(String));
@@ -164,7 +173,7 @@ describe('API: Content Attachment', () => {
     await patch1.commit();
 
     await graph.materialize();
-    expect(await graph.getEdgeContent('a', 'b', 'rel')).not.toBeNull();
+    expect(await collectEdgeContent(graph, { from: 'a', to: 'b', label: 'rel' })).not.toBeNull();
     expect(await graph.getEdgeContentMeta('a', 'b', 'rel')).toMatchObject({
       mime: 'text/plain',
       size: 10,
@@ -175,7 +184,7 @@ describe('API: Content Attachment', () => {
     await patch2.commit();
 
     await graph.materialize();
-    expect(await graph.getEdgeContent('a', 'b', 'rel')).toBeNull();
+    expect(await collectEdgeContent(graph, { from: 'a', to: 'b', label: 'rel' })).toBeNull();
     expect(await graph.getEdgeContentHandle('a', 'b', 'rel')).toBeNull();
     expect(await graph.getEdgeContentMeta('a', 'b', 'rel')).toBeNull();
   });
@@ -198,11 +207,11 @@ describe('API: Content Attachment', () => {
 
     // Materialize from both writers — LWW resolves deterministically
     await graph1.materialize();
-    const content = await graph1.getContent('doc:shared');
+    const content = await collectNodeContent(graph1, 'doc:shared');
     expect(content).not.toBeNull();
 
     // Bob's content should win (higher Lamport tick)
-    expect(new TextDecoder().decode(content)).toBe('bob version');
+    assert(content !== null, "Expected attachment fixture bytes");    expect(new TextDecoder().decode(content)).toBe('bob version');
   });
 
   it('time-travel: materialize with ceiling returns historical content', async () => {
@@ -222,13 +231,13 @@ describe('API: Content Attachment', () => {
 
     // Latest should be v2
     await graph.materialize();
-    const latest = await graph.getContent('doc:1');
-    expect(new TextDecoder().decode(latest)).toBe('version 2');
+    const latest = await collectNodeContent(graph, 'doc:1');
+    assert(latest !== null, "Expected attachment fixture bytes");    expect(new TextDecoder().decode(latest)).toBe('version 2');
 
     // Ceiling=1 should be v1
     await graph.materialize({ ceiling: 1 });
-    const historical = await graph.getContent('doc:1');
-    expect(new TextDecoder().decode(historical)).toBe('version 1');
+    const historical = await collectNodeContent(graph, 'doc:1');
+    assert(historical !== null, "Expected attachment fixture bytes");    expect(new TextDecoder().decode(historical)).toBe('version 1');
   });
 
   it('node deletion removes content reference', async () => {
@@ -240,7 +249,7 @@ describe('API: Content Attachment', () => {
     await p1.commit();
 
     await graph.materialize();
-    expect(await graph.getContent('doc:1')).not.toBeNull();
+    expect(await collectNodeContent(graph, 'doc:1')).not.toBeNull();
 
     const p2 = await graph.createPatch();
     p2.removeNode('doc:1');
@@ -248,7 +257,7 @@ describe('API: Content Attachment', () => {
 
     await graph.materialize();
     // After removing the node, getContent returns null (node not alive)
-    expect(await graph.getContent('doc:1')).toBeNull();
+    expect(await collectNodeContent(graph, 'doc:1')).toBeNull();
   });
 
   it('writer API: commitPatch with attachContent', async () => {
@@ -261,8 +270,8 @@ describe('API: Content Attachment', () => {
     });
 
     await graph.materialize();
-    const content = await graph.getContent('doc:1');
-    expect(new TextDecoder().decode(content)).toBe('via writer API');
+    const content = await collectNodeContent(graph, 'doc:1');
+    assert(content !== null, "Expected attachment fixture bytes");    expect(new TextDecoder().decode(content)).toBe('via writer API');
   });
 
   it('GC durability: content survives git gc --prune=now', async () => {
@@ -278,9 +287,9 @@ describe('API: Content Attachment', () => {
 
     // Content should still be retrievable (blob is anchored in commit tree)
     await graph.materialize();
-    const content = await graph.getContent('doc:1');
+    const content = await collectNodeContent(graph, 'doc:1');
     expect(content).not.toBeNull();
-    expect(new TextDecoder().decode(content)).toBe('must survive gc');
+    assert(content !== null, "Expected attachment fixture bytes");    expect(new TextDecoder().decode(content)).toBe('must survive gc');
   });
 
   it('causal publication keeps every referenced asset out of immediate-prune output', async () => {
@@ -336,9 +345,9 @@ describe('API: Content Attachment', () => {
     // Re-open graph (fresh instance, no cached state)
     const graph2 = await repo.openGraph('test', 'alice');
     await graph2.materialize();
-    const content = await graph2.getContent('doc:1');
+    const content = await collectNodeContent(graph2, 'doc:1');
     expect(content).not.toBeNull();
-    expect(new TextDecoder().decode(content)).toBe('checkpointed content');
+    assert(content !== null, "Expected attachment fixture bytes");    expect(new TextDecoder().decode(content)).toBe('checkpointed content');
   });
 
   it('binary content round-trips correctly', async () => {
@@ -351,7 +360,7 @@ describe('API: Content Attachment', () => {
     await patch.commit();
 
     await graph.materialize();
-    const content = await graph.getContent('bin:1');
+    const content = await collectNodeContent(graph, 'bin:1');
     expect(content).not.toBeNull();
     expect(content).toBeInstanceOf(Uint8Array);
     expect(content).toEqual(binary);
@@ -379,7 +388,7 @@ describe('API: Content Attachment', () => {
       size: null,
     });
 
-    await expect(graph.getContent('doc:1'))
+    await expect(collectNodeContent(graph, 'doc:1'))
       .rejects.toMatchObject({ code: 'HANDLE_INVALID' });
   });
 
@@ -405,7 +414,7 @@ describe('API: Content Attachment', () => {
       size: null,
     });
 
-    await expect(graph.getEdgeContent('a', 'b', 'rel'))
+    await expect(collectEdgeContent(graph, { from: 'a', to: 'b', label: 'rel' }))
       .rejects.toMatchObject({ code: 'HANDLE_INVALID' });
   });
 });

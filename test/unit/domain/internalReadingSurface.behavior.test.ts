@@ -1,3 +1,4 @@
+import { collectNodeContent } from '../../helpers/CollectAttachmentTestBytes.ts';
 import { TextDecoder } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import WarpApp from '../../../src/domain/WarpApp.ts';
@@ -88,7 +89,7 @@ describe('internal reading surfaces', () => {
     expect('traverse' in app).toBe(false);
 
     await app.core().materialize();
-    const content = await app.getContent('doc:readme');
+    const content = await collectNodeContent(app, 'doc:readme');
     expect(content).toBeInstanceOf(Uint8Array);
     expect(new TextDecoder().decode(content ?? new Uint8Array())).toBe('hello from the app facade');
   });

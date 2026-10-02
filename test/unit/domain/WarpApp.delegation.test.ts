@@ -1,3 +1,4 @@
+import { collectNodeContent, collectEdgeContent } from '../../helpers/CollectAttachmentTestBytes.ts';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WarpApp from '../../../src/domain/WarpApp.ts';
 import WarpCore from '../../../src/domain/WarpCore.ts';
@@ -19,12 +20,10 @@ function createMockRuntime() {
     subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })),
     watch: vi.fn(() => ({ unsubscribe: vi.fn() })),
     // Content methods — accessed via callInternalRuntimeMethod prototype chain
-    getContent: vi.fn(async () => new Uint8Array([1, 2, 3])),
-    getContentStream: vi.fn(async function* () { yield new Uint8Array([1]); }),
+    getContentStream: vi.fn(async function* () { yield new Uint8Array([1, 2, 3]); }),
     getContentHandle: vi.fn(async () => 'asset:node'),
     getContentMeta: vi.fn(async () => ({ handle: 'asset:node', mime: 'text/plain', size: 42 })),
-    getEdgeContent: vi.fn(async () => new Uint8Array([4, 5, 6])),
-    getEdgeContentStream: vi.fn(async function* () { yield new Uint8Array([2]); }),
+    getEdgeContentStream: vi.fn(async function* () { yield new Uint8Array([4, 5, 6]); }),
     getEdgeContentHandle: vi.fn(async () => 'asset:edge'),
     getEdgeContentMeta: vi.fn(async () => ({ handle: 'asset:edge', mime: null, size: 10 })),
   };
@@ -243,9 +242,9 @@ describe('WarpApp delegation', () => {
 
   describe('getContent', () => {
     it('delegates to runtime getContent via callInternalRuntimeMethod', async () => {
-      const result = await app.getContent('node:1');
+      const result = await collectNodeContent(app, 'node:1');
 
-      expect(mockRuntime.getContent).toHaveBeenCalledWith('node:1');
+      expect(mockRuntime.getContentStream).toHaveBeenCalledWith('node:1');
       expect(result).toEqual(new Uint8Array([1, 2, 3]));
     });
   });
@@ -281,9 +280,9 @@ describe('WarpApp delegation', () => {
 
   describe('getEdgeContent', () => {
     it('delegates to runtime getEdgeContent', async () => {
-      const result = await app.getEdgeContent('a', 'b', 'knows');
+      const result = await collectEdgeContent(app, { from: 'a', to: 'b', label: 'knows' });
 
-      expect(mockRuntime.getEdgeContent).toHaveBeenCalledWith('a', 'b', 'knows');
+      expect(mockRuntime.getEdgeContentStream).toHaveBeenCalledWith('a', 'b', 'knows');
       expect(result).toEqual(new Uint8Array([4, 5, 6]));
     });
   });

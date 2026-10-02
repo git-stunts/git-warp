@@ -202,8 +202,8 @@ function bindQueryCapability(runtime: WarpGraphRuntimeSurface): QueryCapability 
     'hasNode', 'getNodeProps', 'getEdgeProps', 'neighbors',
     'getStateSnapshot', 'getNodes', 'getEdges', 'getPropertyCount',
     'query', 'worldline', 'observer', 'translationCost',
-    'getContentHandle', 'getContentMeta', 'getContent',
-    'getEdgeContentHandle', 'getEdgeContentMeta', 'getEdgeContent',
+    'getContentHandle', 'getContentMeta',
+    'getEdgeContentHandle', 'getEdgeContentMeta',
     'getContentStream', 'getEdgeContentStream',
   ]);
   return Object.freeze({
@@ -221,10 +221,8 @@ function bindQueryCapability(runtime: WarpGraphRuntimeSurface): QueryCapability 
     translationCost: runtime.translationCost.bind(runtime),
     getContentHandle: runtime.getContentHandle.bind(runtime),
     getContentMeta: runtime.getContentMeta.bind(runtime),
-    getContent: runtime.getContent.bind(runtime),
     getEdgeContentHandle: runtime.getEdgeContentHandle.bind(runtime),
     getEdgeContentMeta: runtime.getEdgeContentMeta.bind(runtime),
-    getEdgeContent: runtime.getEdgeContent.bind(runtime),
     getContentStream: runtime.getContentStream.bind(runtime),
     getEdgeContentStream: runtime.getEdgeContentStream.bind(runtime),
   });

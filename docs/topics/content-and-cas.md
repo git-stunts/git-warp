@@ -26,9 +26,11 @@ Content attachments are useful when a node or edge needs associated bytes that
 should not be modeled as scalar properties. The graph stores the causal fact
 that content is attached; blob storage stores the bytes.
 
-Use the public content read surfaces when the caller needs content OIDs,
-metadata, byte payloads, or streams. Keep `Buffer`, filesystem details, and
-host-specific stream types inside adapters.
+Internal attachment reads expose metadata, opaque handles, and streams.
+The eager `getContent` and `getEdgeContent` methods have been removed from core,
+graph, app, and query facades. Supported Runtime/Lane attachment operations are
+tracked in #901. Keep `Buffer`, filesystem details, and host-specific streams
+inside adapters.
 
 ## Declared-size staging contract
 
@@ -70,7 +72,7 @@ Strings and other nonbinary property data are outside this binary-specific budge
 
 ## Remaining attachment delivery gates
 
-Issue #818 still requires retirement of eager attachment reads, a generated multi-GiB stream witness and an eager negative control under the same Docker memory budget.
+Issue #818 still requires a checked-in multi-GiB stream witness and an eager negative control under the same Docker memory budget.
 Issues #646 and #737 are already closed; their storage-plane and semantic-port outcomes remain compatibility constraints, not proof that the remaining eager readers are safe.
 Issue #901 then restores supported Runtime/Lane attach, replace, clear, and stream reads, with atomic staging, retention and a packed consumer witness.
 These are sequential independently mergeable PRs; no intermediate mainline may expose incomplete public attachment operations.
