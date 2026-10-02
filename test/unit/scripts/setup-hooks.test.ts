@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -121,4 +121,27 @@ it('preserves explicit configuration through npm pack prepare', () => {
   git(primary, 'config', '--local', 'core.hooksPath', 'custom-hooks');
   execFileSync('npm', ['pack', '--dry-run', '--ignore-scripts'], { cwd: linked, stdio: 'pipe' });
   expect(git(primary, 'config', '--local', '--get', 'core.hooksPath')).toBe('custom-hooks');
+});
+
+
+it('skips hook setup successfully outside a Git repository', () => {
+  const unpacked = join(directory, 'unpacked');
+  installFixture(unpacked, 'unpacked');
+  const result = spawnSync(process.execPath, ['scripts/setup-hooks.ts'], {
+    cwd: unpacked,
+    encoding: 'utf8',
+  });
+  expect(result.status).toBe(0);
+  expect(result.stdout).toContain('Skipping git hooks setup (not a git repository).');
+});
+
+it('refuses installation when the hook scripts directory is missing', () => {
+  rmSync(join(linked, 'scripts/hooks'), { recursive: true });
+  const result = spawnSync(process.execPath, ['scripts/setup-hooks.ts'], {
+    cwd: linked,
+    encoding: 'utf8',
+  });
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain('hooks directory not found');
+  expect(git(primary, 'config', '--local', '--list')).not.toContain('core.hookspath');
 });
