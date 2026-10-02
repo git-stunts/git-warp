@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -14,15 +14,30 @@ afterEach(() => {
 function runWatch(mode: string, exitStatus: number) {
   const directory = mkdtempSync(join(tmpdir(), 'warp Docker watch '));
   fixtures.push(directory);
+  const root = join(directory, 'source');
+  const copied = join(directory, 'copied');
+  for (const path of [join(root, 'scripts'), join(root, 'test/__snapshots__'),
+    join(copied, 'test/__snapshots__')]) mkdirSync(path, { recursive: true });
+  copyFileSync(resolve('scripts/RunDockerWatch.sh'), join(root, 'scripts/RunDockerWatch.sh'));
+  if (existsSync('scripts/ExportDockerWatchSnapshots.sh'))
+    copyFileSync(resolve('scripts/ExportDockerWatchSnapshots.sh'), join(root, 'scripts/ExportDockerWatchSnapshots.sh'));
+  for (const path of [root, copied]) writeFileSync(join(path, 'test/__snapshots__/fixture.test.ts.snap'), 'baseline\n');
   const docker = join(directory, 'docker');
   writeFileSync(docker, `#!${shell}
 set -euo pipefail
-while [[ "$1" != up && "$1" != watch && "$1" != exec && "$1" != down ]]; do
+if [[ "$1" == cp ]]; then
+  echo cp >> "$TRACE"
+  cp -R "$COPIED/test" "$3"
+  exit
+fi
+while [[ "$1" != up && "$1" != watch && "$1" != exec && "$1" != down && "$1" != ps && "$1" != stop ]]; do
   if [[ "$1" == --profile ]]; then shift 2; else shift; fi
 done
 echo "$1" >> "$TRACE"
 case "$1" in
   up) ;;
+  ps) echo fixture-watch;;
+  stop) ;;
   watch)
     touch "$TRACE.ready"
     if [[ "$MODE" == failed-watch ]]; then exit 8; fi
@@ -39,6 +54,7 @@ case "$1" in
     test "$7" = watch
     test "$8" = 'test path with spaces.test.ts'
     case "$MODE" in
+      snapshot-update) echo updated > "$COPIED/test/__snapshots__/fixture.test.ts.snap"; exit "$EXIT_STATUS";;
       failed-watch) exec sleep 30;;
       signal) kill -TERM "$PPID"; exec sleep 30;;
       completed-after-watch-failure) sleep 0.15; exit 0;;
@@ -50,12 +66,12 @@ case "$1" in
 esac
 `);
   chmodSync(docker, 0o755);
-  const result = spawnSync(shell, [resolve('scripts/RunDockerWatch.sh'), 'test path with spaces.test.ts'], {
+  const result = spawnSync(shell, [join(root, 'scripts/RunDockerWatch.sh'), 'test path with spaces.test.ts'], {
     encoding: 'utf8', timeout: 10000,
     env: { PATH: [directory, dirname(shell)].join(delimiter), TRACE: join(directory, 'trace'),
-      MODE: mode, EXIT_STATUS: String(exitStatus) },
+      MODE: mode, EXIT_STATUS: String(exitStatus), COPIED: copied },
   });
-  return { result, trace: readFileSync(join(directory, 'trace'), 'utf8').trim().split('\n') };
+  return { result, root, trace: readFileSync(join(directory, 'trace'), 'utf8').trim().split('\n') };
 }
 
 describe('Docker watch lifecycle', () => {
@@ -90,5 +106,13 @@ describe('Docker watch lifecycle', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Docker source synchronization stopped');
     expect(trace.at(-1)).toBe('down');
+  });
+
+  it('exports updated snapshots before removing the copied watch service', () => {
+    const { result, root, trace } = runWatch('snapshot-update', 0);
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(readFileSync(join(root, 'test/__snapshots__/fixture.test.ts.snap'), 'utf8')).toBe('updated\n');
+    expect(trace.indexOf('cp')).toBeLessThan(trace.indexOf('down'));
   });
 });

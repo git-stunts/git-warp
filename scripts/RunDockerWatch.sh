@@ -8,6 +8,7 @@ scratch=$(mktemp -d)
 watch_pid=''
 test_pid=''
 monitor_pid=''
+container=''
 cleanup() {
   status=$?
   trap - EXIT
@@ -18,6 +19,16 @@ cleanup() {
       wait "$child" 2>/dev/null || true
     fi
   done
+  if [[ -n "$container" ]]; then
+    if "${compose[@]}" stop --timeout 10 test-watch && \
+      docker cp "$container:/app/test" "$scratch/candidate" && \
+      bash "$ROOT/scripts/ExportDockerWatchSnapshots.sh" apply "$ROOT" "$scratch" "$project"; then
+      :
+    else
+      echo 'Failed to export Docker watch snapshots' >&2
+      if [[ "$status" == 0 ]]; then status=1; fi
+    fi
+  fi
   "${compose[@]}" down --timeout 10 || {
     echo 'Failed to clean up Docker watch service' >&2
     if [[ "$status" == 0 ]]; then status=1; fi
@@ -29,7 +40,10 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+bash "$ROOT/scripts/ExportDockerWatchSnapshots.sh" capture "$ROOT" "$scratch" "$project"
 "${compose[@]}" up --build --detach test-watch
+container=$("${compose[@]}" ps --all --quiet test-watch)
+[[ -n "$container" ]]
 # Compose Watch copies edits into the service; no checkout or Git directory is mounted.
 "${compose[@]}" watch --no-up test-watch &
 watch_pid=$!

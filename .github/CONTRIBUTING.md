@@ -84,7 +84,11 @@ uses [Compose Watch](https://docs.docker.com/compose/how-tos/file-watch/) to
 synchronize edits. Compose must support `develop.watch.initial_sync`. Host Git
 metadata, dependencies and generated reports are excluded from synchronization.
 Exiting the test client, interrupting it, or losing synchronization cleans up
-the service.
+the service. Before teardown, watch mode exports external snapshots under
+`test/**/__snapshots__/` and inline updates in existing test modules. It applies
+changes only when the host still matches the captured baseline. Conflicting
+updates are retained under `.ratchet/docker-results/` and produce a nonzero exit;
+other test fixtures and new or deleted test modules are never exported.
 
 Coverage commands export `coverage/` before container cleanup. Only
 `npm run test:coverage` may apply updated thresholds to `vitest.config.ts`, and
