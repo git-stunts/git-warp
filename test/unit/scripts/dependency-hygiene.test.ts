@@ -8,12 +8,10 @@ import { z } from 'zod';
 const REPO_ROOT = new URL('../../../', import.meta.url);
 
 const PATCH_PACKAGE_FILES: readonly string[] = [
-  '@git-stunts+plumbing+3.3.1.patch',
   '@git-stunts+trailer-codec+2.1.1.patch',
 ];
 
 const PATCH_PACKAGE_README_HEADINGS: readonly string[] = [
-  '### `@git-stunts/plumbing@3.3.1`',
   '### `@git-stunts/trailer-codec@2.1.1`',
 ];
 

@@ -114,6 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Attachment reads after checkpoint and Git GC recover from a stale mktree
   process with one fresh-process retry. Broken-pipe and closed-input errors are
   classified at the dependency protocol boundary; unrelated errors still fail.
+  This now uses published git-cas 6.5.11 and Plumbing 3.3.2; the temporary
+  source-checkout Plumbing patch is removed.
 
 - Skip edge-property rows with invalid runtime identifier or slot fields, consistently across iterators and attachment projections, while retaining their stored registers.
 
