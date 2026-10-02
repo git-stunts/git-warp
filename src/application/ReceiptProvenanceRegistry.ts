@@ -1,3 +1,4 @@
+import type ContentStagingAuthority from '../domain/services/ContentStagingAuthority.ts';
 import WarpError from '../domain/errors/WarpError.ts';
 import type { ApiRuntimeContext, ReceiptProvenance } from '../domain/api/ApiRuntimeContext.ts';
 import type { Receipt } from '../domain/api/Receipt.ts';
@@ -18,9 +19,11 @@ const RECOVERY_NONCES = new WeakMap<WarpStorage, RecoveryNonceState>();
 
 export function createApiRuntimeContext(
   storage: WarpStorage,
-  crypto: CryptoPort
+  crypto: CryptoPort,
+  content?: ContentStagingAuthority,
 ): ApiRuntimeContext {
   return Object.freeze({
+    ...(content === undefined ? {} : { content }),
     createOpaqueId: async (namespace, parts) => {
       const digest = await crypto.hash('sha256', opaqueIdPayload(namespace, parts));
       return `${namespace}:${digest}`;

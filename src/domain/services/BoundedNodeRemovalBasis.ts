@@ -60,6 +60,15 @@ export default class BoundedNodeRemovalBasis {
   get lamport(): number { return this.#lamport; }
   context(): VersionVector { return this.#context.clone(); }
 
+  containsNode(nodeId: string): boolean {
+    return this.#targets.has(nodeId) && this.#nodes.contains(nodeId);
+  }
+
+  containsEdge(from: string, to: string, label: string): boolean {
+    return (this.#targets.has(from) || this.#targets.has(to))
+      && this.#edges.contains(encodeEdgeKey(from, to, label));
+  }
+
   node(nodeId: string): NodeRemovalObservation {
     if (!this.#targets.has(nodeId)) {throw budgetExceeded();}
     const edges = this.#edges.elements().filter((key) => {

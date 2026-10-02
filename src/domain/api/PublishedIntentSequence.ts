@@ -1,3 +1,4 @@
+import { contentIntentMatchesOperations, CONTENT_INTENT_OPERATION_COUNT } from './ContentIntentRuntime.ts';
 import type { Dot } from '../crdt/Dot.ts';
 import WarpError from '../errors/WarpError.ts';
 import { allocateEntitySubject } from '../services/PatchBuilderEntity.ts';
@@ -11,8 +12,7 @@ import NodePropSet from '../types/ops/NodePropSet.ts';
 import NodeRemove from '../types/ops/NodeRemove.ts';
 import PropSet from '../types/ops/PropSet.ts';
 import type { PatchOp } from '../types/ops/unions.ts';
-import type Intent from './Intent.ts';
-import type { IntentDescriptor } from './Intent.ts';
+import { isContentIntentDescriptor, type IntentDescriptor, type default as Intent } from './Intent.ts';
 import type IntentSequence from './IntentSequence.ts';
 
 export type PublishedEntityCoordinate = Readonly<{
@@ -97,6 +97,13 @@ export function inspectPublishedIntentSequence(
 
 function inspectIntent(cursor: PublicationCursor, intent: Intent): void {
   const { descriptor } = intent;
+  if (isContentIntentDescriptor(descriptor)) {
+    const operations = Array.from({ length: CONTENT_INTENT_OPERATION_COUNT }, () => cursor.take(intent));
+    if (!contentIntentMatchesOperations(descriptor, operations)) {
+      throw publicationError(intent, 'Published attachment does not match its requested owner and metadata');
+    }
+    return;
+  }
   if (isNodeIntentDescriptor(descriptor)) {
     inspectNodeIntent(cursor, intent, descriptor);
     return;

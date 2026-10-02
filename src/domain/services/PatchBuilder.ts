@@ -86,6 +86,8 @@ export class PatchBuilder {
   private readonly _properties: PatchBuilderPropertyRuntime;
   private readonly _ops: PatchOp[] = [];
   private readonly _nodesAdded = new Set<string>();
+  private readonly _nodesRemoved = new Set<string>();
+  private readonly _edgesRemoved = new Set<string>();
   private readonly _edgesAdded = new Set<string>();
   private readonly _observedOperands = new Set<string>();
   private readonly _writes = new Set<string>();
@@ -115,7 +117,10 @@ export class PatchBuilder {
       assetStorage: options.assetStorage ?? null,
       assertMutable: () => this._assertNotCommitted(),
       edgesAdded: this._edgesAdded,
+      edgesRemoved: this._edgesRemoved,
+      nodesRemoved: this._nodesRemoved,
       getSnapshotState: () => this._getSnapshotState(),
+      getWriteBasis: () => this._removalBasis,
       graphName: this._graphName,
       nodesAdded: this._nodesAdded,
       observedOperands: this._observedOperands,
@@ -259,8 +264,7 @@ export class PatchBuilder {
       throw new PatchError(`Cannot remove node '${nodeId}': graph must be materialized or a bounded removal basis prepared`, { code: 'E_PATCH_NO_STATE' });
     }
     for (const op of observation.operations(this._onDeleteWithData, this._logger)) {
-      this._ops.push(op);
-      this._observedOperands.add(op instanceof NodeRemove ? op.node : encodeEdgeKey(op.from, op.to, op.label));
+      this._recordRemoval(op);
     }
     return this;
   }
@@ -292,9 +296,16 @@ export class PatchBuilder {
     }
     const observedDots = [...state.edgeAlive.getDots(edgeKey)];
     assertObservedDotsForRemove(observedDots, 'edge', { edgeKey });
-    this._ops.push(new EdgeRemove({ from, to, label, observedDots }));
-    this._observedOperands.add(edgeKey);
+    this._recordRemoval(new EdgeRemove({ from, to, label, observedDots }));
     return this;
+  }
+
+  private _recordRemoval(op: NodeRemove | EdgeRemove): void {
+    const operand = op instanceof NodeRemove ? op.node : encodeEdgeKey(op.from, op.to, op.label);
+    const removed = op instanceof NodeRemove ? this._nodesRemoved : this._edgesRemoved;
+    removed.add(operand);
+    this._ops.push(op);
+    this._observedOperands.add(operand);
   }
 
   emitEffect<T>(kind: string, payload?: T, options?: { effectId?: string }): string {

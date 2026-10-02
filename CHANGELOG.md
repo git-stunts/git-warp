@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Lane.stageContent()` streams bytes into Runtime-owned storage and returns immutable identity, MIME and plaintext-size metadata without publishing a graph write. Worldline and strand lanes share the Runtime's staging provenance and shutdown lifetime. Staging alone does not establish durable attachment retention.
+- Advanced `intent.node.attachContent` / `intent.edge.attachContent` and their `clearContent` counterparts support atomic attachment writes through `Lane.write()`. Attach replaces existing content and requires a value staged by the same Runtime. Publication retains the asset with its owner metadata; retained strand replay preserves the attachment intent and retention roots. Invalid owners obstruct the complete write, including owners removed earlier in that write. Public observer stream reads remain part of the unfinished #901 delivery.
 
 - Publish builds now use `@vercel/nft` to prune unreachable emitted JavaScript
   after `tsc`, preserving retained bytes, compiler-selected declarations,

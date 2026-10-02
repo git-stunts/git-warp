@@ -1,3 +1,4 @@
+import type ContentStagingAuthority from '../../../src/domain/services/ContentStagingAuthority.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -32,6 +33,7 @@ describe('Runtime', () => {
   const openStrandLane = vi.fn();
   let lane: Lane;
   let runtimeOwner: object;
+  let runtimeContent: ContentStagingAuthority;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -43,7 +45,9 @@ describe('Runtime', () => {
     openStrandLane.mockReset();
     mocks.createWorldlineLane.mockImplementation((_timeline, _activity, options: {
       readonly owner: object;
+      readonly content: ContentStagingAuthority;
     }) => {
+      runtimeContent = options.content;
       runtimeOwner = options.owner;
       lane = createBoundLane({
         descriptor: { kind: 'worldline', name: 'events' },
@@ -76,7 +80,7 @@ describe('Runtime', () => {
     const openedLane = await runtime.lane('events');
     expect(openedLane).toBe(lane);
     expect(mocks.openStorage).toHaveBeenCalledWith({ cwd: '/repo' });
-    expect(mocks.openWarp).toHaveBeenCalledWith({ storage, writer: 'agent-1' });
+    expect(mocks.openWarp).toHaveBeenCalledWith({ storage, writer: 'agent-1', content: runtimeContent });
     expect(openTimeline).toHaveBeenCalledWith('events');
     expect(mocks.createWorldlineLane).toHaveBeenCalledWith(
       timeline,

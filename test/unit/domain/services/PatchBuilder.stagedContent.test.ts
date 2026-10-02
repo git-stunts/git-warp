@@ -107,4 +107,18 @@ describe('pre-staged attachment publication', () => {
     expect(builder.build().ops).toEqual(before);
     expect(builder.contentAssets).toEqual([]);
   });
+
+  it('refuses an edge removed earlier in the same patch, but permits a fresh addition', () => {
+    const state = WarpState.empty();
+    state.edgeAlive.add(encodeEdgeKey(EDGE.from, EDGE.to, EDGE.label), Dot.create('earlier', 1));
+    const builder = createPatchBuilder({ getCurrentState: () => state });
+    builder.removeEdge(EDGE.from, EDGE.to, EDGE.label);
+    const before = builder.build().ops;
+    expect(() => builder.attachStagedEdgeContent(EDGE, payload())).toThrow(
+      expect.objectContaining({ code: 'E_PATCH_EDGE_PROP_UNKNOWN_EDGE' }),
+    );
+    expect(builder.build().ops).toEqual(before);
+    builder.addEdge(EDGE.from, EDGE.to, EDGE.label).attachStagedEdgeContent(EDGE, payload());
+    expect(builder.contentAssets.map(String)).toEqual(['asset:staged']);
+  });
 });

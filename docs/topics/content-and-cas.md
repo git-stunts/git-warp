@@ -28,15 +28,58 @@ that content is attached; blob storage stores the bytes.
 
 Internal attachment reads expose metadata, opaque handles, and streams.
 The eager `getContent` and `getEdgeContent` methods have been removed from core,
-graph, app, and query facades. Supported Runtime/Lane attachment operations are
-tracked in #901. Keep `Buffer`, filesystem details, and host-specific streams
+graph, app, and query facades. Runtime/Lane staging and attachment-write intents
+are available on the #901 implementation branch; public observer stream reads
+and packed-consumer acceptance remain unfinished. Keep `Buffer`, filesystem details, and host-specific streams
 inside adapters.
 
 ## Declared-size staging contract
 
 `Lane.stageContent(source, { mime, size })` accepts text, `Uint8Array`, `ReadableStream<Uint8Array>` or `AsyncIterable<Uint8Array>`. Both metadata fields are optional; `size` declares the expected plaintext byte count. The immutable result exposes `id`, `mime` and the measured `size`, without retaining the input bytes.
 
-Staging is owned by the Runtime and works on worldline and strand lanes. Closing the Runtime waits for active staging to finish and refuses new staging work. A staging or producer failure publishes no graph patch. The returned value records staging provenance; copied metadata cannot substitute for that value. It does not establish durable retention or constitute a node/edge attachment by itself. The remaining attach, clear and observer-stream operations are tracked in #901.
+Staging is owned by the Runtime and works on worldline and strand lanes. Closing the Runtime waits for active staging to finish and refuses new staging work. A staging or producer failure publishes no graph patch. The returned value records staging provenance; copied metadata cannot substitute for that value. It does not establish durable retention or constitute a node/edge attachment by itself.
+
+## Attachment writes
+
+Use the advanced intent builders with the staged value and an explicit owner:
+
+```typescript
+import { Runtime } from '@git-stunts/git-warp';
+import { intent } from '@git-stunts/git-warp/advanced';
+
+const runtime = await Runtime.open({ at: './data', writer: 'documents' });
+try {
+  const lane = await runtime.lane('documents');
+  const content = await lane.stageContent('hello', { mime: 'text/plain' });
+  const receipt = await lane.write([
+    intent.node.add({ subject: 'document' }),
+    intent.node.add({ subject: 'related' }),
+    intent.edge.add({ from: 'document', to: 'related', label: 'links' }),
+    intent.node.attachContent({ subject: 'document', content }),
+    intent.edge.attachContent({ from: 'document', to: 'related', label: 'links', content }),
+  ]);
+  console.log(receipt.outcome.kind);
+} finally {
+  await runtime.close();
+}
+```
+
+Attaching again replaces that owner's attachment. `intent.node.clearContent({ subject })`
+and `intent.edge.clearContent({ from, to, label })` remove the current association;
+historical attachment facts remain part of causal history. Check the write receipt:
+an absent owner produces an obstruction, and a failure in one array member publishes
+none of the array. A staged value from another Runtime is refused, even if it uses
+the same repository. Staging that becomes unavailable before publication also fails
+without advancing the graph's publication ref.
+
+Worldline owner checks use a captured, bounded journal observation, not an implicit
+full graph materialization. They share its refusal limits with node removal:
+1,024 writers, 10,000 patches, 50,000 operations and membership/text bounds.
+Long histories or high incident-edge fanout can exceed that profile; an obstruction
+is not evidence that the requested owner is absent. Public historical stream reads
+and the complete packed-consumer witness remain delivery gates for #901.
+
+## Storage size validation
 
 When staging an asset with `expectedSize`, the declaration must be a
 non-negative safe integer. The storage adapter checks the plaintext stream
@@ -53,9 +96,9 @@ cannot prevent a producer from allocating an oversized chunk before yielding
 it. Producer allocation limits and bounded convenience collectors are separate
 requirements of issue #818.
 
-This internal safety change does not restore node/edge attachment operations
-through Runtime/Lane. Their public capability and packed-consumer evidence are
-tracked in #901 and #902; byte assets do not establish recursive graph ownership.
+The size check alone does not establish an attachment or its retention. Complete
+public capability and packed-consumer evidence are tracked in #901 and #902;
+byte assets do not establish recursive graph ownership.
 
 ## Bounded artifact decoding
 

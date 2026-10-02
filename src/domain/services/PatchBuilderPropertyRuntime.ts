@@ -1,3 +1,4 @@
+import type BoundedNodeRemovalBasis from './BoundedNodeRemovalBasis.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import ContentAttachmentWriteIntent, { type ContentAttachmentEdgeWriteTarget } from '../graph/ContentAttachmentWriteIntent.ts';
 import type ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
@@ -27,7 +28,10 @@ type PatchBuilderPropertyRuntimeOptions = {
   readonly assetStorage: AssetStoragePort | null;
   readonly assertMutable: () => void;
   readonly edgesAdded: ReadonlySet<string>;
+  readonly edgesRemoved: ReadonlySet<string>;
+  readonly nodesRemoved: ReadonlySet<string>;
   readonly getSnapshotState: () => WarpState | null;
+  readonly getWriteBasis: () => BoundedNodeRemovalBasis | null;
   readonly graphName: string;
   readonly nodesAdded: ReadonlySet<string>;
   readonly observedOperands: Set<string>;
@@ -215,11 +219,7 @@ export default class PatchBuilderPropertyRuntime {
   }
 
   #assertNodeExistsForContent(nodeId: string): void {
-    if (this.#options.nodesAdded.has(nodeId)) {
-      return;
-    }
-    const state = this.#options.getSnapshotState();
-    if (!state || !state.nodeAlive.contains(nodeId)) {
+    if (!this.#nodeExists(nodeId)) {
       throw new PatchError(
         `Cannot attach content to unknown node '${nodeId}': add the node first`, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
         { code: 'E_PATCH_CONTENT_UNKNOWN_NODE', context: { nodeId } }
@@ -227,11 +227,26 @@ export default class PatchBuilderPropertyRuntime {
     }
   }
 
+  #nodeExists(nodeId: string): boolean {
+    if (this.#options.nodesAdded.has(nodeId)) { return true; }
+    if (this.#options.nodesRemoved.has(nodeId)) { return false; }
+    const state = this.#options.getSnapshotState();
+    return state === null ? this.#options.getWriteBasis()?.containsNode(nodeId) === true
+      : state.nodeAlive.contains(nodeId);
+  }
+
+  #edgeExists(from: string, to: string, label: string): boolean {
+    const key = encodeEdgeKey(from, to, label);
+    if (this.#options.edgesRemoved.has(key)) { return false; }
+    const state = this.#options.getSnapshotState();
+    return state === null ? this.#options.getWriteBasis()?.containsEdge(from, to, label) === true
+      : state.edgeAlive.contains(key);
+  }
+
   #assertEdgeExists(from: string, to: string, label: string): string {
     const edgeKey = encodeEdgeKey(from, to, label);
     if (!this.#options.edgesAdded.has(edgeKey)) {
-      const state = this.#options.getSnapshotState();
-      if (!state || !state.edgeAlive.contains(edgeKey)) {
+      if (!this.#edgeExists(from, to, label)) {
         throw new PatchError(
           `Cannot set property on unknown edge (${from} → ${to} [${label}]): add the edge first`, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
           { code: 'E_PATCH_EDGE_PROP_UNKNOWN_EDGE', context: { from, to, label } }

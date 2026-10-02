@@ -1,3 +1,4 @@
+import { isContentIntentDescriptor, type default as Intent } from './Intent.ts';
 import type { default as WarpWorldline, WarpWorldlinePatchBuild } from '../WarpWorldline.ts';
 import WarpError from '../errors/WarpError.ts';
 import WriterError from '../errors/WriterError.ts';
@@ -128,13 +129,12 @@ async function publishIntentWrite(
 ): Promise<PatchCommitResult> {
   return await fields.commit(async (patch) => {
     try {
-      await patch.prepareWriteBasis(fields.sequence.intents.flatMap((intent) =>
-        intent.descriptor.kind === 'node.remove' ? [intent.descriptor.subject] : []));
+      await patch.prepareWriteBasis(fields.sequence.intents.flatMap(writeOwnerTargets));
     } finally {
       attempt.basis = readPatchBuilderCausalBasis(patch);
       attempt.evaluation = await prepareWriteAdmission({ ...fields, basis: attempt.basis });
     }
-    applyIntentSequenceToPatch(fields.sequence, patch);
+    applyIntentSequenceToPatch(fields.sequence, patch, fields.context.content);
     attempt.publishedEntities = inspectPublishedIntentSequence(fields.sequence, patch.build());
   });
 }
@@ -271,7 +271,7 @@ function operationalWriteFailure(error: WarpError): OperationalWriteFailure | nu
   if (error.code === 'E_PATCH_DELETE_WITH_DATA') {
     return attachedDataFailure();
   }
-  if (error.code === 'E_PATCH_ENTITY_NOT_FOUND') {
+  if (isMissingOwner(error)) {
     return missingEntityFailure();
   }
   return writerCasFailure(error);
@@ -322,4 +322,16 @@ function writerCasFailure(error: WarpError): OperationalWriteFailure | null {
     destinationHeadSha: error.actualSha,
     repairHints: MATERIALIZE_HINT,
   };
+}
+
+function writeOwnerTargets(intent: Intent): readonly string[] {
+  const { descriptor } = intent;
+  if (descriptor.kind === 'node.remove') { return [descriptor.subject]; }
+  if (!isContentIntentDescriptor(descriptor)) { return []; }
+  return 'subject' in descriptor ? [descriptor.subject] : [descriptor.from, descriptor.to];
+}
+
+function isMissingOwner(error: WarpError): boolean {
+  return error.code === 'E_PATCH_ENTITY_NOT_FOUND' || error.code === 'E_PATCH_CONTENT_UNKNOWN_NODE'
+    || error.code === 'E_PATCH_EDGE_PROP_UNKNOWN_EDGE';
 }

@@ -46,6 +46,11 @@ it('observes all live additions, respects removals, and captures incident edges 
     new PropSet('n', 'k', 'payload'), new NodePropSet('n', 'j', 'another'), new PropSet('other', 'k', 'irrelevant'),
   ])]);
   const basis = await BoundedNodeRemovalBasis.capture(fields);
+  expect(basis.containsNode('n')).toBe(true);
+  expect(basis.containsNode('outside')).toBe(false);
+  expect(basis.containsEdge('n', 'm', 'live')).toBe(true);
+  expect(basis.containsEdge('m', 'n', 'dead')).toBe(false);
+  expect(basis.containsEdge('x', 'y', 'other')).toBe(false);
   const observation = basis.node('n');
   expect(observation.operations('cascade', nullLogger)).toMatchObject([
     { type: 'EdgeRemove', observedDots: ['alice:4'] }, { type: 'NodeRemove', observedDots: ['alice:3'] },
