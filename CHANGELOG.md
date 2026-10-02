@@ -116,6 +116,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Low-level eager and trie membership compaction retains entries and tombstones,
+  preventing stale additions from resurrecting removed nodes or edges (#911).
+  Existing signatures remain available as no-op preservation calls; they perform
+  no retirement or trie reshaping and do not bound retained metadata.
+
 - Targeted content reads apply observed membership-removal dots independently of the declared owner, matching canonical retained-history reduction while charging tombstones against read bounds (#901).
 
 - Retained strand recovery recognizes only complete, valid attachment triples; scalar writes resembling invalid attachment metadata remain scalar and can be reopened (#901).

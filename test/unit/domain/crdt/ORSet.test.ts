@@ -3,8 +3,11 @@ import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 
-/** @param {Map<any, any>} map @param {any} key @returns {any} */
-const getEntry = (map, key) => map.get(key);
+function getEntry(map: Map<string, Set<string>>, key: string): Set<string> {
+  const entry = map.get(key);
+  if (entry === undefined) throw new Error(`Expected entry for ${key}`);
+  return entry;
+}
 
 describe('ORSet', () => {
   describe('empty', () => {
@@ -442,7 +445,7 @@ describe('ORSet', () => {
   });
 
   describe('compact', () => {
-    it('removes tombstoned dots that are <= includedVV', () => {
+    it('retains tombstoned dots even when includedVV covers them', () => {
       const set = ORSet.empty();
       const dot = Dot.create('writer1', 1);
 
@@ -454,9 +457,8 @@ describe('ORSet', () => {
 
       set.compact(vv);
 
-      // Both the dot and tombstone should be removed
-      expect(set.entries.has('element1')).toBe(false);
-      expect(set.tombstones.has(encodeDot(dot))).toBe(false);
+      expect(set.entries.has('element1')).toBe(true);
+      expect(set.tombstones.has(encodeDot(dot))).toBe(true);
     });
 
     it('does NOT remove live (non-tombstoned) dots even if <= vv', () => {
@@ -493,7 +495,7 @@ describe('ORSet', () => {
       expect(set.tombstones.has(encodeDot(dot))).toBe(true);
     });
 
-    it('removes entry when all dots are compacted', () => {
+    it('retains the entry when all dots are removed and covered', () => {
       const set = ORSet.empty();
       const dot1 = Dot.create('writer1', 1);
       const dot2 = Dot.create('writer1', 2);
@@ -507,10 +509,11 @@ describe('ORSet', () => {
 
       set.compact(vv);
 
-      expect(set.entries.has('element1')).toBe(false);
+      expect(set.entries.has('element1')).toBe(true);
+      expect(set.contains('element1')).toBe(false);
     });
 
-    it('partially compacts when some dots are beyond vv', () => {
+    it('retains removed dots on both sides of the applied frontier', () => {
       const set = ORSet.empty();
       const dot1 = Dot.create('writer1', 1);
       const dot2 = Dot.create('writer1', 5);
@@ -524,15 +527,14 @@ describe('ORSet', () => {
 
       set.compact(vv);
 
-      // dot1 compacted, dot2 still there
       expect(set.entries.has('element1')).toBe(true);
-      expect(getEntry(set.entries,'element1').has(encodeDot(dot1))).toBe(false);
+      expect(getEntry(set.entries,'element1').has(encodeDot(dot1))).toBe(true);
       expect(getEntry(set.entries,'element1').has(encodeDot(dot2))).toBe(true);
-      expect(set.tombstones.has(encodeDot(dot1))).toBe(false);
+      expect(set.tombstones.has(encodeDot(dot1))).toBe(true);
       expect(set.tombstones.has(encodeDot(dot2))).toBe(true);
     });
 
-    it('compacts multiple elements', () => {
+    it('retains membership evidence for multiple elements', () => {
       const set = ORSet.empty();
       const dot1 = Dot.create('writer1', 1);
       const dot2 = Dot.create('writer1', 2);
@@ -546,8 +548,8 @@ describe('ORSet', () => {
 
       set.compact(vv);
 
-      expect(set.entries.size).toBe(0);
-      expect(set.tombstones.size).toBe(0);
+      expect(set.entries.size).toBe(2);
+      expect(set.tombstones.size).toBe(2);
     });
   });
 
