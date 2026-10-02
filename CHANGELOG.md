@@ -111,6 +111,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject new inline binary property writes exceeding 64 KiB in aggregate,
+  including nested binary values, before intent copying or patch mutation.
+  Larger binary payloads must use streaming content assets (#818).
+
 - Internal artifact collection now requires an explicit byte ceiling and rejects
   overflow before copying the excess chunk. Collection snapshots producer buffers
   instead of retaining mutable aliases; readable stream cancellation releases the

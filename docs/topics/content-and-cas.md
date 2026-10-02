@@ -61,9 +61,16 @@ Its geometric buffer growth bounds accumulator memory by a constant multiple of 
 The ceiling excludes memory already allocated by the producer and objects allocated by a subsequent decoder.
 ReadableStream adaptation cancels unfinished consumption and releases its reader lock on completion, cancellation, and failure.
 
+## Inline binary write budget
+
+New intent and patch property writes permit at most 64 KiB of aggregate binary data per property value, counting every nested binary occurrence before any intent copy.
+An oversized value fails with `E_INLINE_BINARY_LIMIT` and directs the caller to a streaming content asset.
+The limit applies to node, edge and entity initial properties through their shared validation boundaries; it does not retroactively truncate historical property reads.
+Strings and other nonbinary property data are outside this binary-specific budget.
+
 ## Remaining attachment delivery gates
 
-Issue #818 still requires retirement of eager attachment reads, inline binary write limits, a generated multi-GiB stream witness and an eager negative control under the same Docker memory budget.
+Issue #818 still requires retirement of eager attachment reads, a generated multi-GiB stream witness and an eager negative control under the same Docker memory budget.
 Issues #646 and #737 are already closed; their storage-plane and semantic-port outcomes remain compatibility constraints, not proof that the remaining eager readers are safe.
 Issue #901 then restores supported Runtime/Lane attach, replace, clear, and stream reads, with atomic staging, retention and a packed consumer witness.
 These are sequential independently mergeable PRs; no intermediate mainline may expose incomplete public attachment operations.

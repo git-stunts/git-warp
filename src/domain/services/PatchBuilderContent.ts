@@ -1,3 +1,4 @@
+import InlineBinaryBudget from '../types/InlineBinaryBudget.ts';
 import ContentAttachmentHandle from '../graph/ContentAttachmentHandle.ts';
 import ContentAttachmentMime from '../graph/ContentAttachmentMime.ts';
 import ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
@@ -32,6 +33,7 @@ export type StageContentAttachmentOptions = Omit<
 /** Validates public patch property values before intent construction. */
 export function requirePatchPropertyValue<T>(value: T): PropValue {
   if (isPropValue(value)) {
+    InlineBinaryBudget.require(value);
     return value;
   }
   throw new PatchError('Property value must be property-compatible data', {
