@@ -7,6 +7,7 @@ import WarpError, { type WarpErrorOptions } from './WarpError.ts';
  *
  * | Code | Description |
  * |------|-------------|
+ * | `E_CRDT_INVALID_ENTRIES` | Version vector construction requires a Map |
  * | `E_CRDT_INVALID_COUNTER` | Operation counter is not a positive integer |
  * | `E_CRDT_ZERO_COUNTER` | Counter is zero where a positive one was expected |
  * | `E_CRDT_MALFORMED` | CRDT state object is invalid or corrupted |

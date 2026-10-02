@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preparation shares the closure deadline; validated receipts and diagnostics
   survive removal, and failed export or cleanup refuses verified closure (#922).
 
+- VersionVector construction validates writer/counter entries, omits zero
+  counters and snapshots caller-owned maps so later mutations cannot corrupt
+  causal state (#205).
+
 - Bounded checkpoint-tail node reads honor checkpoint tombstones for late
   arriving adds and refuse unwitnessed adds instead of resurrecting a node
   already removed by the checkpoint (#894).
