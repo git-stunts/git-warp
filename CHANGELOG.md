@@ -111,6 +111,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Asset staging preserves the original typed producer or validation error when storage wraps it as a stream failure. Unrelated storage failures retain their original error.
+
 - Inline property snapshots reject absent array indexes even when a prototype supplies their values.
 
 - Attachment metadata reports consumed plaintext size under framed encryption,

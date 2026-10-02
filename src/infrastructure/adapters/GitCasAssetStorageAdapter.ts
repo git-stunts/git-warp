@@ -1,5 +1,6 @@
 import {
   AssetHandle as GitCasAssetHandle,
+  CasError,
   type AssetCapability,
   type AssetPutOptions,
   type StagedAsset as GitCasStagedAsset,
@@ -13,6 +14,8 @@ import AssetStoragePort, {
 import CasContentEncryptionPolicy, {
   mapCasContentEncryptionError,
 } from './CasContentEncryptionPolicy.ts';
+
+const CAS_STREAM_ERROR = 'STREAM_ERROR';
 
 export type GitCasAssetFacade = {
   readonly assets: Pick<AssetCapability, 'put' | 'open'>;
@@ -43,7 +46,7 @@ export default class GitCasAssetStorageAdapter extends AssetStoragePort {
       filename: options.filename ?? 'content',
       ...this.#contentEncryption.toStoreOptions(),
     };
-    const staged = await this.#cas.assets.put(putOptions);
+    const staged = await putAsset(this.#cas, putOptions);
     if (!this.#contentEncryption.enabled) { consumption.verifyPlaintextReceipt(staged.asset.size); }
     return stagedAsset(staged, consumption.size);
   }
@@ -71,6 +74,19 @@ export default class GitCasAssetStorageAdapter extends AssetStoragePort {
       handle: token,
       ...this.#contentEncryption.toRestoreOptions(),
     });
+  }
+}
+
+/** Restores an explicitly wrapped producer failure without parsing storage error messages. */
+async function putAsset(cas: GitCasAssetFacade, options: AssetPutOptions): Promise<GitCasStagedAsset> {
+  try {
+    return await cas.assets.put(options);
+  } catch (error) {
+    if (error instanceof CasError && error.code === CAS_STREAM_ERROR) {
+      const original = error.meta['originalError'];
+      if (original instanceof Error) { throw original; }
+    }
+    throw error;
   }
 }
 
