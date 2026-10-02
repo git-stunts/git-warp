@@ -25,7 +25,7 @@ describe('Owned Mermaid worker lifecycle', () => {
     const directory = await mkdtemp(join(tmpdir(), 'mermaid-owned-worker-'));
     const marker = join(directory, 'browser-pid');
     try {
-      await expect(new MermaidRenderSupervisor(budgets, worker).render(mode, marker)).rejects.toThrow(diagnostic);
+      await expect(new MermaidRenderSupervisor(budgets, worker, null).render(mode, marker)).rejects.toThrow(diagnostic);
       const browserPid = Number(await readFile(marker, 'utf8'));
       expect(() => process.kill(-browserPid, 0)).toThrow();
     } finally { await rm(directory, { recursive: true, force: true }); }
@@ -34,7 +34,7 @@ describe('Owned Mermaid worker lifecycle', () => {
   it('reclaims surviving browser descendants even when the worker reports success', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'mermaid-owned-success-'));
     const marker = join(directory, 'browser-pid');
-    const supervisor = new MermaidRenderSupervisor(budgets, worker);
+    const supervisor = new MermaidRenderSupervisor(budgets, worker, null);
     try {
       await supervisor.render('success', marker);
       const browserPid = Number(await readFile(marker, 'utf8'));
@@ -46,10 +46,11 @@ describe('Owned Mermaid worker lifecycle', () => {
   it.each([
     ['invalid-message', 'Invalid Mermaid worker message'],
     ['invalid-pid', 'Invalid owned Mermaid browser PID'],
+    ['ready-without-browser', 'requested an unavailable browser'],
     ['unexpected-message', 'Unexpected Mermaid worker message'],
     ['exit-before-render', 'Mermaid render failed'],
   ])('fails closed on %s', async (mode, diagnostic) => {
-    await expect(new MermaidRenderSupervisor(budgets, worker).render(mode, 'unused')).rejects.toThrow(diagnostic);
+    await expect(new MermaidRenderSupervisor(budgets, worker, null).render(mode, 'unused')).rejects.toThrow(diagnostic);
   });
 
   it('rejects invalid wall-clock budgets at construction', () => {
@@ -64,7 +65,7 @@ describe('Owned Mermaid worker lifecycle', () => {
   it('handles native worker spawn failure without leaking a deadline', async () => {
     const fork = vi.spyOn(childProcess, 'fork').mockImplementation(() => childProcess.spawn('nonexistent-mermaid-worker'));
     try {
-      await expect(new MermaidRenderSupervisor(undefined, worker).render('unused', 'unused')).rejects.toThrow('ENOENT');
+      await expect(new MermaidRenderSupervisor(undefined, worker, null).render('unused', 'unused')).rejects.toThrow('ENOENT');
     } finally { fork.mockRestore(); }
   });
 
@@ -76,7 +77,7 @@ describe('Owned Mermaid worker lifecycle', () => {
       return nativeKill(pid, signal);
     });
     try {
-      await expect(new MermaidRenderSupervisor(budgets, worker).render('success', join(directory, 'pid'))).rejects.toThrow('reclamation failed');
+      await expect(new MermaidRenderSupervisor(budgets, worker, null).render('success', join(directory, 'pid'))).rejects.toThrow('reclamation failed');
     } finally { kill.mockRestore(); await rm(directory, { recursive: true, force: true }); }
   });
 
@@ -88,7 +89,7 @@ describe('Owned Mermaid worker lifecycle', () => {
       return nativeKill(pid, signal);
     });
     try {
-      await expect(new MermaidRenderSupervisor(budgets, worker).render('success', join(directory, 'pid'))).rejects.toThrow('reclamation failed');
+      await expect(new MermaidRenderSupervisor(budgets, worker, null).render('success', join(directory, 'pid'))).rejects.toThrow('reclamation failed');
     } finally { kill.mockRestore(); await rm(directory, { recursive: true, force: true }); }
   });
 
@@ -96,7 +97,7 @@ describe('Owned Mermaid worker lifecycle', () => {
     const directory = await mkdtemp(join(tmpdir(), 'mermaid-interruption-'));
     const marker = join(directory, 'pid');
     const previous = process.listeners(signal);
-    const supervisor = new MermaidRenderSupervisor(new MermaidValidationDeadline(2000, 2000, 100), worker);
+    const supervisor = new MermaidRenderSupervisor(new MermaidValidationDeadline(2000, 2000, 100), worker, null);
     const running = supervisor.render('render-stall', marker);
     try {
       await vi.waitFor(async () => { expect(await readFile(marker, 'utf8')).toMatch(/^\d+$/); });
@@ -128,7 +129,7 @@ describe('Owned Mermaid worker lifecycle', () => {
     });
     Object.defineProperty(process, 'platform', { value: 'win32' });
     try {
-      await expect(new MermaidRenderSupervisor(budgets, worker).render('invalid-message', 'unused')).rejects.toThrow();
+      await expect(new MermaidRenderSupervisor(budgets, worker, null).render('invalid-message', 'unused')).rejects.toThrow();
       expect(spawn).toHaveBeenCalledWith('taskkill', expect.arrayContaining(['/T', '/F']), {
         timeout: expect.any(Number),
       });
@@ -166,7 +167,7 @@ describe('Owned Mermaid worker lifecycle', () => {
       return killed;
     });
     try {
-      await expect(new MermaidRenderSupervisor(budgets, worker).render('success', join(directory, 'pid'))).rejects.toThrow('owned process reclamation failed');
+      await expect(new MermaidRenderSupervisor(budgets, worker, null).render('success', join(directory, 'pid'))).rejects.toThrow('owned process reclamation failed');
     } finally { kill.mockRestore(); await rm(directory, { recursive: true, force: true }); }
   });
 
@@ -195,7 +196,7 @@ describe('Owned Mermaid worker lifecycle', () => {
       return child;
     });
     try {
-      await expect(new MermaidRenderSupervisor(budgets, worker).render('render-stall', marker)).rejects.toThrow('render timed out');
+      await expect(new MermaidRenderSupervisor(budgets, worker, null).render('render-stall', marker)).rejects.toThrow('render timed out');
       const pid = Number(await readFile(marker, 'utf8'));
       expect(() => process.kill(-pid, 0)).toThrow();
     } finally { fork.mockRestore(); await rm(directory, { recursive: true, force: true }); }

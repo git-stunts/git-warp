@@ -5,9 +5,7 @@ import { readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const launch = puppeteer.launch.bind(puppeteer);
-puppeteer.launch = async (...args) => {
-  const browser = await launch(...args);
+function observeBrowser(browser) {
   const close = browser.close.bind(browser);
   browser.close = async () => {
     const marker = process.env['MERMAID_BROWSER_PROBE'];
@@ -18,7 +16,7 @@ puppeteer.launch = async (...args) => {
         diagrams += (await readdir(join(tmpdir(), name))).filter(path => path.endsWith('.svg')).length;
       }
     }
-    await writeFile(marker, `${String(browser.process()?.pid)}\n${String(diagrams)}`);
+    await writeFile(marker, `${String(browser.process()?.pid ?? Number(process.argv[4]))}\n${String(diagrams)}`);
     if (process.env['MERMAID_BROWSER_PROBE_MODE'] === 'close-stall') {
       await new Promise(() => {});
     } else {
@@ -26,4 +24,9 @@ puppeteer.launch = async (...args) => {
     }
   };
   return browser;
-};
+}
+
+const launch = puppeteer.launch.bind(puppeteer);
+const connect = puppeteer.connect.bind(puppeteer);
+puppeteer.launch = async (...args) => observeBrowser(await launch(...args));
+puppeteer.connect = async (...args) => observeBrowser(await connect(...args));

@@ -9,13 +9,15 @@ satisfy this gate.
 Rendering, including browser launch, has a 120-second deadline. After the
 worker reports render completion or failure, browser shutdown has a separate
 10-second deadline. Reclamation receives a final one-second budget: request
-native Puppeteer launch cancellation, allow a short graceful exit, terminate
+worker cancellation, allow a short graceful exit, terminate
 owned groups, and verify that those groups are gone. Windows tree termination
 uses a bounded `taskkill /T /F` call within the remaining reclamation budget.
 
 Diagnostics distinguish render failures and deadlines, browser-shutdown
 failures and deadlines, interruptions, and failed process reclamation.
 `SIGINT` and `SIGTERM` fail validation and enter the same reclamation path.
+The supervisor records the native browser PID synchronously before waiting for
+its endpoint or worker connection, so failed startup IPC cannot orphan it.
 Browser profiles and render artifacts live in the validator's temporary
 directory, which is removed afterward.
 

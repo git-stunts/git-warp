@@ -9,6 +9,7 @@ process.on('message', () => {});
 
 if (mode === 'invalid-message') { process.send?.({ invalid: true }); }
 else if (mode === 'invalid-pid') { process.send?.('browser:NaN'); }
+else if (mode === 'ready-without-browser') { process.send?.('ready'); }
 else if (mode === 'unexpected-message') { process.send?.('unrecognized'); }
 else if (mode === 'exit-before-render') { process.disconnect?.(); }
 else {
