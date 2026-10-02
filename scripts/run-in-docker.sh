@@ -7,18 +7,20 @@ source_history=0
 update_ratchet=0
 snapshot=0
 usage() {
-  echo 'Usage: run-in-docker.sh [--export-directory PATH | --export-file PATH | --coverage-ratchet | --snapshot] [--] COMMAND [ARGS...]' >&2
+  echo 'Usage: run-in-docker.sh [--export-directory PATH | --export-file PATH | --import-file PATH | --coverage-ratchet | --snapshot | --source-history] [--] COMMAND [ARGS...]' >&2
   exit 2
 }
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
-    --export-directory|--export-file)
+    --export-directory|--export-file|--import-file)
       [[ "$#" -ge 2 && -n "$2" && "$2" != -* ]] || usage
       if [[ "$1" == --export-directory ]]; then entries+=("directory:$2");
-      else entries+=("file:$2"); fi
+      elif [[ "$1" == --export-file ]]; then entries+=("file:$2");
+      else entries+=("input:$2"); fi
       shift 2;;
     --coverage-ratchet) update_ratchet=1; entries+=(directory:coverage); shift;;
     --snapshot) snapshot=1; source_history=1; shift;;
+    --source-history) source_history=1; shift;;
     --) shift; break;;
     *) break;;
   esac

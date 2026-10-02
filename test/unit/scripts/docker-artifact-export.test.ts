@@ -41,6 +41,7 @@ case "$1" in
     echo fixture-container
     ;;
   exec)
+    if [[ "$3" == mkdir ]]; then mkdir -p "$COPIED/\${5#/app/}"; exit; fi
     if [[ "$CHANGE_HOST_CONFIG" == 1 ]]; then echo concurrent-edit > "$ROOT/vitest.config.ts"; fi
     if [[ "$SIGNAL" == 1 ]]; then
       echo "$$" > "$TRACE.client"
@@ -61,7 +62,10 @@ case "$1" in
       *:/app/coverage) cp -R "$COPIED/coverage" "$3";;
       *:/app/.ratchet) cp -R "$COPIED/.ratchet" "$3";;
       *:/app/vitest.config.ts) cp "$COPIED/vitest.config.ts" "$3";;
-      *) echo "Unexpected copy: $*" >&2; exit 92;;
+      *)
+        if [[ "$3" == *:/app/* ]]; then cp "$2" "$COPIED/\${3#*:/app/}";
+        else echo "Unexpected copy: $*" >&2; exit 92; fi
+        ;;
     esac
     ;;
   rm) touch "$COPIED/removed";;
@@ -90,6 +94,17 @@ afterEach(() => {
 });
 
 describe('Docker artifact exports', () => {
+  it('copies a selected ignored input without exporting it or exposing a mount', () => {
+    const input = fixture();
+    mkdirSync(join(input.root, '.ratchet/input'), { recursive: true });
+    writeFileSync(join(input.root, '.ratchet/input/report.txt'), 'selected input\n');
+    const result = run(input, ['input:.ratchet/input/report.txt'], 7);
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(7);
+    expect(readFileSync(join(input.copied, '.ratchet/input/report.txt'), 'utf8')).toBe('selected input\n');
+    expect(readFileSync(join(input.root, '.ratchet/input/report.txt'), 'utf8')).toBe('selected input\n');
+    expect(existsSync(join(input.copied, 'removed'))).toBe(true);
+  });
   it.each([0, 7])('exports reports before removal and preserves command status %i', (status) => {
     const input = fixture();
     const result = run(input, ['directory:coverage'], status);

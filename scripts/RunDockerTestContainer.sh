@@ -75,6 +75,7 @@ cleanup() {
     }
     for entry in "${entries[@]}"; do
       [[ "$entry" == none ]] && continue
+      [[ "$entry" == input:* ]] && continue
       export_entry "$entry" || {
         echo "Failed to export requested Docker artifact: ${entry#*:}" >&2
         if [[ "$status" == 0 ]]; then status=1; fi
@@ -118,8 +119,9 @@ trap 'exit 143' TERM
 
 for entry in "${entries[@]}"; do
   [[ "$entry" == none ]] && continue
-  case "$entry" in directory:*|file:*) ;; *) echo "Invalid Docker artifact kind" >&2; exit 1;; esac
+  case "$entry" in directory:*|file:*|input:*) ;; *) echo "Invalid Docker artifact kind" >&2; exit 1;; esac
   validate_path "${entry#*:}" || { echo 'Invalid or tracked Docker artifact destination' >&2; exit 1; }
+  if [[ "$entry" == input:* ]]; then [[ -f "$ROOT/${entry#*:}" ]]; fi
 done
 if [[ "$update_ratchet" == 1 ]]; then
   [[ ! -L "$ROOT/vitest.config.ts" ]]
@@ -151,6 +153,13 @@ if [[ "$source_history" == 1 ]]; then
   fi
   docker cp "$scratch/source.git/." "$container:/app/.git/"
 fi
+for entry in "${entries[@]}"; do
+  [[ "$entry" == input:* ]] || continue
+  path=${entry#*:}
+  validate_path "$path" || exit 1
+  docker exec "$container" mkdir -p "/app/$(dirname "$path")"
+  docker cp "$ROOT/$path" "$container:/app/$path"
+done
 exec_status=0
 docker exec --interactive "$container" bash scripts/run-in-docker.sh "$@" <&0 &
 exec_pid=$!

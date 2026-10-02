@@ -104,6 +104,14 @@ For other generated evidence, declare exports before the command with
 source files and Git metadata are protected. Failed commands still export their
 evidence and retain their exit status.
 
+Manual `performance:*` measurements export their selected relative report paths
+and retain the measured source Git identity. Nonsecret corpus/run settings are
+forwarded into the container. Comparisons require two clean source checkouts;
+both revisions and their Git identities are copied into one image, so a sibling
+worktree is usable without a mount. Comparison reports and gate summaries are
+exported on failures as well. Output targets must be untracked, inside the
+invoking checkout, and free of symlinks.
+
 ## Useful checks
 
 ```bash
