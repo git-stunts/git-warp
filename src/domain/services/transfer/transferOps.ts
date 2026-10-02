@@ -125,23 +125,21 @@ export function collectPropertyOps(
 export type ContentOpParams = {
   sourceMeta: ContentMeta | null;
   targetMeta: ContentMeta | null;
-  loadContent: () => Promise<Uint8Array>;
-  buildAttach: (content: Uint8Array, meta: ContentMeta) => VisibleStateTransferOperation;
+  buildAttach: (meta: ContentMeta) => VisibleStateTransferOperation;
   buildClear: () => VisibleStateTransferOperation;
 };
 
 /**
  * Plan a content attach/clear operation by comparing source and target metadata.
  */
-export async function planContentOp(
+export function planContentOp(
   params: ContentOpParams,
-): Promise<VisibleStateTransferOperation | null> {
+): VisibleStateTransferOperation | null {
   if (contentMetaKey(params.sourceMeta) === contentMetaKey(params.targetMeta)) {
     return null;
   }
   if (params.sourceMeta) {
-    const content = await params.loadContent();
-    return params.buildAttach(content, params.sourceMeta);
+    return params.buildAttach(params.sourceMeta);
   }
   return params.targetMeta ? params.buildClear() : null;
 }
@@ -151,13 +149,11 @@ export async function planContentOp(
  */
 export function buildNodeAttach(
   nodeId: string,
-  content: Uint8Array,
   meta: ContentMeta,
 ): VisibleStateTransferOperation {
   return {
     op: TRANSFER_OP_ATTACH_NODE_CONTENT,
     nodeId,
-    content,
     contentHandle: meta.handle,
     mime: meta.mime,
     size: meta.size,
@@ -175,33 +171,25 @@ export type NodeContentOpsParams = {
   sourceReader: VisibleStateReader;
   targetReader: VisibleStateReader;
   nodeIds: string[];
-  loadContent: (nodeId: string, meta: ContentMeta) => Promise<Uint8Array>;
 };
 
 /**
  * Plan a single node's content operation by comparing source and target metadata.
  */
-export async function planNodeContentOp(
+export function planNodeContentOp(
   params: NodeContentOpsParams,
   nodeId: string,
-): Promise<VisibleStateTransferOperation | null> {
-  function loadContent(): Promise<Uint8Array> {
-    return params.loadContent(
-      nodeId,
-      params.sourceReader.getNodeContentMeta(nodeId) as ContentMeta,
-    );
-  }
-  function buildAttach(content: Uint8Array, meta: ContentMeta): VisibleStateTransferOperation {
-    return buildNodeAttach(nodeId, content, meta);
+): VisibleStateTransferOperation | null {
+  function buildAttach(meta: ContentMeta): VisibleStateTransferOperation {
+    return buildNodeAttach(nodeId, meta);
   }
   function buildClear(): VisibleStateTransferOperation {
     return buildNodeClear(nodeId);
   }
 
-  return await planContentOp({
+  return planContentOp({
     sourceMeta: params.sourceReader.getNodeContentMeta(nodeId),
     targetMeta: params.targetReader.getNodeContentMeta(nodeId),
-    loadContent,
     buildAttach,
     buildClear,
   });
@@ -210,13 +198,13 @@ export async function planNodeContentOp(
 /**
  * Collect content attach/clear ops for all nodes that differ.
  */
-export async function collectNodeContentOps(
+export function collectNodeContentOps(
   params: NodeContentOpsParams,
-): Promise<VisibleStateTransferOperation[]> {
+): VisibleStateTransferOperation[] {
   const ops: VisibleStateTransferOperation[] = [];
 
   for (const nodeId of params.nodeIds) {
-    const op = await planNodeContentOp(params, nodeId);
+    const op = planNodeContentOp(params, nodeId);
     if (op) {
       ops.push(op);
     }
@@ -230,7 +218,6 @@ export async function collectNodeContentOps(
  */
 export function buildEdgeAttach(
   edge: EdgeRef,
-  content: Uint8Array,
   meta: ContentMeta,
 ): VisibleStateTransferOperation {
   return {
@@ -238,7 +225,6 @@ export function buildEdgeAttach(
     from: edge.from,
     to: edge.to,
     label: edge.label,
-    content,
     contentHandle: meta.handle,
     mime: meta.mime,
     size: meta.size,
@@ -261,33 +247,25 @@ export type EdgeContentOpsParams = {
   sourceReader: VisibleStateReader;
   targetReader: VisibleStateReader;
   edges: EdgeRef[];
-  loadContent: (edge: EdgeRef, meta: ContentMeta) => Promise<Uint8Array>;
 };
 
 /**
  * Plan a single edge's content operation by comparing source and target metadata.
  */
-export async function planEdgeContentOp(
+export function planEdgeContentOp(
   params: EdgeContentOpsParams,
   edge: EdgeRef,
-): Promise<VisibleStateTransferOperation | null> {
-  function loadContent(): Promise<Uint8Array> {
-    return params.loadContent(
-      edge,
-      params.sourceReader.getEdgeContentMeta(edge.from, edge.to, edge.label) as ContentMeta,
-    );
-  }
-  function buildAttach(content: Uint8Array, meta: ContentMeta): VisibleStateTransferOperation {
-    return buildEdgeAttach(edge, content, meta);
+): VisibleStateTransferOperation | null {
+  function buildAttach(meta: ContentMeta): VisibleStateTransferOperation {
+    return buildEdgeAttach(edge, meta);
   }
   function buildClear(): VisibleStateTransferOperation {
     return buildEdgeClear(edge);
   }
 
-  return await planContentOp({
+  return planContentOp({
     sourceMeta: params.sourceReader.getEdgeContentMeta(edge.from, edge.to, edge.label),
     targetMeta: params.targetReader.getEdgeContentMeta(edge.from, edge.to, edge.label),
-    loadContent,
     buildAttach,
     buildClear,
   });
@@ -296,13 +274,13 @@ export async function planEdgeContentOp(
 /**
  * Collect content attach/clear ops for all edges that differ.
  */
-export async function collectEdgeContentOps(
+export function collectEdgeContentOps(
   params: EdgeContentOpsParams,
-): Promise<VisibleStateTransferOperation[]> {
+): VisibleStateTransferOperation[] {
   const ops: VisibleStateTransferOperation[] = [];
 
   for (const edge of params.edges) {
-    const op = await planEdgeContentOp(params, edge);
+    const op = planEdgeContentOp(params, edge);
     if (op) {
       ops.push(op);
     }

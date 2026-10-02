@@ -111,6 +111,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Transfer plans retain attachment handles and metadata instead of loading and
+  accumulating payload bytes. Existing canonical transfer digest inputs remain
+  unchanged; planning no longer requires attachment storage reads (#818).
+
 - Raw Git graph blob reads use the same explicit 64 MiB artifact budget and
   producer-buffer snapshots as semantic asset reads, while preserving empty-blob
   existence checks (#818).

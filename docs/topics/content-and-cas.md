@@ -54,7 +54,7 @@ tracked in #901 and #902; byte assets do not establish recursive graph ownership
 ## Bounded artifact decoding
 
 Internal eager decoders now pass an explicit byte ceiling to `collectAsyncIterable`.
-Legacy patch, audit, trust, strand, intent, replay, provenance, index, and migration artifacts use a 64 MiB refusal boundary; checkpoint optic shard reads retain their stricter 16 MiB boundary.
+Legacy patch, audit, trust, strand, intent, replay, provenance, index, raw graph blob, and migration artifacts use a 64 MiB refusal boundary; checkpoint optic shard reads retain their stricter 16 MiB boundary.
 This is a defensive decoding limit, not an attachment-size limit or a claim that legacy formats have become streaming.
 Artifacts exceeding the applicable ceiling fail with `E_BYTE_COLLECTION_LIMIT` instead of allocating the full payload; they require a streaming or partitioned format before they can be decoded through that path.
 
@@ -69,6 +69,13 @@ New intent and patch property writes permit at most 64 KiB of aggregate binary d
 An oversized value fails with `E_INLINE_BINARY_LIMIT` and directs the caller to a streaming content asset.
 The limit applies to node, edge and entity initial properties through their shared validation boundaries; it does not retroactively truncate historical property reads.
 Strings and other nonbinary property data are outside this binary-specific budget.
+
+## Transfer planning
+
+Coordinate and strand transfer plans carry attachment handles, MIME metadata and declared size, never payload bytes.
+Planning performs no attachment storage reads and cannot retain a collection of full assets in its operation list.
+The canonical transfer fact already identifies content by handle and metadata, so this change preserves its digest inputs.
+Consumers must open or retain the referenced assets when executing a plan; a plan is not a payload archive or proof of current storage availability.
 
 ## Remaining attachment delivery gates
 
