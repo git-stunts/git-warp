@@ -78,8 +78,10 @@ try {
   // Opaque handles and copied metadata cannot forge Runtime staging provenance.
   assert.throws(() => intent.node.attachContent({ subject: edge.from, content: { ...first, id: 'malformed' } }),
     { code: 'E_CONTENT_METADATA' });
-  const foreign = await lane.write([intent.node.clearContent({ subject: edge.from }), ...attachments(second)]);
-  assert.equal(foreign.outcome.kind, 'obstruction');
+  await assert.rejects(
+    lane.write([intent.node.clearContent({ subject: edge.from }), ...attachments(second)]),
+    { code: 'E_CONTENT_FOREIGN' },
+  );
   assert.equal((await pair(lane)).id, winner.id);
   for (const request of [
     intent.node.attachContent({ subject: 'absent', content: first }),
@@ -87,6 +89,7 @@ try {
   ]) {
     const refused = await lane.write([intent.node.clearContent({ subject: edge.from }), request]);
     assert.equal(refused.outcome.kind, 'obstruction');
+    assert.equal(refused.reason, 'git-warp.write.entity-not-found');
     assert.equal((await pair(lane)).id, winner.id);
   }
   assert.equal((await lane.observe(createNodeContentObserver({ subject: 'absent' })).one()).value, null);
@@ -98,14 +101,21 @@ try {
   await assert.rejects(lane.stageContent(tooLong(), { size: 2 }), { code: 'E_ASSET_SIZE_MISMATCH' });
   const cancelled = new Error('producer cancelled');
   cancelled.name = 'AbortError';
+  const cancellation = new globalThis.AbortController();
   let finalized = false;
   async function* producer() {
-    try { yield new Uint8Array([1]); throw cancelled; }
+    try {
+      yield new Uint8Array([1]);
+      cancellation.abort(cancelled);
+      cancellation.signal.throwIfAborted();
+    }
     finally { finalized = true; }
   }
   const refsBefore = git('for-each-ref', '--format=%(refname) %(objectname)', 'refs/warp/');
   await assert.rejects(lane.stageContent(producer()), error => error === cancelled);
   assert.ok(finalized);
+  assert.ok(cancellation.signal.aborted);
+  assert.ok(refsBefore.length > 0);
   assert.equal(git('for-each-ref', '--format=%(refname) %(objectname)', 'refs/warp/'), refsBefore);
   assert.equal((await pair(lane)).id, winner.id);
 
@@ -114,7 +124,7 @@ try {
   alice = await Runtime.open({ at: repository, writer: 'alice' });
   lane = await alice.lane('consumer');
   assert.equal((await pair(lane)).id, winner.id);
-  const snapshot = await alice.lane('snapshot');
+  const snapshot = await alice.strand(lane, { name: 'snapshot' });
   assert.equal(await read(await pair(snapshot)), 'checkpoint original');
 
   // Simulate an unavailable immutable asset without interpreting its opaque handle:
@@ -131,12 +141,7 @@ try {
   const objectPath = join(repository, '.git', 'objects', oid.slice(0, 2), oid.slice(2));
   assert.ok(existsSync(objectPath), 'fixture targets a loose payload object');
   rmSync(objectPath);
-  await assert.rejects(read(missingReading), error => {
-    assert.ok(error instanceof Error);
-    assert.ok(typeof error.code === 'string');
-    console.log(`Unavailable asset explicit error: ${error.code}`);
-    return true;
-  });
+  await assert.rejects(read(missingReading), { code: 'INTEGRITY_ERROR' });
   console.log('Installed attachment concurrency, checkpoint retention, receipts and negative outcomes passed.');
 } finally {
   await alice.close(); await bob.close();
