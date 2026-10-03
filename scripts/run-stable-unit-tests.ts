@@ -62,6 +62,7 @@ const UNIT_SHARDS: readonly Shard[] = [
       ...listRecursiveTestFiles('test/unit/ports'),
       ...listRecursiveTestFiles('test/unit/security'),
       ...listRecursiveTestFiles('test/unit/specs'),
+      'test/contract/NeighborProviderPort.contract.test.ts',
     ],
   },
   {
