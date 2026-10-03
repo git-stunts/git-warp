@@ -126,7 +126,10 @@ npm run test:local
 
 `npm ci` runs the source `prepare` script, which installs the reviewed
 trailer-codec declarations after validating package identity, version and payload
-content, then sets up Git hooks. Hook setup can change the enclosing repository's local
+content, then sets up Git hooks. Failed declaration writes never publish partial declarations;
+repeats preserve identical declarations and refuse conflicting files. Cleanup
+failures are reported, while a complete file already published remains usable on
+retry. Hook setup can change the enclosing repository's local
 `core.hooksPath` to `scripts/hooks`; linked worktrees share that local setting.
 It preserves existing custom/global/worktree overrides and migrates recognized
 legacy local paths. Run it only in the intended source clone, not from an

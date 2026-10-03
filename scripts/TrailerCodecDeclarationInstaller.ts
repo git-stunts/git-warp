@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { linkSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { z } from 'zod';
@@ -37,13 +37,46 @@ export default class TrailerCodecDeclarationInstaller {
     }
     const target = resolve(this.#directory, 'index.d.ts');
     try {
-      writeFileSync(target, declarations, { flag: 'wx', mode: 0o644 });
+      return this.#existing(target, declarations);
+    } catch (error) {
+      if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error;
+      return this.#publish(target, declarations);
+    }
+  }
+
+  #existing(target: string, declarations: Uint8Array): DeclarationInstallation {
+    return readFileSync(target).equals(declarations)
+      ? { status: 'unchanged' }
+      : { status: 'refused', reason: 'Conflicting trailer-codec declarations' };
+  }
+
+  #publish(target: string, declarations: Uint8Array): DeclarationInstallation {
+    // The same-filesystem private file is complete before its no-clobber link.
+    const staging = mkdtempSync(resolve(this.#directory, '.trailer-codec-declaration-'));
+    const staged = resolve(staging, 'index.d.ts');
+    let result: DeclarationInstallation;
+    try {
+      writeFileSync(staged, declarations, { flag: 'wx', mode: 0o644 });
+      result = this.#link(staged, target, declarations);
+    } catch (error) {
+      try {
+        rmSync(staging, { recursive: true, force: true });
+      } catch (cleanupError) {
+        throw new AggregateError([error, cleanupError], 'Declaration publication and staging cleanup failed');
+      }
+      throw error;
+    }
+    rmSync(staging, { recursive: true, force: true });
+    return result;
+  }
+
+  #link(staged: string, target: string, declarations: Uint8Array): DeclarationInstallation {
+    try {
+      linkSync(staged, target);
       return { status: 'installed' };
     } catch (error) {
       if (!(error instanceof Error) || !('code' in error) || error.code !== 'EEXIST') throw error;
-      return readFileSync(target).equals(declarations)
-        ? { status: 'unchanged' }
-        : { status: 'refused', reason: 'Conflicting trailer-codec declarations' };
+      return this.#existing(target, declarations);
     }
   }
 }

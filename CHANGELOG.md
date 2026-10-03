@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   depth, including nested workspaces.
 
 - Remove vulnerable generic patch tooling from dependency declaration setup.
+  Publish complete declarations without replacing an existing target; interrupted
+  writes remain private, and write failures can be retried (#948).
   Install the unchanged trailer-codec 2.1.1 declarations through an exact
   version/content check, preserve identical repeats and refuse conflicting
   files without modifying dependency runtime (#948). Competing exclusive-file
