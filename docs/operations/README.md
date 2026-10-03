@@ -126,6 +126,7 @@ an additive recovery ref, and an exact replay plan.
 
 ## See also
 
+- [Locked Bun test-image dependencies](bun-dependencies.md)
 - [Coverage runs and threshold updates](coverage.md)
 - [Mermaid validation lifecycle](mermaid-validation.md)
 - [npm package payload contract](package-payload.md)

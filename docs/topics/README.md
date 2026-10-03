@@ -38,6 +38,8 @@ performance narrative lives in the root [CHANGELOG](../../CHANGELOG.md).
 
 ## Substrate and boundaries
 
+- [CRDT construction](crdt-construction.md): validate membership and register
+  identities, preserve legacy checkpoint ordering, and keep encoding at boundaries.
 - [Git substrate](git-substrate.md): understand WARP refs, patch commits,
   checkpoints, replay, and provenance.
 - [Git performance](git-perf.md): understand the measured persistent Git
