@@ -16,6 +16,7 @@
  */
 
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
+import type LegacyEventId from '../../utils/LegacyEventId.ts';
 
 /**
  * The edge lifecycle maps of a live state or of a read-side snapshot. A
@@ -23,7 +24,7 @@ import { compareEventIds, type EventId } from '../../utils/EventId.ts';
  * nothing is stale on its account.
  */
 export type EdgeLifecycleSource = {
-  readonly edgeBirthEvent?: ReadonlyMap<string, EventId>;
+  readonly edgeBirthEvent?: ReadonlyMap<string, EventId | LegacyEventId>;
   readonly edgeRemoveEvent?: ReadonlyMap<string, EventId>;
 };
 
@@ -31,7 +32,7 @@ export type EdgeLifecycleSource = {
 export function isStaleEdgeRegisterIn(
   source: EdgeLifecycleSource,
   edgeKey: string,
-  registerEvent: EventId | null | undefined,
+  registerEvent: EventId | LegacyEventId | null | undefined,
 ): boolean {
   return predatesLifecycle(
     registerEvent,
@@ -41,10 +42,10 @@ export function isStaleEdgeRegisterIn(
 }
 
 /** Records `eventId` for `key` when it sorts after the stored event. */
-export function advanceLifecycleEvent(
-  events: Map<string, EventId>,
+export function advanceLifecycleEvent<TEvent extends EventId | LegacyEventId>(
+  events: Map<string, TEvent>,
   key: string,
-  eventId: EventId,
+  eventId: TEvent,
 ): void {
   const previous = events.get(key);
   if (previous === undefined || compareEventIds(eventId, previous) > 0) {
@@ -53,11 +54,11 @@ export function advanceLifecycleEvent(
 }
 
 /** EventId-max merge of two lifecycle event maps. Pure. */
-export function mergeLifecycleEvents(
-  left: ReadonlyMap<string, EventId> | null | undefined,
-  right: ReadonlyMap<string, EventId> | null | undefined,
-): Map<string, EventId> {
-  const result = new Map<string, EventId>(left ?? []);
+export function mergeLifecycleEvents<TEvent extends EventId | LegacyEventId>(
+  left: ReadonlyMap<string, TEvent> | null | undefined,
+  right: ReadonlyMap<string, TEvent> | null | undefined,
+): Map<string, TEvent> {
+  const result = new Map<string, TEvent>(left ?? []);
   for (const [key, eventId] of right ?? []) {
     advanceLifecycleEvent(result, key, eventId);
   }
@@ -66,8 +67,8 @@ export function mergeLifecycleEvents(
 
 /** Returns true when `registerEvent` sorts before the owner's birth or removal. */
 export function predatesLifecycle(
-  registerEvent: EventId | null | undefined,
-  birth: EventId | undefined,
+  registerEvent: EventId | LegacyEventId | null | undefined,
+  birth: EventId | LegacyEventId | undefined,
   removal: EventId | undefined,
 ): boolean {
   if (registerEvent === null || registerEvent === undefined) {
@@ -76,6 +77,6 @@ export function predatesLifecycle(
   return isBefore(registerEvent, birth) || isBefore(registerEvent, removal);
 }
 
-function isBefore(eventId: EventId, boundary: EventId | undefined): boolean {
+function isBefore(eventId: EventId | LegacyEventId, boundary: EventId | LegacyEventId | undefined): boolean {
   return boundary !== undefined && compareEventIds(eventId, boundary) < 0;
 }

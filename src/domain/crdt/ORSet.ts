@@ -71,11 +71,19 @@ export default class ORSet {
   tombstones: Set<string>;
 
   /**
-   * Creates an ORSet from existing data structures.
+   * Validates and copies both levels of entry storage and every tombstone.
+   * Floating tombstones and empty string elements remain valid.
    */
   constructor(entries: Map<string, Set<string>>, tombstones: Set<string>) {
-    this.entries = entries;
-    this.tombstones = tombstones;
+    if (!(entries instanceof Map)) {
+      throw new CrdtError('ORSet entries must be a Map', { code: 'E_CRDT_INVALID_ENTRIES' });
+    }
+    this.entries = new Map();
+    for (const [element, dots] of entries) {
+      if (typeof element !== 'string') { throw new CrdtError('ORSet element must be a string'); }
+      this.entries.set(element, validatedDots(dots));
+    }
+    this.tombstones = validatedDots(tombstones);
   }
 
   /** Creates an empty ORSet. */
@@ -358,4 +366,16 @@ function _unionSets(source: Set<string>, target: Set<string>): void {
   for (const item of source) {
     target.add(item);
   }
+}
+
+/** Admit canonical identity keys while taking ownership of a caller's set. */
+function validatedDots(dots: Set<string>): Set<string> {
+  if (!(dots instanceof Set)) { throw new CrdtError('ORSet dots must be a Set'); }
+  const copied = new Set<string>();
+  for (const dot of dots) {
+    if (typeof dot !== 'string') { throw new CrdtError('ORSet encoded dot must be a string'); }
+    Dot.decode(dot);
+    copied.add(dot);
+  }
+  return copied;
 }
