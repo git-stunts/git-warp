@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Prove opaque session-event retention through public CLI process boundaries,
+  exact-frontier candidate settlement, stale-basis refusal and retained source
+  evidence. The Docker conformance oracle remains active with Python
+  optimization enabled (#869).
+
 - Publish the restored node/edge byte attachment guide and reuse the installed-
   package lifecycle example, with migration, history, concurrency, retention,
   cancellation and failure semantics. Structural ownership remains a separate
