@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Run the legacy v16-to-v17 upgrade command when invoked through file or
+  directory symlinks instead of silently exiting without executing (#900).
+
 - Keep in-memory adapter hash capabilities instance-owned; a successful or failed
   crypto probe can no longer determine another adapter's hashing behavior (#221).
 
