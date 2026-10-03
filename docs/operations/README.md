@@ -137,8 +137,13 @@ a small smoke operation rather than the full `npm run test:deno` matrix.
 
 ## See also
 
+- [Locked Bun test-image dependencies](bun-dependencies.md)
+- [Coverage runs and threshold updates](coverage.md)
+- [Mermaid validation lifecycle](mermaid-validation.md)
 - [npm package payload contract](package-payload.md)
 - [CLI](../topics/cli.md)
 - [Git substrate](../topics/git-substrate.md)
 - [Troubleshooting](../topics/troubleshooting.md)
 - [v18-to-v19 migration](../migrations/v19/README.md)
+
+See also: [Session-event consumer conformance](session-event-conformance.md).

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { createRng } from '../../../helpers/seededRng.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import { createEmptyState, encodePropKey } from '../../../../src/domain/services/JoinReducer.ts';
 import StateHashService from '../../../../src/domain/services/state/StateHashService.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
@@ -88,12 +89,7 @@ async function stateHash(contentIds: readonly number[]): Promise<string> {
     state.nodeAlive.add(nodeId, Dot.create('alice', contentId));
     state.mutatePropLWW(
       encodePropKey(nodeId, 'content'),
-      {
-        lamport: contentId,
-        writerId: 'alice',
-        patchSha: contentId.toString(16).padStart(40, '0'),
-        opIndex: 0,
-      },
+      new EventId(contentId, 'alice', contentId.toString(16).padStart(40, '0'), 0),
       `asset:${contentId}`,
     );
   }

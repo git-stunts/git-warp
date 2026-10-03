@@ -1,3 +1,18 @@
+# npm owns the reviewed lock graph, including nested overrides.
+FROM node:22-slim AS locked-dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /locked-dependencies
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+COPY package*.json ./
+COPY packages/warp-adapters/package.json ./packages/warp-adapters/package.json
+COPY packages/warp-kernel/package.json ./packages/warp-kernel/package.json
+COPY packages/warp-orset/package.json ./packages/warp-orset/package.json
+COPY scripts ./scripts
+COPY patches ./patches
+RUN npm ci
+
 # Bun runtime test image.
 # Runs: API integration tests only (vitest via bunx).
 # CLI tests are excluded — the CLI uses node: built-ins.
@@ -11,8 +26,9 @@ COPY package*.json ./
 COPY scripts ./scripts
 COPY patches ./patches
 ENV PUPPETEER_SKIP_DOWNLOAD=true
-RUN bun install
+COPY --from=locked-dependencies /locked-dependencies/node_modules ./node_modules
 COPY . .
+RUN bun scripts/CheckBunLockedDependencyGraph.mjs
 # Init a git repo so plumbing operations work inside the container.
 RUN git init -q \
   && git config user.email "container@git-warp.local" \

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
-import type { EventId } from '../../../../src/domain/utils/EventId.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import {
   decodeCanonicalWarpFullState,
   decodeWarpFullState,
@@ -12,8 +12,8 @@ import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 describe('WarpStateCborCodec', () => {
   it('round-trips canonical full state with deterministic properties and births', () => {
     const state = WarpState.empty();
-    const older = eventId(1, 'writer-a', 'patch-a', 0);
-    const newer = eventId(2, 'writer-b', 'patch-b', 1);
+    const older = eventId(1, 'writer-a', 'aaaa', 0);
+    const newer = eventId(2, 'writer-b', 'bbbb', 1);
     state.nodeAlive.add('node:b', new Dot('writer-b', 2));
     state.nodeAlive.add('node:a', new Dot('writer-a', 1));
     state.edgeAlive.add('edge:b', new Dot('writer-b', 3));
@@ -47,15 +47,6 @@ describe('WarpStateCborCodec', () => {
       prop: [
         ['drop', null],
         ['fallback', { eventId: null, value: 'legacy' }],
-        ['coerce', {
-          eventId: {
-            lamport: 'invalid',
-            writerId: 7,
-            patchSha: null,
-            opIndex: false,
-          },
-          value: 5,
-        }],
       ],
       edgeBirthLamport: [['edge:legacy', 7]],
     }), defaultCodec);
@@ -77,12 +68,6 @@ describe('WarpStateCborCodec', () => {
       patchSha: '0000',
       opIndex: 0,
     });
-    expect(legacy.getEncodedProp('coerce')?.eventId).toEqual({
-      lamport: 0,
-      writerId: '',
-      patchSha: '0000',
-      opIndex: 0,
-    });
     expect(legacy.edgeBirthEvent.get('edge:legacy')).toEqual({
       lamport: 7,
       writerId: '',
@@ -97,6 +82,13 @@ describe('WarpStateCborCodec', () => {
     });
     expect(malformedCollections.propSize()).toBe(0);
     expect(malformedCollections.edgeBirthEvent.size).toBe(0);
+  });
+
+  it('refuses malformed explicit legacy metadata rather than coercing it into a sentinel', () => {
+    const bytes = defaultCodec.encode({ prop: [['coerce', {
+      eventId: { lamport: 'invalid', writerId: 7, patchSha: null, opIndex: false }, value: 5,
+    }]] });
+    expect(() => decodeWarpFullState(bytes, defaultCodec)).toThrow('Full state payload is not canonical');
   });
 
   it('rejects unsupported versions and non-canonical full-state bytes', () => {
@@ -130,5 +122,5 @@ function eventId(
   patchSha: string,
   opIndex: number,
 ): EventId {
-  return { lamport, writerId, patchSha, opIndex };
+  return new EventId(lamport, writerId, patchSha, opIndex);
 }
