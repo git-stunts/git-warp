@@ -285,9 +285,9 @@ frontiers, proposal, law, and policy. Execution must revalidate those bindings;
 any bound-input change invalidates the plan rather than silently applying it to
 a different history.
 
-### Unreleased lifecycle compatibility
+### v20 lifecycle compatibility
 
-The next major lifecycle contract separates observed-remove node membership
+The v20 lifecycle contract separates observed-remove node membership
 from node-wide LWW property clearing. A qualifying removal permanently hides
 registers ordered before its clear EventId, including unobserved concurrent
 writes; adding the node asserts membership without restoring cleared contents.
