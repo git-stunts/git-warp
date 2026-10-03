@@ -124,8 +124,9 @@ npm ci
 npm run test:local
 ```
 
-`npm ci` runs the source `prepare` script, which applies dependency patches and
-sets up Git hooks. Hook setup can change the enclosing repository's local
+`npm ci` runs the source `prepare` script, which installs the reviewed
+trailer-codec declarations after validating package identity, version and payload
+content, then sets up Git hooks. Hook setup can change the enclosing repository's local
 `core.hooksPath` to `scripts/hooks`; linked worktrees share that local setting.
 It preserves existing custom/global/worktree overrides and migrates recognized
 legacy local paths. Run it only in the intended source clone, not from an
