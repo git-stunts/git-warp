@@ -123,8 +123,8 @@ future merges. Safe retirement of that evidence needs a separate causal
 stability or graph-epoch contract. Historical payloads also remain in Git;
 this issue concerns the live materialized state, not destructive history GC.
 
-The implementation preserves the lifecycle-safe late-write and merge regressions
-introduced through #893 and #883.
+The implementation preserves the lifecycle-safe late-write and merge guarantees
+covered by the regression tests introduced through #893 and #883.
 
 ## Recorded source validation
 
