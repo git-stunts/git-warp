@@ -20,7 +20,7 @@ Modern `EventId` validation is unchanged: positive integer Lamport, non-empty wr
 
 Supported unversioned and `full-v5` checkpoints may omit property event metadata, carry null metadata, or retain only an edge's numeric Lamport. The named checkpoint reader constructs a frozen `LegacyEventId` with the recorded non-negative integer Lamport, or zero when historical metadata is absent. Its writer remains empty, patch identity remains `0000`, and operation index remains zero, preserving the existing historical ordering without inventing a writer or timestamp.
 
-Malformed explicit metadata is refused instead of being coerced into that legacy identity. Incorrect field types, invalid numeric values and incomplete modern identity fields do not acquire the missing-metadata compatibility allowance.
+Malformed explicit metadata is refused instead of being coerced into that legacy identity. Only plain or null-prototype transport records qualify; native CBOR dates, regular expressions, bytes and sets cannot turn into missing metadata when fields are parsed. Incorrect field types, invalid numeric values and incomplete modern identity fields do not acquire the missing-metadata compatibility allowance.
 
 Current `full-v7` property and edge-birth identities cannot omit metadata or use a bare numeric edge birth. A checkpoint upgraded from a supported historical state may retain the complete explicit legacy tuple; the reader admits exactly that existing representation. Modern node lifecycle and edge removal records retain their separate strict decoder contract.
 

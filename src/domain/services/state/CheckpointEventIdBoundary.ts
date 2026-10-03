@@ -26,9 +26,17 @@ function requireEventWire(wire: CheckpointEventIdWire): void {
   if (typeof wire !== 'object' || Array.isArray(wire)) {
     throw new CrdtError('Checkpoint event identity must be an object');
   }
+  if (!hasCheckpointRecordPrototype(wire)) {
+    throw new CrdtError('Checkpoint event identity must be a plain transport record');
+  }
   if (!hasTypedEventFields(wire)) {
     throw new CrdtError('Checkpoint event identity fields have invalid types');
   }
+}
+
+function hasCheckpointRecordPrototype(wire: CheckpointEventIdWire): boolean {
+  const prototype = Reflect.getPrototypeOf(wire);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function hasTypedEventFields(wire: CheckpointEventIdWire): boolean {

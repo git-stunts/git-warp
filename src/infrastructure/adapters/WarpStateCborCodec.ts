@@ -31,10 +31,10 @@ const OR_SET_WIRE = z.object({
   entries: z.array(z.tuple([z.string(), z.array(z.string())])).optional(),
   tombstones: z.array(z.string()).optional(),
 });
-const EDGE_BIRTH_WIRE = z.object({
+const EDGE_BIRTH_WIRE = z.custom<object>(isPlainCheckpointEventRecord).pipe(z.object({
   writerId: z.string().optional(), lamport: z.number().optional(),
   patchSha: z.string().optional(), opIndex: z.number().optional(),
-});
+}));
 type EdgeBirthWire = z.infer<typeof EDGE_BIRTH_WIRE>;
 const FULL_STATE_ENVELOPE = z.object({
   version: z.string().optional(),
@@ -46,6 +46,13 @@ const FULL_STATE_ENVELOPE = z.object({
 type DecodedFullState = z.infer<typeof FULL_STATE_ENVELOPE>;
 const PROPERTY_ENTRY = z.tuple([z.string(), z.unknown()]);
 const EDGE_BIRTH_ENTRY = z.tuple([z.string(), z.union([z.number(), EDGE_BIRTH_WIRE])]);
+
+/** Check raw transport before Zod can strip native objects into empty records. */
+function isPlainCheckpointEventRecord(value: unknown): value is object {
+  if (typeof value !== 'object' || value === null) { return false; }
+  const prototype = Reflect.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
 
 function decodeEnvelope(value: unknown): DecodedFullState {
   const parsed = FULL_STATE_ENVELOPE.safeParse(value);
