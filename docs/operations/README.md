@@ -124,6 +124,17 @@ writer refs and content objects before attempting storage recovery.
 Do not move an authoritative writer ref backward without an isolated rehearsal,
 an additive recovery ref, and an exact replay plan.
 
+## Deno consumer smoke
+
+Run `npm run test:deno:smoke` for one installed public consumer in the COPY-based
+Deno image. The command builds the current npm tarball, installs it outside the
+checkout inside the container, then imports the public API, writes a node,
+prepares its materialization through the installed CLI, observes it from a fresh
+Deno Runtime and closes both Runtimes. Import, admission, observation or cleanup
+failures return a nonzero exit. No host repository or Git directory is mounted.
+The first image build and dependency installation still take time; this selects
+a small smoke operation rather than the full `npm run test:deno` matrix.
+
 ## See also
 
 - [Locked Bun test-image dependencies](bun-dependencies.md)

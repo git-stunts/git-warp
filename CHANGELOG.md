@@ -62,6 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `npm run test:deno:smoke` to exercise an installed npm tarball through
+  public Runtime writes and observations in COPY-isolated Deno (#118).
+
 - Document native package installation, a disposable Docker CLI, isolated
   contributor checks and source-install Git hook effects in the README (#125).
 

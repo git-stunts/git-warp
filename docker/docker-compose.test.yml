@@ -48,6 +48,7 @@ services:
 
   # Deno: API integration tests via Deno.test() wrappers
   test-deno:
+    init: true
     build:
       context: ..
       dockerfile: docker/Dockerfile.deno
