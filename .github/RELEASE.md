@@ -525,7 +525,7 @@ availability deterministic.
 At assertion authoring or material change, run:
 
 ```bash
-bash scripts/run-in-docker.sh --export .ratchet/release-calibration.json -- \
+bash scripts/run-in-docker.sh --export-file .ratchet/release-calibration.json -- \
   bash scripts/release-closure/calibrate.sh .ratchet/release-calibration.json
 ```
 
