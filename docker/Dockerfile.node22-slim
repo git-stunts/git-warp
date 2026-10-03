@@ -4,6 +4,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     jq \
     curl \
+    openssl \
     git \
     python3 \
     make \
