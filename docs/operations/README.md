@@ -126,8 +126,11 @@ an additive recovery ref, and an exact replay plan.
 
 ## See also
 
+- [Mermaid validation lifecycle](mermaid-validation.md)
 - [npm package payload contract](package-payload.md)
 - [CLI](../topics/cli.md)
 - [Git substrate](../topics/git-substrate.md)
 - [Troubleshooting](../topics/troubleshooting.md)
 - [v18-to-v19 migration](../migrations/v19/README.md)
+
+See also: [Session-event consumer conformance](session-event-conformance.md).

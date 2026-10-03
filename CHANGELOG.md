@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bound Mermaid validation rendering and browser shutdown separately, reclaim
+  validator-owned worker/browser processes on success, failure, timeout and
+  interruption, and fail the documentation gate if reclamation cannot be
+  established. Node Docker images provide Chromium and reap adopted children.
+  Completed SVG files alone cannot pass validation (#870).
+
 - VersionVector construction validates writer/counter entries, omits zero
   counters and snapshots caller-owned maps so later mutations cannot corrupt
   causal state (#205).
@@ -25,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   admitted canonical bytes and receipt identities stay compatible (#916).
 
 ### Added
+
+- Prove opaque session-event retention through public CLI process boundaries,
+  exact-frontier candidate settlement, stale-basis refusal and retained source
+  evidence. The Docker conformance oracle remains active with Python
+  optimization enabled (#869).
 
 - Publish the restored node/edge byte attachment guide and reuse the installed-
   package lifecycle example, with migration, history, concurrency, retention,
