@@ -26,7 +26,7 @@ Content attachments are useful when a node or edge needs associated bytes that
 should not be modeled as scalar properties. The graph stores the causal fact
 that content is attached; blob storage stores the bytes.
 
-The unreleased source API supports Runtime/Lane staging, node and edge attachment intents, metadata observations, and stream reads through supported package exports. These operations are exercised against an installed source-built tarball; this is not a claim that the published `v19.1.0` package contains the restored API. The eager `getContent` and `getEdgeContent` facades are retired. Application bytes are `Uint8Array`; host streams, filesystem details and `Buffer` stay at adapters.
+The prepared `v20.0.0` API supports Runtime/Lane staging, node and edge attachment intents, metadata observations, and stream reads through supported package exports. Installed source-built tarball checks exercise these operations; registry publication and consumer verification remain separate release gates. The published `v19.1.0` package does not provide this restored API. The eager `getContent` and `getEdgeContent` facades are retired. Application bytes are `Uint8Array`; host streams, filesystem details and `Buffer` stay at adapters.
 
 ## Bytes, references and structural ownership
 
@@ -228,6 +228,6 @@ graph adapter, and migrate legacy encrypted manifests before rewriting them.
 - [Git substrate](git-substrate.md)
 - [Observers](observers.md)
 - [Structural attachment ownership](structural-attachments.md)
-- [Attachment API migration](../migrations/v19/README.md#attachment-api-restoration-unreleased-source)
+- [Attachment API migration](../migrations/v19/README.md#attachment-api-restoration-v20)
 - [Operations](../operations/)
 - [Troubleshooting](troubleshooting.md)

@@ -44,37 +44,34 @@ It lets you:
 - Keep provenance attached to values and outcomes.
 - Sync through normal Git transport.
 
-## Latest release
+## Latest release and v20 preparation
 
-`v19.1.0` is the current release. It preserves the v19 Runtime, Lane, Intent,
-Observer, Observation, Reading, and Receipt grammar while replacing
-per-commit and per-artifact Git process storms with bounded history reads,
-persistent object sessions, ordered trie write waves, and compound git-cas
-workspace admission.
+This checkout prepares `v20.0.0`: memory-safe allocation and admission boundaries,
+restored node and edge byte attachments, and a breaking node-property lifecycle
+interpretation. Registry publication and consumer verification are separate
+release gates; the published baseline remains `v19.1.0` until they complete.
 
-On the final hosted 65-patch base plus five-patch suffix corpus, cold Git
-commands fell from `781` to `50` and incremental commands from `372` to
-`60`; CPU medians fell by `67.4%` and `48.3%`. Warm materialization moved
-from `30` to `25` commands with a deliberately modest `2.0%` CPU change.
-Every result retained the exact semantic fingerprint and `65 / 0 / 5` replay
-evidence.
+The Runtime, Lane, Intent, Observer, Observation, Reading and Receipt grammar
+remains. Stage attachment bytes through a Lane, publish supported ordered intents,
+then observe metadata and open cancellable streams. Byte assets do not establish
+recursive graph ownership or a new indexed storage format.
 
-Existing v19 repositories require no migration. An omitted
-`checkpointPolicy` now defaults to `{ every: 64 }`; pass
-`checkpointPolicy: null` to opt out explicitly. The package also contains an
-**unofficial, unstable** `entity.add` / `EntityOccurrence` preview. Think
-does not adopt that preview in this release campaign, and exhaustive
-TypeScript switches over `Intent['kind']` must account for the new preview
-member.
+Upgrade all readers and writers together. Node removals now retain a node-wide
+LWW clear independently of surviving concurrent membership; old clients are not
+fenced and can interpret identical history differently. Preserve old receipts and
+hashes with their original interpreter, and rebuild derived checkpoints from
+patches. See [v20 upgrade guidance](docs/migrations/v19/README.md#upgrade-v19-to-v20).
+Authoritative Git history is unchanged by this interpretation upgrade.
 
-Repositories with retained v18 state still require the safe one-shot migrator
-introduced in v19.0.2 before any v19 process opens them. Do not use the
-v19.0.0 migrator on an authoritative repository.
+An omitted `checkpointPolicy` still defaults to `{ every: 64 }`; `null` opts out.
+The Entity surface and its inventory remain an **unofficial, unstable** preview.
+New inline binary properties and atomic writes have explicit refusal budgets;
+attachments use the streaming asset path instead of oversized inline values.
 
-Read the deeply illustrated
-[v19.1.0 architecture and performance release witness](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/v19-1-performance-architecture-witness.md)
-or [CHANGELOG.md](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/CHANGELOG.md) for the complete evidence and compatibility
-notes.
+Retained v18 state still requires the safe v18-to-v19 migration before opening.
+The [v19.1.0 architecture and performance witness](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/v19-1-performance-architecture-witness.md)
+records that historical release, not new v20 measurements. Current changes and
+compatibility are recorded in [CHANGELOG.md](https://github.com/git-stunts/git-warp/blob/7d4b89e937a1103befba8117d2abd7de79c5567c/CHANGELOG.md).
 
 ## Quick install
 

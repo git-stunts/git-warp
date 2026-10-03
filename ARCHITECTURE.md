@@ -10,26 +10,36 @@ If you are learning the product for the first time, start with:
 
 ## Release posture
 
-`v19.1.0` is the current release. Applications open a `Runtime`, address causal
-`Lane`s, write validated `Intent`s, consume bounded `Observation` streams of
-`Reading`s, and keep `Receipt`s. Patch-chain metadata now crosses Git through
-one bounded first-parent history stream per chain; retained trie leaves and
-same-depth branches publish through bounded ordered waves; dependent state,
-index, support, descriptor, and terminal materialization artifacts may share
-one bounded git-cas workspace generation.
+This checkout prepares `v20.0.0`; registry publication and consumer closure remain
+separate release gates. Applications retain the Runtime, Lane, Intent, Observer,
+Observation, Reading and Receipt grammar. Supported node/edge byte attachments
+use Runtime-owned staging, ordered writes, metadata observations and cancellable
+streams. Their bounded retained-history projection is not a new indexed storage
+format or recursive graph ownership.
 
-Those physical batches do not collapse patch, trie-page, index-root, or
-materialization identity. Existing v19 storage remains readable without a
-migration. Omitted checkpoint policy now defaults to `{ every: 64 }`, while
-`null` remains the explicit opt-out. The merged Entity surface is present only
-as an unofficial preview and is not part of the stable application vocabulary.
+Node membership remains observed-remove; qualifying removals immediately advance
+a node-wide LWW property clear. Adds cannot restore older cleared values, even
+when concurrent membership survives. Readers and writers must upgrade together:
+old clients are not fenced and can replay the same history differently. Preserve
+historical interpreter identity and regenerate derived bases/checkpoints. Current
+state is `full-v7`, materialization descriptors use schema 7, lifecycle shards and
+receipts use schema 2, and public receipts identify
+`observed-remove/node-lww-clear`.
 
-The [v19.1.0 release witness](docs/topics/v19-1-performance-architecture-witness.md)
-traces the route-key bytes, trie splits, structural sharing, write-wave limits,
-compound retention, performance corpus, audit findings, and compatibility
-matrix. The longer release notes live in [CHANGELOG.md](CHANGELOG.md). The
-runtime architecture below describes current implementation boundaries, not
-aspirational roadmap state.
+Membership compaction retires no evidence. Property GC can reclaim dominated
+payloads while retaining clear witnesses, without promising constant total
+metadata memory or erasing Git history. Automatic GC remains disabled by default.
+Omitted checkpoint policy still defaults to `{ every: 64 }`; `null` opts out.
+The Entity surface and admission inventory remain unofficial, unstable previews.
+
+Bounded Git history streams, trie write waves and compound git-cas generations
+preserve patch, trie-page, index-root and materialization identity. Their historical
+[v19.1.0 performance witness](docs/topics/v19-1-performance-architecture-witness.md)
+remains applicable to that measured release. See [CHANGELOG.md](CHANGELOG.md),
+[v20 upgrade guidance](docs/migrations/v19/README.md#upgrade-v19-to-v20) and
+[property reclamation](docs/topics/property-reclamation.md) for the current
+compatibility and memory boundaries. The map below describes implementation,
+not later-roadmap storage or merge capabilities.
 
 ## System map
 

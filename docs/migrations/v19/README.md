@@ -2,7 +2,7 @@
 
 > **Status:** The public grammar shipped in `v19.0.0`. The retained-state
 > migration described below requires `v19.0.2` or later within v19; use the
-> current `v19.1.0` package and do not use the `v19.0.0` migrator on an
+> deliberately pinned published `v19.1.0` intermediate package and do not use the `v19.0.0` migrator on an
 > authoritative repository. The generic constructors and executable
 > generated-SDK reference shipped in v19.0.2; each application still owns the
 > renderer that assigns domain meaning.
@@ -13,6 +13,47 @@ application grammar:
 ```text
 Write intents. Observe lanes. Keep receipts.
 ```
+
+## Upgrade v19 to v20
+
+This checkout prepares `v20.0.0`. Registry publication and supported-consumer
+verification remain separate release gates; installing published `v19.1.0` does
+not provide the restored attachments or the new interpretation described here.
+The v18-to-v19 migration below remains a separate retained-history rewrite.
+
+The v20 interpretation keeps observed-remove membership and adds immediate
+node-wide LWW property clears. A removal carrying observed addition dots advances
+the clear by deterministic EventId maximum. Properties strictly below the clear
+stay hidden even when concurrent membership survives; later-ordered properties
+remain eligible. Empty observed-dot removals establish no clear.
+
+Upgrade every reader and writer together. Stop the fleet, preserve an independent
+backup and historical hashes/receipts with their interpreter identity, deploy the
+same reviewed v20 package, and regenerate derived materializations/checkpoints
+from immutable patches. Verify bounded reads, a write and its Receipt, restart and
+backup before resuming operation. Old clients are not fenced: they can replay the
+same Git patches under old semantics. Do not relabel old receipts as v20 evidence.
+
+Full state now uses `full-v7`, materialization descriptors schema 7, and lifecycle
+shards/receipts schema 2. Older descriptors miss or require replay; direct `full-v6`
+decoding refuses. Legacy `full-v5` decoding supplies no missing lifecycle evidence.
+A bounded read without required witnesses refuses rather than materializing the
+whole graph. Public receipts identify `observed-remove/node-lww-clear`.
+
+New inline binary property values have a 64 KiB aggregate nested-byte budget;
+eager internal artifact decoders refuse above 64 MiB, with a 16 MiB checkpoint
+optic shard ceiling. Atomic arrays admit at most 50,000 Intents and lowered
+operations, with a 16 MiB canonical descriptor checked before encoding. These
+separate refusal budgets do not cap streaming attachments, truncate historical
+property reads or bound allocations already made by a producer. Prefer the
+[attachment API](#attachment-api-restoration-v20) for larger application bytes.
+
+Membership compaction retires no evidence. Property GC may reclaim dominated
+payloads while retaining lifecycle witnesses; automatic GC stays disabled by
+default and establishes no constant bound on total metadata or historical Git.
+New patches classify entity-admission boundaries, but old ambiguous unmarked
+patches cannot earn an inventory completeness certificate without explicit
+classification; this release does not invent their missing boundaries.
 
 ## Migrate Retained v18 State First
 
@@ -597,13 +638,13 @@ switch (receipt.outcome.kind) {
 `conflict` and `obstruction` are different recovery classes. Runtime failures
 remain outside this four-way causal union.
 
-## Attachment API Restoration (unreleased source)
+## Attachment API Restoration (v20)
 
-The restored attachment operations below describe unreleased source-built packages after [#901](https://github.com/git-stunts/git-warp/issues/901) and [#902](https://github.com/git-stunts/git-warp/issues/902). They do not change the published `v19.1.0` migration instructions or imply that installing that release provides these operations. The next release must publish the restored API before applications can rely on it from the registry.
+The prepared v20 API restores node and edge byte attachments through [#901](https://github.com/git-stunts/git-warp/issues/901) and [#902](https://github.com/git-stunts/git-warp/issues/902). Source-built tarball checks establish its supported package surface; registry publication and consumer verification remain separate release gates. Installing the published `v19.1.0` package does not provide these operations.
 
 Replace the retired PatchBuilder content workflow with Runtime-owned staging and advanced intents. Do not import PatchBuilder or implementations from private package paths. The owner must already exist or be created earlier in the same ordered array write; check the resulting receipt for obstruction. The staged value must come from the same Runtime that publishes it.
 
-| Retired operation | Restored supported source API |
+| Retired operation | Restored v20 API |
 | --- | --- |
 | `attachContent(nodeId, bytes, metadata)` | `lane.stageContent(bytes, metadata)`, then `intent.node.attachContent({ subject: nodeId, content })` through `lane.write(...)` |
 | `attachEdgeContent(from, to, label, bytes, metadata)` | Stage once, then `intent.edge.attachContent({ from, to, label, content })` through `lane.write(...)` |
