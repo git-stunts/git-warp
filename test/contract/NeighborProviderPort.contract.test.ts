@@ -3,20 +3,26 @@
  *
  * Every provider implementation must satisfy these contracts.
  * Run the same battery against AdjacencyNeighborProvider (sync)
- * and BitmapNeighborProvider (async-local, commit DAG — unlabeled only).
- *
- * When Phase 2 ships labeled bitmap index, add a third provider.
+ * BitmapNeighborProvider (async-local, commit DAG — emits an empty-label sentinel),
+ * and the logical bitmap provider (labeled graph edges).
  */
 
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
-  makeFixture, makeAdjacencyProvider, makeLogicalBitmapProvider,
+  makeFixture, makeAdjacencyProvider, makeLogicalBitmapProvider, type GraphFixture,
   F6_BOTH_DIRECTION_DEDUP,
   F7_MULTILABEL_SAME_NEIGHBOR,
   F9_UNICODE_CODEPOINT_ORDER,
   F10_PROTO_POLLUTION,
 } from '../helpers/fixtureDsl.ts';
 import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighborProvider.ts';
+import BitmapIndexReader from '../../src/domain/services/index/BitmapIndexReader.ts';
+import PatchError from '../../src/domain/errors/PatchError.ts';
+import type NeighborProviderPort from '../../src/ports/NeighborProviderPort.ts';
+import MockIndexStorage from '../helpers/MockIndexStorage.ts';
+
+type ProviderFactory = (fixture: GraphFixture) => NeighborProviderPort;
+afterEach(() => { vi.restoreAllMocks(); });
 
 // ── Build providers ─────────────────────────────────────────────────────────
 
@@ -26,32 +32,26 @@ import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighb
  * This lets us run contract tests against BitmapNeighborProvider
  * without a real Git repo.
  */
-/** @param {*} fixture */
-function makeMockBitmapProvider(fixture) {
-  const fwd = new Map(); // nodeId → children (Set)
-  const rev = new Map(); // nodeId → parents (Set)
+function makeMockBitmapProvider(fixture: GraphFixture): BitmapNeighborProvider {
+  const fwd = new Map<string, Set<string>>();
+  const rev = new Map<string, Set<string>>();
   const allNodes = new Set(fixture.nodes);
-
   for (const { from, to } of fixture.edges) {
-    if (!fwd.has(from)) fwd.set(from, new Set());
-    fwd.get(from).add(to);
-    if (!rev.has(to)) rev.set(to, new Set());
-    rev.get(to).add(from);
+    fwd.set(from, new Set([...(fwd.get(from) ?? []), to]));
+    rev.set(to, new Set([...(rev.get(to) ?? []), from]));
   }
 
-  const mockReader = {
-    getChildren: async (/** @type {string} */ sha) => [...(fwd.get(sha) || [])].sort(),
-    getParents: async (/** @type {string} */ sha) => [...(rev.get(sha) || [])].sort(),
-    lookupId: async (/** @type {string} */ sha) => allNodes.has(sha) ? 1 : undefined,
-  };
-
-  return new BitmapNeighborProvider({ indexReader: (mockReader as any) });
+  // Exercise the real provider with a typed reader; commit ancestry carries no labels.
+  const reader = new BitmapIndexReader({ indexStore: new MockIndexStorage() });
+  vi.spyOn(reader, 'getChildren').mockImplementation(async sha => [...(fwd.get(sha) ?? [])].sort());
+  vi.spyOn(reader, 'getParents').mockImplementation(async sha => [...(rev.get(sha) ?? [])].sort());
+  vi.spyOn(reader, 'lookupId').mockImplementation(async sha => allNodes.has(sha) ? 1 : undefined);
+  return new BitmapNeighborProvider({ indexReader: reader });
 }
 
 // ── Contract suite factory ──────────────────────────────────────────────────
 
-/** @param {string} providerName @param {(fixture: *) => *} makeProvider */
-function contractSuite(providerName, makeProvider) {
+function contractSuite(providerName: string, makeProvider: ProviderFactory, defaultLabel: string) {
   describe(`NeighborProviderPort contract: ${providerName}`, () => {
     // ── Sorting contract ──────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ function contractSuite(providerName, makeProvider) {
         const provider = makeProvider(fixture);
         const result = await provider.getNeighbors('root', 'out');
 
-        const ids = result.map((/** @type {*} */ e) => e.neighborId);
+        const ids = result.map((e) => e.neighborId);
         expect(ids).toEqual(['a', 'm', 'z']);
       });
 
@@ -77,7 +77,7 @@ function contractSuite(providerName, makeProvider) {
         const result = await provider.getNeighbors('S', 'out');
 
         // A (65) < a (97) < ä (228)
-        const ids = result.map((/** @type {*} */ e) => e.neighborId);
+        const ids = result.map((e) => e.neighborId);
         expect(ids).toEqual(['A', 'a', 'ä']);
       });
     });
@@ -95,7 +95,7 @@ function contractSuite(providerName, makeProvider) {
         });
         const provider = makeProvider(fixture);
         const out = await provider.getNeighbors('A', 'out');
-        expect(out.map((/** @type {*} */ e) => e.neighborId)).toEqual(['B']);
+        expect(out.map((e) => e.neighborId)).toEqual(['B']);
       });
 
       it('"in" returns only incoming edges', async () => {
@@ -108,7 +108,7 @@ function contractSuite(providerName, makeProvider) {
         });
         const provider = makeProvider(fixture);
         const inc = await provider.getNeighbors('A', 'in');
-        expect(inc.map((/** @type {*} */ e) => e.neighborId)).toEqual(['C']);
+        expect(inc.map((e) => e.neighborId)).toEqual(['C']);
       });
 
       it('"both" returns union deduped by (neighborId, label)', async () => {
@@ -122,7 +122,7 @@ function contractSuite(providerName, makeProvider) {
         const provider = makeProvider(fixture);
         const both = await provider.getNeighbors('A', 'both');
         // B appears as outgoing and incoming — dedup to one entry
-        expect(both).toEqual([{ neighborId: 'B', label: '' }]);
+        expect(both).toEqual([{ neighborId: 'B', label: defaultLabel }]);
       });
     });
 
@@ -158,17 +158,19 @@ function contractSuite(providerName, makeProvider) {
       });
     });
 
-    // ── Unlabeled edge sentinel contract ──────────────────────────────
+    // ── Backend label contract ──────────────────────────────
 
-    describe('unlabeled edges', () => {
-      it('uses label="" for edges without explicit label', async () => {
+    describe('backend label semantics', () => {
+      it('preserves logical fixture labels or emits the commit-DAG sentinel', async () => {
         const fixture = makeFixture({
           nodes: ['A', 'B'],
           edges: [{ from: 'A', to: 'B' }],
         });
         const provider = makeProvider(fixture);
         const result = await provider.getNeighbors('A', 'out');
-        expect(result).toEqual([{ neighborId: 'B', label: '' }]);
+        // The fixture explicitly normalizes an omitted logical label to e.
+        expect(fixture.edges).toEqual([{ from: 'A', to: 'B', label: 'e' }]);
+        expect(result).toEqual([{ neighborId: 'B', label: defaultLabel }]);
       });
     });
 
@@ -186,10 +188,10 @@ function contractSuite(providerName, makeProvider) {
         // Edges resolve
         const out = await provider.getNeighbors('node:1', 'out');
         expect(out.length).toBeGreaterThan(0);
-        expect(out[0].neighborId).toBe('__proto__');
+        expect(out[0]?.neighborId).toBe('__proto__');
 
         // Object.prototype not mutated
-        expect((({} as Record<string, unknown>))['polluted']).toBeUndefined();
+        expect(Reflect.has(Object.prototype, 'polluted')).toBe(false);
         expect(({}).constructor).toBe(Object);
       });
     });
@@ -198,8 +200,7 @@ function contractSuite(providerName, makeProvider) {
 
 // ── Label-specific contract (only for label-aware providers) ────────────────
 
-/** @param {string} providerName @param {(fixture: *) => *} makeProvider */
-function labelContractSuite(providerName, makeProvider) {
+function labelContractSuite(providerName: string, makeProvider: ProviderFactory) {
   describe(`NeighborProviderPort label contract: ${providerName}`, () => {
     it('label filter with undefined returns all edges', async () => {
       const provider = makeProvider(F7_MULTILABEL_SAME_NEIGHBOR);
@@ -252,9 +253,9 @@ function labelContractSuite(providerName, makeProvider) {
       const result = await provider.getNeighbors('A', 'out');
       // Two edges, same neighbor, different labels
       expect(result.length).toBe(2);
-      expect(result[0].neighborId).toBe('B');
-      expect(result[1].neighborId).toBe('B');
-      expect(result[0].label).not.toBe(result[1].label);
+      expect(result[0]?.neighborId).toBe('B');
+      expect(result[1]?.neighborId).toBe('B');
+      expect(result[0]?.label).not.toBe(result[1]?.label);
     });
   });
 }
@@ -287,14 +288,24 @@ function bitmapLabelFilterSuite() {
 
 // ── Run suites ──────────────────────────────────────────────────────────────
 
-// All providers must pass the base contract (unlabeled fixtures only)
-contractSuite('AdjacencyNeighborProvider', (/** @type {*} */ fixture) => makeAdjacencyProvider(fixture));
-contractSuite('BitmapNeighborProvider (mock)', (/** @type {*} */ fixture) => makeMockBitmapProvider(fixture));
-contractSuite('LogicalBitmapNeighborProvider', (/** @type {*} */ fixture) => makeLogicalBitmapProvider(fixture));
+// Logical graph edges preserve fixture labels; commit ancestry alone uses ''.
+contractSuite('AdjacencyNeighborProvider', makeAdjacencyProvider, 'e');
+contractSuite('BitmapNeighborProvider (mock)', makeMockBitmapProvider, '');
+contractSuite('LogicalBitmapNeighborProvider', makeLogicalBitmapProvider, 'e');
 
 // Only label-aware providers run the label contract
-labelContractSuite('AdjacencyNeighborProvider', (/** @type {*} */ fixture) => makeAdjacencyProvider(fixture));
-labelContractSuite('LogicalBitmapNeighborProvider', (/** @type {*} */ fixture) => makeLogicalBitmapProvider(fixture));
+labelContractSuite('AdjacencyNeighborProvider', makeAdjacencyProvider);
+labelContractSuite('LogicalBitmapNeighborProvider', makeLogicalBitmapProvider);
 
 // Bitmap-specific label filter behavior
 bitmapLabelFilterSuite();
+
+// A commit-DAG sentinel is not an admissible logical EdgeAdd label.
+describe('LogicalBitmapNeighborProvider admission', () => {
+  it('rejects an empty logical edge label at the runtime admission boundary', () => {
+    const fixture = makeFixture({
+      nodes: ['A', 'B'], edges: [{ from: 'A', to: 'B', label: '' }],
+    });
+    expect(() => makeLogicalBitmapProvider(fixture)).toThrow(PatchError);
+  });
+});
