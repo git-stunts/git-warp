@@ -16,7 +16,7 @@ import type OpOutcomeResult from "../types/ops/OpOutcomeResult.ts";
 import OpApplied from "../types/ops/OpApplied.ts";
 import OpRedundant from "../types/ops/OpRedundant.ts";
 import OpSuperseded from "../types/ops/OpSuperseded.ts";
-import PropSet from "../types/ops/PropSet.ts";
+import type PropSet from "../types/ops/PropSet.ts";
 import {
   PatchDiff,
   createEmptyDiff,
@@ -25,6 +25,7 @@ import {
   type MutablePatchDiff,
 } from "../types/PatchDiff.ts";
 import { compareEventIds, EventId } from "../utils/EventId.ts";
+import type LegacyEventId from "../utils/LegacyEventId.ts";
 import { isEdgePropKey } from "./KeyCodec.ts";
 import { advanceLifecycleEvent } from "./state/ElementLifecycle.ts";
 import { isStaleNodeRegisterIn, type NodeLifecycleSource } from "./state/NodeLifecycle.ts";
@@ -70,7 +71,7 @@ export class ReducerSessionFrame {
   readonly session: StateSession;
   readonly prop: Map<string, LWWRegister<ReducerPropValue>>;
   readonly observedFrontier: VersionVector;
-  readonly edgeBirthEvent: Map<string, EventId>;
+  readonly edgeBirthEvent: Map<string, EventId | LegacyEventId>;
   readonly nodeBirthEvent: Map<string, EventId>;
   readonly nodeClearEvent: Map<string, EventId>;
   readonly nodePendingRemoveEvents: Map<string, readonly EventId[]>;
@@ -80,7 +81,7 @@ export class ReducerSessionFrame {
     readonly session: StateSession;
     readonly prop: Map<string, LWWRegister<ReducerPropValue>>;
     readonly observedFrontier: VersionVector;
-    readonly edgeBirthEvent: Map<string, EventId>;
+    readonly edgeBirthEvent: Map<string, EventId | LegacyEventId>;
   }) {
     if (!(fields.session instanceof StateSession)) {
       throw new PatchError("ReducerSessionFrame requires a StateSession");
@@ -314,9 +315,6 @@ async function computeOutcome(
       ? new OpApplied(edgeKey)
       : new OpRedundant(edgeKey);
   }
-  if (op instanceof PropSet) {
-    return propertyOutcome(frame.prop, encodePropKey(op.node, op.key), eventId);
-  }
   if (op instanceof NodePropSet) {
     return propertyOutcome(frame.prop, encodePropKey(op.node, op.key), eventId);
   }
@@ -369,7 +367,7 @@ async function snapshotForDiff(
       aliveBefore: await frame.session.edgeContains(target),
     };
   }
-  if (op instanceof PropSet || op instanceof NodePropSet) {
+  if (op instanceof NodePropSet) {
     return propertySnapshot(frame.prop, op.node, op.key, encodePropKey(op.node, op.key), frame);
   }
   if (op instanceof EdgePropSet) {
@@ -405,10 +403,6 @@ async function mutateInSession(
   if (op instanceof EdgeRemove) {
     const edgeKey = encodeEdgeKey(op.from, op.to, op.label);
     await frame.session.removeEdge(edgeKey, new Set(op.observedDots));
-    return;
-  }
-  if (op instanceof PropSet) {
-    setProperty(frame.prop, encodePropKey(op.node, op.key), eventId, op.value);
     return;
   }
   if (op instanceof NodePropSet) {
@@ -524,9 +518,7 @@ function setProperty(
 ): void {
   const current = prop.get(storageKey);
   const next = LWWRegister.max(current, LWWRegister.set(eventId, normalizePropValue(value)));
-  if (next !== null) {
-    prop.set(storageKey, next);
-  }
+  prop.set(storageKey, next);
 }
 
 function propertyOutcome(
@@ -555,9 +547,7 @@ function mergePropMaps(
   const merged = new Map(left);
   for (const [key, rightValue] of right) {
     const winner = LWWRegister.max(merged.get(key), rightValue);
-    if (winner !== null) {
-      merged.set(key, winner);
-    }
+    merged.set(key, winner);
   }
   return merged;
 }
@@ -614,7 +604,7 @@ function toReceiptOutcome(receiptName: string, outcome: OpOutcomeResult): OpOutc
     target: outcome.target,
     result: outcome.result,
   };
-  if (outcome instanceof OpSuperseded && outcome.reason.length > 0) {
+  if (outcome instanceof OpSuperseded) {
     entry.reason = outcome.reason;
   }
   return entry;

@@ -61,7 +61,7 @@ describe('JoinReducer', () => {
       const state1 = createEmptyState();
       const state2 = createEmptyState();
 
-      state1.mutatePropLWW('key', ({} as any), 'test');
+      state1.mutatePropLWW('key', new EventId(1, 'writer', 'aaaa', 0), 'test');
 
       expect(state2.propSize()).toBe(0);
     });

@@ -22,6 +22,8 @@ import IndexError from '../../errors/IndexError.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type CodecValue from '../../types/codec/CodecValue.ts';
 import { EventId } from '../../utils/EventId.ts';
+import type LegacyEventId from '../../utils/LegacyEventId.ts';
+import { readCheckpointEventId } from '../state/CheckpointEventIdBoundary.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 
 /** Bundle member that marks an index root as carrying node lifecycle records. */
@@ -125,9 +127,18 @@ function decodeRecord(entry: CodecValue, path: string): NodeLifecycleRecord {
   }));
 }
 
-function decodeRegister(value: CodecValue, path: string): readonly [string, EventId] {
+function decodeRegister(value: CodecValue, path: string): readonly [string, EventId | LegacyEventId] {
   const [key, event] = requireTuple(value, PAIR_FIELDS, path);
-  return [requireString(key, path), decodeEvent(event, path)];
+  return [requireString(key, path), decodeRegisterEvent(event, path)];
+}
+
+/** Register tuples share the complete checkpoint identity form; lifecycle events stay modern. */
+function decodeRegisterEvent(value: CodecValue | undefined, path: string): EventId | LegacyEventId {
+  const [lamport, writerId, patchSha, opIndex] = requireTuple(value, EVENT_FIELDS, path);
+  return validated(path, () => readCheckpointEventId({
+    lamport: requireNumber(lamport, path), writerId: requireString(writerId, path),
+    patchSha: requireString(patchSha, path), opIndex: requireNumber(opIndex, path),
+  }, 'full-v7'));
 }
 
 function decodeEvent(value: CodecValue | undefined, path: string): EventId {

@@ -1,5 +1,6 @@
 import type { NodeLifecycleShard } from '../../domain/artifacts/NodeLifecycleShard.ts';
 import type { EventId } from '../../domain/utils/EventId.ts';
+import type LegacyEventId from '../../domain/utils/LegacyEventId.ts';
 
 type EncodedEventId = readonly [number, string, string, number];
 type EncodedNodeLifecycleRecord = readonly [
@@ -34,6 +35,6 @@ function optionalEvent(event: EventId | null): EncodedEventId | null {
   return event === null ? null : encodeEvent(event);
 }
 
-function encodeEvent(event: EventId): EncodedEventId {
+function encodeEvent(event: EventId | LegacyEventId): EncodedEventId {
   return [event.lamport, event.writerId, event.patchSha, event.opIndex];
 }
