@@ -8,11 +8,10 @@ const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const COMPOSE_FILES = Object.freeze([
   Object.freeze({ path: 'docker/docker-compose.yml', buildCount: 2 }),
   Object.freeze({ path: 'docker/docker-compose.watch.yml', buildCount: 1 }),
-  Object.freeze({ path: 'docker/docker-compose.test.yml', buildCount: 4 }),
+  Object.freeze({ path: 'docker/docker-compose.test.yml', buildCount: 3 }),
 ]);
 
 const TEST_DOCKERFILES = Object.freeze([
-  'docker/Dockerfile.node20',
   'docker/Dockerfile.node22',
   'docker/Dockerfile.node22-slim',
   'docker/Dockerfile.bun',
@@ -20,7 +19,6 @@ const TEST_DOCKERFILES = Object.freeze([
 ]);
 
 const DEPENDENCY_INSTALL_DOCKERFILES = Object.freeze([
-  'docker/Dockerfile.node20',
   'docker/Dockerfile.node22',
   'docker/Dockerfile.node22-slim',
   'docker/Dockerfile.bun',
@@ -29,6 +27,20 @@ const DEPENDENCY_INSTALL_DOCKERFILES = Object.freeze([
 ]);
 
 describe('Docker source context', () => {
+  it('advertises only supported runtime routes in the full matrix', () => {
+    const manifest = readFileSync(join(ROOT, 'package.json'), 'utf8');
+    const matrix = readFileSync(join(ROOT, 'docker/docker-compose.test.yml'), 'utf8');
+
+    expect(manifest).not.toContain('"test:node20"');
+    expect(manifest).toMatch(/"node": ">=22\.0\.0"/u);
+    expect(matrix).not.toContain('node20');
+    expect(captureValues(matrix, /^  (test-[^:]+):$/gmu))
+      .toEqual(['test-node22', 'test-bun', 'test-deno']);
+    expect(captureValues(matrix, /^    profiles: \[(\w+), full\]$/gmu))
+      .toEqual(['node22', 'bun', 'deno']);
+    expect(existsSync(join(ROOT, 'docker/Dockerfile.node20'))).toBe(false);
+  });
+
   it.each(COMPOSE_FILES)(
     '$path resolves every build from the invoking checkout root',
     ({ path, buildCount }) => {
