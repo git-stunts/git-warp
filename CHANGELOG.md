@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Batch bounded precommit guard readings with at most four concurrent requests,
+  share identical property readings within a batch, and preserve ordered refusal,
+  captured causal evidence and all-or-nothing intent journal admission (#706).
+
 - ORSet construction validates and snapshots membership collections, and LWW
   registers require admitted runtime event identities. Checkpoint readers
   reconstruct those concepts and refuse malformed registers and explicit metadata
