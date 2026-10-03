@@ -15,6 +15,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   while preserving supported legacy missing-metadata ordering through checkpoint
   index capture and bounded reads, without changing wire formats (#189).
 
+- Install the Bun test image's reviewed npm dependency graph with `npm ci`
+  before copying it into Bun, include every current workspace manifest in the
+  install layer, and refuse manifest or installed dependency drift (#865).
+
+- Remove vulnerable generic patch tooling from dependency declaration setup.
+  Install the unchanged trailer-codec 2.1.1 declarations through an exact
+  version/content check, preserve identical repeats and refuse conflicting
+  files without modifying dependency runtime (#948).
+
+- Coverage runs bound instrumented workers and coverage processing to one task
+  at a time. Thresholds can rise only after an argument-free full coverage
+  command completes every selected file with zero errors and successful
+  teardown; failed, incomplete and targeted runs cannot rewrite the ratchet
+  (#882). Authorized update intent is carried through Docker command arguments
+  rather than depending on npm lifecycle environment in the container.
+
+- Bound Mermaid validation rendering and browser shutdown separately, reclaim
+  validator-owned worker/browser processes on success, failure, timeout and
+  interruption, and fail the documentation gate if reclamation cannot be
+  established. Node Docker images provide Chromium and reap adopted children.
+  Completed SVG files alone cannot pass validation (#870).
+
 - VersionVector construction validates writer/counter entries, omits zero
   counters and snapshots caller-owned maps so later mutations cannot corrupt
   causal state (#205).
@@ -31,6 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   admitted canonical bytes and receipt identities stay compatible (#916).
 
 ### Added
+
+- Prove opaque session-event retention through public CLI process boundaries,
+  exact-frontier candidate settlement, stale-basis refusal and retained source
+  evidence. The Docker conformance oracle remains active with Python
+  optimization enabled (#869).
 
 - Publish the restored node/edge byte attachment guide and reuse the installed-
   package lifecycle example, with migration, history, concurrency, retention,
