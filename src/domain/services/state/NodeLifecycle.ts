@@ -6,6 +6,7 @@
  */
 
 import { compareEventIds, type EventId } from '../../utils/EventId.ts';
+import type LegacyEventId from '../../utils/LegacyEventId.ts';
 import { advanceLifecycleEvent } from './ElementLifecycle.ts';
 
 /** Immutable interpretation identifier; retain beside historical hashes and receipts. */
@@ -33,7 +34,7 @@ export type NodeLifecycleSource = {
 export function isStaleNodeRegisterIn(
   source: NodeLifecycleSource,
   nodeId: string,
-  registerEvent: EventId | null | undefined,
+  registerEvent: EventId | LegacyEventId | null | undefined,
 ): boolean {
   if (registerEvent === null || registerEvent === undefined) {
     return false;

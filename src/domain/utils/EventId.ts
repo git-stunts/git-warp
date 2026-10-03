@@ -1,4 +1,5 @@
 import PatchError from '../errors/PatchError.ts';
+import type LegacyEventId from './LegacyEventId.ts';
 
 // Regex for validating hex OID (4-64 hex characters)
 const HEX_OID_REGEX = /^[0-9a-f]{4,64}$/;
@@ -56,7 +57,7 @@ export class EventId {
  * SHA tiebreaker uses lexicographic string comparison. This is arbitrary but
  * deterministic — the specific order doesn't matter as long as all writers agree.
  */
-export function compareEventIds(a: EventId, b: EventId): number {
+export function compareEventIds(a: EventId | LegacyEventId, b: EventId | LegacyEventId): number {
   // 1. Compare lamport numerically
   if (a.lamport !== b.lamport) {
     return a.lamport < b.lamport ? -1 : 1;
@@ -83,6 +84,6 @@ export function compareEventIds(a: EventId, b: EventId): number {
 /**
  * Checks if EventId a is greater than EventId b.
  */
-export function isGreater(a: EventId, b: EventId): boolean {
+export function isGreater(a: EventId | LegacyEventId, b: EventId | LegacyEventId): boolean {
   return compareEventIds(a, b) > 0;
 }

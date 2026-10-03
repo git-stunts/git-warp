@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- ORSet construction validates and snapshots membership collections, and LWW
+  registers require admitted runtime event identities. Checkpoint readers
+  reconstruct those concepts and refuse malformed registers and explicit metadata
+  while preserving supported legacy missing-metadata ordering through checkpoint
+  index capture and bounded reads, without changing wire formats (#189).
+
 - Install the Bun test image's reviewed npm dependency graph with `npm ci`
   before copying it into Bun, include every current workspace manifest in the
   install layer, and refuse manifest or installed dependency drift (#865).

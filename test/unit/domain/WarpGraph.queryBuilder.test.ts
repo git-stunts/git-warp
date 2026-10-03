@@ -2,11 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import { encodePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import QueryError from '../../../src/domain/errors/QueryError.ts';
+import { EventId } from '../../../src/domain/utils/EventId.ts';
+import type WarpState from '../../../src/domain/services/state/WarpState.ts';
+import type { PropValue } from '../../../src/domain/types/PropValue.ts';
 import { addNodeToState, addEdgeToState, setupGraphState } from '../../helpers/warpGraphTestUtils.ts';
 
-function addProp(/** @type {any} */ state, /** @type {any} */ nodeId, /** @type {any} */ key, /** @type {any} */ value) {
+function addProp(state: WarpState, nodeId: string, key: string, value: PropValue) {
   const propKey = encodePropKey(nodeId, key);
-  state.prop.set(propKey, { value, lamport: 1, writerId: 'w1' });
+  state.mutatePropLWW(propKey, new EventId(1, 'w1', 'aaaa', 0), value);
 }
 
 describe('WarpCore QueryBuilder', () => {
