@@ -75,7 +75,7 @@ export function serializeFullState(
 
 type SerializedEvent = { lamport: number; writerId: string; patchSha: string; opIndex: number };
 
-function serializeEvent(eventId: EventId): SerializedEvent {
+function serializeEvent(eventId: EventId | LegacyEventId): SerializedEvent {
   return { lamport: eventId.lamport, writerId: eventId.writerId, patchSha: eventId.patchSha, opIndex: eventId.opIndex };
 }
 
@@ -297,8 +297,8 @@ function deserializeProps(propArray: Array<[string, SerializedLWWRegister | null
   return prop;
 }
 
-function deserializeEdgeBirthEvent(obj: DeserializedFullState): Map<string, EventId> {
-  const edgeBirthEvent = new Map<string, EventId>();
+function deserializeEdgeBirthEvent(obj: DeserializedFullState): Map<string, EventId | LegacyEventId> {
+  const edgeBirthEvent = new Map<string, EventId | LegacyEventId>();
   const birthData = obj.edgeBirthEvent ?? obj.edgeBirthLamport;
   if (!Array.isArray(birthData)) { return edgeBirthEvent; }
   for (const [key, val] of birthData) {
@@ -317,11 +317,11 @@ type CurrentEdgeBirthEventPayload = {
 type CurrentEdgeBirthEventWire = Array<[string, CurrentEdgeBirthEventPayload]>;
 const UNIDENTIFIED_EDGE_BIRTH_KEY = '<unidentified>';
 
-function deserializeCurrentEdgeBirthEvent(value: CurrentEdgeBirthEventWire): Map<string, EventId> {
+function deserializeCurrentEdgeBirthEvent(value: CurrentEdgeBirthEventWire): Map<string, EventId | LegacyEventId> {
   if (!Array.isArray(value)) {
     throw invalidCurrentEdgeBirthEvent(UNIDENTIFIED_EDGE_BIRTH_KEY);
   }
-  const edgeBirthEvent = new Map<string, EventId>();
+  const edgeBirthEvent = new Map<string, EventId | LegacyEventId>();
   for (const entry of value) {
     if (!Array.isArray(entry) || entry.length !== 2) {
       throw invalidCurrentEdgeBirthEvent(UNIDENTIFIED_EDGE_BIRTH_KEY);
@@ -363,7 +363,7 @@ function invalidCurrentEdgeBirthEvent(key: string): WarpError {
   );
 }
 
-function deserializeSingleBirthEvent(val: CheckpointEventIdWire | number, format: string | undefined): EventId {
+function deserializeSingleBirthEvent(val: CheckpointEventIdWire | number, format: string | undefined): EventId | LegacyEventId {
   if (typeof val === 'number') {
     if (format === FULL_STATE_VERSION) { throw invalidCurrentEdgeBirthEvent(UNIDENTIFIED_EDGE_BIRTH_KEY); }
     return new LegacyEventId(val);

@@ -92,7 +92,7 @@ export class LWWRegister<T> {
   /**
    * Creates an LWW register with the given EventId and value.
    */
-  static set<V>(eventId: EventId, value: V): LWWRegister<V> {
+  static set<V>(eventId: EventId | LegacyEventId, value: V): LWWRegister<V> {
     return new LWWRegister(eventId, value);
   }
 
@@ -144,7 +144,7 @@ function _lwwCoalesce<T>(reg: LWWRegister<T> | null | undefined): LWWRegister<T>
 // Free-function aliases that delegate to static methods.
 
 /** @deprecated Use {@link LWWRegister.set} */
-export function lwwSet<T>(eventId: EventId, value: T): LWWRegister<T> {
+export function lwwSet<T>(eventId: EventId | LegacyEventId, value: T): LWWRegister<T> {
   return LWWRegister.set(eventId, value);
 }
 

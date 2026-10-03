@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   deserializeCheckpointStateEnvelope, serializeCheckpointStateEnvelope,
   deserializeFullState,
@@ -98,7 +98,25 @@ it('serializes retained removal identities in deterministic node and event order
   expect(restored.nodePendingRemoveEvents.size).toBe(0);
 });
 
-it.each([7, { eventId: EVENT, value: undefined }])('refuses invalid property values at the legacy decoder: %#', register => {
-  const bytes = codec.encode({ version: 'full-v5', prop: [['n\0key', register]] });
-  expect(() => deserializeFullState(bytes, OPTIONS)).toThrow(WarpError);
+describe.each([
+  { name: 'CBOR adapter', read: (bytes: Uint8Array) => decodeWarpFullState(bytes, codec) },
+  { name: 'legacy checkpoint boundary', read: (bytes: Uint8Array) => deserializeFullState(bytes, OPTIONS) },
+])('$name property register admission', ({ read }) => {
+  it.each([7, { eventId: EVENT, value: undefined }])('refuses invalid stored register values: %#', register => {
+    for (const version of ['full-v5', 'full-v7']) {
+      expect(() => read(propertyCheckpoint(version, register))).toThrow(WarpError);
+    }
+  });
+  it.each([null, undefined])('preserves intentionally absent registers: %#', register => {
+    for (const version of ['full-v5', 'full-v7']) {
+      expect(read(propertyCheckpoint(version, register)).propSize()).toBe(0);
+    }
+  });
 });
+
+function propertyCheckpoint(version: string, register: number | { eventId: EventId; value: undefined } | null | undefined): Uint8Array {
+  const emptySet = { entries: [], tombstones: [] };
+  return codec.encode({ version, nodeAlive: emptySet, edgeAlive: emptySet, prop: [['n\0key', register]],
+    observedFrontier: {}, edgeBirthEvent: [], nodeBirthEvent: [], nodeClearEvent: [],
+    nodePendingRemoveEvents: [], edgeRemoveEvent: [] });
+}

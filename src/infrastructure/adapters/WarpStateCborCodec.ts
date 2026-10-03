@@ -233,8 +233,8 @@ function deserializeProps(propArray: unknown, format: string | undefined): Map<s
   return prop;
 }
 
-function deserializeEdgeBirthEvent(obj: DecodedFullState): Map<string, EventId> {
-  const result = new Map<string, EventId>();
+function deserializeEdgeBirthEvent(obj: DecodedFullState): Map<string, EventId | LegacyEventId> {
+  const result = new Map<string, EventId | LegacyEventId>();
   const birthData = edgeBirthData(obj);
   if (!Array.isArray(birthData)) {
     return result;
@@ -254,7 +254,7 @@ function edgeBirthData(obj: DecodedFullState): unknown {
   return obj.edgeBirthEvent ?? obj.edgeBirthLamport;
 }
 
-function deserializeEdgeBirthValue(value: EdgeBirthWire | number, format: string | undefined): EventId {
+function deserializeEdgeBirthValue(value: EdgeBirthWire | number, format: string | undefined): EventId | LegacyEventId {
   if (typeof value === 'number') {
     if (format === FULL_STATE_VERSION) { throw invalidCanonicalFullState(); }
     return new LegacyEventId(value);
@@ -277,7 +277,8 @@ function serializeLWWRegister(
 }
 
 function deserializeLWWRegister(obj: unknown, format: string | undefined): LWWRegister<PropValue> | null {
-  if (typeof obj !== 'object' || obj === null) { return null; }
+  if (obj === null || obj === undefined) { return null; }
+  if (typeof obj !== 'object') { throw invalidCanonicalFullState(); }
   return new LWWRegister(
     eventIdFromUnknown('eventId' in obj ? obj.eventId : undefined, format), propertyValue(obj),
   );
@@ -290,7 +291,7 @@ function propertyValue(obj: object): PropValue {
   return obj.value;
 }
 
-function eventIdFromUnknown(value: unknown, format: string | undefined): EventId {
+function eventIdFromUnknown(value: unknown, format: string | undefined): EventId | LegacyEventId {
   if (value === null || value === undefined) { return readCheckpointEventId(value, format); }
   const parsed = EDGE_BIRTH_WIRE.safeParse(value);
   if (!parsed.success) { throw invalidCanonicalFullState(); }

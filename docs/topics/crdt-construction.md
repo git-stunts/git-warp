@@ -26,8 +26,12 @@ Current `full-v7` property and edge-birth identities cannot omit metadata or use
 
 Both the CBOR full-state adapter and the legacy full-state boundary construct real `LWWRegister` and admitted event values. The checkpoint envelope reader applies the same identity rules. Supported checkpoint version names and serialized field representations remain unchanged.
 
+Null or absent property registers retain their existing omission behavior. Other malformed register payloads, including primitives, are refused by both full-state readers rather than silently dropping stored properties.
+
+Historical property identities also survive checkpoint index capture, lifecycle shard encoding and bounded property reads. Only property register slots admit the complete legacy tuple; node births, clears, removals and patch-tail identities remain modern. The lifecycle shard schema and existing modern shard bytes remain unchanged.
+
 ## Encoding and witnesses
 
 Encoding remains on `CodecPort` implementations and named wire boundaries; `ORSet` and `LWWRegister` have no serialization methods. `ORSetWireBoundary` turns transport collections into constructor-admitted membership state. The checkpoint readers validate transport metadata before core register behavior receives it, as required by the [Anti-Sludge decisions](../ANTI_SLUDGE_DECISIONS.md) and [Systems Style TypeScript](../SYSTEMS_STYLE_TYPESCRIPT.md).
 
-Executable witnesses cover invalid constructor containers and identities, caller collection isolation, floating removals, real checkpoint hydration, malformed current and historical metadata, legacy upgrade and replay ordering, and checkpoint envelope round trips. Existing deterministic join and replay suites continue to exercise valid multi-writer behavior. All executable validation runs in COPY-based Docker containers.
+Executable witnesses cover invalid constructor containers and identities, caller collection isolation, floating removals, real checkpoint hydration, malformed current and historical metadata, legacy upgrade and replay ordering, checkpoint envelope round trips, and historical register index capture through bounded tail reads. Existing deterministic join and replay suites continue to exercise valid multi-writer behavior. All executable validation runs in COPY-based Docker containers.
