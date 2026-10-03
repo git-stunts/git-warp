@@ -43,6 +43,7 @@ describe('scripts/run-stable-unit-tests.ts', () => {
     expect(result.output).toContain('stable-unit-tests: running shard unit-domain-services-subdirs');
     expect(result.output).toContain('test/unit/scripts/run-stable-unit-tests-extension-fixture.test.mts');
     expect(result.output).toContain('--maxWorkers 3');
+    expect(result.output).toContain('test/contract/NeighborProviderPort.contract.test.ts');
   });
 
   it('fails before spawning workers when free memory is below the configured floor', () => {
