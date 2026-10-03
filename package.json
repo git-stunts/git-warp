@@ -142,7 +142,6 @@
     "upgrade": "npm run build --silent && node dist/scripts/upgrade-v16-to-v17.js",
     "install:git-warp": "bash scripts/install-git-warp.sh",
     "uninstall:git-warp": "bash scripts/uninstall-git-warp.sh",
-    "test:node20": "docker compose -f docker/docker-compose.test.yml --profile node20 run --build --rm test-node20",
     "test:node22": "docker compose -f docker/docker-compose.test.yml --profile node22 run --build --rm test-node22",
     "test:integration:ci": "bash scripts/run-in-docker.sh sh -c 'vitest run test/integration --exclude test/integration/api/content-attachment.test.ts --maxWorkers=2 && vitest run test/integration/api/content-attachment.test.ts --maxWorkers=1 \"$@\"' --",
     "test:node22:ci": "bash scripts/run-in-docker.sh sh -c 'sh -c '\"'\"'npm run test:local && npm run test:integration:ci && bats test/bats/'\"'\"' \"$@\"' --",

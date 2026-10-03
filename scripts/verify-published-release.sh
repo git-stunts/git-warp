@@ -40,7 +40,7 @@ done
 [[ "$DELAY" =~ ^[0-9]+$ ]] && [ "$DELAY" -le 30 ] || exit 2
 [[ "$COMMAND_TIMEOUT" =~ ^[1-9][0-9]*$ ]] && [ "$COMMAND_TIMEOUT" -le 180 ] || exit 2
 [ -n "$OUTPUT" ] || exit 2
-for tool in jq timeout git gh npm curl openssl node; do command -v "$tool" >/dev/null; done
+for tool in jq timeout git gh npm curl openssl node docker; do command -v "$tool" >/dev/null; done
 # shellcheck source=scripts/release-closure/budget.sh
 source "$ROOT/scripts/release-closure/budget.sh"
 start_budget "$TOTAL_TIMEOUT" "$COMMAND_TIMEOUT"
@@ -51,16 +51,35 @@ mkdir -p "$(dirname "$OUTPUT")"
 OUTPUT=$(cd "$(dirname "$OUTPUT")" && pwd)/$(basename "$OUTPUT")
 STAGE="source"
 STATUS="failed"
+CONSUMER_CLIENT=""
 for document in npm jsr run release consumer; do printf '{}\n' > "$WORK/$document.json"; done
 printf 'null\n' > "$WORK/dist-tag.json"
 
 finish() {
   local code=$?
   trap - EXIT
+  trap '' INT TERM
+  if [ -n "$CONSUMER_CLIENT" ]; then
+    kill -TERM "$CONSUMER_CLIENT" 2>/dev/null || true
+    wait "$CONSUMER_CLIENT" 2>/dev/null || true
+  fi
+  local evidence="${OUTPUT%.json}.consumer"
+  if [ -L "$evidence" ] || { [ -e "$evidence" ] && [ ! -d "$evidence" ]; }; then
+    STATUS=failed; STAGE=consumer-evidence; code=1
+  elif ! mkdir -p "$evidence"; then
+    STATUS=failed; STAGE=consumer-evidence; code=1
+  else
+    for log in image create start container export install signatures cli; do
+      rm -f "$evidence/$log.log" || { STATUS=failed; STAGE=consumer-evidence; code=1; continue; }
+      if [ -f "$WORK/$log.log" ]; then
+        cp "$WORK/$log.log" "$evidence/$log.log" || { STATUS=failed; STAGE=consumer-evidence; code=1; }
+      fi
+    done
+  fi
   jq -n --arg status "$STATUS" --arg stage "$STAGE" --arg tag "$TAG" \
     --arg version "$VERSION" --arg commit "$EXPECTED_COMMIT" --arg distTag "$DIST_TAG" \
     --argjson limit "$TOTAL_TIMEOUT" --argjson remaining "$((CLOSURE_DEADLINE - SECONDS))" \
-    --argjson requireDistTag "$REQUIRE_DIST_TAG" \
+    --argjson requireDistTag "$REQUIRE_DIST_TAG" --arg evidence "$(basename "$evidence")" \
     --slurpfile npm "$WORK/npm.json" --slurpfile jsr "$WORK/jsr.json" \
     --slurpfile run "$WORK/run.json" --slurpfile release "$WORK/release.json" \
     --slurpfile consumer "$WORK/consumer.json" --slurpfile owner "$WORK/dist-tag.json" \
@@ -74,12 +93,14 @@ finish() {
       jsr:($jsr[0]|{name,version,integrity:.dist.integrity}),
       distTag:{name:$distTag,observedVersion:$owner[0],
         ownsTag:($owner[0]==$version),ownershipRequired:($requireDistTag==1)},
-      consumer:$consumer[0]}' > "$OUTPUT"
+      consumer:($consumer[0]+{evidenceDirectory:$evidence})}' > "$OUTPUT"
   rm -rf "$WORK"
   echo "release closure: $STATUS ($STAGE)"
   exit "$code"
 }
 trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 fail() { echo "release closure failed: $1" >&2; exit 1; }
 
@@ -158,7 +179,10 @@ JSR_INTEGRITY="sha512-$(bounded openssl dgst -sha512 -binary "$WORK/jsr.tgz" | o
 STAGE="consumer"
 CONSUMER_BUDGET=$(budget_remaining)
 timeout --kill-after=5s "${CONSUMER_BUDGET}s" \
-  bash "$ROOT/scripts/release-closure/consumer.sh" "$WORK" "$PACKAGE" "$VERSION" "$CONSUMER_BUDGET"
+  bash "$ROOT/scripts/release-closure/RunDockerConsumer.sh" "$WORK" "$PACKAGE" "$VERSION" "$CONSUMER_BUDGET" &
+CONSUMER_CLIENT=$!
+wait "$CONSUMER_CLIENT"
+CONSUMER_CLIENT=""
 budget_remaining >/dev/null
 STAGE="complete"
 STATUS="verified"
