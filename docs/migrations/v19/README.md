@@ -54,6 +54,8 @@ New patches classify entity-admission boundaries, but old ambiguous unmarked
 patches cannot earn an inventory completeness certificate without explicit
 classification; this release does not invent their missing boundaries.
 
+See the [operator upgrade procedure](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/operations/README.md#upgrade-v19-to-v20) for coordinated deployment and bounded-basis repair.
+
 ## Migrate Retained v18 State First
 
 v19 does not read or append to an unmarked v18 retained substrate. Opening a
@@ -651,7 +653,7 @@ Replace the retired PatchBuilder content workflow with Runtime-owned staging and
 | `clearEdgeContent(from, to, label)` | `intent.edge.clearContent({ from, to, label })` through `lane.write(...)` |
 | Eager `getContent` / `getEdgeContent` collection | Observe with `createNodeContentObserver` / `createEdgeContentObserver`, inspect the bounded Reading's metadata, and iterate its captured attachment's `open()` stream |
 
-The [existing executable consumer example](https://github.com/git-stunts/git-warp/blob/ff0598d3583a1819263f9e5107593f365c47e96d/examples/attachments.mjs) covers both owners, replacement, clearing, metadata and historical stream reopening using only supported exports. [Content and CAS](https://github.com/git-stunts/git-warp/blob/ff0598d3583a1819263f9e5107593f365c47e96d/docs/topics/content-and-cas.md#run-the-installed-package-example) explains its Docker tarball execution, atomicity, concurrency, history, cancellation, limits and failures. Staging is not publication or durable retention; replacing/clearing a byte association does not erase causal history.
+The [existing executable consumer example](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/examples/attachments.mjs) covers both owners, replacement, clearing, metadata and historical stream reopening using only supported exports. [Content and CAS](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/content-and-cas.md#run-the-installed-package-example) explains its Docker tarball execution, atomicity, concurrency, history, cancellation, limits and failures. Staging is not publication or durable retention; replacing/clearing a byte association does not erase causal history.
 
 A graph identifier stored as a property or byte payload remains opaque data. External/live references and finite owned structural attachments have distinct authority, descent and retention semantics under the [structural ownership contract](https://github.com/git-stunts/git-warp/blob/bc7d3b98197b3b43b753b65a035f33d94daeaa28/docs/topics/structural-attachments.md); the byte API does not implement recursive ownership or Paper II ticks. Encoding, traversal and retention implementations remain [#819](https://github.com/git-stunts/git-warp/issues/819), [#820](https://github.com/git-stunts/git-warp/issues/820) and [#821](https://github.com/git-stunts/git-warp/issues/821).
 

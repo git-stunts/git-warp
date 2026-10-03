@@ -69,7 +69,7 @@ attachments use the streaming asset path instead of oversized inline values.
 Retained v18 state still requires the safe v18-to-v19 migration before opening.
 The [v19.1.0 architecture and performance witness](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/v19-1-performance-architecture-witness.md)
 records that historical release, not new v20 measurements. Current changes and
-compatibility are recorded in [CHANGELOG.md](https://github.com/git-stunts/git-warp/blob/7d4b89e937a1103befba8117d2abd7de79c5567c/CHANGELOG.md).
+compatibility are recorded in [CHANGELOG.md](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/CHANGELOG.md).
 
 ## Quick install
 
@@ -251,9 +251,9 @@ through readings and receipts. The removed `openWarpGraph()` and
 `openWarpWorldline()` paths are migration source material, not a second
 application API.
 
-See the [v19 API vocabulary checkpoint](https://github.com/git-stunts/git-warp/tree/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/api), the
+See the [v19 API vocabulary checkpoint](https://github.com/git-stunts/git-warp/tree/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/api), the
 [v19 migration guide](docs/migrations/v19/), and
-[Optic reads](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/optic-reads.md) for the model.
+[Optic reads](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/optic-reads.md) for the model.
 
 ## Core ideas
 
@@ -324,9 +324,9 @@ mindmap
 The topic pages own the current explanations for these nouns. Exact API, CLI,
 schema, and error inventories should be generated or coverage-checked rather
 than maintained as long-form prose; see the generated
-[source-backed reference](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/reference.md).
+[source-backed reference](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/reference.md).
 
-> `Optic` is now a reified runtime noun for the public read path. The fluent API lowers into a frozen `Optic` value before execution; see [Optic reads](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/optic-reads.md).
+> `Optic` is now a reified runtime noun for the public read path. The fluent API lowers into a frozen `Optic` value before execution; see [Optic reads](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/optic-reads.md).
 
 ## How it works
 
@@ -390,7 +390,7 @@ The runtime is designed so reads stay scoped. It avoids the “just materialize 
 
 History keeps per-entity provenance, so a single node's backward causal cone can be reconstructed and replayed on its own: `provenance.materializeSlice(nodeId)` loads only the cone's patches, never the whole graph. This slice path is currently classified as a **diagnostic** read, not a first-use application API.
 
-The broader worldline-wide direction is still narrower than the doctrine: live strands and support fragments have runtime footholds, but support-fragment cache storage, plan-driven fragment execution, and full holographic worldline reads are not first-use shipped paths. See [Runtime posture](#runtime-posture), [Optic reads](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/optic-reads.md), and [Strands](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/strands.md).
+The broader worldline-wide direction is still narrower than the doctrine: live strands and support fragments have runtime footholds, but support-fragment cache storage, plan-driven fragment execution, and full holographic worldline reads are not first-use shipped paths. See [Runtime posture](#runtime-posture), [Optic reads](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/optic-reads.md), and [Strands](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/strands.md).
 
 ## API surface
 
@@ -477,14 +477,14 @@ their own docs say otherwise.
 
 ## Documentation
 
-- [Topics](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/README.md) — task-oriented documentation map
-- [v19 API reflection](https://github.com/git-stunts/git-warp/tree/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/api) — current public API direction
+- [Topics](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/README.md) — task-oriented documentation map
+- [v19 API reflection](https://github.com/git-stunts/git-warp/tree/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/api) — current public API direction
 - [v19 migration guide](docs/migrations/v19/) — graph-first API replacement
-- [Optic reads](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/optic-reads.md), [Observers](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/observers.md), and [Querying](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/querying.md) — read-model context
-- [Strands](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/strands.md), [Sync](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/sync.md), and [CLI](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/cli.md) — runtime and operator paths
-- [Git substrate](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/git-substrate.md), [Content and CAS](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/content-and-cas.md), and [Continuum boundary](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/continuum-boundary.md) — substrate and boundary explanations
-- [Operations](https://github.com/git-stunts/git-warp/tree/7b43e330cefd1c15584e2262c4fac571e5893709/docs/operations) and [Troubleshooting](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/troubleshooting.md) — maintenance and recovery workflows
-- [Architecture](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/ARCHITECTURE.md) — hexagonal layers and admission kernel
+- [Optic reads](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/optic-reads.md), [Observers](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/observers.md), and [Querying](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/querying.md) — read-model context
+- [Strands](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/strands.md), [Sync](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/sync.md), and [CLI](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/cli.md) — runtime and operator paths
+- [Git substrate](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/git-substrate.md), [Content and CAS](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/content-and-cas.md), and [Continuum boundary](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/continuum-boundary.md) — substrate and boundary explanations
+- [Operations](https://github.com/git-stunts/git-warp/tree/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/operations) and [Troubleshooting](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/troubleshooting.md) — maintenance and recovery workflows
+- [Architecture](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/ARCHITECTURE.md) — hexagonal layers and admission kernel
 
 ---
 
@@ -508,7 +508,7 @@ keep reads scoped instead of materializing the entire graph.
 
 ### What does the data model look like?
 
-**Nodes**, **properties**, and **directed edges** identified by stable string IDs. Changes are additive patches that are never rewritten. See [Getting started](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/getting-started.md).
+**Nodes**, **properties**, and **directed edges** identified by stable string IDs. Changes are additive patches that are never rewritten. See [Getting started](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/getting-started.md).
 
 ### Can multiple people/agents write at the same time?
 
@@ -521,7 +521,7 @@ obstructions do not enter history. No global lock is required.
 
 Start with [Quick install](#quick-install) for native package use, a disposable
 Docker CLI, and isolated contributor tests. Full application setup:
-[Getting started](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/getting-started.md).
+[Getting started](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/getting-started.md).
 
 ### How does syncing work?
 
@@ -533,7 +533,7 @@ Standard Git (`push`/`fetch`/`pull`). Patches live under `refs/warp/...`.
 
 ### Is it production ready?
 
-Check [CHANGELOG.md](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/CHANGELOG.md), the topic docs, and the package registry for release and surface status. The README does not carry live release gates.
+Check [CHANGELOG.md](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/CHANGELOG.md), the topic docs, and the package registry for release and surface status. The README does not carry live release gates.
 
 ### What about performance and scale?
 
@@ -557,7 +557,7 @@ No. The fluent API is practical; theory is optional.
 
 ### What if I have existing data?
 
-Migration tools and diagnostic surfaces exist. See [Operations](https://github.com/git-stunts/git-warp/tree/7b43e330cefd1c15584e2262c4fac571e5893709/docs/operations) and [Git substrate](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/git-substrate.md).
+Migration tools and diagnostic surfaces exist. See [Operations](https://github.com/git-stunts/git-warp/tree/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/operations) and [Git substrate](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/git-substrate.md).
 
 ### Can I use it with my existing Git repository?
 
@@ -565,7 +565,7 @@ Yes. Graph history lives under WARP refs such as `refs/warp/<graph>/writers/<wri
 
 ### Where can I get help?
 
-[docs/topics/](https://github.com/git-stunts/git-warp/blob/7b43e330cefd1c15584e2262c4fac571e5893709/docs/topics/README.md), [Issues](https://github.com/git-stunts/git-warp/issues).
+[docs/topics/](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/README.md), [Issues](https://github.com/git-stunts/git-warp/issues).
 
 ---
 
