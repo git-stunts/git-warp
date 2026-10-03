@@ -12,6 +12,7 @@ import {
   CONTENT_SIZE_PROPERTY_KEY,
   encodeEdgeKey,
 } from './KeyCodec.ts';
+import { compareStrings } from '../utils/StringComparison.ts';
 import type { EventId } from '../utils/EventId.ts';
 import type LegacyEventId from '../utils/LegacyEventId.ts';
 import WarpState from './state/WarpState.ts';
@@ -165,22 +166,6 @@ function visibleEdgeRegister(
   return register;
 }
 
-/** Returns true when metadata belongs to the same content write lineage. */
-function isSameLineage(left: EventId | LegacyEventId | null | undefined, right: EventId | LegacyEventId | null | undefined): boolean {
-  if (!hasEventId(left)) {
-    return false;
-  }
-  if (!hasEventId(right)) {
-    return false;
-  }
-  return isSamePatchIdentity(left, right);
-}
-
-/** Returns true when a nullable event slot carries an event id. */
-function hasEventId(eventId: EventId | LegacyEventId | null | undefined): eventId is EventId | LegacyEventId {
-  return eventId !== null && eventId !== undefined;
-}
-
 /** Returns true when two operations belong to the same patch identity. */
 function isSamePatchIdentity(left: EventId | LegacyEventId, right: EventId | LegacyEventId): boolean {
   return left.lamport === right.lamport
@@ -190,7 +175,7 @@ function isSamePatchIdentity(left: EventId | LegacyEventId, right: EventId | Leg
 
 /** Projects a MIME register into optional typed metadata. */
 function contentMimeFromRegister(content: Register, mime: Register | null): ContentAttachmentMime | null {
-  if (mime === null || !isSameLineage(content.eventId, mime.eventId)) {
+  if (mime === null || !isSamePatchIdentity(content.eventId, mime.eventId)) {
     return null;
   }
   return contentMimeFromValue(mime.value);
@@ -206,7 +191,7 @@ function contentMimeFromValue(value: PropValue): ContentAttachmentMime | null {
 
 /** Projects a size register into optional typed metadata. */
 function contentSizeFromRegister(content: Register, size: Register | null): ContentAttachmentSize | null {
-  if (size === null || !isSameLineage(content.eventId, size.eventId)) {
+  if (size === null || !isSamePatchIdentity(content.eventId, size.eventId)) {
     return null;
   }
   return contentSizeFromValue(size.value);
@@ -249,15 +234,4 @@ function contentAttachmentSortKey(record: ContentAttachmentRecord): string {
     return `node:${record.owner.id.toString()}`;
   }
   return `edge:${record.owner.id.toString()}`;
-}
-
-/** Compares protocol strings without locale-sensitive collation. */
-function compareStrings(left: string, right: string): number {
-  if (left < right) {
-    return -1;
-  }
-  if (left > right) {
-    return 1;
-  }
-  return 0;
 }

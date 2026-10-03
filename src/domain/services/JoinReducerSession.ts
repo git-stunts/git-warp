@@ -16,7 +16,7 @@ import type OpOutcomeResult from "../types/ops/OpOutcomeResult.ts";
 import OpApplied from "../types/ops/OpApplied.ts";
 import OpRedundant from "../types/ops/OpRedundant.ts";
 import OpSuperseded from "../types/ops/OpSuperseded.ts";
-import PropSet from "../types/ops/PropSet.ts";
+import type PropSet from "../types/ops/PropSet.ts";
 import {
   PatchDiff,
   createEmptyDiff,
@@ -518,9 +518,7 @@ function setProperty(
 ): void {
   const current = prop.get(storageKey);
   const next = LWWRegister.max(current, LWWRegister.set(eventId, normalizePropValue(value)));
-  if (next !== null) {
-    prop.set(storageKey, next);
-  }
+  prop.set(storageKey, next);
 }
 
 function propertyOutcome(
@@ -549,9 +547,7 @@ function mergePropMaps(
   const merged = new Map(left);
   for (const [key, rightValue] of right) {
     const winner = LWWRegister.max(merged.get(key), rightValue);
-    if (winner !== null) {
-      merged.set(key, winner);
-    }
+    merged.set(key, winner);
   }
   return merged;
 }
@@ -608,7 +604,7 @@ function toReceiptOutcome(receiptName: string, outcome: OpOutcomeResult): OpOutc
     target: outcome.target,
     result: outcome.result,
   };
-  if (outcome instanceof OpSuperseded && outcome.reason.length > 0) {
+  if (outcome instanceof OpSuperseded) {
     entry.reason = outcome.reason;
   }
   return entry;

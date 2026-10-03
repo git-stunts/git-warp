@@ -16,6 +16,8 @@ import EdgeRemove from '../../../../src/domain/types/ops/EdgeRemove.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import NodePropSet from '../../../../src/domain/types/ops/NodePropSet.ts';
 import EdgePropSet from '../../../../src/domain/types/ops/EdgePropSet.ts';
+import type { SnapshotBeforeOp } from '../../../../src/domain/types/ops/SnapshotBeforeOp.ts';
+import { OP_SCOPE_CANONICAL } from '../../../../src/domain/types/ops/OpScope.ts';
 import Op from '../../../../src/domain/types/ops/Op.ts';
 import OpApplied from '../../../../src/domain/types/ops/OpApplied.ts';
 import BlobValue from '../../../../src/domain/types/ops/BlobValue.ts';
@@ -60,6 +62,8 @@ it('canonicalizes raw node and edge properties before receipts and diffs', async
   await applyFastInSession(value, patch(4, [raw, edge]), SHA);
   expect(value.getEncodedProp('n\0key')?.value).toBe('node');
   expect(value.getEncodedProp(encodeEdgePropKey('n', 'm', 'link', 'key'))?.value).toBe('edge');
+  const latest = await applyWithReceiptInSession(value, patch(5, [raw, edge]), SHA);
+  expect(latest.ops.map((op) => op.result)).toEqual(['applied', 'applied']);
   const stale = await applyWithDiffInSession(value, patch(1, [raw, edge]), SHA);
   expect(stale.propsChanged).toEqual([]);
   await value.session.close();
@@ -122,8 +126,10 @@ it('joins removed edge evidence and preserves historical edge birth identity', a
   right.edgeBirthEvent.set(EDGE, event);
   await right.session.addEdge(EDGE, new Dot('A', 1));
   await right.session.removeEdge(EDGE, new Set(['A:1']));
+  await right.session.addEdge('n\0m\0live', new Dot('B', 1));
   const merged = await joinFrames(left, right);
   expect(merged.edgeBirthEvent.get(EDGE)).toBe(event);
+  expect(await merged.session.edgeContains('n\0m\0live')).toBe(true);
   expect(await merged.session.edgeContains(EDGE)).toBe(false);
   await merged.session.addEdge(EDGE, new Dot('A', 1));
   expect(await merged.session.edgeContains(EDGE)).toBe(false);
@@ -139,7 +145,7 @@ it('reports the actual historical winning identity when a modern write loses', a
   expect(receipt.ops[0]?.result).toBe('superseded');
   expect(value.getEncodedProp('n\0key')?.eventId).toBe(old);
   const state = WarpState.empty();
-  state.mutatePropLWW('n\0key', old, 'historical');
+  state.mutatePropRegisterLWW('n\0key', new LWWRegister(old, 'historical'));
   const outcome = ReceiptBuilder.propSetOutcome(state, { node: 'n', key: 'key' }, new EventId(1, 'A', SHA, 0));
   expect(outcome).toBeInstanceOf(OpSuperseded);
   if (!(outcome instanceof OpSuperseded)) throw new Error('Expected historical supersession');
@@ -149,11 +155,11 @@ it('reports the actual historical winning identity when a modern write loses', a
 
 class UnsupportedReplayOperation extends Op {
   readonly receiptName = 'FutureOp';
-  constructor() { super('FutureOp', 0); Object.freeze(this); }
+  constructor() { super('FutureOp', OP_SCOPE_CANONICAL); Object.freeze(this); }
   validate(): void {}
   mutate(): void {}
   outcome(): OpApplied { return new OpApplied('future'); }
-  snapshot(): { readonly nodeWasAlive?: boolean } { return {}; }
+  snapshot(): SnapshotBeforeOp { return {}; }
   accumulate(): void {}
 }
 

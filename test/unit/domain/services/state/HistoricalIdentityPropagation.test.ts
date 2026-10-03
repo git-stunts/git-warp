@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import ContentAttachmentProjection from '../../../../../src/domain/services/ContentAttachmentProjection.ts';
 import { CONTENT_PROPERTY_KEY, CONTENT_MIME_PROPERTY_KEY, CONTENT_SIZE_PROPERTY_KEY, encodePropKey } from '../../../../../src/domain/services/KeyCodec.ts';
+import { LWWRegister } from '../../../../../src/domain/crdt/LWW.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import { predatesLifecycle } from '../../../../../src/domain/services/state/ElementLifecycle.ts';
@@ -64,10 +65,21 @@ it('projects attachment metadata using actual historical register lineage', () =
   const state = WarpState.empty();
   state.nodeAlive.add('n', new Dot('A', 1));
   const old = new LegacyEventId(7);
-  state.mutatePropLWW(encodePropKey('n', CONTENT_PROPERTY_KEY), old, 'beef');
-  state.mutatePropLWW(encodePropKey('n', CONTENT_MIME_PROPERTY_KEY), new LegacyEventId(7), 'text/plain');
-  state.mutatePropLWW(encodePropKey('n', CONTENT_SIZE_PROPERTY_KEY), new LegacyEventId(6), 42);
+  state.mutatePropRegisterLWW(encodePropKey('n', CONTENT_PROPERTY_KEY), new LWWRegister(old, 'beef'));
+  state.mutatePropRegisterLWW(encodePropKey('n', CONTENT_MIME_PROPERTY_KEY), new LWWRegister(new LegacyEventId(7), 'text/plain'));
+  state.mutatePropRegisterLWW(encodePropKey('n', CONTENT_SIZE_PROPERTY_KEY), new LWWRegister(new LegacyEventId(6), 42));
   const attachment = ContentAttachmentProjection.forNode(state, 'n');
   expect(attachment?.payload.mime?.toString()).toBe('text/plain');
   expect(attachment?.payload.size).toBeNull();
+});
+
+it('orders projected owners by the existing UTF-16 protocol ordering', () => {
+  const state = WarpState.empty();
+  const ids = ['\uE000', '\u{10000}', 'z', 'a'];
+  for (const [index, id] of ids.entries()) {
+    state.nodeAlive.add(id, new Dot('A', index + 1));
+    state.mutatePropLWW(encodePropKey(id, CONTENT_PROPERTY_KEY), new EventId(1, 'A', 'aaaa', index), 'beef');
+  }
+  expect(ContentAttachmentProjection.fromState(state).map((record) => record.owner.id.toString()))
+    .toEqual(['a', 'z', '\u{10000}', '\uE000']);
 });
