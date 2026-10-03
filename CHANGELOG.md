@@ -13,6 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   share identical property readings within a batch, and preserve ordered refusal,
   captured causal evidence and all-or-nothing intent journal admission (#706).
 
+- ORSet construction validates and snapshots membership collections, and LWW
+  registers require admitted runtime event identities. Checkpoint readers
+  reconstruct those concepts and refuse malformed registers and explicit metadata
+  while preserving supported legacy missing-metadata ordering through checkpoint
+  index capture and bounded reads, without changing wire formats (#189).
+
+- Install the Bun test image's reviewed npm dependency graph with `npm ci`
+  before copying it into Bun, include every current workspace manifest in the
+  install layer, and refuse manifest or installed dependency drift (#865).
+  Docker contexts exclude host dependency and Git metadata directories at every
+  depth, including nested workspaces.
+
+- Remove vulnerable generic patch tooling from dependency declaration setup.
+  Install the unchanged trailer-codec 2.1.1 declarations through an exact
+  version/content check, preserve identical repeats and refuse conflicting
+  files without modifying dependency runtime (#948). Competing exclusive-file
+  creation uses the same identical/conflicting result without overwriting the
+  winning declarations.
+
+- Coverage runs bound instrumented workers and coverage processing to one task
+  at a time. Thresholds can rise only after an argument-free full coverage
+  command completes every selected file with zero errors and successful
+  teardown; failed, incomplete and targeted runs cannot rewrite the ratchet
+  (#882). Authorized update intent is carried through Docker command arguments
+  rather than depending on npm lifecycle environment in the container. Failed candidate replacement removes the run-owned temporary file so later coverage updates can retry; pre-existing candidates remain untouched.
+
+- Bound Mermaid validation rendering and browser shutdown separately, reclaim
+  validator-owned worker/browser processes on success, failure, timeout and
+  interruption, and fail the documentation gate if reclamation cannot be
+  established. Node Docker images provide Chromium and reap adopted children.
+  Completed SVG files alone cannot pass validation (#870).
+
 - VersionVector construction validates writer/counter entries, omits zero
   counters and snapshots caller-owned maps so later mutations cannot corrupt
   causal state (#205).
@@ -29,6 +61,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   admitted canonical bytes and receipt identities stay compatible (#916).
 
 ### Added
+
+- Document native package installation, a disposable Docker CLI, isolated
+  contributor checks and source-install Git hook effects in the README (#125).
+
+- Prove opaque session-event retention through public CLI process boundaries,
+  exact-frontier candidate settlement, stale-basis refusal and retained source
+  evidence. The Docker conformance oracle remains active with Python
+  optimization enabled (#869).
 
 - Publish the restored node/edge byte attachment guide and reuse the installed-
   package lifecycle example, with migration, history, concurrency, retention,
@@ -894,7 +934,7 @@ refs. No v18 compatibility runtime remains in the product code.
 
 The exact merged-main Node 22/Linux release gate measured a representative
 16-property scan over the authentic approximately 2 MiB migrated-v18 fixture at
-31.1% lower cold wall time, 32.1% lower warm wall time, 20.1–21.3% lower
+31.1% lower cold wall time, 32.1% lower warm wall time, 20.0–21.3% lower
 operation CPU, and 46.6% fewer Git commands than published v18.2.1. The
 one-shot migration cost is measured and reported separately from steady-state
 reads.

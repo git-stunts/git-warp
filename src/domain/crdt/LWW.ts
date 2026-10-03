@@ -1,4 +1,6 @@
-import { compareEventIds, type EventId } from '../utils/EventId.ts';
+import { compareEventIds, EventId } from '../utils/EventId.ts';
+import LegacyEventId from '../utils/LegacyEventId.ts';
+import CrdtError from '../errors/CrdtError.ts';
 
 /**
  * @fileoverview LWW Register - Last-Write-Wins with Total Ordering
@@ -72,13 +74,16 @@ import { compareEventIds, type EventId } from '../utils/EventId.ts';
  * LWW Register — stores value with EventId for conflict resolution.
  */
 export class LWWRegister<T> {
-  readonly eventId: EventId;
+  readonly eventId: EventId | LegacyEventId;
   readonly value: T;
 
   /**
    * Creates an LWW register.
    */
-  constructor(eventId: EventId, value: T) {
+  constructor(eventId: EventId | LegacyEventId, value: T) {
+    if (!(eventId instanceof EventId) && !(eventId instanceof LegacyEventId)) {
+      throw new CrdtError('LWW register requires an admitted EventId');
+    }
     this.eventId = eventId;
     this.value = value;
     Object.freeze(this);
@@ -87,7 +92,7 @@ export class LWWRegister<T> {
   /**
    * Creates an LWW register with the given EventId and value.
    */
-  static set<V>(eventId: EventId, value: V): LWWRegister<V> {
+  static set<V>(eventId: EventId | LegacyEventId, value: V): LWWRegister<V> {
     return new LWWRegister(eventId, value);
   }
 
@@ -139,7 +144,7 @@ function _lwwCoalesce<T>(reg: LWWRegister<T> | null | undefined): LWWRegister<T>
 // Free-function aliases that delegate to static methods.
 
 /** @deprecated Use {@link LWWRegister.set} */
-export function lwwSet<T>(eventId: EventId, value: T): LWWRegister<T> {
+export function lwwSet<T>(eventId: EventId | LegacyEventId, value: T): LWWRegister<T> {
   return LWWRegister.set(eventId, value);
 }
 
