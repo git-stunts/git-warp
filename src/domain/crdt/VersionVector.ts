@@ -1,5 +1,6 @@
 import { Dot } from './Dot.ts';
 import CrdtError from '../errors/CrdtError.ts';
+import { compareStrings } from '../utils/StringComparison.ts';
 
 /**
  * @fileoverview VersionVector - Causality Tracking via Join-Semilattice
@@ -67,16 +68,25 @@ function _validateEntry(writerId: string, counter: number): void {
  * Clone before handing to consumers that expect isolation.
  */
 export default class VersionVector {
-  #entries: Map<string, number>;
+  readonly #entries: Map<string, number>;
 
   /**
-   * Internal constructor — takes a pre-validated Map.
-   *
-   * External callers should use {@link VersionVector.empty} or
-   * {@link VersionVector.from}.
+   * Validates and snapshots the supplied entries without retaining caller state.
+   * Zero counters carry no causal information and are omitted.
    */
   constructor(entries: Map<string, number>) {
-    this.#entries = entries;
+    if (!(entries instanceof Map)) {
+      throw new CrdtError('VersionVector requires a Map of writer counters', {
+        code: 'E_CRDT_INVALID_ENTRIES',
+      });
+    }
+    this.#entries = new Map();
+    for (const [writerId, counter] of entries) {
+      _validateEntry(writerId, counter);
+      if (counter > 0) {
+        this.#entries.set(writerId, counter);
+      }
+    }
   }
 
   /** Creates an empty VersionVector. */
@@ -106,14 +116,7 @@ export default class VersionVector {
 
   /** Validates and wraps a Map as a VersionVector. */
   static _fromMap(source: Map<string, number>): VersionVector {
-    const entries = new Map<string, number>();
-    for (const [writerId, counter] of source) {
-      _validateEntry(writerId, counter);
-      if (counter > 0) {
-        entries.set(writerId, counter);
-      }
-    }
-    return new VersionVector(entries);
+    return new VersionVector(source);
   }
 
   /**
@@ -138,24 +141,7 @@ export default class VersionVector {
    * type provides iteration, the codec decides the wire format.
    */
   static serialize(vv: VersionVector): Record<string, number> {
-    const entries: [string, number][] = [];
-    const sortedKeys = [...vv.keys()].sort();
-
-    for (const key of sortedKeys) {
-      const val = vv.get(key);
-      if (val === undefined || val === 0) {
-        throw new CrdtError(
-          `VersionVector.serialize: zero counter for writerId "${key}" — VersionVector must not contain zero counters`,
-          {
-            code: 'E_CRDT_ZERO_COUNTER',
-            context: { writerId: key },
-          }
-        );
-      }
-      entries.push([key, val]);
-    }
-
-    return Object.fromEntries(entries);
+    return Object.fromEntries([...vv].sort(([left], [right]) => compareStrings(left, right)));
   }
 
   // ---------------------------------------------------------------------------
@@ -281,7 +267,7 @@ export default class VersionVector {
 
   /** Creates a deep clone. */
   clone(): VersionVector {
-    return new VersionVector(new Map(this.#entries));
+    return new VersionVector(this.#entries);
   }
 
   /** Checks equality with another VersionVector. */
