@@ -45,9 +45,42 @@ The [structural ownership contract](structural-attachments.md) defines the last 
 
 Staging is owned by the Runtime and works on worldline and strand lanes. Closing the Runtime waits for active staging to finish and refuses new staging work. A staging or producer failure publishes no graph patch. The returned value records staging provenance; copied metadata cannot substitute for that value. It does not establish durable retention or constitute a node/edge attachment by itself.
 
+## Staging is not a graph causal event
+
+`Lane.stageContent()` performs storage I/O, but does not publish a graph patch,
+advance the lane's causal frontier, or return a graph write receipt. Its result
+identifies stored bytes and records Runtime provenance; it is not evidence of
+an admitted graph event. No node or edge target is required during staging.
+
+The causal fact is established by a subsequent admitted attachment intent through
+`Lane.write()`: this owner is associated with this content. Graph history records
+that association, not when the upload began, its progress, or when staging
+completed. Graph observers cannot reconstruct those upload events from the
+attachment write.
+
+This separation lets callers stage content before choosing an owner, reuse one
+asset across owners, and stream several assets concurrently before attaching
+them in one atomic write. Staging completion order is not an ordering of graph
+events. The atomic boundary covers the graph edits, not the preceding storage
+operations: failed staging or an obstructed write can leave unreferenced storage
+objects. Staging alone provides no durable retention guarantee, and a failed
+write does not promise immediate deletion of staged bytes. `Promise.all` rejects
+when one staging operation fails but does not cancel the other streams.
+
+Applications that require a causal audit trail of upload start, completion, or
+failure must explicitly model and publish those facts through graph writes.
+The current API does not automatically emit such events or atomically couple
+a storage upload with its audit event. Recovery from a crash between storage
+completion and event publication remains an application concern.
+
 ## Attachment writes
 
 Stage through `lane.stageContent(...)`, then pass that exact staged value to `intent.node.attachContent({ subject, content })` or `intent.edge.attachContent({ from, to, label, content })` from `@git-stunts/git-warp/advanced`. Submit the resulting intents through `lane.write(...)`. The [runnable lifecycle example](../../examples/attachments.mjs) creates both owners and attaches the same immutable asset in one ordered array write.
+
+Each node or edge has one current attachment association, not a collection of
+attachment slots. Independently staged assets may target different nodes or
+edges in the same write. To associate several documents with one subject, model
+separate document nodes or edges with their own attachments.
 
 Attaching again replaces that owner's attachment. `intent.node.clearContent({ subject })`
 and `intent.edge.clearContent({ from, to, label })` remove the current association;
