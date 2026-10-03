@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Install the Bun test image's reviewed npm dependency graph with `npm ci`
   before copying it into Bun, include every current workspace manifest in the
   install layer, and refuse manifest or installed dependency drift (#865).
+  Docker contexts exclude host dependency and Git metadata directories at every
+  depth, including nested workspaces.
 
 - Remove vulnerable generic patch tooling from dependency declaration setup.
   Install the unchanged trailer-codec 2.1.1 declarations through an exact
