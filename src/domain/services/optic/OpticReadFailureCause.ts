@@ -9,6 +9,7 @@ export type OpticReadFailureCauseValue =
   | 'checkpoint-missing-index-shards'
   | 'checkpoint-payload-pointer-without-storage'
   | 'checkpoint-payload-pointer-empty'
+  | 'checkpoint-basis-unavailable'
   | 'checkpoint-shard-unavailable'
   | 'checkpoint-shard-invalid'
   | 'tail-node-remove-needs-raw-liveness-witnesses'
@@ -31,6 +32,7 @@ const OPTIC_READ_FAILURE_CAUSES: readonly string[] = Object.freeze([
   'checkpoint-missing-index-shards',
   'checkpoint-payload-pointer-without-storage',
   'checkpoint-payload-pointer-empty',
+  'checkpoint-basis-unavailable',
   'checkpoint-shard-unavailable',
   'checkpoint-shard-invalid',
   'tail-node-remove-needs-raw-liveness-witnesses',

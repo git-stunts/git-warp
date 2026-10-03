@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Register the existing `checkpoint-basis-unavailable` optic failure cause so
+  checkpoint verifier refusals can be represented by typed failure contexts.
+  Bounded-basis helpers accept only registered cause identifiers (#895).
+
 - Run the legacy v16-to-v17 upgrade command when invoked through file or
   directory symlinks instead of silently exiting without executing (#900).
 

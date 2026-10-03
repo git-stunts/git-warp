@@ -1,3 +1,4 @@
+import type { OpticReadFailureCauseValue } from './OpticReadFailureCause.ts';
 import QueryError from '../../errors/QueryError.ts';
 import { isCurrentCheckpointSchema } from '../state/checkpointHelpers.ts';
 import { isStaleCheckpointMaterialization } from '../state/StaleCheckpointMaterialization.ts';
@@ -72,7 +73,7 @@ function requireIndexShards(
   }
 }
 
-function throwNoBoundedBasis(graphName: string, reason: string): never {
+function throwNoBoundedBasis(graphName: string, reason: OpticReadFailureCauseValue): never {
   throw new QueryError('No bounded checkpoint-tail optic basis is available.', {
     code: 'E_OPTIC_NO_BOUNDED_BASIS',
     context: { graphName, reason },
