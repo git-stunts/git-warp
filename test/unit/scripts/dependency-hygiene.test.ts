@@ -7,11 +7,11 @@ import { z } from 'zod';
 
 const REPO_ROOT = new URL('../../../', import.meta.url);
 
-const PATCH_PACKAGE_FILES: readonly string[] = [
-  '@git-stunts+trailer-codec+2.1.1.patch',
+const DECLARATION_FILES: readonly string[] = [
+  'trailer-codec-index.d.ts.txt',
 ];
 
-const PATCH_PACKAGE_README_HEADINGS: readonly string[] = [
+const DECLARATION_README_HEADINGS: readonly string[] = [
   '### `@git-stunts/trailer-codec@2.1.1`',
 ];
 
@@ -52,19 +52,20 @@ describe('dependency hygiene', () => {
     expect(manifest.overrides).toEqual({ 'markdownlint-cli': { 'js-yaml': '5.4.2' } });
     expect(packageJson).not.toContain('"tar": "7.5.16"');
     expect(packageJson).toContain('"zod": "^3.24.1"');
-    expect(packageJson).toContain('"patch-package": "^8.0.0"');
-    expect(packageJson).toContain('"prepare": "patch-package && node scripts/setup-hooks.ts"');
+    expect(packageJson).not.toContain('"patch-package"');
+    expect(packageJson).toContain('./scripts/TrailerCodecDeclarationInstaller.ts');
+    expect(packageJson).toContain('&& node scripts/setup-hooks.ts');
   });
 
-  it('documents every patch-package mutation in the patch inventory', async () => {
+  it('documents the exact dependency-local declaration inventory', async () => {
     const patchFiles = (await readdir(repoPath('patches')))
-      .filter((fileName) => fileName.endsWith('.patch'))
+      .filter((fileName) => fileName.endsWith('.d.ts.txt') || fileName.endsWith('.patch'))
       .sort();
     const readme = await readFile(repoPath('patches/README.md'), 'utf8');
 
-    expect(patchFiles).toEqual(PATCH_PACKAGE_FILES);
+    expect(patchFiles).toEqual(DECLARATION_FILES);
 
-    for (const heading of PATCH_PACKAGE_README_HEADINGS) {
+    for (const heading of DECLARATION_README_HEADINGS) {
       expect(readme).toContain(heading);
     }
   });

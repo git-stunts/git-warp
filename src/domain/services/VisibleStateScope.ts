@@ -9,6 +9,7 @@ import {
 import type { LWWRegister } from '../crdt/LWW.ts';
 import type { PropValue } from '../types/PropValue.ts';
 import type { EventId } from '../utils/EventId.ts';
+import type LegacyEventId from '../utils/LegacyEventId.ts';
 import type { RawPatchOp } from '../types/ops/unions.ts';
 import type Patch from '../types/Patch.ts';
 
@@ -241,7 +242,7 @@ function collectScopedProps(
 /**
  * Collects the lifecycle events whose element keys are in the scoped set.
  */
-function collectScopedEvents<V extends EventId | readonly EventId[]>(
+function collectScopedEvents<V extends EventId | LegacyEventId | readonly EventId[]>(
   events: ReadonlyMap<string, V>,
   scopedKeys: Set<string>,
 ): Map<string, V> {
@@ -334,10 +335,7 @@ function isUnscopableOp(op: unknown): boolean { // nosemgrep: ts-no-unknown-outs
 /**
  * Tests whether a single op affects any element within the visible scope.
  */
-function opAffectsScope(op: unknown, scope: VisibleStateScope | null | undefined): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  if (scope === null || scope === undefined) {
-    return true;
-  }
+function opAffectsScope(op: unknown, scope: VisibleStateScope): boolean { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (isUnscopableOp(op)) {
     return true;
   }
@@ -349,10 +347,7 @@ function opAffectsScope(op: unknown, scope: VisibleStateScope | null | undefined
 /**
  * Tests whether a patch contains at least one op that affects the scope.
  */
-function patchAffectsScope(patch: Patch, scope: VisibleStateScope | null | undefined): boolean {
-  if (scope === null || scope === undefined) {
-    return true;
-  }
+function patchAffectsScope(patch: Patch, scope: VisibleStateScope): boolean {
   const ops = Array.isArray((patch as unknown as { ops?: unknown[] })?.ops) ? (patch as unknown as { ops: unknown[] }).ops : []; // nosemgrep: ts-no-double-cast -- 0025A; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   return ops.some((op) => opAffectsScope(op, scope));
 }

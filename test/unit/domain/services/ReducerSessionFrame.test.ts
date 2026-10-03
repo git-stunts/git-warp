@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { LWWRegister } from '../../../../src/domain/crdt/LWW.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import TrieGeometry from '../../../../src/domain/orset/trie/TrieGeometry.ts';
 import StateSession from '../../../../src/domain/orset/session/StateSession.ts';
@@ -105,7 +106,7 @@ describe('ReducerSessionFrame property accessors', () => {
     const session = await openSession();
     const key = encodePropKey('node:one', 'title');
     const register = new LWWRegister(
-      { lamport: 1, writerId: 'writer-a', patchSha: 'patch-a', opIndex: 0 },
+      new EventId(1, 'writer-a', 'aaaa', 0),
       'first',
     );
 
