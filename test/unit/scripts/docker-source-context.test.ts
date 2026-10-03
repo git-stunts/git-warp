@@ -34,9 +34,9 @@ describe('Docker source context', () => {
     expect(manifest).not.toContain('"test:node20"');
     expect(manifest).toMatch(/"node": ">=22\.0\.0"/u);
     expect(matrix).not.toContain('node20');
-    expect(captureValues(matrix, /^  (test-[^:]+):$/gmu))
+    expect(captureValues(matrix, /^ {2}(test-[^:]+):$/gmu))
       .toEqual(['test-node22', 'test-bun', 'test-deno']);
-    expect(captureValues(matrix, /^    profiles: \[(\w+), full\]$/gmu))
+    expect(captureValues(matrix, /^ {4}profiles: \[(\w+), full\]$/gmu))
       .toEqual(['node22', 'bun', 'deno']);
     expect(existsSync(join(ROOT, 'docker/Dockerfile.node20'))).toBe(false);
   });
