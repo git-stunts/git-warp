@@ -1,7 +1,6 @@
 # v19 Public Vocabulary Checkpoint
 
-> **Status:** Retained in the prepared `v20.0.0` surface; introduced in `v19.0.0`.
-> Registry publication and consumer verification remain separate release gates.
+> **Status:** Current in `v20.0.0`; introduced in `v19.0.0`.
 >
 > This document is the normative product vocabulary and public-surface design.
 > The Runtime, Lane, Intent, Observer, streaming Observation, Reading, Receipt,

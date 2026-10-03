@@ -44,12 +44,10 @@ It lets you:
 - Keep provenance attached to values and outcomes.
 - Sync through normal Git transport.
 
-## Latest release and v20 preparation
+## Latest release: v20.0.0
 
-This checkout prepares `v20.0.0`: memory-safe allocation and admission boundaries,
-restored node and edge byte attachments, and a breaking node-property lifecycle
-interpretation. Registry publication and consumer verification are separate
-release gates; the published baseline remains `v19.1.0` until they complete.
+`v20.0.0` provides bounded allocation and admission work, restored node and edge
+byte attachments, and a breaking node-property lifecycle interpretation.
 
 The Runtime, Lane, Intent, Observer, Observation, Reading and Receipt grammar
 remains. Stage attachment bytes through a Lane, publish supported ordered intents,

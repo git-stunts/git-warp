@@ -16,9 +16,8 @@ Write intents. Observe lanes. Keep receipts.
 
 ## Upgrade v19 to v20
 
-This checkout prepares `v20.0.0`. Registry publication and supported-consumer
-verification remain separate release gates; installing published `v19.1.0` does
-not provide the restored attachments or the new interpretation described here.
+These instructions apply to `v20.0.0`. The `v19.1.0` package does not provide the
+restored attachments or the new interpretation described here.
 The v18-to-v19 migration below remains a separate retained-history rewrite.
 
 The v20 interpretation keeps observed-remove membership and adds immediate
@@ -640,7 +639,7 @@ remain outside this four-way causal union.
 
 ## Attachment API Restoration (v20)
 
-The prepared v20 API restores node and edge byte attachments through [#901](https://github.com/git-stunts/git-warp/issues/901) and [#902](https://github.com/git-stunts/git-warp/issues/902). Source-built tarball checks establish its supported package surface; registry publication and consumer verification remain separate release gates. Installing the published `v19.1.0` package does not provide these operations.
+The v20.0.0 API restores node and edge byte attachments through [#901](https://github.com/git-stunts/git-warp/issues/901) and [#902](https://github.com/git-stunts/git-warp/issues/902). Installed source-built tarball checks establish its supported package surface. The `v19.1.0` package does not provide these operations.
 
 Replace the retired PatchBuilder content workflow with Runtime-owned staging and advanced intents. Do not import PatchBuilder or implementations from private package paths. The owner must already exist or be created earlier in the same ordered array write; check the resulting receipt for obstruction. The staged value must come from the same Runtime that publishes it.
 

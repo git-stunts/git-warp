@@ -26,7 +26,7 @@ Content attachments are useful when a node or edge needs associated bytes that
 should not be modeled as scalar properties. The graph stores the causal fact
 that content is attached; blob storage stores the bytes.
 
-The prepared `v20.0.0` API supports Runtime/Lane staging, node and edge attachment intents, metadata observations, and stream reads through supported package exports. Installed source-built tarball checks exercise these operations; registry publication and consumer verification remain separate release gates. The published `v19.1.0` package does not provide this restored API. The eager `getContent` and `getEdgeContent` facades are retired. Application bytes are `Uint8Array`; host streams, filesystem details and `Buffer` stay at adapters.
+The `v20.0.0` API supports Runtime/Lane staging, node and edge attachment intents, metadata observations, and stream reads through supported package exports. Installed source-built tarball checks exercise these operations. The `v19.1.0` package does not provide this restored API. The eager `getContent` and `getEdgeContent` facades are retired. Application bytes are `Uint8Array`; host streams, filesystem details and `Buffer` stay at adapters.
 
 ## Bytes, references and structural ownership
 

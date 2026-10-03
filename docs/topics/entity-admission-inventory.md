@@ -1,7 +1,6 @@
 # Entity admission inventory
 
-> **Status:** Implemented in the prepared v20.0.0 source; registry publication
-> and consumer verification remain separate release gates. This capability is the
+> **Status:** Implemented in v20.0.0. This capability is the
 > storage-neutral read inverse of the unofficial `entity.add` preview. It does
 > not make the Entity surface stable.
 
@@ -176,9 +175,7 @@ trigger the typed legacy-ambiguity obstruction.
 
 Released v19.1 repositories remain readable and writable, but their unmarked
 entity-shaped patches cannot support a complete admission inventory without an
-explicit migration or classification step. Atomic arrays and their classified boundaries are introduced together in the
-prepared v20 source; publication is required before registry consumers can rely
-on either capability.
+explicit migration or classification step. Atomic arrays and their classified boundaries are introduced together in v20.0.0.
 
 ## Basis and ordering
 
@@ -228,8 +225,7 @@ that a later event semantically supersedes an earlier one.
 ## Acceptance contract
 
 The source acceptance suite recorded through [#875](https://github.com/git-stunts/git-warp/issues/875)
-verifies the following contract; final release-head and registry evidence remain
-separate gates:
+verifies the following contract:
 
 1. an empty Lane certifies zero admissions;
 2. equal payloads under distinct births remain distinct;

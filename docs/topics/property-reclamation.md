@@ -1,10 +1,9 @@
 # Property reclamation
 
-The prepared v20.0.0 implementation follows [#885](https://github.com/git-stunts/git-warp/issues/885)
+The v20.0.0 implementation follows [#885](https://github.com/git-stunts/git-warp/issues/885)
 and [#910](https://github.com/git-stunts/git-warp/issues/910): **observed-remove node
 membership plus a node-wide LWW property clear**. This breaking interpretation
-requires coordinated reader/writer upgrade. Source validation below is not a claim
-of completed registry publication.
+requires coordinated reader/writer upgrade.
 
 ## Historical reproduced failure
 
@@ -113,8 +112,8 @@ of visible projections; their bytes alone do not identify the interpreter.
   round trips preserve the contract.
 - Eager, session, targeted and checkpoint-tail reads agree. Ambiguous keys and
   missing removal witnesses are retained conservatively.
-- Final release-head runtime, type, lint, coverage and isolated registry-consumer
-  verification remain separate release gates.
+- Runtime, type, lint, coverage and isolated installed-consumer checks verify
+  the contract.
 
 ## Scope of the memory guarantee
 

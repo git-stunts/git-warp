@@ -10,9 +10,8 @@ If you are learning the product for the first time, start with:
 
 ## Release posture
 
-This checkout prepares `v20.0.0`; registry publication and consumer closure remain
-separate release gates. Applications retain the Runtime, Lane, Intent, Observer,
-Observation, Reading and Receipt grammar. Supported node/edge byte attachments
+`v20.0.0` retains the Runtime, Lane, Intent, Observer,
+Observation, Reading and Receipt application grammar. Supported node/edge byte attachments
 use Runtime-owned staging, ordered writes, metadata observations and cancellable
 streams. Their bounded retained-history projection is not a new indexed storage
 format or recursive graph ownership.

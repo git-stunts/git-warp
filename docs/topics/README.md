@@ -3,10 +3,9 @@
 Use these pages when you know what `git-warp` is and want the right page for a
 specific task.
 
-## Current release preparation
+## Current release: v20.0.0
 
-This checkout prepares `v20.0.0`; registry publication and consumer closure are
-separate release gates. It preserves the Runtime/Lane application grammar while
+`v20.0.0` preserves the Runtime/Lane application grammar while
 restoring node and edge byte attachments and introducing node-wide LWW property
 clears alongside observed-remove membership. Upgrade readers and writers together,
 retain historical interpreter identity, and regenerate derived checkpoints:

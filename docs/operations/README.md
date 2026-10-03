@@ -16,9 +16,8 @@ It does not mutate authoritative history or silently repair git-cas.
 
 ## Upgrade v19 to v20
 
-This checkout prepares v20.0.0; obtain a verified registry release or a reviewed
-source-built package before deployment. Publication and registry consumer closure
-are separate release gates.
+These instructions apply to v20.0.0. Test and deploy the same reviewed package
+version across the fleet before resuming shared operation.
 
 The upgrade changes interpretation, not authoritative Git history. Node membership
 remains observed-remove, while qualifying removals immediately establish a node-wide

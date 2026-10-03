@@ -7,12 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [20.0.0] - 2026-10-03
 
-This major release prepares the observed-remove membership / node-wide LWW
+This major release provides the observed-remove membership / node-wide LWW
 property-clear interpretation, restores supported node and edge byte attachments,
 and bounds allocation and admission work without rewriting authoritative history.
-The package version and release notes are prepared here; publication and registry
-consumer verification remain separate release gates tracked in
-[#876](https://github.com/git-stunts/git-warp/issues/876).
+Publication evidence is tracked in [#876](https://github.com/git-stunts/git-warp/issues/876).
 
 Upgrade all readers and writers together, preserve historical receipts with their
 original interpreter, and rebuild derived checkpoints from retained patches.
