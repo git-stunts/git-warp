@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   command completes every selected file with zero errors and successful
   teardown; failed, incomplete and targeted runs cannot rewrite the ratchet
   (#882). Authorized update intent is carried through Docker command arguments
-  rather than depending on npm lifecycle environment in the container.
+  rather than depending on npm lifecycle environment in the container. Failed candidate replacement removes the run-owned temporary file so later coverage updates can retry; pre-existing candidates remain untouched.
 
 - Bound Mermaid validation rendering and browser shutdown separately, reclaim
   validator-owned worker/browser processes on success, failure, timeout and

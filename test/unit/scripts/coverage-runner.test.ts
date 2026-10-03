@@ -128,6 +128,59 @@ describe('coverage runner completion and ratchet boundary', () => {
     const result = run(root);
     expect(result.status, result.output).toBe(1);
     expect(result.config).toBe(baseline);
+    expect(readFileSync(join(root, 'vitest.config.ts.coverage-candidate'), 'utf8')).toBe('existing candidate');
+  });
+  it('removes its candidate after replacement fails so a later ratchet can succeed', () => {
+    const root = fixture(passingTest);
+    const preload = join(root, 'reject-candidate-rename.cjs');
+    writeFileSync(preload, `const fs = require('node:fs');
+      const rename = fs.renameSync;
+      fs.renameSync = (from, to) => {
+        if (String(from).endsWith('.coverage-candidate')) {
+          const failure = new Error('controlled candidate replacement failure');
+          failure.code = 'EACCES';
+          throw failure;
+        }
+        return rename(from, to);
+      };
+      require('node:module').syncBuiltinESMExports();
+    `);
+    const refused = spawnSync(process.execPath, ['--require', preload, runner, 'ratchet'], {
+      cwd: root, encoding: 'utf8', timeout: 80000,
+    });
+    expect(refused.error).toBeUndefined();
+    expect(refused.status).toBe(1);
+    expect(refused.stderr).toContain('controlled candidate replacement failure');
+    expect(readFileSync(join(root, 'vitest.config.ts'), 'utf8')).toBe(baseline);
+    expect(() => readFileSync(join(root, 'vitest.config.ts.coverage-candidate'))).toThrow(expect.objectContaining({ code: 'ENOENT' }));
+    const retry = run(root);
+    expect(retry.status, retry.output).toBe(0);
+    expect(retry.config).toBe(baseline.replace('lines: 0,', 'lines: 100,'));
+  });
+  it('reports both failures when its candidate cannot be replaced or removed', () => {
+    const root = fixture(passingTest);
+    const preload = join(root, 'reject-candidate-cleanup.cjs');
+    writeFileSync(preload, `const fs = require('node:fs');
+      for (const method of ['renameSync', 'unlinkSync']) {
+        const original = fs[method];
+        fs[method] = (...args) => {
+          if (String(args[0]).endsWith('.coverage-candidate')) {
+            throw new Error('controlled candidate ' + method + ' failure');
+          }
+          return original(...args);
+        };
+      }
+      require('node:module').syncBuiltinESMExports();
+    `);
+    const result = spawnSync(process.execPath, ['--require', preload, runner, 'ratchet'], {
+      cwd: root, encoding: 'utf8', timeout: 80000,
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('controlled candidate renameSync failure');
+    expect(result.stderr).toContain('controlled candidate unlinkSync failure');
+    expect(readFileSync(join(root, 'vitest.config.ts'), 'utf8')).toBe(baseline);
+    expect(readFileSync(join(root, 'vitest.config.ts.coverage-candidate'), 'utf8')).toBe(baseline.replace('lines: 0,', 'lines: 100,'));
   });
   it.each(['test:coverage:ci', 'targeted'])('keeps reporting-only %s runs unchanged', command => {
     const root = fixture(passingTest);
