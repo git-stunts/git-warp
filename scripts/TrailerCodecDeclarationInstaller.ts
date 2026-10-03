@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { z } from 'zod';
@@ -36,12 +36,14 @@ export default class TrailerCodecDeclarationInstaller {
       return { status: 'refused', reason: 'Reviewed trailer-codec declarations changed' };
     }
     const target = resolve(this.#directory, 'index.d.ts');
-    if (existsSync(target)) {
+    try {
+      writeFileSync(target, declarations, { flag: 'wx', mode: 0o644 });
+      return { status: 'installed' };
+    } catch (error) {
+      if (!(error instanceof Error) || !('code' in error) || error.code !== 'EEXIST') throw error;
       return readFileSync(target).equals(declarations)
         ? { status: 'unchanged' }
         : { status: 'refused', reason: 'Conflicting trailer-codec declarations' };
     }
-    writeFileSync(target, declarations, { flag: 'wx', mode: 0o644 });
-    return { status: 'installed' };
   }
 }

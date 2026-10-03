@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import './RequireDockerTests.ts';
-import { readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createVitest, parseCLI, type Vitest } from 'vitest/node';
 import { coverageRunCompleted, raisedLineThreshold } from './coverage-ratchet.ts';
@@ -70,7 +70,16 @@ async function updateRatchet(path: string, baseline: string, reportsDirectory: s
   if (candidate === baseline) return;
   const temporary = `${path}.coverage-candidate`;
   writeFileSync(temporary, candidate, { flag: 'wx' });
-  renameSync(temporary, path);
+  try {
+    renameSync(temporary, path);
+  } catch (replacementError) {
+    try {
+      unlinkSync(temporary);
+    } catch (cleanupError) {
+      throw new AggregateError([replacementError, cleanupError], 'coverage-ratchet: replacement and candidate cleanup failed');
+    }
+    throw replacementError;
+  }
   console.log(`coverage-tests: completed full-suite line ratchet raised to ${percentage}`);
 }
 

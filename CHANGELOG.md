@@ -18,18 +18,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Install the Bun test image's reviewed npm dependency graph with `npm ci`
   before copying it into Bun, include every current workspace manifest in the
   install layer, and refuse manifest or installed dependency drift (#865).
+  Docker contexts exclude host dependency and Git metadata directories at every
+  depth, including nested workspaces.
 
 - Remove vulnerable generic patch tooling from dependency declaration setup.
   Install the unchanged trailer-codec 2.1.1 declarations through an exact
   version/content check, preserve identical repeats and refuse conflicting
-  files without modifying dependency runtime (#948).
+  files without modifying dependency runtime (#948). Competing exclusive-file
+  creation uses the same identical/conflicting result without overwriting the
+  winning declarations.
 
 - Coverage runs bound instrumented workers and coverage processing to one task
   at a time. Thresholds can rise only after an argument-free full coverage
   command completes every selected file with zero errors and successful
   teardown; failed, incomplete and targeted runs cannot rewrite the ratchet
   (#882). Authorized update intent is carried through Docker command arguments
-  rather than depending on npm lifecycle environment in the container.
+  rather than depending on npm lifecycle environment in the container. Failed candidate replacement removes the run-owned temporary file so later coverage updates can retry; pre-existing candidates remain untouched.
 
 - Bound Mermaid validation rendering and browser shutdown separately, reclaim
   validator-owned worker/browser processes on success, failure, timeout and
