@@ -1,8 +1,10 @@
 import z from 'zod';
+import LegacyEventId from '../../domain/utils/LegacyEventId.ts';
+import { readCheckpointEventId } from '../../domain/services/state/CheckpointEventIdBoundary.ts';
 import CborFullStateLifecycleDecoder from './CborFullStateLifecycleDecoder.ts';
 import type { FullStateLifecycle } from '../../ports/FullStateLifecycleDecoderPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
-import type { LWWRegister } from '../../domain/crdt/LWW.ts';
+import { LWWRegister } from '../../domain/crdt/LWW.ts';
 import { compareStrings } from '../../domain/utils/StringComparison.ts';
 import VersionVector from '../../domain/crdt/VersionVector.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
@@ -20,7 +22,6 @@ import {
 const FULL_STATE_VERSION = 'full-v7';
 /** Previous version, still read: it carries no node or remove events. */
 const LEGACY_FULL_STATE_VERSION = 'full-v5';
-const LEGACY_PATCH_SHA_PLACEHOLDER = '0000';
 
 type FullStateVersion = typeof FULL_STATE_VERSION | typeof LEGACY_FULL_STATE_VERSION;
 
@@ -165,7 +166,7 @@ function hydrateLegacyFields(obj: DecodedFullState): WarpStateFields {
   return {
     nodeAlive: decodeAliveSet(obj.nodeAlive),
     edgeAlive: decodeAliveSet(obj.edgeAlive),
-    prop: deserializeProps(obj.prop ?? []),
+    prop: deserializeProps(obj.prop ?? [], obj.version),
     observedFrontier: VersionVector.from(obj.observedFrontier ?? {}),
     edgeBirthEvent: deserializeEdgeBirthEvent(obj),
   };
@@ -213,7 +214,7 @@ function serializeEventListArray(events: ReadonlyMap<string, readonly EventId[]>
   return result.sort(compareWireKeys);
 }
 
-function deserializeProps(propArray: unknown): Map<string, LWWRegister<PropValue>> {
+function deserializeProps(propArray: unknown, format: string | undefined): Map<string, LWWRegister<PropValue>> {
   const prop = new Map<string, LWWRegister<PropValue>>();
   if (!Array.isArray(propArray)) {
     return prop;
@@ -224,7 +225,7 @@ function deserializeProps(propArray: unknown): Map<string, LWWRegister<PropValue
       throw invalidCanonicalFullState();
     }
     const [key, registerObj] = parsed.data;
-    const register = deserializeLWWRegister(registerObj);
+    const register = deserializeLWWRegister(registerObj, format);
     if (register !== null) {
       prop.set(key, register);
     }
@@ -244,7 +245,7 @@ function deserializeEdgeBirthEvent(obj: DecodedFullState): Map<string, EventId> 
       throw invalidCanonicalFullState();
     }
     const [key, val] = parsed.data;
-    result.set(key, deserializeEdgeBirthValue(val));
+    result.set(key, deserializeEdgeBirthValue(val, obj.version));
   }
   return result;
 }
@@ -253,24 +254,12 @@ function edgeBirthData(obj: DecodedFullState): unknown {
   return obj.edgeBirthEvent ?? obj.edgeBirthLamport;
 }
 
-function deserializeEdgeBirthValue(value: EdgeBirthWire | number): EventId {
+function deserializeEdgeBirthValue(value: EdgeBirthWire | number, format: string | undefined): EventId {
   if (typeof value === 'number') {
-    return legacyNumericEdgeBirth(value);
+    if (format === FULL_STATE_VERSION) { throw invalidCanonicalFullState(); }
+    return new LegacyEventId(value);
   }
-  return edgeBirthWireToEventId(value);
-}
-
-function legacyNumericEdgeBirth(lamport: number): EventId {
-  return { lamport, writerId: '', patchSha: LEGACY_PATCH_SHA_PLACEHOLDER, opIndex: 0 };
-}
-
-function edgeBirthWireToEventId(value: EdgeBirthWire): EventId {
-  return {
-    lamport: value.lamport ?? 0,
-    writerId: value.writerId ?? '',
-    patchSha: value.patchSha ?? LEGACY_PATCH_SHA_PLACEHOLDER,
-    opIndex: value.opIndex ?? 0,
-  };
+  return readCheckpointEventId(value, format);
 }
 
 function serializeLWWRegister(
@@ -287,14 +276,11 @@ function serializeLWWRegister(
   };
 }
 
-function deserializeLWWRegister(obj: unknown): LWWRegister<PropValue> | null {
-  if (typeof obj !== 'object' || obj === null) {
-    return null;
-  }
-  return {
-    eventId: eventIdFromUnknown('eventId' in obj ? obj.eventId : undefined),
-    value: propertyValue(obj),
-  };
+function deserializeLWWRegister(obj: unknown, format: string | undefined): LWWRegister<PropValue> | null {
+  if (typeof obj !== 'object' || obj === null) { return null; }
+  return new LWWRegister(
+    eventIdFromUnknown('eventId' in obj ? obj.eventId : undefined, format), propertyValue(obj),
+  );
 }
 
 function propertyValue(obj: object): PropValue {
@@ -304,28 +290,11 @@ function propertyValue(obj: object): PropValue {
   return obj.value;
 }
 
-function eventIdFromUnknown(value: unknown): EventId {
-  if (!isRecord(value)) {
-    return legacyNumericEdgeBirth(0);
-  }
-  return {
-    lamport: numberOrZero(value['lamport']),
-    writerId: stringOr(value['writerId'], ''),
-    patchSha: stringOr(value['patchSha'], LEGACY_PATCH_SHA_PLACEHOLDER),
-    opIndex: numberOrZero(value['opIndex']),
-  };
-}
-
-function numberOrZero(value: unknown): number {
-  return typeof value === 'number' ? value : 0;
-}
-
-function stringOr(value: unknown, fallback: string): string {
-  return typeof value === 'string' ? value : fallback;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+function eventIdFromUnknown(value: unknown, format: string | undefined): EventId {
+  if (value === null || value === undefined) { return readCheckpointEventId(value, format); }
+  const parsed = EDGE_BIRTH_WIRE.safeParse(value);
+  if (!parsed.success) { throw invalidCanonicalFullState(); }
+  return readCheckpointEventId(parsed.data, format);
 }
 
 function equalBytes(left: Uint8Array, right: Uint8Array): boolean {

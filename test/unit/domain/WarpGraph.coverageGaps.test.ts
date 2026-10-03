@@ -5,6 +5,7 @@ import { encodePatchMessage } from '../../../src/infrastructure/adapters/Trailer
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import ORSet from '../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../src/domain/utils/EventId.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
 const crypto = new NodeCryptoAdapter();
@@ -791,9 +792,9 @@ describe('WarpCore coverage gaps', () => {
       const state = createEmptyState();
       state.nodeAlive.add('user:alice', Dot.create('writer-1', 1));
       state.nodeAlive.add('user:bob', Dot.create('writer-1', 2));
-      state.mutatePropLWW('user:alice\0name', ('writer-1:1' as any), 'Alice');
-      state.mutatePropLWW('user:alice\0age', ('writer-1:2' as any), 30);
-      state.mutatePropLWW('user:bob\0name', ('writer-1:3' as any), 'Bob');
+      state.mutatePropLWW('user:alice\0name', new EventId(1, 'writer-1', 'aaaa', 0), 'Alice');
+      state.mutatePropLWW('user:alice\0age', new EventId(2, 'writer-1', 'aaaa', 0), 30);
+      state.mutatePropLWW('user:bob\0name', new EventId(3, 'writer-1', 'aaaa', 0), 'Bob');
       (graph as any)._cachedState = state;
 
       const count = await graph.getPropertyCount();
