@@ -3,18 +3,21 @@
 Use these pages when you know what `git-warp` is and want the right page for a
 specific task.
 
-## Current release
+## Current release: v20.0.0
 
-`v19.1.0` is the current release. It preserves the Runtime, Lane, Intent,
-Observer, Observation, Reading, and Receipt application vocabulary while
-batching patch discovery, trie dependency waves, and compound retained
-materialization through bounded Git and git-cas operations. Existing v19
-repositories require no migration. Omitted checkpoint policy now defaults to
-`{ every: 64 }`; the merged Entity surface is included only as an unofficial,
-unstable preview. Do not use the v19.0.0 migrator on an authoritative
-repository. Operator workflows live outside the topic shelf in
-[Operations](../operations/). The full compatibility, migration, and
-performance narrative lives in the root [CHANGELOG](../../CHANGELOG.md).
+`v20.0.0` preserves the Runtime/Lane application grammar while
+restoring node and edge byte attachments and introducing node-wide LWW property
+clears alongside observed-remove membership. Upgrade readers and writers together,
+retain historical interpreter identity, and regenerate derived checkpoints:
+[v20 upgrade guidance](../migrations/v19/README.md#upgrade-v19-to-v20) describes the
+boundary. Existing Git history is not rewritten by that interpretation upgrade.
+
+The Entity surface and its admission inventory remain unofficial previews.
+Membership compaction preserves evidence, and property reclamation does not bound
+total metadata. See [Property reclamation](property-reclamation.md),
+[Membership compaction](membership-compaction.md), [Content and CAS](content-and-cas.md),
+[Operations](../operations/) and the root [CHANGELOG](../../CHANGELOG.md).
+The named v19.1.0 performance witness below is historical evidence.
 
 ## Start here
 

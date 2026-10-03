@@ -1,14 +1,13 @@
 # Entity admission inventory
 
-> **Status:** v19.2 design and conformance target. This capability is the
+> **Status:** Implemented in v20.0.0. This capability is the
 > storage-neutral read inverse of the unofficial `entity.add` preview. It does
 > not make the Entity surface stable.
 
 Git WARP can admit an entity and its complete initial property envelope in one
 causal patch. The write receipt distinguishes the graph subject from the
-causal occurrence that admitted it. Until v19.2, a later process can read a
-known subject but cannot prove that it rediscovered every retained entity
-birth at one exact Lane basis.
+causal occurrence that admitted it. The published v19.1.0 surface can read a known subject but does not provide
+this inventory completeness capability.
 
 An entity admission inventory closes that read-side gap:
 
@@ -84,7 +83,7 @@ The final JSON line is the Observation Receipt with its inventory certificate.
 
 ## Structural scope before namespace scope
 
-The v19.2 selector is the entire dedicated Lane. Property predicates are not
+The v20 selector is the entire dedicated Lane. Property predicates are not
 allowed to define inventory completeness: selecting only entities that contain
 `think.capture.v1` would silently omit the malformed admissions an authority
 audit needs to discover.
@@ -137,7 +136,7 @@ await lane.write([
 ]);
 ```
 
-v19.2 therefore persists a bounded entity-admission boundary for each
+The v20 implementation therefore persists a bounded entity-admission boundary for each
 `entity.add` lowered by a PatchBuilder:
 
 ```text
@@ -168,7 +167,7 @@ Patches without this metadata are handled conservatively:
 - other unmarked patches are not classified as entity admissions; and
 - no operation-shape guess can earn a completeness certificate.
 
-New v19.2 patches persist the metadata field even when its boundary list is
+New v20 patches persist the metadata field even when its boundary list is
 empty. That empty marker proves the writer classified the patch and found no
 `entity.add`; it prevents a manual atomic `[node.add, property.set]` sequence
 from being misclassified by its whole-patch shape. Only an absent field can
@@ -176,9 +175,7 @@ trigger the typed legacy-ambiguity obstruction.
 
 Released v19.1 repositories remain readable and writable, but their unmarked
 entity-shaped patches cannot support a complete admission inventory without an
-explicit migration or classification step. The array overload is not yet in a
-published release, so v19.2 can establish retained intent boundaries before
-consumers rely on that surface.
+explicit migration or classification step. Atomic arrays and their classified boundaries are introduced together in v20.0.0.
 
 ## Basis and ordering
 
@@ -225,9 +222,10 @@ The inventory proves substrate coverage only. It does not claim that every
 entity is a valid Think capture, that application identifiers are unique, or
 that a later event semantically supersedes an earlier one.
 
-## Release gates
+## Acceptance contract
 
-The v19.2 capability is not complete until executable evidence proves:
+The source acceptance suite recorded through [#875](https://github.com/git-stunts/git-warp/issues/875)
+verifies the following contract:
 
 1. an empty Lane certifies zero admissions;
 2. equal payloads under distinct births remain distinct;

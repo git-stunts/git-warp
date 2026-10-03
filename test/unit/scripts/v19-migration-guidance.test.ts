@@ -22,11 +22,11 @@ function generatedSdkSection(): string {
 }
 
 describe('v19 migration guidance', () => {
-  it('keeps every public release signpost on v19.1.0', () => {
-    expect(ROOT_README).toContain('`v19.1.0` is the current release');
-    expect(ARCHITECTURE).toContain('`v19.1.0` is the current release');
-    expect(TOPICS_INDEX).toContain('`v19.1.0` is the current release');
-    expect(API_GUIDE).toContain('Current in `v19.1.0`');
+  it('keeps every current public release signpost on v20.0.0', () => {
+    expect(ROOT_README).toContain('## Latest release: v20.0.0');
+    expect(ARCHITECTURE).toContain('`v20.0.0` retains the Runtime');
+    expect(TOPICS_INDEX).toContain('## Current release: v20.0.0');
+    expect(API_GUIDE).toContain('Current in `v20.0.0`');
   });
 
   it('keeps the root README on the current safe one-pass migration', () => {

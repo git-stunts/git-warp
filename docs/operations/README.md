@@ -1,6 +1,6 @@
 # Operations
 
-Use this page when maintaining or diagnosing a live v19 repository. For
+Use this page when maintaining or diagnosing a Runtime repository. For
 application code, start with [Getting started](../topics/getting-started.md).
 
 ## Health
@@ -14,12 +14,46 @@ git warp doctor --repo ./team-repo --lane users
 Doctor reports structural, audit, hook, and retained-materialization findings.
 It does not mutate authoritative history or silently repair git-cas.
 
+## Upgrade v19 to v20
+
+These instructions apply to v20.0.0. Test and deploy the same reviewed package
+version across the fleet before resuming shared operation.
+
+The upgrade changes interpretation, not authoritative Git history. Node membership
+remains observed-remove, while qualifying removals immediately establish a node-wide
+LWW property clear. Older properties remain cleared even when concurrent membership
+survives. Schema bumps do not fence an old reader or writer.
+
+1. Test the v20 application against a disposable backup. Preserve historical hashes
+   and receipts with their original interpreter identity.
+2. Stop every reader and writer sharing the repository. Make an independent mirror
+   backup and run `git fsck --full`, as shown in the retained-v18 procedure below.
+3. Deploy the same reviewed v20 interpretation to all readers and writers. Do not
+   resume a mixed-interpreter fleet.
+4. Regenerate derived materializations/checkpoints from immutable patch history.
+   Use the explicit [bounded-basis repair](#prepare-a-bounded-basis) for each affected
+   Lane, then verify bounded reads, a write and its Receipt, restart and backup.
+   An unavailable lifecycle/checkpoint basis is a refusal, not permission to use a
+   whole-graph fallback or relabel old evidence.
+5. Resume shared operation after those checks. Keep recovery/retention anchors until
+   a separate verified retention decision permits their removal.
+
+Current state is `full-v7`; materialization descriptors use schema 7 and lifecycle
+shards/receipts schema 2. Direct `full-v6` decoding is refused. Legacy `full-v5`
+decoding does not reconstruct lifecycle witnesses. Membership compaction retains
+all evidence; property GC does not establish constant total metadata memory and
+remains disabled by default. See [Property reclamation](../topics/property-reclamation.md)
+and the [shipped upgrade guide](../migrations/v19/README.md#upgrade-v19-to-v20).
+
 ## Migrate retained v18 state
 
-Use the current v19.1.0 package for migration. The safe migrator was introduced
+The following command deliberately pins the published v19.1.0 intermediate
+package for the retained-v18 migration. It is distinct from the v20 interpretation
+upgrade above. The safe migrator was introduced
 in v19.0.2; the v19.0.1 migrator lacks complete per-commit progress and durable
 post-TUI completion evidence, and the v19.0.0 migrator is unsafe for retained
-v18 state. A repository already on v19 requires no v19.1.0 migration.
+v18 state. A repository already on v19 required no retained-data migration for v19.1.0;
+the v20 interpretation upgrade still requires the coordinated steps above.
 
 Prepare and test the v19 application without opening the authoritative
 repository. During the maintenance window, stop every writer and make an

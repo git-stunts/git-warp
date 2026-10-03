@@ -2,7 +2,7 @@
 
 > **Status:** The public grammar shipped in `v19.0.0`. The retained-state
 > migration described below requires `v19.0.2` or later within v19; use the
-> current `v19.1.0` package and do not use the `v19.0.0` migrator on an
+> deliberately pinned published `v19.1.0` intermediate package and do not use the `v19.0.0` migrator on an
 > authoritative repository. The generic constructors and executable
 > generated-SDK reference shipped in v19.0.2; each application still owns the
 > renderer that assigns domain meaning.
@@ -13,6 +13,48 @@ application grammar:
 ```text
 Write intents. Observe lanes. Keep receipts.
 ```
+
+## Upgrade v19 to v20
+
+These instructions apply to `v20.0.0`. The `v19.1.0` package does not provide the
+restored attachments or the new interpretation described here.
+The v18-to-v19 migration below remains a separate retained-history rewrite.
+
+The v20 interpretation keeps observed-remove membership and adds immediate
+node-wide LWW property clears. A removal carrying observed addition dots advances
+the clear by deterministic EventId maximum. Properties strictly below the clear
+stay hidden even when concurrent membership survives; later-ordered properties
+remain eligible. Empty observed-dot removals establish no clear.
+
+Upgrade every reader and writer together. Stop the fleet, preserve an independent
+backup and historical hashes/receipts with their interpreter identity, deploy the
+same reviewed v20 package, and regenerate derived materializations/checkpoints
+from immutable patches. Verify bounded reads, a write and its Receipt, restart and
+backup before resuming operation. Old clients are not fenced: they can replay the
+same Git patches under old semantics. Do not relabel old receipts as v20 evidence.
+
+Full state now uses `full-v7`, materialization descriptors schema 7, and lifecycle
+shards/receipts schema 2. Older descriptors miss or require replay; direct `full-v6`
+decoding refuses. Legacy `full-v5` decoding supplies no missing lifecycle evidence.
+A bounded read without required witnesses refuses rather than materializing the
+whole graph. Public receipts identify `observed-remove/node-lww-clear`.
+
+New inline binary property values have a 64 KiB aggregate nested-byte budget;
+eager internal artifact decoders refuse above 64 MiB, with a 16 MiB checkpoint
+optic shard ceiling. Atomic arrays admit at most 50,000 Intents and lowered
+operations, with a 16 MiB canonical descriptor checked before encoding. These
+separate refusal budgets do not cap streaming attachments, truncate historical
+property reads or bound allocations already made by a producer. Prefer the
+[attachment API](#attachment-api-restoration-v20) for larger application bytes.
+
+Membership compaction retires no evidence. Property GC may reclaim dominated
+payloads while retaining lifecycle witnesses; automatic GC stays disabled by
+default and establishes no constant bound on total metadata or historical Git.
+New patches classify entity-admission boundaries, but old ambiguous unmarked
+patches cannot earn an inventory completeness certificate without explicit
+classification; this release does not invent their missing boundaries.
+
+See the [operator upgrade procedure](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/operations/README.md#upgrade-v19-to-v20) for coordinated deployment and bounded-basis repair.
 
 ## Migrate Retained v18 State First
 
@@ -597,13 +639,13 @@ switch (receipt.outcome.kind) {
 `conflict` and `obstruction` are different recovery classes. Runtime failures
 remain outside this four-way causal union.
 
-## Attachment API Restoration (unreleased source)
+## Attachment API Restoration (v20)
 
-The restored attachment operations below describe unreleased source-built packages after [#901](https://github.com/git-stunts/git-warp/issues/901) and [#902](https://github.com/git-stunts/git-warp/issues/902). They do not change the published `v19.1.0` migration instructions or imply that installing that release provides these operations. The next release must publish the restored API before applications can rely on it from the registry.
+The v20.0.0 API restores node and edge byte attachments through [#901](https://github.com/git-stunts/git-warp/issues/901) and [#902](https://github.com/git-stunts/git-warp/issues/902). Installed source-built tarball checks establish its supported package surface. The `v19.1.0` package does not provide these operations.
 
 Replace the retired PatchBuilder content workflow with Runtime-owned staging and advanced intents. Do not import PatchBuilder or implementations from private package paths. The owner must already exist or be created earlier in the same ordered array write; check the resulting receipt for obstruction. The staged value must come from the same Runtime that publishes it.
 
-| Retired operation | Restored supported source API |
+| Retired operation | Restored v20 API |
 | --- | --- |
 | `attachContent(nodeId, bytes, metadata)` | `lane.stageContent(bytes, metadata)`, then `intent.node.attachContent({ subject: nodeId, content })` through `lane.write(...)` |
 | `attachEdgeContent(from, to, label, bytes, metadata)` | Stage once, then `intent.edge.attachContent({ from, to, label, content })` through `lane.write(...)` |
@@ -611,7 +653,7 @@ Replace the retired PatchBuilder content workflow with Runtime-owned staging and
 | `clearEdgeContent(from, to, label)` | `intent.edge.clearContent({ from, to, label })` through `lane.write(...)` |
 | Eager `getContent` / `getEdgeContent` collection | Observe with `createNodeContentObserver` / `createEdgeContentObserver`, inspect the bounded Reading's metadata, and iterate its captured attachment's `open()` stream |
 
-The [existing executable consumer example](https://github.com/git-stunts/git-warp/blob/ff0598d3583a1819263f9e5107593f365c47e96d/examples/attachments.mjs) covers both owners, replacement, clearing, metadata and historical stream reopening using only supported exports. [Content and CAS](https://github.com/git-stunts/git-warp/blob/ff0598d3583a1819263f9e5107593f365c47e96d/docs/topics/content-and-cas.md#run-the-installed-package-example) explains its Docker tarball execution, atomicity, concurrency, history, cancellation, limits and failures. Staging is not publication or durable retention; replacing/clearing a byte association does not erase causal history.
+The [existing executable consumer example](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/examples/attachments.mjs) covers both owners, replacement, clearing, metadata and historical stream reopening using only supported exports. [Content and CAS](https://github.com/git-stunts/git-warp/blob/530b1b5eac0320dafc99132669c1657e7fbe4272/docs/topics/content-and-cas.md#run-the-installed-package-example) explains its Docker tarball execution, atomicity, concurrency, history, cancellation, limits and failures. Staging is not publication or durable retention; replacing/clearing a byte association does not erase causal history.
 
 A graph identifier stored as a property or byte payload remains opaque data. External/live references and finite owned structural attachments have distinct authority, descent and retention semantics under the [structural ownership contract](https://github.com/git-stunts/git-warp/blob/bc7d3b98197b3b43b753b65a035f33d94daeaa28/docs/topics/structural-attachments.md); the byte API does not implement recursive ownership or Paper II ticks. Encoding, traversal and retention implementations remain [#819](https://github.com/git-stunts/git-warp/issues/819), [#820](https://github.com/git-stunts/git-warp/issues/820) and [#821](https://github.com/git-stunts/git-warp/issues/821).
 

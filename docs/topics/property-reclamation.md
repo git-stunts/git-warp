@@ -1,13 +1,13 @@
 # Property reclamation
 
-Design and acceptance plan for [#885](https://github.com/git-stunts/git-warp/issues/885).
-The accepted contract is **observed-remove node membership plus a node-wide
-LWW property clear**. This is a breaking lifecycle change, targeting a major
-release together with #893. Implementation and validation are tracked in #910.
+The v20.0.0 implementation follows [#885](https://github.com/git-stunts/git-warp/issues/885)
+and [#910](https://github.com/git-stunts/git-warp/issues/910): **observed-remove node
+membership plus a node-wide LWW property clear**. This breaking interpretation
+requires coordinated reader/writer upgrade.
 
-## Reproduced failure
+## Historical reproduced failure
 
-On the lifecycle-safe GC branch, replaying 25 generations of fresh node IDs,
+Before the node-wide clear implementation, replaying 25 generations of fresh node IDs,
 seven properties per generation, and ordinary observed removals leaves:
 
 | Measurement | Result |
@@ -22,7 +22,7 @@ The reproduction uses `applyPatchOp`, real `NodeAdd`, `PropSet`, and
 `NodeRemove` operations, followed by `executeGC` at each generation. It is
 not an artifact of omitting lifecycle events from a test fixture.
 
-Current node visibility clears a register only when a removal sorts between
+The previous node visibility rule cleared a register only when a removal sorts between
 that write and the latest add. A removed ID that is never reused therefore
 never acquires a clear witness. An older concurrent add can also make a
 pre-removal value visible again. Deleting that value only on the replica
@@ -112,8 +112,8 @@ of visible projections; their bytes alone do not identify the interpreter.
   round trips preserve the contract.
 - Eager, session, targeted and checkpoint-tail reads agree. Ambiguous keys and
   missing removal witnesses are retained conservatively.
-- Runtime, type, lint, coverage and isolated packed-consumer validation remain
-  required before this draft is ready to merge.
+- Runtime, type, lint, coverage and isolated installed-consumer checks verify
+  the contract.
 
 ## Scope of the memory guarantee
 
@@ -123,10 +123,10 @@ future merges. Safe retirement of that evidence needs a separate causal
 stability or graph-epoch contract. Historical payloads also remain in Git;
 this issue concerns the live materialized state, not destructive history GC.
 
-The existing dependency stack is #893, then #883. This work starts from the
-lifecycle-safe #883 branch and must preserve its late-write and merge tests.
+The implementation preserves the lifecycle-safe late-write and merge guarantees
+covered by the regression tests introduced through #893 and #883.
 
-## Validation status and remaining acceptance
+## Recorded source validation
 
 The reducer/GC regression initially failed four cases and now passes them.
 A 256-pair partition test compares projections, attachments and hashes after
@@ -171,6 +171,5 @@ nodes return a law-violation obstruction rather than a fabricated removal.
 The five checkpoint-tail refusal cases in #913 now inject faults into the current
 root-backed index/property members. Missing roots and missing/malformed shards
 still refuse without materialization fallback; no expectation was weakened.
-The four neighbor-provider contract failures remain separately tracked in #913.
-
-#910 stays draft pending final-head gates and independent review.
+The shared neighbor-provider contract in #913 now verifies both the retained-basis
+and cold/replayed checkpoint-tail backends; typed refusal preserves its cause.
