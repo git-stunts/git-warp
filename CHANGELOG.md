@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Batch bounded precommit guard readings with at most four concurrent requests,
+  share identical property readings within a batch, and preserve ordered refusal,
+  captured causal evidence and all-or-nothing intent journal admission (#706).
+
 - VersionVector construction validates writer/counter entries, omits zero
   counters and snapshots caller-owned maps so later mutations cannot corrupt
   causal state (#205).
