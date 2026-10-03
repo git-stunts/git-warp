@@ -13,6 +13,7 @@ import {
   encodeEdgeKey,
 } from './KeyCodec.ts';
 import type { EventId } from '../utils/EventId.ts';
+import type LegacyEventId from '../utils/LegacyEventId.ts';
 import WarpState from './state/WarpState.ts';
 import type { LWWRegister } from '../crdt/LWW.ts';
 import type { PropValue } from '../types/PropValue.ts';
@@ -165,7 +166,7 @@ function visibleEdgeRegister(
 }
 
 /** Returns true when metadata belongs to the same content write lineage. */
-function isSameLineage(left: EventId | null | undefined, right: EventId | null | undefined): boolean {
+function isSameLineage(left: EventId | LegacyEventId | null | undefined, right: EventId | LegacyEventId | null | undefined): boolean {
   if (!hasEventId(left)) {
     return false;
   }
@@ -176,12 +177,12 @@ function isSameLineage(left: EventId | null | undefined, right: EventId | null |
 }
 
 /** Returns true when a nullable event slot carries an event id. */
-function hasEventId(eventId: EventId | null | undefined): eventId is EventId {
+function hasEventId(eventId: EventId | LegacyEventId | null | undefined): eventId is EventId | LegacyEventId {
   return eventId !== null && eventId !== undefined;
 }
 
 /** Returns true when two operations belong to the same patch identity. */
-function isSamePatchIdentity(left: EventId, right: EventId): boolean {
+function isSamePatchIdentity(left: EventId | LegacyEventId, right: EventId | LegacyEventId): boolean {
   return left.lamport === right.lamport
     && left.writerId === right.writerId
     && left.patchSha === right.patchSha;

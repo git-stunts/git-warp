@@ -192,7 +192,7 @@ function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister
   return arr;
 }
 
-function eventWire(eventId: EventId): EventWire {
+function eventWire(eventId: EventId | LegacyEventId): EventWire {
   return {
     lamport: eventId.lamport,
     writerId: eventId.writerId,
@@ -205,7 +205,7 @@ function compareWireKeys<T>(left: readonly [string, T], right: readonly [string,
   return compareStrings(left[0], right[0]);
 }
 
-function serializeEventArray(events: ReadonlyMap<string, EventId>): Array<[string, EventWire]> {
+function serializeEventArray(events: ReadonlyMap<string, EventId | LegacyEventId>): Array<[string, EventWire]> {
   const result: Array<[string, EventWire]> = [];
   for (const [key, eventId] of events) {
     result.push([key, eventWire(eventId)]);

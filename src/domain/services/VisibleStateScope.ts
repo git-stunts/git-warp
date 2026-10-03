@@ -9,6 +9,7 @@ import {
 import type { LWWRegister } from '../crdt/LWW.ts';
 import type { PropValue } from '../types/PropValue.ts';
 import type { EventId } from '../utils/EventId.ts';
+import type LegacyEventId from '../utils/LegacyEventId.ts';
 import type { RawPatchOp } from '../types/ops/unions.ts';
 import type Patch from '../types/Patch.ts';
 
@@ -241,7 +242,7 @@ function collectScopedProps(
 /**
  * Collects the lifecycle events whose element keys are in the scoped set.
  */
-function collectScopedEvents<V extends EventId | readonly EventId[]>(
+function collectScopedEvents<V extends EventId | LegacyEventId | readonly EventId[]>(
   events: ReadonlyMap<string, V>,
   scopedKeys: Set<string>,
 ): Map<string, V> {

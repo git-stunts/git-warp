@@ -100,7 +100,7 @@ function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister
 }
 
 function serializeEventArray(
-  events: ReadonlyMap<string, EventId>,
+  events: ReadonlyMap<string, EventId | LegacyEventId>,
 ): Array<[string, SerializedEvent]> {
   const result: Array<[string, SerializedEvent]> = [];
   for (const [key, eventId] of events) {

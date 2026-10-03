@@ -28,6 +28,8 @@ Both the CBOR full-state adapter and the legacy full-state boundary construct re
 
 Null or absent property registers retain their existing omission behavior. Other malformed register payloads, including primitives, are refused by both full-state readers rather than silently dropping stored properties.
 
+Historical edge-birth and property identities remain explicit in state copies, joins, snapshots, scoped projections, session frames, comparisons, superseded outcomes and attachment lineage checks. Modern operation inputs retain strict `EventId` admission.
+
 Historical property identities also survive checkpoint index capture, lifecycle shard encoding and bounded property reads. Only property register slots admit the complete legacy tuple; node births, clears, removals and patch-tail identities remain modern. The lifecycle shard schema and existing modern shard bytes remain unchanged.
 
 ## Encoding and witnesses

@@ -114,9 +114,9 @@ function eventIdOf(event: Pick<EventId, 'lamport' | 'writerId' | 'patchSha' | 'o
 }
 
 /**
- * Node tombstones no add in the state holds. Compaction drops a dot's entry
- * and its tombstone together, so these come only from removes that observed
- * an add the state has not received.
+ * Node tombstones whose additions this state has never held. Membership
+ * compaction retains causal evidence; only tombstones without a held add
+ * belong in the floating-removal receipt.
  */
 function floatingNodeTombstones(state: WarpState): readonly string[] {
   const held = new Set(state.nodeAlive.entryDotsIter());

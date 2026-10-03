@@ -7,15 +7,16 @@
 
 import OpOutcomeResult from './OpOutcomeResult.ts';
 import type { EventId } from '../../utils/EventId.ts';
+import type LegacyEventId from '../../utils/LegacyEventId.ts';
 
 export default class OpSuperseded extends OpOutcomeResult<'superseded'> {
   /** The winning EventId under LWW comparison. */
-  readonly winner: EventId;
+  readonly winner: EventId | LegacyEventId;
 
   /** Human-readable explanation. */
   readonly reason: string;
 
-  constructor(target: string, winner: EventId) {
+  constructor(target: string, winner: EventId | LegacyEventId) {
     super(target, 'superseded');
     this.winner = winner;
     this.reason = `LWW: writer ${winner.writerId} at lamport ${winner.lamport} wins`;
