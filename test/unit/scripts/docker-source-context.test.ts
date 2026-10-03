@@ -62,13 +62,14 @@ describe('Docker source context', () => {
     },
   );
 
-  it('excludes Git metadata from every checkout-root Docker build context', () => {
+  it('excludes Git metadata and host dependencies at every depth of the Docker context', () => {
     const entries = readFileSync(join(ROOT, '.dockerignore'), 'utf8')
       .split('\n')
       .map((entry) => entry.trim())
       .filter((entry) => entry.length > 0 && !entry.startsWith('#'));
 
-    expect(entries).toContain('.git');
+    expect(entries).toContain('**/.git');
+    expect(entries).toContain('**/node_modules');
   });
 
   it('retains Markdown source contracts required by the unit suite', () => {

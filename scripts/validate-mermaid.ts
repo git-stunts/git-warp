@@ -2,9 +2,7 @@ import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, join, relative, resolve } from 'node:path';
 
-import { run } from '@mermaid-js/mermaid-cli';
-
-import { formatFailure } from './formatFailure.ts';
+import MermaidRenderSupervisor from './mermaid/MermaidRenderSupervisor.ts';
 
 const ROOT = resolve('.');
 const SKIPPED_DIRECTORIES = new Set(['.git', 'coverage', 'dist', 'node_modules']);
@@ -43,19 +41,9 @@ async function main(): Promise<void> {
   const temporaryDirectory = await mkdtemp(join(tmpdir(), 'git-warp-mermaid-validation-'));
   try {
     const inputPath = join(temporaryDirectory, 'diagrams.md');
-    const outputPath = join(temporaryDirectory, 'rendered.md') as `${string}.md`;
+    const outputPath = join(temporaryDirectory, 'rendered.md');
     await writeFile(inputPath, renderInput.join('\n'), 'utf8');
-    try {
-      await run(inputPath, outputPath, {
-        artefacts: temporaryDirectory,
-        puppeteerConfig: mermaidPuppeteerConfig(),
-        quiet: true,
-      });
-    } catch (error: unknown) {
-      throw new Error(`Mermaid render failed: ${formatFailure(error)}`, {
-        cause: error,
-      });
-    }
+    await new MermaidRenderSupervisor().render(inputPath, outputPath);
     process.stdout.write(
       `Mermaid render valid: ${String(diagramCount)} diagrams in ${String(fileCount)} files.\n`
     );
@@ -102,12 +90,6 @@ async function listMarkdownFiles(directory: string): Promise<readonly string[]> 
     }
   }
   return Object.freeze(paths.sort());
-}
-
-function mermaidPuppeteerConfig(): { args?: string[] } {
-  return process.env['GIT_WARP_MERMAID_DISABLE_SANDBOX'] === '1'
-    ? { args: ['--no-sandbox', '--disable-setuid-sandbox'] }
-    : {};
 }
 
 function removeSupportedIndent(line: string, indentation: number): string {

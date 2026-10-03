@@ -1,6 +1,5 @@
 import './scripts/RequireDockerTests.ts';
 import { defineConfig } from 'vitest/config';
-import { shouldAutoUpdateCoverageRatchet } from './scripts/coverage-ratchet.ts';
 
 export default defineConfig({
   // Externalize the roaring native module from Vite's transform pipeline.
@@ -24,7 +23,7 @@ export default defineConfig({
       exclude: ['src/ports/**/*.ts', 'src/**/*.d.ts'],
       thresholds: {
         lines: 93.48,
-        autoUpdate: shouldAutoUpdateCoverageRatchet(),
+        autoUpdate: false,
       },
     },
   },
