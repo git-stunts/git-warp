@@ -12,6 +12,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Run the legacy v16-to-v17 upgrade command when invoked through file or
   directory symlinks instead of silently exiting without executing (#900).
 
+- ORSet construction validates and snapshots membership collections, and LWW
+  registers require admitted runtime event identities. Checkpoint readers
+  reconstruct those concepts and refuse malformed registers and explicit metadata
+  while preserving supported legacy missing-metadata ordering through checkpoint
+  index capture and bounded reads, without changing wire formats (#189).
+
+- Install the Bun test image's reviewed npm dependency graph with `npm ci`
+  before copying it into Bun, include every current workspace manifest in the
+  install layer, and refuse manifest or installed dependency drift (#865).
+  Docker contexts exclude host dependency and Git metadata directories at every
+  depth, including nested workspaces.
+
+- Remove vulnerable generic patch tooling from dependency declaration setup.
+  Install the unchanged trailer-codec 2.1.1 declarations through an exact
+  version/content check, preserve identical repeats and refuse conflicting
+  files without modifying dependency runtime (#948). Competing exclusive-file
+  creation uses the same identical/conflicting result without overwriting the
+  winning declarations.
+
+- Coverage runs bound instrumented workers and coverage processing to one task
+  at a time. Thresholds can rise only after an argument-free full coverage
+  command completes every selected file with zero errors and successful
+  teardown; failed, incomplete and targeted runs cannot rewrite the ratchet
+  (#882). Authorized update intent is carried through Docker command arguments
+  rather than depending on npm lifecycle environment in the container. Failed candidate replacement removes the run-owned temporary file so later coverage updates can retry; pre-existing candidates remain untouched.
+
+- Bound Mermaid validation rendering and browser shutdown separately, reclaim
+  validator-owned worker/browser processes on success, failure, timeout and
+  interruption, and fail the documentation gate if reclamation cannot be
+  established. Node Docker images provide Chromium and reap adopted children.
+  Completed SVG files alone cannot pass validation (#870).
+
+- VersionVector construction validates writer/counter entries, omits zero
+  counters and snapshots caller-owned maps so later mutations cannot corrupt
+  causal state (#205).
+
+- Bounded checkpoint-tail node reads honor checkpoint tombstones for late
+  arriving adds and refuse unwitnessed adds instead of resurrecting a node
+  already removed by the checkpoint (#894).
+
 - Atomic Intent arrays reject descriptors exceeding 16 MiB before allocating
   their complete canonical string or UTF-8 buffer. Exact byte accounting covers
   aggregate members, escaping, Unicode, nested properties and inline binary
@@ -20,6 +60,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   admitted canonical bytes and receipt identities stay compatible (#916).
 
 ### Added
+
+- Prove opaque session-event retention through public CLI process boundaries,
+  exact-frontier candidate settlement, stale-basis refusal and retained source
+  evidence. The Docker conformance oracle remains active with Python
+  optimization enabled (#869).
+
+- Publish the restored node/edge byte attachment guide and reuse the installed-
+  package lifecycle example, with migration, history, concurrency, retention,
+  cancellation and failure semantics. Structural ownership remains a separate
+  contract and implementation rather than an implied byte capability (#904).
+
+- Define finite structural attachment ownership, preservation, conflict and
+  atomicity laws with paper-backed node/edge reference witnesses (#903). The
+  executable model is test-only; the public Runtime still exposes opaque byte
+  attachments rather than recursive structural ownership.
 
 - Restore public node and edge content observers with frozen owner/metadata, historical streaming, bounded causal projection, and Runtime-owned stream cleanup (#901).
 
