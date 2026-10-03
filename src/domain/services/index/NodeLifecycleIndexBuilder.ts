@@ -14,6 +14,8 @@ import { NodeLifecycleReceipt } from '../../artifacts/NodeLifecycleReceipt.ts';
 import { NodeLifecycleRecord } from '../../artifacts/NodeLifecycleRecord.ts';
 import { NodeLifecycleShard } from '../../artifacts/NodeLifecycleShard.ts';
 import { EventId } from '../../utils/EventId.ts';
+import type LegacyEventId from '../../utils/LegacyEventId.ts';
+import { compareStrings } from '../../utils/StringComparison.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import type WarpState from '../state/WarpState.ts';
 
@@ -33,12 +35,12 @@ export default class NodeLifecycleIndexBuilder {
   }
 
   static fromState(state: WarpState): NodeLifecycleIndexBuilder {
-    const nodesByShard = new Map<string, Map<string, Map<string, EventId>>>();
-    const registersOf = (nodeId: string): Map<string, EventId> => {
+    const nodesByShard = new Map<string, Map<string, Map<string, EventId | LegacyEventId>>>();
+    const registersOf = (nodeId: string): Map<string, EventId | LegacyEventId> => {
       const shardKey = computeShardKey(nodeId);
-      const nodes = nodesByShard.get(shardKey) ?? new Map<string, Map<string, EventId>>();
+      const nodes = nodesByShard.get(shardKey) ?? new Map<string, Map<string, EventId | LegacyEventId>>();
       nodesByShard.set(shardKey, nodes);
-      const registers = nodes.get(nodeId) ?? new Map<string, EventId>();
+      const registers = nodes.get(nodeId) ?? new Map<string, EventId | LegacyEventId>();
       nodes.set(nodeId, registers);
       return registers;
     };
@@ -47,7 +49,7 @@ export default class NodeLifecycleIndexBuilder {
     }
     for (const entry of state.nodeProperties()) {
       if (!state.isStaleNodeRegister(entry.nodeId, entry.register)) {
-        registersOf(entry.nodeId).set(entry.key, eventIdOf(entry.register.eventId));
+        registersOf(entry.nodeId).set(entry.key, entry.register.eventId);
       }
     }
     return new NodeLifecycleIndexBuilder(
@@ -57,19 +59,20 @@ export default class NodeLifecycleIndexBuilder {
 
   private static captureRecords(
     state: WarpState,
-    nodesByShard: ReadonlyMap<string, ReadonlyMap<string, Map<string, EventId>>>,
+    nodesByShard: ReadonlyMap<string, ReadonlyMap<string, Map<string, EventId | LegacyEventId>>>,
   ): ReadonlyMap<string, readonly NodeLifecycleRecord[]> {
     const recordsByShard = new Map<string, readonly NodeLifecycleRecord[]>();
     for (const [shardKey, nodes] of nodesByShard) {
       recordsByShard.set(shardKey, Object.freeze(
-        [...nodes.keys()].sort(compareStrings).map((nodeId) => new NodeLifecycleRecord({
-          nodeId,
-          birth: optionalEvent(state.nodeBirthEvent.get(nodeId)),
-          clear: optionalEvent(state.nodeClearEvent.get(nodeId)),
-          pendingRemoves: (state.nodePendingRemoveEvents.get(nodeId) ?? []).map(eventIdOf),
-          registers: [...(nodes.get(nodeId) ?? new Map<string, EventId>()).entries()]
-            .sort(([left], [right]) => compareStrings(left, right)),
-        })),
+        [...nodes.entries()].sort(([left], [right]) => compareStrings(left, right))
+          .map(([nodeId, registers]) => new NodeLifecycleRecord({
+            nodeId,
+            birth: optionalEvent(state.nodeBirthEvent.get(nodeId)),
+            clear: optionalEvent(state.nodeClearEvent.get(nodeId)),
+            pendingRemoves: (state.nodePendingRemoveEvents.get(nodeId) ?? []).map(eventIdOf),
+            registers: [...registers.entries()]
+              .sort(([left], [right]) => compareStrings(left, right)),
+          })),
       ));
     }
     return recordsByShard;
@@ -82,8 +85,8 @@ export default class NodeLifecycleIndexBuilder {
 
   *yieldShards(): Generator<IndexShard> {
     let nodeCount = 0;
-    for (const shardKey of [...this._recordsByShard.keys()].sort(compareStrings)) {
-      const records = this._recordsByShard.get(shardKey) ?? [];
+    for (const [shardKey, records] of [...this._recordsByShard.entries()]
+      .sort(([left], [right]) => compareStrings(left, right))) {
       nodeCount += records.length;
       yield new NodeLifecycleShard({ shardKey, records });
     }
@@ -111,9 +114,9 @@ function eventIdOf(event: Pick<EventId, 'lamport' | 'writerId' | 'patchSha' | 'o
 }
 
 /**
- * Node tombstones no add in the state holds. Compaction drops a dot's entry
- * and its tombstone together, so these come only from removes that observed
- * an add the state has not received.
+ * Node tombstones whose additions this state has never held. Membership
+ * compaction retains causal evidence; only tombstones without a held add
+ * belong in the floating-removal receipt.
  */
 function floatingNodeTombstones(state: WarpState): readonly string[] {
   const held = new Set(state.nodeAlive.entryDotsIter());
@@ -126,8 +129,4 @@ function lifecycleNodeIds(state: WarpState): ReadonlySet<string> {
     ...state.nodeClearEvent.keys(),
     ...state.nodePendingRemoveEvents.keys(),
   ]);
-}
-
-function compareStrings(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
 }

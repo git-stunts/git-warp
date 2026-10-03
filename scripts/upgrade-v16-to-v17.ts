@@ -1,13 +1,7 @@
 #!/usr/bin/env node
 
-/**
- * Top-level v16 -> v17 graph substrate upgrade utility.
- *
- * Usage:
- *   npm run upgrade -- [--repo <path>] [--graph <name>] [--dry-run] [--json]
- */
-
 import process from 'node:process';
+import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import NodeCryptoAdapter from '../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { createPersistence } from '../bin/cli/shared.ts';
@@ -262,7 +256,6 @@ async function discoverGraphNames(persistence: V16ToV17MigrationHistory): Promis
       names.add(graphName);
     }
   }
-
   return [...names].sort();
 }
 
@@ -288,7 +281,17 @@ async function run(): Promise<void> {
   }
   process.stdout.write(`${formatHumanResult(result)}\n`);
 }
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+function isMainModule(): boolean {
+  const invokedPath = process.argv[1];
+  if (invokedPath === undefined) { return false; }
+  try {
+    return realpathSync(invokedPath) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule()) {
   run().catch((err: Error) => {
     process.stderr.write(`${err.message}\n\n${usage()}\n`);
     process.exitCode = 1;

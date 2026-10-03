@@ -448,14 +448,22 @@ An older immutable release may remain valid after its dist-tag advances;
 the receipt must distinguish exact-version visibility from current dist-tag
 ownership.
 
-Consumer verification installs the exact public npm version into a fresh
-directory outside the checkout. It proves the supported root import, the
+Consumer verification installs the exact public npm version in an owned,
+COPY-based Docker image without checkout, Git, dependency or daemon-socket
+mounts. Only the guard, consumer and budget scripts, their Dockerfile and
+reduced exact-version registry metadata enter the build context. Host tokens
+and npm configuration are not forwarded. Direct host consumer execution
+refuses before package installation, signatures, imports or CLI execution.
+The copied consumer proves the supported root import, the
 private-storage export firewall, installed CLI startup, and the resolved
 git-cas and Plumbing versions. Registry signature and attestation checking
 must run where npm supports it; a failed check must never become an
 unqualified success.
 
-The job leaves a small JSON closure receipt and uploads it even on failure.
+The job leaves a small JSON closure receipt and uploads it even on failure,
+alongside the sibling `.consumer` directory containing preparation, execution
+and exported consumer logs. Missing, malformed or incomplete consumer receipts,
+failed evidence export or failed cleanup cannot report verified closure.
 Only a receipt whose required checks all succeeded reports `verified`.
 The JSR archive is downloaded and hashed against its advertised SHA-512
 integrity; the npm installation's lockfile must match npm's advertised
@@ -473,15 +481,21 @@ bash scripts/verify-published-release.sh \
 ```
 
 It requires Bash, Node/npm with `npm audit signatures` support, Git, `gh`,
-`jq`, GNU `timeout`, `curl`, and OpenSSL. GitHub access is read-only. The
-checkout must contain the immutable tag; installation occurs outside it.
+`jq`, GNU `timeout`, `curl`, OpenSSL and a working Docker daemon. GitHub access
+is read-only. The checkout must contain the immutable tag; only metadata
+observations run on the host. Installation and installed code execute in the
+same copied container boundary used by release CI.
 Add `--require-dist-tag` when verifying a new publication. Historical reruns
 record the current dist-tag owner without claiming that the old version is
 still latest.
 
 The verifier has a 720-second aggregate work budget. Each command and propagation
-delay is capped by the remaining budget, and the consumer inherits only the
-remaining time. Commands allow at most five additional seconds to terminate;
+delay is capped by the remaining budget. Image preparation consumes that same
+budget; the consumer inherits only the time left after preparation. Commands
+allow at most five additional seconds to terminate, and owned consumer cleanup
+and evidence collection share a five-second grace rather than resetting work
+time. Cancellation stops the owned client and container before evidence export;
+an unavailable Docker daemon can prevent cleanup, which remains a failure.
 the 15-minute job ceiling leaves headroom for setup and receipt upload. The
 receipt records the budget limit and whether it was exhausted.
 
@@ -495,13 +509,15 @@ Consumer installation and verification commands retain 180-second ceilings,
 further capped by their remaining aggregate budget. Signature and attestation
 verification precedes execution of the imported package and installed CLI.
 Run the adversarial contract suite with
-`bats test/bats/release-closure.bats`.
+`bash scripts/run-in-docker.sh bats test/bats/release-closure.bats`.
 
 The contract suite is medium-sized: it owns scratch state and controls GitHub
 and registry command responses while executing real Node imports, CLI processes,
 hashing, and OS timeouts. Its specified oracle is this release contract. The
-command fixtures reject unexpected operations; they do not establish npm or
-GitHub conformance. A real public-registry rehearsal supplies separate integration
+command fixtures reject unexpected operations and constrain copied inputs,
+container resource limits and evidence exports. Their Docker transport runs
+inside the test container; it does not establish daemon, npm or GitHub
+conformance. A real public-registry rehearsal supplies separate integration
 evidence. That deliberately non-hermetic verification controls versions, source
 identity, integrity, and a finite propagation budget; it cannot make registry
 availability deterministic.
@@ -509,7 +525,8 @@ availability deterministic.
 At assertion authoring or material change, run:
 
 ```bash
-bash scripts/release-closure/calibrate.sh /tmp/git-warp-release-calibration.json
+bash scripts/run-in-docker.sh --export-file .ratchet/release-calibration.json -- \
+  bash scripts/release-closure/calibrate.sh .ratchet/release-calibration.json
 ```
 
 Calibration first requires the ordinary suite to pass. It then applies named

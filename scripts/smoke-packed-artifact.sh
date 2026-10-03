@@ -170,9 +170,8 @@ npx --no-install git-warp --help >/dev/null
 npx --no-install git-warp-v18-to-v19 --help >/dev/null
 
 PACKAGE_DIR="$FIXTURE_DIR/node_modules/@git-stunts/git-warp"
-# The legacy upgrade command only runs when argv[1] equals its resolved module
-# path, so call it through the physical path; a symlinked temporary directory
-# (such as /var on macOS) would otherwise make it exit 0 without doing anything.
+# Normalize the installed entry to a physical path for this packed smoke check.
+# Direct and symlinked entry paths are covered by the upgrade CLI regressions.
 LEGACY_UPGRADE="$(cd "$PACKAGE_DIR" && pwd -P)/dist/scripts/upgrade-v16-to-v17.js"
 node "$LEGACY_UPGRADE" --help | grep -q 'npm run upgrade'
 test -f "$PACKAGE_DIR/scripts/hooks/post-merge.sh"

@@ -19,12 +19,12 @@ export function serializeORSet(set: ORSet): SerializedORSet {
     tombstones: sortEncodedDots(set.tombstonesIter()),
   };
 }
-
 export function deserializeORSet(wire: ORSetWire): ORSet {
-  const set = ORSet.empty();
-  deserializeEntriesInto(wire.entries, set.entries);
-  deserializeTombstonesInto(wire.tombstones, set.tombstones);
-  return set;
+  const entries = new Map<string, Set<string>>();
+  const tombstones = new Set<string>();
+  deserializeEntriesInto(wire.entries, entries);
+  deserializeTombstonesInto(wire.tombstones, tombstones);
+  return new ORSet(entries, tombstones);
 }
 
 function sortEncodedDots(encodedDots: Iterable<string>): string[] {
@@ -58,7 +58,7 @@ function deserializeEntriesInto(
     if (!Array.isArray(dots)) {
       throw new CrdtError('ORSet entry dots must be an array');
     }
-    target.set(element, validatedDots(dots));
+    target.set(element, new Set(dots));
   }
 }
 
@@ -70,16 +70,6 @@ function deserializeTombstonesInto(
     return;
   }
   for (const dot of tombstones) {
-    Dot.decode(dot);
     target.add(dot);
   }
-}
-
-function validatedDots(dots: readonly string[]): Set<string> {
-  const validated = new Set<string>();
-  for (const dot of dots) {
-    Dot.decode(dot);
-    validated.add(dot);
-  }
-  return validated;
 }

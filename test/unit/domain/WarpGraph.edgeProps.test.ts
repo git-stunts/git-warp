@@ -3,6 +3,9 @@ import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../he
 import { createEmptyState, encodeEdgeKey, encodeEdgePropKey } from '../../../src/domain/services/JoinReducer.ts';
 import { createSnapshotWarpState } from '../../../src/domain/services/ImmutableSnapshot.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../src/domain/utils/EventId.ts';
+import type WarpState from '../../../src/domain/services/state/WarpState.ts';
+import type { PropValue } from '../../../src/domain/types/PropValue.ts';
 
 function setupGraphState(/** @type {any} */ graph, /** @type {any} */ seedFn) {
   const state = createEmptyState();
@@ -29,9 +32,9 @@ function addEdge(/** @type {any} */ state, /** @type {any} */ from, /** @type {a
   state.edgeBirthEvent.set(edgeKey, { lamport: 1, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 });
 }
 
-function addEdgeProp(/** @type {any} */ state, /** @type {any} */ from, /** @type {any} */ to, /** @type {any} */ label, /** @type {any} */ key, /** @type {any} */ value) {
+function addEdgeProp(state: WarpState, from: string, to: string, label: string, key: string, value: PropValue) {
   const propKey = encodeEdgePropKey(from, to, label, key);
-  state.prop.set(propKey, { eventId: { lamport: 1, writerId: 'w1', patchSha: 'aabbccdd', opIndex: 0 }, value });
+  state.mutatePropLWW(propKey, new EventId(1, 'w1', 'aabbccdd', 0), value);
 }
 
 describe('WarpCore edge properties', () => {
@@ -217,7 +220,7 @@ describe('WarpCore edge properties', () => {
       addNode(state, 'user:bob', 2);
       addEdge(state, 'user:alice', 'user:bob', 'follows', 3);
       addEdgeProp(state, 'user:alice', 'user:bob', 'follows', 'weight', 0.8);
-      state.prop.set('user:alice\0name', { value: 'Alice', lamport: 1, writerId: 'w1' });
+      state.mutatePropLWW('user:alice\0name', new EventId(1, 'w1', 'aabbccdd', 0), 'Alice');
     });
 
     const nodeProps = await graph.getNodeProps('user:alice');

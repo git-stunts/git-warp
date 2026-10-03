@@ -12,6 +12,7 @@ import ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { lwwMax, lwwSet, type LWWRegister } from '../../crdt/LWW.ts';
 import type { EventId } from '../../utils/EventId.ts';
+import type LegacyEventId from '../../utils/LegacyEventId.ts';
 import { isStaleEdgeRegisterIn } from './ElementLifecycle.ts';
 import { isStaleNodeRegisterIn } from './NodeLifecycle.ts';
 import { copyStateLifecycle, joinStateLifecycles, type StateLifecycleSource } from './StateLifecycle.ts';
@@ -69,7 +70,7 @@ export default class WarpState {
   private prop: Map<string, LWWRegister<PropValue>>;
   observedFrontier: VersionVector;
   /** EdgeKey → EventId of most recent EdgeAdd (for clean-slate prop visibility). */
-  edgeBirthEvent: Map<string, EventId>;
+  edgeBirthEvent: Map<string, EventId | LegacyEventId>;
   /** Node lifecycle records and edge removes; each map is described on StateLifecycleSource. */
   nodeBirthEvent: Map<string, EventId>;
   nodeClearEvent: Map<string, EventId>;
@@ -81,7 +82,7 @@ export default class WarpState {
     this.edgeAlive = fields.edgeAlive;
     this.prop = fields.prop;
     this.observedFrontier = fields.observedFrontier;
-    this.edgeBirthEvent = fields.edgeBirthEvent ?? new Map<string, EventId>();
+    this.edgeBirthEvent = fields.edgeBirthEvent ?? new Map<string, EventId | LegacyEventId>();
     this.nodeBirthEvent = fields.nodeBirthEvent ?? new Map<string, EventId>();
     this.nodeClearEvent = fields.nodeClearEvent ?? new Map<string, EventId>();
     this.nodePendingRemoveEvents = fields.nodePendingRemoveEvents ?? new Map<string, readonly EventId[]>();

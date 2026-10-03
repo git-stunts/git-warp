@@ -1,5 +1,6 @@
 import WarpError from '../errors/WarpError.ts';
 import { EventId } from '../utils/EventId.ts';
+import LegacyEventId from '../utils/LegacyEventId.ts';
 
 /**
  * One node's lifecycle records at a checkpoint, with the EventId of every
@@ -18,14 +19,14 @@ export class NodeLifecycleRecord {
   readonly clear: EventId | null;
   readonly pendingRemoves: readonly EventId[];
   /** Property key to register EventId, in ascending key order. */
-  readonly #registers: ReadonlyMap<string, EventId>;
+  readonly #registers: ReadonlyMap<string, EventId | LegacyEventId>;
 
   constructor(fields: {
     readonly nodeId: string;
     readonly birth: EventId | null;
     readonly clear: EventId | null;
     readonly pendingRemoves: readonly EventId[];
-    readonly registers: readonly (readonly [string, EventId])[];
+    readonly registers: readonly (readonly [string, EventId | LegacyEventId])[];
   }) {
     requireNodeId(fields.nodeId);
     this.nodeId = fields.nodeId;
@@ -37,12 +38,12 @@ export class NodeLifecycleRecord {
   }
 
   /** Detached enumeration snapshot; callers cannot mutate retained evidence. */
-  get registers(): ReadonlyMap<string, EventId> {
+  get registers(): ReadonlyMap<string, EventId | LegacyEventId> {
     return new Map(this.#registers);
   }
 
   /** The EventId of the node's register for `key`, or null when it has none that is not stale. */
-  registerEvent(key: string): EventId | null {
+  registerEvent(key: string): EventId | LegacyEventId | null {
     return this.#registers.get(key) ?? null;
   }
 }
@@ -69,14 +70,14 @@ function requirePendingRemoves(removes: readonly EventId[]): readonly EventId[] 
 }
 
 function requireRegisters(
-  registers: readonly (readonly [string, EventId])[],
-): ReadonlyMap<string, EventId> {
-  const map = new Map<string, EventId>();
+  registers: readonly (readonly [string, EventId | LegacyEventId])[],
+): ReadonlyMap<string, EventId | LegacyEventId> {
+  const map = new Map<string, EventId | LegacyEventId>();
   let previous = '';
   for (const [key, event] of registers) {
     requireRegisterKey(key, previous);
-    if (!(event instanceof EventId)) {
-      throw recordError('register events must be EventIds');
+    if (!(event instanceof EventId) && !(event instanceof LegacyEventId)) {
+      throw recordError('register events must be EventIds or admitted legacy identities');
     }
     map.set(key, event);
     previous = key;

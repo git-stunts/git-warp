@@ -10,7 +10,6 @@ import AdmissionRetryDisposition from '../../admission/AdmissionRetryDisposition
 import type { IntentAdmissionReceipt } from '../../admission/IntentAdmissionReceipt.ts';
 import ObstructedIntentAdmissionReceipt from '../../admission/ObstructedIntentAdmissionReceipt.ts';
 import QueryError from '../../errors/QueryError.ts';
-import WarpError from '../../errors/WarpError.ts';
 import type {
   PrecommitGuard,
   WarpIntentDescriptor,
@@ -58,6 +57,14 @@ type GuardEvaluation = Readonly<{
   readonly obstruction: ObstructedIntentAdmissionReceipt | null;
   readonly evaluationCoordinateRef: string;
 }>;
+type GuardReading = BoundedIntentGuardReading | ObstructedIntentAdmissionReceipt;
+type PendingGuardReading = Readonly<{
+  guard: PrecommitGuard;
+  reading: Promise<GuardReading>;
+}>;
+
+// Limits speculative storage work; this is not a throughput target.
+const MAX_PRECOMMIT_GUARD_READS = 4;
 
 export default class IntentController implements IntentCapability {
   _host: IntentHost;
@@ -98,21 +105,56 @@ export default class IntentController implements IntentCapability {
       destinationBasisRef,
       evaluationCoordinateRef: guardReader.evaluationCoordinateRef,
     };
-    for (const guard of identity.descriptor.precommitGuards) {
-      const obstruction = await this._evaluateGuard(guardReader, guard, context);
-      if (obstruction !== null) {
-        return createGuardEvaluation(obstruction, context.evaluationCoordinateRef);
+    const guards = identity.descriptor.precommitGuards;
+    for (let offset = 0; offset < guards.length; offset += MAX_PRECOMMIT_GUARD_READS) {
+      const readings = await this._readGuardBatch(
+        guardReader, guards.slice(offset, offset + MAX_PRECOMMIT_GUARD_READS), context,
+      );
+      for (const { guard, reading } of readings) {
+        const obstruction = this._evaluateGuard(guard, await reading, context);
+        if (obstruction !== null) {
+          return createGuardEvaluation(obstruction, context.evaluationCoordinateRef);
+        }
       }
     }
     return createGuardEvaluation(null, context.evaluationCoordinateRef);
   }
 
-  private async _evaluateGuard(
+  private async _readGuardBatch(
     reader: BoundedIntentGuardReader,
-    guard: PrecommitGuard,
+    guards: readonly PrecommitGuard[],
     context: GuardReadContext,
-  ): Promise<ObstructedIntentAdmissionReceipt | null> {
-    const reading = await this._readGuard(reader, guard, context);
+  ): Promise<readonly PendingGuardReading[]> {
+    const byNode = new Map<string, Map<PrecommitGuard['op'], Promise<GuardReading>>>();
+    const pending = guards.map(guard => Object.freeze({
+      guard,
+      reading: (async () => {
+        let properties = byNode.get(guard.nodeId);
+        if (properties === undefined) {
+          properties = new Map();
+          byNode.set(guard.nodeId, properties);
+        }
+        let reading = properties.get(guard.op);
+        if (reading === undefined) {
+          reading = this._readGuard(reader, guard, context);
+          properties.set(guard.op, reading);
+        }
+        return await reading;
+      })(),
+    }));
+    // Drain speculative work, but defer rejection to descriptor-order evaluation.
+    // A later failed read must not override an earlier guard's obstruction.
+    await Promise.all(pending.map(({ reading }) => reading.then(
+      () => undefined, () => undefined,
+    )));
+    return Object.freeze(pending);
+  }
+
+  private _evaluateGuard(
+    guard: PrecommitGuard,
+    reading: GuardReading,
+    context: GuardReadContext,
+  ): ObstructedIntentAdmissionReceipt | null {
     if (reading instanceof ObstructedIntentAdmissionReceipt) {
       return reading;
     }
@@ -165,14 +207,8 @@ export default class IntentController implements IntentCapability {
     if (guard.op === 'nodeStatus') {
       return this._checkStatusGuard(guard, value);
     }
-    if (guard.op === 'nodeUnassignedOrSelf') {
-      return this._checkAgentGuard(guard, value);
-    }
-    const unsupported: never = guard;
-    throw new WarpError(
-      `Unsupported precommit guard: ${String((unsupported as { op?: string }).op)}`,
-      'E_VALIDATION'
-    );
+    // The bounded reader validates the guard discriminant before producing a value.
+    return this._checkAgentGuard(guard, value);
   }
 
   private _checkStatusGuard(
