@@ -24,7 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove vulnerable generic patch tooling from dependency declaration setup.
   Install the unchanged trailer-codec 2.1.1 declarations through an exact
   version/content check, preserve identical repeats and refuse conflicting
-  files without modifying dependency runtime (#948).
+  files without modifying dependency runtime (#948). Competing exclusive-file
+  creation uses the same identical/conflicting result without overwriting the
+  winning declarations.
 
 - Coverage runs bound instrumented workers and coverage processing to one task
   at a time. Thresholds can rise only after an argument-free full coverage
