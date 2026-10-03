@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep in-memory adapter hash capabilities instance-owned; a successful or failed
+  crypto probe can no longer determine another adapter's hashing behavior (#221).
+
 - Retire the unsupported Node20 test script, Compose service and image from
   the advertised matrix; supported Node22, Bun and Deno routes and the public
   Node>=22 engine floor remain unchanged (#951).
