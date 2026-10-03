@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keep in-memory adapter hash capabilities instance-owned; a successful or failed
   crypto probe can no longer determine another adapter's hashing behavior (#221).
 
+- Batch bounded precommit guard readings with at most four concurrent requests,
+  share identical property readings within a batch, and preserve ordered refusal,
+  captured causal evidence and all-or-nothing intent journal admission (#706).
+
 - ORSet construction validates and snapshots membership collections, and LWW
   registers require admitted runtime event identities. Checkpoint readers
   reconstruct those concepts and refuse malformed registers and explicit metadata
@@ -60,6 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   admitted canonical bytes and receipt identities stay compatible (#916).
 
 ### Added
+
+- Document native package installation, a disposable Docker CLI, isolated
+  contributor checks and source-install Git hook effects in the README (#125).
 
 - Prove opaque session-event retention through public CLI process boundaries,
   exact-frontier candidate settlement, stale-basis refusal and retained source
@@ -930,7 +937,7 @@ refs. No v18 compatibility runtime remains in the product code.
 
 The exact merged-main Node 22/Linux release gate measured a representative
 16-property scan over the authentic approximately 2 MiB migrated-v18 fixture at
-31.1% lower cold wall time, 32.1% lower warm wall time, 20.1–21.3% lower
+31.1% lower cold wall time, 32.1% lower warm wall time, 20.0–21.3% lower
 operation CPU, and 46.6% fewer Git commands than published v18.2.1. The
 one-shot migration cost is measured and reported separately from steady-state
 reads.
