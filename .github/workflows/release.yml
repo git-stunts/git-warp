@@ -463,7 +463,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
 
-      - name: Verify tagged public artifacts and a fresh consumer
+      - name: Verify tagged public artifacts and a copied Docker consumer
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.verify.outputs.tag }}
@@ -483,11 +483,13 @@ jobs:
           fi
           bash scripts/verify-published-release.sh "${args[@]}"
 
-      - name: Retain release closure receipt
+      - name: Retain release closure receipt and consumer diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-closure-${{ needs.verify.outputs.tag }}
-          path: ${{ runner.temp }}/git-warp-release-closure.json
+          path: |
+            ${{ runner.temp }}/git-warp-release-closure.json
+            ${{ runner.temp }}/git-warp-release-closure.consumer/
           if-no-files-found: error
           retention-days: 90

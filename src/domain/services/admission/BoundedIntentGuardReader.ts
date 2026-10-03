@@ -76,9 +76,9 @@ function guardPropertyKey(guard: PrecommitGuard): string {
   if (guard.op === 'nodeUnassignedOrSelf') {
     return 'agentId';
   }
-  const unsupported: never = guard;
+  void (guard satisfies never);
   throw new WarpError(
-    `Unsupported precommit guard: ${String((unsupported as { op?: string }).op)}`,
+    'Unsupported precommit guard',
     'E_VALIDATION'
   );
 }

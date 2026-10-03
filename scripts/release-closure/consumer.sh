@@ -2,6 +2,9 @@
 # Install only public registry packages in a disposable, independent consumer.
 set -euo pipefail
 
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+node "$ROOT/RequireDockerTests.ts"
+
 WORK="$1"
 PACKAGE="$2"
 VERSION="$3"

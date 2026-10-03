@@ -1,3 +1,4 @@
+import type { OpticReadFailureCauseValue } from './OpticReadFailureCause.ts';
 import type { CheckpointNodeLifecycleRecord } from './CheckpointShardFactReader.ts';
 import { LWWRegister } from '../../crdt/LWW.ts';
 import QueryError from '../../errors/QueryError.ts';
@@ -8,6 +9,7 @@ import NodePropSet from '../../types/ops/NodePropSet.ts';
 import NodeRemove from '../../types/ops/NodeRemove.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import { compareEventIds, EventId } from '../../utils/EventId.ts';
+import type LegacyEventId from '../../utils/LegacyEventId.ts';
 import { normalizeRawOp } from '../OpNormalizer.ts';
 import { isStaleNodeRegisterIn, type NodeLifecycleSource } from '../state/NodeLifecycle.ts';
 import CheckpointTailNodeScan from './CheckpointTailNodeScan.ts';
@@ -24,7 +26,7 @@ import type { CheckpointTailPatchEntry } from './CheckpointTailOpticSource.ts';
 export type WitnessedCheckpointNodeLifecycle = {
   readonly kind: 'witnessed';
   readonly lifecycle: NodeLifecycleSource;
-  readonly baseRegisterEvent: EventId | null;
+  readonly baseRegisterEvent: EventId | LegacyEventId | null;
   readonly baseAlive: boolean;
   readonly floatingTombstones: ReadonlySet<string>;
 };
@@ -38,8 +40,8 @@ export type CheckpointNodeLifecycle =
   | { readonly kind: 'unwitnessed' };
 
 type WinningRegister =
-  | { readonly kind: 'checkpoint'; readonly eventId: EventId }
-  | { readonly kind: 'tail'; readonly eventId: EventId; readonly value: PropValue };
+  | { readonly kind: 'checkpoint'; readonly eventId: EventId | LegacyEventId }
+  | { readonly kind: 'tail'; readonly eventId: EventId | LegacyEventId; readonly value: PropValue };
 
 type NormalizedTailOperation = ReturnType<typeof normalizeRawOp>;
 type NeighborhoodTailScope = {
@@ -279,7 +281,7 @@ function isTargetLifecycleOp(op: NormalizedTailOperation, nodeId: string): op is
 
 /** The register LWW picks from the checkpoint's register and the tail's writes. */
 function winningRegister(
-  checkpointEvent: EventId | null,
+  checkpointEvent: EventId | LegacyEventId | null,
   tailRegister: LWWRegister<PropValue> | null,
 ): WinningRegister | null {
   if (checkpointEvent !== null
@@ -351,7 +353,7 @@ function isPrimitiveTailPropertyValue(
     || typeof value === 'boolean';
 }
 
-function throwNoBoundedBasis(graphName: string, reason: string): never {
+function throwNoBoundedBasis(graphName: string, reason: OpticReadFailureCauseValue): never {
   throw new QueryError('No bounded checkpoint-tail optic basis is available.', {
     code: 'E_OPTIC_NO_BOUNDED_BASIS',
     context: { graphName, reason },

@@ -60,7 +60,7 @@ case "$tool" in
             attestations:{provenance:{predicateType:"https://slsa.dev/provenance/v1"}},signatures:[]}}|
           if $mode=="no-provenance" then del(.dist.attestations) else . end' ;;
       install)
-        if [ "$CLOSURE_FIXTURE_MODE" = slow-consumer ]; then
+        if [ "$CLOSURE_FIXTURE_MODE" = slow-consumer ] || [ "$CLOSURE_FIXTURE_MODE" = slow-image-consumer ]; then
           touch "$CLOSURE_FIXTURE_DIR/consumer-install-started"
           sleep 10
         fi

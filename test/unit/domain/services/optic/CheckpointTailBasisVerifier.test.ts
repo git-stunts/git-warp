@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import CheckpointTailBasisVerifier from '../../../../../src/domain/services/optic/CheckpointTailBasisVerifier.ts';
+import CheckpointTailReadFailure from '../../../../../src/domain/services/optic/CheckpointTailReadFailure.ts';
+import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import CheckpointTailOpticSource, {
   type CheckpointTailCheckpointFrontier,
   type CheckpointTailPatchEntry,
@@ -156,6 +158,33 @@ describe('CheckpointTailBasisVerifier', () => {
       code: 'E_OPTIC_NO_BOUNDED_BASIS',
       context: { graphName: GRAPH_NAME, reason: 'checkpoint-basis-unavailable' },
     });
+  });
+
+  it.each([
+    { opticKind: 'node', failure: new CheckpointTailReadFailure({ graphName: GRAPH_NAME, opticKind: 'node', nodeId: 'node:1' }) },
+    { opticKind: 'node-property', failure: new CheckpointTailReadFailure({ graphName: GRAPH_NAME, opticKind: 'node-property', nodeId: 'node:1', propertyKey: 'title' }) },
+    { opticKind: 'neighborhood', failure: new CheckpointTailReadFailure({ graphName: GRAPH_NAME, opticKind: 'neighborhood', nodeId: 'node:1' }) },
+    { opticKind: 'traversal', failure: new CheckpointTailReadFailure({ graphName: GRAPH_NAME, opticKind: 'traversal', nodeId: 'node:1' }) },
+  ])('preserves the unavailable-basis refusal through $opticKind enrichment', async ({ opticKind, failure }) => {
+    const source = new TestCheckpointTailOpticSource({ result: new Error('checkpoint storage unavailable') });
+    const read = async (): Promise<void> => {
+      try {
+        await new CheckpointTailBasisVerifier({ source }).verify();
+      } catch (error) {
+        if (error instanceof QueryError) { throw failure.enrich(error); }
+        throw error;
+      }
+    };
+
+    await expect(read()).rejects.toMatchObject({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: {
+        graphName: GRAPH_NAME, opticKind, target: { nodeId: 'node:1' },
+        reason: 'checkpoint-basis-unavailable', cause: 'checkpoint-basis-unavailable', recoveryHints: [],
+      },
+    });
+    expect(source._checkpointStore.loadCheckpointCalls).toEqual([]);
+    expect(source._indexStore.openedShardHandles).toEqual([]);
   });
 });
 

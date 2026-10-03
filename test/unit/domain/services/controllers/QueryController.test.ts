@@ -6,6 +6,10 @@ import SnapshotWarpState from '../../../../../src/domain/services/snapshot/Snaps
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
+import { EventId } from '../../../../../src/domain/utils/EventId.ts';
+import LegacyEventId from '../../../../../src/domain/utils/LegacyEventId.ts';
+import { LWWRegister } from '../../../../../src/domain/crdt/LWW.ts';
+import type { PropValue } from '../../../../../src/domain/types/PropValue.ts';
 import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
 import {
   encodePropKey,
@@ -32,27 +36,12 @@ function orsetWith(elements) {
   return set;
 }
 
-/**
- * Creates a minimal EventId for testing.
- *
- * @param {number} lamport
- * @param {string} writerId
- * @param {string} patchSha
- * @returns {{ lamport: number, writerId: string, patchSha: string }}
- */
-function eventId(lamport, writerId = 'w1', patchSha = 'abc') {
-  return { lamport, writerId, patchSha };
+function eventId(lamport: number, writerId = 'w1', patchSha = 'aaaa'): EventId {
+  return new EventId(lamport, writerId, patchSha, 0);
 }
 
-/**
- * Builds an LWW register value.
- *
- * @param {unknown} value
- * @param {{ lamport: number, writerId: string, patchSha: string }|null} [eid]
- * @returns {{ value: unknown, eventId: { lamport: number, writerId: string, patchSha: string }|null }}
- */
-function lww(value, eid = null) {
-  return { value, eventId: eid };
+function lww(value: PropValue, eid: EventId | null = null): LWWRegister<PropValue> {
+  return new LWWRegister(eid ?? new LegacyEventId(0), value);
 }
 
 function chunks(...values: Uint8Array[]): AsyncIterable<Uint8Array> {
@@ -344,7 +333,7 @@ describe('QueryController', () => {
     });
 
     it('returns edge properties when present', async () => {
-      const eid = eventId(5, 'w1', 'sha1');
+      const eid = eventId(5, 'w1', 'aaaa');
       const s = buildState({
         nodes: ['alice', 'bob'],
         edges: [{ from: 'alice', to: 'bob', label: 'knows' }],
@@ -391,9 +380,9 @@ describe('QueryController', () => {
     });
 
     it('filters out edge props older than edgeBirthEvent', async () => {
-      const birthEid = eventId(10, 'w1', 'sha_birth');
-      const oldEid = eventId(5, 'w1', 'sha_old');
-      const newEid = eventId(15, 'w1', 'sha_new');
+      const birthEid = eventId(10, 'w1', 'cccc');
+      const oldEid = eventId(5, 'w1', 'aaaa');
+      const newEid = eventId(15, 'w1', 'dddd');
       const s = buildState({
         nodes: ['alice', 'bob'],
         edges: [{ from: 'alice', to: 'bob', label: 'knows' }],
@@ -435,7 +424,7 @@ describe('QueryController', () => {
     });
 
     it('includes edge properties', async () => {
-      const eid = eventId(5, 'w1', 'sha1');
+      const eid = eventId(5, 'w1', 'aaaa');
       const s = buildState({
         nodes: ['alice', 'bob'],
         edges: [{ from: 'alice', to: 'bob', label: 'knows' }],
@@ -451,8 +440,8 @@ describe('QueryController', () => {
     });
 
     it('filters out edge props older than birth event', async () => {
-      const birthEid = eventId(10, 'w1', 'sha_birth');
-      const oldEid = eventId(5, 'w1', 'sha_old');
+      const birthEid = eventId(10, 'w1', 'cccc');
+      const oldEid = eventId(5, 'w1', 'aaaa');
       const s = buildState({
         nodes: ['alice', 'bob'],
         edges: [{ from: 'alice', to: 'bob', label: 'knows' }],
@@ -724,7 +713,7 @@ describe('QueryController', () => {
     });
 
     it('includes mime and size when from same lineage', async () => {
-      const eid = eventId(5, 'w1', 'sha1');
+      const eid = eventId(5, 'w1', 'aaaa');
       const s = buildState({
         nodes: ['alice'],
         props: [
@@ -739,8 +728,8 @@ describe('QueryController', () => {
     });
 
     it('returns null mime/size when from different lineage', async () => {
-      const eid1 = eventId(5, 'w1', 'sha1');
-      const eid2 = eventId(5, 'w2', 'sha2');
+      const eid1 = eventId(5, 'w1', 'aaaa');
+      const eid2 = eventId(5, 'w2', 'bbbb');
       const s = buildState({
         nodes: ['alice'],
         props: [
@@ -755,7 +744,7 @@ describe('QueryController', () => {
     });
 
     it('returns null size when value is not a non-negative integer', async () => {
-      const eid = eventId(5, 'w1', 'sha1');
+      const eid = eventId(5, 'w1', 'aaaa');
       const s = buildState({
         nodes: ['alice'],
         props: [
@@ -863,7 +852,7 @@ describe('QueryController', () => {
     });
 
     it('returns a handle with mime and size from the same lineage', async () => {
-      const eid = eventId(5, 'w1', 'sha1');
+      const eid = eventId(5, 'w1', 'aaaa');
       const s = buildState({
         nodes: ['alice', 'bob'],
         edges: [{ from: 'alice', to: 'bob', label: 'knows' }],
@@ -879,8 +868,8 @@ describe('QueryController', () => {
     });
 
     it('filters edge content behind birth event', async () => {
-      const birthEid = eventId(10, 'w1', 'sha_birth');
-      const oldEid = eventId(5, 'w1', 'sha_old');
+      const birthEid = eventId(10, 'w1', 'cccc');
+      const oldEid = eventId(5, 'w1', 'aaaa');
       const s = buildState({
         nodes: ['alice', 'bob'],
         edges: [{ from: 'alice', to: 'bob', label: 'knows' }],

@@ -12,6 +12,9 @@
  * @see WARP Spec Section 10 (Checkpoints)
  */
 
+import CrdtError from '../../errors/CrdtError.ts';
+import LegacyEventId from '../../utils/LegacyEventId.ts';
+import { readCheckpointEventId, type CheckpointEventIdWire } from './CheckpointEventIdBoundary.ts';
 import type ORSet from '../../crdt/ORSet.ts';
 import VersionVector from '../../crdt/VersionVector.ts';
 import { decodeDot } from '../../crdt/Dot.ts';
@@ -22,10 +25,10 @@ import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type FullStateLifecycleDecoderPort from '../../../ports/FullStateLifecycleDecoderPort.ts';
-import type { LWWRegister } from '../../crdt/LWW.ts';
-import { compareEventIds, EventId } from '../../utils/EventId.ts';
+import { LWWRegister } from '../../crdt/LWW.ts';
+import { compareEventIds, type EventId } from '../../utils/EventId.ts';
 import { mergeNodeLifecycles } from './NodeLifecycle.ts';
-import type { PropValue } from '../../types/PropValue.ts';
+import { isPropValue, type PropValue } from '../../types/PropValue.ts';
 import { compareStrings } from '../../utils/StringComparison.ts';
 import {
   deserializeORSet,
@@ -33,10 +36,10 @@ import {
   type ORSetWire,
 } from './ORSetWireBoundary.ts';
 
-interface SerializedLWWRegister {
-  eventId: { lamport: number; opIndex: number; patchSha: string; writerId: string };
-  value: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-}
+type SerializedLWWRegister = {
+  eventId?: CheckpointEventIdWire | null;
+  value: PropValue;
+};
 
 // ============================================================================
 // Full State Serialization (for Checkpoints)
@@ -72,23 +75,23 @@ export function serializeFullState(
 
 type SerializedEvent = { lamport: number; writerId: string; patchSha: string; opIndex: number };
 
-function serializeEvent(eventId: EventId): SerializedEvent {
+function serializeEvent(eventId: EventId | LegacyEventId): SerializedEvent {
   return { lamport: eventId.lamport, writerId: eventId.writerId, patchSha: eventId.patchSha, opIndex: eventId.opIndex };
 }
 
 function serializeEventListArray(
-  events: ReadonlyMap<string, readonly EventId[]> | undefined,
+  events: ReadonlyMap<string, readonly EventId[]>,
 ): Array<[string, SerializedEvent[]]> {
   const result: Array<[string, SerializedEvent[]]> = [];
-  for (const [key, eventIds] of events ?? []) {
+  for (const [key, eventIds] of events) {
     result.push([key, [...eventIds].sort(compareEventIds).map(serializeEvent)]);
   }
   result.sort((left, right) => compareStrings(left[0], right[0]));
   return result;
 }
 
-function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister<PropValue>]>): Array<[string, unknown]> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  const propArray: Array<[string, unknown]> = []; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister<PropValue>]>): Array<[string, SerializedLWWRegister]> {
+  const propArray: Array<[string, SerializedLWWRegister]> = [];
   for (const [key, register] of propEntries) {
     propArray.push([key, serializeLWWRegister(register)]);
   }
@@ -97,10 +100,10 @@ function serializePropsArray(propEntries: Iterable<readonly [string, LWWRegister
 }
 
 function serializeEventArray(
-  events: ReadonlyMap<string, EventId> | undefined,
+  events: ReadonlyMap<string, EventId | LegacyEventId>,
 ): Array<[string, SerializedEvent]> {
   const result: Array<[string, SerializedEvent]> = [];
-  for (const [key, eventId] of events ?? []) {
+  for (const [key, eventId] of events) {
     result.push([key, serializeEvent(eventId)]);
   }
   result.sort((left, right) => compareStrings(left[0], right[0]));
@@ -133,14 +136,14 @@ export function deserializeFullState(
   }
   if (obj.version !== undefined && obj.version !== LEGACY_FULL_STATE_VERSION && obj.version !== FULL_STATE_VERSION) {
     throw new SchemaUnsupportedError(
-      `Unsupported full state version: expected '${LEGACY_FULL_STATE_VERSION}' or '${FULL_STATE_VERSION}', got '${JSON.stringify(obj.version)}'`, // nosemgrep: ts-no-json-stringify-in-core -- 0025B
+      `Unsupported full state version: expected '${LEGACY_FULL_STATE_VERSION}' or '${FULL_STATE_VERSION}', got '${obj.version}'`,
       { context: { version: obj.version } },
     );
   }
   const legacyFields = {
     nodeAlive: deserializeORSet(obj.nodeAlive ?? {}),
     edgeAlive: deserializeORSet(obj.edgeAlive ?? {}),
-    prop: deserializeProps(obj.prop ?? []),
+    prop: deserializeProps(obj.prop ?? [], obj.version),
     observedFrontier: VersionVector.from(obj.observedFrontier ?? {}),
     edgeBirthEvent: deserializeEdgeBirthEvent(obj),
   };
@@ -167,23 +170,23 @@ function requireLifecycleDecoder(
   return lifecycle;
 }
 
-interface DeserializedFullState {
+type DeserializedFullState = {
   version?: string;
   nodeAlive?: ORSetWire;
   edgeAlive?: ORSetWire;
-  prop?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  prop?: Array<[string, SerializedLWWRegister | null]>;
   observedFrontier?: { [x: string]: number };
-  edgeBirthEvent?: Array<[string, unknown]>; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  edgeBirthEvent?: Array<[string, CheckpointEventIdWire | number]>;
   edgeBirthLamport?: Array<[string, number]>;
-}
+};
 
-export interface CheckpointStateEnvelopeBuffers {
+export type CheckpointStateEnvelopeBuffers = {
   nodeAlive: Uint8Array;
   edgeAlive: Uint8Array;
   prop: Uint8Array;
   observedFrontier: Uint8Array;
   edgeBirthEvent: Uint8Array;
-}
+};
 
 export function serializeCheckpointStateEnvelope(
   state: WarpStateType,
@@ -208,7 +211,7 @@ export function deserializeCheckpointStateEnvelope(
   return new WarpState({
     nodeAlive: deserializeORSet(decodeEnvelopeBlob(c, buffers.nodeAlive, emptyORSet)),
     edgeAlive: deserializeORSet(decodeEnvelopeBlob(c, buffers.edgeAlive, emptyORSet)),
-    prop: deserializeProps(decodeEnvelopeBlob(c, buffers.prop, [])),
+    prop: deserializeProps(decodeEnvelopeBlob(c, buffers.prop, []), FULL_STATE_VERSION),
     observedFrontier: VersionVector.from(decodeEnvelopeBlob(c, buffers.observedFrontier, {})),
     edgeBirthEvent: deserializeCurrentEdgeBirthEvent(
       decodeEnvelopeBlob<CurrentEdgeBirthEventWire>(c, buffers.edgeBirthEvent, []),
@@ -282,11 +285,11 @@ export function deserializeAppliedVV(
   return VersionVector.from(obj);
 }
 
-function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWRegister<PropValue>> { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function deserializeProps(propArray: Array<[string, SerializedLWWRegister | null]>, format: string | undefined): Map<string, LWWRegister<PropValue>> {
   const prop = new Map<string, LWWRegister<PropValue>>();
   if (!Array.isArray(propArray)) { return prop; }
   for (const [key, registerObj] of propArray) {
-    const register = deserializeLWWRegister(registerObj as SerializedLWWRegister | null);
+    const register = deserializeLWWRegister(registerObj, format);
     if (register !== null) {
       prop.set(key, register);
     }
@@ -294,31 +297,31 @@ function deserializeProps(propArray: Array<[string, unknown]>): Map<string, LWWR
   return prop;
 }
 
-function deserializeEdgeBirthEvent(obj: DeserializedFullState): Map<string, EventId> {
-  const edgeBirthEvent = new Map<string, EventId>();
+function deserializeEdgeBirthEvent(obj: DeserializedFullState): Map<string, EventId | LegacyEventId> {
+  const edgeBirthEvent = new Map<string, EventId | LegacyEventId>();
   const birthData = obj.edgeBirthEvent ?? obj.edgeBirthLamport;
   if (!Array.isArray(birthData)) { return edgeBirthEvent; }
   for (const [key, val] of birthData) {
-    edgeBirthEvent.set(key, deserializeSingleBirthEvent(val));
+    edgeBirthEvent.set(key, deserializeSingleBirthEvent(val, obj.version));
   }
   return edgeBirthEvent;
 }
 
-interface CurrentEdgeBirthEventPayload {
+type CurrentEdgeBirthEventPayload = {
   lamport: number;
   writerId: string;
   patchSha: string;
   opIndex: number;
-}
+};
 
 type CurrentEdgeBirthEventWire = Array<[string, CurrentEdgeBirthEventPayload]>;
 const UNIDENTIFIED_EDGE_BIRTH_KEY = '<unidentified>';
 
-function deserializeCurrentEdgeBirthEvent(value: CurrentEdgeBirthEventWire): Map<string, EventId> {
+function deserializeCurrentEdgeBirthEvent(value: CurrentEdgeBirthEventWire): Map<string, EventId | LegacyEventId> {
   if (!Array.isArray(value)) {
     throw invalidCurrentEdgeBirthEvent(UNIDENTIFIED_EDGE_BIRTH_KEY);
   }
-  const edgeBirthEvent = new Map<string, EventId>();
+  const edgeBirthEvent = new Map<string, EventId | LegacyEventId>();
   for (const entry of value) {
     if (!Array.isArray(entry) || entry.length !== 2) {
       throw invalidCurrentEdgeBirthEvent(UNIDENTIFIED_EDGE_BIRTH_KEY);
@@ -332,7 +335,7 @@ function deserializeCurrentEdgeBirthEvent(value: CurrentEdgeBirthEventWire): Map
     try {
       edgeBirthEvent.set(
         key,
-        new EventId(payload.lamport, payload.writerId, payload.patchSha, payload.opIndex),
+        readCheckpointEventId(payload, FULL_STATE_VERSION),
       );
     } catch {
       throw invalidCurrentEdgeBirthEvent(key);
@@ -360,12 +363,12 @@ function invalidCurrentEdgeBirthEvent(key: string): WarpError {
   );
 }
 
-function deserializeSingleBirthEvent(val: unknown): { lamport: number; writerId: string; patchSha: string; opIndex: number } { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+function deserializeSingleBirthEvent(val: CheckpointEventIdWire | number, format: string | undefined): EventId | LegacyEventId {
   if (typeof val === 'number') {
-    return { lamport: val, writerId: '', patchSha: '0000', opIndex: 0 };
+    if (format === FULL_STATE_VERSION) { throw invalidCurrentEdgeBirthEvent(UNIDENTIFIED_EDGE_BIRTH_KEY); }
+    return new LegacyEventId(val);
   }
-  const ev = val as { lamport: number; writerId: string; patchSha: string; opIndex: number };
-  return { lamport: ev.lamport, writerId: ev.writerId, patchSha: ev.patchSha, opIndex: ev.opIndex };
+  return readCheckpointEventId(val, format);
 }
 
 function serializeLWWRegister(register: LWWRegister<PropValue>): SerializedLWWRegister {
@@ -380,16 +383,10 @@ function serializeLWWRegister(register: LWWRegister<PropValue>): SerializedLWWRe
   };
 }
 
-function deserializeLWWRegister(obj: SerializedLWWRegister | null): LWWRegister<PropValue> | null {
+function deserializeLWWRegister(obj: SerializedLWWRegister | null, format: string | undefined): LWWRegister<PropValue> | null {
   if (obj === null || obj === undefined) { return null; }
-  return {
-    eventId: {
-      lamport: obj.eventId.lamport,
-      writerId: obj.eventId.writerId,
-      patchSha: obj.eventId.patchSha,
-      opIndex: obj.eventId.opIndex,
-    },
-    // Codec boundary: deserialized value is typed as PropValue
-    value: obj.value as PropValue,
-  };
+  if (typeof obj !== 'object' || !isPropValue(obj.value)) {
+    throw new CrdtError('Checkpoint property register value is invalid');
+  }
+  return new LWWRegister(readCheckpointEventId(obj.eventId, format), obj.value);
 }

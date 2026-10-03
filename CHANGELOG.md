@@ -9,6 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Register the existing `checkpoint-basis-unavailable` optic failure cause so
+  checkpoint verifier refusals can be represented by typed failure contexts.
+  Bounded-basis helpers accept only registered cause identifiers (#895).
+
+- Run the legacy v16-to-v17 upgrade command when invoked through file or
+  directory symlinks instead of silently exiting without executing (#900).
+
+- Keep in-memory adapter hash capabilities instance-owned; a successful or failed
+  crypto probe can no longer determine another adapter's hashing behavior (#221).
+
+- Retire the unsupported Node20 test script, Compose service and image from
+  the advertised matrix; supported Node22, Bun and Deno routes and the public
+  Node>=22 engine floor remain unchanged (#951).
+
+- Public-registry release consumers install, verify signatures and execute
+  imports and the installed CLI only in an owned COPY Docker image. Image
+  preparation shares the closure deadline; validated receipts and diagnostics
+  survive removal, and failed export or cleanup refuses verified closure (#922).
+
+- Batch bounded precommit guard readings with at most four concurrent requests,
+  share identical property readings within a batch, and preserve ordered refusal,
+  captured causal evidence and all-or-nothing intent journal admission (#706).
+
+- ORSet construction validates and snapshots membership collections, and LWW
+  registers require admitted runtime event identities. Checkpoint readers
+  reconstruct those concepts and refuse malformed registers and explicit metadata
+  while preserving supported legacy missing-metadata ordering through checkpoint
+  index capture and bounded reads, without changing wire formats (#189).
+
+- Install the Bun test image's reviewed npm dependency graph with `npm ci`
+  before copying it into Bun, include every current workspace manifest in the
+  install layer, and refuse manifest or installed dependency drift (#865).
+  Docker contexts exclude host dependency and Git metadata directories at every
+  depth, including nested workspaces.
+
+- Remove vulnerable generic patch tooling from dependency declaration setup.
+  Publish complete declarations without replacing an existing target; interrupted
+  writes remain private, and write failures can be retried (#948).
+  Install the unchanged trailer-codec 2.1.1 declarations through an exact
+  version/content check, preserve identical repeats and refuse conflicting
+  files without modifying dependency runtime (#948). Competing exclusive-file
+  creation uses the same identical/conflicting result without overwriting the
+  winning declarations.
+
+- Coverage runs bound instrumented workers and coverage processing to one task
+  at a time. Thresholds can rise only after an argument-free full coverage
+  command completes every selected file with zero errors and successful
+  teardown; failed, incomplete and targeted runs cannot rewrite the ratchet
+  (#882). Authorized update intent is carried through Docker command arguments
+  rather than depending on npm lifecycle environment in the container. Failed candidate replacement removes the run-owned temporary file so later coverage updates can retry; pre-existing candidates remain untouched.
+
 - Bound Mermaid validation rendering and browser shutdown separately, reclaim
   validator-owned worker/browser processes on success, failure, timeout and
   interruption, and fail the documentation gate if reclamation cannot be
@@ -31,6 +82,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   admitted canonical bytes and receipt identities stay compatible (#916).
 
 ### Added
+
+- Add `npm run test:deno:smoke` to exercise an installed npm tarball through
+  public Runtime writes and observations in COPY-isolated Deno (#118).
+
+- Document native package installation, a disposable Docker CLI, isolated
+  contributor checks and source-install Git hook effects in the README (#125).
 
 - Prove opaque session-event retention through public CLI process boundaries,
   exact-frontier candidate settlement, stale-basis refusal and retained source
@@ -901,7 +958,7 @@ refs. No v18 compatibility runtime remains in the product code.
 
 The exact merged-main Node 22/Linux release gate measured a representative
 16-property scan over the authentic approximately 2 MiB migrated-v18 fixture at
-31.1% lower cold wall time, 32.1% lower warm wall time, 20.1–21.3% lower
+31.1% lower cold wall time, 32.1% lower warm wall time, 20.0–21.3% lower
 operation CPU, and 46.6% fewer Git commands than published v18.2.1. The
 one-shot migration cost is measured and reported separately from steady-state
 reads.

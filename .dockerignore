@@ -1,7 +1,7 @@
-node_modules
+**/node_modules
 npm-debug.log
 deno.lock
-.git
+**/.git
 .DS_Store
 coverage
 .vscode
