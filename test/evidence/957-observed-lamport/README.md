@@ -22,7 +22,7 @@ bash scripts/run-in-docker.sh node node_modules/vitest/vitest.mjs run test/integ
 ```
 
 The command above executes inside the admitted container.
-On the host, use the enforced project guard and canonical host/heavy-work plus host/docker/git-warp-tests/ reservation.
+On the host, use the enforced project guard and concrete host/docker/git-warp-tests/ reservation.
 Do not use the host test process or bypass the Docker guard.
 
 [Launch contract](red-launch.json) records the image, source archive hash, bounds, and command.
@@ -127,3 +127,11 @@ Manual SSJS review: runtime-backed immutable observation values; adapter-owned p
 ## Refined committed candidate integration
 
 At a64e741b4c763819337976eceb1024d0e9c4bfa3, integration-957-v2 passes all185 integration cases:165 general plus20 attachment cases. This includes the six two-format observed-clock/restart/replica/stale-writer tests after the configuration capability checks and dense journal traversal refinement. The guard reports build peak1959239680 bytes, runtime peak17543168 bytes and83 tasks, with no refusal/PID/OOM event. The owned worker stopped before reservation release. Stable full coverage, packed refresh, native cost evidence and fresh review remain separate open gates. Mainline merging remains paused.
+
+## Native cost discovery and refreshed validation
+
+At production head `135e023c4e6934e713758da18f56d0de38e67fa9`, `coverage-957-v2` completes the 830-file curated coverage manifest: 8975 passed cases, two existing skips, zero errors; 28024/29754 covered lines (94.18%) against unchanged 93.48%. It is report-only and does not change the ratchet. `packed-957-v2` completes installed-artifact observed-write checks in both object formats and payload/type gates. Its copied source archive includes the then-uncommitted diagnostic fixture; this is not a pristine-tree claim.
+
+The native cost fixture is now retained with its failures. `native-cost-957-v1` stopped at an invalid named RuntimeHost import. Corrected v2 and v3 pass source/test types and lint, and pass four native cases (1/16 seeded writers in both formats). Both 64-seed cases successfully capture/write a new patch but fail separate CLI repair at 65 total heads with the git-cas publication parent bound. Those are failed acceptance cases, not successful end-to-end performance witnesses. Issue #990 owns the independent checkpoint defect. No arbitrary fixture reduction or writer cap is introduced.
+
+Full feedback on #990's proposed remedy is preserved in Reader receipt `8325c260-27ed-46b1-aba2-272374a9b7e8` and the issue comment. It requested changes; the candidate's native checkpoint repair and final-head review remain open. Mainline merging remains paused.
