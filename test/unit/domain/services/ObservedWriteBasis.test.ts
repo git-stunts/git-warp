@@ -149,3 +149,10 @@ it('refuses an unavailable captured patch and closes the iterator', async () => 
   })).rejects.toBeInstanceOf(InvalidWriteObservationError);
   expect(journal.closed).toBe(1);
 });
+
+it('requires constructed observation and context before retaining a write basis', () => {
+  // @ts-expect-error Deliberate runtime guard check for JavaScript callers.
+  expect(() => new ObservedWriteBasis(null, VersionVector.empty(), 1)).toThrow(InvalidWriteObservationError);
+  // @ts-expect-error Deliberate runtime guard check for JavaScript callers.
+  expect(() => new ObservedWriteBasis(new ObservedWriteFrontier('L', []), {}, 1)).toThrow(InvalidWriteObservationError);
+});

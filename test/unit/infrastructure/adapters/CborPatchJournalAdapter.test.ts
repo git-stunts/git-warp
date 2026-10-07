@@ -4,6 +4,9 @@ import PatchPublicationConflictError from '../../../../src/domain/errors/PatchPu
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 import Patch from '../../../../src/domain/types/Patch.ts';
+import ObservedWriteFrontier from '../../../../src/domain/types/ObservedWriteFrontier.ts';
+import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
+import { createGitCasPatchStorage } from '../../../../src/ports/CommitMessageCodecPort.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import EntityAdmissionBoundary from '../../../../src/domain/types/EntityAdmissionBoundary.ts';
@@ -339,4 +342,21 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     await expect(journal.scanPatchHistory('alice', forged).collect())
       .rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
   });
+});
+
+it('refuses observation metadata for another graph before publication or retained use', async () => {
+  const { history, assets, journal } = createFixture();
+  const patch = new Patch({ writer: 'alice', lamport: 1, context: {}, ops: [],
+    observedFrontier: new ObservedWriteFrontier('other', []) });
+  await expect(journal.appendPatch({ patch, graph: 'test', writer: 'alice', targetRef: TARGET_REF,
+    expectedHead: null, parent: null, attachments: [] })).rejects.toMatchObject({ code: 'E_PATCH_NO_STATE' });
+  expect(await history.readRef(TARGET_REF)).toBeNull();
+  const staged = await assets.stage(WarpStream.from([new CborCodec().encode(patch)]), { slug: 'wrong-graph', filename: 'patch.cbor' });
+  const message = DEFAULT_COMMIT_MESSAGE_CODEC.encodePatch({
+    kind: 'patch', graph: 'test', writer: 'alice', lamport: 1, schema: 2,
+    patchHandle: staged.handle,
+    storage: createGitCasPatchStorage({ encrypted: false }),
+  });
+  await expect(journal.readPatch(DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch(message)))
+    .rejects.toMatchObject({ code: 'E_PATCH_NO_STATE' });
 });

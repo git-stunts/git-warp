@@ -446,5 +446,117 @@
     "original_sha256": "c227c3b945fefe5b8d85b8fccaf6ea230792db4448b777329b499f1b5e3a6df0",
     "public_sha256": "8697ea2c4e33a14edf183853dfa051bfcc2682a4faaec2a29003986a5f60d727",
     "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v1",
+    "file": "coverage-diagnostic-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ef75657198ae07b719942a2229a7dbc9fa1a46dd8e01e26d41df66f608ab68af",
+    "public_sha256": "ef75657198ae07b719942a2229a7dbc9fa1a46dd8e01e26d41df66f608ab68af",
+    "normalization": "none",
+    "archive_sha256": "c17cec4b0bdbbc51e71c8d7c111873017e5112a3a1e70874f8e6f2f70e930d10"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v1",
+    "file": "coverage-diagnostic-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "b6893a94b8cc410c6879bdb25ee9fc31d4ff99e173009341ab76490df21ffa86",
+    "public_sha256": "77ca813ff23d84e46c13db7c0e3da8e6793d72d270a68f6c1bfb8b19da9d0bc6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v1",
+    "file": "coverage-diagnostic-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "37bd297d82d0538a9f074f56296bc649e49c93d92cd2410fc07a4a40f2c5b435",
+    "public_sha256": "49a32ea9b6527a485bd69a3b0ada51ebd3f46d700b136e36707ba1bb02fa295d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "edges-957-v1",
+    "file": "edges-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "c3cbc77dfae088d3e3c5ec1d501cdb1b1dc2b3ec562253e981a1bbb51107b703",
+    "public_sha256": "c3cbc77dfae088d3e3c5ec1d501cdb1b1dc2b3ec562253e981a1bbb51107b703",
+    "normalization": "none",
+    "archive_sha256": "224aaae98cd39789d86569784cb7adc8f5ebf15173bd3dcfdc7e9bfe4bf73e35"
+  },
+  {
+    "phase": "edges-957-v1",
+    "file": "edges-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "aedc338050481aa0ba9ff5e42949ff9025b61d577bf31850a99c216f57f8c79d",
+    "public_sha256": "6f7449f201982d02d8d833159cec854aca560810016eab3d098e2bd5f7fc24a1",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "edges-957-v1",
+    "file": "edges-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ddccc025c345309b62c5f83fe5e35496b86bd0f175446a6c392353c873989c09",
+    "public_sha256": "dbc24c006b7463a9f9ffbe1ef5fe367e9d83a6539835661339a621ba969e3cc8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "edges-957-v2",
+    "file": "edges-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "e70ed75c8909b6b520418bd1cd6776299c5a7481f830127dfe09121b7cc7cac6",
+    "public_sha256": "e70ed75c8909b6b520418bd1cd6776299c5a7481f830127dfe09121b7cc7cac6",
+    "normalization": "none",
+    "archive_sha256": "9389d17a5a393f29e223d2c417997697eb5e6c38b1777e2b2fbaa33c267098c6"
+  },
+  {
+    "phase": "edges-957-v2",
+    "file": "edges-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "f817895dd6ae12269ceefecc412e757b802ac559dc0296dfadef5bc5ae895361",
+    "public_sha256": "79fa49223d8842075425c4579b74edbbcb1d12598731af85d1f45920ef5abeb6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "edges-957-v2",
+    "file": "edges-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "4a0a4bfccb0adf6c07eb4b421d657e36fa752b8c80037ee7c48df0d5769b76fd",
+    "public_sha256": "02da87625312cce3461442915f2063e2a52b52e179a88d9569b65f4cf3676d73",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "graph-guard-957-v1",
+    "file": "graph-guard-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "5dc68b3bf1c8023efd8db7ce3a8f2684a28719332856862f15f5d3defd0a9697",
+    "public_sha256": "5dc68b3bf1c8023efd8db7ce3a8f2684a28719332856862f15f5d3defd0a9697",
+    "normalization": "none",
+    "archive_sha256": "77b7ab54c03f9f2aead248b1518806f45a32138fe86457cb26f433a5421ed02e"
+  },
+  {
+    "phase": "graph-guard-957-v1",
+    "file": "graph-guard-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ae2486c0d025d445115fe5b5eb17d06e65ca26166278da4512d3b62efc5b99d7",
+    "public_sha256": "36f54608d84744b32b58455af6437c7c6c231814e2a7d331816dcd85e7a707fb",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "graph-guard-957-v1",
+    "file": "graph-guard-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "9bbb6f88fe406d34320338b79080321859538680d5bb2fe2ff49d95197d33b30",
+    "public_sha256": "4117d2da65d51b403ed6d01e4fcb78ba64feae57e7783bf2a7b36224b7d8171b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
   }
 ]

@@ -10,7 +10,9 @@ import { CborPatchJournalAdapter } from '../../../src/infrastructure/adapters/Cb
 import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import Patch from '../../../src/domain/types/Patch.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { Runtime } from '../../../index.ts';
+import { intent } from '../../../advanced.ts';
 import GitTimelineHistoryAdapter from '../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { decodePatchMessage } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { GitRepoFixture } from '../../helpers/WarpGraphTestRepositories.ts';
@@ -129,6 +131,49 @@ describe('unseen replicas keep independent histories', () => {
       }
     } finally {
       for (const repo of [...receivers, ...sources]) { await repo.cleanup(); }
+    }
+  }, TEST_TIMEOUT_MS);
+});
+
+
+describe('simultaneous same-writer observation captures', () => {
+  it.each(['sha1', 'sha256'])('publishes exactly one winner from the same absent predecessor in %s', async format => {
+    if (format !== 'sha1' && format !== 'sha256') { throw new Error('Unsupported fixture object format'); }
+    const repository = await repositoryFor(format);
+    const first = await Runtime.open({ at: repository.tempDir, writer: 'b' });
+    const second = await Runtime.open({ at: repository.tempDir, writer: 'b' });
+    try {
+      const left = await first.lane('L');
+      const right = await second.lane('L');
+      const original = GitTimelineHistoryAdapter.prototype.readRef;
+      let release = (): void => {};
+      const bothCaptured = new Promise<void>(resolve => { release = resolve; });
+      let captures = 0;
+      const spy = vi.spyOn(GitTimelineHistoryAdapter.prototype, 'readRef').mockImplementation(async function (this: GitTimelineHistoryAdapter, ref) {
+        const current = await original.call(this, ref);
+        if (ref === 'refs/warp/L/writers/b' && current === null && captures < 2) {
+          captures++;
+          if (captures === 2) { release(); }
+          await bothCaptured;
+        }
+        return current;
+      });
+      try {
+        const receipts = await Promise.all([
+          left.write(intent.node.add({ subject: 'left' })),
+          right.write(intent.node.add({ subject: 'right' })),
+        ]);
+        expect(captures).toBe(2);
+        expect(receipts.filter(receipt => receipt.outcome.kind === 'derived')).toHaveLength(1);
+        expect(receipts.filter(receipt => receipt.outcome.kind === 'obstruction')).toHaveLength(1);
+        const stored = await retainedWriterPatch(repository, 'b');
+        expect(stored.patch.observedFrontier?.heads).toEqual([]);
+        expect(stored.patch.ops).toHaveLength(1);
+      } finally { spy.mockRestore(); }
+    } finally {
+      await first.close();
+      await second.close();
+      await repository.cleanup();
     }
   }, TEST_TIMEOUT_MS);
 });

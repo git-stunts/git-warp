@@ -63,3 +63,9 @@ describe('observed-frontier persistence boundary', () => {
     expect(() => decodeObservedWriteFrontier(null)).toThrow(InvalidWriteObservationError);
   });
 });
+
+it('requires a protected frontier when constructing a domain patch directly', () => {
+  // @ts-expect-error Deliberate malformed JavaScript constructor input.
+  expect(() => new Patch({ writer: 'a', lamport: 1, context: {}, ops: [], observedFrontier: null }))
+    .toThrowError(expect.objectContaining({ code: 'E_PATCH_NO_STATE' }));
+});
