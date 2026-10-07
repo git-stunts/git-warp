@@ -1,0 +1,27 @@
+[
+  {
+    "file": "focused-985-stack-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "a9dda65ad166f9437b4f3386c1816cf12b5f73f7c963e5f284c4b7564ff7979f",
+    "public_sha256": "a9dda65ad166f9437b4f3386c1816cf12b5f73f7c963e5f284c4b7564ff7979f",
+    "normalization": "none",
+    "archive_sha256": "2b31831b5e61c75fbdb6b2f87892b1bb34c1658038fada5812f21094c0e584eb"
+  },
+  {
+    "file": "focused-985-stack-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "0a793bb384b033e7309d559edd3dba91cb197d2e89a891905850d0c900f5202e",
+    "public_sha256": "3bcb8b94085d5312be84db47d85965f63120cba83c2cba7425f0278a03949c06",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "file": "focused-985-stack-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "7ce958458cbe88fd020517aa2e73879687f487b3c668ad7703f8717bf5273d5f",
+    "public_sha256": "2ee5f9b534760bde095e7f8abe835780c701481c41b63d0cf399b9c2d35d5e3e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]
