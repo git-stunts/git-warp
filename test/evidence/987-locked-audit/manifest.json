@@ -3,18 +3,25 @@
     "file": "red.txt.gz",
     "original_sha256": "cf013233e55c00dbd112fca75af759a2994f8078879d458483c6e79edab89ba9",
     "public_sha256": "cf013233e55c00dbd112fca75af759a2994f8078879d458483c6e79edab89ba9",
-    "normalization": "none"
+    "normalization": "none",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "archive_sha256": "0234280d51202521ed3dd59fcfed105e3cfc7f37577555bc93ae3171843623da"
   },
   {
     "file": "launch.json",
     "original_sha256": "eae27198e648a834bc16d5da6eb4e3204f015e878993a9bcef317aae852257cf",
     "public_sha256": "da98465789eb004f5e1b14522f029b999190604572f510ec6c002cf7e89b1ff1",
-    "normalization": "container user home replaced with <CONTAINER_HOME>"
+    "normalization": "container user home replaced with <CONTAINER_HOME>",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents"
   },
   {
     "file": "resources.json",
     "original_sha256": "e45a8934055b636c801eb0118ae0a90b98fc51c087af7627f12bceabd7e456e7",
     "public_sha256": "1abac7679dbe266cb4688825401ee53b7b41c2c711bcda83b2f4e1611c799c13",
-    "normalization": "container user home replaced with <CONTAINER_HOME>"
+    "normalization": "container user home replaced with <CONTAINER_HOME>",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents"
   }
 ]
