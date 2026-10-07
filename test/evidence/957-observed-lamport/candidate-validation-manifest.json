@@ -1986,5 +1986,31 @@
     "original_sha256": "62eb7b99f0093a286a0c8a05da01b4e608697838dd6e421ca51d3460981a0c7f",
     "public_sha256": "b18a2d18570739f4ff67ecedf7f12ac64f49dc9215d5395a6241b3ff6b9d8826",
     "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-stack-957-v1",
+    "file": "checkpoint-stack-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "af948e47905cd468b5059e2dd06601456ccbd778a72556b3a6ecb63e9c9a32df",
+    "public_sha256": "af948e47905cd468b5059e2dd06601456ccbd778a72556b3a6ecb63e9c9a32df",
+    "normalization": "none",
+    "archive_sha256": "3fc60d5624a5daa2020c9cdade14d56db9e29e379c1b8a06cec43e51af42d627",
+    "hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "checkpoint-stack-957-v1",
+    "file": "checkpoint-stack-957-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "b2702e7703d3a395c64b12622a63a7a6ddbaec54a3adda80a899baeb0477039e",
+    "public_sha256": "c4844ae0dafda1a494a01bec91980f5ed09c21d12587aba567eab6eae8ada0ea",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-stack-957-v1",
+    "file": "checkpoint-stack-957-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "86245efd4ec6524b691997654108275b0d54794bbc21ab1a5cf45ad5a0da3525",
+    "public_sha256": "c79dcab87ea3605af214ef14df7f5efb2736e478699e9641737d02467f85fc13",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
   }
 ]

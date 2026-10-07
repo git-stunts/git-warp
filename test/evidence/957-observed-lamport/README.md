@@ -135,3 +135,11 @@ At production head `135e023c4e6934e713758da18f56d0de38e67fa9`, `coverage-957-v2`
 The native cost fixture is now retained with its failures. `native-cost-957-v1` stopped at an invalid named RuntimeHost import. Corrected v2 and v3 pass source/test types and lint, and pass four native cases (1/16 seeded writers in both formats). Both 64-seed cases successfully capture/write a new patch but fail separate CLI repair at 65 total heads with the git-cas publication parent bound. Those are failed acceptance cases, not successful end-to-end performance witnesses. Issue #990 owns the independent checkpoint defect. No arbitrary fixture reduction or writer cap is introduced.
 
 Full feedback on #990's proposed remedy is preserved in Reader receipt `8325c260-27ed-46b1-aba2-272374a9b7e8` and the issue comment. It requested changes; the candidate's native checkpoint repair and final-head review remain open. Mainline merging remains paused.
+
+## Checkpoint-repair feature integration
+
+Feature merge `aa9bb4f5` combines the independently owned #990 repair with #957; main remains untouched. The only textual conflict was the changelog, resolved by retaining both entries. Checkpoint/history/provider-double blobs match the incoming #990 source exactly.
+
+`checkpoint-stack-957-v1` passes source/test types and 22 native cases across three actual files: six cost cases, six observed-write/restart/replica cases and ten checkpoint/primitive cases. All unchanged 64-seed cases now complete the fresh public write, independent CLI repair and independent reading in SHA-1 and SHA-256. The command additionally names a nonexistent replica-file filter; it selected no extra file and contributes no tests. Replica cases live in the observed-Lamport integration file.
+
+The adjacent six-case summary retains actual measured capture/write times, head/asset counts, process-lifetime maximum RSS and sampled heap. These are a bounded native pilot, not universal timing or allocation guarantees. At 64 heads, exactly 64 immutable heads and assets are inspected, with no observed history-scan calls. The fixture preserves its original assertions and size. Runtime/data peaks remain within the same enforced worker budgets; no limit or threshold was relaxed. Fresh full gates, published stack state, hosted CI and final-head review remain required.
