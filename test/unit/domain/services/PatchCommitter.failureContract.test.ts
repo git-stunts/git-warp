@@ -1,12 +1,13 @@
 import { expect, it, vi } from 'vitest';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 import MessageCodecError from '../../../../src/domain/errors/MessageCodecError.ts';
+import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import nullLogger from '../../../../src/domain/utils/nullLogger.ts';
 import { createGitCasPatchStorage } from '../../../../src/ports/CommitMessageCodecPort.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { createPatchBuilder, createPatchBuilderMockPersistence, createPatchJournal } from './PatchBuilderTestHarness.ts';
 
-it('does not publish when a parent claims patch kind but its metadata cannot decode', async () => {
+it.each([new MessageCodecError('invalid persisted clock'), 'non-error decoder failure'])('does not publish when parent metadata cannot decode: %s', async failure => {
   const parent = 'd'.repeat(40);
   const persistence = createPatchBuilderMockPersistence();
   persistence.readRef.mockResolvedValue(parent);
@@ -18,12 +19,21 @@ it('does not publish when a parent claims patch kind but its metadata cannot dec
   const builder = createPatchBuilder({ persistence, patchJournal: journal, expectedParentSha: parent });
   builder.addNode('n');
   const decode = vi.spyOn(DEFAULT_COMMIT_MESSAGE_CODEC, 'decodePatch')
-    .mockImplementation(() => { throw new MessageCodecError('invalid persisted clock'); });
+    .mockImplementation(() => { throw failure; });
   try {
     await expect(builder.commitWithEvidence()).rejects.toMatchObject({ code: 'E_PATCH_LAMPORT_PARSE' });
     expect(journal.requests).toHaveLength(0);
     expect(persistence.compareAndSwapRef).not.toHaveBeenCalled();
   } finally { decode.mockRestore(); }
+});
+
+it('retains a legacy property operation in the acknowledged patch publication', async () => {
+  const persistence = createPatchBuilderMockPersistence();
+  const journal = createPatchJournal(persistence);
+  const builder = createPatchBuilder({ persistence, patchJournal: journal });
+  builder.ops.push(new PropSet('n', 'k', 'legacy-value'));
+  await builder.commitWithEvidence();
+  expect(journal.requests[0]?.patch.ops[0]).toBeInstanceOf(PropSet);
 });
 
 it('requires a journal before any publication', async () => {

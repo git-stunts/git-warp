@@ -25,3 +25,9 @@ PR #989 was opened while the read-only review was running. The report's no-PR fo
 ## Next readiness work
 
 Close the remaining meaningful touched coverage gaps and resolve the ordinary capture cost obligation without narrowing supported writes arbitrarily. Re-run required full checks, packed acceptance and any necessary cost witnesses on the stable candidate. Obtain a fresh independent exact-head review. Hosted CI workflows currently target main PRs; the stacked feature-base PR has only the issue-reference workflow, not a full CI pass. Resolve that validation route before claiming readiness. Keep #989 draft and retain #986 as its prerequisite. Mainline merging remains paused.
+
+## Subsequent contract closure
+
+The later coverage-v8 snapshot closes all sixteen touched production files across all four dimensions (826 lines,864 statements,182 functions,556 branches), with362 selected cases. The source-based capability review also replaced PatchController's no-op config narrowing with actual checks for the precise read/write method when used, preserving explicit identities, read-only stored identities and outer failure codes. Private dense-array traversal in the journal removes unreachable defensive branches without changing order or member naming. Source/test hashes and every success/failure receipt are retained.
+
+The earlier coverage-gap statements above describe the reviewed89a453c5 subject and its then-current follow-up snapshot. They are historical limits, not current gaps silently deleted from the record. Remaining readiness work is the stable-candidate full chain, packed refresh, ordinary capture cost obligation and fresh exact-head independent approval. The stacked-base hosted workflow limitation remains unresolved. No merge, release or current-head approval is claimed.

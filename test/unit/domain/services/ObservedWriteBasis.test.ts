@@ -5,6 +5,7 @@ import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.ts';
 import Patch from '../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
+import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import ObservedWriterHead from '../../../../src/domain/types/ObservedWriterHead.ts';
 import ObservedWriteFrontier from '../../../../src/domain/types/ObservedWriteFrontier.ts';
 import ObservedWriteBasis from '../../../../src/domain/services/ObservedWriteBasis.ts';
@@ -163,6 +164,22 @@ it('requires constructed observation and context before retaining a write basis'
   expect(() => new ObservedWriteBasis(null, VersionVector.empty(), 1)).toThrow(InvalidWriteObservationError);
   // @ts-expect-error Deliberate runtime guard check for JavaScript callers.
   expect(() => new ObservedWriteBasis(new ObservedWriteFrontier('L', []), {}, 1)).toThrow(InvalidWriteObservationError);
+});
+
+it('retains legacy membership dots absent from context without treating property payload as a counter', async () => {
+  const refs = createPatchBuilderMockPersistence();
+  refs.listRefs.mockResolvedValue([ref('a')]);
+  refs.readRef.mockResolvedValue(A);
+  const journal = new ObservationJournal(new Map([[A, new PatchEntry({ sha: A, patch: new Patch({
+    writer: 'a', lamport: 21, context: {},
+    ops: [new NodeAdd('n', new Dot('a', 1)), new PropSet('n', 'count', 999)],
+  }) })]]));
+  const basis = await captureObservedWriteBasis({
+    refs, journal, graphName: 'L', writerId: 'b', expectedParentSha: null,
+    ownCandidate: 1, context: VersionVector.empty(),
+  });
+  expect(basis.context().get('a')).toBe(1);
+  expect(basis.lamport).toBe(22);
 });
 
 it('inspects one immutable head per ordinary writer without borrowing the removal writer cap', async () => {

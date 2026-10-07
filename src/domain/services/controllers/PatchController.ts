@@ -30,6 +30,7 @@ import type Patch from '../../types/Patch.ts';
 import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type ConfigPort from '../../../ports/ConfigPort.ts';
+import MissingWriterConfigurationError from '../../errors/MissingWriterConfigurationError.ts';
 import type { PatchDiff } from '../../types/PatchDiff.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type { LogicalIndex } from '../index/logicalIndexHelpers.ts';
@@ -96,14 +97,25 @@ export interface PatchHost extends PatchDiscoveryHost {
 
 /**
  * PatchController-level assertion that _persistence implements ConfigPort.
- * The underlying adapter provides ConfigPort methods (configGet/configSet)
- * but the narrow CorePersistence type doesn't carry them. This assertion
- * declares the runtime compatibility without a value-level cast.
+ * Verifies configuration access on the injected kernel before fallback use.
+ * Explicit writer identities do not require this additional capability.
  */
-function assertConfigPortPersistence(
+function assertConfigReadPersistence(
   host: PatchHost,
-): asserts host is PatchHost & { _persistence: PatchHost['_persistence'] & ConfigPort } {
-  void host;
+): asserts host is PatchHost & { _persistence: PatchHost['_persistence'] & Pick<ConfigPort, 'configGet'> } {
+  const persistence = host._persistence;
+  if (!('configGet' in persistence) || typeof persistence.configGet !== 'function') {
+    throw new MissingWriterConfigurationError();
+  }
+}
+
+function assertConfigWritePersistence(
+  host: PatchHost,
+): asserts host is PatchHost & { _persistence: PatchHost['_persistence'] & Pick<ConfigPort, 'configSet'> } {
+  const persistence = host._persistence;
+  if (!('configSet' in persistence) || typeof persistence.configSet !== 'function') {
+    throw new MissingWriterConfigurationError();
+  }
 }
 
 // ── JoinReceipt ───────────────────────────────────────────────────────────────
@@ -335,9 +347,14 @@ export default class PatchController {
    */
   async writer(writerId?: string): Promise<Writer> {
     const h = this._host;
-    assertConfigPortPersistence(h);
-    const configGet = async (key: string): Promise<string | null> => await h._persistence.configGet(key);
-    const configSet = async (key: string, value: string): Promise<void> => await h._persistence.configSet(key, value);
+    const configGet = async (key: string): Promise<string | null> => {
+      assertConfigReadPersistence(h);
+      return await h._persistence.configGet(key);
+    };
+    const configSet = async (key: string, value: string): Promise<void> => {
+      assertConfigWritePersistence(h);
+      await h._persistence.configSet(key, value);
+    };
 
     const resolvedWriterId = await resolveWriterId({
       graphName: h._graphName,
