@@ -390,5 +390,61 @@
     "original_sha256": "60941c2d13d34d8a68f4c7271285e8ba9ea9300dd3c08ce7d8be843383630366",
     "public_sha256": "e584a48927ef463d5536ad8b678c2691ce735be49395903b22d39f0804538c4c",
     "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "integration-957-v1",
+    "file": "integration-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "f6bbf539a98c2f024b6dacb496e7f276cb59661d4650ecbef680bfe0fa8fa205",
+    "public_sha256": "f6bbf539a98c2f024b6dacb496e7f276cb59661d4650ecbef680bfe0fa8fa205",
+    "normalization": "none",
+    "archive_sha256": "7434861f0251be376eb082b41f4f71beb838e4635a1c1db2068d583953ee94fa"
+  },
+  {
+    "phase": "integration-957-v1",
+    "file": "integration-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "6c81ff7b9dcb9769be25b4a262304d9293bee70b803b4e8de24d33ed48a5f71c",
+    "public_sha256": "c92e845fd9c81f9d73b1d060156550d660b678c0cc2a1b70784fa542567e02ea",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "integration-957-v1",
+    "file": "integration-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "60d7402b03f8728f59ac249954e25b605d2a0d60b44e73050bd82e9a517ca7a1",
+    "public_sha256": "64f51e39c54c9cb1737487f1453ad72a5ecd481629f121b76968c5082a7be429",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-957-v1",
+    "file": "coverage-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "387d30775a6da8fae44b7dec2702f4599ca38aef6f4fa16e3fc905569824ab27",
+    "public_sha256": "387d30775a6da8fae44b7dec2702f4599ca38aef6f4fa16e3fc905569824ab27",
+    "normalization": "none",
+    "archive_sha256": "0d6475641d1118b50fbdff1c83cf9716f6a2e0c90a4af686829c29d52d574ae3"
+  },
+  {
+    "phase": "coverage-957-v1",
+    "file": "coverage-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "4f2c321fa1c1c7d931cf040b165a2f00b93ec960fb2fee44c6c93c0682fdfb6c",
+    "public_sha256": "4ecf5ed40570c0c7ed053775937d75dde5e9fb67a86a01b6e68abc45533116ef",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-957-v1",
+    "file": "coverage-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "c227c3b945fefe5b8d85b8fccaf6ea230792db4448b777329b499f1b5e3a6df0",
+    "public_sha256": "8697ea2c4e33a14edf183853dfa051bfcc2682a4faaec2a29003986a5f60d727",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
   }
 ]
