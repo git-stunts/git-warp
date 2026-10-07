@@ -132,10 +132,18 @@ describe('coherent inspected write basis', () => {
     expect(Object.isFrozen(head)).toBe(true);
   });
 
-  it.each([NaN, Infinity, 0, -1, Number.MAX_SAFE_INTEGER + 1])('refuses an invalid own candidate: %s', clock => {
+  it.each([NaN, Infinity, 0, -1, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER + 1])('refuses an invalid own candidate: %s', clock => {
     expect(() => new ObservedWriteBasis(new ObservedWriteFrontier('L', []), VersionVector.empty(), clock))
       .toThrow(InvalidWriteObservationError);
   });
+});
+
+it('refuses an advancement that would publish an uninspectable writer head', () => {
+  const observation = new ObservedWriteFrontier('L', [
+    new ObservedWriterHead('a', A, Number.MAX_SAFE_INTEGER - 1),
+  ]);
+  expect(() => new ObservedWriteBasis(observation, VersionVector.empty(), 1))
+    .toThrow(InvalidWriteObservationError);
 });
 
 it('refuses an unavailable captured patch and closes the iterator', async () => {
@@ -155,4 +163,26 @@ it('requires constructed observation and context before retaining a write basis'
   expect(() => new ObservedWriteBasis(null, VersionVector.empty(), 1)).toThrow(InvalidWriteObservationError);
   // @ts-expect-error Deliberate runtime guard check for JavaScript callers.
   expect(() => new ObservedWriteBasis(new ObservedWriteFrontier('L', []), {}, 1)).toThrow(InvalidWriteObservationError);
+});
+
+it('inspects one immutable head per ordinary writer without borrowing the removal writer cap', async () => {
+  const writers = Array.from({ length: 1025 }, (_, i) => `w${i}`);
+  const entries = new Map<string, PatchEntry>();
+  for (const writer of writers) { entries.set(`tip-${writer}`, frame(writer, `tip-${writer}`, 100, 1)); }
+  const refs = createPatchBuilderMockPersistence();
+  refs.listRefs.mockResolvedValue(writers.map(ref));
+  refs.readRef.mockImplementation(async captured => `tip-${captured.slice('refs/warp/L/writers/'.length)}`);
+  const journal = new ObservationJournal(entries);
+  const basis = await captureObservedWriteBasis({
+    refs, journal, graphName: 'L', writerId: 'b', expectedParentSha: null,
+    ownCandidate: 1, context: VersionVector.empty(),
+  });
+  expect(basis.observation.heads).toHaveLength(writers.length);
+  expect(basis.lamport).toBe(101);
+  expect(basis.context().get('w0')).toBe(2);
+  expect(journal.scans).toHaveLength(writers.length);
+  expect(new Set(journal.scans.map(([writer]) => writer)).size).toBe(writers.length);
+  expect(journal.closed).toBe(writers.length);
+  expect(refs.listRefs).toHaveBeenCalledOnce();
+  expect(refs.readRef).toHaveBeenCalledTimes(writers.length);
 });

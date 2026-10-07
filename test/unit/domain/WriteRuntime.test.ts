@@ -292,3 +292,25 @@ it('refuses an unsafe observed clock with no ref change', async () => {
   expect(receipt.outcome.kind).toBe('obstruction');
   expect(persistence.compareAndSwapRef).not.toHaveBeenCalled();
 });
+
+it('refuses clock exhaustion before journal publication with a typed outcome', async () => {
+  const persistence = createPatchBuilderMockPersistence();
+  persistence.listRefs.mockResolvedValue(['refs/warp/events/writers/other']);
+  persistence.readRef.mockImplementation(async ref => ref.endsWith('/other') ? 'other-tip' : null);
+  const journal = createPatchJournal(persistence);
+  vi.spyOn(journal, 'scanPatchHistory').mockImplementation(() => WarpStream.from([new PatchEntry({
+    sha: 'other-tip', patch: new Patch({ writer: 'other', lamport: Number.MAX_SAFE_INTEGER - 1,
+      context: {}, ops: [] }),
+  })]));
+  const receipt = await executeIntentWrite({
+    runtime: createRuntime(), context: createContext().context, intent: intent.node.add({ subject: 'new' }),
+    commit: async build => {
+      const patch = builder({ persistence, patchJournal: journal });
+      await build(patch);
+      return await patch.commitWithEvidence();
+    },
+  });
+  expect(receipt.outcome.kind).toBe('obstruction');
+  expect(journal.requests).toHaveLength(0);
+  expect(persistence.compareAndSwapRef).not.toHaveBeenCalled();
+});

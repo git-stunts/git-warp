@@ -1,0 +1,398 @@
+{
+  "total": {
+    "lines": {
+      "total": 816,
+      "covered": 769,
+      "skipped": 0,
+      "pct": 94.24
+    },
+    "statements": {
+      "total": 858,
+      "covered": 804,
+      "skipped": 0,
+      "pct": 93.7
+    },
+    "functions": {
+      "total": 178,
+      "covered": 172,
+      "skipped": 0,
+      "pct": 96.62
+    },
+    "branches": {
+      "total": 550,
+      "covered": 489,
+      "skipped": 0,
+      "pct": 88.9
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "src/domain/api/WriteRuntime.ts": {
+    "lines": {
+      "total": 77,
+      "covered": 71,
+      "skipped": 0,
+      "pct": 92.2
+    },
+    "functions": {
+      "total": 21,
+      "covered": 21,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 81,
+      "covered": 75,
+      "skipped": 0,
+      "pct": 92.59
+    },
+    "branches": {
+      "total": 43,
+      "covered": 36,
+      "skipped": 0,
+      "pct": 83.72
+    }
+  },
+  "src/domain/services/BoundedNodeRemovalBasis.ts": {
+    "lines": {
+      "total": 83,
+      "covered": 83,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 19,
+      "covered": 19,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 93,
+      "covered": 91,
+      "skipped": 0,
+      "pct": 97.84
+    },
+    "branches": {
+      "total": 57,
+      "covered": 55,
+      "skipped": 0,
+      "pct": 96.49
+    }
+  },
+  "src/domain/services/ObservedWriteBasis.ts": {
+    "lines": {
+      "total": 11,
+      "covered": 11,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 2,
+      "covered": 2,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 11,
+      "covered": 11,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 8,
+      "covered": 8,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "src/domain/services/PatchBuilder.ts": {
+    "lines": {
+      "total": 180,
+      "covered": 173,
+      "skipped": 0,
+      "pct": 96.11
+    },
+    "functions": {
+      "total": 36,
+      "covered": 36,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 187,
+      "covered": 178,
+      "skipped": 0,
+      "pct": 95.18
+    },
+    "branches": {
+      "total": 87,
+      "covered": 83,
+      "skipped": 0,
+      "pct": 95.4
+    }
+  },
+  "src/domain/services/PatchCommitter.ts": {
+    "lines": {
+      "total": 40,
+      "covered": 40,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 4,
+      "covered": 4,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 41,
+      "covered": 41,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 33,
+      "covered": 31,
+      "skipped": 0,
+      "pct": 93.93
+    }
+  },
+  "src/domain/services/captureObservedWriteBasis.ts": {
+    "lines": {
+      "total": 34,
+      "covered": 34,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 6,
+      "covered": 6,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 37,
+      "covered": 37,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 18,
+      "covered": 16,
+      "skipped": 0,
+      "pct": 88.88
+    }
+  },
+  "src/domain/services/controllers/PatchController.ts": {
+    "lines": {
+      "total": 128,
+      "covered": 121,
+      "skipped": 0,
+      "pct": 94.53
+    },
+    "functions": {
+      "total": 25,
+      "covered": 21,
+      "skipped": 0,
+      "pct": 84
+    },
+    "statements": {
+      "total": 132,
+      "covered": 122,
+      "skipped": 0,
+      "pct": 92.42
+    },
+    "branches": {
+      "total": 93,
+      "covered": 79,
+      "skipped": 0,
+      "pct": 84.94
+    }
+  },
+  "src/domain/services/sync/syncPatchLoader.ts": {
+    "lines": {
+      "total": 23,
+      "covered": 4,
+      "skipped": 0,
+      "pct": 17.39
+    },
+    "functions": {
+      "total": 3,
+      "covered": 1,
+      "skipped": 0,
+      "pct": 33.33
+    },
+    "statements": {
+      "total": 23,
+      "covered": 4,
+      "skipped": 0,
+      "pct": 17.39
+    },
+    "branches": {
+      "total": 26,
+      "covered": 6,
+      "skipped": 0,
+      "pct": 23.07
+    }
+  },
+  "src/domain/types/ObservedWriteFrontier.ts": {
+    "lines": {
+      "total": 14,
+      "covered": 14,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 8,
+      "covered": 8,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 17,
+      "covered": 17,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 9,
+      "covered": 9,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "src/domain/types/ObservedWriterHead.ts": {
+    "lines": {
+      "total": 13,
+      "covered": 13,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 4,
+      "covered": 4,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 13,
+      "covered": 13,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 15,
+      "covered": 15,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "src/domain/types/Patch.ts": {
+    "lines": {
+      "total": 49,
+      "covered": 44,
+      "skipped": 0,
+      "pct": 89.79
+    },
+    "functions": {
+      "total": 10,
+      "covered": 10,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 52,
+      "covered": 47,
+      "skipped": 0,
+      "pct": 90.38
+    },
+    "branches": {
+      "total": 43,
+      "covered": 40,
+      "skipped": 0,
+      "pct": 93.02
+    }
+  },
+  "src/infrastructure/adapters/CborPatchJournalAdapter.ts": {
+    "lines": {
+      "total": 85,
+      "covered": 82,
+      "skipped": 0,
+      "pct": 96.47
+    },
+    "functions": {
+      "total": 17,
+      "covered": 17,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 88,
+      "covered": 85,
+      "skipped": 0,
+      "pct": 96.59
+    },
+    "branches": {
+      "total": 48,
+      "covered": 41,
+      "skipped": 0,
+      "pct": 85.41
+    }
+  },
+  "src/infrastructure/adapters/ObservedWriteFrontierDecoder.ts": {
+    "lines": {
+      "total": 17,
+      "covered": 17,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 5,
+      "covered": 5,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 21,
+      "covered": 21,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 13,
+      "covered": 13,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "src/infrastructure/adapters/PatchHydrationAdapter.ts": {
+    "lines": {
+      "total": 62,
+      "covered": 62,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 18,
+      "covered": 18,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 62,
+      "covered": 62,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 57,
+      "covered": 57,
+      "skipped": 0,
+      "pct": 100
+    }
+  }
+}

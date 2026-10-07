@@ -1,0 +1,40 @@
+{
+  "phase": "clock-green-957-v2",
+  "worker": "git-warp-tests",
+  "image": "sha256:9f145953f6e79a59749a683d11a476133cb7cef0588b79256dc195b1d0c87ad7",
+  "source_base": "89a453c5c1c4c6fc7fcc29bc0dbf23de40f94b05",
+  "source_archive_sha256": "249f844baaccb54320d66a58fb3c9a77139ef281b3006f86707efd922c6d4b86",
+  "source_archive_bytes": 21903360,
+  "baseline_inputs": {},
+  "command": [
+    "bash",
+    "-c",
+    "npm run typecheck && node node_modules/eslint/bin/eslint.js src/domain/services/ObservedWriteBasis.ts src/domain/types/Patch.ts test/unit/domain/WriteRuntime.test.ts test/unit/domain/services/ObservedWriteBasis.test.ts test/unit/domain/services/ObservationLifecycle.test.ts && node node_modules/vitest/vitest.mjs run test/unit/domain/services/ObservedWriteBasis.test.ts test/unit/domain/WriteRuntime.test.ts test/unit/domain/services/ObservationLifecycle.test.ts test/unit/infrastructure/adapters/ObservedWriteFrontierDecoder.test.ts test/integration/application/Runtime.observedLamport.integration.test.ts --maxWorkers=1"
+  ],
+  "lock_store": "workstation.git",
+  "lock_keys": [
+    "host/docker/git-warp-tests/"
+  ],
+  "outputs": [
+    "build volume /app",
+    "runtime /data",
+    "bounded /tmp and <CONTAINER_HOME> and /dev/shm",
+    "Docker rotated log",
+    "host receipts"
+  ],
+  "host_free_bytes": 725120450560,
+  "host_receipt_bytes": 4266908,
+  "build_limit_bytes": 21474836480,
+  "data_quota_bytes": 3221225472,
+  "generated_nonobject_limit_bytes": 100663296,
+  "stdout_limit_bytes": 16777216,
+  "memory_bytes": 8589934592,
+  "cpus": 4,
+  "cpu_affinity": "0-3",
+  "pids_limit": 768,
+  "timeout_seconds": 1700,
+  "stop_boundary": "git-warp-tests",
+  "guard": "inner guard plus outer host free/log monitor; read-only container root",
+  "vm_free_bytes": 689186017280,
+  "initial_build_bytes": 1953681408
+}

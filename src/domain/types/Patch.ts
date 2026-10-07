@@ -147,7 +147,11 @@ export default class Patch {
   /** Exact retained spans for entity admissions lowered into this patch. */
   readonly entityAdmissions?: readonly EntityAdmissionBoundary[];
 
-  /** Direct observations retained atomically with this patch; absent in legacy data. */
+  /**
+   * Direct observations retained atomically with this patch.
+   * `declare` suppresses an emitted undefined field: legacy CBOR bytes omit this key.
+   * The constructor creates the property only after validating an actual frontier.
+   */
   declare readonly observedFrontier?: ObservedWriteFrontier;
 
   /**
