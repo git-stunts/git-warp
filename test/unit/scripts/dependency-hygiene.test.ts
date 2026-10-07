@@ -41,15 +41,18 @@ function requireEntry(entries: Readonly<Record<string, string>>, name: string): 
 }
 
 describe('dependency hygiene', () => {
-  it('allows only the reviewed Markdown security override', async () => {
+  it('allows only the reviewed developer-tool security overrides', async () => {
     const packageJson = await readFile(repoPath('package.json'), 'utf8');
 
     const manifest = new PackedArtifactBoundaryAdapter().read(
       fileURLToPath(repoPath('package.json')),
-      z.object({ overrides: z.record(z.record(z.string())) })
+      z.object({ overrides: z.record(z.union([z.string(), z.record(z.string())])) })
     );
-    // markdownlint-cli 0.49.1 pins vulnerable ~5.2.1; remove when upstream permits patched YAML.
-    expect(manifest.overrides).toEqual({ 'markdownlint-cli': { 'js-yaml': '5.4.2' } });
+    // Exact allowlist: each out-of-range security fix needs caller evidence and review.
+    expect(manifest.overrides).toEqual({
+      'markdownlint-cli': { 'js-yaml': '5.4.2', 'smol-toml': '1.9.0' },
+      katex: '0.18.2',
+    });
     expect(packageJson).not.toContain('"tar": "7.5.16"');
     expect(packageJson).toContain('"zod": "^3.24.1"');
     expect(packageJson).not.toContain('"patch-package"');

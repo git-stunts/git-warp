@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   marker and admit Lane writes while stale ref-CAS expectations still refuse
   publication ([#985](https://github.com/git-stunts/git-warp/issues/985)).
 
+- Restore the full locked dependency audit with patched KaTeX 0.18.2,
+  smol-toml 1.9.0, and source-map-js 1.2.2 while keeping the existing developer
+  tool versions, platform constraints, and runtime dependency graph. Verify
+  mathematical rendering, TOML configuration, and bounded indexed source maps
+  ([#987](https://github.com/git-stunts/git-warp/issues/987)).
+
 ## [20.0.0] - 2026-10-03
 
 This major release provides the observed-remove membership / node-wide LWW

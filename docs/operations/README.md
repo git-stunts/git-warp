@@ -171,6 +171,7 @@ a small smoke operation rather than the full `npm run test:deno` matrix.
 
 ## See also
 
+- [Locked dependency audit and reviewed tooling pins](dependency-audit.md)
 - [Locked Bun test-image dependencies](bun-dependencies.md)
 - [Coverage runs and threshold updates](coverage.md)
 - [Mermaid validation lifecycle](mermaid-validation.md)
