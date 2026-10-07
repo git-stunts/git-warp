@@ -19,7 +19,7 @@ describe('op hydration boundary ratchet', () => {
       "import { hydratePatchAtDecodeBoundary } from './PatchHydrationAdapter.ts';",
     );
     expect(cborAdapter).toContain(
-      'return hydratePatchAtDecodeBoundary(this.#codec.decode(bytes));',
+      'hydratePatchAtDecodeBoundary(this.#codec.decode(bytes))',
     );
 
     expect(btrAdapter).toContain(

@@ -8,6 +8,15 @@ import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import { executeIntentWrite } from '../../../src/domain/api/WriteRuntime.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import WriterError from '../../../src/domain/errors/WriterError.ts';
+import MessageCodecError from '../../../src/domain/errors/MessageCodecError.ts';
+import SyncError from '../../../src/domain/errors/SyncError.ts';
+import CrdtError from '../../../src/domain/errors/CrdtError.ts';
+import PatchError from '../../../src/domain/errors/PatchError.ts';
+import WarpStream from '../../../src/domain/stream/WarpStream.ts';
+import PatchEntry from '../../../src/domain/artifacts/PatchEntry.ts';
+import Patch from '../../../src/domain/types/Patch.ts';
+import ObservationJournal from '../../helpers/ObservationJournal.ts';
+import { vi } from 'vitest';
 import { encodeEdgeKey } from '../../../src/domain/services/KeyCodec.ts';
 import type { PatchBuilder } from '../../../src/domain/services/PatchBuilder.ts';
 import WarpState from '../../../src/domain/services/state/WarpState.ts';
@@ -237,3 +246,49 @@ function createContext(): {
     provenance,
   };
 }
+
+it.each([
+  new MessageCodecError('malformed trailer'),
+  new SyncError('wrong identity', { code: 'E_SYNC_PATCH_HISTORY' }),
+  new CrdtError('invalid context'),
+  new PatchError('invalid metadata', { code: 'E_PATCH_LAMPORT' }),
+])('returns typed malformed-observation refusal without publication: %s', async error => {
+  const persistence = createPatchBuilderMockPersistence();
+  persistence.listRefs.mockResolvedValue(['refs/warp/events/writers/other']);
+  persistence.readRef.mockResolvedValue('other-tip');
+  const journal = createPatchJournal(persistence);
+  vi.spyOn(journal, 'scanPatchHistory').mockImplementation(() => WarpStream.from((async function* (): AsyncGenerator<PatchEntry> {
+    yield await Promise.reject<PatchEntry>(error);
+  })()));
+  const receipt = await executeIntentWrite({
+    runtime: createRuntime(), context: createContext().context, intent: intent.node.add({ subject: 'new' }),
+    commit: async build => {
+      const patch = builder({ persistence, patchJournal: journal });
+      await build(patch);
+      return await patch.commitWithEvidence();
+    },
+  });
+  expect(receipt.outcome.kind).toBe('obstruction');
+  expect(journal.requests).toHaveLength(0);
+  expect(persistence.compareAndSwapRef).not.toHaveBeenCalled();
+});
+
+it('refuses an unsafe observed clock with no ref change', async () => {
+  const persistence = createPatchBuilderMockPersistence();
+  persistence.listRefs.mockResolvedValue(['refs/warp/events/writers/other']);
+  persistence.readRef.mockResolvedValue('other-tip');
+  const journal = new ObservationJournal(new Map([['other-tip', new PatchEntry({
+    sha: 'other-tip', patch: new Patch({ writer: 'other', lamport: Number.MAX_SAFE_INTEGER,
+      context: {}, ops: [] }),
+  })]]));
+  const receipt = await executeIntentWrite({
+    runtime: createRuntime(), context: createContext().context, intent: intent.node.add({ subject: 'new' }),
+    commit: async build => {
+      const patch = builder({ persistence, patchJournal: journal });
+      await build(patch);
+      return await patch.commitWithEvidence();
+    },
+  });
+  expect(receipt.outcome.kind).toBe('obstruction');
+  expect(persistence.compareAndSwapRef).not.toHaveBeenCalled();
+});

@@ -108,14 +108,14 @@ function assertConfigPortPersistence(
 
 // ── JoinReceipt ───────────────────────────────────────────────────────────────
 
-export interface JoinReceipt {
+export type JoinReceipt = {
   nodesAdded: number;
   nodesRemoved: number;
   edgesAdded: number;
   edgesRemoved: number;
   propsChanged: number;
   frontierMerged: boolean;
-}
+};
 
 // ── PatchController ───────────────────────────────────────────────────────────
 
@@ -149,6 +149,7 @@ export default class PatchController {
       lamport,
       versionVector: h._versionVector,
       getCurrentState: () => h._cachedState,
+      getSnapshotFrontier: () => h._cachedFrontier ?? null,
       expectedParentSha: parentSha,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: (commitOpts) => this._onPatchCommitted(h._writerId, commitOpts),

@@ -4,6 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Plumbing from '@git-stunts/plumbing';
+import ContentAddressableStore from '@git-stunts/git-cas';
+import GitCasAssetStorageAdapter from '../../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
+import { CborPatchJournalAdapter } from '../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
+import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
+import Patch from '../../../src/domain/types/Patch.ts';
+import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { describe, expect, it } from 'vitest';
 import GitTimelineHistoryAdapter from '../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { decodePatchMessage } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
@@ -34,10 +40,25 @@ function writerProcess(repository: GitRepoFixture, writer: string, mode: string,
   });
 }
 
-async function writerLamport(repository: GitRepoFixture, writer: string): Promise<number> {
-  const tip = await repository.persistence.readRef(`refs/warp/L/writers/${writer}`);
-  if (tip === null) { throw new Error(`Writer ${writer} did not publish a patch`); }
-  return decodePatchMessage(await repository.persistence.showNode(tip)).lamport;
+async function retainedWriterPatch(repository: GitRepoFixture, writer: string): Promise<Readonly<{ sha: string; patch: Patch }>> {
+  const sha = await repository.persistence.readRef('refs/warp/L/writers/' + writer);
+  if (sha === null) { throw new Error('Expected writer publication'); }
+  const cas = ContentAddressableStore.createCbor({ plumbing: repository.plumbing, applicationRefPrefixes: ['refs/warp/'] });
+  try {
+    const journal = new CborPatchJournalAdapter({
+      assetStorage: new GitCasAssetStorageAdapter({ cas }), cas, codec,
+      commitReader: repository.persistence, graph: 'L',
+    });
+    const patch = await journal.readPatch(decodePatchMessage(await repository.persistence.showNode(sha)));
+    return Object.freeze({ sha, patch });
+  } finally { await cas.close(); }
+}
+
+function repair(repository: GitRepoFixture): void {
+  execFileSync(process.execPath, [CLI, 'repair', '--repo', repository.tempDir,
+    '--lane', 'L', '--writer', 'maintenance', '--action', 'materialization'], {
+    timeout: CHILD_TIMEOUT_MS, stdio: 'pipe',
+  });
 }
 
 describe('observed writer Lamports across real process restart', () => {
@@ -51,12 +72,63 @@ describe('observed writer Lamports across real process restart', () => {
         timeout: CHILD_TIMEOUT_MS, stdio: 'pipe',
       });
       writerProcess(repository, 'b', 'observe', 'A19');
-      const observedLamport = await writerLamport(repository, 'a');
+      const observed = await retainedWriterPatch(repository, 'a');
       writerProcess(repository, 'b', 'write', 'B');
-      expect(await writerLamport(repository, 'b')).toBeGreaterThan(observedLamport);
+      const published = await retainedWriterPatch(repository, 'b');
+      expect(published.patch.lamport).toBeGreaterThan(observed.patch.lamport);
+      expect(published.patch.observedFrontier?.frontier()).toEqual(new Map([['a', observed.sha]]));
+      expect(VersionVector.from(published.patch.context).get('a'))
+        .toBe(VersionVector.from(observed.patch.context).get('a'));
+      expect(VersionVector.from(published.patch.context).get('a')).not.toBe(observed.patch.lamport);
+      repair(repository);
       writerProcess(repository, 'reader', 'observe', 'B');
+      writerProcess(repository, 'b', 'write', 'B-again');
+      const subsequent = await retainedWriterPatch(repository, 'b');
+      expect(subsequent.patch.lamport).toBeGreaterThan(published.patch.lamport);
+      expect(subsequent.patch.observedFrontier?.frontier().get('b')).toBe(published.sha);
+      expect(VersionVector.from(subsequent.patch.context).get('a'))
+        .toBe(VersionVector.from(published.patch.context).get('a'));
+      repair(repository);
+      writerProcess(repository, 'reader', 'observe', 'B-again');
     } finally {
       await repository.cleanup();
+    }
+  }, TEST_TIMEOUT_MS);
+});
+
+describe('unseen replicas keep independent histories', () => {
+  it.each(['sha1', 'sha256'])('resolves three writers consistently after reverse fetch in %s', async format => {
+    if (format !== 'sha1' && format !== 'sha256') { throw new Error('Unsupported fixture object format'); }
+    const sources: GitRepoFixture[] = [];
+    const receivers: GitRepoFixture[] = [];
+    try {
+      for (const writer of ['a', 'b', 'c']) {
+        const source = await repositoryFor(format);
+        sources.push(source);
+        writerProcess(source, writer, 'independent', writer.toUpperCase());
+        const stored = await retainedWriterPatch(source, writer);
+        expect(stored.patch.lamport).toBe(2);
+        expect(VersionVector.serialize(VersionVector.from(stored.patch.context))).toEqual({ [writer]: 1 });
+        expect(stored.patch.observedFrontier?.heads.map(head => head.writerId)).toEqual([writer]);
+      }
+      for (const order of [[0, 1, 2], [2, 1, 0]]) {
+        const receiver = await repositoryFor(format);
+        receivers.push(receiver);
+        writerProcess(receiver, 'maintenance', 'initialize', 'unused');
+        for (const index of order) {
+          const source = sources[index];
+          const writer = ['a', 'b', 'c'][index];
+          if (source === undefined || writer === undefined) { throw new Error('Missing independent source'); }
+          execFileSync('git', ['-C', receiver.tempDir, 'fetch', '--no-tags', source.tempDir,
+            'refs/warp/L/writers/' + writer + ':refs/warp/L/writers/' + writer], {
+            timeout: CHILD_TIMEOUT_MS, stdio: 'pipe',
+          });
+        }
+        repair(receiver);
+        writerProcess(receiver, 'reader', 'observe', 'C');
+      }
+    } finally {
+      for (const repo of [...receivers, ...sources]) { await repo.cleanup(); }
     }
   }, TEST_TIMEOUT_MS);
 });

@@ -84,6 +84,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   override async appendPatch(request: AppendPatchRequest): Promise<PublishedPatch> {
     requireBoundGraph(request.graph, this.#graph);
     requirePatchWriter(request.patch, request.writer);
+    requireObservationGraph(request.patch, this.#graph);
     const stagedPatch = await this.#assetStorage.stage(WarpStream.from([
       this.#codec.encode(request.patch),
     ]), {
@@ -138,7 +139,9 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   override async readPatch(message: PatchCommitMessage): Promise<Patch> {
     const handle = message.patchHandle;
     const bytes = await collectAsyncIterable(this.#assetStorage.open(handle), MAX_BUFFERED_ARTIFACT_BYTES);
-    return hydratePatchAtDecodeBoundary(this.#codec.decode(bytes));
+    const patch = hydratePatchAtDecodeBoundary(this.#codec.decode(bytes));
+    requireObservationGraph(patch, this.#graph);
+    return patch;
   }
 
   override scanPatchRange(
@@ -308,4 +311,10 @@ function patchBundleMembers(
   }
   members.push(['patch', patch.toString()]);
   return WarpStream.from(members);
+}
+
+function requireObservationGraph(patch: Patch, graph: string): void {
+  if (patch.observedFrontier !== undefined && patch.observedFrontier.graphName !== graph) {
+    throw new PatchError('Observed frontier belongs to another graph', { code: 'E_PATCH_NO_STATE' });
+  }
 }

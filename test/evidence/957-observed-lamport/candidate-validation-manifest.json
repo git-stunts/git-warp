@@ -1,0 +1,394 @@
+[
+  {
+    "phase": "green-957-v1",
+    "file": "green-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ae12930975c43a02e2b53cf394b136204d8758b5c5e53f43505f1e6def640c2b",
+    "public_sha256": "ae12930975c43a02e2b53cf394b136204d8758b5c5e53f43505f1e6def640c2b",
+    "normalization": "none",
+    "archive_sha256": "28e2c6163ded2ae5bd1727cb974bcddf3412429e76905eaefaf0f5398e78ab79"
+  },
+  {
+    "phase": "green-957-v1",
+    "file": "green-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "794bd82ba94e5924b5f4c945ac83acd67d9f5a8c1e51d498e849fc7170846bd8",
+    "public_sha256": "4674b53a8494187ed5891809f395bbdaf7d51be2d111e374f3514bab8ce31860",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "green-957-v1",
+    "file": "green-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ed960dc1e528adbd02bc89d3d635d68fcc7390a7006d45e6dc37ea82e6ad0e8a",
+    "public_sha256": "f280abffbd483dd013c65a23997134f0874daa42c30b3955f5a80f8fd62ecdf3",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v1",
+    "file": "focused-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "59495eacba0542d9193d345009f6a64110de064410ccfb7128b549714d9ff55d",
+    "public_sha256": "59495eacba0542d9193d345009f6a64110de064410ccfb7128b549714d9ff55d",
+    "normalization": "none",
+    "archive_sha256": "b1acc9dc7c9a817542233cb85c62b7db8f738f3a36e6c51ce8dae16c9782fce1"
+  },
+  {
+    "phase": "focused-957-v1",
+    "file": "focused-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "26788241a6c7dac6d89dfb71e123dd6fe36bcd6c6a0911827f1badff70336c8f",
+    "public_sha256": "e961ed0222d611a57e2cabf2c4ab6403913476a8b3381af89d8e7be4f056c584",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v1",
+    "file": "focused-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "3a9170d5725b300a24ea4dbc0d30592f0c31449a7a39d51545d55fa1764bda3f",
+    "public_sha256": "53806cf5c51ebd96f4dd0eb4bf483e5c8f0032ff26dcbdec057a672701242c25",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v2",
+    "file": "focused-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "59495eacba0542d9193d345009f6a64110de064410ccfb7128b549714d9ff55d",
+    "public_sha256": "59495eacba0542d9193d345009f6a64110de064410ccfb7128b549714d9ff55d",
+    "normalization": "none",
+    "archive_sha256": "b1acc9dc7c9a817542233cb85c62b7db8f738f3a36e6c51ce8dae16c9782fce1"
+  },
+  {
+    "phase": "focused-957-v2",
+    "file": "focused-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "92bef11ca0a1773454cefc574dbe662f71b7da5746d74845328e8320335bb1d0",
+    "public_sha256": "7764df865510839d54287ff4baf1bc74484f5ca46e3a7b37fc94abe78562eb04",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v2",
+    "file": "focused-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "adf03ca77b2422e2b2d00dc1ff5080b356e8633bbbc8aabd26196b37cdae5bee",
+    "public_sha256": "be68fe1195c1ec0c3999be006d2b736cff9d0ae4b3e12aa868b9dd9317bc9e21",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v3",
+    "file": "focused-957-v3-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "4f0bfe992a5175fb9f2112fb4464a3f5fa220b974ebd7f4c67213b88d306b79b",
+    "public_sha256": "4f0bfe992a5175fb9f2112fb4464a3f5fa220b974ebd7f4c67213b88d306b79b",
+    "normalization": "none",
+    "archive_sha256": "ba0ec00140ed49d91549f20a1a80cf48f2ed675f224d2e39d4db10d058433ef6"
+  },
+  {
+    "phase": "focused-957-v3",
+    "file": "focused-957-v3-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e495c040381bc7ef092d2d9a7beefb56662a325a92ad7b34a0b4787d2e3b0b7b",
+    "public_sha256": "882ae0a656eb34a2d5ed54b49ccf646c68ba2962f26b98e83ba6a035122ce9e8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v3",
+    "file": "focused-957-v3-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "3fb4ed0b91883e886058a2b732cf799f702c94f7f25ca2b41c5e321e8e040e96",
+    "public_sha256": "26d230f02756a5a250a2c7a8d9859b1123c15e893eabd9e8cf9cd0985df96ea7",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v4",
+    "file": "focused-957-v4-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "07e25be7031e7e78298fcfa82ac75a26e63d7103df3dc07b50164119acd27873",
+    "public_sha256": "07e25be7031e7e78298fcfa82ac75a26e63d7103df3dc07b50164119acd27873",
+    "normalization": "none",
+    "archive_sha256": "cabc5cfb4ce032a77a6c91bfa106c8c28888111c44a64e974fc7b33d11e9fdd2"
+  },
+  {
+    "phase": "focused-957-v4",
+    "file": "focused-957-v4-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "1a2152a3a7ca92ddcbbd808a8c91d021674e265b44ae873fc97b36548f22cadd",
+    "public_sha256": "d27fd31d072a71a6c76b2a1e51c164648d47ca42776b09859326d75a43af3bee",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v4",
+    "file": "focused-957-v4-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "a23214609030ec60c405faf743e9e87d98ab51db72a2dd7009d590878695c981",
+    "public_sha256": "a22b58e61109f7b95db1c066ffa02a55c7a27379d2fd1cefcb8c36cb8d4709b4",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v5",
+    "file": "focused-957-v5-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "bee7c06b66031c19568e6a7e20d28c8a8d77a995f261ae244a59ac2ff561e4e7",
+    "public_sha256": "bee7c06b66031c19568e6a7e20d28c8a8d77a995f261ae244a59ac2ff561e4e7",
+    "normalization": "none",
+    "archive_sha256": "9f21cd56758cd048911087516dc0a1863b63e3f7200769161d5feaa8a233f8ba"
+  },
+  {
+    "phase": "focused-957-v5",
+    "file": "focused-957-v5-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "f37bcea5359c735b7f58e64cd294aa0e5de86d360994aa977dd15aece251c343",
+    "public_sha256": "3e334398f56b42782f60f2a4eb1b18cde56363682303379721b5697ee53b0cf3",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v5",
+    "file": "focused-957-v5-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "074ca8f8d90b6cef194354d881b9fdde758e2a0f376f23290555f031c3807034",
+    "public_sha256": "fdbf9c9d10620a0478cad8283bf542abe4e836a0ad47a47b65ae1cd4947a4966",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v6",
+    "file": "focused-957-v6-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "4cae84aad7840f868690676522e7051d74cdcb3bacf7710c8a0ce7f0812fb88d",
+    "public_sha256": "4cae84aad7840f868690676522e7051d74cdcb3bacf7710c8a0ce7f0812fb88d",
+    "normalization": "none",
+    "archive_sha256": "13ce11729b8c9ed6b3fe4c4c0c837c906260ebd37850771cd151df737f2f0846"
+  },
+  {
+    "phase": "focused-957-v6",
+    "file": "focused-957-v6-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "cb9767edc7bf1896f05976a9cedf27ab90351521bf0ead71e4dc718ab48aaf49",
+    "public_sha256": "953ae569a7b8c686d2ded118752004bd25050d04fc502af9be83660b280770df",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v6",
+    "file": "focused-957-v6-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ae28b02fca5d05515636f0f37bb1a478fa6eba2f87fd8f172c4aa957ae01320c",
+    "public_sha256": "8f35e1420aca4ebd2347e5610470c23ee1b240be279e12de9cf8d18b1f83f296",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v1",
+    "file": "replicas-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "7d163201db0273037c78da38edeb3711b98966a966b1a3eac1a16a5129a297d6",
+    "public_sha256": "7d163201db0273037c78da38edeb3711b98966a966b1a3eac1a16a5129a297d6",
+    "normalization": "none",
+    "archive_sha256": "4312277f73406770f3e9a1b236f1f475386f5435789fa5879965af0146cbef3d"
+  },
+  {
+    "phase": "replicas-957-v1",
+    "file": "replicas-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e9cc05f5d515115ff86138cc263247588a8220a2c147e7520cb2deb03c97fb0a",
+    "public_sha256": "65f69d60812cc1dff07ea8661669f4bdd6feb5351f3a32000673d21c4f8eda8b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v1",
+    "file": "replicas-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "fe082c4f450dc48f450459e464b52b86ddb2e8e16afca5713363803331fe68ed",
+    "public_sha256": "adc7f04cb90b81ea9483c1d1a0de8dae0ab8df12f1bcec13fd4853e1f2250209",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v2",
+    "file": "replicas-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "e6b3f292ad30cddb4082ec3102490c73c645272b24038e4a770ee5f6639d02a5",
+    "public_sha256": "e6b3f292ad30cddb4082ec3102490c73c645272b24038e4a770ee5f6639d02a5",
+    "normalization": "none",
+    "archive_sha256": "a9c613dad2c15864d54fe350ea25835456aea654dd831e8f770ae0f1603dfbbf"
+  },
+  {
+    "phase": "replicas-957-v2",
+    "file": "replicas-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "6dce24b7102ef58597dc991b50bf967e431b2d43fcbe6c6e06b113e4ff292945",
+    "public_sha256": "3493cb1258731145df81928720c5e14589d7217cfef70145361fe2590b53619a",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v2",
+    "file": "replicas-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ec3c53633fe30806ec46510b4f1618be7277a040aec65887bd95d61328826490",
+    "public_sha256": "0f2971c27db71c1ba377ccf7142cfaff3ce1eb494e7d7f959d359cae825f76ee",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v3",
+    "file": "replicas-957-v3-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "b7c1ec0f027741adbf4f20a7da31badb8e870bf00a90e3ef3ebf324cad3be5cf",
+    "public_sha256": "b7c1ec0f027741adbf4f20a7da31badb8e870bf00a90e3ef3ebf324cad3be5cf",
+    "normalization": "none",
+    "archive_sha256": "293295fac118f8f4dc15357286ccd482e4f8b96d48281c964b3807227c972ebd"
+  },
+  {
+    "phase": "replicas-957-v3",
+    "file": "replicas-957-v3-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "8697e84f7be1e6fc66b8ef2eaeece6a9f23960f99c8511b6b058676e0807b6fb",
+    "public_sha256": "2239dda400f4875d7000f0539b5c3ed181be9cecc3aeb69f83e343fbe6024f4c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v3",
+    "file": "replicas-957-v3-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "8f1f0b3077f45369baa73be9ef402e0860b524789244cb083e5cfbd014d44ec0",
+    "public_sha256": "eeb96d299a94275826dbb4131e3a7d0b54c0d686798b499d7682a2c7501284ed",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v4",
+    "file": "replicas-957-v4-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "1f1a3b885579d92baaf883fa3760af6081a024f693bf6d07314815cf24e0d9db",
+    "public_sha256": "1f1a3b885579d92baaf883fa3760af6081a024f693bf6d07314815cf24e0d9db",
+    "normalization": "none",
+    "archive_sha256": "6adc5ff48b6637434cc939493aa5ddd581459350920863e582835e0b88029a26"
+  },
+  {
+    "phase": "replicas-957-v4",
+    "file": "replicas-957-v4-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "632078a84ffc2b553fa0c37acc36c92448cb19c41df5637935baded3d8d72d0a",
+    "public_sha256": "5c5fc0c14b94af2af58e4b5367aef547a299f9ea017711d8007a975157a61914",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v4",
+    "file": "replicas-957-v4-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "b217e60a0fd07300731f3a85b44083342edef914886ec0ef66b3912d70b2a8d5",
+    "public_sha256": "291f78c4c186d849bdcc0beeed7863336c9528a3456c04d252bb909b7c5ec9f2",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-unit-957-v1",
+    "file": "full-unit-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ccb59deda62e13bf8799e4b46049d1d3397ad2cf271d06584272a82c25754f8c",
+    "public_sha256": "ccb59deda62e13bf8799e4b46049d1d3397ad2cf271d06584272a82c25754f8c",
+    "normalization": "none",
+    "archive_sha256": "78188df9f2738386d036dec5bdccfcc5f3a1dbc881f70f90f8a9a989e393930f"
+  },
+  {
+    "phase": "full-unit-957-v1",
+    "file": "full-unit-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "3e7b8630fbd97327c047e21e3a671c73cff25840b7fb7aa44b155da9f53e11c3",
+    "public_sha256": "a53ff6c854c7acf332b70f7364c9f041f83fc7e933bd4b3633f2f882f75a81d6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-unit-957-v1",
+    "file": "full-unit-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "d72108daf75dd209442f4473e62d3f9f0d703e9159210eb041008f221e057822",
+    "public_sha256": "65e6f77ab0f016d11ba5cf3c3b5384d7ec34184430e4518306c37609842bcc80",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-unit-957-v2",
+    "file": "full-unit-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "d54a1e613f09eab95df93884d7297204e48c9bb84f64284feb462bb9c4919197",
+    "public_sha256": "d54a1e613f09eab95df93884d7297204e48c9bb84f64284feb462bb9c4919197",
+    "normalization": "none",
+    "archive_sha256": "0fcc43140d2abe3b933772a6207367b7442c11deb7bc44c5f5632aff71579811"
+  },
+  {
+    "phase": "full-unit-957-v2",
+    "file": "full-unit-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "cd06e3f73726ae10896d81b5940a9f0a883c4c9b10ccee244ecf337310386bac",
+    "public_sha256": "262a4c3fdacb60055e196b0acd3dd417aaa5ae8d11f62954540df6a91b4e9afd",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-unit-957-v2",
+    "file": "full-unit-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "7c59eded66d8306d96854ebb29e638eee5f7e0e7ba9c931640ca75e6212f68d8",
+    "public_sha256": "ef0773fc8883273408507e45d83f05c9d211e4c46efd1bd9faa02b257bcb9348",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "red-957-current-v1",
+    "file": "red-957-current-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "fb9efa4d9206479c18ee03c168dcf43f3f82fd9c9436164e1ca6ac94b49b778d",
+    "public_sha256": "fb9efa4d9206479c18ee03c168dcf43f3f82fd9c9436164e1ca6ac94b49b778d",
+    "normalization": "none",
+    "archive_sha256": "190f9418dc0ed32d47b7746da053875628f36c6cb9025303389afa7e8d2aa735"
+  },
+  {
+    "phase": "red-957-current-v1",
+    "file": "red-957-current-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "d835e32b4f4cd9c4461c9d6cbf18669917f1a87d7afd149e66e0c7827aed2b25",
+    "public_sha256": "aa40c1ca1ad38be68d4951755ef944e7054649179b65649049b39ce944574f26",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "red-957-current-v1",
+    "file": "red-957-current-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "60941c2d13d34d8a68f4c7271285e8ba9ea9300dd3c08ce7d8be843383630366",
+    "public_sha256": "e584a48927ef463d5536ad8b678c2691ce735be49395903b22d39f0804538c4c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]

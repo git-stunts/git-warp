@@ -11,6 +11,7 @@
  */
 
 import VersionVector from '../crdt/VersionVector.ts';
+import ObservedWriteFrontier from './ObservedWriteFrontier.ts';
 import PatchError from '../errors/PatchError.ts';
 import type EntityAdmissionBoundary from './EntityAdmissionBoundary.ts';
 import { freezeEntityAdmissionBoundaries } from './EntityAdmissionBoundaryRuntime.ts';
@@ -146,10 +147,13 @@ export default class Patch {
   /** Exact retained spans for entity admissions lowered into this patch. */
   readonly entityAdmissions?: readonly EntityAdmissionBoundary[];
 
+  /** Direct observations retained atomically with this patch; absent in legacy data. */
+  declare readonly observedFrontier?: ObservedWriteFrontier;
+
   /**
    * Creates a Patch.
    */
-  constructor({ schema = 2, writer, lamport, context, ops, reads, writes, entityAdmissions }: {
+  constructor({ schema = 2, writer, lamport, context, ops, reads, writes, entityAdmissions, observedFrontier }: {
     schema?: 2 | 3;
     writer: string;
     lamport: number;
@@ -158,6 +162,7 @@ export default class Patch {
     reads?: readonly string[] | undefined;
     writes?: readonly string[] | undefined;
     entityAdmissions?: readonly EntityAdmissionBoundary[] | undefined;
+    observedFrontier?: ObservedWriteFrontier | undefined;
   }) {
     validateSchema(schema);
     validateWriter(writer);
@@ -172,9 +177,19 @@ export default class Patch {
     this.reads = _nonEmpty(reads);
     this.writes = _nonEmpty(writes);
     const boundaries = freezeEntityAdmissionBoundaries(entityAdmissions, this.ops);
-    if (boundaries !== undefined) {
-      this.entityAdmissions = boundaries;
-    }
+    if (boundaries !== undefined) { this.entityAdmissions = boundaries; }
+    validateObservation(observedFrontier, lamport);
+    if (observedFrontier !== undefined) { this.observedFrontier = observedFrontier; }
     Object.freeze(this);
+  }
+}
+
+function validateObservation(observation: ObservedWriteFrontier | undefined, lamport: number): void {
+  if (observation === undefined) { return; }
+  if (!(observation instanceof ObservedWriteFrontier)) {
+    throw new PatchError('Patch observation requires a validated frontier', { code: 'E_PATCH_NO_STATE' });
+  }
+  if (!Number.isSafeInteger(lamport) || lamport <= observation.maxLamport()) {
+    throw new PatchError('Patch clock must exceed its recorded observations', { code: 'E_PATCH_NO_STATE' });
   }
 }

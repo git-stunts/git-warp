@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Capture a coherent observed writer basis before public live writes, advancing
+  Lamports beyond inspected patches and retaining frontier evidence with the
+  admitted operations across restart ([#957](https://github.com/git-stunts/git-warp/issues/957)).
+
 - Create absent refs in both SHA-1 and SHA-256 repositories without assuming
   a 40-digit null object ID. Fresh SHA-256 Runtimes can publish their substrate
   marker and admit Lane writes while stale ref-CAS expectations still refuse

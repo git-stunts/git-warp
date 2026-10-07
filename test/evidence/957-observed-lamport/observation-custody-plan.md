@@ -32,3 +32,11 @@ Use existing storage-owned publication: the new metadata enters the patch asset 
 - Exact-head regression, relevant full gates and current independent review pass. No narrow golden test alone completes the task.
 
 Read the complete TypeScript policies before implementation. Keep new parsing in adapters and validated runtime values in core. Remove touched casts, retain all required public compatibility, and obtain full touched-code coverage where refactoring is necessary. Record any contradiction in the selected mechanism before coding around it; this plan does not establish proofs that have not been executed.
+
+## Signing boundary qualification
+
+BTR canonical signing is an existing fixed projection of operation content, clock, context and original patch SHA. Adding observation metadata to that projection would change signing bytes and break old verifiers. Keep its canonical wire/signing contract unchanged. The observation remains in the authoritative patch asset, cryptographically identified by the SHA already carried in the provenance entry. BTR projection alone does not assert that it carries the complete observation record; resolve the original journal coordinate for that custody proof. Sync normalization must preserve the validated optional frontier when it returns a reconstructed current Patch.
+
+## Selected cached membership
+
+A cached membership removal uses the frontier paired with that snapshot, not a newer enumeration of live refs. The builder captures state and its paired frontier synchronously on its first snapshot access, preserving existing callbacks that prepare materialization after builder creation. Preparation validates those selected heads and records them with the removal. Newer foreign additions remain concurrent. Live ordinary writes capture current heads. Legacy manually constructed builders that provide cached state without a frontier retain their prior selected-state behavior; that compatibility path does not invent durable frontier evidence.

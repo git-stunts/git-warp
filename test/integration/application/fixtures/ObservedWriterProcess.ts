@@ -8,13 +8,19 @@ const [repository, writer, mode, expected] = process.argv.slice(2);
 if (!repository || !writer || !expected) {
   throw new Error('Observed writer fixture requires repository, writer, mode, and expected value');
 }
-if (mode !== 'seed' && mode !== 'observe' && mode !== 'write') {
+if (mode !== 'seed' && mode !== 'observe' && mode !== 'write' && mode !== 'independent' && mode !== 'initialize') {
   throw new Error('Observed writer fixture mode is unsupported');
 }
 const runtime = await Runtime.open({ at: repository, writer });
 try {
   const lane = await runtime.lane('L');
-  if (mode === 'seed') {
+  if (mode === 'initialize') {
+    // Lane initialization establishes the substrate without observing or writing graph data.
+  } else if (mode === 'independent') {
+    await lane.write(intent.node.add({ subject: SUBJECT }));
+    const receipt = await lane.write(intent.property.set({ subject: SUBJECT, key: PROPERTY, value: expected }));
+    if (receipt.outcome.kind !== 'derived') { throw new Error('Independent write was not admitted'); }
+  } else if (mode === 'seed') {
     await lane.write(intent.node.add({ subject: SUBJECT }));
     for (let index = 0; index < SEED_WRITES; index += 1) {
       const receipt = await lane.write(intent.property.set({
