@@ -2480,5 +2480,57 @@
     "original_sha256": "9b62d4253c77c7f36ce07afbff63785a34efb514ec212892b9410a2298e49eaa",
     "public_sha256": "93479edac04b8fa3435d55196c2e788731e5a6d58cf3f632420361e989dfd9c1",
     "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-stack-957-v1",
+    "file": "coverage-stack-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "f17e6bbfcaf6384e19360dcfc2d2c0223c7e1941daf8e23f9eb944a7409e5dc3",
+    "public_sha256": "f17e6bbfcaf6384e19360dcfc2d2c0223c7e1941daf8e23f9eb944a7409e5dc3",
+    "normalization": "none",
+    "archive_sha256": "5446fafa17ff7e8a4c5e1ccdf73c68db0aa9af87a8c06c1ebdf5e7433aea89bc",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "coverage-stack-957-v1",
+    "file": "coverage-stack-957-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "3d3655cff969d5f776430c608fd8a9a4fbc0465ec14b0107e93b6d2bdfd21343",
+    "public_sha256": "9a20d2459941f27a5bac39868e728ae4e8f934e15a494ba6eb8a8cd20cca72cd",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-stack-957-v1",
+    "file": "coverage-stack-957-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "f41de2fb47f9512a606bf7a4e7ed9ced6e46783e51441694d0f37592f224db65",
+    "public_sha256": "4a86bb82c4430ef4cf46681d13ae82619d8b36e5509a41265b63c2973235953e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-stack-957-v1",
+    "file": "packed-stack-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "512ff9dfdbcdb8b242f55ac52938baac2f4b2f227faa6e889f2ae27c874609ba",
+    "public_sha256": "512ff9dfdbcdb8b242f55ac52938baac2f4b2f227faa6e889f2ae27c874609ba",
+    "normalization": "none",
+    "archive_sha256": "0c29eba6842107a1fc570397e79b007a9fb019595d7332fc498a329927e0c494",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "packed-stack-957-v1",
+    "file": "packed-stack-957-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "523ef228a875752be52c9bb9086e5c44146c3f3696f82bed040f9b7263253eb4",
+    "public_sha256": "1c382818b7dfbbd7cb156d173b043d73c50cd31523faf7a43788ed4c756423b5",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-stack-957-v1",
+    "file": "packed-stack-957-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "a087dcdc14aef254a453c3b40b819e633dce14ac10397511d72ef2552f7e22ec",
+    "public_sha256": "c71a3d328e76047dde7cd73c3613f758ce71aff47b5390eb0ce18c1e64f1a5c6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
   }
 ]
