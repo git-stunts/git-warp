@@ -1,0 +1,210 @@
+[
+  {
+    "phase": "empty-tree-red-990-v1",
+    "file": "empty-tree-red-990-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "b08efad3e898bbbc07c465d61033a6a94cab6674acc859ac0cfd81c4b9b0a329",
+    "public_sha256": "b08efad3e898bbbc07c465d61033a6a94cab6674acc859ac0cfd81c4b9b0a329",
+    "normalization": "none",
+    "archive_sha256": "717314168e8cb7935edda29947f0ddb6ef7ec9b098569ccc4073f5661de98e1c",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "empty-tree-red-990-v1",
+    "file": "empty-tree-red-990-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "8aa9a52bbde503d7e0696882c530f5d89541f25d2cfd355b6a5784e9b5b489a1",
+    "public_sha256": "91427b30b6a0df1d21164858e5707be803502b7a5b553d24a462eef2440ff391",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "empty-tree-red-990-v1",
+    "file": "empty-tree-red-990-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "a5109f65436a0897bb749d6422496f3649f703a45d21b1be55ee57ec457ea427",
+    "public_sha256": "cc53d00305d71eebfce3ce80a60dcc7aac2fe74da7d16ff6455477fc34267f3c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v1",
+    "file": "checkpoint-green-990-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "2a7f4ba54b0207cb33e1561a7e96b2b32fafbf8e34b11cf8ed277a94d4932e83",
+    "public_sha256": "2a7f4ba54b0207cb33e1561a7e96b2b32fafbf8e34b11cf8ed277a94d4932e83",
+    "normalization": "none",
+    "archive_sha256": "581c24cfd6078bc771d1f1539578a9d621dd27e2b26e41fa98978143351d6129",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "checkpoint-green-990-v1",
+    "file": "checkpoint-green-990-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "94365cc7043901b307e75acde57d303389e625a7458b903fe2ceb7bb5dc3ba27",
+    "public_sha256": "75ffc4dac8b7ca6c98fbb6b650642cf3ac06f6aec2d3cf1ae83fbc9a46a2998b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v1",
+    "file": "checkpoint-green-990-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "177d7da34b211063f9dd003c25f692e7b6c969694ace2d70d44aefc8fcda7520",
+    "public_sha256": "4172a289bbaa730798fb38f365b5f75ec8d517a0fdbb7945bd2764cb649de948",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v2",
+    "file": "checkpoint-green-990-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "499956362b33b4f51cc3132d7f6dadc38a950d2042e434e01af4e564ae1c6706",
+    "public_sha256": "499956362b33b4f51cc3132d7f6dadc38a950d2042e434e01af4e564ae1c6706",
+    "normalization": "none",
+    "archive_sha256": "b5ff0ba756761897325bc056fd603bf6bede0ff182fa6092fb54c031c2b73744",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "checkpoint-green-990-v2",
+    "file": "checkpoint-green-990-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "5fbeb915f5a1d72290903237fe6394637f0e44e345196b194b7be6c3ace59e86",
+    "public_sha256": "45f456e2f55c4bbed7af5c27fef2241c9fe47ed6143be63f68efff7d7635b97f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v2",
+    "file": "checkpoint-green-990-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "6495b31df46d4bd46ee3b7ea30412c5cde995a173a90ea7e69860812ca93ac52",
+    "public_sha256": "216306318340ca3f76c084d6448a0ea19cc2c7ebf6ed645d4b14cc74f97023aa",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v3",
+    "file": "checkpoint-green-990-v3-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "d9333d0532e6c159927bbe93ef418b14a621571e10fc92b3908da34f50e3a28f",
+    "public_sha256": "d9333d0532e6c159927bbe93ef418b14a621571e10fc92b3908da34f50e3a28f",
+    "normalization": "none",
+    "archive_sha256": "92c6fb5012e2b0c83aa2cc022808dc333d34423f43a8488ba3dc8877251151cd",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "checkpoint-green-990-v3",
+    "file": "checkpoint-green-990-v3-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "b1d2e64368da64d9ae94449da3250791bb945a15054926a16d310a4804b439b5",
+    "public_sha256": "d0775c404b1efe3bae289352bff269f21bb2b090894920a50188a76ae74bc18a",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v3",
+    "file": "checkpoint-green-990-v3-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "cbe763b56974ce4e8239b2ca1528eebef7b972f5490fb278cbd94e7866cc9fd3",
+    "public_sha256": "ec83013129aa3dc2d965327b98cd3da9a63f18288becd31c32067c8b015f7621",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v4",
+    "file": "checkpoint-green-990-v4-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "09574e66e34eeb0ddf7dd2ac068534e3ab762c7a586ab48c0b76d860b46d40d2",
+    "public_sha256": "09574e66e34eeb0ddf7dd2ac068534e3ab762c7a586ab48c0b76d860b46d40d2",
+    "normalization": "none",
+    "archive_sha256": "4859cbfe571b1d36bf2b8ad9f161fb87205d7b50f70f19c5948916c286bc9703",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "checkpoint-green-990-v4",
+    "file": "checkpoint-green-990-v4-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "38de67001f03427661eee742117e710d43821e03e8bb43ff06ad606d6f8c053c",
+    "public_sha256": "6d0d4892af0f68a7f6ec58c2b13bc093fd9b7132f638bae9cebf2ed021a7442b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v4",
+    "file": "checkpoint-green-990-v4-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "7b89c8d12092745ed6f464d03ab6f91afb911662f8ed9925da9bbee087427c98",
+    "public_sha256": "c6793a2cd09d13008716e6fce2e4192f2b49e2938048ab73665c2b21f19eae8e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v5",
+    "file": "checkpoint-green-990-v5-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "4be18065066f665a2ee2377fe1f7d27aa064c6986e253393ff84c41119f54214",
+    "public_sha256": "4be18065066f665a2ee2377fe1f7d27aa064c6986e253393ff84c41119f54214",
+    "normalization": "none",
+    "archive_sha256": "1a82fa2f8131f6e34346acfe9640b4768b5d33826064cf45123744be5a619c8d",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "checkpoint-green-990-v5",
+    "file": "checkpoint-green-990-v5-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "94f1d67c17062930a219b1069398e8e02fdc4263ee3feac1e3dd2c634898fdae",
+    "public_sha256": "7e44a3d750dffa2be3d75f3365ed9d607122a37228a0496231cf6a2f8d2c7299",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v5",
+    "file": "checkpoint-green-990-v5-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "2dbec71842f17b4c529dd574fde965ba4cf077c25fb77c3e6f2d604940722064",
+    "public_sha256": "1f99cd5e4dab491d0366b0c8d3156413ec3636021e770f58e2f7b84e902d2a6f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v6",
+    "file": "checkpoint-green-990-v6-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "43fc1390ec2fa3aa3677aeaf09dafd2e4be5a8437d9da8297bc502aae3253187",
+    "public_sha256": "43fc1390ec2fa3aa3677aeaf09dafd2e4be5a8437d9da8297bc502aae3253187",
+    "normalization": "none",
+    "archive_sha256": "0dcefb6bb39e4849829cd5886b9497299ea1ecff9d36ec071b2f2f295be35cb8",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "checkpoint-green-990-v6",
+    "file": "checkpoint-green-990-v6-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "5cf488e12e9cde3351893909b8aaffade8c4d859667af8c64ef4e1464fc2bd1d",
+    "public_sha256": "bb64a402f0ec23c2179a59b970a53f74c267015e72b22bb908f4d62e40adc480",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v6",
+    "file": "checkpoint-green-990-v6-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "9cb219979218df93ea3effc3b2b77c9e679d1db9d4346cb95f078f6b6d47afef",
+    "public_sha256": "da47e7ae38b1816615a6fcb4ab5b71830e59dc282e58f9bbcc9690ff8cf677e3",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v7",
+    "file": "checkpoint-green-990-v7-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "a3250886c78aad3b2941bfbe195f013d0c8de94d87492bc159852d2516992012",
+    "public_sha256": "a3250886c78aad3b2941bfbe195f013d0c8de94d87492bc159852d2516992012",
+    "normalization": "none",
+    "archive_sha256": "1f4e60b8ed5cb51ee8cac5a5cbefca9e96b06dccccb91a3d47c630c00df7e6a5",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "checkpoint-green-990-v7",
+    "file": "checkpoint-green-990-v7-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "270e1ba3b2a446fcd70f330ff0f0a1314c68d28115a58402f4f3396e362dbd8f",
+    "public_sha256": "162d5f92dbcb05114ecbf16e4879e90c46c0b52ee062f6399a2995a0fdac0818",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-green-990-v7",
+    "file": "checkpoint-green-990-v7-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "c4a2c8269d203b2903f17aceb8d9489a1c42508177d1b76d18d614f6e44531a4",
+    "public_sha256": "cd07f1dc7e6fc56f0f829d8b0fa6f3fed1094d4fb7179f80213e0858734c1257",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]

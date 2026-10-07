@@ -260,6 +260,8 @@ patch payloads, checkpoint state, receipts, or content attachments. Isolation
 comes from the ref namespace and Git plumbing, not from a rule that every graph
 commit has no payload tree.
 
+Checkpoint and coverage publication retain every writer head through Git ancestry. Frontiers above 64 unique heads use immutable anchor commits with at most 64 direct parents each; the final checkpoint retains the existing bundle, schema and logical frontier and publishes through one ref compare-and-swap. Anchor trees are created in the repository's object format. Failed anchor preparation does not advance the publication ref.
+
 ```text
 refs/warp/events/writers/alice → commit-sha-1
 refs/warp/events/writers/bob   → commit-sha-2

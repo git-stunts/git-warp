@@ -177,6 +177,129 @@ function requireMaterialization(record: CheckpointRecord): MaterializationHandle
   return record.materialization;
 }
 
+async function seedParents(fixture: ReturnType<typeof createFixture>, count: number): Promise<string[]> {
+  const parents: string[] = [];
+  for (let index = 0; index < count; index++) {
+    parents.push(await fixture.history.commitNode({ message: `writer ${index}` }));
+  }
+  return parents;
+}
+
+async function reachableParents(fixture: ReturnType<typeof createFixture>, head: string): Promise<Set<string>> {
+  const seen = new Set<string>();
+  const pending = [head];
+  for (let sha = pending.pop(); sha !== undefined; sha = pending.pop()) {
+    if (seen.has(sha)) { continue; }
+    seen.add(sha);
+    const info = await fixture.history.getNodeInfo(sha);
+    expect(info.parents.length).toBeLessThanOrEqual(64);
+    pending.push(...info.parents);
+  }
+  return seen;
+}
+
+describe('bounded checkpoint reachability', () => {
+  it('loads a retained checkpoint without optional provenance support', async () => {
+    const fixture = createFixture();
+    const input = await record(fixture);
+    const retained = requireMaterialization(input);
+    const roots = retained.roots.withRoot('provenance-support', MaterializationRoot.unavailable());
+    const descriptor = await fixture.cas.pages.put({
+      source: fixture.codec.encode(materializationDescriptorData({
+        coordinate: retained.coordinate, laneName: 'test', roots, stateHash: input.stateHash,
+      })),
+    });
+    const bundle = await fixture.cas.bundles.putOrdered({
+      members: materializationMembers(descriptor.handle.toString(), roots),
+    });
+    const head = await commitBundleCheckpoint(fixture, new BundleHandle(bundle.handle.toString()), input.stateHash);
+    const loaded = await fixture.checkpoints.loadCheckpoint(head);
+    expect(loaded.provenanceIndex).toBeUndefined();
+    expect(loaded.frontier).toEqual(input.frontier);
+  });
+  it.each([0, 63, 64, 65, 129, 4097])('retains the exact bundle and frontier for %i parents', async count => {
+    const fixture = createFixture();
+    const parents = await seedParents(fixture, count);
+    const frontier = new Map(parents.map((sha, index) => [`writer-${index}`, sha]));
+    const input = await record(fixture, { parents, frontier });
+    const commit = vi.spyOn(fixture.history, 'commitNode');
+    const published = await fixture.checkpoints.publishCheckpoint(input);
+    const info = await fixture.history.getNodeInfo(published.checkpointSha);
+    if (count <= 64) {
+      expect(info.parents).toEqual(parents);
+      expect(commit).not.toHaveBeenCalled();
+    }
+    const reachable = await reachableParents(fixture, published.checkpointSha);
+    for (const sha of parents) { expect(reachable.has(sha)).toBe(true); }
+    expect(published.bundleHandle.toString()).toBe(requireMaterialization(input).bundle.toString());
+    const loaded = await fixture.checkpoints.loadCheckpoint(published.checkpointSha, 'test');
+    expect(loaded.frontier).toEqual(frontier);
+    expect(loaded.stateHash).toBe(input.stateHash);
+    expect(loaded.schema).toBe(5);
+  });
+
+  it('deduplicates physical parents without changing the logical frontier', async () => {
+    const fixture = createFixture();
+    const [parent] = await seedParents(fixture, 1);
+    if (parent === undefined) { throw new Error('Expected parent'); }
+    const input = await record(fixture, { parents: Array.from({ length: 65 }, () => parent) });
+    const commit = vi.spyOn(fixture.history, 'commitNode');
+    const published = await fixture.checkpoints.publishCheckpoint(input);
+    expect((await fixture.history.getNodeInfo(published.checkpointSha)).parents).toEqual([parent]);
+    expect(commit).not.toHaveBeenCalled();
+    expect((await fixture.checkpoints.loadCheckpoint(published.checkpointSha)).frontier).toEqual(input.frontier);
+  });
+
+  it.each([1, 2])('preserves the old checkpoint when carrier %i fails', async failure => {
+    const fixture = createFixture();
+    const old = await fixture.checkpoints.publishCheckpoint(await record(fixture));
+    const parents = await seedParents(fixture, 65);
+    const input = await record(fixture, { parents });
+    const original = fixture.history.commitNode.bind(fixture.history);
+    let calls = 0;
+    const error = new Error('carrier failure');
+    vi.spyOn(fixture.history, 'commitNode').mockImplementation(async options => {
+      if (++calls === failure) { throw error; }
+      return await original(options);
+    });
+    const publish = vi.spyOn(fixture.history, 'commitNodeWithTree');
+    await expect(fixture.checkpoints.publishCheckpoint(input)).rejects.toBe(error);
+    expect(publish).not.toHaveBeenCalled();
+    expect(await fixture.checkpoints.resolveHead('test')).toBe(old.checkpointSha);
+  });
+
+  it('preserves the old checkpoint when final publication fails', async () => {
+    const fixture = createFixture();
+    const old = await fixture.checkpoints.publishCheckpoint(await record(fixture));
+    const input = await record(fixture, { parents: await seedParents(fixture, 65) });
+    const error = new Error('publication failure');
+    vi.spyOn(fixture.history, 'commitNodeWithTree').mockRejectedValueOnce(error);
+    await expect(fixture.checkpoints.publishCheckpoint(input)).rejects.toBe(error);
+    expect(await fixture.checkpoints.resolveHead('test')).toBe(old.checkpointSha);
+  });
+
+  it('does not overwrite a concurrently published checkpoint after building carriers', async () => {
+    const fixture = createFixture();
+    const old = await fixture.checkpoints.publishCheckpoint(await record(fixture));
+    const input = await record(fixture, { parents: await seedParents(fixture, 65) });
+    const concurrent = await fixture.checkpoints.publishCheckpoint(await record(fixture, {
+      parents: input.parents.slice(0, 1),
+    }));
+    await expect(fixture.checkpoints.publishCheckpoint({ ...input, expectedCheckpointSha: old.checkpointSha }))
+      .rejects.toMatchObject({ code: 'E_REF_IO' });
+    expect(await fixture.checkpoints.resolveHead('test')).toBe(concurrent.checkpointSha);
+  });
+
+  it('bounds the parallel coverage anchor and retains every parent', async () => {
+    const fixture = createFixture();
+    const parents = await seedParents(fixture, 129);
+    const anchor = await fixture.checkpoints.publishCoverage({ graphName: 'test', parents });
+    const reachable = await reachableParents(fixture, anchor);
+    for (const parent of parents) { expect(reachable.has(parent)).toBe(true); }
+    expect(await fixture.history.readRef('refs/warp/test/coverage/head')).toBe(anchor);
+  });
+});
+
 async function commitBundleCheckpoint(
   fixture: ReturnType<typeof createFixture>,
   bundleHandle: BundleHandle,

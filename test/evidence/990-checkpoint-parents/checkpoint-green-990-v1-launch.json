@@ -1,0 +1,40 @@
+{
+  "phase": "checkpoint-green-990-v1",
+  "worker": "git-warp-tests",
+  "image": "sha256:9f145953f6e79a59749a683d11a476133cb7cef0588b79256dc195b1d0c87ad7",
+  "source_base": "5ccea14ea15c707ac6c1dc3d19f4ce65d371ffe3",
+  "source_archive_sha256": "7d6b5f9f6d7376cc13e97eb43b7fc7206bbb5ff07fe839593ecad6f50028a8a7",
+  "source_archive_bytes": 21534720,
+  "baseline_inputs": {},
+  "command": [
+    "bash",
+    "-c",
+    "npm run typecheck && node node_modules/eslint/bin/eslint.js src/infrastructure/adapters/CborCheckpointStoreAdapter.ts src/infrastructure/adapters/GitTimelineHistoryAdapter.ts test/unit/infrastructure/adapters/CborCheckpointStoreAdapter.test.ts test/integration/application/Runtime.checkpointFanIn.integration.test.ts && node node_modules/vitest/vitest.mjs run test/unit/infrastructure/adapters/CborCheckpointStoreAdapter.test.ts test/integration/application/Runtime.checkpointFanIn.integration.test.ts --maxWorkers=1"
+  ],
+  "lock_store": "workstation.git",
+  "lock_keys": [
+    "host/docker/git-warp-tests/"
+  ],
+  "outputs": [
+    "build volume /app",
+    "runtime /data",
+    "bounded /tmp and <CONTAINER_HOME> and /dev/shm",
+    "Docker rotated log",
+    "host receipts"
+  ],
+  "host_free_bytes": 725161508864,
+  "host_receipt_bytes": 5420334,
+  "build_limit_bytes": 21474836480,
+  "data_quota_bytes": 3221225472,
+  "generated_nonobject_limit_bytes": 100663296,
+  "stdout_limit_bytes": 16777216,
+  "memory_bytes": 8589934592,
+  "cpus": 4,
+  "cpu_affinity": "0-3",
+  "pids_limit": 768,
+  "timeout_seconds": 1700,
+  "stop_boundary": "git-warp-tests",
+  "guard": "inner guard plus outer host free/log monitor; read-only container root",
+  "vm_free_bytes": 689239453696,
+  "initial_build_bytes": 1954340864
+}

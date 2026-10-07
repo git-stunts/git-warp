@@ -193,7 +193,7 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
   }
 
   async commitNode({ message, parents = [], sign = false }: CommitNodeOptions): Promise<string> {
-    return await this._createCommit({ tree: this.emptyTree, parents, message, sign });
+    return await this._createCommit({ tree: await this.writeTree([]), parents, message, sign });
   }
 
   async commitNodeWithTree({
@@ -295,13 +295,11 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
     const batchSize = 16;
     for (let i = 0; i < entries.length; i += batchSize) {
       const batch = entries.slice(i, i + batchSize);
-      const results = await Promise.all(batch.map(([, oid]) => this.readBlob(oid)));
-      for (let j = 0; j < batch.length; j++) {
-        const entry = batch[j];
-        const result = results[j];
-        if (entry !== undefined && result !== undefined) {
-          files.set(entry[0], result);
-        }
+      const results = await Promise.all(batch.map(async ([path, oid]) => ({
+        path, bytes: await this.readBlob(oid),
+      })));
+      for (const entry of results) {
+        files.set(entry.path, entry.bytes);
       }
     }
     return Object.fromEntries(files);
