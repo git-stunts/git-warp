@@ -1,0 +1,11 @@
+# Checkpoint parent-bound native RED: issue990
+
+Source base:83c4b2cf51d60ed736797d90d371c08b2158e3eb (#985 feature stack), main/v20.0.0ceb58e656ec5bc85f0ae5991bf2a55599693bbb3. CheckpointController/checkpointCreate/CborCheckpointStoreAdapter are unchanged from main. git-cas6.5.11 PublicationService caps direct publication parents at64. The cause is a flat checkpoint frontier forwarded unchanged to that provider; this is distinct from the1024-object batch problem in #958.
+
+The public repair regression seeds independent valid legacy-shaped Patch assets through the actual native CborPatchJournal/git-cas/Git path. No fresh public property write and no #957 capture change is required to reproduce it. Runtime initializes the current substrate first; one separate CLI process repairs, and an independent public Runtime reader verifies the expected LWW value for passing controls. The fixture also checks transitive checkpoint ancestry, direct-parent bounds and unchanged writer refs on controls.
+
+checkpoint-red-990-v1 passes source/test types and targeted lint. Four cases pass:63 and64 heads in SHA-1 and SHA-256. Four cases fail:65 and129 heads in both formats, at the separate CLI repair with Publication parents must be a bounded array. The raw failure remains a failure. No fix, GREEN, packed consumer, full suite, touched coverage, old-reader/GC proof or approval is claimed.
+
+The eight fixed cases run serially in the existing COPY-based worker. At most one owned temporary repository is live; estimated generated stores are below32MiB per case, with quota/monitor/timeout guards preventing growth outside the existing budget. Actual runtime peak25157632 bytes, generated nonobject peak21843968, build peak1957740544, tasks55; no guard/PID/OOM refusal. Raw JSON and console hashes bind the snapshot and image; public home-label normalization changes no number or result. Worker cleanup completes before reservation release.
+
+Mainline merging remains paused. [Issue #990](https://github.com/git-stunts/git-warp/issues/990) owns this independently useful repair; #985 provides SHA-256 bootstrap for the public witness. An adapter-owned bounded reachability proposal is under read-only agy critique. Carrier topology, GC reachability, compatibility and failure atomicity are acceptance obligations rather than approved design or completed implementation.
