@@ -40,6 +40,7 @@ import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts'
 import GitCasMaterializationSnapshotReader, {
   type MaterializationBasisSnapshot,
 } from './GitCasMaterializationSnapshotReader.ts';
+import GitPublicationParents from './GitPublicationParents.ts';
 
 interface CheckpointHistory {
   commitNode(options: { message: string; parents: string[] }): Promise<string>;
@@ -125,7 +126,10 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     const publication = await this.#cas.publications.commit({
       root,
       commit: {
-        parents: await this.#boundedParents(record.graphName, record.parents),
+        parents: await this.#boundedParents(
+          record.graphName,
+          new GitPublicationParents(record.parents).toArray(),
+        ),
         message,
       },
       ref: { name: checkpointRef, expected: expectedHead },

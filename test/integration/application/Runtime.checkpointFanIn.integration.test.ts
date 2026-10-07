@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import Plumbing from '@git-stunts/plumbing';
 import ContentAddressableStore from '@git-stunts/git-cas';
 import { Runtime } from '../../../index.ts';
@@ -18,6 +18,8 @@ import { CborCheckpointStoreAdapter } from '../../../src/infrastructure/adapters
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { CborCheckpointStoreAdapter as BaselineCheckpointReader } from './fixtures/CheckpointStoreBaseline.ts';
+import GitCasMaterializationStoreAdapter from '../../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
+import MaterializationCoordinate from '../../../src/domain/materialization/MaterializationCoordinate.ts';
 import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 
 const MAX_PUBLICATION_PARENTS = 64;
@@ -30,6 +32,37 @@ const CASES = ['sha1', 'sha256'].flatMap(format => [63, 64, 65, 129].map(writers
 function checkpointDependencies(history: GitTimelineHistoryAdapter, cas: ContentAddressableStore) {
   return { history, cas, codec, crypto: new NodeCryptoAdapter(), commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC };
 }
+
+it.each(['sha1', 'sha256'])('preserves provider refusal for abbreviated parents: %s', async format => {
+  const fields = await fixture(format);
+  const materializations = new GitCasMaterializationStoreAdapter({
+    cas: fields.cas, codec, crypto: new NodeCryptoAdapter(), laneName: 'L',
+  });
+  try {
+    const frontier = await seed(fields.journal, 65);
+    repair(fields.directory);
+    const store = new CborCheckpointStoreAdapter(checkpointDependencies(fields.history, fields.cas));
+    const old = await store.resolveHead('L');
+    if (old === null) { throw new Error('Expected checkpoint'); }
+    const loaded = await store.loadCheckpoint(old, 'L');
+    const acquired = await materializations.acquireExact(new MaterializationCoordinate({ frontier, ceiling: null }));
+    if (acquired === null) { throw new Error('Expected retained materialization'); }
+    try {
+      const parents = [...frontier.values()].map((sha, index) => index === 0 ? sha.slice(0, 12) : sha);
+      const commit = vi.spyOn(fields.history, 'commitNode');
+      await expect(store.publishCheckpoint({
+        graphName: 'L', state: loaded.state, frontier, stateHash: loaded.stateHash,
+        appliedVV: loaded.state.observedFrontier, materialization: acquired.materialization,
+        parents, expectedCheckpointSha: old,
+      })).rejects.toMatchObject({ code: 'PUBLICATION_INVALID' });
+      expect(commit).not.toHaveBeenCalled();
+      expect(await store.resolveHead('L')).toBe(old);
+    } finally { await acquired.release(); }
+  } finally {
+    await materializations.close(); await fields.history.close(); await fields.cas.close();
+    await rm(fields.directory, { recursive: true, force: true });
+  }
+}, CASE_TIMEOUT_MS);
 
 it.each(['sha1', 'sha256'])('creates native empty-tree anchors: %s', async format => {
   const fields = await fixture(format);
