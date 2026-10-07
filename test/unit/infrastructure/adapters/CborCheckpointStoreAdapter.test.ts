@@ -199,6 +199,19 @@ async function reachableParents(fixture: ReturnType<typeof createFixture>, head:
 }
 
 describe('bounded checkpoint reachability', () => {
+  it('refuses abbreviated parents before creating carriers or advancing the checkpoint', async () => {
+    const fixture = createFixture();
+    const parents = await seedParents(fixture, 65);
+    const [first] = parents;
+    if (first === undefined) { throw new Error('Expected parent'); }
+    const old = await fixture.checkpoints.publishCheckpoint(await record(fixture));
+    const input = await record(fixture, { parents: [first.slice(0, 12), ...parents.slice(1)] });
+    const commit = vi.spyOn(fixture.history, 'commitNode');
+    await expect(fixture.checkpoints.publishCheckpoint(input)).rejects.toMatchObject({ code: 'PUBLICATION_INVALID' });
+    expect(commit).not.toHaveBeenCalled();
+    expect(await fixture.checkpoints.resolveHead('test')).toBe(old.checkpointSha);
+  });
+
   it('loads a retained checkpoint without optional provenance support', async () => {
     const fixture = createFixture();
     const input = await record(fixture);
