@@ -1,3 +1,5 @@
+// Frozen checkpoint reader from main/v20.0.0 ceb58e656ec5bc85f0ae5991bf2a55599693bbb3.
+// Only import locations differ; provenance is recorded beside the native evidence.
 import {
   BundleHandle as GitCasBundleHandle,
   type AssetCapability,
@@ -5,41 +7,41 @@ import {
   type PageCapability,
   type PublicationCapability,
 } from '@git-stunts/git-cas';
-import { computeAppliedVV } from '../../domain/services/state/CheckpointSerializer.ts';
-import { CURRENT_CHECKPOINT_SCHEMA } from '../../domain/services/state/checkpointHelpers.ts';
-import PersistenceError from '../../domain/errors/PersistenceError.ts';
-import type BundleHandle from '../../domain/storage/BundleHandle.ts';
-import { buildCheckpointRef, buildCoverageRef } from '../../domain/utils/RefLayout.ts';
+import { computeAppliedVV } from '../../../../src/domain/services/state/CheckpointSerializer.ts';
+import { CURRENT_CHECKPOINT_SCHEMA } from '../../../../src/domain/services/state/checkpointHelpers.ts';
+import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
+import type BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
+import { buildCheckpointRef, buildCoverageRef } from '../../../../src/domain/utils/RefLayout.ts';
 import CheckpointStorePort, {
   type CheckpointBasis,
   type CheckpointData,
   type CheckpointMetadata,
   type CheckpointRecord,
   type PublishedCheckpoint,
-} from '../../ports/CheckpointStorePort.ts';
-import type CodecPort from '../../ports/CodecPort.ts';
+} from '../../../../src/ports/CheckpointStorePort.ts';
+import type CodecPort from '../../../../src/ports/CodecPort.ts';
 import {
   CHECKPOINT_STORAGE_FORMAT,
   type default as CommitMessageCodecPort,
-} from '../../ports/CommitMessageCodecPort.ts';
-import type CryptoPort from '../../ports/CryptoPort.ts';
-import { requireAdapterDependency } from './AdapterDependencyGuard.ts';
+} from '../../../../src/ports/CommitMessageCodecPort.ts';
+import type CryptoPort from '../../../../src/ports/CryptoPort.ts';
+import { requireAdapterDependency } from '../../../../src/infrastructure/adapters/AdapterDependencyGuard.ts';
 import {
   checkpointMaterializationMismatch,
   requireCheckpointMaterialization,
   requirePublishedBundle,
   requireRetainedBundle,
-} from './CheckpointMaterializationPublication.ts';
+} from '../../../../src/infrastructure/adapters/CheckpointMaterializationPublication.ts';
 import {
   requireCheckpointGraph,
   requireCurrentCheckpointBundle,
   requireCurrentCheckpointSchema,
   retainedRootHandle,
-} from './CurrentCheckpointStorageValidation.ts';
-import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
+} from '../../../../src/infrastructure/adapters/CurrentCheckpointStorageValidation.ts';
+import { adaptGitCasRetentionWitness } from '../../../../src/infrastructure/adapters/GitCasRetentionWitnessAdapter.ts';
 import GitCasMaterializationSnapshotReader, {
   type MaterializationBasisSnapshot,
-} from './GitCasMaterializationSnapshotReader.ts';
+} from '../../../../src/infrastructure/adapters/GitCasMaterializationSnapshotReader.ts';
 
 interface CheckpointHistory {
   commitNode(options: { message: string; parents: string[] }): Promise<string>;
@@ -71,8 +73,6 @@ type CheckpointLayout = {
 };
 
 const EMPTY_INDEX_SHARD_HANDLES = Object.freeze({});
-// git-cas PublicationService bounds each publication to 64 direct parents.
-const MAX_CHECKPOINT_PARENTS = 64;
 
 /** Publishes and reads current checkpoints as retained git-cas bundles. */
 export class CborCheckpointStoreAdapter extends CheckpointStorePort {
@@ -124,10 +124,7 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     });
     const publication = await this.#cas.publications.commit({
       root,
-      commit: {
-        parents: await this.#boundedParents(record.graphName, record.parents),
-        message,
-      },
+      commit: { parents: record.parents, message },
       ref: { name: checkpointRef, expected: expectedHead },
     });
     requirePublishedBundle(publication.root.toString(), bundleHandle);
@@ -222,34 +219,10 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     });
     const sha = await this.#history.commitNode({
       message,
-      parents: await this.#boundedParents(options.graphName, options.parents),
+      parents: options.parents,
     });
     await this.#history.compareAndSwapRef(ref, sha, expectedHead);
     return sha;
-  }
-
-  /** Keeps every writer reachable through immutable, bounded Git anchors. */
-  async #boundedParents(graphName: string, parents: string[]): Promise<string[]> {
-    let level = [...new Set(parents)];
-    if (level.length <= MAX_CHECKPOINT_PARENTS) {
-      return level;
-    }
-    const message = this.#messageCodec.encodeAnchor({
-      kind: 'anchor',
-      graph: graphName,
-      schema: 2,
-    });
-    while (level.length > MAX_CHECKPOINT_PARENTS) {
-      const next: string[] = [];
-      for (let offset = 0; offset < level.length; offset += MAX_CHECKPOINT_PARENTS) {
-        next.push(await this.#history.commitNode({
-          message,
-          parents: level.slice(offset, offset + MAX_CHECKPOINT_PARENTS),
-        }));
-      }
-      level = next;
-    }
-    return level;
   }
 
   async #readLayout(

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Publish checkpoints for more than 64 writer heads through bounded immutable
+  Git anchors, retaining every writer and the exact checkpoint frontier. Empty
+  anchor trees use the repository's object format in both checkpoint and
+  coverage publication ([#990](https://github.com/git-stunts/git-warp/issues/990)).
+
 - Create absent refs in both SHA-1 and SHA-256 repositories without assuming
   a 40-digit null object ID. Fresh SHA-256 Runtimes can publish their substrate
   marker and admit Lane writes while stale ref-CAS expectations still refuse
