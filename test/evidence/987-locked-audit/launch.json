@@ -1,0 +1,40 @@
+{
+  "phase": "red-audit-987-v1",
+  "worker": "git-warp-tests",
+  "image": "sha256:9f145953f6e79a59749a683d11a476133cb7cef0588b79256dc195b1d0c87ad7",
+  "source_base": "ceb58e656ec5bc85f0ae5991bf2a55599693bbb3",
+  "source_archive_sha256": "ca7b376c78c076afe9db43f73831c68eb9137cd95007e4d574e3ebf576f663b9",
+  "source_archive_bytes": 20940800,
+  "command": [
+    "bash",
+    "-c",
+    "npm audit --json; result=$?; printf \"\\nBASELINE_AUDIT_EXIT=%s\\n\" \"$result\"; npm view katex@0.18.2 version dist.integrity engines --json; npm view smol-toml@1.9.0 version dist.integrity engines --json; npm view source-map-js@1.2.2 version dist.integrity engines --json; exit \"$result\""
+  ],
+  "lock_store": "workstation.git",
+  "lock_keys": [
+    "host/heavy-work",
+    "host/docker/git-warp-tests/"
+  ],
+  "outputs": [
+    "build volume /app",
+    "runtime /data",
+    "bounded /tmp and <CONTAINER_HOME> and /dev/shm",
+    "Docker rotated log",
+    "host receipts"
+  ],
+  "host_free_bytes": 729709109248,
+  "host_receipt_bytes": 1314222,
+  "build_limit_bytes": 21474836480,
+  "data_quota_bytes": 3221225472,
+  "generated_nonobject_limit_bytes": 100663296,
+  "stdout_limit_bytes": 16777216,
+  "memory_bytes": 8589934592,
+  "cpus": 4,
+  "cpu_affinity": "0-3",
+  "pids_limit": 768,
+  "timeout_seconds": 1700,
+  "stop_boundary": "git-warp-tests",
+  "guard": "inner guard plus outer host free/log monitor; read-only container root",
+  "vm_free_bytes": 693559963648,
+  "initial_build_bytes": 1886490624
+}
