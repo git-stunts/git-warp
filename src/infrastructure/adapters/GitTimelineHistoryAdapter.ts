@@ -43,19 +43,19 @@ import type OperationPolicyPort from '../../ports/OperationPolicyPort.ts';
 import type { OperationPolicyExecuteOptions } from '../../ports/OperationPolicyPort.ts';
 export type { GitPlumbing, GitError, CollectableStream } from './gitErrorClassification.ts';
 
-export interface GitTimelineHistoryAdapterOptions {
+export type GitTimelineHistoryAdapterOptions = {
   readonly plumbing: GitPlumbing;
   readonly retryOptions?: Partial<OperationPolicyExecuteOptions>;
   readonly policy?: OperationPolicyPort;
-}
+};
 
 /** Infrastructure-only tree-backed commit operation. */
-export interface GitTreeCommitOptions {
+export type GitTreeCommitOptions = {
   treeOid: string;
   parents?: string[];
   message: string;
   sign?: boolean;
-}
+};
 interface GitCasPolicy {
   execute<T>(operation: () => Promise<T>): Promise<T>;
 }
@@ -83,7 +83,6 @@ function createGitCasRetryPolicy(
     },
   });
 }
-
 
 function buildListRefsArgs(prefix: string, limit: number | null | undefined): string[] {
   const args = ['for-each-ref', '--format=%(refname)'];
@@ -377,7 +376,8 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
   async compareAndSwapRef(ref: string, newOid: string, expectedOid: string | null): Promise<void> {
     validateRef(ref);
     validateOid(newOid);
-    const oldArg = expectedOid ?? '0'.repeat(40);
+    // Git's empty old value requires absence in either repository object format.
+    const oldArg = expectedOid ?? '';
     if (expectedOid !== null && expectedOid !== undefined) {
       validateOid(expectedOid);
     }

@@ -1,0 +1,6 @@
+{
+  "src/infrastructure/adapters/GitTimelineHistoryAdapter.ts": "ea39e9b867c2c6ab225991effb911e7ba43adbdb01108f7964839ba3e0e9883d",
+  "test/helpers/WarpGraphTestRepositories.ts": "143e2df99ace361e618afdf90f955e4a109ba2fe0948590b9f2f6269f5cc7cee",
+  "test/unit/infrastructure/adapters/GitGraphAdapter.coverage.test.ts": "3b7e1d9714214a3a10db1e4c587b35b784171f635982b648619ca58266e1be8b",
+  "test/integration/application/Runtime.objectFormat.integration.test.ts": "528f60ff428b130123b6d73841bd9c17660ce4504f615c3111d4c0646c6eaafe"
+}
