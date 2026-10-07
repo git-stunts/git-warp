@@ -1,0 +1,30 @@
+{
+  "exit_code": 0,
+  "guard_error": null,
+  "peaks": {
+    "pids": 23,
+    "build_bytes": 1960304640,
+    "/data": 1843200,
+    "<CONTAINER_HOME>": 0,
+    "/tmp": 0,
+    "/dev/shm": 0,
+    "generated_nonobject_bytes": 2252800,
+    "minimum_vm_free_bytes": 688089317376
+  },
+  "stdout_bytes": 167,
+  "timeout_seconds": 1700,
+  "cgroup": {
+    "pids.current": "3",
+    "pids.max": "768",
+    "pids.events": "max 0",
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+    "cpu.max": "400000 100000",
+    "cpuset.cpus.effective": "0-3"
+  },
+  "limits": {
+    "build_bytes": 21474836480,
+    "runtime_tmpfs_bytes": 3221225472,
+    "stdout_bytes": 16777216,
+    "generated_nonobject_bytes": 100663296
+  }
+}
