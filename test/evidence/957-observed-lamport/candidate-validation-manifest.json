@@ -1818,5 +1818,33 @@
     "original_sha256": "d502a93afe68d9436b229c75eb4450fe58feba2995b4464d2eb0de7d332000a6",
     "public_sha256": "bd122a9188d78f2fe59898e1f53f7d177396ad8035d48a0350051b6705c5c8c7",
     "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "integration-957-v2",
+    "file": "integration-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ab731b90f01ca83827964178c7ce2fce764ddd2cba3aa1152cd952837d3d0c26",
+    "public_sha256": "ab731b90f01ca83827964178c7ce2fce764ddd2cba3aa1152cd952837d3d0c26",
+    "normalization": "none",
+    "archive_sha256": "1ca9100a80c5d3ecd7907666078bca2d44667ba7c927ea1bff2cf135aacd6a54"
+  },
+  {
+    "phase": "integration-957-v2",
+    "file": "integration-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "bdbef05473d7d466133d17b30529ccf6ed48941b345d5d5879d84a2a42dfee02",
+    "public_sha256": "08b4f75296b04843381e9a0b8e1363bd17fa0955ba4e701ecb30017f70a6ed1d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "integration-957-v2",
+    "file": "integration-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "510d08f479c1715d4bc662d96c4c3f1d74be1a2b0dc25e41ccb3c58c22b0e11a",
+    "public_sha256": "3c25a6e415979c6f46ee503c5a6658fa204fc9a7075c4f0dc75a52311c74bcd8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
   }
 ]
