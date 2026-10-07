@@ -1,0 +1,338 @@
+[
+  {
+    "phase": "inspect-audit-987-v1",
+    "source_name": "console.log",
+    "original_sha256": "67334d9c061386890a7e4007c7998c7739cacaea0559906301213b5b6ca0febe",
+    "public_sha256": "67334d9c061386890a7e4007c7998c7739cacaea0559906301213b5b6ca0febe",
+    "normalization": "none"
+  },
+  {
+    "phase": "inspect-audit-987-v1",
+    "source_name": "launch.json",
+    "original_sha256": "bba1cf931edb14e06400f325b578242fe942e176312480b3a13bbff7086a53fd",
+    "public_sha256": "f1583e24ddf204048d54b8e1b841e1dbacbfc1f9abbe6232ff5f4931b1d8aecc",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "inspect-audit-987-v1",
+    "source_name": "resources.json",
+    "original_sha256": "f53627169f46175c1a111c8fb732a2ff23a1278a1596408861445b78e6c1cc8a",
+    "public_sha256": "253da2a296c2bde831d9c41ed20b401a89d7dee97ca46e53e4d0c9147138974c",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "inspect-audit-987-v2",
+    "source_name": "console.log",
+    "original_sha256": "e8187c27c0f64bc18384a0d0840570d86e2fcec55daea7caacbadee3de134a9c",
+    "public_sha256": "e8187c27c0f64bc18384a0d0840570d86e2fcec55daea7caacbadee3de134a9c",
+    "normalization": "none"
+  },
+  {
+    "phase": "inspect-audit-987-v2",
+    "source_name": "launch.json",
+    "original_sha256": "aa78c5bff1b1c5091fdea7c982eab6be90b44094517e5c1abf3109d6498282ca",
+    "public_sha256": "70d7c5ff71f513c53b2d1a201bad85e1c38a652b9c32e9c2d099d7afc4eca05a",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "inspect-audit-987-v2",
+    "source_name": "resources.json",
+    "original_sha256": "1789bf0b6555a7b36b43ed166b28145c2da42ea4bc98aaa89520255bd2e0df8a",
+    "public_sha256": "3a4c8a6370f319e2452efe719cfe1d19401d92e09f709c40958d13b71cc0bff2",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "red-behavior-987-v1",
+    "source_name": "console.log",
+    "original_sha256": "6bdf9b306f9ee12513f8566460fbe0859b001405f55d1c6c3e5a71fc40da022b",
+    "public_sha256": "6bdf9b306f9ee12513f8566460fbe0859b001405f55d1c6c3e5a71fc40da022b",
+    "normalization": "none"
+  },
+  {
+    "phase": "red-behavior-987-v1",
+    "source_name": "launch.json",
+    "original_sha256": "c2f7b2691d2579ee31c07da7aae1e106a810e790216332099143ce63cff2e5ba",
+    "public_sha256": "76ba2976bc4da8961c9a129fcac696b13e0f1108109f28e5c316816c193ff1b7",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "red-behavior-987-v1",
+    "source_name": "resources.json",
+    "original_sha256": "7ba4733f9487581a625a404f5ff8d0c0c3c1c932d328f0ded25952db834fc5bd",
+    "public_sha256": "a41431ff79ffadecf48d0550fe85c096c38abe2730e43b79a926b03848cf9683",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "red-behavior-987-v2",
+    "source_name": "console.log",
+    "original_sha256": "7108f43702aa55fd031caf39543444d57898b98fe7169b6649f5472b6f3bfee5",
+    "public_sha256": "7108f43702aa55fd031caf39543444d57898b98fe7169b6649f5472b6f3bfee5",
+    "normalization": "none"
+  },
+  {
+    "phase": "red-behavior-987-v2",
+    "source_name": "launch.json",
+    "original_sha256": "fa6769874b4f8229544ce79054dc2c44862c676f03744019e1d0b92c8b51241b",
+    "public_sha256": "2cb56189e5d93a617829537bf8863022da969b4b58f0ed2cfedb3b9a1a8b251e",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "red-behavior-987-v2",
+    "source_name": "resources.json",
+    "original_sha256": "ae3fec5041f9377d7f0e4363d385dd591611202301ae42bcb2fb2b2cb86fd5be",
+    "public_sha256": "89f40469fddc62f7d798cef19adc6b077a20490879fee461db586494a84b1d75",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "red-behavior-987-v3",
+    "source_name": "console.log",
+    "original_sha256": "2b72754efce6b0d89d5b50c7cb032c4e381b3822c4e1dcfec80d2e5114e6f3d8",
+    "public_sha256": "2b72754efce6b0d89d5b50c7cb032c4e381b3822c4e1dcfec80d2e5114e6f3d8",
+    "normalization": "none"
+  },
+  {
+    "phase": "red-behavior-987-v3",
+    "source_name": "launch.json",
+    "original_sha256": "ccb9443cbfaf0cd34e7c473307d5da0994817925b9b3352c7f88fdbfcc4d0060",
+    "public_sha256": "08efdafca503d74487ef1459a0cae4cc2f53ade85d29e84f5bee4aa3e49dfcb5",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "red-behavior-987-v3",
+    "source_name": "resources.json",
+    "original_sha256": "75204903821c728b61bda5ff55e16a9072f1caaf7b66d234be58a1890793901f",
+    "public_sha256": "bc418dc4bfb465502fbcbcc154b2cd8b7b4cdac81cafdf523a00e018f4a4ab07",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "red-behavior-987-v4",
+    "source_name": "console.log",
+    "original_sha256": "63f55e4d7f3b8ee6939d90a76ab499e3cf5bfe2649403f52ade261c2e8e57645",
+    "public_sha256": "63f55e4d7f3b8ee6939d90a76ab499e3cf5bfe2649403f52ade261c2e8e57645",
+    "normalization": "none"
+  },
+  {
+    "phase": "red-behavior-987-v4",
+    "source_name": "launch.json",
+    "original_sha256": "69e15d15c96c5e6c5cb55b2a2b1d998cbc7930315f51002ea7d6fe66a3c1f221",
+    "public_sha256": "c35d6420b03fb395dbc932f378bfc190600ce6c7a3ff4ea19f788440566d3603",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "red-behavior-987-v4",
+    "source_name": "resources.json",
+    "original_sha256": "31724dc9fcef84733406cc5e8d087f9fc8096b943cdf470fc60c4cd55fc52a55",
+    "public_sha256": "9c37b66584da0541399fe7bc91bf5e72fc45b038733199798e5680939dcc6589",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "resolve-lock-987-v1",
+    "source_name": "console.log",
+    "original_sha256": "e1bb568d8c7d73f3943d8ba81233930b063574d5f20cc3a7900b7515f795f5ac",
+    "public_sha256": "e1bb568d8c7d73f3943d8ba81233930b063574d5f20cc3a7900b7515f795f5ac",
+    "normalization": "none"
+  },
+  {
+    "phase": "resolve-lock-987-v1",
+    "source_name": "launch.json",
+    "original_sha256": "200ec449800b75290bb27abeb2f5c2e1d645cf12cd9e843e0ef3b0d06856fa01",
+    "public_sha256": "6d3ba70b753b177bebbb7f526cde3fb030ab4da4d2d0bd4195f8c6873b438a34",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "resolve-lock-987-v1",
+    "source_name": "resources.json",
+    "original_sha256": "66d21f9bfce08feee37f377b93a44f1a73849eecc83c371a1299a5b6095522fd",
+    "public_sha256": "8eb57774fdb78604134852e5cad1a6986d4ee8e4e174dcc64f3de7e464a5d836",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "probe-resolve-lock-987-v2",
+    "source_name": "console.log",
+    "original_sha256": "15fbdd74cf7168b75f64b31467d10755a09e6f57527b4d10e158070a266e2e41",
+    "public_sha256": "15fbdd74cf7168b75f64b31467d10755a09e6f57527b4d10e158070a266e2e41",
+    "normalization": "none"
+  },
+  {
+    "phase": "probe-resolve-lock-987-v2",
+    "source_name": "launch.json",
+    "original_sha256": "0a46b69149c250010980ddcf1c16119af2c104b72d5a19bbfbd84983d398fb02",
+    "public_sha256": "9de17d316be408fbe5bcde3531399495b4e05e1ec0708520824067ea8aa8963c",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "probe-resolve-lock-987-v2",
+    "source_name": "resources.json",
+    "original_sha256": "618a8b4ed273d039c8f7165ff60897263a76b6228c654f25b22e6bd3b3130e8e",
+    "public_sha256": "240b1701c40aa4fefe3cf72ea5b501b8739c3bdac2cb57b25275e5fc1dc8b42e",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "green-audit-987-v1",
+    "source_name": "console.log",
+    "original_sha256": "1f6b9fe71fa65ee6cce76a47489ab3723a3adf0d492b5e9885448130fd0ce2ee",
+    "public_sha256": "1f6b9fe71fa65ee6cce76a47489ab3723a3adf0d492b5e9885448130fd0ce2ee",
+    "normalization": "none"
+  },
+  {
+    "phase": "green-audit-987-v1",
+    "source_name": "launch.json",
+    "original_sha256": "094778694038e1234bfe2f51861415132e64d4b883d85fc331fdf9f8fc616ac7",
+    "public_sha256": "8a41ac6215f6801c141c27f9fb93560eb1df0f395db87e763b48f4898486faf4",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "green-audit-987-v1",
+    "source_name": "resources.json",
+    "original_sha256": "1f096782ecbde7112c31d4c89eadd915f5e74deb1b94faa1df339c43d80d0fe1",
+    "public_sha256": "be54c82672b00578558c1a57cc9c070976c2cf01d1bda9b270c549dcc0da56cc",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "green-audit-987-v2",
+    "source_name": "console.log",
+    "original_sha256": "b2e2855bed00bc956ca9035e935c1900579d296f703328134a5f25592fd04aef",
+    "public_sha256": "b2e2855bed00bc956ca9035e935c1900579d296f703328134a5f25592fd04aef",
+    "normalization": "none"
+  },
+  {
+    "phase": "green-audit-987-v2",
+    "source_name": "launch.json",
+    "original_sha256": "33762bf582b1c2c1fda343598007122d9c032395aea82284ecdce201e2503020",
+    "public_sha256": "cbea9f4bea03b9e2105497dda1bae597b2f62742cd3551b12ca441a0c7f53748",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "green-audit-987-v2",
+    "source_name": "resources.json",
+    "original_sha256": "cb03a8c85ed7c57dc09257d28ef6e4b885e29830f77fb87a942d1cde25a616aa",
+    "public_sha256": "0435c758457c89881015caeb8a7f9c225936fb4dedbc620e1810b49e747e9be0",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-987-v1",
+    "source_name": "console.log",
+    "original_sha256": "c9825913484f1d15ab18198d408555e1ea7f3f1884f839986f2753ec2277bc8d",
+    "public_sha256": "c9825913484f1d15ab18198d408555e1ea7f3f1884f839986f2753ec2277bc8d",
+    "normalization": "none"
+  },
+  {
+    "phase": "full-987-v1",
+    "source_name": "launch.json",
+    "original_sha256": "250e789a4fa9ae32a1aba5e1b1244147dc9aae5c0ce598013072449881a21caf",
+    "public_sha256": "8680948a35be1e9828cffb88a16755bbf77eabb8624a8d1eed4e9e1b3e7591b2",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-987-v1",
+    "source_name": "resources.json",
+    "original_sha256": "32fefe553ec805abbab1f1cea227439e9d15362eb390f83f1d3751a06178f791",
+    "public_sha256": "6054dbea000476463d53a6bf096b99f7b479de382f75fc834fece7342b4a5324",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "probe-configure-browser-987-v1",
+    "source_name": "console.log",
+    "original_sha256": "9202438cb9dc8efa646db91f9d418693234a779d0e8ed2729aa3177df7123f6c",
+    "public_sha256": "9202438cb9dc8efa646db91f9d418693234a779d0e8ed2729aa3177df7123f6c",
+    "normalization": "none"
+  },
+  {
+    "phase": "probe-configure-browser-987-v1",
+    "source_name": "launch.json",
+    "original_sha256": "23825e0f54292201152c0665ef319e58893d3e7e0e7432d9541ed002147d313e",
+    "public_sha256": "3bc1a08bdf086c41a53b320a91b4a819dbf30233db38eb2937d3bc82ab33b221",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "probe-configure-browser-987-v1",
+    "source_name": "resources.json",
+    "original_sha256": "56b4dd27855bea6fe522a5c26ad83c2accd25cb552b2d84c6235ae7275adf0f9",
+    "public_sha256": "029e83dc635621eb4f09eaabbda88dcc80f7133e3148fd47d1c94a9c03334b08",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-987-v2",
+    "source_name": "console.log",
+    "original_sha256": "eec4e2219965a5d4aa357d92d52f8e94baccdfac8d97a0f389b8abb2286e1d4c",
+    "public_sha256": "eec4e2219965a5d4aa357d92d52f8e94baccdfac8d97a0f389b8abb2286e1d4c",
+    "normalization": "none"
+  },
+  {
+    "phase": "full-987-v2",
+    "source_name": "launch.json",
+    "original_sha256": "1e4a2755ea7da02898a10d871a184cede123a6c56ed1767c774d9a3ec478cb3e",
+    "public_sha256": "1818a5aad6413dd60ec861e6073d43d933c1790f9d381bb7f520afcedac7d9ce",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-987-v2",
+    "source_name": "resources.json",
+    "original_sha256": "1b9e6c7a6f6d7ac30e5511be3212bc2cc258498396c679db1b1f7af444d892f6",
+    "public_sha256": "2d42d18276dcea416f04faf5549bc387250c2edd4e4eb0e4b4464c12a0489f00",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-987-v3",
+    "source_name": "console.log",
+    "original_sha256": "26e8fa76ebdfa7f72797264eb71b0756c415bf8798ed90d4773654867b150ac6",
+    "public_sha256": "26e8fa76ebdfa7f72797264eb71b0756c415bf8798ed90d4773654867b150ac6",
+    "normalization": "none"
+  },
+  {
+    "phase": "focused-987-v3",
+    "source_name": "launch.json",
+    "original_sha256": "fd160af5f1f9d458413b15cbdd05cac599a0511d9e036c30718a57c6a5262384",
+    "public_sha256": "023eb80f8a64aa782920fc88c84d8b1589567c8307ed460ff6034b51c1202188",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-987-v3",
+    "source_name": "resources.json",
+    "original_sha256": "5037c8db297c71993afbd7a20ac93e63ef178c91752e670fdaabcbad082e67ad",
+    "public_sha256": "d11ca434f7a5085c7313df298d5bb76ad9908442902b6c3daa56921db62449a8",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-987-v3",
+    "source_name": "console.log",
+    "original_sha256": "fe7af94bfaca28c4b0f067b32dfe1d478c1fbc5735afc80f066f0573be782287",
+    "public_sha256": "fe7af94bfaca28c4b0f067b32dfe1d478c1fbc5735afc80f066f0573be782287",
+    "normalization": "none"
+  },
+  {
+    "phase": "full-987-v3",
+    "source_name": "launch.json",
+    "original_sha256": "fd5a883a748fad0186ba4c65b8f12fe1a94458d82e7666303a2bf580e867fde6",
+    "public_sha256": "d4401804ace6be74793ba69ec2b8b6503d07b3d2db8511bb9aea30f07fc7ceb5",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-987-v3",
+    "source_name": "resources.json",
+    "original_sha256": "f1a4ffd3adb3a78c040502ea678c61c6740dca182c6fb443434d65645ec7579c",
+    "public_sha256": "ce35fccd6a78e591a79be3b4fa15c0164960beef5e393b3e42324d0a3f62627d",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-987-v1",
+    "source_name": "console.log",
+    "original_sha256": "868e0f21c72755cc4178e760c5af6032573c0bfffba11659ceeda28b2a7a2321",
+    "public_sha256": "868e0f21c72755cc4178e760c5af6032573c0bfffba11659ceeda28b2a7a2321",
+    "normalization": "none"
+  },
+  {
+    "phase": "coverage-987-v1",
+    "source_name": "launch.json",
+    "original_sha256": "e5ab155033d2a87be3b849f2b0063eae70ba1038b1014cf8be7b86b22d7a8993",
+    "public_sha256": "05e74e7abcb54a4938dcfa63a59e72599f977282f90ac80fe2b8c8b14a407767",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-987-v1",
+    "source_name": "resources.json",
+    "original_sha256": "208d0dc8ef04146f442dd43dc8c54462aa653977cc405b4b3846659a34d81fb6",
+    "public_sha256": "750c72cdd4db0bb75ad74f1dc94b6f572d498fe4dd944722a87087a55241a70d",
+    "normalization": "container user home replaced with <CONTAINER_HOME>"
+  }
+]
