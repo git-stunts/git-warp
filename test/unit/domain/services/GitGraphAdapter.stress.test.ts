@@ -1,22 +1,22 @@
 import { describe, it, expect, vi } from 'vitest';
-import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
+import GitTimelineHistoryAdapter, { type GitPlumbing } from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 
 describe('GitTimelineHistoryAdapter Concurrency Stress Test', () => {
-  it('handles 50 simultaneous createNode calls without corruption', async () => {
-    // Track call order to verify all calls complete
-    const callLog: Array<{id: number; start?: number; end?: number; args?: any}> = [];
+  it.each([40, 64])('handles 50 simultaneous commits with %i-character tree OIDs', async oidLength => {
+    const emptyTree = '1'.repeat(oidLength);
     let callCounter = 0;
 
     const mockPlumbing = {
       emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
-      execute: vi.fn().mockImplementation(async ({ args }) => {
+      execute: vi.fn<GitPlumbing['execute']>().mockImplementation(async ({ args }) => {
+        if (args[0] === 'mktree') { return emptyTree; }
+        if (args[0] !== 'commit-tree') { throw new Error('Unexpected Git command'); }
+        expect(args[1]).toBe(emptyTree);
         const id = ++callCounter;
-        callLog.push({ id, start: Date.now(), args: args[0] });
         // Simulate deterministic latency: 0, 2, or 4ms based on call id
         await new Promise(r => setTimeout(r, (id % 3) * 2));
-        callLog.push({ id, end: Date.now() });
         // Return unique SHA for each call (valid hex format)
-        return `abcd${id.toString(16).padStart(4, '0')}`;
+        return id.toString(16).padStart(oidLength, '0');
       }),
       executeStream: vi.fn(),
     };
@@ -37,16 +37,20 @@ describe('GitTimelineHistoryAdapter Concurrency Stress Test', () => {
     const uniqueShas = new Set(results);
     expect(uniqueShas.size).toBe(50);
 
-    // Verify all calls were made
-    expect(mockPlumbing.execute).toHaveBeenCalledTimes(50);
+    const calls = mockPlumbing.execute.mock.calls.map(([options]) => options);
+    expect(calls.filter(options => options.args[0] === 'mktree')).toHaveLength(50);
+    expect(calls.filter(options => options.args[0] === 'commit-tree')).toHaveLength(50);
+    expect(results.every(sha => sha.length === oidLength)).toBe(true);
+    await adapter.close();
   });
 
   it('handles concurrent reads and writes without deadlock', async () => {
     const mockPlumbing = {
       emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
-      execute: vi.fn().mockImplementation(async ({ args }) => {
+      execute: vi.fn<GitPlumbing['execute']>().mockImplementation(async ({ args }) => {
         await new Promise(r => setTimeout(r, 0));
-        if (args[0] === 'commit-tree') return 'abcd1234abcd1234';
+        if (args[0] === 'mktree') return '1'.repeat(40);
+        if (args[0] === 'commit-tree') return '2'.repeat(40);
         if (args[0] === 'show') return 'message content';
         if (args[0] === 'rev-parse') return 'def456def456def4';
         return '';
@@ -72,5 +76,6 @@ describe('GitTimelineHistoryAdapter Concurrency Stress Test', () => {
     // Should complete without deadlock (timeout would fail the test)
     const results = await Promise.all(operations);
     expect(results).toHaveLength(50);
+    await adapter.close();
   });
 });
