@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Create absent refs in both SHA-1 and SHA-256 repositories without assuming
+  a 40-digit null object ID. Fresh SHA-256 Runtimes can publish their substrate
+  marker and admit Lane writes while stale ref-CAS expectations still refuse
+  publication ([#985](https://github.com/git-stunts/git-warp/issues/985)).
+
 ## [20.0.0] - 2026-10-03
 
 This major release provides the observed-remove membership / node-wide LWW
