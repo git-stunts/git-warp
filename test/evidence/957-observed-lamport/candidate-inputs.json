@@ -22,5 +22,6 @@
   "test/unit/domain/WriteRuntime.test.ts": "46b7a30b2aa373a7a1b92cbf460929d8036aa8a7448f8ace307ed6e30e42ebc1",
   "test/unit/domain/services/BoundedNodeRemovalBasis.test.ts": "4a30c84ef8354169f5407e0436482b8bc10d782c9b16bb5cb562971e9cd3ac86",
   "test/unit/domain/services/sync/syncPatchLoader.test.ts": "cdfee1040b4e0e6e15b7f119d9b1e5fa6854eff5bd572b5cc0e945bc5a8601bd",
-  "test/unit/scripts/op-hydration-boundary-ratchet.test.ts": "5417a0b0ba32312fb305a5cc8006478f973be2b2c6aabd69abc511a119251088"
+  "test/unit/scripts/op-hydration-boundary-ratchet.test.ts": "5417a0b0ba32312fb305a5cc8006478f973be2b2c6aabd69abc511a119251088",
+  "test/unit/domain/services/PatchCommitter.failureContract.test.ts": "0e50db04e117037fad03d3375f2b08f41e9a9fb78e66d98bbce9020cad9e86eb"
 }

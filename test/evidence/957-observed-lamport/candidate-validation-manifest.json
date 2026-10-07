@@ -558,5 +558,89 @@
     "original_sha256": "9bbb6f88fe406d34320338b79080321859538680d5bb2fe2ff49d95197d33b30",
     "public_sha256": "4117d2da65d51b403ed6d01e4fcb78ba64feae57e7783bf2a7b36224b7d8171b",
     "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "failure-contract-957-v1",
+    "file": "failure-contract-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "7f52e7d9068d8893500e7c6ae58c6370dcb9ba346d2745769acb90e3a2dbad3f",
+    "public_sha256": "7f52e7d9068d8893500e7c6ae58c6370dcb9ba346d2745769acb90e3a2dbad3f",
+    "normalization": "none",
+    "archive_sha256": "2a9a6b89bc3f1c76e1b5d46e8c7783ab9fa462a2bd639a0d0ff4f1980bbe6e14"
+  },
+  {
+    "phase": "failure-contract-957-v1",
+    "file": "failure-contract-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "a34ddffaf714aad84076c74daddb084397694c9f8f2ba214c82cf5b353e3d47b",
+    "public_sha256": "f11a9e37e3cfb314e650d505de8d870e266af692b4b8289a4c7d3f39115b43ff",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "failure-contract-957-v1",
+    "file": "failure-contract-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "8fef53ee8028019e19654b1ce171065d14eefdf475f3b4793fc08f2c891e5b54",
+    "public_sha256": "2fc6e7103d2c66ff6fc3154d2fc0a0466dd8148f4e0a83ff220513c337a3cdef",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "failure-contract-957-v2",
+    "file": "failure-contract-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "732dc049e511b8e7efdf28d4ca30aaa10bc23846d44d6676962a2ddf8cda2b6e",
+    "public_sha256": "732dc049e511b8e7efdf28d4ca30aaa10bc23846d44d6676962a2ddf8cda2b6e",
+    "normalization": "none",
+    "archive_sha256": "e36e0e3f01267747615bfc5e5cf298aaf4e32748fd08d5fcc9c7b4cbba34966a"
+  },
+  {
+    "phase": "failure-contract-957-v2",
+    "file": "failure-contract-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "4169475bd7245a2b2f6e4a754fb3c95bf9299ac3f3612c7a34228a6506cbdf04",
+    "public_sha256": "823ef747a0f07899a22590b9019fa28bf0c37fb008ae626dffb3f4016dd10194",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "failure-contract-957-v2",
+    "file": "failure-contract-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "9df214ebfd628145f62eb9e4eeeccf1005190cadf036c572fabf53557b67c2fb",
+    "public_sha256": "c7192d80f5994b5f346b030c7089379c5f9b943f389cb239f64db11ef8f02a71",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "failure-contract-957-v3",
+    "file": "failure-contract-957-v3-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "232336565c37b0510e98e08c2cc213cf4712f1f5b6c9af4f1bfe514f8c2af57e",
+    "public_sha256": "232336565c37b0510e98e08c2cc213cf4712f1f5b6c9af4f1bfe514f8c2af57e",
+    "normalization": "none",
+    "archive_sha256": "499eae4d49d544f7cbad0a0a2855cfe4b72fc9d09ddb040c154cda1c1846240f"
+  },
+  {
+    "phase": "failure-contract-957-v3",
+    "file": "failure-contract-957-v3-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "5cdc55b87dd060cedf44961e784da06978f6b7ed3e15089ee367afe93329ba81",
+    "public_sha256": "7780bcdd903ddfc63b72acdeb03716d0af9f1bde32ea222d3f211cc3f6dfc2b1",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "failure-contract-957-v3",
+    "file": "failure-contract-957-v3-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "fe39a6a0075e31d9634e69fa67da8380c50e80adae2aca57a07ae0c238748702",
+    "public_sha256": "36b7736e470599b5e98f23f1e592b62f966402e222d4fbfcc31f33cfeaeee22f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
   }
 ]
