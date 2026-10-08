@@ -237,7 +237,7 @@ function generate(): string {
   const packageSource = new SourceText('package.json');
   const jsrSource = new SourceText('jsr.json');
   const registrySource = new SourceText('bin/cli/commands/registry.ts');
-  const cliSource = new SourceText('bin/git-warp.ts');
+  const codecSource = new SourceText('src/infrastructure/adapters/CliFailureCodecAdapter.ts');
   const rootSource = new SourceText('index.ts');
   const advancedSource = new SourceText('advanced.ts');
   const diagnosticsSource = new SourceText('diagnostics.ts');
@@ -273,10 +273,11 @@ function generate(): string {
     '',
     table(['Command', 'Handler', 'Source'], commands.map((item) => [`\`${item.name}\``, `\`${item.detail}\``, `\`${item.source}\``])),
     '',
-    'Structured CLI errors for `--json` and `--jsonl` use the payload shape',
-    '`{ error: { code, message, cause? } }` from the CLI entry point.',
+    'Structured CLI errors retain `{ error: { code, message, cause? } }`.',
+    'Additive `typedCode`, bounded `causes`, and `truncated` fields preserve typed',
+    'diagnostics without dumping raw metadata. The CLI failure codec owns encoding.',
     '',
-    `Source: \`${requireLineRef(cliSource, 'const payload:')}\`.`,
+    `Source: \`${requireLineRef(codecSource, 'const payload =')}\`.`,
     '',
     '## Public error classes',
     '',
