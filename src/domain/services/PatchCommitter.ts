@@ -17,7 +17,9 @@ import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';
 import PersistenceError from '../errors/PersistenceError.ts';
 import PatchPublicationConflictError from '../errors/PatchPublicationConflictError.ts';
-import type { PatchOp, CanonicalPatchOp } from '../types/ops/unions.ts';
+import type { PatchOp } from '../types/ops/unions.ts';
+import PropSet from '../types/ops/PropSet.ts';
+import type ObservedWriteFrontier from '../types/ObservedWriteFrontier.ts';
 import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type { PublishedPatch } from '../../ports/PatchJournalPort.ts';
@@ -36,6 +38,7 @@ export type CommitState = {
   observedOperands: Set<string>;
   writes: Set<string>;
   entityAdmissions?: readonly EntityAdmissionBoundary[];
+  observedFrontier?: ObservedWriteFrontier | undefined;
   hasEdgeProps: boolean;
   expectedParentSha: string | null;
   targetRefPath: string | null;
@@ -96,7 +99,7 @@ export async function commitPatch(state: CommitState): Promise<PatchCommitResult
 
   // Build Patch
   const schema = state.hasEdgeProps ? 3 : 2;
-  const rawOps = state.ops.map((op) => lowerCanonicalOp(op as CanonicalPatchOp));
+  const rawOps = state.ops.map((op) => op instanceof PropSet ? op : lowerCanonicalOp(op));
   const patch = new Patch({
     schema,
     writer: state.writerId,
@@ -106,6 +109,7 @@ export async function commitPatch(state: CommitState): Promise<PatchCommitResult
     reads: [...state.observedOperands].sort(),
     writes: [...state.writes].sort(),
     entityAdmissions: state.entityAdmissions,
+    observedFrontier: state.observedFrontier,
   });
 
   // Publish one storage-owned bundle rooted by the causal writer ref.

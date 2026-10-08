@@ -1,0 +1,73 @@
+{
+  "production_head": "aa9bb4f5",
+  "phase": "checkpoint-stack-957-v1",
+  "scope": "single serial native fixture per size/format; process-lifetime RSS watermark and sampled heap, not universal bounds",
+  "cases": [
+    {
+      "format": "sha1",
+      "writers": 1,
+      "publishedWriterHeads": 2,
+      "captureMilliseconds": 4.986086999999998,
+      "writeMilliseconds": 17.635306000000128,
+      "headReads": 1,
+      "decodedAssets": 1,
+      "processLifetimeMaximumRssKiB": 158076,
+      "sampledHeapBytes": 67550640
+    },
+    {
+      "format": "sha1",
+      "writers": 16,
+      "publishedWriterHeads": 17,
+      "captureMilliseconds": 34.48415400000022,
+      "writeMilliseconds": 53.351712000000134,
+      "headReads": 16,
+      "decodedAssets": 16,
+      "processLifetimeMaximumRssKiB": 170716,
+      "sampledHeapBytes": 71916552
+    },
+    {
+      "format": "sha1",
+      "writers": 64,
+      "publishedWriterHeads": 65,
+      "captureMilliseconds": 121.04176999999981,
+      "writeMilliseconds": 143.6570800000004,
+      "headReads": 64,
+      "decodedAssets": 64,
+      "processLifetimeMaximumRssKiB": 183200,
+      "sampledHeapBytes": 80379568
+    },
+    {
+      "format": "sha256",
+      "writers": 1,
+      "publishedWriterHeads": 2,
+      "captureMilliseconds": 3.9916290000001027,
+      "writeMilliseconds": 21.72789400000056,
+      "headReads": 1,
+      "decodedAssets": 1,
+      "processLifetimeMaximumRssKiB": 183784,
+      "sampledHeapBytes": 87031360
+    },
+    {
+      "format": "sha256",
+      "writers": 16,
+      "publishedWriterHeads": 17,
+      "captureMilliseconds": 29.738108999999895,
+      "writeMilliseconds": 49.04158300000017,
+      "headReads": 16,
+      "decodedAssets": 16,
+      "processLifetimeMaximumRssKiB": 186968,
+      "sampledHeapBytes": 81654728
+    },
+    {
+      "format": "sha256",
+      "writers": 64,
+      "publishedWriterHeads": 65,
+      "captureMilliseconds": 132.89598800000022,
+      "writeMilliseconds": 135.8684490000005,
+      "headReads": 64,
+      "decodedAssets": 64,
+      "processLifetimeMaximumRssKiB": 192468,
+      "sampledHeapBytes": 77372408
+    }
+  ]
+}

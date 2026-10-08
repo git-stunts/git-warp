@@ -16,6 +16,7 @@ import type { PatchOp } from '../../../../src/domain/types/ops/unions.ts';
 import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import nullLogger from '../../../../src/domain/utils/nullLogger.ts';
+import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import { createPatchBuilderMockPersistence, RecordingPatchJournal } from './PatchBuilderTestHarness.ts';
 
 const SHA = 'a'.repeat(40);
@@ -73,7 +74,7 @@ it('binds the captured coordinate, causal context and Lamport before lowering a 
 });
 
 it('does not fabricate a membership observation for an absent target', async () => {
-  const fields = fixture([]);
+  const fields = fixture([entry([new NodeAdd('other', new Dot('alice', 1))])]);
   const patch = builder(fields);
   await patch.prepareWriteBasis(['n']);
   expect(() => patch.removeNode('n')).toThrow(expect.objectContaining({ code: 'E_PATCH_ENTITY_NOT_FOUND' }));
@@ -163,4 +164,24 @@ it('keeps effect publication and content access on the builder unchanged', () =>
   expect(() => patch.addRetainedEntity('bad', {}, null)).toThrow();
   patch.ops.push(new PropSet('effect:explicit', 'raw', 'legacy'));
   expect(patch.build().ops.at(-1)).toBeInstanceOf(PropSet);
+});
+
+it('keeps cached membership and durable observation at the selected frontier', async () => {
+  const fields = fixture([entry([new NodeAdd('n', new Dot('alice', 1))])]);
+  fields.refs.readRef.mockResolvedValue('later-tip');
+  const state = WarpState.empty();
+  state.nodeAlive.add('n', new Dot('alice', 1));
+  const snapshotFrontier = new Map([['alice', SHA]]);
+  const patch = builder(fields, {
+    getCurrentState: () => state, getSnapshotFrontier: () => snapshotFrontier,
+    versionVector: VersionVector.from({ alice: 4 }),
+  });
+  await patch.prepareWriteBasis(['n']);
+  snapshotFrontier.set('alice', 'mutated-by-caller');
+  patch.removeNode('n');
+  expect(patch.build().observedFrontier?.frontier()).toEqual(new Map([['alice', SHA]]));
+  expect(readPatchBuilderCausalBasis(patch).evaluationCoordinateRef).toContain(SHA);
+  expect(readPatchBuilderCausalBasis(patch).evaluationCoordinateRef).not.toContain('later-tip');
+  expect(patch.build().ops).toMatchObject([{ type: 'NodeRemove', observedDots: ['alice:1'] }]);
+  expect(fields.refs.listRefs).not.toHaveBeenCalled();
 });
