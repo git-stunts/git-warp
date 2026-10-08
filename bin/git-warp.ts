@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 
 import process from 'node:process';
+import { homedir } from 'node:os';
+import CliFailureReporterAdapter from '../src/infrastructure/adapters/CliFailureReporterAdapter.ts';
+import CliFailureProjectionAdapter from '../src/infrastructure/adapters/CliFailureProjectionAdapter.ts';
+import CliFailureCodecAdapter from '../src/infrastructure/adapters/CliFailureCodecAdapter.ts';
+import CliFailureRedactorAdapter from '../src/infrastructure/adapters/CliFailureRedactorAdapter.ts';
 import { installDefaultRuntimeHostNodePorts } from '../src/application/RuntimeHostNodeDefaults.ts';
 import { EXIT_CODES, HELP_TEXT, CliError, parseArgs, usageError } from './cli/infrastructure.ts';
 import { stableStringify, compactStringify } from './presenters/json.ts';
@@ -25,6 +30,21 @@ installDefaultRuntimeHostNodePorts();
 const hasJsonFlag = process.argv.includes('--json');
 const hasJsonlFlag = process.argv.includes('--jsonl');
 
+const failureReporter = new CliFailureReporterAdapter({
+  host: {
+    close: closeCliStorages,
+    writeHuman: (text) => { process.stderr.write(text); },
+    writeMachine: (text) => { process.stdout.write(text); },
+    exit: (code) => { process.exit(code); },
+  },
+  projector: new CliFailureProjectionAdapter({
+    classifier: { isCliError: (error) => error instanceof CliError },
+    redactor: new CliFailureRedactorAdapter({ home: homedir(), directory: process.cwd() }),
+  }),
+  codec: new CliFailureCodecAdapter(),
+  format: hasJsonlFlag ? 'jsonl' : hasJsonFlag ? 'json' : 'human',
+});
+
 type NormalizedCommandResult = Readonly<{
   readonly payload: CommandOutputValue | undefined;
   readonly human: string | undefined;
@@ -44,15 +64,13 @@ function normalizeResult(result: CommandHandlerResult): NormalizedCommandResult 
 
 type ParsedInvocation = ReturnType<typeof parseArgs>;
 
-/** Short-circuit the various early-exit conditions (help, removed
- *  flags, mutual exclusion, empty command). Returns true iff the
- *  caller should stop. */
-function handleEarlyExits(parsed: ParsedInvocation): boolean {
+/** Emits help/usage or returns the validated command selected for dispatch. */
+function commandToRun(parsed: ParsedInvocation): string | undefined {
   const { options, command } = parsed;
   if (options.help) {
     process.stdout.write(HELP_TEXT);
     process.exitCode = EXIT_CODES.OK;
-    return true;
+    return undefined;
   }
   if (options.json && options.jsonl) {
     throw usageError('--json and --jsonl are mutually exclusive');
@@ -60,9 +78,9 @@ function handleEarlyExits(parsed: ParsedInvocation): boolean {
   if (command === undefined || command === '') {
     process.stderr.write(HELP_TEXT);
     process.exitCode = EXIT_CODES.USAGE;
-    return true;
+    return undefined;
   }
-  return false;
+  return command;
 }
 
 /** Registers SIGINT/SIGTERM handlers that shut down a long-running
@@ -76,7 +94,7 @@ function installShutdownHandlers(close: () => Promise<void>): () => Promise<void
   const exitAfterShutdown = (): void => {
     void shutdown().then(
       () => process.exit(EXIT_CODES.OK),
-      () => process.exit(EXIT_CODES.INTERNAL),
+      failureReporter.shutdownFailure,
     );
   };
   process.once('SIGINT', exitAfterShutdown);
@@ -139,13 +157,9 @@ async function emitResult(
  */
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
-  if (handleEarlyExits(parsed)) { return; }
-
-  const { options, command, commandArgs } = parsed;
-  // handleEarlyExits already returned for empty/undefined commands.
-  // Re-narrow here for the compiler since early-exit propagation
-  // doesn't survive the function boundary.
-  if (command === undefined || command === '') { return; }
+  const command = commandToRun(parsed);
+  if (command === undefined) { return; }
+  const { options, commandArgs } = parsed;
 
   const handler = COMMANDS.get(command);
   if (!handler) {
@@ -174,27 +188,4 @@ async function main(): Promise<void> {
   process.exit(normalized.exitCode);
 }
 
-main().catch(async (caught: unknown) => {
-  let error = caught;
-  try {
-    await closeCliStorages();
-  } catch (closeError) {
-    error = new AggregateError([caught, closeError], 'CLI command and storage cleanup failed');
-  }
-  const exitCode = error instanceof CliError ? error.exitCode : EXIT_CODES.INTERNAL;
-  const code = error instanceof CliError ? error.code : 'E_INTERNAL';
-  const message = error instanceof Error ? error.message : 'Unknown error';
-  const payload: { error: { code: string; message: string; cause?: unknown } } = { error: { code, message } };
-
-  if (error instanceof Error && error.cause !== undefined) {
-    payload.error.cause = error.cause instanceof Error ? error.cause.message : error.cause;
-  }
-
-  if (hasJsonFlag || hasJsonlFlag) {
-    const stringify = hasJsonlFlag ? compactStringify : stableStringify;
-    process.stdout.write(`${stringify(payload)}\n`);
-  } else {
-    process.stderr.write(`Error: ${payload.error.message}\n`);
-  }
-  process.exit(exitCode);
-});
+main().catch(failureReporter.failure);

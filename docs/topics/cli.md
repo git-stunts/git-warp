@@ -205,3 +205,11 @@ and Receipts.
 - [v19 API guide](api/README.md)
 - [v19 migration guide](../migrations/v19/README.md)
 - [Troubleshooting](troubleshooting.md)
+
+## Bounded failure diagnostics
+
+Human failure reports use stderr. JSON and JSONL reports use stdout with deterministic key order and retain the existing `error.code`, `error.message`, and optional safe immediate `error.cause` fields. Additive typed cause nodes identify `cause`, `originalError`, `aggregate`, and `cleanup` edges. `typedCode` records a non-CLI runtime code when the legacy top-level classifier remains `E_INTERNAL`. Raw non-Error objects are represented generically, never serialized with arbitrary private fields.
+
+Primary CLI failures retain their code and nonzero status when cleanup also fails. A cleanup failure after success exits with the internal failure status. SIGINT/SIGTERM shutdown errors use the same reporter. Getter calls, coercion methods, raw metadata maps, and stacks are excluded. Reflection failures degrade to a bounded safe report; this does not sandbox arbitrary JavaScript Proxy code.
+
+Defensive defaults inspect at most four cause edges, admit eight display nodes, clip messages to 1024 UTF-8 bytes, and cap the serialized report including its newline at 8192 bytes. These are bounds, not performance measurements. Omission markers are explicit; emergency formatting retains primary code/status. Successful command output has its own existing contract. Home/cwd paths, URL credentials, Bearer/GitHub token patterns, and terminal controls are sanitized while relative paths, Git refs, and object IDs remain intact.
