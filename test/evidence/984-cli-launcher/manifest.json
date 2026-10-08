@@ -1,0 +1,262 @@
+[
+  {
+    "phase": "launcher-red-984-v1",
+    "file": "launcher-red-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "e413c041556213b404abe4fbedae8e041e0d2dac3036273170d668664316d0c7",
+    "public_sha256": "e413c041556213b404abe4fbedae8e041e0d2dac3036273170d668664316d0c7",
+    "normalization": "none",
+    "archive_sha256": "2401b19e12d3157e450ea4cbd3112dad7fcc90967f49287f2c9efa756d33ee9f",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "launcher-red-984-v1",
+    "file": "launcher-red-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "c76713c8a2637a73b53534601aba7e469aaf9994b28e106b20beb57a4607814d",
+    "public_sha256": "52c19b8fe0b3b10e7a8443dba804c8bd7ce4b7179dbd322b5ef8d4d3f869c3d8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-red-984-v1",
+    "file": "launcher-red-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "c575613a7956629e03ffa19cabfecbce5310e2dc8831be2117238d01524f2d42",
+    "public_sha256": "d2b693963e29f18723695e25d0fc97bbd57822c00faabee9a1b6e59ee7e4c480",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-red-984-v2",
+    "file": "launcher-red-984-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "a322345ca4c5aceb43f2045565ccd1536dd3b61c67219c97dadc7cf6562a915f",
+    "public_sha256": "a322345ca4c5aceb43f2045565ccd1536dd3b61c67219c97dadc7cf6562a915f",
+    "normalization": "none",
+    "archive_sha256": "6ea2240ef2dc517210aaec32cffaf789bb049b19186c37870267f0cb461d4e35",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "launcher-red-984-v2",
+    "file": "launcher-red-984-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "6ae97fe39ce9721c40571e55da351d949dbcf1f07b01c6f9d09d25ab0fcac30b",
+    "public_sha256": "68427552662c6db9d980b608d6981c3c172c659fd301458eebe43ec262b1c936",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-red-984-v2",
+    "file": "launcher-red-984-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "0000875d118f820d32e6b02d5cab8acf3c5f85e9291240a7e57813b1970d167d",
+    "public_sha256": "471f4bac418c9da1257bc2e06812a18c11eab551fa3157585f26f7be23ab2a98",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-green-984-v1",
+    "file": "launcher-green-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "3e01f6380a6faaf456d9b20c1a73b5e67603175f0b11a29617571c118252f81f",
+    "public_sha256": "3e01f6380a6faaf456d9b20c1a73b5e67603175f0b11a29617571c118252f81f",
+    "normalization": "none",
+    "archive_sha256": "bf82bb5f3f6b24a50dd8e9a2ddd8ef9effe28187cdfb1271a93aa3101547d3b8",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "launcher-green-984-v1",
+    "file": "launcher-green-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "891bc3aabf761da19a5e968bcf495daa1a3fd6e552f3e2282b5b7f62b957648f",
+    "public_sha256": "e3d88ae8aa48aa15f561f3c8f61ff29e29e642aff7e260ee27b09de0a472a083",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-green-984-v1",
+    "file": "launcher-green-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "b6bc46f9eec7048feed5021da6fc8b54da1560013bb1c87e9b5bab4477a431b3",
+    "public_sha256": "a409cf0a2e26aba456f111995387d49c8640d6a5f9ffa609e3d5b366d615b2a4",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-boundaries-984-v1",
+    "file": "launcher-boundaries-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "41c5d63a86c72a7d29b1f43f1777e52875a6fa3a8559c2e71a2d8ce3b213318d",
+    "public_sha256": "41c5d63a86c72a7d29b1f43f1777e52875a6fa3a8559c2e71a2d8ce3b213318d",
+    "normalization": "none",
+    "archive_sha256": "f58012360838ee7b2392c30281f74555780332da186c38eb4b6a21c96ade6ab3",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "launcher-boundaries-984-v1",
+    "file": "launcher-boundaries-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "ff6870b008ab20fa71f6493e62ec5d9b2f1dd06aec74ad030baf3dc92cb0abca",
+    "public_sha256": "3009b23dbd94437a567bdac397041f2a298178ba158ff6831cbe7f6e284ca66c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-boundaries-984-v1",
+    "file": "launcher-boundaries-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "e0bb4963675a91c2f823b0f98959ee0d4481935220381c2853520867b531caac",
+    "public_sha256": "68a959eba19db3d3e3df3daddaa6971c05e0938ec012d5df37f05c06b6313166",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-min-node-984-v1",
+    "file": "launcher-min-node-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "1e8bf35b3c7cf42ca74709d82dca5afe0c8a93ad2ab2df381816691e1761c7db",
+    "public_sha256": "1e8bf35b3c7cf42ca74709d82dca5afe0c8a93ad2ab2df381816691e1761c7db",
+    "normalization": "none",
+    "archive_sha256": "eacc34f02a3572eea108e10014f75f7832f67ed9c2edc4eeec7885d04a65bdb6",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "launcher-min-node-984-v1",
+    "file": "launcher-min-node-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "0f59db215169b05cb9cabfa28b2267a615e9dbe9e6567cedf1fba1a5721794cb",
+    "public_sha256": "7277ab6fa01910ac111950a11f3906fe05d47c0e9651854eb3102335766ecd9e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-min-node-984-v1",
+    "file": "launcher-min-node-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "8e14295c47ee804620aa97d32eeddafa59074f2949375ffd7b434a39ac018970",
+    "public_sha256": "56d737d3f83d4805f332b95b0d628fc0383f78c3d586cdd433dff7acd254306f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-startup-984-v1",
+    "file": "launcher-startup-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "f85dd99657ecf7cc5156944f20dee6a990c53289be461a59f0b0810ce7075636",
+    "public_sha256": "f85dd99657ecf7cc5156944f20dee6a990c53289be461a59f0b0810ce7075636",
+    "normalization": "none",
+    "archive_sha256": "2a3616eaa884ba77ed927b6e14a8719ed1cf0d5bea99848605029978105a80c4",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "launcher-startup-984-v1",
+    "file": "launcher-startup-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "5759731923c46e7deac1869b02edceb936d1665bd6e5f78b984945ce3436322b",
+    "public_sha256": "d9e11eacd29d48e9a6084874ffa5980c4818ca8e79aacef9b19de276173a7bfa",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-startup-984-v1",
+    "file": "launcher-startup-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "60bc4852ec33de592667a309046795caeaeff35f484ec37dd06496d93f405bb1",
+    "public_sha256": "77cc9a058442957b6d2d09697a7e3fbb8f4d9161ca22bb971c19af8c85cabbe3",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-mcp-startup-984-v1",
+    "file": "launcher-mcp-startup-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "19d362111f5a991f1efaa1e884a6eead5089d179b652e165391fa0f3e816efca",
+    "public_sha256": "19d362111f5a991f1efaa1e884a6eead5089d179b652e165391fa0f3e816efca",
+    "normalization": "none",
+    "archive_sha256": "029576f47f5a7f75e268082f7eacea5ee5265978959fb92b3db11490b0780019",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "launcher-mcp-startup-984-v1",
+    "file": "launcher-mcp-startup-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "a7a4a7a5108d29e332723fb2e3bac65837f118bcd46b9398f872db6e9c5c0af4",
+    "public_sha256": "2fd3c5579e82a4ab5e8e3fba4441d8ddaf6591700d3ce47d6a31849f61a553a5",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-mcp-startup-984-v1",
+    "file": "launcher-mcp-startup-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "a1624f289cdf30ce912fc2b326694c9aad6fab2fc3dd09930df69ba6962116cb",
+    "public_sha256": "60a51eefec82984f76ac453250fb725375d70f72d2991242220a851e968f8475",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-boundaries-coverage-984-v1",
+    "file": "launcher-boundaries-coverage-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "84e74a1847e9b77b313dea461631d6c2f12f3fa1a632ec39964849f6bf6cb964",
+    "public_sha256": "84e74a1847e9b77b313dea461631d6c2f12f3fa1a632ec39964849f6bf6cb964",
+    "normalization": "none",
+    "archive_sha256": "ee590d29926cdfba4658d64aa2a25bbaa68c640f2f59a77ddb25e064bbc69108",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "launcher-boundaries-coverage-984-v1",
+    "file": "launcher-boundaries-coverage-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "96b47e210ea697fb6cc376d9b8ca74d01fa5d5d15559a68a3ca46b6c92f06cc0",
+    "public_sha256": "32b83f9a1c96c241133da7183bdb9382171e5d02c6ba6d931f755bee9b6f4d75",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-boundaries-coverage-984-v1",
+    "file": "launcher-boundaries-coverage-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "7970aa8ce66d4678ca4d80717a2fc8a8e42201e42af30c382f1bc73aa3b24856",
+    "public_sha256": "492b4c8d15995dbfe5dabb61888d8ad570f932a18892811f0ea98778deeed0ed",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-boundaries-coverage-984-v2",
+    "file": "launcher-boundaries-coverage-984-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "a0379c7560818f9a5c65255000f4e77a9ac0cf5bf3e2efdde20add67bc31ea97",
+    "public_sha256": "a0379c7560818f9a5c65255000f4e77a9ac0cf5bf3e2efdde20add67bc31ea97",
+    "normalization": "none",
+    "archive_sha256": "437bf2fe21237a5e3e93966c3fe693f3c6d7d78e9091d6e9eb6fbcf534b84724",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "launcher-boundaries-coverage-984-v2",
+    "file": "launcher-boundaries-coverage-984-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "4078e208ac92c91c18ad2c4a41f2c2ec68db939a4df07b1a7e08d5774669a01c",
+    "public_sha256": "87a84ff4f3f335469e1321ebe4378d34f004240df316a93befcd06b5c5fdded6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-boundaries-coverage-984-v2",
+    "file": "launcher-boundaries-coverage-984-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "1b78859e250ae24c80cf594a9c19f9af2c08c2fce95a69b40b373273f1197ebb",
+    "public_sha256": "2f6a6d53bc93585590d6384dc5b4e3f48b6bc239decf77242853b0dfdc2e8ff8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-boundaries-coverage-984-v3",
+    "file": "launcher-boundaries-coverage-984-v3-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "b405e893ea713f390779e417e520f54f71cfb9a4eeb6d25f35a37455af4a6130",
+    "public_sha256": "b405e893ea713f390779e417e520f54f71cfb9a4eeb6d25f35a37455af4a6130",
+    "normalization": "none",
+    "archive_sha256": "ca75bf76101c76cb3dd96997936d6ea27626ea1f1082cf2cc0f830af48de0c47",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "launcher-boundaries-coverage-984-v3",
+    "file": "launcher-boundaries-coverage-984-v3-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "2879b116e2a0b2f52961ac3a690ce5a759c186767f24789cecd0d0f89e933e39",
+    "public_sha256": "c52de580d43472923c906932a0ea6526943ebd0862138196600548dc83d92d1a",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-boundaries-coverage-984-v3",
+    "file": "launcher-boundaries-coverage-984-v3-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "3c371033151a58e50598541a626fb055c311ae730db58242df37e4dc754c4bf8",
+    "public_sha256": "f4bd3602cbba3d5a1c1a221f7f194d30ec7555fbe014b0a5301c7e2e6e44f1cf",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]

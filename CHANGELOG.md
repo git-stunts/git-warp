@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Load the installed CLI in its current Node process instead of starting a
+  second Node process, preserving entry selection, arguments, standard streams
+  and command-owned shutdown ([#984](https://github.com/git-stunts/git-warp/issues/984)).
+
 - Carry the narrow disposable-library dependency in emitted Runtime declarations
   so strict ES2022 consumers can import the installed package and use close or
   async disposal without a broad ESNext library override

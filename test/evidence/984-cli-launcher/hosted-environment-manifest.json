@@ -1,0 +1,102 @@
+[
+  {
+    "phase": "launcher-hosted-env-red-984-v1",
+    "file": "launcher-hosted-env-red-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "86b2bdca7c289bb2e293fc2697fa8d411dd63395caec4b1802bba3003cbe9e2c",
+    "public_sha256": "86b2bdca7c289bb2e293fc2697fa8d411dd63395caec4b1802bba3003cbe9e2c",
+    "normalization": "none",
+    "archive_sha256": "d0ec53af94c57439c6cf5fcd43647767233ff1b73e8d5d2c0f5f83e51a8fc729"
+  },
+  {
+    "phase": "launcher-hosted-env-red-984-v1",
+    "file": "launcher-hosted-env-red-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "af7e9d978d76e8a484e30c67c92597a215f5e6852b13dde3192d580809b0f833",
+    "public_sha256": "5755c9e51f3b4ece0b805820cd6df5b5546dcc34ad9a5c01db469afba13097ee",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-hosted-env-red-984-v1",
+    "file": "launcher-hosted-env-red-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "e2d05e6155d95a9c99748763003668944617684a2e40bee865fa7eff55f6762a",
+    "public_sha256": "df0bd1799f06a996f9c0947ca1b878a4d45d9deff390105a4e58775caba7a300",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-hosted-env-green-984-v1",
+    "file": "launcher-hosted-env-green-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "f33e419ae299bd7c8ef6f1b7e7d1fc67bae4af8c6f824680211e5743a36d05f7",
+    "public_sha256": "f33e419ae299bd7c8ef6f1b7e7d1fc67bae4af8c6f824680211e5743a36d05f7",
+    "normalization": "none",
+    "archive_sha256": "c5b30f830f7bb5f6dd07d11e775e8e59a3b7acc87e0beb559b8c80459d2d7a98"
+  },
+  {
+    "phase": "launcher-hosted-env-green-984-v1",
+    "file": "launcher-hosted-env-green-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "1d4cb0999a2f7c543d95dc821f19349698f590e8c8f884a150e4322ef0f7675b",
+    "public_sha256": "4b2c6fd1531eaf010da46b896e51d65fbf61f202ed1ea4e26103e150967b6de2",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-hosted-env-green-984-v1",
+    "file": "launcher-hosted-env-green-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "2ec0d4cec4714342a9adc9aafdd4eea87af3f0605b5fabf8f45940515c2a3cb5",
+    "public_sha256": "77a9a6014868c5514259c6ba8c103c6be03ca145c675f5ae0ea05f1cfe7dd95d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-hosted-env-green-984-v2",
+    "file": "launcher-hosted-env-green-984-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "3e2c05d7d58d70751269e394b3f5e0c210a1f8389abd6bcf048b2faf7ace9d83",
+    "public_sha256": "3e2c05d7d58d70751269e394b3f5e0c210a1f8389abd6bcf048b2faf7ace9d83",
+    "normalization": "none",
+    "archive_sha256": "2949d5db2c72a75d6a5607e7958a652f45c4a4e530d49d14457aeebc53c3393a"
+  },
+  {
+    "phase": "launcher-hosted-env-green-984-v2",
+    "file": "launcher-hosted-env-green-984-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "9f305f890d82ab26b8b6bc7f34de29b9cf2a13af4ab67c23c145c3a71a48d088",
+    "public_sha256": "3cb8ef9e4dd508cc842146f572c877caf0d72d7a40e8e038ba9a8965962ea87a",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-hosted-env-green-984-v2",
+    "file": "launcher-hosted-env-green-984-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "929d1d48eab766ce0c750099985e957e76249cba5332830fd250c89ed3f85c00",
+    "public_sha256": "8bb4b28c363cd0a3451ec39413283a1f727eb17f021bf4f02931045ec5caf019",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-hosted-env-green-984-v3",
+    "file": "launcher-hosted-env-green-984-v3-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "0d46a7278860618ce9153c1c8ebfb6aa647112acf8628829a9b896d1d5b0539d",
+    "public_sha256": "0d46a7278860618ce9153c1c8ebfb6aa647112acf8628829a9b896d1d5b0539d",
+    "normalization": "none",
+    "archive_sha256": "fc4022e112a4897f56e3358401e250634c8fa104e842471ed1fd8e9657c7e4fa"
+  },
+  {
+    "phase": "launcher-hosted-env-green-984-v3",
+    "file": "launcher-hosted-env-green-984-v3-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "01d956fc623a8985cabf94d25aa991e635f6c837c6058b0e7814e9b2d2b46f99",
+    "public_sha256": "284d40ca3177646b6eb6fcf410714145b397ea82d3ff8729a8c7bc46c77625da",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-hosted-env-green-984-v3",
+    "file": "launcher-hosted-env-green-984-v3-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "078d56aac05db5b9d1f30ae9c91d808e31a0c954779d0e186c803ecf2cfdd904",
+    "public_sha256": "b1b52713e93556fe5ea78fdc87bf91fb0f3c8caec1d23f7f11a960825e023f8e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]

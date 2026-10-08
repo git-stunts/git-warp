@@ -1,0 +1,46 @@
+{
+  "phase": "launcher-portable-process-red-984-v1",
+  "inner_guard_sha256": "2e898488b42ef2d6885c79a124d3deef5cc17086f5b8846e75833145a75dd27d",
+  "worker": "git-warp-tests",
+  "image": "sha256:9f145953f6e79a59749a683d11a476133cb7cef0588b79256dc195b1d0c87ad7",
+  "source_base": "2eb60b816add5dd3f6b0462af345ea838c18104a",
+  "source_archive_sha256": "831f0b109070d2eb71ab7e577713456fc83df1be967447cdd1eabd9c4cf64321",
+  "source_archive_bytes": 21319680,
+  "baseline_inputs": {
+    "bin/git-warp": {
+      "ref": "5c82ba6ca168d07b743fac5c6adbf38822ae0302",
+      "sha256": "c59219529facafaed3f4f7e4c244e1f0d5f305008e06de332e0d7940c9859381"
+    }
+  },
+  "command": [
+    "python3",
+    "-c",
+    "#!/usr/bin/env python3\n\"\"\"Count native Node starts from the real installed CLI; COPY Docker only.\"\"\"\nfrom pathlib import Path\nimport os\nimport shutil\nimport subprocess\nimport tempfile\n\nif not Path('/.dockerenv').exists():\n    raise SystemExit('CLI process tests require Docker')\nROOT = Path.cwd()\nWORK = Path(tempfile.mkdtemp(prefix='cli-process-', dir=os.environ['TMPDIR']))\nTIMEOUT = 30\n\ntry:\n    pack = WORK / 'pack'\n    consumer = WORK / 'consumer'\n    pack.mkdir()\n    consumer.mkdir()\n    subprocess.run(['node', 'scripts/package-payload/CheckPackagePayload.ts', '--pack-destination', str(pack)], check=True, timeout=TIMEOUT)\n    subprocess.run(['npm', 'init', '-y'], cwd=consumer, stdout=subprocess.DEVNULL, check=True, timeout=TIMEOUT)\n    subprocess.run(['npm', 'install', '--ignore-scripts', '--no-audit', '--no-fund', '--fetch-retries=0', '--fetch-timeout=15000', str(next(pack.glob('*.tgz')))], cwd=consumer, stdout=subprocess.DEVNULL, check=True, timeout=TIMEOUT)\n    preload = WORK / 'trace.cjs'\n    preload.write_text(\"const fs=require('node:fs');const p=require('node:process');fs.appendFileSync(p.env.WARP_CLI_START_TRACE,[p.pid,p.ppid,p.argv[1]??''].join(String.fromCharCode(9))+String.fromCharCode(10));\")\n    wrapper = consumer / 'node_modules/@git-stunts/git-warp/bin/git-warp'\n    cases = [\n        ('help', ['--help'], 0),\n        ('doctor', ['doctor', '--repo', str(consumer)], 3),\n        ('json-failure', ['doctor', '--repo', str(WORK / 'missing'), '--json'], 3),\n        ('unknown', ['no-such-command'], 1),\n    ]\n    for name, arguments, expected in cases:\n        trace = WORK / (name + '.tsv')\n        environment = os.environ.copy()\n        environment['NODE_OPTIONS'] = '--require=' + str(preload)\n        environment['WARP_CLI_START_TRACE'] = str(trace)\n        result = subprocess.run(['node', str(wrapper), *arguments], cwd=consumer, env=environment, capture_output=True, text=True, timeout=TIMEOUT)\n        rows = trace.read_text().splitlines()\n        print('INSTALLED_CLI_PROCESS', name, 'node_starts', len(rows), 'exit', result.returncode, flush=True)\n        if len(rows) != 1 or result.returncode != expected:\n            raise AssertionError('Installed CLI process count or exit status changed: ' + name)\n        if name == 'help' and (not result.stdout or result.stderr):\n            raise AssertionError('Help streams changed')\n        if name == 'json-failure' and (not result.stdout.startswith('{') or result.stderr):\n            raise AssertionError('JSON failure streams changed')\n        if name == 'unknown' and (result.stdout or 'Unknown command' not in result.stderr):\n            raise AssertionError('Usage failure streams changed')\nfinally:\n    shutil.rmtree(WORK)"
+  ],
+  "lock_store": "workstation.git",
+  "lock_keys": [
+    "host/docker/git-warp-tests/"
+  ],
+  "outputs": [
+    "build volume /app",
+    "runtime /data",
+    "bounded /tmp and <CONTAINER_HOME> and /dev/shm",
+    "Docker rotated log",
+    "host receipts"
+  ],
+  "host_free_bytes": 720291885056,
+  "host_receipt_bytes": 69373907,
+  "build_limit_bytes": 21474836480,
+  "data_quota_bytes": 3221225472,
+  "generated_nonobject_limit_bytes": 100663296,
+  "stdout_limit_bytes": 16777216,
+  "memory_bytes": 8589934592,
+  "cpus": 4,
+  "cpu_affinity": "0-3",
+  "pids_limit": 768,
+  "timeout_seconds": 1700,
+  "stop_boundary": "git-warp-tests",
+  "guard": "inner guard plus outer host free/log monitor; read-only container root",
+  "vm_free_bytes": 684622118912,
+  "initial_build_bytes": 2336387072
+}
