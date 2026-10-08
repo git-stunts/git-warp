@@ -72,6 +72,8 @@ Checkpoints persist folded state plus index, frontier, and schema metadata.
 They accelerate recovery and bounded-read evidence. They are not the source of
 truth; patch history remains authoritative.
 
+Every writer head in a checkpoint frontier remains reachable through Git commit parents. Above 64 unique heads, the adapter inserts immutable anchors with at most 64 direct parents each; the checkpoint bundle, logical frontier and reader interpretation stay the same. Coverage publication uses the same bounded ancestry. Empty anchor trees are written in the repository's object format rather than using a SHA-1 constant.
+
 Use [Operations](../operations/) for checkpoint and GC workflows.
 
 ## Provenance

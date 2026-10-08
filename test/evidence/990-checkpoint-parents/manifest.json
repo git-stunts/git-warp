@@ -1,0 +1,25 @@
+[
+  {
+    "file": "red-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "bfa3b3e20aa0ce5edd12dfc1024e408ab55faca1a7300d00cde156e83d750a77",
+    "public_sha256": "bfa3b3e20aa0ce5edd12dfc1024e408ab55faca1a7300d00cde156e83d750a77",
+    "normalization": "none",
+    "archive_sha256": "50bfd2057d9a059f19e6a163acf205dd233e71f6162cdf0b7b6bd471afe8d40a",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "file": "red-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "e0116f46506caae3f4e2239da57d7d3c267f595541c220660407450a9d143e23",
+    "public_sha256": "4281fb0db14470ebd0d8600a214610ec268fbdeb1c0be7d1bc23f4808b97e641",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "file": "red-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "9cda517c781041efeea84c47d3cedfa685e3d93b64295f80f1434dd29a55c051",
+    "public_sha256": "a0251bf6b1b4c62629a6340e3f21786c7d1308ee2935ea11729b84ce9c66a74a",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]

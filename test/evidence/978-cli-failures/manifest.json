@@ -1,0 +1,127 @@
+[
+  {
+    "phase": "cli-nested-red-978-v1",
+    "file": "cli-nested-red-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "035208f53c8bca84e0d27275333b7b25158cd74d504cb57afdd2dc2171889508",
+    "public_sha256": "035208f53c8bca84e0d27275333b7b25158cd74d504cb57afdd2dc2171889508",
+    "normalization": "none",
+    "archive_sha256": "c14e8e2a49cf3fd4eaf993f5566904ab22e28cb15f484889b6f252bf8740502d"
+  },
+  {
+    "phase": "cli-nested-red-978-v1",
+    "file": "cli-nested-red-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "0994767188ae0ae48dd173c08fdcfa111e175aa2510bcb0a0f262f387895c9c3",
+    "public_sha256": "6ae937c396c8885611c61398187a3ec273343e318bd72d467b2dde31c143f2d0",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-nested-red-978-v1",
+    "file": "cli-nested-red-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "8c7625cdd523f5af123f4d2cda2cf90767ada21dfbdd49450a641c65a49bf8f1",
+    "public_sha256": "0a7990004a44eff96a76f3e387e306d1a774daea4896a651da91209cc59eabec",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-nested-red-978-v2",
+    "file": "cli-nested-red-978-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "44e9b41f2b7cad222bc06bd8ac2b803712126cc33f31fca33bc0035ef7b9807f",
+    "public_sha256": "44e9b41f2b7cad222bc06bd8ac2b803712126cc33f31fca33bc0035ef7b9807f",
+    "normalization": "none",
+    "archive_sha256": "90366e6163fbdb587c9b8bd6a43fd5371347bcbb0191fe61a3526ba72c5f6d47"
+  },
+  {
+    "phase": "cli-nested-red-978-v2",
+    "file": "cli-nested-red-978-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "a670e81c5056b307c0251b3da64902aaf7eeed52a0b63053a303f31128472a7a",
+    "public_sha256": "2f8fe0df97d7301368ea3664aea8bae64e68bb90471890f125ed36d439ad0e75",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-nested-red-978-v2",
+    "file": "cli-nested-red-978-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "f6340bb1867777bca5091a94a2c977b6ebf1072afb018cae20862afddcdeb862",
+    "public_sha256": "86909e6cdbb97577e126c42592b67f0366691b268d6b5c51ae1c042712aeb2a9",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-privacy-red-978-v1",
+    "file": "cli-privacy-red-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "da83b30b01eaf400570f94987cf2859ea208c20b178a9b74430812b85783393c",
+    "public_sha256": "da83b30b01eaf400570f94987cf2859ea208c20b178a9b74430812b85783393c",
+    "normalization": "none",
+    "archive_sha256": "620ce8dc6b77bcf4692f8ec940a1e50c8924a3ab58712b3b5332060e97ec3fd7"
+  },
+  {
+    "phase": "cli-privacy-red-978-v1",
+    "file": "cli-privacy-red-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "bd46d50c5f4110444de2039321f924df1604e187d2fa89cadb9dd87e2f03a5bd",
+    "public_sha256": "a8302ea75acae21845ba7c190ce39e9d1c1518e11a949e6377cfca3564352a28",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-privacy-red-978-v1",
+    "file": "cli-privacy-red-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "b800c392a1949bccc1583fbeb447ad3aa4ccfc804e3a23fd1ecbaa042a82b053",
+    "public_sha256": "4a1f5bd4ad1cfdb4117cb80732d7f7d820773750c877c4a16c7d6bcfda937484",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-bounds-red-978-v1",
+    "file": "cli-bounds-red-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "9c92c5813d5542bed3a80a414ea3805d5d61f008b638f7cd48272bfa1db981eb",
+    "public_sha256": "9c92c5813d5542bed3a80a414ea3805d5d61f008b638f7cd48272bfa1db981eb",
+    "normalization": "none",
+    "archive_sha256": "b1f783dd32797a85111e8348c91e4f7fe808fe77885c907e0a85e0b1e9db0dce"
+  },
+  {
+    "phase": "cli-bounds-red-978-v1",
+    "file": "cli-bounds-red-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "4eaf3356328efafff01998b607b44c068d5f3ab7b45102fe430d4b75b9fcde5c",
+    "public_sha256": "9054e75bb73aa54aa63d7311fe5b8c7f5fc5c09621b81d78bc02405f473d0bcd",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-bounds-red-978-v1",
+    "file": "cli-bounds-red-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "6750dd33697036850e9fc0eb09493e5faafc766f17af70c87625400608762907",
+    "public_sha256": "28798ff1df41e0bb8c8d276e0ae4710120c2f8dd63591cd650d2a49811063d6c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-signal-red-978-v1",
+    "file": "cli-signal-red-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "c0807ded4855e0896ba53835943e4cd20802aa0f1728e16e5b91ac3309d18848",
+    "public_sha256": "c0807ded4855e0896ba53835943e4cd20802aa0f1728e16e5b91ac3309d18848",
+    "normalization": "none",
+    "archive_sha256": "c15da4ab024aa23808cd6f05ed8f298eea30365586ef1d474821ede98d79f868"
+  },
+  {
+    "phase": "cli-signal-red-978-v1",
+    "file": "cli-signal-red-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "61fd5fcf3f75744ce68d5188f4be6de21f51b9441faa3120c00d0ca5b84bf70c",
+    "public_sha256": "7f63a061078616a778f660ba674ea4df8053e63546664fcd6fbba198d99a5da6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-signal-red-978-v1",
+    "file": "cli-signal-red-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "e6f301292feb21409a222d9f40bbfcc940000fafb8aefb90f101a069c70ae600",
+    "public_sha256": "e05ef0ee855caef113fe30e84501f3df28ad4fc0abed00dcd52dae58e239c202",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "exit_code": 1,
+  "guard_error": null,
+  "peaks": {
+    "build_bytes": 795148288,
+    "/data": 12562432,
+    "<CONTAINER_HOME>": 0,
+    "/tmp": 0,
+    "/dev/shm": 0,
+    "generated_nonobject_bytes": 12906496,
+    "minimum_vm_free_bytes": 696507179008
+  },
+  "stdout_bytes": 10138,
+  "timeout_seconds": 1700,
+  "limits": {
+    "build_bytes": 21474836480,
+    "runtime_tmpfs_bytes": 3221225472,
+    "stdout_bytes": 16777216,
+    "generated_nonobject_bytes": 100663296
+  }
+}

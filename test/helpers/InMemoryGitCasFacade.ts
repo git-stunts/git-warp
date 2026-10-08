@@ -5,6 +5,7 @@ import {
   CacheHit,
   PageHandle,
   RetentionWitness,
+  CasError,
   StagedAsset,
   StagedBundle,
   StagedPage,
@@ -47,6 +48,7 @@ type FixtureAssetReader = (oid: string) => Promise<Uint8Array | null>;
 
 const ENCRYPTED_ASSET_MAGIC = new Uint8Array([0x47, 0x57, 0x45, 0x43]);
 const ENCRYPTED_ASSET_NONCE_BYTES = 12;
+const MAX_PUBLICATION_PARENTS = 64;
 
 /** Minimal high-level git-cas facade used to exercise production adapters in memory. */
 export default class InMemoryGitCasFacade {
@@ -660,6 +662,12 @@ export default class InMemoryGitCasFacade {
   async #publish(
     request: Parameters<PublicationCapability['commit']>[0],
   ): Promise<Awaited<ReturnType<PublicationCapability['commit']>>> {
+    if ((request.commit.parents?.length ?? 0) > MAX_PUBLICATION_PARENTS) {
+      throw new CasError('Publication parents must be a bounded array', 'PUBLICATION_INVALID', {
+        parentCount: request.commit.parents?.length,
+        maxParents: MAX_PUBLICATION_PARENTS,
+      });
+    }
     const root = parseApplicationHandle(request.root);
     const current = await this.#history.readRef(request.ref.name);
     if (current !== request.ref.expected) {

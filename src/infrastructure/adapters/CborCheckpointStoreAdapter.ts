@@ -40,6 +40,7 @@ import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts'
 import GitCasMaterializationSnapshotReader, {
   type MaterializationBasisSnapshot,
 } from './GitCasMaterializationSnapshotReader.ts';
+import GitPublicationParents from './GitPublicationParents.ts';
 
 interface CheckpointHistory {
   commitNode(options: { message: string; parents: string[] }): Promise<string>;
@@ -71,6 +72,8 @@ type CheckpointLayout = {
 };
 
 const EMPTY_INDEX_SHARD_HANDLES = Object.freeze({});
+// git-cas PublicationService bounds each publication to 64 direct parents.
+const MAX_CHECKPOINT_PARENTS = 64;
 
 /** Publishes and reads current checkpoints as retained git-cas bundles. */
 export class CborCheckpointStoreAdapter extends CheckpointStorePort {
@@ -122,7 +125,13 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     });
     const publication = await this.#cas.publications.commit({
       root,
-      commit: { parents: record.parents, message },
+      commit: {
+        parents: await this.#boundedParents(
+          record.graphName,
+          new GitPublicationParents(record.parents).toArray(),
+        ),
+        message,
+      },
       ref: { name: checkpointRef, expected: expectedHead },
     });
     requirePublishedBundle(publication.root.toString(), bundleHandle);
@@ -217,10 +226,34 @@ export class CborCheckpointStoreAdapter extends CheckpointStorePort {
     });
     const sha = await this.#history.commitNode({
       message,
-      parents: options.parents,
+      parents: await this.#boundedParents(options.graphName, options.parents),
     });
     await this.#history.compareAndSwapRef(ref, sha, expectedHead);
     return sha;
+  }
+
+  /** Keeps every writer reachable through immutable, bounded Git anchors. */
+  async #boundedParents(graphName: string, parents: string[]): Promise<string[]> {
+    let level = [...new Set(parents)];
+    if (level.length <= MAX_CHECKPOINT_PARENTS) {
+      return level;
+    }
+    const message = this.#messageCodec.encodeAnchor({
+      kind: 'anchor',
+      graph: graphName,
+      schema: 2,
+    });
+    while (level.length > MAX_CHECKPOINT_PARENTS) {
+      const next: string[] = [];
+      for (let offset = 0; offset < level.length; offset += MAX_CHECKPOINT_PARENTS) {
+        next.push(await this.#history.commitNode({
+          message,
+          parents: level.slice(offset, offset + MAX_CHECKPOINT_PARENTS),
+        }));
+      }
+      level = next;
+    }
+    return level;
   }
 
   async #readLayout(

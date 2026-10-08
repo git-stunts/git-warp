@@ -1,0 +1,8 @@
+{
+  "commit": "ceb58e656ec5bc85f0ae5991bf2a55599693bbb3",
+  "source": "src/infrastructure/adapters/CborCheckpointStoreAdapter.ts",
+  "original_sha256": "c27cb28f7a11cff2a003fd4a3b6935bdd13362a5bed0669998e4872c4c32853f",
+  "fixture": "test/integration/application/fixtures/CheckpointStoreBaseline.ts",
+  "fixture_sha256": "881dbe5b633e9d2c37c93cf69468ba6980deb87d8ece762452bbe111e92a6bb9",
+  "changes": "two provenance comments and import locations only"
+}
