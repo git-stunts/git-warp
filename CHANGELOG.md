@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Carry the narrow disposable-library dependency in emitted Runtime declarations
+  so strict ES2022 consumers can import the installed package and use close or
+  async disposal without a broad ESNext library override
+  ([#981](https://github.com/git-stunts/git-warp/issues/981)).
+
 - Restore the full locked dependency audit with patched KaTeX 0.18.2,
   smol-toml 1.9.0, and source-map-js 1.2.2 while keeping the existing developer
   tool versions, platform constraints, and runtime dependency graph. Verify

@@ -1,3 +1,4 @@
+/// <reference lib="esnext.disposable" preserve="true" />
 import Lane from '../domain/api/Lane.ts';
 import type SettlementPreview from '../domain/api/SettlementPreview.ts';
 import type SettlementReceipt from '../domain/api/SettlementReceipt.ts';
