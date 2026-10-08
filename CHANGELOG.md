@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Show bounded typed CLI failure causes and cleanup details in human, JSON, and
+  JSONL output. Preserve the primary failure identity, refuse private raw cause
+  dumps and accessors, terminate cyclic formatting safely, and report signal
+  shutdown failures without reporting success
+  ([#978](https://github.com/git-stunts/git-warp/issues/978)).
+
 - Restore the full locked dependency audit with patched KaTeX 0.18.2,
   smol-toml 1.9.0, and source-map-js 1.2.2 while keeping the existing developer
   tool versions, platform constraints, and runtime dependency graph. Verify

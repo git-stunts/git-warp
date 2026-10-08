@@ -208,10 +208,13 @@ RuntimeHarnessOptions @ testing.ts#L27
 | `audit` | `handleAudit` | `bin/cli/commands/registry.ts#L44` |
 | `mcp` | `handleMcp` | `bin/cli/commands/registry.ts#L45` |
 
-Structured CLI errors for `--json` and `--jsonl` use the payload shape
-`{ error: { code, message, cause? } }` from the CLI entry point.
+Structured CLI errors retain `{ error: { code, message, cause? } }`. The optional immediate `cause` is a safe Error message; raw non-Error objects are represented by a generic bounded cause node, never dumped. Additive `causes` nodes identify typed `cause`, `originalError`, `aggregate`, and `cleanup` edges. A `typedCode` records a non-CLI runtime code when the existing top-level classifier remains `E_INTERNAL`.
 
-Source: `bin/git-warp.ts#L187`.
+Primary CLI failures retain their code and nonzero exit status when cleanup also fails. Nested aggregate members remain visible. A cleanup failure after success exits with the internal failure status. SIGINT/SIGTERM shutdown failures use the same bounded reporter. Human reports use stderr; JSON and JSONL use stdout with deterministic key order. Arbitrary metadata, stacks, getters, coercion methods, and unsupported raw objects are excluded.
+
+Display defaults bound traversal depth to 4, report nodes to 8, message text to 1024 UTF-8 bytes, and each emitted failure report including its newline to 8192 UTF-8 bytes after serialization. These are defensive bounds, not performance measurements. Truncation is explicit and preserves primary code/status. Successful command output has its own existing contract. Home/cwd paths, URL credentials, Bearer tokens, GitHub token patterns, and terminal controls are sanitized; relative paths, Git refs and object IDs are preserved.
+
+Source: `src/infrastructure/adapters/CliFailureReporterAdapter.ts`, `CliFailureProjectionAdapter.ts`, `CliFailureCodecAdapter.ts`, and the executable composition in `bin/git-warp.ts`.
 
 ## Public error classes
 

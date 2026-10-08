@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 
 import process from 'node:process';
+import { homedir } from 'node:os';
+import CliFailureReporterAdapter from '../src/infrastructure/adapters/CliFailureReporterAdapter.ts';
+import CliFailureProjectionAdapter from '../src/infrastructure/adapters/CliFailureProjectionAdapter.ts';
+import CliFailureCodecAdapter from '../src/infrastructure/adapters/CliFailureCodecAdapter.ts';
+import CliFailureRedactorAdapter from '../src/infrastructure/adapters/CliFailureRedactorAdapter.ts';
 import { installDefaultRuntimeHostNodePorts } from '../src/application/RuntimeHostNodeDefaults.ts';
 import { EXIT_CODES, HELP_TEXT, CliError, parseArgs, usageError } from './cli/infrastructure.ts';
 import { stableStringify, compactStringify } from './presenters/json.ts';
@@ -24,6 +29,21 @@ installDefaultRuntimeHostNodePorts();
 // pre-scanning argv, the error handler can still emit structured output.
 const hasJsonFlag = process.argv.includes('--json');
 const hasJsonlFlag = process.argv.includes('--jsonl');
+
+const failureReporter = new CliFailureReporterAdapter({
+  host: {
+    close: closeCliStorages,
+    writeHuman: (text) => { process.stderr.write(text); },
+    writeMachine: (text) => { process.stdout.write(text); },
+    exit: (code) => { process.exit(code); },
+  },
+  projector: new CliFailureProjectionAdapter({
+    classifier: { isCliError: (error) => error instanceof CliError },
+    redactor: new CliFailureRedactorAdapter({ home: homedir(), directory: process.cwd() }),
+  }),
+  codec: new CliFailureCodecAdapter(),
+  format: hasJsonlFlag ? 'jsonl' : hasJsonFlag ? 'json' : 'human',
+});
 
 type NormalizedCommandResult = Readonly<{
   readonly payload: CommandOutputValue | undefined;
@@ -76,7 +96,7 @@ function installShutdownHandlers(close: () => Promise<void>): () => Promise<void
   const exitAfterShutdown = (): void => {
     void shutdown().then(
       () => process.exit(EXIT_CODES.OK),
-      () => process.exit(EXIT_CODES.INTERNAL),
+      failureReporter.shutdownFailure,
     );
   };
   process.once('SIGINT', exitAfterShutdown);
@@ -174,27 +194,4 @@ async function main(): Promise<void> {
   process.exit(normalized.exitCode);
 }
 
-main().catch(async (caught: unknown) => {
-  let error = caught;
-  try {
-    await closeCliStorages();
-  } catch (closeError) {
-    error = new AggregateError([caught, closeError], 'CLI command and storage cleanup failed');
-  }
-  const exitCode = error instanceof CliError ? error.exitCode : EXIT_CODES.INTERNAL;
-  const code = error instanceof CliError ? error.code : 'E_INTERNAL';
-  const message = error instanceof Error ? error.message : 'Unknown error';
-  const payload: { error: { code: string; message: string; cause?: unknown } } = { error: { code, message } };
-
-  if (error instanceof Error && error.cause !== undefined) {
-    payload.error.cause = error.cause instanceof Error ? error.cause.message : error.cause;
-  }
-
-  if (hasJsonFlag || hasJsonlFlag) {
-    const stringify = hasJsonlFlag ? compactStringify : stableStringify;
-    process.stdout.write(`${stringify(payload)}\n`);
-  } else {
-    process.stderr.write(`Error: ${payload.error.message}\n`);
-  }
-  process.exit(exitCode);
-});
+main().catch(failureReporter.failure);
