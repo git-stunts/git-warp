@@ -204,6 +204,25 @@ describe('bounded CLI error projection', () => {
     expect(root.exitCode).toBe(1);
   });
 
+  it('retains typed identity in every emergency format for a production throwable graph', () => {
+    const members = Array.from({ length: 6 }, () => new Error('c'.repeat(1024)));
+    const retention = new CasError('r'.repeat(1024), 'WORKSPACE_RETENTION_FAILED', {
+      originalError: new AggregateError(members, 'g'.repeat(1024)),
+    });
+    const report = projector.project(retention);
+    expect(countNodes(report.primary)).toBe(8);
+    expect(report.exitCode).toBe(3);
+    for (const format of ['human', 'json', 'jsonl']) {
+      if (format === 'human' || format === 'json' || format === 'jsonl') {
+        const emitted = codec.encode(report, format);
+        expect(emitted).toContain('WORKSPACE_RETENTION_FAILED');
+        expect(emitted).toContain('E_INTERNAL');
+        expect(emitted).toContain('omitted');
+        expect(new TextEncoder().encode(emitted).length).toBeLessThanOrEqual(8192);
+      }
+    }
+  });
+
   it('clips valid Unicode and checks escaped serialized output including newline', () => {
     expect(failureTextPrefix('😀x', 4)).toBe('😀');
     const report = projector.project(new CliError('😀'.repeat(3000), { code: 'E_USAGE', exitCode: 1 }));

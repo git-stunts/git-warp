@@ -24,7 +24,7 @@ function emergency(report: CliFailureReport, format: CliFailureFormat): string {
       ...typedCode(report),
     } };
     return format === 'human'
-      ? `Error: [${report.code}] ${fallback.error.message}\n`
+      ? `Error: [${humanCode(report)}] ${fallback.error.message}\n`
       : `${JSON.stringify(fallback, null, indentation(format))}\n`;
 }
 
@@ -53,9 +53,7 @@ function nodeValue(node: CliFailureNode): CliFailureNodeValue {
 }
 
 function human(report: CliFailureReport): string {
-  const code = report.primary.code === report.code
-    ? report.code : `${report.code}/${report.primary.code}`;
-  const root = `Error: [${code}] ${report.primary.message}`;
+  const root = `Error: [${humanCode(report)}] ${report.primary.message}`;
   const causes = [...report.primary.causes, ...report.cleanup];
   const omission = truncation(report).truncated ? ['Further failure details omitted'] : [];
   return `${[root, ...causes.flatMap((node) => humanNode(node, 1)), ...omission].join('\n')}\n`;
@@ -72,4 +70,9 @@ function typedCode(report: CliFailureReport): { readonly typedCode?: string } {
 
 function truncation(report: CliFailureReport): { readonly truncated?: boolean } {
   return report.primary.truncated || report.truncated ? { truncated: true } : {};
+}
+
+function humanCode(report: CliFailureReport): string {
+  return report.primary.code === report.code
+    ? report.code : `${report.code}/${report.primary.code}`;
 }
