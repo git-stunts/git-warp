@@ -4,12 +4,17 @@ import TreeEntryFound from '../../../../src/domain/tree/TreeEntryFound.ts';
 import TreeEntryLimit from '../../../../src/domain/tree/TreeEntryLimit.ts';
 import TreeEntryMissing from '../../../../src/domain/tree/TreeEntryMissing.ts';
 import TreeEntryPath from '../../../../src/domain/tree/TreeEntryPath.ts';
-import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
+import GitTimelineHistoryAdapter, { type CollectableStream, type GitPlumbing } from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { createGitRepo } from '../../../helpers/warpGraphTestUtils.ts';
 import { describeAdapterConformance } from './AdapterConformance.ts';
 
-function streamFromText(text: string): AsyncIterable<Uint8Array> {
+async function rejectFullCollection(): Promise<string> {
+  throw new Error('Streaming operations must not collect the full input');
+}
+
+function streamFromText(text: string): CollectableStream {
   return {
+    collect: rejectFullCollection,
     async *[Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
       if (text.length > 0) {
         yield Buffer.from(text);
@@ -18,15 +23,19 @@ function streamFromText(text: string): AsyncIterable<Uint8Array> {
   };
 }
 
-let mockPlumbing;
-let adapter;
+function createMockPlumbing() {
+  return {
+    emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
+    execute: vi.fn<GitPlumbing['execute']>(),
+    executeStream: vi.fn<GitPlumbing['executeStream']>(),
+  };
+}
+
+let mockPlumbing: ReturnType<typeof createMockPlumbing>;
+let adapter: GitTimelineHistoryAdapter;
 
 beforeEach(() => {
-  mockPlumbing = {
-    emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
-    execute: vi.fn(),
-    executeStream: vi.fn(),
-  };
+  mockPlumbing = createMockPlumbing();
   adapter = new GitTimelineHistoryAdapter({ plumbing: mockPlumbing });
 });
 
@@ -70,9 +79,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
 
       await adapter.logNodes({ ref: 'HEAD' });
 
-      const args = mockPlumbing.execute.mock.calls[0][0].args;
-      const hasFormat = (args).some((a) => a.startsWith('--format='));
-      expect(hasFormat).toBe(false);
+      expect(mockPlumbing.execute).toHaveBeenCalledExactlyOnceWith({ args: ['log', '-50', 'HEAD'] });
     });
 
     it('validates ref before calling git', async () => {
@@ -118,8 +125,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
     });
 
     it('wraps ref-not-found errors as PersistenceError', async () => {
-      const err = (new Error('fatal: bad revision refs/warp/missing') as any);
-      err.details = { code: 128, stderr: 'fatal: bad revision refs/warp/missing' };
+      const err = Object.assign(new Error('fatal: bad revision refs/warp/missing'), { details: { code: 128, stderr: 'fatal: bad revision refs/warp/missing' } });
       mockPlumbing.execute.mockRejectedValue(err);
 
       await expect(adapter.logNodes({ ref: 'refs/warp/missing' }))
@@ -327,8 +333,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
 
     it('wraps missing tree errors as PersistenceError', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
-      const err = (new Error(`fatal: bad object ${treeOid}`) as any);
-      err.details = { code: 128, stderr: `fatal: bad object ${treeOid}` };
+      const err = Object.assign(new Error(`fatal: bad object ${treeOid}`), { details: { code: 128, stderr: `fatal: bad object ${treeOid}` } });
       mockPlumbing.execute.mockRejectedValue(err);
 
       await expect(adapter.readTreeOids(treeOid))
@@ -414,7 +419,8 @@ describe('GitTimelineHistoryAdapter coverage', () => {
     it('stops reading prefix stream chunks when the runtime limit is reached', async () => {
       const treeOid = 'aabb' + '0'.repeat(36);
       const firstOid = 'beef' + '0'.repeat(36);
-      const stream = {
+      const stream: CollectableStream = {
+        collect: rejectFullCollection,
         async *[Symbol.asyncIterator](): AsyncIterator<Uint8Array> {
           yield Buffer.from(`100644 blob ${firstOid}\tindex/first.cbor\0`);
           throw new Error('prefix probe read past the requested limit');
@@ -516,8 +522,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
 
     it('wraps missing commit errors as PersistenceError', async () => {
       const commitOid = 'a'.repeat(40);
-      const err = (new Error(`fatal: bad object ${commitOid}`) as any);
-      err.details = { code: 128, stderr: `fatal: bad object ${commitOid}` };
+      const err = Object.assign(new Error(`fatal: bad object ${commitOid}`), { details: { code: 128, stderr: `fatal: bad object ${commitOid}` } });
       mockPlumbing.execute.mockRejectedValue(err);
 
       await expect(adapter.getCommitTree(commitOid))
@@ -532,8 +537,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
     it('wraps ref lock failures as PersistenceError', async () => {
       const ref = 'refs/warp/test/writers/alice';
       const oid = 'a'.repeat(40);
-      const err = (new Error('fatal: permission denied') as any);
-      err.details = { code: 128, stderr: 'fatal: permission denied' };
+      const err = Object.assign(new Error('fatal: permission denied'), { details: { code: 128, stderr: 'fatal: permission denied' } });
       mockPlumbing.execute.mockRejectedValue(err);
 
       await expect(adapter.updateRef(ref, oid))
@@ -545,7 +549,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
   });
 
   describe('compareAndSwapRef()', () => {
-    it('uses the zero OID when expectedOid is null', async () => {
+    it('requires absence without a format-specific zero OID when expectedOid is null', async () => {
       const ref = 'refs/warp/test/writers/alice';
       const oid = 'a'.repeat(40);
       mockPlumbing.execute.mockResolvedValue('');
@@ -553,7 +557,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
       await adapter.compareAndSwapRef(ref, oid, null);
 
       expect(mockPlumbing.execute).toHaveBeenCalledWith({
-        args: ['update-ref', ref, oid, '0'.repeat(40)],
+        args: ['update-ref', ref, oid, ''],
       });
     });
 
@@ -569,8 +573,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
       const ref = 'refs/warp/test/writers/alice';
       const oid = 'a'.repeat(40);
       const expectedOid = 'b'.repeat(40);
-      const err = (new Error('fatal: cannot lock ref') as any);
-      err.details = { code: 128, stderr: 'fatal: cannot lock ref' };
+      const err = Object.assign(new Error('fatal: cannot lock ref'), { details: { code: 128, stderr: 'fatal: cannot lock ref' } });
       mockPlumbing.execute.mockRejectedValue(err);
 
       await expect(adapter.compareAndSwapRef(ref, oid, expectedOid))
@@ -612,8 +615,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
     });
 
     it('propagates git errors as PersistenceError with E_REF_IO code', async () => {
-            const err = (new Error('permission denied')) as any;
-      err.exitCode = 128;
+      const err = Object.assign(new Error('permission denied'), { exitCode: 128 });
       mockPlumbing.execute.mockRejectedValue(err);
 
       await expect(adapter.deleteRef('refs/warp/test'))
@@ -674,8 +676,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
     });
 
     it('returns false when not an ancestor (exit code 1)', async () => {
-            const err = (new Error('not ancestor')) as any;
-      err.details = { code: 1 };
+      const err = Object.assign(new Error('not ancestor'), { details: { code: 1 } });
       mockPlumbing.execute.mockRejectedValue(err);
 
       const ancestorOid = 'aaaa' + '0'.repeat(36);
@@ -687,8 +688,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
     });
 
     it('returns false when exit code 1 via exitCode property', async () => {
-            const err = (new Error('not ancestor')) as any;
-      err.exitCode = 1;
+      const err = Object.assign(new Error('not ancestor'), { exitCode: 1 });
       mockPlumbing.execute.mockRejectedValue(err);
 
       const ancestorOid = 'aaaa' + '0'.repeat(36);
@@ -700,8 +700,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
     });
 
     it('returns false when exit code 1 via code property', async () => {
-            const err = (new Error('not ancestor')) as any;
-      err.code = 1;
+      const err = Object.assign(new Error('not ancestor'), { code: 1 });
       mockPlumbing.execute.mockRejectedValue(err);
 
       const ancestorOid = 'aaaa' + '0'.repeat(36);
@@ -713,8 +712,7 @@ describe('GitTimelineHistoryAdapter coverage', () => {
     });
 
     it('re-throws unexpected errors (non exit-code-1)', async () => {
-            const err = (new Error('repository corrupt')) as any;
-      err.details = { code: 128 };
+      const err = Object.assign(new Error('repository corrupt'), { details: { code: 128 } });
       mockPlumbing.execute.mockRejectedValue(err);
 
       const ancestorOid = 'aaaa' + '0'.repeat(36);

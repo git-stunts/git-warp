@@ -208,10 +208,11 @@ RuntimeHarnessOptions @ testing.ts#L27
 | `audit` | `handleAudit` | `bin/cli/commands/registry.ts#L44` |
 | `mcp` | `handleMcp` | `bin/cli/commands/registry.ts#L45` |
 
-Structured CLI errors for `--json` and `--jsonl` use the payload shape
-`{ error: { code, message, cause? } }` from the CLI entry point.
+Structured CLI errors retain `{ error: { code, message, cause? } }`.
+Additive `typedCode`, bounded `causes`, and `truncated` fields preserve typed
+diagnostics without dumping raw metadata. The CLI failure codec owns encoding.
 
-Source: `bin/git-warp.ts#L187`.
+Source: `src/infrastructure/adapters/CliFailureCodecAdapter.ts#L37`.
 
 ## Public error classes
 

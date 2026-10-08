@@ -1,0 +1,104 @@
+import os,json,signal,subprocess,selectors,time,sys,resource
+from pathlib import Path
+GIB=1024**3; MIB=1024**2
+E=Path('/data/evidence'); E.mkdir(parents=True,exist_ok=True)
+LIMIT=16*MIB
+resource.setrlimit(resource.RLIMIT_FSIZE,(512*MIB,512*MIB))
+existing={int(x) for x in os.listdir('/proc') if x.isdecimal()} | {os.getpid()}
+baseline={}; peaks={}; error=None; written=0
+roots=['/data','<CONTAINER_HOME>','/tmp','/dev/shm','/app/project']
+def files():
+ for root in roots:
+  for directory,children,names in os.walk(root):
+   if directory=='/data': children[:]=[x for x in children if x!='coverage']
+   if directory.startswith('/app/project'):
+    children[:]=[x for x in children if x not in ['node_modules','dist','.npm']]
+   if 'objects' in children and Path(directory,'HEAD').exists(): children.remove('objects')
+   for name in names:
+    p=Path(directory,name)
+    try:
+     if not p.is_symlink():
+      s=p.stat(); yield str(p),max(s.st_size,s.st_blocks*512)
+    except FileNotFoundError: pass
+baseline=dict(files())
+started=time.monotonic(); last=0
+interrupted=False
+def interrupt(*_):
+ global interrupted
+ interrupted=True
+signal.signal(signal.SIGTERM,interrupt); signal.signal(signal.SIGINT,interrupt)
+def cgroup_snapshot():
+ return {name:Path('/sys/fs/cgroup',name).read_text().strip() for name in ['pids.current','pids.max','pids.events','memory.events','cpu.max','cpuset.cpus.effective']}
+measurement_pauses=0
+measurement_pause_seconds=0.0
+def allocated_tree_bytes(root):
+ # Monitored sampling of allocated blocks, like du, without stopping clocks.
+ # Disappearing discovered entries are normal unlink races; all other
+ # filesystem errors fail closed. Never follow symlinks or double-count links.
+ import stat
+ seen=set(); total=0; pending=[str(root)]
+ os.lstat(root)  # The owned accounting root itself must exist.
+ while pending:
+  path=pending.pop()
+  try:
+   info=os.lstat(path)
+  except FileNotFoundError:
+   continue
+  identity=(info.st_dev,info.st_ino)
+  if identity in seen:continue
+  seen.add(identity);total+=info.st_blocks*512
+  if stat.S_ISDIR(info.st_mode):
+   try:
+    with os.scandir(path) as entries:
+     pending.extend(entry.path for entry in entries)
+   except FileNotFoundError:
+    continue
+ return total
+
+def measured_build_bytes():
+ return allocated_tree_bytes('/app')
+
+def measure():
+ cg=cgroup_snapshot(); pids=int(cg['pids.current']); peaks['pids']=max(peaks.get('pids',0),pids)
+ if pids>int(cg['pids.max'])-16:raise RuntimeError('process headroom below 16 tasks')
+ f=os.statvfs('/'); free=f.f_bavail*f.f_frsize
+ if free<50*GIB: raise RuntimeError('Docker backing filesystem below 50 GiB')
+ size=measured_build_bytes()
+ peaks['build_bytes']=max(peaks.get('build_bytes',0),size)
+ if size>20*GIB: raise RuntimeError('aggregate build storage above 20 GiB')
+ for mount in ['/data','<CONTAINER_HOME>','/tmp','/dev/shm']:
+  f=os.statvfs(mount); used=(f.f_blocks-f.f_bfree)*f.f_frsize
+  peaks[mount]=max(peaks.get(mount,0),used)
+  if f.f_bavail*f.f_frsize<2*MIB: raise RuntimeError('bounded filesystem reserve reached: '+mount)
+ coverage=Path('/data/coverage')
+ if coverage.exists():
+  size=allocated_tree_bytes(coverage)
+  peaks['coverage_bytes']=max(peaks.get('coverage_bytes',0),size)
+ generated=sum(max(0,n-baseline.get(p,0)) for p,n in files())
+ peaks['generated_nonobject_bytes']=max(peaks.get('generated_nonobject_bytes',0),generated)
+ if generated>96*MIB: raise RuntimeError('generated nonobject data/log reserve above 96 MiB')
+ peaks['minimum_vm_free_bytes']=min(peaks.get('minimum_vm_free_bytes',free),free)
+measure()
+process=subprocess.Popen(sys.argv[1:],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,start_new_session=True)
+sel=selectors.DefaultSelector();sel.register(process.stdout,selectors.EVENT_READ)
+try:
+ with (E/'output.log').open('wb') as log:
+  while sel.get_map() or process.poll() is None:
+   if interrupted or time.monotonic()-started>1700: raise RuntimeError('interruption or workload timeout')
+   if time.monotonic()-last>2: measure();last=time.monotonic()
+   for key,_ in sel.select(.25):
+    b=os.read(key.fileobj.fileno(),65536)
+    if not b:sel.unregister(key.fileobj);continue
+    written+=len(b)
+    if written>LIMIT:raise RuntimeError('workload output exceeded 16 MiB')
+    log.write(b);log.flush();sys.stdout.buffer.write(b);sys.stdout.buffer.flush()
+ code=process.wait()
+except Exception as e:
+ error=str(e);code=125;print('Resource guard refusal:',error,flush=True)
+finally:
+ sel.close()
+ (E/'resources.json').write_text(json.dumps({'exit_code':code,'guard_error':error,'peaks':peaks,'stdout_bytes':written,'timeout_seconds':1700,'measurement_mode':'allocated inode census without workload pauses','measurement_pauses':measurement_pauses,'measurement_pause_seconds':measurement_pause_seconds,'cgroup':cgroup_snapshot(),'limits':{'build_bytes':20*GIB,'runtime_tmpfs_bytes':3*GIB,'stdout_bytes':LIMIT,'generated_nonobject_bytes':96*MIB}},indent=2)+'\n')
+ try: os.killpg(process.pid,signal.SIGKILL)
+ except ProcessLookupError: pass
+ process.wait(timeout=5)
+sys.exit(code)

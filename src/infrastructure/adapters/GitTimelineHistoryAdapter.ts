@@ -43,19 +43,19 @@ import type OperationPolicyPort from '../../ports/OperationPolicyPort.ts';
 import type { OperationPolicyExecuteOptions } from '../../ports/OperationPolicyPort.ts';
 export type { GitPlumbing, GitError, CollectableStream } from './gitErrorClassification.ts';
 
-export interface GitTimelineHistoryAdapterOptions {
+export type GitTimelineHistoryAdapterOptions = {
   readonly plumbing: GitPlumbing;
   readonly retryOptions?: Partial<OperationPolicyExecuteOptions>;
   readonly policy?: OperationPolicyPort;
-}
+};
 
 /** Infrastructure-only tree-backed commit operation. */
-export interface GitTreeCommitOptions {
+export type GitTreeCommitOptions = {
   treeOid: string;
   parents?: string[];
   message: string;
   sign?: boolean;
-}
+};
 interface GitCasPolicy {
   execute<T>(operation: () => Promise<T>): Promise<T>;
 }
@@ -83,7 +83,6 @@ function createGitCasRetryPolicy(
     },
   });
 }
-
 
 function buildListRefsArgs(prefix: string, limit: number | null | undefined): string[] {
   const args = ['for-each-ref', '--format=%(refname)'];
@@ -194,7 +193,7 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
   }
 
   async commitNode({ message, parents = [], sign = false }: CommitNodeOptions): Promise<string> {
-    return await this._createCommit({ tree: this.emptyTree, parents, message, sign });
+    return await this._createCommit({ tree: await this.writeTree([]), parents, message, sign });
   }
 
   async commitNodeWithTree({
@@ -296,13 +295,11 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
     const batchSize = 16;
     for (let i = 0; i < entries.length; i += batchSize) {
       const batch = entries.slice(i, i + batchSize);
-      const results = await Promise.all(batch.map(([, oid]) => this.readBlob(oid)));
-      for (let j = 0; j < batch.length; j++) {
-        const entry = batch[j];
-        const result = results[j];
-        if (entry !== undefined && result !== undefined) {
-          files.set(entry[0], result);
-        }
+      const results = await Promise.all(batch.map(async ([path, oid]) => ({
+        path, bytes: await this.readBlob(oid),
+      })));
+      for (const entry of results) {
+        files.set(entry.path, entry.bytes);
       }
     }
     return Object.fromEntries(files);
@@ -377,7 +374,8 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
   async compareAndSwapRef(ref: string, newOid: string, expectedOid: string | null): Promise<void> {
     validateRef(ref);
     validateOid(newOid);
-    const oldArg = expectedOid ?? '0'.repeat(40);
+    // Git's empty old value requires absence in either repository object format.
+    const oldArg = expectedOid ?? '';
     if (expectedOid !== null && expectedOid !== undefined) {
       validateOid(expectedOid);
     }

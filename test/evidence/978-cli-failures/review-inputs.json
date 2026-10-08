@@ -1,0 +1,22 @@
+{
+  "bin/git-warp.ts": "9e3ff4953357ead08cb0259133442344e20aca5e3183875c82c627475826fa14",
+  "scripts/check-cli-failures.py": "6345e6b85488ac6e68289b5c324ee1c4c1799099e8f9b69a44f10c690d9ae7ca",
+  "src/infrastructure/adapters/CliFailureCode.ts": "b24921a5b5af53a9c7eb290be8f9364d2cef4884a9aef390a4fcaefacb7d804b",
+  "src/infrastructure/adapters/CliFailureCodecAdapter.ts": "c2f3839f5710caf426de18e03c86b74a3e4f6ca60db5c2f2a11c2e38a7a70d5a",
+  "src/infrastructure/adapters/CliFailureExitCode.ts": "e1d95880ef11ece5c3984cb149b831794cae59c8769b1718aec2391bfa9f27c1",
+  "src/infrastructure/adapters/CliFailureFormat.ts": "5f539aca483260e95c133fb5de94397331c72580e57ea686e783fbbe9aea4c01",
+  "src/infrastructure/adapters/CliFailureLimits.ts": "0de39a9c1b37309d1a1615a3fd02a87a8f31159af2ccf87fba8d8cc867a048fb",
+  "src/infrastructure/adapters/CliFailureMessageValue.ts": "80704354229bd4d610369cb6d075df7288f00d6148b9311318c7a3eb9fd96874",
+  "src/infrastructure/adapters/CliFailureNode.ts": "d235d39f64ecedccb68fe6efd8f6c68d319db50aeff6f911d68a36e8a668a8dc",
+  "src/infrastructure/adapters/CliFailureNodeValue.ts": "439e7ea903578706a33dc6d3e4fd1c11c85232db36e55f161716fe023a44b707",
+  "src/infrastructure/adapters/CliFailureProjectionAdapter.ts": "e4e5e66370971a97531ee544459ca6f5255c663b4f26e5cd04af95122521cd72",
+  "src/infrastructure/adapters/CliFailurePropertyReader.ts": "a5f9f7438386e1b6f18f1b4c28dbdafd1eb2fe26f98e535dae4ff293ca6251fa",
+  "src/infrastructure/adapters/CliFailureRedactorAdapter.ts": "2f4eb245f23348686013e79a8a62d026e4daf7bd9195fab9798a7f8fe575f9e6",
+  "src/infrastructure/adapters/CliFailureRelation.ts": "b02f52111bb0a32a21a6df235d7b9e1515583aecc7ba04e99799bffdd5cef532",
+  "src/infrastructure/adapters/CliFailureReport.ts": "8f423637a0ea07c505cafa1cce87737aebd4e0cfa075777f23403e207bf246ea",
+  "src/infrastructure/adapters/CliFailureReporterAdapter.ts": "8869e82d4e9693d4c6bc225bd3c2b6ae689a9ee8e36e9e0d76a3e34edf3b0690",
+  "src/infrastructure/adapters/CliFailureTraversal.ts": "c73507959f361bee25d0dff09e88dbfd65d7df88ea04440ffe54a1b4a0e47bce",
+  "test/unit/infrastructure/adapters/CliFailureProjectionAdapter.test.ts": "b720385fcdf14212d3a1de3a44dc7150f0f1dc70edd4bddb445942ea18a592da",
+  "test/unit/infrastructure/adapters/CliFailureReporterAdapter.test.ts": "621e49a850052fd5e416d114882a4ffa81e19b58959e0279b6d9973728cfafaa",
+  "test/unit/infrastructure/adapters/CliFailureValidation.test.ts": "da60b9da3894b04d90f42d86a84365e7090d413f017234bf1dbb2c472903d9eb"
+}

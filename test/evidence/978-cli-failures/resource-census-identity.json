@@ -1,0 +1,8 @@
+{
+  "source_name": "inner_guard.py",
+  "original_sha256": "5e394e53a986ce05c03852dfdc80c99e1e9ba78226fec0045eb57b6a5c4bd71b",
+  "public_sha256": "8a6f9d803ef3922e6cb2ac762076601d756ad8706aea56e0a7cdde8937b7f82c",
+  "normalization": "container home replaced with <CONTAINER_HOME>",
+  "executable": false,
+  "purpose": "source-preserving normalized orchestration snapshot; original hash binds launch receipts"
+}

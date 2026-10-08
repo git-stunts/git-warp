@@ -1,0 +1,470 @@
+[
+  {
+    "phase": "mermaid-stall-diagnostic-978-v1",
+    "file": "mermaid-stall-diagnostic-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "be9cb3b85c76e59af8af4b7b41289857ed564f83ea019a3819f1ffe0c7841b8f",
+    "public_sha256": "be9cb3b85c76e59af8af4b7b41289857ed564f83ea019a3819f1ffe0c7841b8f",
+    "archive_sha256": "7d5f4105e63c731a8cc6719c3b39a938090f267481d0e29f912714cf47ea2772",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "mermaid-stall-diagnostic-978-v1",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "a146f06c6d6fcf2502fa2427c66984cd63ac326f5e7de21f56a13be45b79d485",
+    "public_sha256": "be8289b3ef722fff0573345d304e2f51f245299574e98e3b793a8d592ffe153c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "mermaid-stall-diagnostic-978-v1",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "3090bc0cfa7d0e7a63b2131b2b7d87654dd32cf9c247afd3d7c8645e49549d5f",
+    "public_sha256": "9cd56fbd4fb6cb072eab23ee003190747c622c1d785d891b40224d924a3a6e7c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "mermaid-stall-diagnostic-978-v2",
+    "file": "mermaid-stall-diagnostic-978-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "fd00506e7e006252b3b0acb812bdddb97992223dc2e7231c67b86d7c2d0a168c",
+    "public_sha256": "fd00506e7e006252b3b0acb812bdddb97992223dc2e7231c67b86d7c2d0a168c",
+    "archive_sha256": "3a0c1e2813ade2b980f7341e331393156bb68c5e19a3db7e79b6632f2580de4d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "mermaid-stall-diagnostic-978-v2",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "ef8ea36b5a1eda188ad33553604241d3cbb76d91939083d5765e6b8d50a63ca5",
+    "public_sha256": "d9f95ffeac3e861b80331e0113b9831fe2978fe52ab34497b4c16f968d45644b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "mermaid-stall-diagnostic-978-v2",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "492a03de008c1442bbb73c1653470c4a68bd48002382e5f62d83a575a707f851",
+    "public_sha256": "cf242774bd8a2eed702e4b028f5a8441d1eb3724d10f25116206ed13e9b2bfa0",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "mermaid-unpaused-978-v1",
+    "file": "mermaid-unpaused-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "f4b163ab98ffbd37faee66c76e0ff1f0c539d9c23f3c608f8a68bf1f346e2eaa",
+    "public_sha256": "f4b163ab98ffbd37faee66c76e0ff1f0c539d9c23f3c608f8a68bf1f346e2eaa",
+    "archive_sha256": "a24474eae402a055589a97e93f38c42d3a43c195ed40b46e1a75bf9721e4041b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "mermaid-unpaused-978-v1",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "4782638fe3bee86fc62cace5c4887503015602903a305562122015e181627848",
+    "public_sha256": "8110db9d25a9fd7d0d783612dc5e8384f875b09de32eb9fe7c83c3f3501689dd",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "mermaid-unpaused-978-v1",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "78600f9f26569493e2374b8a14e9521b267a28b244d881a0acd14248e1887cd8",
+    "public_sha256": "171439e9700aca09d74fc7b6bd9f82b5fed4a676a3f2536a75bcc9807f22b578",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-02709E0F-1463-498B-803B-9440437A2B8A",
+    "file": "prepush-978-02709E0F-1463-498B-803B-9440437A2B8A-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "a11ec48a5c847c4dd9d1b85f9810330fe57bc9a97fa0fa52d3fed88fd08c2e5a",
+    "public_sha256": "a11ec48a5c847c4dd9d1b85f9810330fe57bc9a97fa0fa52d3fed88fd08c2e5a",
+    "archive_sha256": "9faedad8175d1ee2e0a4caf86966ebd96ac9a2eb994f3f4429006e36428f5b7b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-02709E0F-1463-498B-803B-9440437A2B8A",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "69337ae7ca4a407fa60d6ecd74c1b202531881db1559e18cacf2314f81ecdb54",
+    "public_sha256": "aa2197cabc7c9b5193f150ed5dc70dfb2e737b2ccc1366e29e86ee28bcd9fe73",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-02709E0F-1463-498B-803B-9440437A2B8A",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "cacfb080655c5bf99811b0f649a592255edec0391fd4ff3396da4bd2591f9714",
+    "public_sha256": "9ab3361963405a9bc23e2034ccb8878f9c16f7030600614a049468bb06f32601",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-04A04A6B-3599-458D-9F03-2B194D8F5D56",
+    "file": "prepush-978-04A04A6B-3599-458D-9F03-2B194D8F5D56-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "927f42305b62dc2051da81200373c5376a2cdc4190e244489b36e400cca146ed",
+    "public_sha256": "927f42305b62dc2051da81200373c5376a2cdc4190e244489b36e400cca146ed",
+    "archive_sha256": "6744c972354a06d40200215d07501a70c726e65eafba48c69bee367edc24355f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-04A04A6B-3599-458D-9F03-2B194D8F5D56",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "d7499c583b706dc45946e8a574b3c29034209b76d40406991cb4e77279bced12",
+    "public_sha256": "9892583f51873073ae6c66193f99d9fa66d270fa4cf9f0c39f71db15a8c11c85",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-04A04A6B-3599-458D-9F03-2B194D8F5D56",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "faf1ca9cd6f3560573af91357f052784b655e779d1e78c1516522ba4e9e4022b",
+    "public_sha256": "398c97332b868351c83a670a387c901fbd0a45bb36e3a384430f40bc7adf282e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-0D2F8D32-F37B-43E1-BFA1-F005776B13F9",
+    "file": "prepush-978-0D2F8D32-F37B-43E1-BFA1-F005776B13F9-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "45c9b74098a476d149c689fa26b5a884df8b54d10e61d92ef295452b70c61686",
+    "public_sha256": "45c9b74098a476d149c689fa26b5a884df8b54d10e61d92ef295452b70c61686",
+    "archive_sha256": "8d2bef347061dad67d27005186e0eb1ea7731e0b8f1aa42b7dabf8ce64bb60e4",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-0D2F8D32-F37B-43E1-BFA1-F005776B13F9",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "a542928b07c19206e44375928ed902e8d06dcfdc6d08bcf79d954d934e8a75ea",
+    "public_sha256": "bde65d90b3bdf0430e852306a506b318ee65756945e0108ed38586bf075b8d6a",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-0D2F8D32-F37B-43E1-BFA1-F005776B13F9",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "9477bec23a0ae3cbb23e89b569d1fc69b42fb55b5f2f97021e0e0b2d33f1bc41",
+    "public_sha256": "4623e1d817a5e8ab6a510b51c844b3e72939a54a639a9bb5bc613c8e2fb16921",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-3852DB9A-F8FB-4A06-A7B8-EE0996FB7974",
+    "file": "prepush-978-3852DB9A-F8FB-4A06-A7B8-EE0996FB7974-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "4c1947c91fdd9d71bae94c5d521f294d1b60ce8560b8ce73516947e00bcca582",
+    "public_sha256": "4c1947c91fdd9d71bae94c5d521f294d1b60ce8560b8ce73516947e00bcca582",
+    "archive_sha256": "cf2d889f13b9c76231a1cc1183d38be3d5f0b39bc96cce74bf22c5e4d5593e33",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-3852DB9A-F8FB-4A06-A7B8-EE0996FB7974",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "610cac1e69a9e422dfe1021426c3b65bc51226121bde8e58e09e5e60d8f29241",
+    "public_sha256": "b9a179166e9250a57fbe7706fb40acdbe1d2a8f50ccb45a7caaafaef9a36fb26",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-3852DB9A-F8FB-4A06-A7B8-EE0996FB7974",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "9acd7ecfa39df7ee0a2c6f58f68900bb79d6e0c72f4941894e4a1a655e014971",
+    "public_sha256": "4bac963a4d30b89d04aee9c944fc0d2c7714eb66fd79fe4a70383e5dc06af1e5",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-41498C9E-A9C9-43B7-92A0-34AB51C82DAA",
+    "file": "prepush-978-41498C9E-A9C9-43B7-92A0-34AB51C82DAA-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "e9d77c11c23c3321a492e6ee5c07c357a5617b62c4c90bf4a2b97723fb7171c6",
+    "public_sha256": "e9d77c11c23c3321a492e6ee5c07c357a5617b62c4c90bf4a2b97723fb7171c6",
+    "archive_sha256": "ce6e65877da891f8fdf362972920d54cae2e5a719dbdf7eaa486ac1a6b47e6fe",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-41498C9E-A9C9-43B7-92A0-34AB51C82DAA",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "4e689afcfb1faa5406748f75fad19ac1921128a9e7ca4fa390cb0ddff391c3d5",
+    "public_sha256": "a5b44a6785f206985d3b455375d57ec5b29ad65f6bd897919df3247edce1618c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-41498C9E-A9C9-43B7-92A0-34AB51C82DAA",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "ab2abac0adeb1288eaf08de78412dcdbeb44653aad3f23dfe48201f370651977",
+    "public_sha256": "42251ad88d3a754eac2df85b43093cbdb05fc105f03384c28f75cc4e5eb4d97f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-50CF4E32-CED7-411C-8541-634DF14A106A",
+    "file": "prepush-978-50CF4E32-CED7-411C-8541-634DF14A106A-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "1bf392879e5f8f01367cb1a762833767389271e8b84528258d25f8a101067312",
+    "public_sha256": "1bf392879e5f8f01367cb1a762833767389271e8b84528258d25f8a101067312",
+    "archive_sha256": "6085291e085b2bc5a5f6b5d8e043926e296a98390c2694b52ade373045db5e3c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-50CF4E32-CED7-411C-8541-634DF14A106A",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "9c5d05464d1d4d70b9220dc9d912408ae992b12103b0de17f1d0cbaf8fb0b673",
+    "public_sha256": "3d8a663f967302a701af5664a4dd1c564a1b03fb01b015c6d3f8ed44b74e70e8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-50CF4E32-CED7-411C-8541-634DF14A106A",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "c04217492339d0f5a481d6707d8ffcfd028159301589b5465e5628e3e3915c61",
+    "public_sha256": "688ef8fcffbe6f928fb35f21b96563f4237949fbd14b3d128866f790d7351ef3",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-8D02884E-8A32-466F-94FD-933DB3206370",
+    "file": "prepush-978-8D02884E-8A32-466F-94FD-933DB3206370-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "61526690513266a46101dd1dd278f6ecc575741c1aa94494c7073ab66f4a7121",
+    "public_sha256": "61526690513266a46101dd1dd278f6ecc575741c1aa94494c7073ab66f4a7121",
+    "archive_sha256": "7ce590a7a47826ac73233e78e088fb298e9a66ab3d17fc8e5fb00fbd09a0bf68",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-8D02884E-8A32-466F-94FD-933DB3206370",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "48ef04b4c8a835e1635e8e921dd19022562e45b1a80787e7d8d02242722d0f0c",
+    "public_sha256": "8025be590af27e40a65e26ec68fdc2769e2c00fb697b3afd46e8b328f6640e1c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-8D02884E-8A32-466F-94FD-933DB3206370",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "3a76f5356ff214fc5dc33daeca53214ed555e24ec1d01fe556734add6faf095d",
+    "public_sha256": "a7dd94026daa6639a26fab80ac2e5bbc827369f336a6f31fd45bb174063b20ea",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-8D08FDF5-6D1E-402A-9E19-22F46D619E9C",
+    "file": "prepush-978-8D08FDF5-6D1E-402A-9E19-22F46D619E9C-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "4cd9be51b8c42843edb6dcf6f31f9365a1ca7272818790205790a7b27eaabcf4",
+    "public_sha256": "4cd9be51b8c42843edb6dcf6f31f9365a1ca7272818790205790a7b27eaabcf4",
+    "archive_sha256": "c30f309e96e2e59d8fc5696e57f37a5ce447e4d0766c35540e3925af90059309",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-8D08FDF5-6D1E-402A-9E19-22F46D619E9C",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "457483d7f9099516c1231e0efb979427e50319bd630b82a27f6a46e2052f43ea",
+    "public_sha256": "9406acc5281825471d75052c17f2bf068d05ceef679588859665a27c62ef8f82",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-8D08FDF5-6D1E-402A-9E19-22F46D619E9C",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "53790c5275a654608541d4b5aaa869c03cd174be0e81c755f7bdd24f4f1fbb3f",
+    "public_sha256": "a96911858ffd70275cf34964f61ab2558b92b8f7f39773241d40c185710d12e1",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-92F594E5-DBC0-4C2D-9FFA-7AEF2D46EDCF",
+    "file": "prepush-978-92F594E5-DBC0-4C2D-9FFA-7AEF2D46EDCF-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "9a64d02f82dcae68fd9d5dc4f1fad3c800dce036fb20f99d3168a803d9dcf929",
+    "public_sha256": "9a64d02f82dcae68fd9d5dc4f1fad3c800dce036fb20f99d3168a803d9dcf929",
+    "archive_sha256": "302b6e1b59dd32384beb7d6260c7a2a6ff1b619efc06418e6ad149d82f0022a8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-92F594E5-DBC0-4C2D-9FFA-7AEF2D46EDCF",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "379817cb45899d64f6febb61d8f74e2a0df51c4be432500d6de4c67c3ad620fb",
+    "public_sha256": "546a021c8e1ad042ff87c67f55c28a931c32490cfc4abe93262a143da8c69b15",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-92F594E5-DBC0-4C2D-9FFA-7AEF2D46EDCF",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "c3f37652a339648bafa4d96094b251542c5279d5573d8f22f8b25557d46449bc",
+    "public_sha256": "404cf0bec2403ac59665c05600f6803a10faab6e825aed2bc1397e1ff59db13d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-D314D9AB-952F-4340-9B96-DF92D48DA9C9",
+    "file": "prepush-978-D314D9AB-952F-4340-9B96-DF92D48DA9C9-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ea9e2ed5f9c66cad3351969516bb4691cad0507e48e6d7a1674b856556b61605",
+    "public_sha256": "ea9e2ed5f9c66cad3351969516bb4691cad0507e48e6d7a1674b856556b61605",
+    "archive_sha256": "8206943b7ea661702d21234a107b39ba16c5b5d6239bd6e322fb4c28ffb860e4",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-D314D9AB-952F-4340-9B96-DF92D48DA9C9",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "65a059ab9a2dcd57b3b9c6a26670768439b86635933b366b8be2d792103a1764",
+    "public_sha256": "2276126ac5cd4d103163cf4b617b81eec37440aa2262bc6f0fa2741b3fbcf3a0",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-D314D9AB-952F-4340-9B96-DF92D48DA9C9",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "7883585bdad31464a7173c851e085bd41784e1c0f3a83bff0c5e40f316698a95",
+    "public_sha256": "e4bd6410350af9101bb8110edc9adbd7dfebd2be97646544319bf3defa8cfac9",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-EA2C848E-CA5D-496D-912B-E8215F08C143",
+    "file": "prepush-978-EA2C848E-CA5D-496D-912B-E8215F08C143-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "6fb06273e13e8d1a1d3c0769b0640584e9a18ff1146f46e0e8a546e64437e8f3",
+    "public_sha256": "6fb06273e13e8d1a1d3c0769b0640584e9a18ff1146f46e0e8a546e64437e8f3",
+    "archive_sha256": "028a971bc149a1af0946e02832883134f7d99060161263dd8ecef252d269e5c3",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-EA2C848E-CA5D-496D-912B-E8215F08C143",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "29e0489b69be1139f24de26919f5d970839ad1fd9bb2630e352624a19f2dfda9",
+    "public_sha256": "2f6b2aee28d2f88fd69c36893bf23333e580466c5cf28fba16e55795cc2285ea",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-978-EA2C848E-CA5D-496D-912B-E8215F08C143",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "4eb461d4bec3ee0a9abbcfedbc85601ae41acb3a5ee5c673ec70bc1d441a5ee7",
+    "public_sha256": "441ffc9b96805c84e377bc706b2b476e2977f04bdd45edd61730b5462a5c1f1d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "review-978-CR-token-green-v1",
+    "file": "review-978-CR-token-green-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "5260ec1116b5d28565103b571d73e792e516a4a3c8e13574d57a8038623044ef",
+    "public_sha256": "5260ec1116b5d28565103b571d73e792e516a4a3c8e13574d57a8038623044ef",
+    "archive_sha256": "8bf0997c43f46a95155370459285662f1cab0f86a8df55d350febe5270dec4ba",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "review-978-CR-token-green-v1",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "aa9e61c83409ae4e82c695d852020186d350f7d45607c4b9507f0bd524397963",
+    "public_sha256": "2d1d66d6f01456a3221ce33db521f3b8ec3d82835a8f07f1524cf24f2f6e8f9a",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "review-978-CR-token-green-v1",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "09751aad2b0a94f4f8db5d603cfc5ca6c3a073aaccfd2c414e681015b85e7b2f",
+    "public_sha256": "b89239904dc87a5e113ad603f64efc2f7c668d805ff0cb9aa49361dfc8c193a9",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "review-978-CR-token-red-v1",
+    "file": "review-978-CR-token-red-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "1cd071ad333081d146e9195c81a372f5f9e6f7e96052aae33e4efcea2404a362",
+    "public_sha256": "1cd071ad333081d146e9195c81a372f5f9e6f7e96052aae33e4efcea2404a362",
+    "archive_sha256": "296371d0ba81c0b80e226c7c3613737808a71a602ef242c796aa9426ef5e8f46",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "review-978-CR-token-red-v1",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "69c4fbdfacb8325ba972e6f9d5c9a9e32c482e2d2ab517f5a1f76b16db453cff",
+    "public_sha256": "5e38e8240c7dddc03d6fa54e4c47f63eb7b699a79e68417b4549c53e7b2a6b12",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "review-978-CR-token-red-v1",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "94018989a27a7908c52d3147fdefbe53b58cd891535bb0c9ada8ee372bd065ed",
+    "public_sha256": "72fe358776c165b70e2eb76d5ae4457c78418eedc8906151d7823d115c00b352",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "review-978-census-pilot-v1",
+    "file": "review-978-census-pilot-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "96c0cba3aa987f0fdf7147e5adcff4590b5a77109f21e5cb4005627d5e36eabd",
+    "public_sha256": "96c0cba3aa987f0fdf7147e5adcff4590b5a77109f21e5cb4005627d5e36eabd",
+    "archive_sha256": "19182aacb6e814614c7b4d1fbd4e39bf3403b792a8622c7488a3a40cdb31f20f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "review-978-census-pilot-v1",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "b83e144005710b8983558609780c47d4903e9df591216e82575bb218db951d9c",
+    "public_sha256": "5a3dbedd2716a19d5075324d84ca77c653a5339372c701c047db1f44fc86d881",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "review-978-census-pilot-v1",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "b0e097403406068c62c72fb7e17fea830fe1609ff5191d41b6a687d8d020ae6b",
+    "public_sha256": "5624de21cf46556e0c6c697392a92aaaadc294baad7ad3c030d5ed703afd27af",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "review-978-native-v2",
+    "file": "review-978-native-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ffb4f1d1e445c405437994dd57c905ba2d26adf51f09ad31feeb7b347a4c08a1",
+    "public_sha256": "ffb4f1d1e445c405437994dd57c905ba2d26adf51f09ad31feeb7b347a4c08a1",
+    "archive_sha256": "6534fb110a27b6a98e6631b93985dfae1a745b8d55a9cff1fcffb40183718d75",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "review-978-native-v2",
+    "source_name": "launch.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "03203b87d6f135bf7ec7b2f5df4ea1382a45e0717278c40d64ca0e61749c7014",
+    "public_sha256": "e5683fa3d1eb1119f08af3275831e61a3f7796f6de8027fa4f060a119e1036d2",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "review-978-native-v2",
+    "source_name": "resources.json",
+    "hash_scope": "reconstructed public JSON indent=2 plus newline",
+    "original_sha256": "87273344c5db3e1a365c465f8f5226945296cd5c839187230a4e9dca9acba3ed",
+    "public_sha256": "0b574b99b0f743db7203a4586c2364c9af31dda4bc1515601c54bfdc1b5af85f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]

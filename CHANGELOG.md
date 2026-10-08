@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   second Node process, preserving entry selection, arguments, standard streams
   and command-owned shutdown ([#984](https://github.com/git-stunts/git-warp/issues/984)).
 
+- Publish checkpoints for more than 64 writer heads through bounded immutable
+  Git anchors, retaining every writer and the exact checkpoint frontier. Empty
+  anchor trees use the repository's object format in both checkpoint and
+  coverage publication ([#990](https://github.com/git-stunts/git-warp/issues/990)).
+
+- Show bounded typed CLI failure causes and cleanup details in human, JSON, and
+  JSONL output. Preserve the primary failure identity, refuse private raw cause
+  dumps and accessors, terminate cyclic formatting safely, and report signal
+  shutdown failures without reporting success
+  ([#978](https://github.com/git-stunts/git-warp/issues/978)).
+
+- Create absent refs in both SHA-1 and SHA-256 repositories without assuming
+  a 40-digit null object ID. Fresh SHA-256 Runtimes can publish their substrate
+  marker and admit Lane writes while stale ref-CAS expectations still refuse
+  publication ([#985](https://github.com/git-stunts/git-warp/issues/985)).
+
 - Restore the full locked dependency audit with patched KaTeX 0.18.2,
   smol-toml 1.9.0, and source-map-js 1.2.2 while keeping the existing developer
   tool versions, platform constraints, and runtime dependency graph. Verify
