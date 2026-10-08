@@ -184,6 +184,20 @@ describe('bounded CLI error projection', () => {
     }
   });
 
+  it('redacts every self-identifying GitHub token prefix in every failure format', () => {
+    for (const prefix of ['ghp_', 'github_pat_', 'gho_', 'ghu_', 'ghs_', 'ghr_']) {
+      const token = prefix + 'PRIVATE_TOKEN';
+      const report = projector.project(new Error('Provider rejected ' + token));
+      for (const format of ['human', 'json', 'jsonl']) {
+        if (format === 'human' || format === 'json' || format === 'jsonl') {
+          const emitted = codec.encode(report, format);
+          expect(emitted).not.toContain(token);
+          expect(emitted).toContain('[REDACTED]');
+        }
+      }
+    }
+  });
+
   it('discloses human clipping and omitted cleanup without marking complete output', () => {
     const root = projector.project(new CliError('😀'.repeat(3000), { code: 'E_USAGE', exitCode: 1 }));
     const child = projector.project(new Error('Primary', { cause: new Error('c'.repeat(3000)) }));

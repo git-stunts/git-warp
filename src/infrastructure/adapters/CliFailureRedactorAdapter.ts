@@ -31,7 +31,7 @@ export default class CliFailureRedactorAdapter {
     result = result.replace(/[\x00-\x08\x0B-\x1F\x7F]/gu, '');
     result = result.replace(/(https?:\/\/)[^\s/]*@/giu, '$1[REDACTED]@');
     result = result.replace(/\bBearer\s+[^\s,;]+/giu, 'Bearer [REDACTED]');
-    result = result.replace(/\b(?:ghp_|github_pat_)[A-Za-z0-9_]+/gu, '[REDACTED]');
+    result = result.replace(/\b(?:gh[pousr]_|github_pat_)[A-Za-z0-9_]+/gu, '[REDACTED]');
     result = this.paths(result);
     return result;
   }
