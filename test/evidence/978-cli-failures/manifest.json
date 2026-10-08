@@ -98,5 +98,30 @@
     "original_sha256": "6750dd33697036850e9fc0eb09493e5faafc766f17af70c87625400608762907",
     "public_sha256": "28798ff1df41e0bb8c8d276e0ae4710120c2f8dd63591cd650d2a49811063d6c",
     "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-signal-red-978-v1",
+    "file": "cli-signal-red-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "c0807ded4855e0896ba53835943e4cd20802aa0f1728e16e5b91ac3309d18848",
+    "public_sha256": "c0807ded4855e0896ba53835943e4cd20802aa0f1728e16e5b91ac3309d18848",
+    "normalization": "none",
+    "archive_sha256": "c15da4ab024aa23808cd6f05ed8f298eea30365586ef1d474821ede98d79f868"
+  },
+  {
+    "phase": "cli-signal-red-978-v1",
+    "file": "cli-signal-red-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "61fd5fcf3f75744ce68d5188f4be6de21f51b9441faa3120c00d0ca5b84bf70c",
+    "public_sha256": "7f63a061078616a778f660ba674ea4df8053e63546664fcd6fbba198d99a5da6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-signal-red-978-v1",
+    "file": "cli-signal-red-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "e6f301292feb21409a222d9f40bbfcc940000fafb8aefb90f101a069c70ae600",
+    "public_sha256": "e05ef0ee855caef113fe30e84501f3df28ad4fc0abed00dcd52dae58e239c202",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
   }
 ]
