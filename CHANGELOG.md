@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shutdown failures without reporting success
   ([#978](https://github.com/git-stunts/git-warp/issues/978)).
 
+- Create absent refs in both SHA-1 and SHA-256 repositories without assuming
+  a 40-digit null object ID. Fresh SHA-256 Runtimes can publish their substrate
+  marker and admit Lane writes while stale ref-CAS expectations still refuse
+  publication ([#985](https://github.com/git-stunts/git-warp/issues/985)).
+
 - Restore the full locked dependency audit with patched KaTeX 0.18.2,
   smol-toml 1.9.0, and source-map-js 1.2.2 while keeping the existing developer
   tool versions, platform constraints, and runtime dependency graph. Verify

@@ -1,0 +1,40 @@
+{
+  "phase": "red-985-v1",
+  "worker": "git-warp-tests",
+  "image": "sha256:9f145953f6e79a59749a683d11a476133cb7cef0588b79256dc195b1d0c87ad7",
+  "source_base": "ceb58e656ec5bc85f0ae5991bf2a55599693bbb3",
+  "source_archive_sha256": "9e7c92b1268e60bbf6429169e332aa09479e5630df3dea6e1cb397ff0d13fdcc",
+  "source_archive_bytes": 20951040,
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "test/integration/application/Runtime.objectFormat.integration.test.ts",
+    "--maxWorkers=1"
+  ],
+  "lock_store": "workstation.git",
+  "lock_keys": [
+    "host/heavy-work",
+    "host/docker/git-warp-tests/"
+  ],
+  "outputs": [
+    "build volume /app",
+    "runtime /data",
+    "bounded /tmp and <CONTAINER_HOME> and /dev/shm",
+    "Docker rotated log",
+    "host receipts"
+  ],
+  "host_free_bytes": 732859645952,
+  "host_receipt_bytes": 47878,
+  "build_limit_bytes": 21474836480,
+  "data_quota_bytes": 3221225472,
+  "generated_nonobject_limit_bytes": 100663296,
+  "stdout_limit_bytes": 16777216,
+  "memory_bytes": 8589934592,
+  "cpus": 4,
+  "timeout_seconds": 1700,
+  "stop_boundary": "git-warp-tests",
+  "guard": "inner guard plus outer host free/log monitor; read-only container root",
+  "vm_free_bytes": 696507179008,
+  "initial_build_bytes": 794808320
+}

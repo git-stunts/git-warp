@@ -31,11 +31,13 @@ export class InMemoryRepoFixture {
   };
 }
 
-export async function createGitRepo(label = 'test'): Promise<GitRepoFixture> {
+type GitRepoOptions = Readonly<{ objectFormat?: 'sha1' | 'sha256' }>;
+
+export async function createGitRepo(label = 'test', options: GitRepoOptions = {}): Promise<GitRepoFixture> {
   const tempDir = await mkdtemp(join(tmpdir(), `warp-${label}-`));
   try {
     const plumbing = await Plumbing.createDefault({ cwd: tempDir });
-    await plumbing.execute({ args: ['init'] });
+    await plumbing.execute({ args: ['init', ...(options.objectFormat === undefined ? [] : [`--object-format=${options.objectFormat}`])] });
     await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
     await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
     return new GitRepoFixture(tempDir, plumbing, new GitTimelineHistoryAdapter({ plumbing }));
