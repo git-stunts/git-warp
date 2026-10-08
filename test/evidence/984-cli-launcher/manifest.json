@@ -1,0 +1,54 @@
+[
+  {
+    "phase": "launcher-red-984-v1",
+    "file": "launcher-red-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "e413c041556213b404abe4fbedae8e041e0d2dac3036273170d668664316d0c7",
+    "public_sha256": "e413c041556213b404abe4fbedae8e041e0d2dac3036273170d668664316d0c7",
+    "normalization": "none",
+    "archive_sha256": "2401b19e12d3157e450ea4cbd3112dad7fcc90967f49287f2c9efa756d33ee9f",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "launcher-red-984-v1",
+    "file": "launcher-red-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "c76713c8a2637a73b53534601aba7e469aaf9994b28e106b20beb57a4607814d",
+    "public_sha256": "52c19b8fe0b3b10e7a8443dba804c8bd7ce4b7179dbd322b5ef8d4d3f869c3d8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-red-984-v1",
+    "file": "launcher-red-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "c575613a7956629e03ffa19cabfecbce5310e2dc8831be2117238d01524f2d42",
+    "public_sha256": "d2b693963e29f18723695e25d0fc97bbd57822c00faabee9a1b6e59ee7e4c480",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-red-984-v2",
+    "file": "launcher-red-984-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "a322345ca4c5aceb43f2045565ccd1536dd3b61c67219c97dadc7cf6562a915f",
+    "public_sha256": "a322345ca4c5aceb43f2045565ccd1536dd3b61c67219c97dadc7cf6562a915f",
+    "normalization": "none",
+    "archive_sha256": "6ea2240ef2dc517210aaec32cffaf789bb049b19186c37870267f0cb461d4e35",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "launcher-red-984-v2",
+    "file": "launcher-red-984-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "6ae97fe39ce9721c40571e55da351d949dbcf1f07b01c6f9d09d25ab0fcac30b",
+    "public_sha256": "68427552662c6db9d980b608d6981c3c172c659fd301458eebe43ec262b1c936",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-red-984-v2",
+    "file": "launcher-red-984-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "0000875d118f820d32e6b02d5cab8acf3c5f85e9291240a7e57813b1970d167d",
+    "public_sha256": "471f4bac418c9da1257bc2e06812a18c11eab551fa3157585f26f7be23ab2a98",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]

@@ -1,0 +1,9 @@
+# Installed CLI Node startup RED: issue984
+
+Source5c82ba6c is the reviewed audit prerequisite; launcher andCLI source match main/v20.0.0ceb58e65 exactly. LauncherSHA256c59219529facafaed3f4f7e4c244e1f0d5f305008e06de332e0d7940c9859381. Source bin/git-warp imports spawnSync and starts process.execPath with selecteddist CLI. CLI main executes unconditionally and owns storage shutdown/signal handling. No implementation fix ispresent.
+
+The corrected bounded installed-artifact probe sets a Nodepreload tracer inherited by childNode processes. Forhelp,doctor,JSONfailure andunknowncommand, everycase logs exactlytwo Node starts, with wrapperPID as actualCLI's parent and distinct installedwrapper/dist paths. Exitcodes are0/3/3/1 respectively. OneNode-start acceptance fails. Logs and exact source/image/command/guard/resource receipts bind the reproduction. The trace is an actual process-start witness, not a source-text assertion or process-poll race. Four single-sample timings are a diagnostic pilot, not a cold-cache percentile benchmark or improvement target.
+
+Firstv1probe fails beforemeasurement due an invalidgeneratedpreload and absenttracefile; it isnot a validlauncherRED. Correctedv2capturesallfourcases and exits1 because eachcounter is2instead of1. No signals, development/minimumNode/missingentry/cleanup or GREEN acceptance isclaimed yet. Those remain required. Packagepayload746177compressed/3257290unpacked/971entries passes unchangedlimits.
+
+Allcommands run in the existing COPYworker underonly its concrete resource reservation. Limits20GiBmonitoredbuild/3GiBtmpfswithin4GiBdata/128MiBlogs/16MiBstdout/96MiBnonobject/4CPU8GiB/pids768/free50GiB/timeouts/child/container cleanup remain unchanged. Runtimepeak35454976bytes/generatednonobject37662720/build1960869888/tasks23; no guard/PID/OOM refusal. Workerstops beforelease release. Source/input/payload/archive hashes retain exact scopes. Mainline mergingremains paused.
