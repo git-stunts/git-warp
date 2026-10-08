@@ -1,0 +1,40 @@
+{
+  "phase": "coverage-diagnostic-957-v5",
+  "worker": "git-warp-tests",
+  "image": "sha256:9f145953f6e79a59749a683d11a476133cb7cef0588b79256dc195b1d0c87ad7",
+  "source_base": "2d00f0d8c4b141bbe80876181dd283125cc6618c",
+  "source_archive_sha256": "398dfa9049e0eea40474b9d6eb4e509eda6ad2198265a1c472533fc289c95ada",
+  "source_archive_bytes": 22200320,
+  "baseline_inputs": {},
+  "command": [
+    "python3",
+    "-c",
+    "import subprocess\nsubprocess.run(['npm','run','typecheck'],check=True)\nsubprocess.run(['node','node_modules/eslint/bin/eslint.js','test/unit/domain/WriteRuntime.evidenceContract.test.ts','test/unit/domain/services/sync/syncPatchLoader.custody.test.ts','test/unit/infrastructure/adapters/CborPatchJournalAdapter.test.ts','src/domain/services/controllers/PatchController.ts','src/domain/errors/MissingWriterConfigurationError.ts','test/helpers/HistoryOnlyKernel.ts','test/helpers/ReadOnlyConfigurationKernel.ts','test/unit/domain/services/controllers/PatchController.observationContract.test.ts'],check=True)\nimport subprocess,json; c=subprocess.run(['node', 'node_modules/vitest/vitest.mjs', 'run', 'test/unit/domain/services/PatchBuilder', 'test/unit/domain/services/PatchCommitter', 'test/unit/domain/services/controllers/PatchController', 'test/unit/domain/types/Patch.test.ts', 'test/unit/domain/WriteRuntime', 'test/unit/domain/services/BoundedNodeRemovalBasis.test.ts', 'test/unit/domain/services/ObservedWriteBasis.test.ts', 'test/unit/domain/services/sync/syncPatchLoader', 'test/unit/infrastructure/adapters/CborPatchJournalAdapter.test.ts', 'test/unit/infrastructure/adapters/ObservedWriteFrontierDecoder.test.ts', 'test/unit/infrastructure/adapters/PatchHydrationAdapter.test.ts', 'test/integration/application/Runtime.observedLamport.integration.test.ts', '--maxWorkers=1', '--coverage', '--coverage.reporter=json', '--coverage.reportsDirectory=/data/coverage', '--coverage.include=src/domain/api/WriteRuntime.ts', '--coverage.include=src/domain/services/BoundedNodeRemovalBasis.ts', '--coverage.include=src/domain/services/ObservedWriteBasis.ts', '--coverage.include=src/domain/services/PatchBuilder.ts', '--coverage.include=src/domain/services/PatchCommitter.ts', '--coverage.include=src/domain/services/captureObservedWriteBasis.ts', '--coverage.include=src/domain/services/controllers/PatchController.ts', '--coverage.include=src/domain/services/sync/syncPatchLoader.ts', '--coverage.include=src/domain/types/ObservedWriteFrontier.ts', '--coverage.include=src/domain/types/ObservedWriterHead.ts', '--coverage.include=src/domain/types/Patch.ts', '--coverage.include=src/infrastructure/adapters/CborPatchJournalAdapter.ts', '--coverage.include=src/infrastructure/adapters/ObservedWriteFrontierDecoder.ts', '--coverage.include=src/infrastructure/adapters/PatchHydrationAdapter.ts', 'test/unit/domain/services/ObservationLifecycle.test.ts', '--coverage.include=src/domain/errors/MissingWriterConfigurationError.ts', '--coverage.include=src/domain/errors/InvalidWriteObservationError.ts', '--coverage.reporter=json-summary']).returncode; d=json.load(open('/data/coverage/coverage-final.json')); print('UNCOVERED_STATEMENTS='+json.dumps({k.replace('/app/project/',''):[v['statementMap'][i] for i,n in v['s'].items() if n==0] for k,v in d.items()})); s=json.load(open('/data/coverage/coverage-summary.json')); print('TOUCHED_COVERAGE_SUMMARY='+json.dumps({k.replace('/app/project/',''):v for k,v in s.items()})); raise SystemExit(c)"
+  ],
+  "lock_store": "workstation.git",
+  "lock_keys": [
+    "host/docker/git-warp-tests/"
+  ],
+  "outputs": [
+    "build volume /app",
+    "runtime /data",
+    "bounded /tmp and <CONTAINER_HOME> and /dev/shm",
+    "Docker rotated log",
+    "host receipts"
+  ],
+  "host_free_bytes": 724646715392,
+  "host_receipt_bytes": 4513732,
+  "build_limit_bytes": 21474836480,
+  "data_quota_bytes": 3221225472,
+  "generated_nonobject_limit_bytes": 100663296,
+  "stdout_limit_bytes": 16777216,
+  "memory_bytes": 8589934592,
+  "cpus": 4,
+  "cpu_affinity": "0-3",
+  "pids_limit": 768,
+  "timeout_seconds": 1700,
+  "stop_boundary": "git-warp-tests",
+  "guard": "inner guard plus outer host free/log monitor; read-only container root",
+  "vm_free_bytes": 688711843840,
+  "initial_build_bytes": 1955131392
+}

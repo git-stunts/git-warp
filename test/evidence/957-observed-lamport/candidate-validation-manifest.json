@@ -1,0 +1,2562 @@
+[
+  {
+    "phase": "green-957-v1",
+    "file": "green-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ae12930975c43a02e2b53cf394b136204d8758b5c5e53f43505f1e6def640c2b",
+    "public_sha256": "ae12930975c43a02e2b53cf394b136204d8758b5c5e53f43505f1e6def640c2b",
+    "normalization": "none",
+    "archive_sha256": "28e2c6163ded2ae5bd1727cb974bcddf3412429e76905eaefaf0f5398e78ab79"
+  },
+  {
+    "phase": "green-957-v1",
+    "file": "green-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "794bd82ba94e5924b5f4c945ac83acd67d9f5a8c1e51d498e849fc7170846bd8",
+    "public_sha256": "4674b53a8494187ed5891809f395bbdaf7d51be2d111e374f3514bab8ce31860",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "green-957-v1",
+    "file": "green-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ed960dc1e528adbd02bc89d3d635d68fcc7390a7006d45e6dc37ea82e6ad0e8a",
+    "public_sha256": "f280abffbd483dd013c65a23997134f0874daa42c30b3955f5a80f8fd62ecdf3",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v1",
+    "file": "focused-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "59495eacba0542d9193d345009f6a64110de064410ccfb7128b549714d9ff55d",
+    "public_sha256": "59495eacba0542d9193d345009f6a64110de064410ccfb7128b549714d9ff55d",
+    "normalization": "none",
+    "archive_sha256": "b1acc9dc7c9a817542233cb85c62b7db8f738f3a36e6c51ce8dae16c9782fce1"
+  },
+  {
+    "phase": "focused-957-v1",
+    "file": "focused-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "26788241a6c7dac6d89dfb71e123dd6fe36bcd6c6a0911827f1badff70336c8f",
+    "public_sha256": "e961ed0222d611a57e2cabf2c4ab6403913476a8b3381af89d8e7be4f056c584",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v1",
+    "file": "focused-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "3a9170d5725b300a24ea4dbc0d30592f0c31449a7a39d51545d55fa1764bda3f",
+    "public_sha256": "53806cf5c51ebd96f4dd0eb4bf483e5c8f0032ff26dcbdec057a672701242c25",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v2",
+    "file": "focused-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "59495eacba0542d9193d345009f6a64110de064410ccfb7128b549714d9ff55d",
+    "public_sha256": "59495eacba0542d9193d345009f6a64110de064410ccfb7128b549714d9ff55d",
+    "normalization": "none",
+    "archive_sha256": "b1acc9dc7c9a817542233cb85c62b7db8f738f3a36e6c51ce8dae16c9782fce1"
+  },
+  {
+    "phase": "focused-957-v2",
+    "file": "focused-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "92bef11ca0a1773454cefc574dbe662f71b7da5746d74845328e8320335bb1d0",
+    "public_sha256": "7764df865510839d54287ff4baf1bc74484f5ca46e3a7b37fc94abe78562eb04",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v2",
+    "file": "focused-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "adf03ca77b2422e2b2d00dc1ff5080b356e8633bbbc8aabd26196b37cdae5bee",
+    "public_sha256": "be68fe1195c1ec0c3999be006d2b736cff9d0ae4b3e12aa868b9dd9317bc9e21",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v3",
+    "file": "focused-957-v3-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "4f0bfe992a5175fb9f2112fb4464a3f5fa220b974ebd7f4c67213b88d306b79b",
+    "public_sha256": "4f0bfe992a5175fb9f2112fb4464a3f5fa220b974ebd7f4c67213b88d306b79b",
+    "normalization": "none",
+    "archive_sha256": "ba0ec00140ed49d91549f20a1a80cf48f2ed675f224d2e39d4db10d058433ef6"
+  },
+  {
+    "phase": "focused-957-v3",
+    "file": "focused-957-v3-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e495c040381bc7ef092d2d9a7beefb56662a325a92ad7b34a0b4787d2e3b0b7b",
+    "public_sha256": "882ae0a656eb34a2d5ed54b49ccf646c68ba2962f26b98e83ba6a035122ce9e8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v3",
+    "file": "focused-957-v3-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "3fb4ed0b91883e886058a2b732cf799f702c94f7f25ca2b41c5e321e8e040e96",
+    "public_sha256": "26d230f02756a5a250a2c7a8d9859b1123c15e893eabd9e8cf9cd0985df96ea7",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v4",
+    "file": "focused-957-v4-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "07e25be7031e7e78298fcfa82ac75a26e63d7103df3dc07b50164119acd27873",
+    "public_sha256": "07e25be7031e7e78298fcfa82ac75a26e63d7103df3dc07b50164119acd27873",
+    "normalization": "none",
+    "archive_sha256": "cabc5cfb4ce032a77a6c91bfa106c8c28888111c44a64e974fc7b33d11e9fdd2"
+  },
+  {
+    "phase": "focused-957-v4",
+    "file": "focused-957-v4-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "1a2152a3a7ca92ddcbbd808a8c91d021674e265b44ae873fc97b36548f22cadd",
+    "public_sha256": "d27fd31d072a71a6c76b2a1e51c164648d47ca42776b09859326d75a43af3bee",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v4",
+    "file": "focused-957-v4-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "a23214609030ec60c405faf743e9e87d98ab51db72a2dd7009d590878695c981",
+    "public_sha256": "a22b58e61109f7b95db1c066ffa02a55c7a27379d2fd1cefcb8c36cb8d4709b4",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v5",
+    "file": "focused-957-v5-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "bee7c06b66031c19568e6a7e20d28c8a8d77a995f261ae244a59ac2ff561e4e7",
+    "public_sha256": "bee7c06b66031c19568e6a7e20d28c8a8d77a995f261ae244a59ac2ff561e4e7",
+    "normalization": "none",
+    "archive_sha256": "9f21cd56758cd048911087516dc0a1863b63e3f7200769161d5feaa8a233f8ba"
+  },
+  {
+    "phase": "focused-957-v5",
+    "file": "focused-957-v5-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "f37bcea5359c735b7f58e64cd294aa0e5de86d360994aa977dd15aece251c343",
+    "public_sha256": "3e334398f56b42782f60f2a4eb1b18cde56363682303379721b5697ee53b0cf3",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v5",
+    "file": "focused-957-v5-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "074ca8f8d90b6cef194354d881b9fdde758e2a0f376f23290555f031c3807034",
+    "public_sha256": "fdbf9c9d10620a0478cad8283bf542abe4e836a0ad47a47b65ae1cd4947a4966",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v6",
+    "file": "focused-957-v6-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "4cae84aad7840f868690676522e7051d74cdcb3bacf7710c8a0ce7f0812fb88d",
+    "public_sha256": "4cae84aad7840f868690676522e7051d74cdcb3bacf7710c8a0ce7f0812fb88d",
+    "normalization": "none",
+    "archive_sha256": "13ce11729b8c9ed6b3fe4c4c0c837c906260ebd37850771cd151df737f2f0846"
+  },
+  {
+    "phase": "focused-957-v6",
+    "file": "focused-957-v6-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "cb9767edc7bf1896f05976a9cedf27ab90351521bf0ead71e4dc718ab48aaf49",
+    "public_sha256": "953ae569a7b8c686d2ded118752004bd25050d04fc502af9be83660b280770df",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "focused-957-v6",
+    "file": "focused-957-v6-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ae28b02fca5d05515636f0f37bb1a478fa6eba2f87fd8f172c4aa957ae01320c",
+    "public_sha256": "8f35e1420aca4ebd2347e5610470c23ee1b240be279e12de9cf8d18b1f83f296",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v1",
+    "file": "replicas-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "7d163201db0273037c78da38edeb3711b98966a966b1a3eac1a16a5129a297d6",
+    "public_sha256": "7d163201db0273037c78da38edeb3711b98966a966b1a3eac1a16a5129a297d6",
+    "normalization": "none",
+    "archive_sha256": "4312277f73406770f3e9a1b236f1f475386f5435789fa5879965af0146cbef3d"
+  },
+  {
+    "phase": "replicas-957-v1",
+    "file": "replicas-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e9cc05f5d515115ff86138cc263247588a8220a2c147e7520cb2deb03c97fb0a",
+    "public_sha256": "65f69d60812cc1dff07ea8661669f4bdd6feb5351f3a32000673d21c4f8eda8b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v1",
+    "file": "replicas-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "fe082c4f450dc48f450459e464b52b86ddb2e8e16afca5713363803331fe68ed",
+    "public_sha256": "adc7f04cb90b81ea9483c1d1a0de8dae0ab8df12f1bcec13fd4853e1f2250209",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v2",
+    "file": "replicas-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "e6b3f292ad30cddb4082ec3102490c73c645272b24038e4a770ee5f6639d02a5",
+    "public_sha256": "e6b3f292ad30cddb4082ec3102490c73c645272b24038e4a770ee5f6639d02a5",
+    "normalization": "none",
+    "archive_sha256": "a9c613dad2c15864d54fe350ea25835456aea654dd831e8f770ae0f1603dfbbf"
+  },
+  {
+    "phase": "replicas-957-v2",
+    "file": "replicas-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "6dce24b7102ef58597dc991b50bf967e431b2d43fcbe6c6e06b113e4ff292945",
+    "public_sha256": "3493cb1258731145df81928720c5e14589d7217cfef70145361fe2590b53619a",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v2",
+    "file": "replicas-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ec3c53633fe30806ec46510b4f1618be7277a040aec65887bd95d61328826490",
+    "public_sha256": "0f2971c27db71c1ba377ccf7142cfaff3ce1eb494e7d7f959d359cae825f76ee",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v3",
+    "file": "replicas-957-v3-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "b7c1ec0f027741adbf4f20a7da31badb8e870bf00a90e3ef3ebf324cad3be5cf",
+    "public_sha256": "b7c1ec0f027741adbf4f20a7da31badb8e870bf00a90e3ef3ebf324cad3be5cf",
+    "normalization": "none",
+    "archive_sha256": "293295fac118f8f4dc15357286ccd482e4f8b96d48281c964b3807227c972ebd"
+  },
+  {
+    "phase": "replicas-957-v3",
+    "file": "replicas-957-v3-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "8697e84f7be1e6fc66b8ef2eaeece6a9f23960f99c8511b6b058676e0807b6fb",
+    "public_sha256": "2239dda400f4875d7000f0539b5c3ed181be9cecc3aeb69f83e343fbe6024f4c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v3",
+    "file": "replicas-957-v3-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "8f1f0b3077f45369baa73be9ef402e0860b524789244cb083e5cfbd014d44ec0",
+    "public_sha256": "eeb96d299a94275826dbb4131e3a7d0b54c0d686798b499d7682a2c7501284ed",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v4",
+    "file": "replicas-957-v4-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "1f1a3b885579d92baaf883fa3760af6081a024f693bf6d07314815cf24e0d9db",
+    "public_sha256": "1f1a3b885579d92baaf883fa3760af6081a024f693bf6d07314815cf24e0d9db",
+    "normalization": "none",
+    "archive_sha256": "6adc5ff48b6637434cc939493aa5ddd581459350920863e582835e0b88029a26"
+  },
+  {
+    "phase": "replicas-957-v4",
+    "file": "replicas-957-v4-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "632078a84ffc2b553fa0c37acc36c92448cb19c41df5637935baded3d8d72d0a",
+    "public_sha256": "5c5fc0c14b94af2af58e4b5367aef547a299f9ea017711d8007a975157a61914",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "replicas-957-v4",
+    "file": "replicas-957-v4-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "b217e60a0fd07300731f3a85b44083342edef914886ec0ef66b3912d70b2a8d5",
+    "public_sha256": "291f78c4c186d849bdcc0beeed7863336c9528a3456c04d252bb909b7c5ec9f2",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-unit-957-v1",
+    "file": "full-unit-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ccb59deda62e13bf8799e4b46049d1d3397ad2cf271d06584272a82c25754f8c",
+    "public_sha256": "ccb59deda62e13bf8799e4b46049d1d3397ad2cf271d06584272a82c25754f8c",
+    "normalization": "none",
+    "archive_sha256": "78188df9f2738386d036dec5bdccfcc5f3a1dbc881f70f90f8a9a989e393930f"
+  },
+  {
+    "phase": "full-unit-957-v1",
+    "file": "full-unit-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "3e7b8630fbd97327c047e21e3a671c73cff25840b7fb7aa44b155da9f53e11c3",
+    "public_sha256": "a53ff6c854c7acf332b70f7364c9f041f83fc7e933bd4b3633f2f882f75a81d6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-unit-957-v1",
+    "file": "full-unit-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "d72108daf75dd209442f4473e62d3f9f0d703e9159210eb041008f221e057822",
+    "public_sha256": "65e6f77ab0f016d11ba5cf3c3b5384d7ec34184430e4518306c37609842bcc80",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-unit-957-v2",
+    "file": "full-unit-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "d54a1e613f09eab95df93884d7297204e48c9bb84f64284feb462bb9c4919197",
+    "public_sha256": "d54a1e613f09eab95df93884d7297204e48c9bb84f64284feb462bb9c4919197",
+    "normalization": "none",
+    "archive_sha256": "0fcc43140d2abe3b933772a6207367b7442c11deb7bc44c5f5632aff71579811"
+  },
+  {
+    "phase": "full-unit-957-v2",
+    "file": "full-unit-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "cd06e3f73726ae10896d81b5940a9f0a883c4c9b10ccee244ecf337310386bac",
+    "public_sha256": "262a4c3fdacb60055e196b0acd3dd417aaa5ae8d11f62954540df6a91b4e9afd",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "full-unit-957-v2",
+    "file": "full-unit-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "7c59eded66d8306d96854ebb29e638eee5f7e0e7ba9c931640ca75e6212f68d8",
+    "public_sha256": "ef0773fc8883273408507e45d83f05c9d211e4c46efd1bd9faa02b257bcb9348",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "red-957-current-v1",
+    "file": "red-957-current-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "fb9efa4d9206479c18ee03c168dcf43f3f82fd9c9436164e1ca6ac94b49b778d",
+    "public_sha256": "fb9efa4d9206479c18ee03c168dcf43f3f82fd9c9436164e1ca6ac94b49b778d",
+    "normalization": "none",
+    "archive_sha256": "190f9418dc0ed32d47b7746da053875628f36c6cb9025303389afa7e8d2aa735"
+  },
+  {
+    "phase": "red-957-current-v1",
+    "file": "red-957-current-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "d835e32b4f4cd9c4461c9d6cbf18669917f1a87d7afd149e66e0c7827aed2b25",
+    "public_sha256": "aa40c1ca1ad38be68d4951755ef944e7054649179b65649049b39ce944574f26",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "red-957-current-v1",
+    "file": "red-957-current-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "60941c2d13d34d8a68f4c7271285e8ba9ea9300dd3c08ce7d8be843383630366",
+    "public_sha256": "e584a48927ef463d5536ad8b678c2691ce735be49395903b22d39f0804538c4c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "integration-957-v1",
+    "file": "integration-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "f6bbf539a98c2f024b6dacb496e7f276cb59661d4650ecbef680bfe0fa8fa205",
+    "public_sha256": "f6bbf539a98c2f024b6dacb496e7f276cb59661d4650ecbef680bfe0fa8fa205",
+    "normalization": "none",
+    "archive_sha256": "7434861f0251be376eb082b41f4f71beb838e4635a1c1db2068d583953ee94fa"
+  },
+  {
+    "phase": "integration-957-v1",
+    "file": "integration-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "6c81ff7b9dcb9769be25b4a262304d9293bee70b803b4e8de24d33ed48a5f71c",
+    "public_sha256": "c92e845fd9c81f9d73b1d060156550d660b678c0cc2a1b70784fa542567e02ea",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "integration-957-v1",
+    "file": "integration-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "60d7402b03f8728f59ac249954e25b605d2a0d60b44e73050bd82e9a517ca7a1",
+    "public_sha256": "64f51e39c54c9cb1737487f1453ad72a5ecd481629f121b76968c5082a7be429",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-957-v1",
+    "file": "coverage-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "387d30775a6da8fae44b7dec2702f4599ca38aef6f4fa16e3fc905569824ab27",
+    "public_sha256": "387d30775a6da8fae44b7dec2702f4599ca38aef6f4fa16e3fc905569824ab27",
+    "normalization": "none",
+    "archive_sha256": "0d6475641d1118b50fbdff1c83cf9716f6a2e0c90a4af686829c29d52d574ae3"
+  },
+  {
+    "phase": "coverage-957-v1",
+    "file": "coverage-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "4f2c321fa1c1c7d931cf040b165a2f00b93ec960fb2fee44c6c93c0682fdfb6c",
+    "public_sha256": "4ecf5ed40570c0c7ed053775937d75dde5e9fb67a86a01b6e68abc45533116ef",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-957-v1",
+    "file": "coverage-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "c227c3b945fefe5b8d85b8fccaf6ea230792db4448b777329b499f1b5e3a6df0",
+    "public_sha256": "8697ea2c4e33a14edf183853dfa051bfcc2682a4faaec2a29003986a5f60d727",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v1",
+    "file": "coverage-diagnostic-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ef75657198ae07b719942a2229a7dbc9fa1a46dd8e01e26d41df66f608ab68af",
+    "public_sha256": "ef75657198ae07b719942a2229a7dbc9fa1a46dd8e01e26d41df66f608ab68af",
+    "normalization": "none",
+    "archive_sha256": "c17cec4b0bdbbc51e71c8d7c111873017e5112a3a1e70874f8e6f2f70e930d10"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v1",
+    "file": "coverage-diagnostic-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "b6893a94b8cc410c6879bdb25ee9fc31d4ff99e173009341ab76490df21ffa86",
+    "public_sha256": "77ca813ff23d84e46c13db7c0e3da8e6793d72d270a68f6c1bfb8b19da9d0bc6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v1",
+    "file": "coverage-diagnostic-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "37bd297d82d0538a9f074f56296bc649e49c93d92cd2410fc07a4a40f2c5b435",
+    "public_sha256": "49a32ea9b6527a485bd69a3b0ada51ebd3f46d700b136e36707ba1bb02fa295d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "edges-957-v1",
+    "file": "edges-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "c3cbc77dfae088d3e3c5ec1d501cdb1b1dc2b3ec562253e981a1bbb51107b703",
+    "public_sha256": "c3cbc77dfae088d3e3c5ec1d501cdb1b1dc2b3ec562253e981a1bbb51107b703",
+    "normalization": "none",
+    "archive_sha256": "224aaae98cd39789d86569784cb7adc8f5ebf15173bd3dcfdc7e9bfe4bf73e35"
+  },
+  {
+    "phase": "edges-957-v1",
+    "file": "edges-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "aedc338050481aa0ba9ff5e42949ff9025b61d577bf31850a99c216f57f8c79d",
+    "public_sha256": "6f7449f201982d02d8d833159cec854aca560810016eab3d098e2bd5f7fc24a1",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "edges-957-v1",
+    "file": "edges-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ddccc025c345309b62c5f83fe5e35496b86bd0f175446a6c392353c873989c09",
+    "public_sha256": "dbc24c006b7463a9f9ffbe1ef5fe367e9d83a6539835661339a621ba969e3cc8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "edges-957-v2",
+    "file": "edges-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "e70ed75c8909b6b520418bd1cd6776299c5a7481f830127dfe09121b7cc7cac6",
+    "public_sha256": "e70ed75c8909b6b520418bd1cd6776299c5a7481f830127dfe09121b7cc7cac6",
+    "normalization": "none",
+    "archive_sha256": "9389d17a5a393f29e223d2c417997697eb5e6c38b1777e2b2fbaa33c267098c6"
+  },
+  {
+    "phase": "edges-957-v2",
+    "file": "edges-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "f817895dd6ae12269ceefecc412e757b802ac559dc0296dfadef5bc5ae895361",
+    "public_sha256": "79fa49223d8842075425c4579b74edbbcb1d12598731af85d1f45920ef5abeb6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "edges-957-v2",
+    "file": "edges-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "4a0a4bfccb0adf6c07eb4b421d657e36fa752b8c80037ee7c48df0d5769b76fd",
+    "public_sha256": "02da87625312cce3461442915f2063e2a52b52e179a88d9569b65f4cf3676d73",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "graph-guard-957-v1",
+    "file": "graph-guard-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "5dc68b3bf1c8023efd8db7ce3a8f2684a28719332856862f15f5d3defd0a9697",
+    "public_sha256": "5dc68b3bf1c8023efd8db7ce3a8f2684a28719332856862f15f5d3defd0a9697",
+    "normalization": "none",
+    "archive_sha256": "77b7ab54c03f9f2aead248b1518806f45a32138fe86457cb26f433a5421ed02e"
+  },
+  {
+    "phase": "graph-guard-957-v1",
+    "file": "graph-guard-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ae2486c0d025d445115fe5b5eb17d06e65ca26166278da4512d3b62efc5b99d7",
+    "public_sha256": "36f54608d84744b32b58455af6437c7c6c231814e2a7d331816dcd85e7a707fb",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "graph-guard-957-v1",
+    "file": "graph-guard-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "9bbb6f88fe406d34320338b79080321859538680d5bb2fe2ff49d95197d33b30",
+    "public_sha256": "4117d2da65d51b403ed6d01e4fcb78ba64feae57e7783bf2a7b36224b7d8171b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "failure-contract-957-v1",
+    "file": "failure-contract-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "7f52e7d9068d8893500e7c6ae58c6370dcb9ba346d2745769acb90e3a2dbad3f",
+    "public_sha256": "7f52e7d9068d8893500e7c6ae58c6370dcb9ba346d2745769acb90e3a2dbad3f",
+    "normalization": "none",
+    "archive_sha256": "2a9a6b89bc3f1c76e1b5d46e8c7783ab9fa462a2bd639a0d0ff4f1980bbe6e14"
+  },
+  {
+    "phase": "failure-contract-957-v1",
+    "file": "failure-contract-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "a34ddffaf714aad84076c74daddb084397694c9f8f2ba214c82cf5b353e3d47b",
+    "public_sha256": "f11a9e37e3cfb314e650d505de8d870e266af692b4b8289a4c7d3f39115b43ff",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "failure-contract-957-v1",
+    "file": "failure-contract-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "8fef53ee8028019e19654b1ce171065d14eefdf475f3b4793fc08f2c891e5b54",
+    "public_sha256": "2fc6e7103d2c66ff6fc3154d2fc0a0466dd8148f4e0a83ff220513c337a3cdef",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "failure-contract-957-v2",
+    "file": "failure-contract-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "732dc049e511b8e7efdf28d4ca30aaa10bc23846d44d6676962a2ddf8cda2b6e",
+    "public_sha256": "732dc049e511b8e7efdf28d4ca30aaa10bc23846d44d6676962a2ddf8cda2b6e",
+    "normalization": "none",
+    "archive_sha256": "e36e0e3f01267747615bfc5e5cf298aaf4e32748fd08d5fcc9c7b4cbba34966a"
+  },
+  {
+    "phase": "failure-contract-957-v2",
+    "file": "failure-contract-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "4169475bd7245a2b2f6e4a754fb3c95bf9299ac3f3612c7a34228a6506cbdf04",
+    "public_sha256": "823ef747a0f07899a22590b9019fa28bf0c37fb008ae626dffb3f4016dd10194",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "failure-contract-957-v2",
+    "file": "failure-contract-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "9df214ebfd628145f62eb9e4eeeccf1005190cadf036c572fabf53557b67c2fb",
+    "public_sha256": "c7192d80f5994b5f346b030c7089379c5f9b943f389cb239f64db11ef8f02a71",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "failure-contract-957-v3",
+    "file": "failure-contract-957-v3-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "232336565c37b0510e98e08c2cc213cf4712f1f5b6c9af4f1bfe514f8c2af57e",
+    "public_sha256": "232336565c37b0510e98e08c2cc213cf4712f1f5b6c9af4f1bfe514f8c2af57e",
+    "normalization": "none",
+    "archive_sha256": "499eae4d49d544f7cbad0a0a2855cfe4b72fc9d09ddb040c154cda1c1846240f"
+  },
+  {
+    "phase": "failure-contract-957-v3",
+    "file": "failure-contract-957-v3-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "5cdc55b87dd060cedf44961e784da06978f6b7ed3e15089ee367afe93329ba81",
+    "public_sha256": "7780bcdd903ddfc63b72acdeb03716d0af9f1bde32ea222d3f211cc3f6dfc2b1",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "failure-contract-957-v3",
+    "file": "failure-contract-957-v3-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "fe39a6a0075e31d9634e69fa67da8380c50e80adae2aca57a07ae0c238748702",
+    "public_sha256": "36b7736e470599b5e98f23f1e592b62f966402e222d4fbfcc31f33cfeaeee22f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-957-v1",
+    "file": "packed-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "cb4a4fecb8150c4653755cece22ff1c246faa38ed21c53f53985bda647b25d65",
+    "public_sha256": "cb4a4fecb8150c4653755cece22ff1c246faa38ed21c53f53985bda647b25d65",
+    "normalization": "none",
+    "archive_sha256": "6fadb7f847a487fa88af9c1e6b229f710a26e1f6cc96609b6005fb35a104720c"
+  },
+  {
+    "phase": "packed-957-v1",
+    "file": "packed-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e1e29320169f6bd1aea62ec29339b8b40168670f24b0c062afe36dc0a2173f49",
+    "public_sha256": "63ad9adb4de63c05c460de360a274bc5b0a4804ea8d7d3ef565f5ad75fda96b6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-957-v1",
+    "file": "packed-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "db0266f6a10288e009dd595272d117db623ed9b95a7189ba15ef06fba74bef70",
+    "public_sha256": "2f534aa232034297cfbed1da3197bfbf14efacc7e91e7e93e7fc3786783126a8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-compat-957-v1",
+    "file": "packed-compat-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "23f832d810f2724043ba6562d01293310e3a0187d56266f1dc021f0e9b3261bd",
+    "public_sha256": "23f832d810f2724043ba6562d01293310e3a0187d56266f1dc021f0e9b3261bd",
+    "normalization": "none",
+    "archive_sha256": "2e36a21fa8089c0b3a134dea7db0d5761f8553292db759368fa51d8f304a798d"
+  },
+  {
+    "phase": "packed-compat-957-v1",
+    "file": "packed-compat-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "c03b5080a1eec1c361ffd386ca15b2bf951623b8c4ebcd26f5f8bd3ae35d5ee1",
+    "public_sha256": "ab6a72b778f18526b153ba63ec9c00523a6c3cb58f99b6621d25f00a06091e4d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-compat-957-v1",
+    "file": "packed-compat-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "031214ea25dfd75f6588f2f8ae3c39fe03a30b234cfe39e26ad039ea0c05e3f2",
+    "public_sha256": "cc90f6d023173441faf6b07e6c9ae8485ff99decc768ef2c4f812a3d4b8c3967",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v2",
+    "file": "coverage-diagnostic-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "51bfd5c283f37432b1c5f006b308ab7adfbbaf0446dd5c50ac2dbb34545aa1b2",
+    "public_sha256": "51bfd5c283f37432b1c5f006b308ab7adfbbaf0446dd5c50ac2dbb34545aa1b2",
+    "normalization": "none",
+    "archive_sha256": "4adff4d5d4382d587c0bdf00b9fa2cac7c7974ab1b5a2299aac33129da101eb8"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v2",
+    "file": "coverage-diagnostic-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "b5f1395fbdacf28b3fa762126b24eccbc66f03d445003c7741f47abd79415df1",
+    "public_sha256": "19b15b25df36648c4ad038cd37e30b3f2f6f2db8a2a09f5a4b5373242ec74af8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v2",
+    "file": "coverage-diagnostic-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "17016f2f7ee17ef20ae3af69e083739461a6a33915690681823eb812325f902b",
+    "public_sha256": "9c3c27a77f62342eb95c79c0b5368c97f0d8715c96821ae4fe4c094e6c56e049",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v3",
+    "file": "coverage-diagnostic-957-v3-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "3d908a55c91daaf776e4c75049dd21099a8c5e22c9da7762c2e7adc3d55d5099",
+    "public_sha256": "3d908a55c91daaf776e4c75049dd21099a8c5e22c9da7762c2e7adc3d55d5099",
+    "normalization": "none",
+    "archive_sha256": "267cf11389802a3678dfcd69d94a634d7c1c27e58657b8823bf10567bc897321"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v3",
+    "file": "coverage-diagnostic-957-v3-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e16d6c2e4a454f510a552846be5f6a614db900faa4686dff07fd063056fb9d7a",
+    "public_sha256": "d341d81616020d1bd1d3d1b103c471441b67832f93d0958d55ab5c10e731ef87",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v3",
+    "file": "coverage-diagnostic-957-v3-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "3c8a8c2c6f770abb198f0204802c1ae8fa5be367036b5c2ccc6acb6c921ab2dc",
+    "public_sha256": "9d80152b82c4af2f1d75d3e755fad0ab9943f03cea90c9c140826a6df1f00e1b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "lifecycle-capsule-957-v1",
+    "file": "lifecycle-capsule-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "114a61321a27a904d96d286e9debe7cf9a115a1a3b8b0ffa93bb75233e159168",
+    "public_sha256": "114a61321a27a904d96d286e9debe7cf9a115a1a3b8b0ffa93bb75233e159168",
+    "normalization": "none",
+    "archive_sha256": "c3911c1bf693d42cb18cb5ad3cc5494079e7903cc5ec9c0bcad456f4b999c1b8"
+  },
+  {
+    "phase": "lifecycle-capsule-957-v1",
+    "file": "lifecycle-capsule-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "7a984ff30331c8929ed069c6f30655e26b0dd387f82c76e10fdffc7094eb72d5",
+    "public_sha256": "14b46aab91e29aba35607f541d6486872720684a49e15f8e07f18df6047ffe55",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "lifecycle-capsule-957-v1",
+    "file": "lifecycle-capsule-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "b9cd74e8bea0d5d665b7dd69c36362a475f927f8bc0c40b6fafa2ed7ace303d7",
+    "public_sha256": "69cd38b7c4dbe2e8745c98087732da6640efdbe45157ec45e654dedc9b139b73",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "clock-red-957-v1",
+    "file": "clock-red-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "132ace0f1d42d9b51c0a8a827127ef025dff15eb0bd020ee1f343f4be3a67641",
+    "public_sha256": "132ace0f1d42d9b51c0a8a827127ef025dff15eb0bd020ee1f343f4be3a67641",
+    "normalization": "none",
+    "archive_sha256": "7037caa4722425bbe09ced1caab515c081a040274921aeb4045c30cd2f4ca62b"
+  },
+  {
+    "phase": "clock-red-957-v1",
+    "file": "clock-red-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "91e46831fe969cadef65e0148e2c00613b6d41fb1e5e8029ada2670b24360f6e",
+    "public_sha256": "050f4813a4ef6f6436f96cb6a35b5726201abf6b0c2c663b0fe15dd78a74bdbb",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "clock-red-957-v1",
+    "file": "clock-red-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "7d7c8c1f1a53f5a12aca0b917e76705965a1eb58026c05e3f3fc80dc90c6844b",
+    "public_sha256": "f425e536b06802fb69f64bff9e4898aaae21995afd8182efee1d08ceb01c65ca",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "clock-green-957-v1",
+    "file": "clock-green-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "4b09ace9ae953b37cea5d65c2db9aecd4deb058474bf4b458c3af50e4e64511c",
+    "public_sha256": "4b09ace9ae953b37cea5d65c2db9aecd4deb058474bf4b458c3af50e4e64511c",
+    "normalization": "none",
+    "archive_sha256": "bb37a6e3ec4d2a0a6fbfa85fe1a34a882ae3d4d404387d413857d753b46867e8"
+  },
+  {
+    "phase": "clock-green-957-v1",
+    "file": "clock-green-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "251b426b439ac1eda6419c316e248100340ee267384f7c3f2c0fe233ef9786e9",
+    "public_sha256": "490aeac6d1df3ced114c338467f376056e051039329adb01cac523d22e0bcb54",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "clock-green-957-v1",
+    "file": "clock-green-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "95b752fd43c77eb22d5fc656eeaa303fe584449e271fe4621a17ab15f42a492f",
+    "public_sha256": "c0e406c1cca3c893e2ce277e25f4f000f85e5011149aed5dd3012bd065b36a98",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "clock-green-957-v2",
+    "file": "clock-green-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "06fdf8dd52c73797eae261739bb30f42dd4f6b69735957297e045c4af5101741",
+    "public_sha256": "06fdf8dd52c73797eae261739bb30f42dd4f6b69735957297e045c4af5101741",
+    "normalization": "none",
+    "archive_sha256": "d73ced040bd54c4eb17c6636d9103a6016ac459610632ac244640b258ffc6ca5"
+  },
+  {
+    "phase": "clock-green-957-v2",
+    "file": "clock-green-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "d7910a4404e6448110c23f8c26bfdb13b8130b24d9d9dd6bf64cd0cf818e68af",
+    "public_sha256": "9767ea45fbd1f6afeac42da246fbd633b9bff6064876012f1aa97a8444fe4761",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "clock-green-957-v2",
+    "file": "clock-green-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "6989c297734241de846b57b2dd92e861b4a8f8e243db46a4dba0f4b67dee3615",
+    "public_sha256": "2498fdbd6429667d23756a21812216cf675b4371215f6a542a369c8a29580e19",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "ordinary-writers-957-v1",
+    "file": "ordinary-writers-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "b9563a66b1573029e06e1d537700b4c46af54a06c205d3eb163ec081e6f61b33",
+    "public_sha256": "b9563a66b1573029e06e1d537700b4c46af54a06c205d3eb163ec081e6f61b33",
+    "normalization": "none",
+    "archive_sha256": "8f532de5a37c403056591b880c554b2378852aa9699d3a7c27a319357aa6f28a"
+  },
+  {
+    "phase": "ordinary-writers-957-v1",
+    "file": "ordinary-writers-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "13c136acaef0ed61fcaeb17c19dc79d8de7c5e045f392307918d3d548df47848",
+    "public_sha256": "f23619811643319609e6ce024aed67b9f474db923b61cf99bf347ad0b21149ad",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "ordinary-writers-957-v1",
+    "file": "ordinary-writers-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "9fa5dbb1acbc29c21f56a7e9346d12c8603e151a8a36a87ac6bca9c04422c4d2",
+    "public_sha256": "31dc8f99df212ad947048eb523d6d8566653b94442946f228ff4400bb05d4aad",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-0214B094-21B8-422D-82AC-3FE4D5A27205",
+    "file": "prepush-957-0214B094-21B8-422D-82AC-3FE4D5A27205-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "61526690513266a46101dd1dd278f6ecc575741c1aa94494c7073ab66f4a7121",
+    "public_sha256": "61526690513266a46101dd1dd278f6ecc575741c1aa94494c7073ab66f4a7121",
+    "normalization": "none",
+    "archive_sha256": "7ce590a7a47826ac73233e78e088fb298e9a66ab3d17fc8e5fb00fbd09a0bf68"
+  },
+  {
+    "phase": "prepush-957-0214B094-21B8-422D-82AC-3FE4D5A27205",
+    "file": "prepush-957-0214B094-21B8-422D-82AC-3FE4D5A27205-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "89e9010c51041f1c917a7137af38f381c9b7867d39c2f13e977146a021b55171",
+    "public_sha256": "4b6495d2854bf21b7f0b855d520cac6de98b4a288377097b6d72c23625e8d0dc",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-0214B094-21B8-422D-82AC-3FE4D5A27205",
+    "file": "prepush-957-0214B094-21B8-422D-82AC-3FE4D5A27205-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "4700d74e2e299905aa89a943cdc2cb760352716f2e25ad7d912a2ed66fac35a0",
+    "public_sha256": "2d23c0145b6b7893073ce44e1b492994967726bf3caff9475d4aad24d26684ac",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-081B6613-618C-4C1D-A108-73C47781A705",
+    "file": "prepush-957-081B6613-618C-4C1D-A108-73C47781A705-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "00e8e936adbe635e6694f63a2c156bd794b67c20d0c56f08fbde0433b3f97e41",
+    "public_sha256": "00e8e936adbe635e6694f63a2c156bd794b67c20d0c56f08fbde0433b3f97e41",
+    "normalization": "none",
+    "archive_sha256": "a2e51f48c4e6694576296f8fe4cb04dd9631f78d659452db048c95ef7f14c057"
+  },
+  {
+    "phase": "prepush-957-081B6613-618C-4C1D-A108-73C47781A705",
+    "file": "prepush-957-081B6613-618C-4C1D-A108-73C47781A705-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "691bc7efd27c65702fb6cda7f7a19264f76495dc6fca504626d10dd5913a9cef",
+    "public_sha256": "1423f3272247a081e194841f80e2dfe60fe938cd2c836c1119a987ab1f050472",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-081B6613-618C-4C1D-A108-73C47781A705",
+    "file": "prepush-957-081B6613-618C-4C1D-A108-73C47781A705-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ca720b86e5ef6fe097f911c904966ef6955c8be5d75dcca865e8d596d9158bba",
+    "public_sha256": "808a6c0d3ba383cd4b50bb425604deb962208caeac5a70c14665a786f8fb9750",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-1C309FB5-0119-4859-9C04-10E2F20115CD",
+    "file": "prepush-957-1C309FB5-0119-4859-9C04-10E2F20115CD-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ea9e2ed5f9c66cad3351969516bb4691cad0507e48e6d7a1674b856556b61605",
+    "public_sha256": "ea9e2ed5f9c66cad3351969516bb4691cad0507e48e6d7a1674b856556b61605",
+    "normalization": "none",
+    "archive_sha256": "8206943b7ea661702d21234a107b39ba16c5b5d6239bd6e322fb4c28ffb860e4"
+  },
+  {
+    "phase": "prepush-957-1C309FB5-0119-4859-9C04-10E2F20115CD",
+    "file": "prepush-957-1C309FB5-0119-4859-9C04-10E2F20115CD-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "313e5f1825ce6682713203165e5424ea851f545ebb7803319fc2e8a0ce399456",
+    "public_sha256": "2d6ee9bbce70726e9e99baccb97cee29bc516ca267707ad7f44f0eaf06d539ca",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-1C309FB5-0119-4859-9C04-10E2F20115CD",
+    "file": "prepush-957-1C309FB5-0119-4859-9C04-10E2F20115CD-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "a4045873798c837bd7fbdd575179a1890f614e3f2427607af15b79c00eec2494",
+    "public_sha256": "3b7ec171e25b7e4efca235c89e8dedca6525de5b0323619d8c110c96ac5bd0ed",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-4C27F239-F479-4940-A4C7-026F8C71CB47",
+    "file": "prepush-957-4C27F239-F479-4940-A4C7-026F8C71CB47-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "4c1947c91fdd9d71bae94c5d521f294d1b60ce8560b8ce73516947e00bcca582",
+    "public_sha256": "4c1947c91fdd9d71bae94c5d521f294d1b60ce8560b8ce73516947e00bcca582",
+    "normalization": "none",
+    "archive_sha256": "cf2d889f13b9c76231a1cc1183d38be3d5f0b39bc96cce74bf22c5e4d5593e33"
+  },
+  {
+    "phase": "prepush-957-4C27F239-F479-4940-A4C7-026F8C71CB47",
+    "file": "prepush-957-4C27F239-F479-4940-A4C7-026F8C71CB47-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "3af38cca3886eb095d4ba8783e8d53972f012b22e1168eed2fe548dabaccdae7",
+    "public_sha256": "75acece9283df4d5e10e3d5ae82c9aa32cd6b293145345a778a0ef085fafb2c9",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-4C27F239-F479-4940-A4C7-026F8C71CB47",
+    "file": "prepush-957-4C27F239-F479-4940-A4C7-026F8C71CB47-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "bfe1ccc840bd2c628bba680b96db0223743b3cc6f468ba9a6dcaab551fe9e52d",
+    "public_sha256": "56b27cbbc8335ebc086351d2b0b2b7bae3e4375a9461079fe3c8b587ee82c66e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-93C8F649-C4D8-4FC3-8BDA-336B5243B405",
+    "file": "prepush-957-93C8F649-C4D8-4FC3-8BDA-336B5243B405-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "a11ec48a5c847c4dd9d1b85f9810330fe57bc9a97fa0fa52d3fed88fd08c2e5a",
+    "public_sha256": "a11ec48a5c847c4dd9d1b85f9810330fe57bc9a97fa0fa52d3fed88fd08c2e5a",
+    "normalization": "none",
+    "archive_sha256": "9faedad8175d1ee2e0a4caf86966ebd96ac9a2eb994f3f4429006e36428f5b7b"
+  },
+  {
+    "phase": "prepush-957-93C8F649-C4D8-4FC3-8BDA-336B5243B405",
+    "file": "prepush-957-93C8F649-C4D8-4FC3-8BDA-336B5243B405-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "c38f264785b88eba217166f1f1a0b1664ff040a7365c136d7f025271fd60b453",
+    "public_sha256": "f3d918276876c901a5928d7248e1dea72471078d79b111720d088dbf95a42ed5",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-93C8F649-C4D8-4FC3-8BDA-336B5243B405",
+    "file": "prepush-957-93C8F649-C4D8-4FC3-8BDA-336B5243B405-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "df3a51f74bfd9fa3467e420ab4b901c65fdfffdc4c1d29a1e0c8133ed726827b",
+    "public_sha256": "d0ee28d5e6cd24c0f19f9f06f49a10c4c397776347dc8bf0a40b99070bd79489",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-C08AB609-442C-4182-8E26-ED12E9E84F1D",
+    "file": "prepush-957-C08AB609-442C-4182-8E26-ED12E9E84F1D-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "9a64d02f82dcae68fd9d5dc4f1fad3c800dce036fb20f99d3168a803d9dcf929",
+    "public_sha256": "9a64d02f82dcae68fd9d5dc4f1fad3c800dce036fb20f99d3168a803d9dcf929",
+    "normalization": "none",
+    "archive_sha256": "302b6e1b59dd32384beb7d6260c7a2a6ff1b619efc06418e6ad149d82f0022a8"
+  },
+  {
+    "phase": "prepush-957-C08AB609-442C-4182-8E26-ED12E9E84F1D",
+    "file": "prepush-957-C08AB609-442C-4182-8E26-ED12E9E84F1D-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "aa33eb022bb2b78cc55991a78a03c63d121f7f00bccd314797d8e56c1af0c2f3",
+    "public_sha256": "5c574976a32b98c65f1525cbc74256f44e223c6a4f9f3f73984530f409554513",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-C08AB609-442C-4182-8E26-ED12E9E84F1D",
+    "file": "prepush-957-C08AB609-442C-4182-8E26-ED12E9E84F1D-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "8db498766a1d2839d85951a0f600d0178a81be11e0cd2c52e9a3d155183b409d",
+    "public_sha256": "db379f13d8393cab025be16dfcf0396da71ed8b95c58875ad5e24c6849aa0e59",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-C8FED9E9-253B-4FEC-A2E7-2A6EFE5CB8C5",
+    "file": "prepush-957-C8FED9E9-253B-4FEC-A2E7-2A6EFE5CB8C5-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "6fb06273e13e8d1a1d3c0769b0640584e9a18ff1146f46e0e8a546e64437e8f3",
+    "public_sha256": "6fb06273e13e8d1a1d3c0769b0640584e9a18ff1146f46e0e8a546e64437e8f3",
+    "normalization": "none",
+    "archive_sha256": "028a971bc149a1af0946e02832883134f7d99060161263dd8ecef252d269e5c3"
+  },
+  {
+    "phase": "prepush-957-C8FED9E9-253B-4FEC-A2E7-2A6EFE5CB8C5",
+    "file": "prepush-957-C8FED9E9-253B-4FEC-A2E7-2A6EFE5CB8C5-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "dabdece71e55ae2dae7d3f686e6e6528d632b3e2fdaf31f25329686b9f5902c8",
+    "public_sha256": "4ab17d3d16bddd688e8635c79a19f0ff4aa6ff70f232da8d63103776fedae982",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-C8FED9E9-253B-4FEC-A2E7-2A6EFE5CB8C5",
+    "file": "prepush-957-C8FED9E9-253B-4FEC-A2E7-2A6EFE5CB8C5-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "4db75e914f4cf4a72ed360ab4d8fe2077ae296925e186229da8d89b70405892f",
+    "public_sha256": "df8da50afabcb9997eed6de26845e7476ef0d777f14cfdd2c93ec324bde8385c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-E3D02C93-D20B-49BC-A036-299307047056",
+    "file": "prepush-957-E3D02C93-D20B-49BC-A036-299307047056-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "e9d77c11c23c3321a492e6ee5c07c357a5617b62c4c90bf4a2b97723fb7171c6",
+    "public_sha256": "e9d77c11c23c3321a492e6ee5c07c357a5617b62c4c90bf4a2b97723fb7171c6",
+    "normalization": "none",
+    "archive_sha256": "ce6e65877da891f8fdf362972920d54cae2e5a719dbdf7eaa486ac1a6b47e6fe"
+  },
+  {
+    "phase": "prepush-957-E3D02C93-D20B-49BC-A036-299307047056",
+    "file": "prepush-957-E3D02C93-D20B-49BC-A036-299307047056-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "1b1a36a0c077434cb789b90463b9c863e972ec1287e7559d5b1b7a9cc086f5e2",
+    "public_sha256": "04916321393800924d94652ffdebecb91a69e9f51d6903912c351413f1294fc8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-E3D02C93-D20B-49BC-A036-299307047056",
+    "file": "prepush-957-E3D02C93-D20B-49BC-A036-299307047056-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "7e4f0c40b721618fdb158862184926876900416b6d07536f9cbce8808d082ca4",
+    "public_sha256": "8d1c7e7d9a893aeeec85b45f7ff0ed158d724693ae1708d0e3c2ca3996730a04",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-E64629B7-1220-48D4-B0C0-601B4EA89413",
+    "file": "prepush-957-E64629B7-1220-48D4-B0C0-601B4EA89413-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "45c9b74098a476d149c689fa26b5a884df8b54d10e61d92ef295452b70c61686",
+    "public_sha256": "45c9b74098a476d149c689fa26b5a884df8b54d10e61d92ef295452b70c61686",
+    "normalization": "none",
+    "archive_sha256": "8d2bef347061dad67d27005186e0eb1ea7731e0b8f1aa42b7dabf8ce64bb60e4"
+  },
+  {
+    "phase": "prepush-957-E64629B7-1220-48D4-B0C0-601B4EA89413",
+    "file": "prepush-957-E64629B7-1220-48D4-B0C0-601B4EA89413-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "cbe80f3a4ccfe3ca9613cbd49dee32b0004505b186775116f50c7d1d4bb01fd0",
+    "public_sha256": "e6cf5cf1258d3133995d342512f0231f4e920b0ddb143c7e61b73ed51d714508",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-E64629B7-1220-48D4-B0C0-601B4EA89413",
+    "file": "prepush-957-E64629B7-1220-48D4-B0C0-601B4EA89413-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "5d6631c530637f0cc403a43adf41c195f4a425d97f1fd41e15e012ef7b9ccecf",
+    "public_sha256": "f48baba56c3424bc0d8b81031d61d282c3ad6da3bb1e43c3e5becc5ff8f3dbfb",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-F74005AC-D33B-4DEC-986D-3D473E86BD4D",
+    "file": "prepush-957-F74005AC-D33B-4DEC-986D-3D473E86BD4D-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "9fc9faefdfbfd45b3a4269102db135b3d69acf31de295afcbfdb5c0c7c5b7c67",
+    "public_sha256": "9fc9faefdfbfd45b3a4269102db135b3d69acf31de295afcbfdb5c0c7c5b7c67",
+    "normalization": "none",
+    "archive_sha256": "96bb0a2cb7bf892413f45830c01d0d74e1b732a33813668fc91e2f0ecedd3521"
+  },
+  {
+    "phase": "prepush-957-F74005AC-D33B-4DEC-986D-3D473E86BD4D",
+    "file": "prepush-957-F74005AC-D33B-4DEC-986D-3D473E86BD4D-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "f633a96ad407e70b840f4574c1b05709933047a2ff0ebbbf3f6612a92406f929",
+    "public_sha256": "2d1f34c10c54635b35768dc7613c0b194ee95d86871acc9f4f80374a4b3d0702",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-F74005AC-D33B-4DEC-986D-3D473E86BD4D",
+    "file": "prepush-957-F74005AC-D33B-4DEC-986D-3D473E86BD4D-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e795dd38a990064ca5a58141358fc309f9c253475b727d5918f520e200bd8d8c",
+    "public_sha256": "b08df6bce2a92ec48d39e67a65bbeded6b8b9a7f8d3f71da9343dc91c0f93280",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "custody-contract-957-v1",
+    "file": "custody-contract-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "381c96c57d7cf37f9a5b4567b8ae47ff96f1bee3605ded7fb56e576e1cdae33f",
+    "public_sha256": "381c96c57d7cf37f9a5b4567b8ae47ff96f1bee3605ded7fb56e576e1cdae33f",
+    "normalization": "none",
+    "archive_sha256": "9e91d2a68846c8a1a566bec07326f30334ff4a1606380b3a62b3c70c03d7d817"
+  },
+  {
+    "phase": "custody-contract-957-v1",
+    "file": "custody-contract-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "d9a1a52222cd6ee611bac20c09f4245031cd5ec1c579b13e5445e3ec3b74e0b4",
+    "public_sha256": "9eb3b66dd64fd754f4150ac33626f7f0dafe07508cfea620af28dd580865fc50",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "custody-contract-957-v1",
+    "file": "custody-contract-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "788ddca5de03ba9902d0e99ee7d54d94c6175e7da2e268cd39e8bff0947bc845",
+    "public_sha256": "7d83aa2aac6ab612c838b26404712670d04d4b2516d82cbdee47092349ce1a04",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v4",
+    "file": "coverage-diagnostic-957-v4-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "4d4d0f50155a06e7718ddf33c263e32dfb2472c0ed594a75ca61e49ea54452ea",
+    "public_sha256": "4d4d0f50155a06e7718ddf33c263e32dfb2472c0ed594a75ca61e49ea54452ea",
+    "normalization": "none",
+    "archive_sha256": "72bb79d52d0301008ab5540d2b1a78822780ed71be94a89fa3a41a0dd0cbeaf9"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v4",
+    "file": "coverage-diagnostic-957-v4-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "c49d94b26c78d8619f269a4ac957562bc07d6fb0a1c138a1953abf94e9292e6d",
+    "public_sha256": "a37a06629402789fd89cd2a5644d897224159db8dd27e588cc30a6dad11a9a32",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v4",
+    "file": "coverage-diagnostic-957-v4-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e15de9c4d08ec7a136e11281938032efaac8c5667e741ce1d5be4c36d067cb03",
+    "public_sha256": "91bf9eb474cd0167785dec34a9c1454854636f08be93b1b56c10543d466a7459",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v5",
+    "file": "coverage-diagnostic-957-v5-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "06b25ba7938b21f45fea2f91fa32e26048eae80076a5284fd2970711e73c7c69",
+    "public_sha256": "06b25ba7938b21f45fea2f91fa32e26048eae80076a5284fd2970711e73c7c69",
+    "normalization": "none",
+    "archive_sha256": "0e52e10b4d327e5dedbf1df57c47c7ed0dfe2746e7d07157a01c9a322eb53fa1"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v5",
+    "file": "coverage-diagnostic-957-v5-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e9216cfedcd44bc2e3006a212fcc172db1c5ebd11bb7c5c42808b27b533440d4",
+    "public_sha256": "cae9c35b5895fbe35f0f0ff47ac97c2b914351db02f811f3139b6100c757937e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v5",
+    "file": "coverage-diagnostic-957-v5-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "97ef39cb282f32256f26aba41341856cc987ed91d16263ceb0ce947655d6f563",
+    "public_sha256": "7d7238795a8c537dbb21035be302508a6071c62fb549c7248b68dd8a197e4c84",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v6",
+    "file": "coverage-diagnostic-957-v6-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "c1fa601620c4f7fd6a15ac97b1fa0e7a5c79a3021821bf0e490d05e9d17de40b",
+    "public_sha256": "c1fa601620c4f7fd6a15ac97b1fa0e7a5c79a3021821bf0e490d05e9d17de40b",
+    "normalization": "none",
+    "archive_sha256": "6bd443fd36aba3102c411a7ae0f0c2be06402d6937af2160ee02089a28d49320"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v6",
+    "file": "coverage-diagnostic-957-v6-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "2cc2801199e3e07d36e0c2396d9ec955f0d271e6a2ed8928a9ed0cdb33a0230a",
+    "public_sha256": "d8839222f2f9afca83c82437e2c0fc08b004a1c8be8b049e14cb116b3f27f3c0",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v6",
+    "file": "coverage-diagnostic-957-v6-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "bc874872464b760fd3381bd2dc6b7ea184ba0f262538addc9a6f95ef17c5984e",
+    "public_sha256": "1bd28d08318ea03605f66588aefbe869c634bf8282309515022dcc0a2894930c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v7",
+    "file": "coverage-diagnostic-957-v7-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "7d8223dbe92c83a350a1ded8349c86e754ff28e7ecc1dbcdd846de8548b0ed1a",
+    "public_sha256": "7d8223dbe92c83a350a1ded8349c86e754ff28e7ecc1dbcdd846de8548b0ed1a",
+    "normalization": "none",
+    "archive_sha256": "a156b1ad537dd2dc89c519cb52119901037458d9ee1e6576f1d5e8294c814104"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v7",
+    "file": "coverage-diagnostic-957-v7-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "197db936eb234665278a5a5f446ab6a563b428e34f0a95b86d031515cb18ddb2",
+    "public_sha256": "54490f23a52a30b43f6df62808238163ad2b85c140050c8c0f0721910519956f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v7",
+    "file": "coverage-diagnostic-957-v7-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "5cf22f1014733f63c3c9dea99d29b6febbdb85d3e4bc8aa8e17ee7a1b823f1b1",
+    "public_sha256": "c6684f2093ff7ceaf72c6152fdac55abab3cac73b4eedbd43aadf94846e3265c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v8",
+    "file": "coverage-diagnostic-957-v8-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ab918449491ea10ee93ffc4f50f6aff87232a85c1f484477d3ebe86bb415437f",
+    "public_sha256": "ab918449491ea10ee93ffc4f50f6aff87232a85c1f484477d3ebe86bb415437f",
+    "normalization": "none",
+    "archive_sha256": "67d728ad6bff2515bdd191532f703bff101bb76c3c913e266278e1cb434e59db"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v8",
+    "file": "coverage-diagnostic-957-v8-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "546b998ac7d3a3f74b00eeb10ae0f86306fe83356921920102baf9eca2e57581",
+    "public_sha256": "733f7883fbb2165d0b39b9985342189e04e6583418438be281c0ad8864791816",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-diagnostic-957-v8",
+    "file": "coverage-diagnostic-957-v8-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "f2babdf47954e2d693f7ea3a82852cbde44472a0108a1936ddb19dcf79aab57c",
+    "public_sha256": "9defa0171dd1e1fdc80d9c0dabc669b5fcdc1082fe69a238bcc0ea8826d76794",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-red-957-v1",
+    "file": "controller-red-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "4c45decee39f9c9fbca0f25d5f65c88ecd0dc813ab3ed8ec3990fc89daf3eb5a",
+    "public_sha256": "4c45decee39f9c9fbca0f25d5f65c88ecd0dc813ab3ed8ec3990fc89daf3eb5a",
+    "normalization": "none",
+    "archive_sha256": "c2496f200e6ab8b3d3ec4c07217872de0a5b849f2dd5c8a54fa43951210068a1"
+  },
+  {
+    "phase": "controller-red-957-v1",
+    "file": "controller-red-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "f7ecbe3c5292d96aa4353e1a50337793be9afacfd3b3e6a7b89432eb6285d44d",
+    "public_sha256": "5765dda0da621764a7274bbdfcc88d58bda1271db7f7f4d74078a19feeecfc5f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-red-957-v1",
+    "file": "controller-red-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "d989cd669fb89b333d5e40789c2e6d5855c979d140688127266996d832ea83d8",
+    "public_sha256": "b5c00e81c7a2e6232b2a99feb25ad57e1e48bfd619c1944ce831298ab65ef67b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-red-957-v2",
+    "file": "controller-red-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "45016cd239684a85ad428cb63157ffa94cfe4af4e89098583dacf73435747675",
+    "public_sha256": "45016cd239684a85ad428cb63157ffa94cfe4af4e89098583dacf73435747675",
+    "normalization": "none",
+    "archive_sha256": "04dcbd5f0b7638cea1656588d556269dcf93b7915b7d065e5957313bad3cee2f"
+  },
+  {
+    "phase": "controller-red-957-v2",
+    "file": "controller-red-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "f315930f94cc81aedb95e9b84420f1c5b6cec615f922b5eb6883aac8a1a44a59",
+    "public_sha256": "82aac3447cc972b4cabbc21bd8b0f1ed3b3a7bb9a03a3cafaf43f96c3d700439",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-red-957-v2",
+    "file": "controller-red-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "8a2e60d183148bb072ad128f5c595e7ce46dd4cf33604b37cf10fe9ccf60d17e",
+    "public_sha256": "e5b006390698f9ae27fe2da0dcf95511872261e22f4e66291960cebe1390ad2e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-red-957-v3",
+    "file": "controller-red-957-v3-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "eec71004fea926d3a174daa2d7c1003401dde17304a8f9a95fdbb9ae5b878080",
+    "public_sha256": "eec71004fea926d3a174daa2d7c1003401dde17304a8f9a95fdbb9ae5b878080",
+    "normalization": "none",
+    "archive_sha256": "8266f78dd9cac87fa32b79ef844acde7ec19e40a274599eba568965ab89bd1e0"
+  },
+  {
+    "phase": "controller-red-957-v3",
+    "file": "controller-red-957-v3-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "409410e87d4a8f20c0e4918e354230341ee62d14514cc35a50290b8ce8bd3aab",
+    "public_sha256": "c83a9b5bc4b348a2e4360f8dc13724015f15df754d8664d123c4b22fdeaa0da0",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-red-957-v3",
+    "file": "controller-red-957-v3-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "82e59d65d2da2902ba3a64a66e97c626b0200e321105840387432094ac88207c",
+    "public_sha256": "753982757b111a6b4929a0a539bf26132e6576a034209fe404a18ce561781f17",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-red-957-v4",
+    "file": "controller-red-957-v4-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "e771f3bdbd5f0d2dad31fbd76aef3cec915e98c8ea6706e848f192a6c1106479",
+    "public_sha256": "e771f3bdbd5f0d2dad31fbd76aef3cec915e98c8ea6706e848f192a6c1106479",
+    "normalization": "none",
+    "archive_sha256": "50b8e7c0094ff31021a40354fc72e905bec0bfa994f1bc031f7b065c0a432f92"
+  },
+  {
+    "phase": "controller-red-957-v4",
+    "file": "controller-red-957-v4-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "170d7ed8258c063916d52cf6b314b214384975df2a0b46c18718b09a98e5653b",
+    "public_sha256": "f6d90e0b01773458036bae56038f0acd4310e0ee986a4fa242320a8adabb9e53",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-red-957-v4",
+    "file": "controller-red-957-v4-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "8cb79d36019d5103d1b79f306bcc3f2b02506dcb5dab4092078c8f0a8af2c653",
+    "public_sha256": "613486d10f95b2071ba10398cea77713b389c8cc6cd3650e353aa24485103e8d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-green-957-v1",
+    "file": "controller-green-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "7d2dccdbeb1d88b128eaabc2ab8e8b6b2a1e4d33069a6e0fec17d4df528f581a",
+    "public_sha256": "7d2dccdbeb1d88b128eaabc2ab8e8b6b2a1e4d33069a6e0fec17d4df528f581a",
+    "normalization": "none",
+    "archive_sha256": "1782c2d36467074de6c448a949f52bfd1f67512105ef540621c75781f2cd4cf7"
+  },
+  {
+    "phase": "controller-green-957-v1",
+    "file": "controller-green-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "20a2230e55c8c05e04c069b8aa15b04abf10cca29d0b5f8dfe658af1fccf9e22",
+    "public_sha256": "33f4a4861a7c6547543ee231a6f68ca52d962080fcef1321a5b485e277d3f1eb",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-green-957-v1",
+    "file": "controller-green-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ea0511fda981570b063c0fb8ed22ed725db6b588c5d5069a9e2c54686913fd3b",
+    "public_sha256": "43e135d094e10c4fb23c654a9df27473cc820eba8902e2383818cea9bbb68a7b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-green-957-v2",
+    "file": "controller-green-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "e39d7b806aec88dfd6f2f468fa91b4d6f1ac2d2a756aafd80666a044cea2544e",
+    "public_sha256": "e39d7b806aec88dfd6f2f468fa91b4d6f1ac2d2a756aafd80666a044cea2544e",
+    "normalization": "none",
+    "archive_sha256": "6052e1df2f3dba8739ca7898730dfcec02b84dc64e203d62d9be242b81ab3f09"
+  },
+  {
+    "phase": "controller-green-957-v2",
+    "file": "controller-green-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "02fcc7f2287e70dc13ed8d8c1c6879dd5d7fd7827dc22e279bdca5fdf5fc838f",
+    "public_sha256": "3574ba08261bf9602abf642728fad967139cec77b7ab0cf97c72bac379da0ff2",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-green-957-v2",
+    "file": "controller-green-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "5bd20bbd09374255b95b7643d2b3d342558aaf98dc0716aa202c89086bbbb43a",
+    "public_sha256": "b7289f45600451c93a076daf5f873b5e7f8491136da5d29ed85d5b4d3cd124b7",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-green-957-v3",
+    "file": "controller-green-957-v3-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "218b2dce627e6c0dd8ca3fa8c01efb76d28625304bd532850d6c60ff9c4a7091",
+    "public_sha256": "218b2dce627e6c0dd8ca3fa8c01efb76d28625304bd532850d6c60ff9c4a7091",
+    "normalization": "none",
+    "archive_sha256": "47a5a5139070a62c61162f21f04eb992c156375d402df4a6dca121a541dc13a8"
+  },
+  {
+    "phase": "controller-green-957-v3",
+    "file": "controller-green-957-v3-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "9e21ae6bfa44ef19980326e81247a30ff7bb81ece24253f2fddfe3f7c8d86d72",
+    "public_sha256": "8098ca0624d0dc25f2bcb27120d42edfa55fb6c07211692489f988d79f6177cb",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "controller-green-957-v3",
+    "file": "controller-green-957-v3-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "60856b71fe4d8f433e6f025104271a8a0b0de28cc33e6619381117bf3a054251",
+    "public_sha256": "76144112ca23ceb2bf0eed09e1029bf2883669db2fd6b6cef4d431d4c101e2fd",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-021B4607-7E14-4C27-8E2C-B183706E20D7",
+    "file": "prepush-957-021B4607-7E14-4C27-8E2C-B183706E20D7-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "e9d77c11c23c3321a492e6ee5c07c357a5617b62c4c90bf4a2b97723fb7171c6",
+    "public_sha256": "e9d77c11c23c3321a492e6ee5c07c357a5617b62c4c90bf4a2b97723fb7171c6",
+    "normalization": "none",
+    "archive_sha256": "ce6e65877da891f8fdf362972920d54cae2e5a719dbdf7eaa486ac1a6b47e6fe"
+  },
+  {
+    "phase": "prepush-957-021B4607-7E14-4C27-8E2C-B183706E20D7",
+    "file": "prepush-957-021B4607-7E14-4C27-8E2C-B183706E20D7-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "3bbfd873556bbc9b5a70d6b0385e581638e353b0295bcfd8fb3de6d56aaa1d62",
+    "public_sha256": "fa01c3c4c3da8b2a1515360a6813ee68a88a4830da30122bc23fcb819dbfaa1a",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-021B4607-7E14-4C27-8E2C-B183706E20D7",
+    "file": "prepush-957-021B4607-7E14-4C27-8E2C-B183706E20D7-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "81da099a2dd8fc09d5e6457aaf4a7ec3ace7f5c30bd727a406dd469049b44a89",
+    "public_sha256": "7a3839e7a5eded47c945b8fe389f7828d162da65d45e0955fffa55749783a65c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-2F65FE41-BDD3-489D-A644-0236C3D83B5D",
+    "file": "prepush-957-2F65FE41-BDD3-489D-A644-0236C3D83B5D-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "fb1c7100c06f179008c41494484c69f955a376c1db7d20a975b153be5487886f",
+    "public_sha256": "fb1c7100c06f179008c41494484c69f955a376c1db7d20a975b153be5487886f",
+    "normalization": "none",
+    "archive_sha256": "58d355c9a418621de7c9de92020cd48b42d7636c258ca569e2af01d85da59290"
+  },
+  {
+    "phase": "prepush-957-2F65FE41-BDD3-489D-A644-0236C3D83B5D",
+    "file": "prepush-957-2F65FE41-BDD3-489D-A644-0236C3D83B5D-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "2afb57ea2a33fad4f008e99ef60f39adfeb679ec9cef8baa2c065151ea95919c",
+    "public_sha256": "12931dcef15db83594c7e7f9e326df78356240a2056c5b184f7c6595ee9c0eae",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-2F65FE41-BDD3-489D-A644-0236C3D83B5D",
+    "file": "prepush-957-2F65FE41-BDD3-489D-A644-0236C3D83B5D-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "ac78e0f8126651c5bcffa7c49525186214a1a0fe89ae2546e15f2d2ad261e663",
+    "public_sha256": "0d825de8fba366a3a6e0457c0ac36a5782af2969404293cc4fd8c4676d417bf7",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-3E69BDEC-B9F7-4094-8ADC-76F18E163793",
+    "file": "prepush-957-3E69BDEC-B9F7-4094-8ADC-76F18E163793-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ea9e2ed5f9c66cad3351969516bb4691cad0507e48e6d7a1674b856556b61605",
+    "public_sha256": "ea9e2ed5f9c66cad3351969516bb4691cad0507e48e6d7a1674b856556b61605",
+    "normalization": "none",
+    "archive_sha256": "8206943b7ea661702d21234a107b39ba16c5b5d6239bd6e322fb4c28ffb860e4"
+  },
+  {
+    "phase": "prepush-957-3E69BDEC-B9F7-4094-8ADC-76F18E163793",
+    "file": "prepush-957-3E69BDEC-B9F7-4094-8ADC-76F18E163793-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "19aada0e64b5a3427d10b2891b8a1aa371462b1047ac47151b43c16740573a84",
+    "public_sha256": "55ecc35efecb7aec70f932f04e43d77b240c3b54bc8a379800b5ff2b86e75561",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-3E69BDEC-B9F7-4094-8ADC-76F18E163793",
+    "file": "prepush-957-3E69BDEC-B9F7-4094-8ADC-76F18E163793-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e487e5686fc25b25c28a54155a01b5847ecb2c4c59276775a7b1c0361735f32a",
+    "public_sha256": "e5b8119666a468da36d09ddcbeba5aa909f8db22c68f85eab3744ad3f4a541fa",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-CFF8D873-35B6-4D8E-A854-26F0F2B568AD",
+    "file": "prepush-957-CFF8D873-35B6-4D8E-A854-26F0F2B568AD-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "9a64d02f82dcae68fd9d5dc4f1fad3c800dce036fb20f99d3168a803d9dcf929",
+    "public_sha256": "9a64d02f82dcae68fd9d5dc4f1fad3c800dce036fb20f99d3168a803d9dcf929",
+    "normalization": "none",
+    "archive_sha256": "302b6e1b59dd32384beb7d6260c7a2a6ff1b619efc06418e6ad149d82f0022a8"
+  },
+  {
+    "phase": "prepush-957-CFF8D873-35B6-4D8E-A854-26F0F2B568AD",
+    "file": "prepush-957-CFF8D873-35B6-4D8E-A854-26F0F2B568AD-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "b428a229dae9c703823e7ce20ebff6c30d1845ee59f8e07c0cdeac0054d26524",
+    "public_sha256": "6666df053aebabc6fe5a95df7de505fad2abe98f515f167702a4e0723aa2d4a2",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-CFF8D873-35B6-4D8E-A854-26F0F2B568AD",
+    "file": "prepush-957-CFF8D873-35B6-4D8E-A854-26F0F2B568AD-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e8c85f949a9068fd1d56122b61590772895198fca5536ee0f45b44ec09e9a353",
+    "public_sha256": "566506415a8123c4e875502404053a7f76b54ca219fb13d3d7b1544ff8bbe50e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-D7031414-381C-4400-8482-E329A9EB400D",
+    "file": "prepush-957-D7031414-381C-4400-8482-E329A9EB400D-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "6fb06273e13e8d1a1d3c0769b0640584e9a18ff1146f46e0e8a546e64437e8f3",
+    "public_sha256": "6fb06273e13e8d1a1d3c0769b0640584e9a18ff1146f46e0e8a546e64437e8f3",
+    "normalization": "none",
+    "archive_sha256": "028a971bc149a1af0946e02832883134f7d99060161263dd8ecef252d269e5c3"
+  },
+  {
+    "phase": "prepush-957-D7031414-381C-4400-8482-E329A9EB400D",
+    "file": "prepush-957-D7031414-381C-4400-8482-E329A9EB400D-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "f309b1908cb80581f9130715267dce251bbe0ab7f6c1329371c5b3df97a8688a",
+    "public_sha256": "9c5d31bbb72603e67ef934dff2d43aacdb2a6e522355c37f426ef6f6adcc9e39",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-D7031414-381C-4400-8482-E329A9EB400D",
+    "file": "prepush-957-D7031414-381C-4400-8482-E329A9EB400D-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "3628da3b1ccb8a6f30d775a1a71b34b65e5d3d4497f431bafb68f73a4f0f22e1",
+    "public_sha256": "2e6e4a56d44bae924822cb8b3e090d59c0d8b69de99e9c1e539006234dafd94b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-DA4B4B91-4CCB-494F-9826-76F8B69EA5DD",
+    "file": "prepush-957-DA4B4B91-4CCB-494F-9826-76F8B69EA5DD-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "a11ec48a5c847c4dd9d1b85f9810330fe57bc9a97fa0fa52d3fed88fd08c2e5a",
+    "public_sha256": "a11ec48a5c847c4dd9d1b85f9810330fe57bc9a97fa0fa52d3fed88fd08c2e5a",
+    "normalization": "none",
+    "archive_sha256": "9faedad8175d1ee2e0a4caf86966ebd96ac9a2eb994f3f4429006e36428f5b7b"
+  },
+  {
+    "phase": "prepush-957-DA4B4B91-4CCB-494F-9826-76F8B69EA5DD",
+    "file": "prepush-957-DA4B4B91-4CCB-494F-9826-76F8B69EA5DD-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "5ffd359b2ccc375298c130aa04d1a960758dc65646ce8df467b345a95f91ee24",
+    "public_sha256": "46a28466f03bf42e3f58b6329c0315448548dcda4003112fd2db7af8587eb244",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-DA4B4B91-4CCB-494F-9826-76F8B69EA5DD",
+    "file": "prepush-957-DA4B4B91-4CCB-494F-9826-76F8B69EA5DD-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "2c4e83df2fa07b51b1885264d4f419802d03bd597166600e7afdcf6a67a16445",
+    "public_sha256": "9169a87d3b4847955d58f298238458c7cd3c12651e99e887fc9f464084020f49",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-DA88E875-FA6D-4ED2-9E56-979C76C1CA9F",
+    "file": "prepush-957-DA88E875-FA6D-4ED2-9E56-979C76C1CA9F-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "61526690513266a46101dd1dd278f6ecc575741c1aa94494c7073ab66f4a7121",
+    "public_sha256": "61526690513266a46101dd1dd278f6ecc575741c1aa94494c7073ab66f4a7121",
+    "normalization": "none",
+    "archive_sha256": "7ce590a7a47826ac73233e78e088fb298e9a66ab3d17fc8e5fb00fbd09a0bf68"
+  },
+  {
+    "phase": "prepush-957-DA88E875-FA6D-4ED2-9E56-979C76C1CA9F",
+    "file": "prepush-957-DA88E875-FA6D-4ED2-9E56-979C76C1CA9F-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "966a1514d1162e179aacbe34b103d9b84b1192a30e0d542153d2a176aa394a19",
+    "public_sha256": "7e1a9b80d6cf084ddd4d852fd638cc908012324f637d7e6d17f7b8cfeb4bcbd5",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-DA88E875-FA6D-4ED2-9E56-979C76C1CA9F",
+    "file": "prepush-957-DA88E875-FA6D-4ED2-9E56-979C76C1CA9F-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "d90201d7e4a94df3c52bc75bd50a57bcab6449310dc8ae002116e8b61a6fbc5e",
+    "public_sha256": "7709159dfe6c8fcb7f9ff5c0ccae76bdc0bc333a5af7c839c48dc0d0cdc310e4",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-E2B6CCE3-C28C-45E5-B33B-F3779961C7AD",
+    "file": "prepush-957-E2B6CCE3-C28C-45E5-B33B-F3779961C7AD-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "45c9b74098a476d149c689fa26b5a884df8b54d10e61d92ef295452b70c61686",
+    "public_sha256": "45c9b74098a476d149c689fa26b5a884df8b54d10e61d92ef295452b70c61686",
+    "normalization": "none",
+    "archive_sha256": "8d2bef347061dad67d27005186e0eb1ea7731e0b8f1aa42b7dabf8ce64bb60e4"
+  },
+  {
+    "phase": "prepush-957-E2B6CCE3-C28C-45E5-B33B-F3779961C7AD",
+    "file": "prepush-957-E2B6CCE3-C28C-45E5-B33B-F3779961C7AD-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "5de970c9e7f06f563679036b0d2871b7a1cf3db4e2f38d8a94ed632de8f26e5d",
+    "public_sha256": "fc343383cf166bb6cdf423ddfa3508edba4cf56afc37613dfecac66a5a05b36c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-E2B6CCE3-C28C-45E5-B33B-F3779961C7AD",
+    "file": "prepush-957-E2B6CCE3-C28C-45E5-B33B-F3779961C7AD-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "91c9956223e5ec39588d7fe0248e09c95fb2227ffb90c8062b453447732e620b",
+    "public_sha256": "15bfdc07f293e0f909407ee24c41d6bbaf43b081140b8da8bf0afb9448d77dcf",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-EBE78405-E02F-400E-8E97-9E6EA61E4CE1",
+    "file": "prepush-957-EBE78405-E02F-400E-8E97-9E6EA61E4CE1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "4c1947c91fdd9d71bae94c5d521f294d1b60ce8560b8ce73516947e00bcca582",
+    "public_sha256": "4c1947c91fdd9d71bae94c5d521f294d1b60ce8560b8ce73516947e00bcca582",
+    "normalization": "none",
+    "archive_sha256": "cf2d889f13b9c76231a1cc1183d38be3d5f0b39bc96cce74bf22c5e4d5593e33"
+  },
+  {
+    "phase": "prepush-957-EBE78405-E02F-400E-8E97-9E6EA61E4CE1",
+    "file": "prepush-957-EBE78405-E02F-400E-8E97-9E6EA61E4CE1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "08dd95978c62780f68096b25f30526c8b9283661e85b02c3b66d246e9f5a82a4",
+    "public_sha256": "9e5701becd05e62dd5cecf98c2368d7a81a8acc1a3f76208acdc2f7548916227",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-EBE78405-E02F-400E-8E97-9E6EA61E4CE1",
+    "file": "prepush-957-EBE78405-E02F-400E-8E97-9E6EA61E4CE1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e6a27d259998888d38d098a1539967674e105d0c03b11528a3714645b00e64b2",
+    "public_sha256": "e95e124ea7528171fd04f1ffba3a67495ee856bee7bc33397f44679be33d1ba0",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-FB44E23E-6F8C-453C-AD6C-BAA5EFC82789",
+    "file": "prepush-957-FB44E23E-6F8C-453C-AD6C-BAA5EFC82789-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "a3f1b4b097c7404c1cfe67318dc7f94c316a5cbc7919ae679811cc5a2c45b7ba",
+    "public_sha256": "a3f1b4b097c7404c1cfe67318dc7f94c316a5cbc7919ae679811cc5a2c45b7ba",
+    "normalization": "none",
+    "archive_sha256": "c01e54730be841702a4c7bfa903b7d9a48c3b0c094fe6ccbd648af91c492b076"
+  },
+  {
+    "phase": "prepush-957-FB44E23E-6F8C-453C-AD6C-BAA5EFC82789",
+    "file": "prepush-957-FB44E23E-6F8C-453C-AD6C-BAA5EFC82789-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "e1ef1d330a90fc26075380a55ef66efc27c2d432ca349b9e49789f43a1cd7e04",
+    "public_sha256": "45a5218e8ce138654e76e1f659aad39779b8bccae152425741bfb7ddd2025533",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-FB44E23E-6F8C-453C-AD6C-BAA5EFC82789",
+    "file": "prepush-957-FB44E23E-6F8C-453C-AD6C-BAA5EFC82789-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "d502a93afe68d9436b229c75eb4450fe58feba2995b4464d2eb0de7d332000a6",
+    "public_sha256": "bd122a9188d78f2fe59898e1f53f7d177396ad8035d48a0350051b6705c5c8c7",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "integration-957-v2",
+    "file": "integration-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ab731b90f01ca83827964178c7ce2fce764ddd2cba3aa1152cd952837d3d0c26",
+    "public_sha256": "ab731b90f01ca83827964178c7ce2fce764ddd2cba3aa1152cd952837d3d0c26",
+    "normalization": "none",
+    "archive_sha256": "1ca9100a80c5d3ecd7907666078bca2d44667ba7c927ea1bff2cf135aacd6a54"
+  },
+  {
+    "phase": "integration-957-v2",
+    "file": "integration-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "bdbef05473d7d466133d17b30529ccf6ed48941b345d5d5879d84a2a42dfee02",
+    "public_sha256": "08b4f75296b04843381e9a0b8e1363bd17fa0955ba4e701ecb30017f70a6ed1d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "integration-957-v2",
+    "file": "integration-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "510d08f479c1715d4bc662d96c4c3f1d74be1a2b0dc25e41ccb3c58c22b0e11a",
+    "public_sha256": "3c25a6e415979c6f46ee503c5a6658fa204fc9a7075c4f0dc75a52311c74bcd8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-957-v2",
+    "file": "coverage-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "298017221215366e32fc1134fe2e0512571fe8b37ce69119cb4248cb64897491",
+    "public_sha256": "298017221215366e32fc1134fe2e0512571fe8b37ce69119cb4248cb64897491",
+    "normalization": "none",
+    "archive_sha256": "3852e796447ab6f982212843b90fac094d190540c1f3747e0a0a2f66534a4089"
+  },
+  {
+    "phase": "coverage-957-v2",
+    "file": "coverage-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "121a233fbae6f0aae21a174a2dfe29f1a2bcaf53c4303ae105de90e156c33ab5",
+    "public_sha256": "e4ce08707fffc34766dc1dbef83f5e9524571b7b3979d916072a047b8b476825",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-957-v2",
+    "file": "coverage-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "c332b851bed7e9159ab95f06cb3d22195425030e440a31be97d02bd45d6982b8",
+    "public_sha256": "8b841bc0ee4d9eef4abc49aae33a46a0ff66aa021d837499245dfd5323e7dcc1",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "native-cost-957-v1",
+    "file": "native-cost-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "ccba98762dcedc0fda3f5dae01ad6e2fa54b94e328e279eb81371c4cc0924bb8",
+    "public_sha256": "ccba98762dcedc0fda3f5dae01ad6e2fa54b94e328e279eb81371c4cc0924bb8",
+    "normalization": "none",
+    "archive_sha256": "fce64938af7d7330a7ca3a10ec3762bab81ee26cecf38ef557b819e7e8d541a0"
+  },
+  {
+    "phase": "native-cost-957-v1",
+    "file": "native-cost-957-v1-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "77956e7d3a7f6a45b9ea19bc58945da2c0e8f196603ff75e5ca0b19fbc20858e",
+    "public_sha256": "8fa2a02b30e2d31496438723917e83aacbaa7aa1e75d49622f39754360f93708",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "native-cost-957-v1",
+    "file": "native-cost-957-v1-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "4247a137ae445704b9416a6bf1fc23e576dbc5ed4666b54fc21eedde5cd9bc93",
+    "public_sha256": "c616f123cb1572276d4dfe342ce4a90595ee1737da799bcf0118d27de52a90e3",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "native-cost-957-v2",
+    "file": "native-cost-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "fcb932b2cbf7cbd2dcc931b55a56dde254b7cca1a479786814aa301858ae0d9b",
+    "public_sha256": "fcb932b2cbf7cbd2dcc931b55a56dde254b7cca1a479786814aa301858ae0d9b",
+    "normalization": "none",
+    "archive_sha256": "5a3a1162987aa25d95a6fbd6c234992727ab000f4bf7f69171b1562935d276ab"
+  },
+  {
+    "phase": "native-cost-957-v2",
+    "file": "native-cost-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "76c959baf34408f24e83deaaae7bd608a3836a2a51939ad93acf9579e2038db2",
+    "public_sha256": "9483cda96cdc0a21e52faa9b6f3d13dcd7ecc246387d87f024342480dfd32542",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "native-cost-957-v2",
+    "file": "native-cost-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "228128d4eed010dc8d02659a59126e1a41418287d462f87e5a7fa0e8c00fac39",
+    "public_sha256": "fd938489887da2b9e00110606bda059a463f6bf7e9a53789059c8fed2c8bf675",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "native-cost-957-v3",
+    "file": "native-cost-957-v3-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "d085d868c6640e1917d382a73c3b3005ca5a645aafb4f20c5282f390ac2d8629",
+    "public_sha256": "d085d868c6640e1917d382a73c3b3005ca5a645aafb4f20c5282f390ac2d8629",
+    "normalization": "none",
+    "archive_sha256": "8bc5bb6597393070588dd4c2d6189856f307d015f765ce4cce9bc52062e50a1e"
+  },
+  {
+    "phase": "native-cost-957-v3",
+    "file": "native-cost-957-v3-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "4c399d84e2064087c186a047047b18dd27b42e03e04cf3c831a6f651c4f7c37e",
+    "public_sha256": "cf3b2c94f777914892960fc9c6edad6be4794be96d38cc3d8f8beae40a90c1d9",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "native-cost-957-v3",
+    "file": "native-cost-957-v3-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "3782fd4b5d779dc946cf04d77d4c65ecaf2d81fb13e144f466de0545120d1c49",
+    "public_sha256": "799dfc4dd9f004d0ee67a721822d5f7c19c9989a30000e012297509339c2f0fc",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-957-v2",
+    "file": "packed-957-v2-console.txt.gz",
+    "source_name": "console.log",
+    "hash_scope": "uncompressed public payload",
+    "original_sha256": "66d03e15d4bc7750b4b2ee6188de6f1e3763a31b4d6f246f72186ffb61e1b55e",
+    "public_sha256": "66d03e15d4bc7750b4b2ee6188de6f1e3763a31b4d6f246f72186ffb61e1b55e",
+    "normalization": "none",
+    "archive_sha256": "8a33a88f4c8355af172bb29f4aa5779e613bee4a9e1a7f45c438b3367a791938"
+  },
+  {
+    "phase": "packed-957-v2",
+    "file": "packed-957-v2-launch.json",
+    "source_name": "launch.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "6f88133dd45950cafe62bf8fab4e34ab585e84810de936c90401bf645e9f2e5f",
+    "public_sha256": "d8e25f47da4470133b0975129c9efbc21a59d0a24f85e7b26da0393f578df385",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-957-v2",
+    "file": "packed-957-v2-resources.json",
+    "source_name": "resources.json",
+    "hash_scope": "public file contents",
+    "original_sha256": "62eb7b99f0093a286a0c8a05da01b4e608697838dd6e421ca51d3460981a0c7f",
+    "public_sha256": "b18a2d18570739f4ff67ecedf7f12ac64f49dc9215d5395a6241b3ff6b9d8826",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-stack-957-v1",
+    "file": "checkpoint-stack-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "af948e47905cd468b5059e2dd06601456ccbd778a72556b3a6ecb63e9c9a32df",
+    "public_sha256": "af948e47905cd468b5059e2dd06601456ccbd778a72556b3a6ecb63e9c9a32df",
+    "normalization": "none",
+    "archive_sha256": "3fc60d5624a5daa2020c9cdade14d56db9e29e379c1b8a06cec43e51af42d627",
+    "hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "checkpoint-stack-957-v1",
+    "file": "checkpoint-stack-957-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "b2702e7703d3a395c64b12622a63a7a6ddbaec54a3adda80a899baeb0477039e",
+    "public_sha256": "c4844ae0dafda1a494a01bec91980f5ed09c21d12587aba567eab6eae8ada0ea",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "checkpoint-stack-957-v1",
+    "file": "checkpoint-stack-957-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "86245efd4ec6524b691997654108275b0d54794bbc21ab1a5cf45ad5a0da3525",
+    "public_sha256": "c79dcab87ea3605af214ef14df7f5efb2736e478699e9641737d02467f85fc13",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "integration-stack-957-v1",
+    "file": "integration-stack-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "0bcd44a23e785df7cc82587ed8763619bd5b51ce8bc4450e0a1976cc154ff679",
+    "public_sha256": "0bcd44a23e785df7cc82587ed8763619bd5b51ce8bc4450e0a1976cc154ff679",
+    "normalization": "none",
+    "archive_sha256": "4286b833e31b1bf5f2609684ba933075467e4479d257d856f978a87f878bd614",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "integration-stack-957-v1",
+    "file": "integration-stack-957-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "9ee819c0e4872ecf7250be6f3460dd0615e56fb71aebd7640831650df0700868",
+    "public_sha256": "43b5201d79f9ba1783bd6b440c7676ee7546bcd71efa03c0d5507998e47c009a",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "integration-stack-957-v1",
+    "file": "integration-stack-957-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "addfa2f2606e3d944f15b3a3e69118282536660d59fec09684c1502e5b8c2c46",
+    "public_sha256": "c041472df3fd6c4785cb9cca7dc70e9f9be3767979f15ceff4e9afc5235b335d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-60368003-8A3F-4EB0-9B80-B122AC626B54",
+    "file": "prepush-957-60368003-8A3F-4EB0-9B80-B122AC626B54-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "61526690513266a46101dd1dd278f6ecc575741c1aa94494c7073ab66f4a7121",
+    "public_sha256": "61526690513266a46101dd1dd278f6ecc575741c1aa94494c7073ab66f4a7121",
+    "normalization": "none",
+    "archive_sha256": "7ce590a7a47826ac73233e78e088fb298e9a66ab3d17fc8e5fb00fbd09a0bf68",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-60368003-8A3F-4EB0-9B80-B122AC626B54",
+    "file": "prepush-957-60368003-8A3F-4EB0-9B80-B122AC626B54-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "eb47aa179030c732c6772af82bb265bb5841b0bc9b883f4684d1b6598c9d431f",
+    "public_sha256": "4aaafb626e032130557eabf4c8a4eb9eaacd00cf62d4c93a370ed9b1f643aba0",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-60368003-8A3F-4EB0-9B80-B122AC626B54",
+    "file": "prepush-957-60368003-8A3F-4EB0-9B80-B122AC626B54-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "fc2a5eacac0dd45cab01629ae3b6680525b5c36ac2e6a98628ebd118294e1138",
+    "public_sha256": "1ddb4cd6fe0b6abdcfec778775b18eef3d4e247ef5707458503b350689537b8f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-A4681B99-47D4-4C30-BC41-BC496624FD8D",
+    "file": "prepush-957-A4681B99-47D4-4C30-BC41-BC496624FD8D-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "6fb06273e13e8d1a1d3c0769b0640584e9a18ff1146f46e0e8a546e64437e8f3",
+    "public_sha256": "6fb06273e13e8d1a1d3c0769b0640584e9a18ff1146f46e0e8a546e64437e8f3",
+    "normalization": "none",
+    "archive_sha256": "028a971bc149a1af0946e02832883134f7d99060161263dd8ecef252d269e5c3",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-A4681B99-47D4-4C30-BC41-BC496624FD8D",
+    "file": "prepush-957-A4681B99-47D4-4C30-BC41-BC496624FD8D-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "5029093eb7626945ff20fae94bdbaac2dc3449acb86f885b367d09bba71f6596",
+    "public_sha256": "e6dce51e63356d6889127d4b267e930621fb50049bd985e1af068d5a8dce5780",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-A4681B99-47D4-4C30-BC41-BC496624FD8D",
+    "file": "prepush-957-A4681B99-47D4-4C30-BC41-BC496624FD8D-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "0146945376c171523eae1a83cffeee033877af78a45eb4af833abbd4ad092ebf",
+    "public_sha256": "901b70f369df734716481d776fa71a8721e309f8b799c885a846559b333964e7",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-242FCC49-A1A5-4D69-9796-2B070A6ED84D",
+    "file": "prepush-957-242FCC49-A1A5-4D69-9796-2B070A6ED84D-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "4c1947c91fdd9d71bae94c5d521f294d1b60ce8560b8ce73516947e00bcca582",
+    "public_sha256": "4c1947c91fdd9d71bae94c5d521f294d1b60ce8560b8ce73516947e00bcca582",
+    "normalization": "none",
+    "archive_sha256": "cf2d889f13b9c76231a1cc1183d38be3d5f0b39bc96cce74bf22c5e4d5593e33",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-242FCC49-A1A5-4D69-9796-2B070A6ED84D",
+    "file": "prepush-957-242FCC49-A1A5-4D69-9796-2B070A6ED84D-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "a23afe888a30f6d4ff147d849debd510ebaf85d2701a350a8212cd1c0e8d06ae",
+    "public_sha256": "3a755efd06f51dece09347c1fa6c09c72fd11102ccb7a3b15bcfac4f917c9aaf",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-242FCC49-A1A5-4D69-9796-2B070A6ED84D",
+    "file": "prepush-957-242FCC49-A1A5-4D69-9796-2B070A6ED84D-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "d9f82818ece5d935c19ccff31b9f6ed596f10c36f57fe9abe0dac1bf2dcc1bf8",
+    "public_sha256": "4c6fb1a9a9a82a863d08d4cc3b9462ee8080f4bf90a278f323ee1d1e186b76a3",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-392FDC34-C084-4A4F-98B3-D0470191C753",
+    "file": "prepush-957-392FDC34-C084-4A4F-98B3-D0470191C753-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "61526690513266a46101dd1dd278f6ecc575741c1aa94494c7073ab66f4a7121",
+    "public_sha256": "61526690513266a46101dd1dd278f6ecc575741c1aa94494c7073ab66f4a7121",
+    "normalization": "none",
+    "archive_sha256": "7ce590a7a47826ac73233e78e088fb298e9a66ab3d17fc8e5fb00fbd09a0bf68",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-392FDC34-C084-4A4F-98B3-D0470191C753",
+    "file": "prepush-957-392FDC34-C084-4A4F-98B3-D0470191C753-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "b09ca3220dacefbbdc683f6eba922e45262f7545d051328f8f167699ce75bd1b",
+    "public_sha256": "09a0da129880def8a354de55705723dc4e9cc1235734a1a793b63c54b3b1962d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-392FDC34-C084-4A4F-98B3-D0470191C753",
+    "file": "prepush-957-392FDC34-C084-4A4F-98B3-D0470191C753-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "2fad768db42db7ce6fd0b64fe031c181d4723ef5608124be0a3e08e1cc218adb",
+    "public_sha256": "9633f473b3e9934c4b3dcb65ad99d48c5c82248adf1e79e66ab430c9578aa51c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-5F03DCDB-0D56-4891-B628-2049A86AF63A",
+    "file": "prepush-957-5F03DCDB-0D56-4891-B628-2049A86AF63A-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "a11ec48a5c847c4dd9d1b85f9810330fe57bc9a97fa0fa52d3fed88fd08c2e5a",
+    "public_sha256": "a11ec48a5c847c4dd9d1b85f9810330fe57bc9a97fa0fa52d3fed88fd08c2e5a",
+    "normalization": "none",
+    "archive_sha256": "9faedad8175d1ee2e0a4caf86966ebd96ac9a2eb994f3f4429006e36428f5b7b",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-5F03DCDB-0D56-4891-B628-2049A86AF63A",
+    "file": "prepush-957-5F03DCDB-0D56-4891-B628-2049A86AF63A-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "e3d11efc3795867234d745a590bf03f14f0f8fdc71a735d8b8452ddfc6f2a328",
+    "public_sha256": "7981889662adc5d3e5be53ab61f6c65a4fdae613d4e7f3537c7e96b94b372605",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-5F03DCDB-0D56-4891-B628-2049A86AF63A",
+    "file": "prepush-957-5F03DCDB-0D56-4891-B628-2049A86AF63A-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "4f4f74e8dec9650847977197ef230f8d304d222c7efe39e20790001f18925aba",
+    "public_sha256": "015683913f09367b867eaafdef80413c5c81d4a443bc019e9aaffcc98fb2c311",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-2EA63867-8B1D-4957-AAA4-DF7076E5537A",
+    "file": "prepush-957-2EA63867-8B1D-4957-AAA4-DF7076E5537A-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "45c9b74098a476d149c689fa26b5a884df8b54d10e61d92ef295452b70c61686",
+    "public_sha256": "45c9b74098a476d149c689fa26b5a884df8b54d10e61d92ef295452b70c61686",
+    "normalization": "none",
+    "archive_sha256": "8d2bef347061dad67d27005186e0eb1ea7731e0b8f1aa42b7dabf8ce64bb60e4",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-2EA63867-8B1D-4957-AAA4-DF7076E5537A",
+    "file": "prepush-957-2EA63867-8B1D-4957-AAA4-DF7076E5537A-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "26f8883b289e0ec689190bb20664f0e9253126898ca5d5fa6ea2f8bd76ce1bc2",
+    "public_sha256": "853f145cd99bb2489abe6c9b715b3402c14315ad288d188dc8a99ecedfe2a783",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-2EA63867-8B1D-4957-AAA4-DF7076E5537A",
+    "file": "prepush-957-2EA63867-8B1D-4957-AAA4-DF7076E5537A-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "cd23265e8c345074f277eb250518aa3f439214d7f9ea40d0937e7c5a26e7744a",
+    "public_sha256": "516290c3af6932ed32fb3dd3eaaf3891c7f4af1de7e9172d0bbd5ec0ad842973",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-7903BA19-5FC6-47EF-BBBE-BCF992E05B7A",
+    "file": "prepush-957-7903BA19-5FC6-47EF-BBBE-BCF992E05B7A-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "8d0e6f6015bf673c88d076bd93f240e43007a0c9925ba9e6ecebb5f1c51857af",
+    "public_sha256": "8d0e6f6015bf673c88d076bd93f240e43007a0c9925ba9e6ecebb5f1c51857af",
+    "normalization": "none",
+    "archive_sha256": "5d14e022bfcedab25b814ce59b3668aa3926206bdc6b0059eda38b242463356d",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-7903BA19-5FC6-47EF-BBBE-BCF992E05B7A",
+    "file": "prepush-957-7903BA19-5FC6-47EF-BBBE-BCF992E05B7A-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "14b0a78dbad1a5f57d622c0a989dc936a85996d625add81520bd0067b3a7876d",
+    "public_sha256": "1b52b6ba67f2a4c521696da69f7c2655c3f11a40d445fc3fded7823376ade0f5",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-7903BA19-5FC6-47EF-BBBE-BCF992E05B7A",
+    "file": "prepush-957-7903BA19-5FC6-47EF-BBBE-BCF992E05B7A-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "faf58193c94d08828ec786af51663aacc3dabc55734de202743ee9cf3dfca1e0",
+    "public_sha256": "16b1c2337b563b1fd675760c3e990c1ebb5b2bc64d19a7ebeddd5753c4f1a4ae",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-9670CFAB-1022-44B8-A9DA-09B0B28A1BB4",
+    "file": "prepush-957-9670CFAB-1022-44B8-A9DA-09B0B28A1BB4-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "9a64d02f82dcae68fd9d5dc4f1fad3c800dce036fb20f99d3168a803d9dcf929",
+    "public_sha256": "9a64d02f82dcae68fd9d5dc4f1fad3c800dce036fb20f99d3168a803d9dcf929",
+    "normalization": "none",
+    "archive_sha256": "302b6e1b59dd32384beb7d6260c7a2a6ff1b619efc06418e6ad149d82f0022a8",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-9670CFAB-1022-44B8-A9DA-09B0B28A1BB4",
+    "file": "prepush-957-9670CFAB-1022-44B8-A9DA-09B0B28A1BB4-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "03c28a24c8e8bd4aa7986c2e5d7bf830c1fdfbbe8a48050cc854f6a388069cf9",
+    "public_sha256": "86a43ae5984f5c3ca9d43c4d844a49c77ac9bffb875fcebe8e6221399fadf525",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-9670CFAB-1022-44B8-A9DA-09B0B28A1BB4",
+    "file": "prepush-957-9670CFAB-1022-44B8-A9DA-09B0B28A1BB4-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "03eacc29846d0bc7cd1ff300332aa04bfd0a7b412ec2af591b34156e05c322e6",
+    "public_sha256": "64301b0ac3a650d983288ec6fde3552b6ef8a5339ddad72b5d789001537e0540",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-A1AC2379-8377-417A-93E0-E3473D6C6C9E",
+    "file": "prepush-957-A1AC2379-8377-417A-93E0-E3473D6C6C9E-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "45c9b74098a476d149c689fa26b5a884df8b54d10e61d92ef295452b70c61686",
+    "public_sha256": "45c9b74098a476d149c689fa26b5a884df8b54d10e61d92ef295452b70c61686",
+    "normalization": "none",
+    "archive_sha256": "8d2bef347061dad67d27005186e0eb1ea7731e0b8f1aa42b7dabf8ce64bb60e4",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-A1AC2379-8377-417A-93E0-E3473D6C6C9E",
+    "file": "prepush-957-A1AC2379-8377-417A-93E0-E3473D6C6C9E-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "25f51a7c9029ae2a049a2d6fbee7ebbb9dbd4146d7648e1582a21ab486fb897f",
+    "public_sha256": "ad126ed45dfe4174d707af8d0171507d983deb80f5dc65512ce48fbbb2ffb086",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-A1AC2379-8377-417A-93E0-E3473D6C6C9E",
+    "file": "prepush-957-A1AC2379-8377-417A-93E0-E3473D6C6C9E-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "2f0eb44789898b670a0c5822f4ab1abd0949e1c31f077e7619eb8ed46775929c",
+    "public_sha256": "f4b722cc320c581a60f7cc3ba65cdb412e49b22e26ebaea452b6896c31502275",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-4209C5C2-BE5A-43ED-935D-18A00748F2D7",
+    "file": "prepush-957-4209C5C2-BE5A-43ED-935D-18A00748F2D7-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "e9d77c11c23c3321a492e6ee5c07c357a5617b62c4c90bf4a2b97723fb7171c6",
+    "public_sha256": "e9d77c11c23c3321a492e6ee5c07c357a5617b62c4c90bf4a2b97723fb7171c6",
+    "normalization": "none",
+    "archive_sha256": "ce6e65877da891f8fdf362972920d54cae2e5a719dbdf7eaa486ac1a6b47e6fe",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-4209C5C2-BE5A-43ED-935D-18A00748F2D7",
+    "file": "prepush-957-4209C5C2-BE5A-43ED-935D-18A00748F2D7-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "96e455fe84b145c59bc78466dd23f479c619f4bafb34b9f0d76eed6995168f77",
+    "public_sha256": "bdeb7f1329d6ea80e44eded639bfdf064c63fcb24ce20c9166494d1c291889f2",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-4209C5C2-BE5A-43ED-935D-18A00748F2D7",
+    "file": "prepush-957-4209C5C2-BE5A-43ED-935D-18A00748F2D7-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "c5cf11c2c7f0b5c6e4251b7c9f5ee41951606d04045c926da61535838b4f4a42",
+    "public_sha256": "4b9772a393f4f934e026c24961157b5ac389081e9801de340f928ff6ebab6831",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-4D10EE8E-D997-40B3-AF35-419886A9A4A1",
+    "file": "prepush-957-4D10EE8E-D997-40B3-AF35-419886A9A4A1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "8d0e6f6015bf673c88d076bd93f240e43007a0c9925ba9e6ecebb5f1c51857af",
+    "public_sha256": "8d0e6f6015bf673c88d076bd93f240e43007a0c9925ba9e6ecebb5f1c51857af",
+    "normalization": "none",
+    "archive_sha256": "5d14e022bfcedab25b814ce59b3668aa3926206bdc6b0059eda38b242463356d",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-4D10EE8E-D997-40B3-AF35-419886A9A4A1",
+    "file": "prepush-957-4D10EE8E-D997-40B3-AF35-419886A9A4A1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "b567e5eb71f1c3fd4016fdc69167a40e2e323a57e18f8bea3f6ae5de3d145964",
+    "public_sha256": "a74b744cede27ed362493db2d02ead45a06d9f3496e76056d1f18ec9779574bb",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-4D10EE8E-D997-40B3-AF35-419886A9A4A1",
+    "file": "prepush-957-4D10EE8E-D997-40B3-AF35-419886A9A4A1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "e349691c9c480edee3e3eae95ca20cf10065a82f56873d12d51ba9eb068c06cb",
+    "public_sha256": "72ca22283fc2838fa908f0d1d4b880da8474be210604a38c8332ea6662db38e6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-ABB89591-D434-4D4B-94A9-F72A4EACC357",
+    "file": "prepush-957-ABB89591-D434-4D4B-94A9-F72A4EACC357-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "9a64d02f82dcae68fd9d5dc4f1fad3c800dce036fb20f99d3168a803d9dcf929",
+    "public_sha256": "9a64d02f82dcae68fd9d5dc4f1fad3c800dce036fb20f99d3168a803d9dcf929",
+    "normalization": "none",
+    "archive_sha256": "302b6e1b59dd32384beb7d6260c7a2a6ff1b619efc06418e6ad149d82f0022a8",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-ABB89591-D434-4D4B-94A9-F72A4EACC357",
+    "file": "prepush-957-ABB89591-D434-4D4B-94A9-F72A4EACC357-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "78e0a5b579f7fd1b0f96cefe184db8c39c6a309d7d61fa40aa200aa821a27b3f",
+    "public_sha256": "3a925c587b6f49c70b9c77e5695850b6e8b569b651e0caa64634b99cffdeb6c2",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-ABB89591-D434-4D4B-94A9-F72A4EACC357",
+    "file": "prepush-957-ABB89591-D434-4D4B-94A9-F72A4EACC357-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "00fe1383651ff8f4f97b0070a195ccc06ab7327e4cf52ad991ad4bf1502f9822",
+    "public_sha256": "396403b6892981c6cbce98962272f73a664ff4ef821e2b4612e5988498f66b63",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-C59DD4CD-BF28-40F5-A6B1-DA9D60E70116",
+    "file": "prepush-957-C59DD4CD-BF28-40F5-A6B1-DA9D60E70116-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "ea9e2ed5f9c66cad3351969516bb4691cad0507e48e6d7a1674b856556b61605",
+    "public_sha256": "ea9e2ed5f9c66cad3351969516bb4691cad0507e48e6d7a1674b856556b61605",
+    "normalization": "none",
+    "archive_sha256": "8206943b7ea661702d21234a107b39ba16c5b5d6239bd6e322fb4c28ffb860e4",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-C59DD4CD-BF28-40F5-A6B1-DA9D60E70116",
+    "file": "prepush-957-C59DD4CD-BF28-40F5-A6B1-DA9D60E70116-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "5ff8fbc06c26e85c17fd6e111d645dfff93b93092c81161b5f63beb604ea6d9c",
+    "public_sha256": "305a91972f90f2a4e74ea2355700366eb48d813d2ca9cb59fd3d25df080d6fd2",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-C59DD4CD-BF28-40F5-A6B1-DA9D60E70116",
+    "file": "prepush-957-C59DD4CD-BF28-40F5-A6B1-DA9D60E70116-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "6ddb733d7b46a0f19b9920fe469e9cdf88a67b342b800ea63220066136352350",
+    "public_sha256": "6fe224007532f2a05a7878d655b120d52224186f16b13e3e9ae2178d8fc10cbd",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-EFD71169-4795-4D66-9D6B-B09ED49009DE",
+    "file": "prepush-957-EFD71169-4795-4D66-9D6B-B09ED49009DE-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "f3caa15e1825cd94d964764af31957e5b0b58b344291b7d4e8cc40ef0de2ac0d",
+    "public_sha256": "f3caa15e1825cd94d964764af31957e5b0b58b344291b7d4e8cc40ef0de2ac0d",
+    "normalization": "none",
+    "archive_sha256": "6451b89e250c36561abffadc8c01fa9e314dfef888f4b795c001e66edad9bd13",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-EFD71169-4795-4D66-9D6B-B09ED49009DE",
+    "file": "prepush-957-EFD71169-4795-4D66-9D6B-B09ED49009DE-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "0231904f3636d5a6f3be29bc229f8696741930f53ab743b0a3ecb1618a31fcda",
+    "public_sha256": "fdfd2090aa5d37ca0cc137e0a21eb7edf796297640a0f476baa2d0861070096d",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-EFD71169-4795-4D66-9D6B-B09ED49009DE",
+    "file": "prepush-957-EFD71169-4795-4D66-9D6B-B09ED49009DE-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "f4160c59c212234fefc9f70ef5176c4d6cc02d31bcd0a2fcc1690b60767a1559",
+    "public_sha256": "4cedd52397f491358e72eb62d548ed702439c33e06842a559533550a4afc8d8e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-07C7584D-4935-4DC5-BA86-18CADAA96DAA",
+    "file": "prepush-957-07C7584D-4935-4DC5-BA86-18CADAA96DAA-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "e9d77c11c23c3321a492e6ee5c07c357a5617b62c4c90bf4a2b97723fb7171c6",
+    "public_sha256": "e9d77c11c23c3321a492e6ee5c07c357a5617b62c4c90bf4a2b97723fb7171c6",
+    "normalization": "none",
+    "archive_sha256": "ce6e65877da891f8fdf362972920d54cae2e5a719dbdf7eaa486ac1a6b47e6fe",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-07C7584D-4935-4DC5-BA86-18CADAA96DAA",
+    "file": "prepush-957-07C7584D-4935-4DC5-BA86-18CADAA96DAA-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "242036029274b3b12dd8791f938801cf9e67a0796100b2ff428be640c8be7f4b",
+    "public_sha256": "530d9db1c7f40d48f52066d8686a1b47ac17450d9173774122cb64c0f554da89",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-07C7584D-4935-4DC5-BA86-18CADAA96DAA",
+    "file": "prepush-957-07C7584D-4935-4DC5-BA86-18CADAA96DAA-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "dbd64c5f70772082d55011d7c285f292fe14e040db8f46d3ac7d7189a72118b0",
+    "public_sha256": "ddac6c9c2fc93345db61762335b7cdff64e60a8ac7ac3535d3690027a6e85751",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-C0880C30-F433-40A9-8DFD-3D044908CD3A",
+    "file": "prepush-957-C0880C30-F433-40A9-8DFD-3D044908CD3A-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "6fb06273e13e8d1a1d3c0769b0640584e9a18ff1146f46e0e8a546e64437e8f3",
+    "public_sha256": "6fb06273e13e8d1a1d3c0769b0640584e9a18ff1146f46e0e8a546e64437e8f3",
+    "normalization": "none",
+    "archive_sha256": "028a971bc149a1af0946e02832883134f7d99060161263dd8ecef252d269e5c3",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-C0880C30-F433-40A9-8DFD-3D044908CD3A",
+    "file": "prepush-957-C0880C30-F433-40A9-8DFD-3D044908CD3A-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "83708ed9860b33d9354e6428fca6651d9480197444a4ea75b7abcd784b1befca",
+    "public_sha256": "799d9729967e1767b16e51127fdf4cecb1b9126f3e112688be8c0ddc9ecf7107",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-C0880C30-F433-40A9-8DFD-3D044908CD3A",
+    "file": "prepush-957-C0880C30-F433-40A9-8DFD-3D044908CD3A-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "7a0225c6666ed585982a8ec6949f4c4dec1fa7a135c9beb806022b594183c24c",
+    "public_sha256": "86c6770a4daad9fded491d7979c9c193700a22437e6e6ec3769d99dd473ac217",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-42CDBC8D-703F-48CA-B3F8-B8AABB2767A6",
+    "file": "prepush-957-42CDBC8D-703F-48CA-B3F8-B8AABB2767A6-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "4c1947c91fdd9d71bae94c5d521f294d1b60ce8560b8ce73516947e00bcca582",
+    "public_sha256": "4c1947c91fdd9d71bae94c5d521f294d1b60ce8560b8ce73516947e00bcca582",
+    "normalization": "none",
+    "archive_sha256": "cf2d889f13b9c76231a1cc1183d38be3d5f0b39bc96cce74bf22c5e4d5593e33",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "prepush-957-42CDBC8D-703F-48CA-B3F8-B8AABB2767A6",
+    "file": "prepush-957-42CDBC8D-703F-48CA-B3F8-B8AABB2767A6-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "2292e5e11ce7a8c12ce544b229724f945b6accef0abad642d32063f42289a28b",
+    "public_sha256": "a5193f9de07af4dfcdcf0c4aeaa6d736a5696b57d67b9220275d27c6157a3e85",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "prepush-957-42CDBC8D-703F-48CA-B3F8-B8AABB2767A6",
+    "file": "prepush-957-42CDBC8D-703F-48CA-B3F8-B8AABB2767A6-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "9b62d4253c77c7f36ce07afbff63785a34efb514ec212892b9410a2298e49eaa",
+    "public_sha256": "93479edac04b8fa3435d55196c2e788731e5a6d58cf3f632420361e989dfd9c1",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-stack-957-v1",
+    "file": "coverage-stack-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "f17e6bbfcaf6384e19360dcfc2d2c0223c7e1941daf8e23f9eb944a7409e5dc3",
+    "public_sha256": "f17e6bbfcaf6384e19360dcfc2d2c0223c7e1941daf8e23f9eb944a7409e5dc3",
+    "normalization": "none",
+    "archive_sha256": "5446fafa17ff7e8a4c5e1ccdf73c68db0aa9af87a8c06c1ebdf5e7433aea89bc",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "coverage-stack-957-v1",
+    "file": "coverage-stack-957-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "3d3655cff969d5f776430c608fd8a9a4fbc0465ec14b0107e93b6d2bdfd21343",
+    "public_sha256": "9a20d2459941f27a5bac39868e728ae4e8f934e15a494ba6eb8a8cd20cca72cd",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "coverage-stack-957-v1",
+    "file": "coverage-stack-957-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "f41de2fb47f9512a606bf7a4e7ed9ced6e46783e51441694d0f37592f224db65",
+    "public_sha256": "4a86bb82c4430ef4cf46681d13ae82619d8b36e5509a41265b63c2973235953e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-stack-957-v1",
+    "file": "packed-stack-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "512ff9dfdbcdb8b242f55ac52938baac2f4b2f227faa6e889f2ae27c874609ba",
+    "public_sha256": "512ff9dfdbcdb8b242f55ac52938baac2f4b2f227faa6e889f2ae27c874609ba",
+    "normalization": "none",
+    "archive_sha256": "0c29eba6842107a1fc570397e79b007a9fb019595d7332fc498a329927e0c494",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "packed-stack-957-v1",
+    "file": "packed-stack-957-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "523ef228a875752be52c9bb9086e5c44146c3f3696f82bed040f9b7263253eb4",
+    "public_sha256": "1c382818b7dfbbd7cb156d173b043d73c50cd31523faf7a43788ed4c756423b5",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-stack-957-v1",
+    "file": "packed-stack-957-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "a087dcdc14aef254a453c3b40b819e633dce14ac10397511d72ef2552f7e22ec",
+    "public_sha256": "c71a3d328e76047dde7cd73c3613f758ce71aff47b5390eb0ce18c1e64f1a5c6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-compat-stack-957-v1",
+    "file": "packed-compat-stack-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "6127119b7965ddb3b841fe6de3aa69e443850c3e54dfd190c80bcdec3450b126",
+    "public_sha256": "6127119b7965ddb3b841fe6de3aa69e443850c3e54dfd190c80bcdec3450b126",
+    "normalization": "none",
+    "archive_sha256": "2d937e5f7f5ec3362b9b7114f329fc06d2b99272fa1c5b631626ff8c62b8e69a",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "packed-compat-stack-957-v1",
+    "file": "packed-compat-stack-957-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "0a23d6dacc20e1ebdcbf8003d9c4bf33fe12215831a265c0cbfbbfcf2a3234fc",
+    "public_sha256": "7309e4b947342fcc72078459bbe4fbd056356c89406a2e6fb515edbb894cc4eb",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-compat-stack-957-v1",
+    "file": "packed-compat-stack-957-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "4106b7b37efc8d1fbf512e43c9b94e942a46f2aff84f4c98ed6d2d610a4cac03",
+    "public_sha256": "1dca3e51f14c42274b58e6f8e8d27672afa819237630f9125a6a2faa30ce664f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "exit_code": 0,
+  "guard_error": null,
+  "peaks": {
+    "build_bytes": 798220288,
+    "/data": 1966080,
+    "<CONTAINER_HOME>": 0,
+    "/tmp": 0,
+    "/dev/shm": 0,
+    "generated_nonobject_bytes": 2347008,
+    "minimum_vm_free_bytes": 694899695616
+  },
+  "stdout_bytes": 0,
+  "timeout_seconds": 1700,
+  "limits": {
+    "build_bytes": 21474836480,
+    "runtime_tmpfs_bytes": 3221225472,
+    "stdout_bytes": 16777216,
+    "generated_nonobject_bytes": 100663296
+  },
+  "evidence_normalization": {
+    "raw_sha256": "7e6d115aa66c66955af11896dbf69f6e215f622a979e4129ace5320a991f9fb8",
+    "transformation": "Guest home mount label replaced with CONTAINER_HOME placeholder; numeric measurements unchanged."
+  }
+}

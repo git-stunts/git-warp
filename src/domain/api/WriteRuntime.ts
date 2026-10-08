@@ -2,6 +2,10 @@ import { isContentIntentDescriptor, type default as Intent } from './Intent.ts';
 import type { default as WarpWorldline, WarpWorldlinePatchBuild } from '../WarpWorldline.ts';
 import WarpError from '../errors/WarpError.ts';
 import WriterError from '../errors/WriterError.ts';
+import PatchError from '../errors/PatchError.ts';
+import MessageCodecError from '../errors/MessageCodecError.ts';
+import CrdtError from '../errors/CrdtError.ts';
+import SyncError from '../errors/SyncError.ts';
 import AdmissionObstructionReason from '../admission/AdmissionObstructionReason.ts';
 import AdmissionRetryDisposition from '../admission/AdmissionRetryDisposition.ts';
 import {
@@ -265,7 +269,7 @@ async function committedWriteEvidence(fields: PublishedWriteFields): Promise<Evi
 }
 
 function operationalWriteFailure(error: WarpError): OperationalWriteFailure | null {
-  if (error.code === 'E_PATCH_NO_STATE') {
+  if (error.code === 'E_PATCH_NO_STATE' || invalidObservationMetadata(error)) {
     return missingWriteBasisFailure();
   }
   if (error.code === 'E_PATCH_DELETE_WITH_DATA') {
@@ -334,4 +338,15 @@ function writeOwnerTargets(intent: Intent): readonly string[] {
 function isMissingOwner(error: WarpError): boolean {
   return error.code === 'E_PATCH_ENTITY_NOT_FOUND' || error.code === 'E_PATCH_CONTENT_UNKNOWN_NODE'
     || error.code === 'E_PATCH_EDGE_PROP_UNKNOWN_EDGE';
+}
+
+const INVALID_PATCH_METADATA_CODES: ReadonlySet<string> = new Set([
+  'E_PATCH_MALFORMED', 'E_PATCH_SCHEMA', 'E_PATCH_WRITER', 'E_PATCH_LAMPORT',
+  'E_PATCH_OPS', 'E_PATCH_METADATA_ENTRY', 'E_PATCH_METADATA_TYPE',
+]);
+
+function invalidObservationMetadata(error: WarpError): boolean {
+  if (error instanceof MessageCodecError || error instanceof CrdtError) { return true; }
+  if (error instanceof SyncError) { return error.code === 'E_SYNC_PATCH_HISTORY'; }
+  return error instanceof PatchError && INVALID_PATCH_METADATA_CODES.has(error.code);
 }

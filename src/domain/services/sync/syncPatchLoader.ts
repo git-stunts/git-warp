@@ -18,6 +18,7 @@ import type CommitPort from '../../../ports/CommitPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type EntityAdmissionBoundary from '../../types/EntityAdmissionBoundary.ts';
+import type ObservedWriteFrontier from '../../types/ObservedWriteFrontier.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -32,6 +33,7 @@ export type DecodedPatch = Readonly<{
   readonly reads?: readonly string[] | undefined;
   readonly writes?: readonly string[] | undefined;
   readonly entityAdmissions?: readonly EntityAdmissionBoundary[] | undefined;
+  readonly observedFrontier?: ObservedWriteFrontier | undefined;
 }>;
 
 export type LoadPatchRangeOptions = Readonly<{
@@ -65,6 +67,7 @@ export function normalizePatch(patch: DecodedPatch): DecodedPatch {
     reads: patch.reads,
     writes: patch.writes,
     entityAdmissions: patch.entityAdmissions,
+    observedFrontier: patch.observedFrontier,
   };
   if (patch.schema === undefined) {
     return new Patch(patchInput);
