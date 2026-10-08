@@ -184,6 +184,26 @@ describe('bounded CLI error projection', () => {
     }
   });
 
+  it('discloses human clipping and omitted cleanup without marking complete output', () => {
+    const root = projector.project(new CliError('😀'.repeat(3000), { code: 'E_USAGE', exitCode: 1 }));
+    const child = projector.project(new Error('Primary', { cause: new Error('c'.repeat(3000)) }));
+    const full = new Error('Primary', {
+      cause: new AggregateError(Array.from({ length: 6 }, () => new Error('Member')), 'Group'),
+    });
+    const cleanup = projector.project(full, new Error('Cleanup'));
+    const nodeOnly = new CliFailureReport({
+      primary: new CliFailureNode({ code: 'E_USAGE', message: 'Shortened', relation: 'cause', truncated: true }),
+      code: 'E_USAGE', exitCode: 1,
+    });
+    for (const report of [root, child, cleanup, nodeOnly]) {
+      const human = codec.encode(report, 'human');
+      expect(human).toContain('Further failure details omitted');
+      expect(new TextEncoder().encode(human).length).toBeLessThanOrEqual(8192);
+    }
+    expect(codec.encode(projector.project(new Error('Complete')), 'human')).not.toContain('omitted');
+    expect(root.exitCode).toBe(1);
+  });
+
   it('clips valid Unicode and checks escaped serialized output including newline', () => {
     expect(failureTextPrefix('😀x', 4)).toBe('😀');
     const report = projector.project(new CliError('😀'.repeat(3000), { code: 'E_USAGE', exitCode: 1 }));
