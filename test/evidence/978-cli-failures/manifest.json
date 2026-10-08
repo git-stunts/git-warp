@@ -1,0 +1,52 @@
+[
+  {
+    "phase": "cli-nested-red-978-v1",
+    "file": "cli-nested-red-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "035208f53c8bca84e0d27275333b7b25158cd74d504cb57afdd2dc2171889508",
+    "public_sha256": "035208f53c8bca84e0d27275333b7b25158cd74d504cb57afdd2dc2171889508",
+    "normalization": "none",
+    "archive_sha256": "c14e8e2a49cf3fd4eaf993f5566904ab22e28cb15f484889b6f252bf8740502d"
+  },
+  {
+    "phase": "cli-nested-red-978-v1",
+    "file": "cli-nested-red-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "0994767188ae0ae48dd173c08fdcfa111e175aa2510bcb0a0f262f387895c9c3",
+    "public_sha256": "6ae937c396c8885611c61398187a3ec273343e318bd72d467b2dde31c143f2d0",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-nested-red-978-v1",
+    "file": "cli-nested-red-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "8c7625cdd523f5af123f4d2cda2cf90767ada21dfbdd49450a641c65a49bf8f1",
+    "public_sha256": "0a7990004a44eff96a76f3e387e306d1a774daea4896a651da91209cc59eabec",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-nested-red-978-v2",
+    "file": "cli-nested-red-978-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "44e9b41f2b7cad222bc06bd8ac2b803712126cc33f31fca33bc0035ef7b9807f",
+    "public_sha256": "44e9b41f2b7cad222bc06bd8ac2b803712126cc33f31fca33bc0035ef7b9807f",
+    "normalization": "none",
+    "archive_sha256": "90366e6163fbdb587c9b8bd6a43fd5371347bcbb0191fe61a3526ba72c5f6d47"
+  },
+  {
+    "phase": "cli-nested-red-978-v2",
+    "file": "cli-nested-red-978-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "a670e81c5056b307c0251b3da64902aaf7eeed52a0b63053a303f31128472a7a",
+    "public_sha256": "2f8fe0df97d7301368ea3664aea8bae64e68bb90471890f125ed36d439ad0e75",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-nested-red-978-v2",
+    "file": "cli-nested-red-978-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "f6340bb1867777bca5091a94a2c977b6ebf1072afb018cae20862afddcdeb862",
+    "public_sha256": "86909e6cdbb97577e126c42592b67f0366691b268d6b5c51ae1c042712aeb2a9",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]
