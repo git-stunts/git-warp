@@ -15,7 +15,10 @@ export default class CliFailureRedactorAdapter {
 
   display(text: string): CliFailureMessageValue {
     const scanned = failureTextPrefix(text, CLI_FAILURE_MESSAGE_BYTES * 2);
-    const sanitized = this.sanitize(scanned);
+    // An authority cut before its delimiter may still contain credentials.
+    const safePrefix = scanned.length < text.length
+      ? scanned.replace(/(https?:\/\/)[^\s/]*$/giu, '$1[REDACTED]') : scanned;
+    const sanitized = this.sanitize(safePrefix);
     const message = failureTextPrefix(sanitized, CLI_FAILURE_MESSAGE_BYTES);
     return { message, truncated: scanned.length < text.length || message.length < sanitized.length };
   }
@@ -26,7 +29,7 @@ export default class CliFailureRedactorAdapter {
     result = result.replace(/\x1B\[[0-?]*[ -/]*[@-~]/gu, '');
     // eslint-disable-next-line no-control-regex -- #978: omit untrusted nonprinting ASCII control bytes.
     result = result.replace(/[\x00-\x08\x0B-\x1F\x7F]/gu, '');
-    result = result.replace(/(https?:\/\/)[^\s/@]+:[^\s/@]+@/gu, '$1[REDACTED]@');
+    result = result.replace(/(https?:\/\/)[^\s/]*@/giu, '$1[REDACTED]@');
     result = result.replace(/\bBearer\s+[^\s,;]+/giu, 'Bearer [REDACTED]');
     result = result.replace(/\b(?:ghp_|github_pat_)[A-Za-z0-9_]+/gu, '[REDACTED]');
     result = this.paths(result);

@@ -147,6 +147,25 @@ describe('bounded CLI error projection', () => {
     expect(new CliFailureRedactorAdapter({ home: '', directory: '' }).message(posix.join(posix.sep, 'home', 'other', 'file'))).toBe('<HOME>/file');
   });
 
+  it('redacts URL credentials across the raw scan boundary and supported authority spellings', () => {
+    for (const message of [
+      'https://u:PRIVATE_PASSWORD' + 'p'.repeat(2048) + '@host/path',
+      'https://PRIVATE_USER@host/path',
+      'HTTPS://u:PRIVATE_PASSWORD@host/path',
+    ]) {
+      const report = projector.project(new Error(message));
+      for (const format of ['human', 'json', 'jsonl']) {
+        if (format === 'human' || format === 'json' || format === 'jsonl') {
+          const emitted = codec.encode(report, format);
+          expect(emitted).not.toContain('PRIVATE_PASSWORD');
+          expect(emitted).not.toContain('PRIVATE_USER');
+          expect(emitted).toContain('[REDACTED]');
+          expect(new TextEncoder().encode(emitted).length).toBeLessThanOrEqual(8192);
+        }
+      }
+    }
+  });
+
   it('clips valid Unicode and checks escaped serialized output including newline', () => {
     expect(failureTextPrefix('😀x', 4)).toBe('😀');
     const report = projector.project(new CliError('😀'.repeat(3000), { code: 'E_USAGE', exitCode: 1 }));
