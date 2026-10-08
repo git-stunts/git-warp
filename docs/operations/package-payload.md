@@ -8,6 +8,8 @@ extraction, inspection, and supply-chain surface.
 This contract defines which path classes may cross the npm publication
 boundary and how the release gate proves that the actual tarball obeys it.
 
+Public declarations carry their required standard-library dependencies. Runtime's emitted declaration preserves a narrow `esnext.disposable` reference so strict ES2022 consumers can import it without a broad ESNext override or `skipLibCheck`. The check of the packed consumer in `scripts/check-packed-disposable.sh` covers all five public entrypoints, explicit disposal typing, and installed close/dispose lifecycle behavior in Docker.
+
 ## Baseline
 
 At `e69c2f970`, after a clean publish build, this command:

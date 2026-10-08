@@ -1,0 +1,184 @@
+[
+  {
+    "phase": "disposable-red-981-v1",
+    "file": "disposable-red-981-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "5db46b7e02cd6712691a826f2f00a408087ce1c17409ff711b5d7aa402138f32",
+    "public_sha256": "5db46b7e02cd6712691a826f2f00a408087ce1c17409ff711b5d7aa402138f32",
+    "normalization": "none",
+    "archive_sha256": "feb32609be9d2c5a678d755bbfda198ad4efe6571c32ff05af23c7029f61dce0",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "disposable-red-981-v1",
+    "file": "disposable-red-981-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "765ab8af382662f89863d0332d31dfc75dba66366a7ed4e34a0c02268590673d",
+    "public_sha256": "6e4354f4ec6ed60a7be84a761785c62fbbe211f737a617828d5d140743338fe7",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-red-981-v1",
+    "file": "disposable-red-981-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "a9b4489d33d0b2a22c2b721ffa8b6f2a9e7dd6f4225c21c765bf56c5c88d20c6",
+    "public_sha256": "75b4e6a49c487272fa24b2dd119eb4577d55c7ae2b5dcae2e6e1c2e36e0b3296",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-matrix-red-981-v1",
+    "file": "disposable-matrix-red-981-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "fef787f641c66a3722b4fd5bcbc8313a1ec8569a9f2e926cd7f5b219ffd709d9",
+    "public_sha256": "fef787f641c66a3722b4fd5bcbc8313a1ec8569a9f2e926cd7f5b219ffd709d9",
+    "normalization": "none",
+    "archive_sha256": "1390ebd23054f6732bd00228cc80d7edb075e7720c7dee267f59ea9c14c60906",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "disposable-matrix-red-981-v1",
+    "file": "disposable-matrix-red-981-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "b1f70f057c94f80a0a2ad8c7ea1b0e53e6c5ea5f17785407a9a6ceae736c88e9",
+    "public_sha256": "168539bfd8395ae8fcabdc84b62028ab0fb7d410439edfa49cbc866fa5f59ac6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-matrix-red-981-v1",
+    "file": "disposable-matrix-red-981-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "56d2f8c1a4adc5c01cdc2dc318df4aa25bf92349fe16ae3e1dd8ce863881e387",
+    "public_sha256": "b705a2afcdd2583aa25ed50bd9e2d463a8310ce022758fc07840362be7c0126b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-green-981-v1",
+    "file": "disposable-green-981-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "9a5d4a8407f5997f4f2e1fad6ce21186750c344551c3a06cc10bc1faa65771f8",
+    "public_sha256": "9a5d4a8407f5997f4f2e1fad6ce21186750c344551c3a06cc10bc1faa65771f8",
+    "normalization": "none",
+    "archive_sha256": "ae5b5ec5c4c3e099e369acb6f83e31a202e2d15a6ae340f6cffb3bfca0848907",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "disposable-green-981-v1",
+    "file": "disposable-green-981-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "b99bb14cb4e3f39509283c325abe20ca02ecb892bb6845afdc7fb1327ac52b2e",
+    "public_sha256": "90bd1d9cccbccf5d04af1f4e0b743634ee779e0bc864eaf3de679ada73641b47",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-green-981-v1",
+    "file": "disposable-green-981-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "f74025a36db25dc07de3c2c297bb32c9f8e58c2802497228da631859ce09c9d9",
+    "public_sha256": "cb3ae3d34aadef96799bd5e91d536b990762929966c2c67a1e92d89987dc0eaa",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-green-981-v2",
+    "file": "disposable-green-981-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "ff835712e254dcb8ef037a583605ac6fdae346da5c76a505d07d8a63df532e13",
+    "public_sha256": "ff835712e254dcb8ef037a583605ac6fdae346da5c76a505d07d8a63df532e13",
+    "normalization": "none",
+    "archive_sha256": "431164d07123e1868642df8dc6e3aec289d5827a18c0a3808769376c3ed80d7d",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "disposable-green-981-v2",
+    "file": "disposable-green-981-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "42f72964b953e604cb5bf9d83f621aa40b7021737ef2a6fe1c9646d340321936",
+    "public_sha256": "b4c815922f6a7eb87d9e73f3bb83a8697b281de46ad8634857e9d11d8360e18c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-green-981-v2",
+    "file": "disposable-green-981-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "952f5b631947d7008453d17b994eaceba5ca0654eda8b8935666e388ed116d2f",
+    "public_sha256": "0c0e4931d2c77bb53c1e58bdd02ca5be330853f84a4280d62efda6335c8775f0",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-green-981-v3",
+    "file": "disposable-green-981-v3-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "d2e069e9ff97897440f9e9ecb7603a5a7c8da92bfa03637f318bed7714d0dd8b",
+    "public_sha256": "d2e069e9ff97897440f9e9ecb7603a5a7c8da92bfa03637f318bed7714d0dd8b",
+    "normalization": "none",
+    "archive_sha256": "30315e345edce138d3dd6e71c624cbd8ea3c8281da75ef2b2608ccb212b64124",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "disposable-green-981-v3",
+    "file": "disposable-green-981-v3-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "dba19d35ccee799a93136083c83854ab90fc65afcc3ac4a6cfb87bb02226c2b6",
+    "public_sha256": "4dcda02e3a49937f8eceb60cf3fdc38532d96aaa2d8ec420268da8be955dfe14",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-green-981-v3",
+    "file": "disposable-green-981-v3-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "a3007fba306391203359bc6b7ae210d84109f2224d99facee4ab1d0563136839",
+    "public_sha256": "e4adb9e20436d51dc085398cc22b89cb55483982c8fd087f320ae36c756505ec",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-runtime-parity-981-v1",
+    "file": "disposable-runtime-parity-981-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "7c266da85493a4b6088596fcafe8256c04b256e6fadab3f09d0961efb9a21023",
+    "public_sha256": "7c266da85493a4b6088596fcafe8256c04b256e6fadab3f09d0961efb9a21023",
+    "normalization": "none",
+    "archive_sha256": "764272e8ce62be69ca4e093a3f9c9455544f4b765926b69e20cc8dc3a4c8e387",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "disposable-runtime-parity-981-v1",
+    "file": "disposable-runtime-parity-981-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "d636801e20881c61373d2e62336135bdabb74ac265a505585aa74f0e219e4b33",
+    "public_sha256": "b39b1d1e91a70c7d33b8705b94ec22bacb6d64b46d532a13e81522b3cff27ed9",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-runtime-parity-981-v1",
+    "file": "disposable-runtime-parity-981-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "9bb8534c5221fdb63704521ab9b57d00b13831eb9e82fdbe8a54facbc7755691",
+    "public_sha256": "175b19f838afb95c0f4299ae17104c6e936688806e2841de750fcff0a315b065",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-runtime-parity-981-v2",
+    "file": "disposable-runtime-parity-981-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "89ab8083f78ddc8979996404afb01414f829d4630dc483695ee578f49890f038",
+    "public_sha256": "89ab8083f78ddc8979996404afb01414f829d4630dc483695ee578f49890f038",
+    "normalization": "none",
+    "archive_sha256": "af45cb9de7bcd12fcebe2337856de83826fdcdf349fed987db73d6e86cd1a1e9",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "disposable-runtime-parity-981-v2",
+    "file": "disposable-runtime-parity-981-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "75201390f5275e8395f6afc0e8818eb5ba6a013aeb53763f7c2c7a8ed81445a8",
+    "public_sha256": "e4a5e968ee2ab2a77f89f46a5bcea52eaa3358a2ce023b40a0e801fd3fef4f9f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-runtime-parity-981-v2",
+    "file": "disposable-runtime-parity-981-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "19ff84de7368524dc0f4b198a2d035e9987289e6fd310e2e11861b0eb09de2df",
+    "public_sha256": "94bfc2923ff688cbb243eb4bc69d056a84af25cc4706e545cb597a43a7d2baae",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]
