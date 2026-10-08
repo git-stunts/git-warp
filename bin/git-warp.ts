@@ -64,15 +64,13 @@ function normalizeResult(result: CommandHandlerResult): NormalizedCommandResult 
 
 type ParsedInvocation = ReturnType<typeof parseArgs>;
 
-/** Short-circuit the various early-exit conditions (help, removed
- *  flags, mutual exclusion, empty command). Returns true iff the
- *  caller should stop. */
-function handleEarlyExits(parsed: ParsedInvocation): boolean {
+/** Emits help/usage or returns the validated command selected for dispatch. */
+function commandToRun(parsed: ParsedInvocation): string | undefined {
   const { options, command } = parsed;
   if (options.help) {
     process.stdout.write(HELP_TEXT);
     process.exitCode = EXIT_CODES.OK;
-    return true;
+    return undefined;
   }
   if (options.json && options.jsonl) {
     throw usageError('--json and --jsonl are mutually exclusive');
@@ -80,9 +78,9 @@ function handleEarlyExits(parsed: ParsedInvocation): boolean {
   if (command === undefined || command === '') {
     process.stderr.write(HELP_TEXT);
     process.exitCode = EXIT_CODES.USAGE;
-    return true;
+    return undefined;
   }
-  return false;
+  return command;
 }
 
 /** Registers SIGINT/SIGTERM handlers that shut down a long-running
@@ -159,13 +157,9 @@ async function emitResult(
  */
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
-  if (handleEarlyExits(parsed)) { return; }
-
-  const { options, command, commandArgs } = parsed;
-  // handleEarlyExits already returned for empty/undefined commands.
-  // Re-narrow here for the compiler since early-exit propagation
-  // doesn't survive the function boundary.
-  if (command === undefined || command === '') { return; }
+  const command = commandToRun(parsed);
+  if (command === undefined) { return; }
+  const { options, commandArgs } = parsed;
 
   const handler = COMMANDS.get(command);
   if (!handler) {
