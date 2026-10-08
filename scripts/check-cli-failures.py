@@ -71,6 +71,7 @@ COMMANDS.set('failure-fixture', async () => {
   if (scenario === 'accessor') {const error=new Error('Safe primary');Object.defineProperty(error,'cause',{get(){process.stdout.write('GETTER_CALLED');throw new Error('PRIVATE_ACCESSOR');}});throw error;}
   if (scenario === 'cycle') {const cause={};cause.cycle=cause;throw new Error('Safe cycle',{cause});}
   if (scenario === 'unicode') throw new Error('😀'.repeat(3000));
+  if (scenario === 'github-tokens') throw new Error('Provider ghp_PRIVATE_TOKEN github_pat_PRIVATE_TOKEN gho_PRIVATE_TOKEN ghu_PRIVATE_TOKEN ghs_PRIVATE_TOKEN ghr_PRIVATE_TOKEN');
   if (scenario === 'credential-boundary') throw new Error('https://u:PRIVATE_PASSWORD'+'p'.repeat(2048)+'@host/path');
   if (scenario === 'aggregate-budget') throw new Error('Primary',{cause:new AggregateError(Array.from({length:7},(_,i)=>new Error('Member '+i)),'Group')});
   if (scenario === 'typed-emergency') throw new CasError('r'.repeat(1024),'WORKSPACE_RETENTION_FAILED',{originalError:new AggregateError(Array.from({length:6},()=>new Error('c'.repeat(1024))),'g'.repeat(1024))});
@@ -89,7 +90,7 @@ COMMANDS.set('failure-fixture', async () => {
     base['NODE_OPTIONS'] = '--import=' + str(preload)
     base['NODE_V8_COVERAGE'] = str(COVERAGE)
     wrapper = str(package / 'bin/git-warp')
-    for scenario in ['retention', 'aggregate', 'privacy', 'accessor', 'cycle', 'unicode', 'credential-boundary', 'aggregate-budget', 'typed-emergency']:
+    for scenario in ['retention', 'aggregate', 'privacy', 'accessor', 'cycle', 'unicode', 'credential-boundary', 'aggregate-budget', 'typed-emergency', 'github-tokens']:
         for mode in ['human', 'json', 'jsonl']:
             environment = base.copy()
             environment['FAILURE_CASE'] = scenario
@@ -98,7 +99,7 @@ COMMANDS.set('failure-fixture', async () => {
             combined = output + error
             require(status == (1 if scenario == 'aggregate' else 3), scenario + ': wrong failure status')
             require(len(combined.encode()) <= 8192, scenario + ': output byte budget exceeded')
-            require(not any(marker in combined for marker in ['PRIVATE_SENTINEL', 'GETTER_CALLED', 'PRIVATE_ACCESSOR', 'PRIVATE_PASSWORD', 'Maximum call stack size exceeded']), scenario + ': private or uncontrolled output')
+            require(not any(marker in combined for marker in ['PRIVATE_SENTINEL', 'GETTER_CALLED', 'PRIVATE_ACCESSOR', 'PRIVATE_PASSWORD', 'PRIVATE_TOKEN', 'Maximum call stack size exceeded']), scenario + ': private or uncontrolled output')
             if scenario in ['retention', 'aggregate']:
                 require('PAGE_BATCH_LIMIT' in combined and '1001' in combined, 'Typed nested cause missing')
             if scenario == 'aggregate':
