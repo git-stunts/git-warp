@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Show bounded typed CLI failure causes and cleanup details in human, JSON, and
+  JSONL output. Preserve the primary failure identity, refuse private raw cause
+  dumps and accessors, terminate cyclic formatting safely, and report signal
+  shutdown failures without reporting success
+  ([#978](https://github.com/git-stunts/git-warp/issues/978)).
+
 - Create absent refs in both SHA-1 and SHA-256 repositories without assuming
   a 40-digit null object ID. Fresh SHA-256 Runtimes can publish their substrate
   marker and admit Lane writes while stale ref-CAS expectations still refuse

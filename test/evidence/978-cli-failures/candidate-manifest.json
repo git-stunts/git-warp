@@ -1,0 +1,402 @@
+[
+  {
+    "phase": "cli-static-978-v1",
+    "file": "cli-static-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "5cca2c06a05f28fadb550eb8cd15bddf62e47c3448970ca9fcc71f196c0a24b4",
+    "public_sha256": "5cca2c06a05f28fadb550eb8cd15bddf62e47c3448970ca9fcc71f196c0a24b4",
+    "normalization": "none",
+    "archive_sha256": "d717b4661c53df321383c8518e12505d7b132add4d1a45849bb81dd5b15328d2"
+  },
+  {
+    "phase": "cli-static-978-v1",
+    "file": "cli-static-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "59d3632903e121391f456c8932d023d8389e7f52f1ed24b7866ff027711c2f13",
+    "public_sha256": "1e100a947c139d486bbff4b095ac5d60250a5409d070f5ceff73cee0210ed2d1",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-static-978-v1",
+    "file": "cli-static-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "7b845d444549f942873177a351ad712ac7ac98f5ee19172fd60b6490b63d32db",
+    "public_sha256": "2f547d444c94c5784e33b789f44cb54cef3fab6b51b05770da57a9eebdd8bd35",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-static-978-v2",
+    "file": "cli-static-978-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "ac9fe37372d72244c7335afebf7ef549d08e59e503ab210f36cf0a85b8199c6a",
+    "public_sha256": "ac9fe37372d72244c7335afebf7ef549d08e59e503ab210f36cf0a85b8199c6a",
+    "normalization": "none",
+    "archive_sha256": "893b3d6b8e197aa06feeabf510c5f9582a31c40488d693d13d5edb45bf61bba6"
+  },
+  {
+    "phase": "cli-static-978-v2",
+    "file": "cli-static-978-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "07c54458bf7c7cdb770c7efaa1bafea86ccb6d8de3bce3937d5a45e0cb68260f",
+    "public_sha256": "514bd8e1b832ccbf2d8e358089e08e574f865e85a53df9d52280c5050adf8597",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-static-978-v2",
+    "file": "cli-static-978-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "5fd9e1a4c384612f766e508f09033aa476b680bf5f0dc531931f10a834878d44",
+    "public_sha256": "8910fb52fc3d2490122b34eb79716abe10c4eedf30160781aa1511b3fe93c26c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-static-978-v3",
+    "file": "cli-static-978-v3-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "ea9e2ed5f9c66cad3351969516bb4691cad0507e48e6d7a1674b856556b61605",
+    "public_sha256": "ea9e2ed5f9c66cad3351969516bb4691cad0507e48e6d7a1674b856556b61605",
+    "normalization": "none",
+    "archive_sha256": "8206943b7ea661702d21234a107b39ba16c5b5d6239bd6e322fb4c28ffb860e4"
+  },
+  {
+    "phase": "cli-static-978-v3",
+    "file": "cli-static-978-v3-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "54479501574f84d97602ba4cb48357524b663ef4a04a4cc5021a4e8c5c734077",
+    "public_sha256": "c140276f207fdb2ad3fcd021faf44a555b1939d74757012d72ed92859b0e614c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-static-978-v3",
+    "file": "cli-static-978-v3-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "0f3981372ddc966730a2a37303e93d87fa3009af9a7efbc97c059b3abe2255a5",
+    "public_sha256": "d099a2032eaf89a6b2001b7a53cc93db4e580af524f65c2abc5ad5a9b1bd9393",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-unit-978-v1",
+    "file": "cli-unit-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "e0d2c0507d8844e77abf152cf65e87cfebc5eae2e9b662c2ffc9a26f2ac7791c",
+    "public_sha256": "e0d2c0507d8844e77abf152cf65e87cfebc5eae2e9b662c2ffc9a26f2ac7791c",
+    "normalization": "none",
+    "archive_sha256": "2bdd295e462a8406443d993d44888600cec9fcd817f6e21ad70531e1e2dd1ea2"
+  },
+  {
+    "phase": "cli-unit-978-v1",
+    "file": "cli-unit-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "03b8b9d8e86eee2cf909ad3c6612a9dbf1eba0629676cef58e0b64dc8429375e",
+    "public_sha256": "bc3636f0d814d5f7ac5bd99b57825022e0f0379da1d1cf33ce4762d10f57e9b5",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-unit-978-v1",
+    "file": "cli-unit-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "7f36f6bd481f473fe9a3021003d574c679ec357d63211793ac293c7a50b29372",
+    "public_sha256": "6a9b55a40e0f46a1ce59f4666ad459f5e2b7770ef0e4d5b8a0ce90acf88f5681",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-unit-978-v2",
+    "file": "cli-unit-978-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "ef481343b4e4e40d04bc3ce4e6b76ff1be9c6ee2586b83127054c579672d1ea8",
+    "public_sha256": "ef481343b4e4e40d04bc3ce4e6b76ff1be9c6ee2586b83127054c579672d1ea8",
+    "normalization": "none",
+    "archive_sha256": "47c35a126432b5171d614c6d7da769306538b3ecf04ee32c805f828bbac33015"
+  },
+  {
+    "phase": "cli-unit-978-v2",
+    "file": "cli-unit-978-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "563ed7ef63318b7ba3bd05482e2500e7471721b169ca224fe8d96c5a94709491",
+    "public_sha256": "6a1e4590aecb1e77cdde948e9e46a4bf561513ad63b49f8da5010a995fd32ff0",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-unit-978-v2",
+    "file": "cli-unit-978-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "e97fa0b18f122a6004d10515f9db8b5af8f720fd4d46563e3a8eb757a2ddec9d",
+    "public_sha256": "0bc1bdd7d9a9baee346e45734094bc5f997149e65dcdcc62216f7e9c01175471",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-unit-978-v3",
+    "file": "cli-unit-978-v3-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "22d49de0ce49cb323c41ce039f078f6420d0defa8c9143199430c0e5d424d83c",
+    "public_sha256": "22d49de0ce49cb323c41ce039f078f6420d0defa8c9143199430c0e5d424d83c",
+    "normalization": "none",
+    "archive_sha256": "fdd41337bd22d8bd4c134c7cb1e2f9e182267cf7c0e0fbeb5925c44757ce55a6"
+  },
+  {
+    "phase": "cli-unit-978-v3",
+    "file": "cli-unit-978-v3-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "b91c2db515fb5bda25305e385c3df118a51c580d9754f2f4e26f0c621a5439c8",
+    "public_sha256": "2962e351e2fd2b42e5cb949f8672d9b5b3eff3a33be66163be66d390f8bc0589",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-unit-978-v3",
+    "file": "cli-unit-978-v3-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "0e19e72f86cd70e5ccdf397603adfbb2d19649f9d067631b9bf5f58ea4ebffa3",
+    "public_sha256": "18dc3b74a21cac92e17fec26d504de717bd9dc04e10fe479456039f3d8872082",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-coverage-978-v1",
+    "file": "cli-coverage-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "4345cfecdab834c2ba7f9515378e43edd8014287fe4190ae69a6e1435e316e9c",
+    "public_sha256": "4345cfecdab834c2ba7f9515378e43edd8014287fe4190ae69a6e1435e316e9c",
+    "normalization": "none",
+    "archive_sha256": "d5ee5dab1a2df1a7fbc3c2e6e6aae0be7d2c3b26b960759f0f0bcfcce994f06b"
+  },
+  {
+    "phase": "cli-coverage-978-v1",
+    "file": "cli-coverage-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "f69929b38a8c3d914446a1c28f23e20d920df018d1b524c13be326d62a293194",
+    "public_sha256": "1959bb4fbdf11b4fb6d6b075ecff71995c14e3cafc092aec3490592d470ca846",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-coverage-978-v1",
+    "file": "cli-coverage-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "9365801f2972b97032b8ba1e588ae7af54d961c5ad664c721a5fa7bba6591fdc",
+    "public_sha256": "6d926af36d47eee3ac9b79022934a0150185023d2363e57389acbc7c9ff94056",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-coverage-978-v2",
+    "file": "cli-coverage-978-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "429419c790c7189428a98e48ae3b29dd2a8f9b5be8ca955420f332777eb61bf2",
+    "public_sha256": "429419c790c7189428a98e48ae3b29dd2a8f9b5be8ca955420f332777eb61bf2",
+    "normalization": "none",
+    "archive_sha256": "0f3587a95317a61073053c7ec9406cf70db7bab012a0da6a294f96dc640f81da"
+  },
+  {
+    "phase": "cli-coverage-978-v2",
+    "file": "cli-coverage-978-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "f03c7e0b530111f0dc61198feb17a3fa4be13c79e5724439b2f367927472cb3c",
+    "public_sha256": "1cc068a6b7e08d3f70cd426697dd918c0388e4b83b68e377c6a43ffeca2f6a2c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-coverage-978-v2",
+    "file": "cli-coverage-978-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "a728e5c668fa01a1b97c38c0c53183828628e088b1545548d1283d6cf96f5e0a",
+    "public_sha256": "f97a81926a201c106cce370af3bda8731993cd622061e05d0da771ae3f4ea9af",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-coverage-978-v3",
+    "file": "cli-coverage-978-v3-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "c85eafee6c303fd46f4bcf40bcbbf628133c0417dbd56f392e0103ab4981ff98",
+    "public_sha256": "c85eafee6c303fd46f4bcf40bcbbf628133c0417dbd56f392e0103ab4981ff98",
+    "normalization": "none",
+    "archive_sha256": "0d9751296d06418380899455fbcd2b176330ef89d115dcd30350969739c494ba"
+  },
+  {
+    "phase": "cli-coverage-978-v3",
+    "file": "cli-coverage-978-v3-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "108237ecf40024ea9288b93684d81d235b18dddc2912c2ab264728bda77dc6e5",
+    "public_sha256": "7dd66c015e3e508644c730069cca51499cd0d3c74ebfd73eec09b867271b17c0",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-coverage-978-v3",
+    "file": "cli-coverage-978-v3-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "35162f56304531a95dd1efb2927df3a089c4a7c2ab2839ee54da8ce56a799360",
+    "public_sha256": "0c625603568e67d3b210eb175f1e3861d33915b1a340787d778ea96bd01a0f86",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-coverage-978-v4",
+    "file": "cli-coverage-978-v4-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "bd74d3872b4df25f60945c3c19b82f82c7106bfe283cc1f77c1f85f7c722945d",
+    "public_sha256": "bd74d3872b4df25f60945c3c19b82f82c7106bfe283cc1f77c1f85f7c722945d",
+    "normalization": "none",
+    "archive_sha256": "909a0c0601f9bfac3f011fbd099e36641ec5f6475609de6c51231aa631606df3"
+  },
+  {
+    "phase": "cli-coverage-978-v4",
+    "file": "cli-coverage-978-v4-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "a91410bc2f524c22646246b66a20287df6f2a57e4ba43108f1c861f13dc4994f",
+    "public_sha256": "be3cbc916e4a57bdfea56394eab5aaf46e5f7d52deb62a3fc608b5df1aad4850",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-coverage-978-v4",
+    "file": "cli-coverage-978-v4-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "409163e5bb358f395b6003952868793b06421a6f3f6052920d3b6028934ba360",
+    "public_sha256": "2a135b709bcc580da58c11f4afcb079bd1bd430064a923ee33a52b96c9dd1459",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-nested-green-978-v1",
+    "file": "cli-nested-green-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "90eac56e773b941696d7bfd8bbf2b7865e1a68d9da47795296a8944c930be1df",
+    "public_sha256": "90eac56e773b941696d7bfd8bbf2b7865e1a68d9da47795296a8944c930be1df",
+    "normalization": "none",
+    "archive_sha256": "01d60a8816a38cda9672f4786547ed8ca653357ab20ac6b122646191f8cf8356"
+  },
+  {
+    "phase": "cli-nested-green-978-v1",
+    "file": "cli-nested-green-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "4330cbde4a1c9559aac032cfc4bd64ce6076da69800537d4ffbdc855fd054a3e",
+    "public_sha256": "6eac4c70832523170a751750d990b0b8c12965e65f0016e925fcec7fb735800e",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-nested-green-978-v1",
+    "file": "cli-nested-green-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "73da8031e1b06e515a3b527b2568c8ac1cd6205dfbcc9df6799b7aa8b0a027cf",
+    "public_sha256": "c7aadeae39452025f2518f6fecc1ee59dbee03a0024a3a5ec7b4fdfece4307be",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-boundaries-green-978-v1",
+    "file": "cli-boundaries-green-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "5a56aaf232eac16b3fd58dce2a725f5dacbbd0fbc686dd68d9c2f4107c71fd30",
+    "public_sha256": "5a56aaf232eac16b3fd58dce2a725f5dacbbd0fbc686dd68d9c2f4107c71fd30",
+    "normalization": "none",
+    "archive_sha256": "4903d2596c50530438aef19c6c1d387a38730cb42e8176ce8216ead2ec08e51f"
+  },
+  {
+    "phase": "cli-boundaries-green-978-v1",
+    "file": "cli-boundaries-green-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "26e759f7fc7cbbc1aa3e8f61a12769077bf30c774572ae9934f102275ab63780",
+    "public_sha256": "52a9885e5c970b10b07f5b5467ecd91e90cf1f5016d19a39b17ad61433a81aa4",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-boundaries-green-978-v1",
+    "file": "cli-boundaries-green-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "179dacc972e91065d96dd36397c26abd673e940e1ae2b9825a8958d5fc3aa1b1",
+    "public_sha256": "685590fd023c0284c5acc84142f972659edb2b89d858695ed5cb53830ad4b94a",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-final-coverage-978-v1",
+    "file": "cli-final-coverage-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "e325c4c5cc7a5978ae1adff1654b9909c28a3336c674078f19cad86267ad0634",
+    "public_sha256": "e325c4c5cc7a5978ae1adff1654b9909c28a3336c674078f19cad86267ad0634",
+    "normalization": "none",
+    "archive_sha256": "7f8d6be914b23e9fb8e674d55e67be939e108aedc3439d4a5e5ccd361008ae4d"
+  },
+  {
+    "phase": "cli-final-coverage-978-v1",
+    "file": "cli-final-coverage-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "369fb7d9a26b722f264a7088f7aa693acf6f04725583982b84a78fb665cef86a",
+    "public_sha256": "9cad66cb3615f91c80cb9873593a27afc31c81736ab0c1c92d692ba35f062477",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-final-coverage-978-v1",
+    "file": "cli-final-coverage-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "fbe3d9329e4e2644edd490cd3d3ef7a38d26392cbf409af51d96fa813dcec568",
+    "public_sha256": "9ae0115605cacd89867babf7e8c6fff48b4ab1e016583560a73f920a102d5122",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-native-final-978-v1",
+    "file": "cli-native-final-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "c9bdc1a9a2087bcdb0df060262470469a37f08ddf2617dfade0f49a02588763a",
+    "public_sha256": "c9bdc1a9a2087bcdb0df060262470469a37f08ddf2617dfade0f49a02588763a",
+    "normalization": "none",
+    "archive_sha256": "371c8831cb07eee7207b391be5c568ba8bdd72816391add3d24070ffed16cef4"
+  },
+  {
+    "phase": "cli-native-final-978-v1",
+    "file": "cli-native-final-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "6a94e0f07cc5795078498eb3659e558b3b66f54a761c5a0fc44f6833d0f0f6cd",
+    "public_sha256": "fa88e499a756cddc7219e6fe6b7f68037a658c07452f780ef0202031e47758af",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-native-final-978-v1",
+    "file": "cli-native-final-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "9a74e10df607f7954e21f555943a97d7c9dd3e8ccab39fbccfade0881c81af13",
+    "public_sha256": "bc5f3e3e5d380d47112c29b47add8ab691f016c4cbdbbc9881d401c23d4d725b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-native-final-978-v2",
+    "file": "cli-native-final-978-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "862391720514b3b211825764f172becba19a5b029c45c090bb52aa70211b8fc7",
+    "public_sha256": "862391720514b3b211825764f172becba19a5b029c45c090bb52aa70211b8fc7",
+    "normalization": "none",
+    "archive_sha256": "575ddf98461336f939acb7404d581a71ab9efa1909028acf6407fb362a6caee3"
+  },
+  {
+    "phase": "cli-native-final-978-v2",
+    "file": "cli-native-final-978-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "61ccb91f873a534991361d4c0d1b4a55c28f6fbed50ee0b16d384170094ea19b",
+    "public_sha256": "4efda97ce5aa4aa10020e14f11878291e3916bc317c5e4def7f24760e4df2495",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-native-final-978-v2",
+    "file": "cli-native-final-978-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "0883c96e06ae441dd9525c376a167197ec7a9871aa0df0eebe94ee4983762857",
+    "public_sha256": "59395afb12d97c8488f0c042b8b0d619fb1ceb33de422ab5cda6731956b59227",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-native-final-978-v3",
+    "file": "cli-native-final-978-v3-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "2c6e08ecae76ed302406844797502ae44f568870d69206c2710faa17fd4d6893",
+    "public_sha256": "2c6e08ecae76ed302406844797502ae44f568870d69206c2710faa17fd4d6893",
+    "normalization": "none",
+    "archive_sha256": "af6f2b9ed737ccd7a7bbf2238b669e3d8aa6be1be10e5f3ee0ee8850bf6565dc"
+  },
+  {
+    "phase": "cli-native-final-978-v3",
+    "file": "cli-native-final-978-v3-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "93cb59b8be18dc6f7fc3babc2ff13442bce874e3eea4dfd0da65afc36c09aa26",
+    "public_sha256": "7a923266be96afc8a3a28f7e0392a2fbee55e0293812cd17bcf7c58e6c7e5511",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-native-final-978-v3",
+    "file": "cli-native-final-978-v3-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "898a95340e00192d261bf886e90903a544eb3a68cb0ce0b670d84ef69a0369d0",
+    "public_sha256": "028fc89fb5d2b95f8623ed1b4f7470197692f02eef28ec2b9f8ad494228471d7",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]

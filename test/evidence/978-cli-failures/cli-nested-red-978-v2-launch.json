@@ -1,0 +1,41 @@
+{
+  "phase": "cli-nested-red-978-v2",
+  "inner_guard_sha256": "2e898488b42ef2d6885c79a124d3deef5cc17086f5b8846e75833145a75dd27d",
+  "worker": "git-warp-tests",
+  "image": "sha256:9f145953f6e79a59749a683d11a476133cb7cef0588b79256dc195b1d0c87ad7",
+  "source_base": "5c82ba6ca168d07b743fac5c6adbf38822ae0302",
+  "source_archive_sha256": "ae150b54b773d8c0ed7da4af88f7d8b200ea8dba78b57d11ff88036d87477697",
+  "source_archive_bytes": 21196800,
+  "baseline_inputs": {},
+  "command": [
+    "python3",
+    "-c",
+    "from pathlib import Path\nimport os,subprocess,tempfile,shutil,json\nroot=Path.cwd();work=Path(tempfile.mkdtemp(prefix='cli-error-red-',dir=os.environ['TMPDIR']))\ntry:\n pack=work/'pack';pack.mkdir();consumer=work/'consumer';consumer.mkdir()\n subprocess.run(['node','scripts/package-payload/CheckPackagePayload.ts','--pack-destination',str(pack)],check=True,timeout=60)\n subprocess.run(['npm','init','-y'],cwd=consumer,stdout=subprocess.DEVNULL,check=True,timeout=30)\n subprocess.run(['npm','install','--ignore-scripts','--no-audit','--no-fund','--fetch-retries=0','--fetch-timeout=15000',str(next(pack.glob('*.tgz')))],cwd=consumer,stdout=subprocess.DEVNULL,check=True,timeout=60)\n package=consumer/'node_modules/@git-stunts/git-warp'\n preload=consumer/'inject-failure.mjs'\n source=\"import {CasError} from '@git-stunts/git-cas';import {COMMANDS} from \"+json.dumps((package/'dist/bin/cli/commands/registry.js').as_uri())+\";import {CliError} from \"+json.dumps((package/'dist/bin/cli/infrastructure.js').as_uri())+\";COMMANDS.set('failure-fixture',async()=>{const batch=new CasError('Batch object count 1001 exceeds maximum 1000','PAGE_BATCH_LIMIT');const retention=new CasError('Workspace staged a batch but could not establish retention','WORKSPACE_RETENTION_FAILED',{originalError:batch,privateCredential:'DO_NOT_DISCLOSE'});if(process.env.FAILURE_CASE==='metadata')throw retention;return {human:'START',completion:Promise.reject(new CliError('Primary command failed',{code:'E_USAGE',exitCode:1,cause:retention})),close:async()=>{throw new Error('Secondary cleanup failed');}};});\"\n preload.write_text(source)\n failures=[]\n for scenario in ['metadata','aggregate-cleanup']:\n  for mode in ['human','json','jsonl']:\n   env=os.environ.copy();env['NODE_OPTIONS']='--import='+str(preload);env['FAILURE_CASE']=scenario\n   arguments=[] if mode=='human' else ['--'+mode]\n   r=subprocess.run(['node',str(package/'bin/git-warp'),'failure-fixture',*arguments],cwd=consumer,env=env,capture_output=True,text=True,timeout=30)\n   print('ACTUAL_INSTALLED_CLI_FAILURE',scenario,mode,'exit',r.returncode,'stdout',repr(r.stdout),'stderr',repr(r.stderr),flush=True)\n   emitted=r.stdout+r.stderr\n   assert 'DO_NOT_DISCLOSE' not in emitted\n   if 'PAGE_BATCH_LIMIT' not in emitted or '1001' not in emitted:failures.append(scenario+':'+mode+':nested-code-missing')\n   if scenario=='aggregate-cleanup' and ('E_USAGE' not in emitted or 'Secondary cleanup failed' not in emitted):failures.append(scenario+':'+mode+':primary-or-cleanup-missing')\n print('NESTED_CLI_ACCEPTANCE_FAILURES',failures,flush=True)\n if failures:raise SystemExit(1)\nfinally:\n shutil.rmtree(work)"
+  ],
+  "lock_store": "workstation.git",
+  "lock_keys": [
+    "host/docker/git-warp-tests/"
+  ],
+  "outputs": [
+    "build volume /app",
+    "runtime /data",
+    "bounded /tmp and <CONTAINER_HOME> and /dev/shm",
+    "Docker rotated log",
+    "host receipts"
+  ],
+  "host_free_bytes": 720633540608,
+  "host_receipt_bytes": 71386557,
+  "build_limit_bytes": 21474836480,
+  "data_quota_bytes": 3221225472,
+  "generated_nonobject_limit_bytes": 100663296,
+  "stdout_limit_bytes": 16777216,
+  "memory_bytes": 8589934592,
+  "cpus": 4,
+  "cpu_affinity": "0-3",
+  "pids_limit": 768,
+  "timeout_seconds": 1700,
+  "stop_boundary": "git-warp-tests",
+  "guard": "inner guard plus outer host free/log monitor; read-only container root",
+  "vm_free_bytes": 684899598336,
+  "initial_build_bytes": 2336874496
+}
