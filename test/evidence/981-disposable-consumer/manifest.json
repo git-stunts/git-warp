@@ -1,0 +1,54 @@
+[
+  {
+    "phase": "disposable-red-981-v1",
+    "file": "disposable-red-981-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "5db46b7e02cd6712691a826f2f00a408087ce1c17409ff711b5d7aa402138f32",
+    "public_sha256": "5db46b7e02cd6712691a826f2f00a408087ce1c17409ff711b5d7aa402138f32",
+    "normalization": "none",
+    "archive_sha256": "feb32609be9d2c5a678d755bbfda198ad4efe6571c32ff05af23c7029f61dce0",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "disposable-red-981-v1",
+    "file": "disposable-red-981-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "765ab8af382662f89863d0332d31dfc75dba66366a7ed4e34a0c02268590673d",
+    "public_sha256": "6e4354f4ec6ed60a7be84a761785c62fbbe211f737a617828d5d140743338fe7",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-red-981-v1",
+    "file": "disposable-red-981-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "a9b4489d33d0b2a22c2b721ffa8b6f2a9e7dd6f4225c21c765bf56c5c88d20c6",
+    "public_sha256": "75b4e6a49c487272fa24b2dd119eb4577d55c7ae2b5dcae2e6e1c2e36e0b3296",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-matrix-red-981-v1",
+    "file": "disposable-matrix-red-981-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "fef787f641c66a3722b4fd5bcbc8313a1ec8569a9f2e926cd7f5b219ffd709d9",
+    "public_sha256": "fef787f641c66a3722b4fd5bcbc8313a1ec8569a9f2e926cd7f5b219ffd709d9",
+    "normalization": "none",
+    "archive_sha256": "1390ebd23054f6732bd00228cc80d7edb075e7720c7dee267f59ea9c14c60906",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "disposable-matrix-red-981-v1",
+    "file": "disposable-matrix-red-981-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "b1f70f057c94f80a0a2ad8c7ea1b0e53e6c5ea5f17785407a9a6ceae736c88e9",
+    "public_sha256": "168539bfd8395ae8fcabdc84b62028ab0fb7d410439edfa49cbc866fa5f59ac6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "disposable-matrix-red-981-v1",
+    "file": "disposable-matrix-red-981-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "56d2f8c1a4adc5c01cdc2dc318df4aa25bf92349fe16ae3e1dd8ce863881e387",
+    "public_sha256": "b705a2afcdd2583aa25ed50bd9e2d463a8310ce022758fc07840362be7c0126b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]
