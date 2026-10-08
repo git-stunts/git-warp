@@ -60,9 +60,11 @@ try:
                 raise AssertionError('Actual MCP did not close gracefully under ' + stopping.name + ': ' + error)
             print('ACTUAL_MCP_SIGNAL_CLEAN_EXIT', stopping.name, flush=True)
         finally:
-            if process.poll() is None:
+            try:
                 os.killpg(process.pid, signal.SIGKILL)
-                process.wait(timeout=5)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
 
     measured = {'baseline': [], 'candidate': []}
     for index in range(SAMPLES):

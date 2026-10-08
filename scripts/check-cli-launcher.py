@@ -6,7 +6,6 @@ import shutil
 import signal
 import subprocess
 import tempfile
-import time
 
 if not Path('/.dockerenv').exists():
     raise SystemExit('CLI launcher tests require Docker')
@@ -92,9 +91,13 @@ try:
             output, error = process.communicate(timeout=TIMEOUT)
             require(process.returncode == 0 and marker.read_text() == stop.name and error == '', 'signal was not delivered to selected entry or cleanup failed')
         finally:
-            if process.poll() is None:
+            # A wrapper may die before its child. Reap the whole owned group
+            # even when the parent already has an exit status.
+            try:
                 os.killpg(process.pid, signal.SIGKILL)
-                process.wait(timeout=5)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
     print('LAUNCHER_BOUNDARY SIGINT-SIGTERM-cleanup PASS', flush=True)
     import json
     reports = []

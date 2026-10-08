@@ -1,0 +1,202 @@
+[
+  {
+    "phase": "packed-compat-984-v1",
+    "file": "packed-compat-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "1724c8f06f8e9f34202362e1ff170cd63e8db4c420ea9ad259fb84b37ef202a7",
+    "public_sha256": "1724c8f06f8e9f34202362e1ff170cd63e8db4c420ea9ad259fb84b37ef202a7",
+    "normalization": "none",
+    "archive_sha256": "1e824fe0bc245a051eb6d2dd93219e5322df4062cdcdd3ba9b7683238411ab37"
+  },
+  {
+    "phase": "packed-compat-984-v1",
+    "file": "packed-compat-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "2748aa7a614200be6241a36459f06adc40d12147d656671deaa35129969b505f",
+    "public_sha256": "baafd278f54f9ca6461e3eb9e7afa68174a5f478d062dc5d7b3cc0d49a166e63",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-compat-984-v1",
+    "file": "packed-compat-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "2c591bf47727186543294673d86e30fc9254033b06ed97d7ddfbd23af785addc",
+    "public_sha256": "e862b9255a632a5231d171566ec13eeb67525b92a9b18f77a4c91f12cbdc0816",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-min-source-984-v1",
+    "file": "launcher-min-source-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "be11881ad6e6c44848c93b03747b629f65870516eeb00a1602fc9ab0207aee6d",
+    "public_sha256": "be11881ad6e6c44848c93b03747b629f65870516eeb00a1602fc9ab0207aee6d",
+    "normalization": "none",
+    "archive_sha256": "6aeff4727bb3e9e6dc1ff2986b9aeedbcb30f290aa5445325db707344b6024a1"
+  },
+  {
+    "phase": "launcher-min-source-984-v1",
+    "file": "launcher-min-source-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "8b728e172f4dab124c5b205791835b5455f211a7c5c80391cec0c6e9528abc98",
+    "public_sha256": "31970260f726349043def5c39faf9ab0ba73441be0feb18ea99f38248557606b",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-min-source-984-v1",
+    "file": "launcher-min-source-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "88dc67624a1de919098079c38f84a04ad36ffc2325178864151832782f446094",
+    "public_sha256": "86569a6a891dcd2186ac34545e2a2119eee62e111637a819032e97b576623137",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-min-source-984-v2",
+    "file": "launcher-min-source-984-v2-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "22a4a834ad730dd49f3ff500a0aa9324dc12af747cfb42d7df713a87f0b547e8",
+    "public_sha256": "22a4a834ad730dd49f3ff500a0aa9324dc12af747cfb42d7df713a87f0b547e8",
+    "normalization": "none",
+    "archive_sha256": "f45ac7850c7b1b46d2986a98fb51fa05b117099ced40e46445aafd2dbcebc0ff"
+  },
+  {
+    "phase": "launcher-min-source-984-v2",
+    "file": "launcher-min-source-984-v2-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "e9eef5fcda7c5389c39fa612ff33f67e1727976e0eeca913eba536e5fe4b7db9",
+    "public_sha256": "0c38c4d85c344bca562e61040b9071909fbabf750c0ea4a7f3769cffdf67a363",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-min-source-984-v2",
+    "file": "launcher-min-source-984-v2-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "71ceb8358b2b704cd8082f2294edc40b24304926571b4a0d3de87ce0203741f3",
+    "public_sha256": "feed2ec3bf5e1e86a15d51f3c0683362d1e9333b73c8cdd16685c32712d4d16f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-min-source-984-v3",
+    "file": "launcher-min-source-984-v3-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "73462d572dc47add438d9032b908d8695e630522891b1d3172ff57121956f015",
+    "public_sha256": "73462d572dc47add438d9032b908d8695e630522891b1d3172ff57121956f015",
+    "normalization": "none",
+    "archive_sha256": "260028f5531f7d8b5e914429e2b14577a822f11f87a1be5c92fb1dbfb63a93d1"
+  },
+  {
+    "phase": "launcher-min-source-984-v3",
+    "file": "launcher-min-source-984-v3-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "c6eb7bea80a53581ea2d010b3874a8733078167735fe987c40d7b444d5240a99",
+    "public_sha256": "f4f71f751486a5d0a9a1426a735f75fab1664d31dbf3cf4e8ce11dd552206d31",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-min-source-984-v3",
+    "file": "launcher-min-source-984-v3-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "b4cb2fd04a10a659f43f7d02593dd3054cf6b0797279664d669695a3ce67f0c0",
+    "public_sha256": "3746a55bd0402770f385bb0a68b3de4e0104956325ab06ae1c4c0c6b9e62e9d8",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-cleanup-failure-984-v1",
+    "file": "launcher-cleanup-failure-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "5231ee3d23cb51b6950637a2aac903966af5c4375a094847cffd1c66c71029af",
+    "public_sha256": "5231ee3d23cb51b6950637a2aac903966af5c4375a094847cffd1c66c71029af",
+    "normalization": "none",
+    "archive_sha256": "8e8a497db23a6ab45150bc449725e82fcdf225c2b08c4d3e4754a26f1d1ff313"
+  },
+  {
+    "phase": "launcher-cleanup-failure-984-v1",
+    "file": "launcher-cleanup-failure-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "0825f34f88da8372b139d1a3ca261a3e4bb4b7bd0c01de46dbb0ad9acfbcd81a",
+    "public_sha256": "50e16332b2e1611d036fc08b1328fde6cbe2f86c3ac254c2dc767703fe0394ea",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-cleanup-failure-984-v1",
+    "file": "launcher-cleanup-failure-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "d5f9ee1326801957ea0d861e47f5fe226588d08808ffeb6265b24657459deeb5",
+    "public_sha256": "c1a0c961ce29736b1c756700e756257c502143131a5b636455c28a21cf2c73f6",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-portable-process-red-984-v1",
+    "file": "launcher-portable-process-red-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "523512b07ebbcc5f232bc71758ab8f32b4c089f068c43f6cc108fde8f32ed1e7",
+    "public_sha256": "523512b07ebbcc5f232bc71758ab8f32b4c089f068c43f6cc108fde8f32ed1e7",
+    "normalization": "none",
+    "archive_sha256": "adaa2c826de6f0b27eb5a1e264b1eee58f78db2f936932722a5ca97c083f599a"
+  },
+  {
+    "phase": "launcher-portable-process-red-984-v1",
+    "file": "launcher-portable-process-red-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "35913ae6b5c9c49440b25b7f8bfa4acb0b490b2df371c81ff381e14506193f99",
+    "public_sha256": "753ef9f362962682e65dc608c1b3a0654d6ed8c51ac892935542fa1004a28f13",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-portable-process-red-984-v1",
+    "file": "launcher-portable-process-red-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "19ac57a4070f45c21da68cce299fddcef59bbb7d62cbc63f4f29a5c615f2022e",
+    "public_sha256": "745e52657d8ca9d27a99eac24dddf9779e09cea0eb625e08823932e58e68aaef",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-bats-green-984-v1",
+    "file": "launcher-bats-green-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "0d46a7278860618ce9153c1c8ebfb6aa647112acf8628829a9b896d1d5b0539d",
+    "public_sha256": "0d46a7278860618ce9153c1c8ebfb6aa647112acf8628829a9b896d1d5b0539d",
+    "normalization": "none",
+    "archive_sha256": "fc4022e112a4897f56e3358401e250634c8fa104e842471ed1fd8e9657c7e4fa"
+  },
+  {
+    "phase": "launcher-bats-green-984-v1",
+    "file": "launcher-bats-green-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "535b7b7251cf8ddb47f7c57bd95e21f1bbab4f567c5390df83b819016b6362f5",
+    "public_sha256": "62821d8f436330868227611eac6271fec0887559a768a64d2c95402cfadf7073",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-bats-green-984-v1",
+    "file": "launcher-bats-green-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "7a0d9cf3068b57cbdcaed3856181ad750b5c5caffd5c9ce85f374e4771cbb1e9",
+    "public_sha256": "4182f4ec0c337a4e2cb0204b3d8c138ba5bb95d408afc4e41f594b5e6305ed59",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-startup-cleanup-984-v1",
+    "file": "launcher-startup-cleanup-984-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "1f6b93cef9941d6abb4698a7d03d00bc4b41fa94ff2d692bcc9ecc9fd18a6b75",
+    "public_sha256": "1f6b93cef9941d6abb4698a7d03d00bc4b41fa94ff2d692bcc9ecc9fd18a6b75",
+    "normalization": "none",
+    "archive_sha256": "7124a86900b9e8450cb4292a0384f69a1e60fd6be3cbccd47848df816ca5f6ad"
+  },
+  {
+    "phase": "launcher-startup-cleanup-984-v1",
+    "file": "launcher-startup-cleanup-984-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "d3d75b05834745538a44de5d071796b839ebb10c8634096de04c1019dfc9f209",
+    "public_sha256": "decf43f0a92b22ef20d029dd998573d0fd1a202bf0ae63e5e07f7253b180f982",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "launcher-startup-cleanup-984-v1",
+    "file": "launcher-startup-cleanup-984-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "f9572c2bb4ea4dd74b359f0fc91edfb5a065da1005c9ed81dd3d6ee8eb8c8b96",
+    "public_sha256": "d806089b2a0be3b616f7022eff6e8b9830ad4d130f5fd7c03e81607afc95d3b9",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  }
+]
