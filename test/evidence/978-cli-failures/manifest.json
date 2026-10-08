@@ -48,5 +48,30 @@
     "original_sha256": "f6340bb1867777bca5091a94a2c977b6ebf1072afb018cae20862afddcdeb862",
     "public_sha256": "86909e6cdbb97577e126c42592b67f0366691b268d6b5c51ae1c042712aeb2a9",
     "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-privacy-red-978-v1",
+    "file": "cli-privacy-red-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "da83b30b01eaf400570f94987cf2859ea208c20b178a9b74430812b85783393c",
+    "public_sha256": "da83b30b01eaf400570f94987cf2859ea208c20b178a9b74430812b85783393c",
+    "normalization": "none",
+    "archive_sha256": "620ce8dc6b77bcf4692f8ec940a1e50c8924a3ab58712b3b5332060e97ec3fd7"
+  },
+  {
+    "phase": "cli-privacy-red-978-v1",
+    "file": "cli-privacy-red-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "bd46d50c5f4110444de2039321f924df1604e187d2fa89cadb9dd87e2f03a5bd",
+    "public_sha256": "a8302ea75acae21845ba7c190ce39e9d1c1518e11a949e6377cfca3564352a28",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-privacy-red-978-v1",
+    "file": "cli-privacy-red-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "b800c392a1949bccc1583fbeb447ad3aa4ccfc804e3a23fd1ecbaa042a82b053",
+    "public_sha256": "4a1f5bd4ad1cfdb4117cb80732d7f7d820773750c877c4a16c7d6bcfda937484",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
   }
 ]
