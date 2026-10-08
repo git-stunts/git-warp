@@ -22,6 +22,23 @@ describe('InMemoryGitCasFacade page handles', () => {
   });
 });
 
+it('refuses unbounded publication before creating a commit or changing a ref', async () => {
+  const history = new InMemoryGraphAdapter();
+  const cas = new InMemoryGitCasFacade({ history, storage: new InMemoryBlobStorageAdapter() });
+  const bundle = await cas.bundles.putOrdered({ members: [] });
+  const commit = vi.spyOn(history, 'commitNodeWithTree');
+  const update = vi.spyOn(history, 'compareAndSwapRef');
+  await expect(cas.publications.commit({
+    root: bundle.handle,
+    commit: { message: 'unbounded', parents: Array.from({ length: 65 }, () => 'a'.repeat(40)) },
+    ref: { name: 'refs/warp/test/checkpoints/head', expected: null },
+  })).rejects.toMatchObject({
+    code: 'PUBLICATION_INVALID', meta: { parentCount: 65, maxParents: 64 },
+  });
+  expect(commit).not.toHaveBeenCalled();
+  expect(update).not.toHaveBeenCalled();
+});
+
 describe('InMemoryGitCasFacade bundle batches', () => {
   it.each(bundleLimitCases())('$name before staging', async ({ request, code, meta }) => {
     const history = new InMemoryGraphAdapter();

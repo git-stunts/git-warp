@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Publish checkpoints for more than 64 writer heads through bounded immutable
+  Git anchors, retaining every writer and the exact checkpoint frontier. Empty
+  anchor trees use the repository's object format in both checkpoint and
+  coverage publication ([#990](https://github.com/git-stunts/git-warp/issues/990)).
+
 - Show bounded typed CLI failure causes and cleanup details in human, JSON, and
   JSONL output. Preserve the primary failure identity, refuse private raw cause
   dumps and accessors, terminate cyclic formatting safely, and report signal
