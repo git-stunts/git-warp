@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Carry the narrow disposable-library dependency in emitted Runtime declarations
+  so strict ES2022 consumers can import the installed package and use close or
+  async disposal without a broad ESNext library override
+  ([#981](https://github.com/git-stunts/git-warp/issues/981)).
+
 - Capture a coherent observed writer basis before public live writes, advancing
   Lamports beyond inspected patches and retaining frontier evidence with the
   admitted operations across restart ([#957](https://github.com/git-stunts/git-warp/issues/957)).
