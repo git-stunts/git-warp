@@ -1,0 +1,8 @@
+{
+  "package.json": "343f3762903ff6b807a132acfeeb7afdc96044f217d07ab7731d7cbd2699a4a1",
+  "package-lock.json": "9a38a447c369ff683704883093b1f4cb4598ebf3bbce2b37b34ff094aa3c058c",
+  "test/unit/scripts/dependency-hygiene.test.ts": "54ba6f7bf664960eed8a9a691ce179956cb5e224eb20efc1649fec5e0699b129",
+  "test/unit/scripts/LockedToolingCompatibility.test.ts": "abf795c282797e2270d189581d28b9cdcdb44d415aa3638e34f7dca91c36861a",
+  "test/fixtures/IndexedSourceMapOffsetProcess.mjs": "dd5de6ddda2c38886f29dca67d0cc22f385cb85dac5a90bc1d84e63209c2d238",
+  "test/fixtures/RejectedSourceMapOffsetProcess.mjs": "9f92480c1b9ac621a9aa3ab2bf005ded043e811827e04646300186120675d587"
+}
