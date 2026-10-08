@@ -2532,5 +2532,31 @@
     "original_sha256": "a087dcdc14aef254a453c3b40b819e633dce14ac10397511d72ef2552f7e22ec",
     "public_sha256": "c71a3d328e76047dde7cd73c3613f758ce71aff47b5390eb0ce18c1e64f1a5c6",
     "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-compat-stack-957-v1",
+    "file": "packed-compat-stack-957-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "6127119b7965ddb3b841fe6de3aa69e443850c3e54dfd190c80bcdec3450b126",
+    "public_sha256": "6127119b7965ddb3b841fe6de3aa69e443850c3e54dfd190c80bcdec3450b126",
+    "normalization": "none",
+    "archive_sha256": "2d937e5f7f5ec3362b9b7114f329fc06d2b99272fa1c5b631626ff8c62b8e69a",
+    "public_hash_scope": "uncompressed public payload"
+  },
+  {
+    "phase": "packed-compat-stack-957-v1",
+    "file": "packed-compat-stack-957-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "0a23d6dacc20e1ebdcbf8003d9c4bf33fe12215831a265c0cbfbbfcf2a3234fc",
+    "public_sha256": "7309e4b947342fcc72078459bbe4fbd056356c89406a2e6fb515edbb894cc4eb",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "packed-compat-stack-957-v1",
+    "file": "packed-compat-stack-957-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "4106b7b37efc8d1fbf512e43c9b94e942a46f2aff84f4c98ed6d2d610a4cac03",
+    "public_sha256": "1dca3e51f14c42274b58e6f8e8d27672afa819237630f9125a6a2faa30ce664f",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
   }
 ]
