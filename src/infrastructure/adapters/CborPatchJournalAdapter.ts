@@ -84,6 +84,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   override async appendPatch(request: AppendPatchRequest): Promise<PublishedPatch> {
     requireBoundGraph(request.graph, this.#graph);
     requirePatchWriter(request.patch, request.writer);
+    requireObservationGraph(request.patch, this.#graph);
     const stagedPatch = await this.#assetStorage.stage(WarpStream.from([
       this.#codec.encode(request.patch),
     ]), {
@@ -138,7 +139,9 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
   override async readPatch(message: PatchCommitMessage): Promise<Patch> {
     const handle = message.patchHandle;
     const bytes = await collectAsyncIterable(this.#assetStorage.open(handle), MAX_BUFFERED_ARTIFACT_BYTES);
-    return hydratePatchAtDecodeBoundary(this.#codec.decode(bytes));
+    const patch = hydratePatchAtDecodeBoundary(this.#codec.decode(bytes));
+    requireObservationGraph(patch, this.#graph);
+    return patch;
   }
 
   override scanPatchRange(
@@ -167,11 +170,8 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
           { code: 'E_SYNC_DIVERGENCE', context: { writerId, fromSha, toSha } },
         );
       }
-      for (let index = stack.length - 1; index >= 0; index--) {
-        const entry = stack[index];
-        if (entry !== undefined) {
-          yield await adapter.#historyEntry(entry.sha, entry.message, writerId);
-        }
+      for (const entry of stack.reverse()) {
+        yield await adapter.#historyEntry(entry.sha, entry.message, writerId);
       }
     })());
   }
@@ -300,12 +300,15 @@ function patchBundleMembers(
 ): WarpStream<[string, string]> {
   const members: Array<[string, string]> = [];
   const unique = [...new Set(attachments.map((handle) => handle.toString()))].sort();
-  for (let index = 0; index < unique.length; index++) {
-    const handle = unique[index];
-    if (handle !== undefined) {
-      members.push([`attachments/${String(index).padStart(8, '0')}`, handle]);
-    }
+  for (const [index, handle] of unique.entries()) {
+    members.push([`attachments/${String(index).padStart(8, '0')}`, handle]);
   }
   members.push(['patch', patch.toString()]);
   return WarpStream.from(members);
+}
+
+function requireObservationGraph(patch: Patch, graph: string): void {
+  if (patch.observedFrontier !== undefined && patch.observedFrontier.graphName !== graph) {
+    throw new PatchError('Observed frontier belongs to another graph', { code: 'E_PATCH_NO_STATE' });
+  }
 }

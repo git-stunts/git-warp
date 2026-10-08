@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   second Node process, preserving entry selection, arguments, standard streams
   and command-owned shutdown ([#984](https://github.com/git-stunts/git-warp/issues/984)).
 
+- Capture a coherent observed writer basis before public live writes, advancing
+  Lamports beyond inspected patches and retaining frontier evidence with the
+  admitted operations across restart ([#957](https://github.com/git-stunts/git-warp/issues/957)).
+
 - Publish checkpoints for more than 64 writer heads through bounded immutable
   Git anchors, retaining every writer and the exact checkpoint frontier. Empty
   anchor trees use the repository's object format in both checkpoint and

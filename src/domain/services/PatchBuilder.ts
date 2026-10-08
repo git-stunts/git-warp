@@ -13,6 +13,8 @@ import Patch from '../types/Patch.ts';
 import NodeAdd from '../types/ops/NodeAdd.ts';
 import PropSet from '../types/ops/PropSet.ts';
 import BoundedNodeRemovalBasis from './BoundedNodeRemovalBasis.ts';
+import captureObservedWriteBasis from './captureObservedWriteBasis.ts';
+import type ObservedWriteFrontier from '../types/ObservedWriteFrontier.ts';
 import NodeRemovalObservation from './NodeRemovalObservation.ts';
 import NodeRemove from '../types/ops/NodeRemove.ts';
 import EdgeAdd from '../types/ops/EdgeAdd.ts';
@@ -56,6 +58,7 @@ type PatchBuilderOptions = {
   lamport: number;
   versionVector: VersionVector;
   getCurrentState: () => WarpState | null;
+  getSnapshotFrontier?: () => ReadonlyMap<string, string> | null;
   evaluationCoordinateRef?: string;
   admissionParticipantId?: string;
   expectedParentSha?: string | null;
@@ -75,8 +78,11 @@ export class PatchBuilder {
   private readonly _targetRefPath: string | null;
   private _lamport: number;
   private _removalBasis: BoundedNodeRemovalBasis | null = null;
+  private _observedFrontier: ObservedWriteFrontier | undefined;
   private _vv: VersionVector;
   private readonly _getCurrentState: () => WarpState | null;
+  private _snapshotFrontier: ReadonlyMap<string, string> | undefined;
+  private readonly _getSnapshotFrontier: (() => ReadonlyMap<string, string> | null) | undefined;
   private readonly _expectedParentSha: string | null;
   private readonly _onCommitSuccess: ((result: PatchCommitResult) => void | Promise<void>) | null;
   private readonly _onDeleteWithData: DeletePolicy;
@@ -107,6 +113,7 @@ export class PatchBuilder {
     this._lamport = options.lamport;
     this._vv = options.versionVector.clone();
     this._getCurrentState = options.getCurrentState;
+    this._getSnapshotFrontier = options.getSnapshotFrontier;
     this._expectedParentSha = options.expectedParentSha ?? null;
     this._onCommitSuccess = options.onCommitSuccess ?? null;
     this._onDeleteWithData = options.onDeleteWithData ?? 'warn';
@@ -141,6 +148,8 @@ export class PatchBuilder {
   private _getSnapshotState(): WarpState | null {
     if (this._snapshotState === undefined) {
       this._snapshotState = this._getCurrentState() ?? null;
+      const frontier = this._getSnapshotFrontier?.();
+      this._snapshotFrontier = frontier === null || frontier === undefined ? undefined : new Map(frontier);
     }
     return this._snapshotState;
   }
@@ -221,7 +230,7 @@ export class PatchBuilder {
   async prepareWriteBasis(nodeIds: readonly string[]): Promise<void> {
     this._assertNotCommitted();
     if (this._ops.length > 0) {throw new PatchError('Write callback supplied operations before intent lowering', { code: 'E_WRITE_INTENT_PUBLICATION' });}
-    await this._restoreWriterContext();
+    await this._prepareObservation(nodeIds);
     if (nodeIds.length === 0 || this._getSnapshotState() !== null) {return;}
     if (this._ops.length > 0 || this._targetRefPath !== null || this._patchJournal === null) {
       throw new PatchError('Bounded node removal requires a worldline journal before lowering', { code: 'E_PATCH_NO_STATE' });
@@ -230,12 +239,38 @@ export class PatchBuilder {
     const basis = await BoundedNodeRemovalBasis.capture({
       refs: this._persistence, journal: this._patchJournal, graphName: this._graphName,
       writerId: this._writerId, expectedParentSha: this._expectedParentSha, targets: new Set(nodeIds),
+      observation: this._observedFrontier,
     });
     this._assertNotCommitted();
     if (this._ops.length > 0) {throw new PatchError('Write changed during basis capture', { code: 'E_PATCH_NO_STATE' });}
     this._removalBasis = basis;
     this._vv = this._vv.merge(basis.context());
     this._lamport = Math.max(this._lamport, basis.lamport + 1);
+    capturePatchBuilderCausalBasis(this, {
+      ...readPatchBuilderCausalBasis(this), evaluationCoordinateRef: basis.coordinateRef,
+    });
+  }
+
+  private async _prepareObservation(nodeIds: readonly string[]): Promise<void> {
+    const cachedRemoval = nodeIds.length > 0 && this._getSnapshotState() !== null;
+    if (this._targetRefPath !== null || this._patchJournal === null
+      || (cachedRemoval && this._snapshotFrontier === undefined)) {
+      await this._restoreWriterContext();
+      return;
+    }
+    const basis = await captureObservedWriteBasis({
+      refs: this._persistence, journal: this._patchJournal, graphName: this._graphName,
+      writerId: this._writerId, expectedParentSha: this._expectedParentSha,
+      ownCandidate: this._lamport, context: this._vv,
+      selectedFrontier: cachedRemoval ? this._snapshotFrontier : undefined,
+    });
+    this._assertNotCommitted();
+    if (this._ops.length > 0) {
+      throw new PatchError('Write changed during observation capture', { code: 'E_WRITE_INTENT_PUBLICATION' });
+    }
+    this._observedFrontier = basis.observation;
+    this._vv = basis.context();
+    this._lamport = basis.lamport;
     capturePatchBuilderCausalBasis(this, {
       ...readPatchBuilderCausalBasis(this), evaluationCoordinateRef: basis.coordinateRef,
     });
@@ -400,6 +435,7 @@ export class PatchBuilder {
       reads: [...this._observedOperands].sort(),
       writes: [...this._writes].sort(),
       entityAdmissions: this._entityAdmissions,
+      observedFrontier: this._observedFrontier,
     });
   }
 
@@ -422,6 +458,7 @@ export class PatchBuilder {
         observedOperands: this._observedOperands,
         writes: this._writes,
         entityAdmissions: this._entityAdmissions,
+        observedFrontier: this._observedFrontier,
         hasEdgeProps: this._properties.hasEdgeProperties,
         expectedParentSha: this._expectedParentSha,
         targetRefPath: this._targetRefPath,

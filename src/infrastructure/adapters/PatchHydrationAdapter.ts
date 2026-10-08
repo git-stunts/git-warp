@@ -1,7 +1,8 @@
 import { Dot } from '../../domain/crdt/Dot.ts';
 import PatchError from '../../domain/errors/PatchError.ts';
 import { hydrateDecodedPatch } from '../../domain/services/PatchHydrator.ts';
-import type Patch from '../../domain/types/Patch.ts';
+import Patch from '../../domain/types/Patch.ts';
+import decodeObservedWriteFrontier from './ObservedWriteFrontierDecoder.ts';
 import EntityAdmissionBoundary from '../../domain/types/EntityAdmissionBoundary.ts';
 import EntityAdmissionOrigin, {
   type EntityAdmissionOriginKind,
@@ -11,7 +12,9 @@ type DecodedRecord = { readonly [key: string]: unknown };
 
 /** Validates raw entity-admission metadata before entering domain hydration. */
 export function hydratePatchAtDecodeBoundary(decoded: unknown): Patch {
-  return hydrateDecodedPatch(decoded, readEntityAdmissionsFromPatch(decoded));
+  const patch = hydrateDecodedPatch(decoded, readEntityAdmissionsFromPatch(decoded));
+  const observedFrontier = decodeObservedWriteFrontier(decoded);
+  return observedFrontier === undefined ? patch : new Patch({ ...patch, observedFrontier });
 }
 
 function readEntityAdmissionsFromPatch(

@@ -1,0 +1,40 @@
+{
+  "phase": "coverage-diagnostic-957-v2",
+  "worker": "git-warp-tests",
+  "image": "sha256:9f145953f6e79a59749a683d11a476133cb7cef0588b79256dc195b1d0c87ad7",
+  "source_base": "89a453c5c1c4c6fc7fcc29bc0dbf23de40f94b05",
+  "source_archive_sha256": "159c4aea9ca2364b0edd186ce70f2a6c41a70bb8184f916607fd97ea83723cc1",
+  "source_archive_bytes": 21893120,
+  "baseline_inputs": {},
+  "command": [
+    "python3",
+    "-c",
+    "import subprocess,json; c=subprocess.run(['node', 'node_modules/vitest/vitest.mjs', 'run', 'test/unit/domain/services/PatchBuilder', 'test/unit/domain/services/PatchCommitter', 'test/unit/domain/services/controllers/PatchController.test.ts', 'test/unit/domain/types/Patch.test.ts', 'test/unit/domain/WriteRuntime.test.ts', 'test/unit/domain/services/BoundedNodeRemovalBasis.test.ts', 'test/unit/domain/services/ObservedWriteBasis.test.ts', 'test/unit/domain/services/sync/syncPatchLoader.test.ts', 'test/unit/infrastructure/adapters/CborPatchJournalAdapter.test.ts', 'test/unit/infrastructure/adapters/ObservedWriteFrontierDecoder.test.ts', 'test/unit/infrastructure/adapters/PatchHydrationAdapter.test.ts', 'test/integration/application/Runtime.observedLamport.integration.test.ts', '--maxWorkers=1', '--coverage', '--coverage.reporter=json', '--coverage.reportsDirectory=/data/coverage', '--coverage.include=src/domain/api/WriteRuntime.ts', '--coverage.include=src/domain/services/BoundedNodeRemovalBasis.ts', '--coverage.include=src/domain/services/ObservedWriteBasis.ts', '--coverage.include=src/domain/services/PatchBuilder.ts', '--coverage.include=src/domain/services/PatchCommitter.ts', '--coverage.include=src/domain/services/captureObservedWriteBasis.ts', '--coverage.include=src/domain/services/controllers/PatchController.ts', '--coverage.include=src/domain/services/sync/syncPatchLoader.ts', '--coverage.include=src/domain/types/ObservedWriteFrontier.ts', '--coverage.include=src/domain/types/ObservedWriterHead.ts', '--coverage.include=src/domain/types/Patch.ts', '--coverage.include=src/infrastructure/adapters/CborPatchJournalAdapter.ts', '--coverage.include=src/infrastructure/adapters/ObservedWriteFrontierDecoder.ts', '--coverage.include=src/infrastructure/adapters/PatchHydrationAdapter.ts', '--coverage.reporter=json-summary']).returncode; d=json.load(open('/data/coverage/coverage-final.json')); print('UNCOVERED_STATEMENTS='+json.dumps({k.replace('/app/project/',''):[v['statementMap'][i] for i,n in v['s'].items() if n==0] for k,v in d.items()})); s=json.load(open('/data/coverage/coverage-summary.json')); print('TOUCHED_COVERAGE_SUMMARY='+json.dumps({k.replace('/app/project/',''):v for k,v in s.items()})); raise SystemExit(c)"
+  ],
+  "lock_store": "workstation.git",
+  "lock_keys": [
+    "host/docker/git-warp-tests/"
+  ],
+  "outputs": [
+    "build volume /app",
+    "runtime /data",
+    "bounded /tmp and <CONTAINER_HOME> and /dev/shm",
+    "Docker rotated log",
+    "host receipts"
+  ],
+  "host_free_bytes": 725153849344,
+  "host_receipt_bytes": 4040656,
+  "build_limit_bytes": 21474836480,
+  "data_quota_bytes": 3221225472,
+  "generated_nonobject_limit_bytes": 100663296,
+  "stdout_limit_bytes": 16777216,
+  "memory_bytes": 8589934592,
+  "cpus": 4,
+  "cpu_affinity": "0-3",
+  "pids_limit": 768,
+  "timeout_seconds": 1700,
+  "stop_boundary": "git-warp-tests",
+  "guard": "inner guard plus outer host free/log monitor; read-only container root",
+  "vm_free_bytes": 689216278528,
+  "initial_build_bytes": 1926438912
+}

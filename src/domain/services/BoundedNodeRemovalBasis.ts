@@ -15,6 +15,7 @@ import { buildWritersPrefix, parseWriterIdFromRef } from '../utils/RefLayout.ts'
 import { graphFrontierCoordinateRef } from './admission/GraphCoordinateRef.ts';
 import { decodeEdgeKey, encodeEdgeKey } from './KeyCodec.ts';
 import NodeRemovalObservation from './NodeRemovalObservation.ts';
+import type ObservedWriteFrontier from '../types/ObservedWriteFrontier.ts';
 
 export const MAX_REMOVAL_BASIS_WRITERS = 1024;
 export const MAX_REMOVAL_BASIS_PATCHES = 10_000;
@@ -48,8 +49,11 @@ export default class BoundedNodeRemovalBasis {
     readonly writerId: string;
     readonly expectedParentSha: string | null;
     readonly targets: ReadonlySet<string>;
+    readonly observation?: ObservedWriteFrontier | undefined;
   }): Promise<BoundedNodeRemovalBasis> {
-    const frontier = await captureFrontier(fields);
+    const frontier = fields.observation === undefined
+      ? await captureFrontier(fields) : fields.observation.frontier();
+    if (frontier.size > MAX_REMOVAL_BASIS_WRITERS) { throw budgetExceeded(); }
     if (fields.expectedParentSha === null) { frontier.delete(fields.writerId); }
     else { frontier.set(fields.writerId, fields.expectedParentSha); }
     const basis = new BoundedNodeRemovalBasis(fields.targets, graphFrontierCoordinateRef(fields.graphName, frontier));

@@ -4,6 +4,10 @@ import PatchPublicationConflictError from '../../../../src/domain/errors/PatchPu
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 import Patch from '../../../../src/domain/types/Patch.ts';
+import ObservedWriteFrontier from '../../../../src/domain/types/ObservedWriteFrontier.ts';
+import ObservedWriterHead from '../../../../src/domain/types/ObservedWriterHead.ts';
+import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
+import { createGitCasPatchStorage } from '../../../../src/ports/CommitMessageCodecPort.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import EntityAdmissionBoundary from '../../../../src/domain/types/EntityAdmissionBoundary.ts';
@@ -113,7 +117,9 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     expect(loaded.writer).toBe('alice');
     expect(loaded.lamport).toBe(1);
     expect(loaded.ops[0]).toBeInstanceOf(NodeAdd);
-    expect((loaded.ops[0] as NodeAdd).node).toBe('node:a');
+    const operation = loaded.ops[0];
+    if (!(operation instanceof NodeAdd)) { throw new Error('Expected decoded NodeAdd'); }
+    expect(operation.node).toBe('node:a');
   });
 
   it('round-trips exact entity admission boundaries with the retained patch', async () => {
@@ -216,6 +222,63 @@ describe('CborPatchJournalAdapter semantic publication', () => {
       code: PatchPublicationConflictError.CODE,
       cause: providerFailure,
     });
+  });
+
+  it('preserves non-conflict provider failure without moving the writer ref', async () => {
+    const { history, assets, cas } = createFixture();
+    const failure = new Error('publication storage unavailable');
+    const journal = new CborPatchJournalAdapter({
+      assetStorage: assets,
+      cas: { bundles: cas.bundles, publications: { commit: () => Promise.reject(failure) } },
+      codec: new CborCodec(), commitReader: history, graph: 'test',
+    });
+    await expect(journal.appendPatch({
+      patch: createPatch(1, 'node:a'), graph: 'test', writer: 'alice', targetRef: TARGET_REF,
+      expectedHead: null, parent: null, attachments: [],
+    })).rejects.toBe(failure);
+    expect(await history.readRef(TARGET_REF)).toBeNull();
+  });
+
+  it('maps a transport conflict without manufacturing an Error cause', async () => {
+    const { history, assets, cas } = createFixture();
+    const journal = new CborPatchJournalAdapter({
+      assetStorage: assets,
+      cas: { bundles: cas.bundles, publications: { commit: () => Promise.reject({ code: 'PUBLICATION_CONFLICT' }) } },
+      codec: new CborCodec(), commitReader: history, graph: 'test',
+    });
+    const publication = journal.appendPatch({
+      patch: createPatch(1, 'node:a'), graph: 'test', writer: 'alice', targetRef: TARGET_REF,
+      expectedHead: null, parent: null, attachments: [],
+    });
+    await expect(publication).rejects.toMatchObject({ code: PatchPublicationConflictError.CODE });
+    await expect(publication).rejects.not.toHaveProperty('cause');
+    expect(await history.readRef(TARGET_REF)).toBeNull();
+  });
+
+  it('retains observation custody while following an immutable writer history', async () => {
+    const { journal } = createFixture();
+    const first = await journal.appendPatch({
+      patch: createPatch(1, 'node:a'), graph: 'test', writer: 'alice', targetRef: TARGET_REF,
+      expectedHead: null, parent: null, attachments: [],
+    });
+    const observation = new ObservedWriteFrontier('test', [new ObservedWriterHead('alice', first.sha, 1)]);
+    const second = await journal.appendPatch({
+      patch: new Patch({ writer: 'alice', lamport: 2, context: { alice: 1 },
+        ops: [new NodeAdd('node:b', new Dot('alice', 2))], observedFrontier: observation }),
+      graph: 'test', writer: 'alice', targetRef: TARGET_REF,
+      expectedHead: first.sha, parent: first.sha, attachments: [],
+    });
+    const entries = await journal.scanPatchHistory('alice', second.sha).collect();
+    expect(entries.map(entry => entry.sha)).toEqual([second.sha, first.sha]);
+    expect(entries[0]?.patch.observedFrontier?.frontier()).toEqual(new Map([['alice', first.sha]]));
+    expect(Object.hasOwn(entries[1]?.patch ?? {}, 'observedFrontier')).toBe(false);
+  });
+
+  it('refuses a non-patch history head instead of inventing retained evidence', async () => {
+    const { history, journal } = createFixture();
+    const nonPatch = await history.commitNode({ message: 'ordinary Git commit' });
+    await expect(journal.scanPatchHistory('alice', nonPatch).collect())
+      .rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
   });
 
   it('scans a causal patch range in chronological order and detects divergence', async () => {
@@ -339,4 +402,21 @@ describe('CborPatchJournalAdapter semantic publication', () => {
     await expect(journal.scanPatchHistory('alice', forged).collect())
       .rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
   });
+});
+
+it('refuses observation metadata for another graph before publication or retained use', async () => {
+  const { history, assets, journal } = createFixture();
+  const patch = new Patch({ writer: 'alice', lamport: 1, context: {}, ops: [],
+    observedFrontier: new ObservedWriteFrontier('other', []) });
+  await expect(journal.appendPatch({ patch, graph: 'test', writer: 'alice', targetRef: TARGET_REF,
+    expectedHead: null, parent: null, attachments: [] })).rejects.toMatchObject({ code: 'E_PATCH_NO_STATE' });
+  expect(await history.readRef(TARGET_REF)).toBeNull();
+  const staged = await assets.stage(WarpStream.from([new CborCodec().encode(patch)]), { slug: 'wrong-graph', filename: 'patch.cbor' });
+  const message = DEFAULT_COMMIT_MESSAGE_CODEC.encodePatch({
+    kind: 'patch', graph: 'test', writer: 'alice', lamport: 1, schema: 2,
+    patchHandle: staged.handle,
+    storage: createGitCasPatchStorage({ encrypted: false }),
+  });
+  await expect(journal.readPatch(DEFAULT_COMMIT_MESSAGE_CODEC.decodePatch(message)))
+    .rejects.toMatchObject({ code: 'E_PATCH_NO_STATE' });
 });
