@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Load the installed CLI in its current Node process instead of starting a
+  second Node process, preserving entry selection, arguments, standard streams
+  and command-owned shutdown ([#984](https://github.com/git-stunts/git-warp/issues/984)).
+
 - Restore the full locked dependency audit with patched KaTeX 0.18.2,
   smol-toml 1.9.0, and source-map-js 1.2.2 while keeping the existing developer
   tool versions, platform constraints, and runtime dependency graph. Verify
