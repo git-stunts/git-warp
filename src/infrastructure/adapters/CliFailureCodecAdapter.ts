@@ -55,7 +55,7 @@ function nodeValue(node: CliFailureNode): CliFailureNodeValue {
 function human(report: CliFailureReport): string {
   const root = `Error: [${humanCode(report)}] ${report.primary.message}`;
   const causes = [...report.primary.causes, ...report.cleanup];
-  const omission = truncation(report).truncated ? ['Further failure details omitted'] : [];
+  const omission = truncation(report).truncated === true ? ['Further failure details omitted'] : [];
   return `${[root, ...causes.flatMap((node) => humanNode(node, 1)), ...omission].join('\n')}\n`;
 }
 
