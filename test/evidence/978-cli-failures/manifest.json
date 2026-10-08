@@ -73,5 +73,30 @@
     "original_sha256": "b800c392a1949bccc1583fbeb447ad3aa4ccfc804e3a23fd1ecbaa042a82b053",
     "public_sha256": "4a1f5bd4ad1cfdb4117cb80732d7f7d820773750c877c4a16c7d6bcfda937484",
     "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-bounds-red-978-v1",
+    "file": "cli-bounds-red-978-v1-console.txt.gz",
+    "source_name": "console.log",
+    "original_sha256": "9c92c5813d5542bed3a80a414ea3805d5d61f008b638f7cd48272bfa1db981eb",
+    "public_sha256": "9c92c5813d5542bed3a80a414ea3805d5d61f008b638f7cd48272bfa1db981eb",
+    "normalization": "none",
+    "archive_sha256": "b1f783dd32797a85111e8348c91e4f7fe808fe77885c907e0a85e0b1e9db0dce"
+  },
+  {
+    "phase": "cli-bounds-red-978-v1",
+    "file": "cli-bounds-red-978-v1-launch.json",
+    "source_name": "launch.json",
+    "original_sha256": "4eaf3356328efafff01998b607b44c068d5f3ab7b45102fe430d4b75b9fcde5c",
+    "public_sha256": "9054e75bb73aa54aa63d7311fe5b8c7f5fc5c09621b81d78bc02405f473d0bcd",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
+  },
+  {
+    "phase": "cli-bounds-red-978-v1",
+    "file": "cli-bounds-red-978-v1-resources.json",
+    "source_name": "resources.json",
+    "original_sha256": "6750dd33697036850e9fc0eb09493e5faafc766f17af70c87625400608762907",
+    "public_sha256": "28798ff1df41e0bb8c8d276e0ae4710120c2f8dd63591cd650d2a49811063d6c",
+    "normalization": "container home replaced with <CONTAINER_HOME>"
   }
 ]
