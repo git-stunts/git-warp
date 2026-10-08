@@ -71,4 +71,3 @@ export default class CliFailureProjectionAdapter {
     catch { return false; }
   }
 }
-
