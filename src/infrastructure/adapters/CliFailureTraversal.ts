@@ -61,11 +61,13 @@ export default class CliFailureTraversal {
 
   private aggregate(children: CliFailureNode[], values: unknown, depth: number): void {
     const members = boundedEntries(values);
+    let consumed = 0;
     for (const member of members) {
       this.append(children, member, { relation: 'aggregate', depth });
+      consumed++;
       if (this.count >= CLI_FAILURE_MAX_NODES) { break; }
     }
-    if (safeLength(values) > members.length) { this.omittedDetails = true; }
+    if (safeLength(values) > consumed) { this.omittedDetails = true; }
   }
 
   private omitted(relation: CliFailureRelation): CliFailureNode {

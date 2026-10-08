@@ -137,6 +137,24 @@ describe('bounded CLI error projection', () => {
     expect(projected.truncated).toBe(true);
   });
 
+  it('discloses omitted aggregate members while preserving an exact node-budget fit', () => {
+    for (const size of [6, 7]) {
+      const members = Array.from({ length: size }, (_, index) => new Error('Member ' + index));
+      const report = projector.project(new Error('Primary', {
+        cause: new AggregateError(members, 'Group'),
+      }));
+      expect(countNodes(report.primary)).toBe(8);
+      expect(report.primary.causes[0]?.causes).toHaveLength(6);
+      expect(report.truncated).toBe(size === 7);
+      for (const format of ['json', 'jsonl']) {
+        if (format === 'json' || format === 'jsonl') {
+          expect(codec.encode(report, format).includes('"truncated": true')
+            || codec.encode(report, format).includes('"truncated":true')).toBe(size === 7);
+        }
+      }
+    }
+  });
+
   it('redacts supported private patterns while retaining refs, hashes and relative paths', () => {
     const text = redactor.message(`at ${join(fixtureHome, 'key')} and ${join(fixtureDirectory, 'src/a.ts')} https://user:pass@host Bearer SECRET ghp_PRIVATE refs/warp/lane abcdef0123`);
     expect(text).toContain('<HOME>/key');
