@@ -1,6 +1,7 @@
 # Worldline Dot Mints
 
-Status: proposed technical design. Amended on 2026-10-20 after external review.
+Status: proposed technical design. Amended twice on 2026-10-20 after external
+review.
 
 Target: [v21.0.0 — Bounded retained storage and recursive WARP](./v21.0.0/README.md)
 
@@ -93,15 +94,45 @@ Patch (built on one WriterChain)
 
 ### Strand identity
 
-A strand's `MintId` uses an immutable **strand id**, not its friendly name. The
-strand id is the hash of the strand's first descriptor commit. That makes it
-unique without domain entropy, stable across clones that share the strand, and
-independent of the name.
+A strand's `MintId` uses an immutable **strand id**, not its friendly name.
 
-- Two independently created strands named `next` get different ids.
-- Sharing a strand preserves its id.
-- Renaming a strand does not change its mints.
-- Deleting and recreating `next` never reuses an old namespace.
+Hashing the first descriptor commit does not work. A v19 descriptor embeds
+`strandId` in its own JSON, so the id would depend on itself. Commit bytes are
+also deterministic: with fixed author time and identical inputs, two creations
+produce the same commit (the fixture generator relies on exactly that).
+
+Instead, creating a strand writes a **genesis record** that names one
+creation occurrence and never contains the strand id:
+
+```text
+Genesis
+├── lane          the root worldline the strand forks from
+├── creator       MintId of the creating writer on the lane
+├── occurrence    a counter issued by the creator's lane DotMint
+├── name          the friendly name at creation
+└── base          digest of the pinned base observation
+```
+
+The strand id is the hash of the canonical genesis encoding.
+
+- **Uniqueness without entropy.** The occurrence counter comes from the
+  creator's lane `DotMint`, and the allocation floor (#1021) is raised and
+  persisted before the genesis record is published. One sequential issuer per
+  `MintId` means two creations never share an occurrence, even with identical
+  inputs and frozen clocks. The counter is a reservation, not a dot: no add
+  carries it.
+- **Idempotent retry.** `createStrand` returns the occurrence as a creation
+  token. Retrying with that token returns the existing strand. A call without
+  it is a new creation and consumes a new counter.
+- **Stable.** Sharing a strand preserves its id, and renaming it does not
+  change its mints. Deleting and recreating `next` never reuses an old
+  namespace.
+- **Legacy strands.** The migration writes the same genesis shape, plus the
+  sha of the strand's first legacy descriptor commit. Its occurrence is issued
+  by the owner's lane `DotMint` during migration and recorded in the migration
+  journal, so a resumed run reuses it. A deterministic legacy commit alone is
+  not enough: two clones holding byte-identical legacy strands would derive
+  the same id and then both issue `@w.<owner>@s.<id>` dots.
 
 The friendly name lives in the descriptor.
 
@@ -176,9 +207,9 @@ its own `MintId`.
 | --- | --- | --- |
 | [#1013](https://github.com/git-stunts/git-warp/issues/1013) DotMint | One issuing authority per chain; every seeder routes through it. No format change. | none |
 | [#1018](https://github.com/git-stunts/git-warp/issues/1018) v19.1.0 fixture | Authentic legacy history with golden, edge-case and known-failure scenarios. | none |
-| [#1014](https://github.com/git-stunts/git-warp/issues/1014) Worldline identity format | `MintId` with one canonical spelling; immutable strand ids; per-writer strand chains; substrate marker bumped so unmigrated repositories refuse. | #1013 |
-| [#1021](https://github.com/git-stunts/git-warp/issues/1021) Allocation floor | Trustworthy, persisted floor for legacy chains, re-established when late legacy commits arrive. | #1013 |
-| [#1015](https://github.com/git-stunts/git-warp/issues/1015) v20→v21 migration | Preserves existing interpretation: converts strands, establishes floors, maps provenance, reports damage. | #1014, #1021, #1018 |
+| [#1014](https://github.com/git-stunts/git-warp/issues/1014) Worldline identity format | `MintId` with one canonical spelling; strand ids from genesis records with idempotent creation tokens; per-writer strand chains; marker-verifying ref transactions; substrate marker bumped so unmigrated repositories refuse. | #1013, #1021 (the creation occurrence is a persisted reservation) |
+| [#1021](https://github.com/git-stunts/git-warp/issues/1021) Allocation floor | Trustworthy, persisted floor for legacy chains, covering reservations such as strand-creation occurrences, re-established when late legacy commits arrive. | #1013 |
+| [#1015](https://github.com/git-stunts/git-warp/issues/1015) v20→v21 migration | Preserves existing interpretation: converts strands, fans removes out, establishes floors, maps and resolves provenance, contains late legacy writes, reports damage. | #1014, #1021, #1018 |
 | [#1022](https://github.com/git-stunts/git-warp/issues/1022) Duplicate-dot repair | Explicit, previewed, audited and idempotent repair, separate from migration. | #1015 |
 
 The format unit and the migration can merge separately. Until the migration
@@ -207,25 +238,67 @@ damage. It never makes new decisions about the user's data.
 - **Resolve by origin, not by string.** A legacy `next:1` can name a lane
   writer's dot or a strand's dot (`collision-remove`). Each context entry,
   remove and admission-origin `allocationDot` is resolved from the history it
-  came from and the basis it observed. Cases the evidence cannot settle are
-  flagged as ambiguous, never guessed.
+  came from and the basis it observed.
+- **Removes fan out.** A legacy remove tombstoned every add carrying its
+  observed dot in the view where it was applied, including collateral
+  deletions. A translated remove therefore tombstones **every** translated
+  identity that the legacy dot denoted in that view, so what was deleted stays
+  deleted (`shared-dot-strand-remove`).
+- **Unknown views block one strand.** If the migration cannot establish which
+  identities a remove's view contained, it does not guess. That strand's
+  conversion is blocked and reported. It stays on its legacy refs, unavailable
+  in v21, until an operator resolves it; the rest of the repository migrates.
+- **Cross-origin aliases.** No released version can put one legacy dot on both
+  a lane object and a strand object in one view: strand mints start above the
+  strand's `observedFrontier`, bases are fixed at creation, and braids require
+  identical pinned bases (`E_STRAND_COORDINATE_INVALID`). The fan-out rule
+  still covers the case, and a labelled synthetic test exercises it.
 - **Provenance.** Source objects are preserved. The migration writes a
-  verifiable mapping from each legacy identity and commit to its new one.
-  Strands are local, but other data can still reference them.
+  verifiable mapping keyed by source occurrence (commit sha and operation
+  index), from each legacy identity to its new one. Strands are local, but
+  other data can still reference them.
+- **Provenance resolver.** v21 readers never interpret a legacy
+  `allocationDot` through the ordinary `MintId` codec. A resolver keyed by
+  source occurrence returns the original bytes, unchanged, together with one
+  typed outcome:
+  - `resolved`: the v21 identity;
+  - `unmapped`: no mapping exists, for example a commit that arrived after
+    migration;
+  - `ambiguous`: the evidence named more than one identity.
 - **Damage report.**
   - Duplicate dots are reported with all their add sites.
   - Collateral deletions are detected from each remove's named target and
     reported too.
   - Duplicates **do not block** the migration. Refusing would block nearly
     every real repository.
-- **Late legacy writes.** Another clone's v20 lane commits stay readable,
-  because the lane encoding is unchanged. Arriving legacy commits
-  re-establish the affected writer's floor before that writer mints again.
-- **Open clients.** `SubstrateVersionGate` caches successful checks. A client
-  that was open before the marker advanced must refuse to write afterwards;
-  this is tested separately from a fresh open.
 - **Ordering.** The substrate marker advances last. A partial run leaves the
-  repository on v20, and the migration can be resumed.
+  repository on v20, and the migration can be resumed from its journal.
+
+### Migration boundary
+
+v20.0.0's `SubstrateVersionGate` caches its first successful check per graph,
+and nothing can change a process that is already running. Advancing the
+marker last therefore does not fence open v20 clients. The contract is
+containment, not prevention:
+
+- **Procedure.** The operator stops legacy processes before migrating. The
+  migration records the frontier it migrated (the **migration frontier**).
+- **Late lane writes.** A v20 process that keeps writing to a lane stays
+  readable, because lane keys are unchanged. Lane commits beyond the migration
+  frontier are detected as late legacy arrivals. They raise the writer's
+  allocation floor (#1021) before that writer mints again, and they are
+  reported, because v20.0.0 still mints from an unsafe seed.
+- **Late strand writes.** These land on legacy strand refs that v21 never
+  reads. They are reported, never silently dropped or merged.
+- **Late arrivals by sync.** Another clone's v20 commits are handled the same
+  way when they arrive.
+- **Fenced v21 publication.** Every v21 ref publication verifies the marker in
+  the same atomic ref transaction as the update
+  (`git update-ref --stdin` with `verify` and `update`), so there is no window
+  between checking and writing.
+- **Acceptance.** A real v20.0.0 process, opened before migration, writes to a
+  lane and to a strand afterwards; each outcome above is asserted. A fresh v20
+  open after migration is refused.
 
 ## Repair contract (separate from migration)
 
@@ -237,7 +310,12 @@ close it.
 
 - **Preview.** List the affected objects, their add sites, the policy options
   and their consequences, including pending-remove behaviour.
-- **Apply.** Append ordinary repair patches under a labelled repair writer.
+- **Apply.** Append ordinary repair patches under a repair writer.
+- **Distinct repair writer.** The repair writer id is derived from the
+  operator's own writer id on that clone, for example `repair.alice`. It is
+  never a fixed name shared across clones: two clones repairing from different
+  frontiers under one writer id would issue the same repair dots and recreate
+  the collateral deletion the repair exists to prevent.
 - **Record.** Store the input frontier, affected add sites, chosen policy and
   resulting commits.
 - **Idempotent.** Retrying the same repair does not mint another batch of
@@ -254,3 +332,7 @@ close it.
 3. **Strand audit chains?** Deferred. Nothing depends on them, and they can be
    added later without another format change.
 4. **Braid sigil.** `@b` stays reserved.
+5. **Strand id source?** A genesis record bound to a creation occurrence, not
+   the first descriptor commit, which is self-referential and deterministic.
+6. **Fence running v20 clients?** Impossible after the fact. Stop them, then
+   detect and report late legacy writes.
