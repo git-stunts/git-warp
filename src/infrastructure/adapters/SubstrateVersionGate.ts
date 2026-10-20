@@ -85,7 +85,7 @@ export default class SubstrateVersionGate {
   /**
    * Marker absence alone does not prove legacy data: a receiver may have
    * fetched current writer chains without the marker. Only a writer head whose
-   * patch commit lacks the current git-cas storage route confirms v18 data.
+   * patch commit lacks the current git-cas storage route confirms pre-migration data.
    */
   async #unmarkedEvidence(graphName: string): Promise<UnmarkedEvidence> {
     let evidence: UnmarkedEvidence = 'no-writer-patches';
