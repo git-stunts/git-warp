@@ -17,6 +17,9 @@ const SYNC_DOC = fileURLToPath(new URL('../../../docs/topics/sync.md', import.me
 const CASE_TIMEOUT_MS = 120_000;
 const PRUNE_MODES = ['none', 'local fetch.prune', 'global fetch.prune', 'remote prune'] as const;
 type PruneMode = typeof PRUNE_MODES[number];
+const writerRef = (writer: string): string => `refs/warp/${LANE}/writers/${writer}`;
+const CHECKPOINT_REF = `refs/warp/${LANE}/checkpoints/head`;
+const MARKER_REF = `refs/warp/${LANE}/substrate-version`;
 type Clone = Awaited<ReturnType<typeof createTestRepo>>;
 
 interface Recipes { publish: string; receive: string }
@@ -80,6 +83,14 @@ function run(target: Clone & { env: typeof process.env }, script: string, writer
   return { status: result.status, output: `${result.stdout}${result.stderr}` };
 }
 
+/** Gives the hub an incompatible substrate marker, as an older or foreign hub would hold. */
+function plantForeignMarker(hubPath: string): void {
+  const blob = execFileSync('git', ['-C', hubPath, 'hash-object', '-w', '--stdin'], {
+    input: 'git-warp-retained-substrate\nversion: 18\n', encoding: 'utf8',
+  }).trim();
+  git(hubPath, ['update-ref', MARKER_REF, blob]);
+}
+
 async function write(target: Clone, writer: string, subject: string): Promise<void> {
   const runtime = await Runtime.open({ at: target.tempDir, writer });
   try {
@@ -100,10 +111,6 @@ async function checkpoint(target: Clone, writer: string): Promise<void> {
   await graph.materialize();
   await graph.createCheckpoint();
 }
-
-const writerRef = (writer: string): string => `refs/warp/${LANE}/writers/${writer}`;
-const CHECKPOINT_REF = `refs/warp/${LANE}/checkpoints/head`;
-const MARKER_REF = `refs/warp/${LANE}/substrate-version`;
 
 describe.each(PRUNE_MODES)('documented selected-writer transfer (%s)', (mode) => {
   it('exchanges edits while every unpublished local chain stays unchanged', async () => {
@@ -222,6 +229,35 @@ describe('documented selected-writer transfer refusals', () => {
     expect(refs(fresh.tempDir).get(MARKER_REF)).toBe(refs(hubPath).get(MARKER_REF));
     expect(refs(fresh.tempDir).has(CHECKPOINT_REF)).toBe(true);
     expect(await nodes(fresh)).toEqual(['a']);
+  }, CASE_TIMEOUT_MS);
+
+  it('publishes nothing to a hub whose substrate marker differs', async () => {
+    const recipes = await documentedRecipes();
+    const hubPath = await hub();
+    const alice = await clone('foreign-marker-alice', hubPath, 'none');
+    plantForeignMarker(hubPath);
+    await write(alice, 'alice', 'a');
+
+    const refused = run(alice, recipes.publish, 'alice');
+
+    expect(refused.status).not.toBe(0);
+    expect(refs(hubPath).has(writerRef('alice'))).toBe(false);
+  }, CASE_TIMEOUT_MS);
+
+  it('receives nothing from a hub whose substrate marker differs', async () => {
+    const recipes = await documentedRecipes();
+    const hubPath = await hub();
+    const alice = await clone('foreign-receive-alice', hubPath, 'none');
+    const bob = await clone('foreign-receive-bob', hubPath, 'none');
+    await write(alice, 'alice', 'a');
+    git(alice.tempDir, ['push', 'origin', `${writerRef('alice')}:${writerRef('alice')}`]);
+    plantForeignMarker(hubPath);
+    await write(bob, 'bob', 'b');
+
+    const refused = run(bob, recipes.receive, 'bob');
+
+    expect(refused.status).not.toBe(0);
+    expect(refs(bob.tempDir).has(writerRef('alice'))).toBe(false);
   }, CASE_TIMEOUT_MS);
 
   it('refuses an older hub without a substrate marker and changes nothing', async () => {
