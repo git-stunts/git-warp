@@ -88,6 +88,44 @@ assert_failed() {
   [ "$(cat "$CLOSURE_FIXTURE_DIR/npm-attempts")" = 3 ]
 }
 
+@test "release closure waits past six polls for an accepted publication within its visibility window" {
+  export CLOSURE_FIXTURE_MODE=slow-visibility
+  unset GIT_WARP_CLOSURE_ATTEMPTS
+  verify_release
+  [ "$status" -eq 0 ]
+  [ "$(cat "$CLOSURE_FIXTURE_DIR/npm-attempts")" = 8 ]
+  jq -e '.visibility.windowSeconds==300 and
+    (.visibility.registries[]|select(.registry=="https://registry.npmjs.org")|
+      .attempts==8 and .lastFailure=="not-found" and (.elapsedSeconds|type=="number"))' "$RECEIPT"
+}
+
+@test "release closure stops polling when its visibility window closes" {
+  export CLOSURE_FIXTURE_MODE=unavailable
+  export GIT_WARP_CLOSURE_VISIBILITY_SECONDS=2
+  export GIT_WARP_CLOSURE_DELAY_SECONDS=1
+  unset GIT_WARP_CLOSURE_ATTEMPTS
+  verify_release
+  assert_failed registry
+  [ "$(cat "$CLOSURE_FIXTURE_DIR/npm-attempts")" -le 3 ]
+  jq -e '.visibility.registries[0].lastFailure=="not-found"' "$RECEIPT"
+}
+
+@test "release closure retries a transport reset" {
+  export CLOSURE_FIXTURE_MODE=transport-reset
+  verify_release
+  [ "$status" -eq 0 ]
+  [ "$(cat "$CLOSURE_FIXTURE_DIR/npm-attempts")" = 2 ]
+  jq -e '.visibility.registries[0].lastFailure=="transport"' "$RECEIPT"
+}
+
+@test "release closure does not retry a registry authentication failure" {
+  export CLOSURE_FIXTURE_MODE=auth-failure
+  verify_release
+  assert_failed registry
+  [ "$(cat "$CLOSURE_FIXTURE_DIR/npm-attempts")" = 1 ]
+  jq -e '.visibility.registries[0].lastFailure=="rejected"' "$RECEIPT"
+}
+
 @test "release closure terminates a stalled external command" {
   export CLOSURE_FIXTURE_MODE=hang
   export GIT_WARP_CLOSURE_ATTEMPTS=1

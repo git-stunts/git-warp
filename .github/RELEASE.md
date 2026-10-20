@@ -499,9 +499,26 @@ an unavailable Docker daemon can prevent cleanup, which remains a failure.
 the 15-minute job ceiling leaves headroom for setup and receipt upload. The
 receipt records the budget limit and whether it was exhausted.
 
-Within that aggregate budget, the default registry policy is six attempts with
-ten-second delays and 180-second command limits. Diagnostic overrides are
-`GIT_WARP_CLOSURE_ATTEMPTS` (1–10),
+Within that aggregate budget, exact-version registry visibility has a shared
+300-second window covering both npm and JSR, polled every ten seconds with
+180-second command limits. npm can accept a publication and still answer 404
+for that exact version for over a minute, so the window, not a fixed attempt
+count, normally ends polling. It still leaves more than half of the aggregate
+budget for consumer verification. Only availability failures retry: not-found
+(`E404`), transport errors (resets, timeouts, DNS, `E429`, `E5xx`) and command
+timeouts. Any other lookup failure, such as `E401` or `E403`, fails
+immediately, and a visible version with the wrong identity or integrity never
+retries.
+
+The receipt's `visibility` object records the window and, per registry, the
+attempts, elapsed seconds and last classified failure (`not-found`,
+`transport`, `timeout` or `rejected`). It never records credentials. A closed
+window is a failed verification, never a partial success. After the version
+becomes visible, recover by rerunning only the verification job or this
+command; do not move the tag or republish the immutable version.
+
+Diagnostic overrides are `GIT_WARP_CLOSURE_VISIBILITY_SECONDS` (0–480),
+`GIT_WARP_CLOSURE_ATTEMPTS` (1–60, a per-registry ceiling, default 60),
 `GIT_WARP_CLOSURE_DELAY_SECONDS` (0–30), and
 `GIT_WARP_CLOSURE_COMMAND_TIMEOUT_SECONDS` (1–180).
 `GIT_WARP_CLOSURE_TOTAL_TIMEOUT_SECONDS` may reduce the aggregate budget (1–720).

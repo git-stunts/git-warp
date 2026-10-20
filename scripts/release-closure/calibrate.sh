@@ -112,6 +112,12 @@ calibrate propagation-budget 'release closure retries delayed visibility in both
   "$SUCCESS" "$DRIVER" 'attempt=$((attempt + 1))' 'attempt=$((attempt + 2))'
 calibrate finite-budget 'release closure exhausts a finite visibility budget' \
   'npm-attempts' "$DRIVER" 'local attempt=1' 'local attempt=0'
+calibrate visibility-retry 'release closure waits past six polls for an accepted publication within its visibility window' \
+  "$SUCCESS" "$DRIVER" 'E404) echo not-found ;;' 'E404) echo rejected ;;'
+calibrate transport-retry 'release closure retries a transport reset' \
+  "$SUCCESS" "$DRIVER" 'ETIMEDOUT | ECONNRESET |' 'ETIMEDOUT |'
+calibrate rejected-lookup 'release closure does not retry a registry authentication failure' \
+  'npm-attempts' "$DRIVER" 'if [ "$failure" = rejected ]; then' 'if false; then'
 calibrate command-deadline 'release closure terminates a stalled external command' \
   '[ "$status" -ne 124 ]' "$BUDGET" \
   'timeout --kill-after=5s "${limit}s" "$@"' '"$@"'
