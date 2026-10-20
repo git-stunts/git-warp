@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   history, which can list superseded intermediate designs. Workflow reruns
   recompose the notes instead of dropping everything above the generated
   history ([#803](https://github.com/git-stunts/git-warp/issues/803)).
+- Give release closure a 300-second exact-version visibility window across npm
+  and JSR instead of six ten-second polls, which failed while npm was still
+  processing an accepted publication. Only not-found, transport and timeout
+  lookups retry; authentication and other rejections fail at once. The receipt
+  records attempts, elapsed time and the last failure class per registry
+  ([#956](https://github.com/git-stunts/git-warp/issues/956)).
 - Reject unrecognized `Runtime.strand` options with `E_RUNTIME_STRAND_OPTIONS`
   before reopening the strand, matching `Runtime.fork`. A JavaScript caller's
   `at` field was silently ignored
