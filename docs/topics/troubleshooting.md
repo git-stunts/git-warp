@@ -38,14 +38,17 @@ Then retry the Observation. Use `git warp doctor --lane users` if repair fails.
 
 ## Fetched changes are missing
 
-Normal branch fetches do not always include WARP refs. Fetch the repository's
-WARP ref namespace explicitly, then reopen the Runtime:
+Normal branch fetches do not always include WARP refs. Receive other writers'
+chains with the no-prune, unforced recipe in [Sync WARP refs](sync.md#receive-other-writers),
+then reopen the Runtime and check the Lane:
 
 ```bash
-git fetch origin 'refs/warp/team/*:refs/warp/team/*'
 git warp doctor --repo ./team-repo --lane users
 git warp audit --repo ./team-repo --lane users
 ```
+
+Do not fetch a whole `refs/warp/<lane>/*` wildcard: with `fetch.prune`
+enabled it deletes this clone's unpublished writer chain.
 
 If refs are present but the same bounded Observer still differs, preserve the
 repository before attempting any repair.
