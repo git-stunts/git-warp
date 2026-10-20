@@ -9,7 +9,7 @@ import PackedArtifactBoundaryAdapter from '../../src/infrastructure/adapters/Pac
 
 import { formatFailure } from '../formatFailure.ts';
 import PackagePayloadError from './PackagePayloadError.ts';
-import { findEscapingDocumentLinks, findUnresolvedImports } from './PackedArtifactFiles.ts';
+import { findCommentedJavaScript, findEscapingDocumentLinks, findUnresolvedImports } from './PackedArtifactFiles.ts';
 
 const boundary = new PackedArtifactBoundaryAdapter();
 const PACKAGE_METADATA = z.object({ version: z.string().min(1) });
@@ -32,7 +32,7 @@ const UPGRADE_REPORT = z.object({
   graphs: z.array(z.object({ graphName: z.string(), checkpoint: z.object({ status: z.string() }) })),
 });
 
-const COMMANDS = Object.freeze({ documents, imports, hook, results, removal, derived, lifecycle });
+const COMMANDS = Object.freeze({ documents, imports, comments, hook, results, removal, derived, lifecycle });
 
 /** Dispatches one artifact check and reports success only after completion. */
 async function main(argv: readonly string[]): Promise<void> {
@@ -96,6 +96,20 @@ function documents(args: readonly string[]): Promise<void> {
 /** Every relative import in the shipped JavaScript resolves inside the artifact. */
 function imports(args: readonly string[]): Promise<void> {
   requireEmpty('shipped relative imports', findUnresolvedImports(argument(args, 0)));
+  return Promise.resolve();
+}
+
+/** Shipped JavaScript carries no source comments; the public declarations keep their docs. */
+function comments(args: readonly string[]): Promise<void> {
+  const packageDir = argument(args, 0);
+  const commented = findCommentedJavaScript(packageDir);
+  if (commented.length > 0) {
+    throw new PackagePayloadError(`shipped JavaScript carries source doc comments:\n${commented.join('\n')}`);
+  }
+  const runtime = readFileSync(join(packageDir, 'dist/src/application/Runtime.d.ts'), 'utf8');
+  if (!runtime.includes('/** Production composition root')) {
+    throw new PackagePayloadError('the public Runtime declaration lost its documentation');
+  }
   return Promise.resolve();
 }
 
