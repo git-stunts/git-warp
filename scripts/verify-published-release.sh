@@ -10,8 +10,9 @@ RUN_ID=""
 DIST_TAG="latest"
 OUTPUT=""
 REQUIRE_DIST_TAG=0
-ATTEMPTS="${GIT_WARP_CLOSURE_ATTEMPTS:-6}"
+ATTEMPTS="${GIT_WARP_CLOSURE_ATTEMPTS:-60}"
 DELAY="${GIT_WARP_CLOSURE_DELAY_SECONDS:-10}"
+VISIBILITY="${GIT_WARP_CLOSURE_VISIBILITY_SECONDS:-300}"
 COMMAND_TIMEOUT="${GIT_WARP_CLOSURE_COMMAND_TIMEOUT_SECONDS:-180}"
 TOTAL_TIMEOUT="${GIT_WARP_CLOSURE_TOTAL_TIMEOUT_SECONDS:-720}"
 
@@ -36,7 +37,8 @@ done
 [[ "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]] || exit 2
 [[ "$RUN_ID" =~ ^[1-9][0-9]*$ ]] || exit 2
 [[ "$DIST_TAG" =~ ^(latest|alpha|beta|next)$ ]] || exit 2
-[[ "$ATTEMPTS" =~ ^[1-9][0-9]*$ ]] && [ "$ATTEMPTS" -le 10 ] || exit 2
+[[ "$ATTEMPTS" =~ ^[1-9][0-9]*$ ]] && [ "$ATTEMPTS" -le 60 ] || exit 2
+[[ "$VISIBILITY" =~ ^[0-9]+$ ]] && [ "$VISIBILITY" -le 480 ] || exit 2
 [[ "$DELAY" =~ ^[0-9]+$ ]] && [ "$DELAY" -le 30 ] || exit 2
 [[ "$COMMAND_TIMEOUT" =~ ^[1-9][0-9]*$ ]] && [ "$COMMAND_TIMEOUT" -le 180 ] || exit 2
 [ -n "$OUTPUT" ] || exit 2
@@ -54,6 +56,8 @@ STATUS="failed"
 CONSUMER_CLIENT=""
 for document in npm jsr run release consumer; do printf '{}\n' > "$WORK/$document.json"; done
 printf 'null\n' > "$WORK/dist-tag.json"
+: > "$WORK/visibility.jsonl"
+VISIBILITY_DEADLINE=0
 
 finish() {
   local code=$?
@@ -83,9 +87,11 @@ finish() {
     --slurpfile npm "$WORK/npm.json" --slurpfile jsr "$WORK/jsr.json" \
     --slurpfile run "$WORK/run.json" --slurpfile release "$WORK/release.json" \
     --slurpfile consumer "$WORK/consumer.json" --slurpfile owner "$WORK/dist-tag.json" \
+    --argjson window "$VISIBILITY" --slurpfile visibility "$WORK/visibility.jsonl" \
     '{schema:"git-warp/release-closure@1",status:$status,stage:$stage,tag:$tag,
       version:$version,sourceCommit:$commit,
       budget:{limitSeconds:$limit,exhausted:($remaining<=0)},
+      visibility:{windowSeconds:$window,registries:$visibility},
       publishRun:($run[0]|{id,head_sha,html_url,path}),
       githubRelease:($release[0]|{id,tag_name,html_url}),
       npm:($npm[0]|{name,version,gitHead,integrity:.dist.integrity,
@@ -110,12 +116,34 @@ github_metadata() {
   mv "$WORK/github-pending.json" "$2"
 }
 
+# Classifies one failed exact-version lookup. Only availability failures retry.
+classify_registry_failure() {
+  local code="$1" npm_code
+  if [ "$code" -eq 124 ] || [ "$code" -eq 137 ]; then echo timeout; return; fi
+  npm_code=$(grep -oE 'code E[0-9A-Z_]+' "$WORK/registry-error.log" | head -n 1 | cut -d' ' -f2 || true)
+  case "$npm_code" in
+    E404) echo not-found ;;
+    ETIMEDOUT | ECONNRESET | ECONNREFUSED | EAI_AGAIN | ENETUNREACH | E429 | E5[0-9][0-9]) echo transport ;;
+    *) echo rejected ;;
+  esac
+}
+
+record_visibility() {
+  jq -nc --arg registry "$1" --argjson attempts "$2" --argjson elapsed "$((SECONDS - $3))" \
+    --arg failure "$4" '{registry:$registry,attempts:$attempts,elapsedSeconds:$elapsed,
+      lastFailure:(if $failure=="none" then null else $failure end)}' >> "$WORK/visibility.jsonl"
+}
+
+# Polls one registry for the exact version within the shared visibility window.
 registry_metadata() {
   local package="$1" registry="$2" destination="$3"
-  local attempt=1
+  local attempt=1 started=$SECONDS failure=none code
   while [ "$attempt" -le "$ATTEMPTS" ]; do
-    if bounded npm view "$package@$VERSION" name version gitHead dist --json \
-      --registry="$registry" --fetch-retries=0 --fetch-timeout=15000 > "$WORK/pending.json" 2> "$WORK/registry-error.log"; then
+    code=0
+    bounded npm view "$package@$VERSION" name version gitHead dist --json \
+      --registry="$registry" --fetch-retries=0 --fetch-timeout=15000 > "$WORK/pending.json" 2> "$WORK/registry-error.log" || code=$?
+    if [ "$code" -eq 0 ]; then
+      record_visibility "$registry" "$attempt" "$started" "$failure"
       jq -e --arg package "$package" --arg version "$VERSION" '
         type=="object" and .name==$package and .version==$version and
         (.dist.integrity|type=="string" and startswith("sha512-")) and
@@ -124,8 +152,16 @@ registry_metadata() {
       mv "$WORK/pending.json" "$destination"
       return
     fi
-    [ "$attempt" -lt "$ATTEMPTS" ] || fail "registry visibility exhausted $ATTEMPTS attempts"
-    echo "registry visibility pending: attempt $attempt/$ATTEMPTS"
+    failure=$(classify_registry_failure "$code")
+    if [ "$failure" = rejected ]; then
+      record_visibility "$registry" "$attempt" "$started" "$failure"
+      fail "registry rejected the lookup for $package@$VERSION"
+    fi
+    if [ "$attempt" -ge "$ATTEMPTS" ] || [ $((SECONDS + DELAY)) -ge "$VISIBILITY_DEADLINE" ]; then
+      record_visibility "$registry" "$attempt" "$started" "$failure"
+      fail "registry visibility window closed after $attempt attempts ($failure)"
+    fi
+    echo "registry visibility pending ($failure): attempt $attempt"
     bounded sleep "$DELAY"
     attempt=$((attempt + 1))
   done
@@ -152,6 +188,7 @@ jq -e --arg tag "$TAG" '.tag_name==$tag and .draft==false and (.id|type=="number
   "$WORK/release.json" >/dev/null || fail "GitHub Release identity mismatch"
 
 STAGE="registry"
+VISIBILITY_DEADLINE=$((SECONDS + VISIBILITY))
 registry_metadata "$PACKAGE" https://registry.npmjs.org "$WORK/npm.json"
 jq -e --arg commit "$EXPECTED_COMMIT" '.gitHead==$commit' "$WORK/npm.json" >/dev/null \
   || fail "npm gitHead mismatch"
