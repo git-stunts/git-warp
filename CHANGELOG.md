@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep Mermaid validation working on macOS hosts whose kernel reports EPERM
+  for an owned browser process group that is still exiting. Reclamation now
+  polls that group until it disappears within the existing deadline instead
+  of failing the docs lint and pre-push gate; EPERM stays fatal elsewhere
+  ([#996](https://github.com/git-stunts/git-warp/issues/996)).
+
 - Load the installed CLI in its current Node process instead of starting a
   second Node process, preserving entry selection, arguments, standard streams
   and command-owned shutdown ([#984](https://github.com/git-stunts/git-warp/issues/984)).
