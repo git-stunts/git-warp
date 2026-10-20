@@ -31,16 +31,20 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) { await cleanup(); }
 });
 
-/** Joins backslash continuations and returns each shell command of the sync page's bash blocks. */
+/** Returns the bash block that follows a heading on the sync page, verbatim. */
+function blockAfter(page: string, heading: string): string {
+  const start = page.indexOf(`\n## ${heading}\n`);
+  const block = start < 0 ? null : /```bash\n([\s\S]*?)```/u.exec(page.slice(start));
+  if (block === null || block[1] === undefined) { throw new Error(`sync.md has no bash block under "${heading}"`); }
+  return block[1];
+}
+
 async function documentedRecipes(): Promise<Recipes> {
   const page = await readFile(SYNC_DOC, 'utf8');
-  const commands = [...page.matchAll(/```bash\n([\s\S]*?)```/gu)]
-    .flatMap(([, block]) => (block ?? '').replace(/\\\n\s*/gu, ' ').split('\n'))
-    .map(line => line.trim())
-    .filter(line => line.startsWith('git '));
-  const publish = commands.filter(line => line.startsWith('git push'));
-  const receive = commands.filter(line => line.startsWith('git fetch') || line.startsWith('git warp repair'));
-  return { publish: publish.join(' && '), receive: receive.join(' && ') };
+  return {
+    publish: blockAfter(page, 'Publish this writer'),
+    receive: blockAfter(page, 'Receive other writers'),
+  };
 }
 
 function git(cwd: string, args: readonly string[]): string {
@@ -84,11 +88,12 @@ function run(target: Clone & { env: typeof process.env }, script: string, writer
 }
 
 /** Gives the hub an incompatible substrate marker, as an older or foreign hub would hold. */
-function plantForeignMarker(hubPath: string): void {
+function plantForeignMarker(hubPath: string): string {
   const blob = execFileSync('git', ['-C', hubPath, 'hash-object', '-w', '--stdin'], {
     input: 'git-warp-retained-substrate\nversion: 18\n', encoding: 'utf8',
   }).trim();
   git(hubPath, ['update-ref', MARKER_REF, blob]);
+  return blob;
 }
 
 async function write(target: Clone, writer: string, subject: string): Promise<void> {
@@ -235,13 +240,14 @@ describe('documented selected-writer transfer refusals', () => {
     const recipes = await documentedRecipes();
     const hubPath = await hub();
     const alice = await clone('foreign-marker-alice', hubPath, 'none');
-    plantForeignMarker(hubPath);
+    const foreign = plantForeignMarker(hubPath);
     await write(alice, 'alice', 'a');
 
     const refused = run(alice, recipes.publish, 'alice');
 
     expect(refused.status).not.toBe(0);
     expect(refs(hubPath).has(writerRef('alice'))).toBe(false);
+    expect(refs(hubPath).get(MARKER_REF)).toBe(foreign);
   }, CASE_TIMEOUT_MS);
 
   it('receives nothing from a hub whose substrate marker differs', async () => {
@@ -253,11 +259,13 @@ describe('documented selected-writer transfer refusals', () => {
     git(alice.tempDir, ['push', 'origin', `${writerRef('alice')}:${writerRef('alice')}`]);
     plantForeignMarker(hubPath);
     await write(bob, 'bob', 'b');
+    const bobMarker = refs(bob.tempDir).get(MARKER_REF);
 
     const refused = run(bob, recipes.receive, 'bob');
 
     expect(refused.status).not.toBe(0);
     expect(refs(bob.tempDir).has(writerRef('alice'))).toBe(false);
+    expect(refs(bob.tempDir).get(MARKER_REF)).toBe(bobMarker);
   }, CASE_TIMEOUT_MS);
 
   it('refuses an older hub without a substrate marker and changes nothing', async () => {

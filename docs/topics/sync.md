@@ -56,36 +56,50 @@ Set `LANE` and `WRITER` to the Lane and to the writer identity this clone
 writes as. Push only that chain and the Lane's substrate marker:
 
 ```bash
-git push origin \
+git push --atomic origin \
   "refs/warp/$LANE/writers/$WRITER:refs/warp/$LANE/writers/$WRITER" \
   "refs/warp/$LANE/substrate-version:refs/warp/$LANE/substrate-version"
 ```
 
 Without `+`, Git accepts only a fast-forward. If another clone already published
 a different chain under the same writer identity, the push is rejected and the
-hub is unchanged. Give each clone its own writer identity.
+hub is unchanged. Give each clone its own writer identity. `--atomic` updates
+both refs or neither, so a hub holding a different substrate marker never
+receives this chain.
 
 ## Receive other writers
 
-Fetch every other writer's chain and the substrate marker, explicitly without
-pruning, then rebuild this clone's checkpoint:
+Check the hub's substrate marker, fetch every other writer's chain explicitly
+without pruning, then rebuild this clone's checkpoint. Save the recipe as a
+script and run it with `sh` so it stops at the first failure:
 
 ```bash
+set -e
+marker="refs/warp/$LANE/substrate-version"
+hub_marker=$(git ls-remote origin "$marker" | cut -f1)
+local_marker=$(git rev-parse -q --verify "$marker" || true)
+if [ -z "$hub_marker" ] || { [ -n "$local_marker" ] && [ "$hub_marker" != "$local_marker" ]; }; then
+  echo "The hub's substrate marker is missing or differs; migrate the hub first." >&2
+  exit 1
+fi
 git fetch --no-prune --no-tags origin \
+  "$marker:$marker" \
   "refs/warp/$LANE/writers/*:refs/warp/$LANE/writers/*" \
-  "^refs/warp/$LANE/writers/$WRITER" \
-  "refs/warp/$LANE/substrate-version:refs/warp/$LANE/substrate-version"
+  "^refs/warp/$LANE/writers/$WRITER"
 git warp repair --repo . --lane "$LANE" --writer "$WRITER" --action materialization
 ```
 
+- The marker check runs before any ref changes. Git updates refs that point at
+  blobs, such as the marker, without a fast-forward check even when the refspec
+  has no `+`, so the recipe compares object IDs first. A hub with a missing or
+  different marker is refused; migrate it before receiving from it. A fresh
+  receiver adopts the hub's marker.
 - `--no-prune` overrides `fetch.prune` and `remote.<name>.prune`, so refs the
   hub does not have yet stay unchanged.
 - The `^` negative refspec (Git 2.29 or later) excludes this clone's own chain,
   which only this clone advances.
-- Without `+`, a stale hub cannot move a newer local chain backward: Git
+- Without `+`, a stale hub cannot move a newer local writer chain backward: Git
   rejects that update, leaves the local ref unchanged and exits non-zero.
-- Naming the substrate marker makes a hub without one fail before any ref
-  changes. Migrate that hub before receiving from it.
 - The repair step rebuilds this clone's checkpoint head from the received
   chains; no checkpoint travels between clones.
 
