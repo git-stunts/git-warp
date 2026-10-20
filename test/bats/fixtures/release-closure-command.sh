@@ -44,9 +44,18 @@ case "$tool" in
         [ ! -f "$CLOSURE_FIXTURE_DIR/$registry-attempts" ] || attempts=$(cat "$CLOSURE_FIXTURE_DIR/$registry-attempts")
         attempts=$((attempts + 1))
         echo "$attempts" > "$CLOSURE_FIXTURE_DIR/$registry-attempts"
-        [ "$CLOSURE_FIXTURE_MODE" != unavailable ] || exit 1
+        not_found() { echo 'npm error code E404' >&2; echo "npm error 404 '$2' is not in this registry." >&2; exit 1; }
+        [ "$CLOSURE_FIXTURE_MODE" != unavailable ] || not_found "$@"
         [ "$CLOSURE_FIXTURE_MODE" != hang ] || exec sleep 30
-        if [ "$CLOSURE_FIXTURE_MODE" = delayed ] && [ "$attempts" -lt 3 ]; then exit 1; fi
+        if [ "$CLOSURE_FIXTURE_MODE" = delayed ] && [ "$attempts" -lt 3 ]; then not_found "$@"; fi
+        # Accepted npm publication that stays invisible longer than six polls.
+        if [ "$CLOSURE_FIXTURE_MODE" = slow-visibility ] && [ "$registry" = npm ] && [ "$attempts" -lt 8 ]; then
+          not_found "$@"
+        fi
+        if [ "$CLOSURE_FIXTURE_MODE" = auth-failure ]; then echo 'npm error code E401' >&2; exit 1; fi
+        if [ "$CLOSURE_FIXTURE_MODE" = transport-reset ] && [ "$attempts" -lt 2 ]; then
+          echo 'npm error code ECONNRESET' >&2; exit 1
+        fi
         name="@git-stunts/git-warp"
         [ "$registry" != jsr ] || name="@jsr/git-stunts__git-warp"
         commit="$CLOSURE_FIXTURE_COMMIT"
