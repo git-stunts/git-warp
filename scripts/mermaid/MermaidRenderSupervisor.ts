@@ -225,12 +225,16 @@ function killOwnedGroup(pid: number, remainingMs: number): void {
     return;
   }
   try { process.kill(-pid, 'SIGKILL'); }
-  catch (error) { if (!isMissingProcess(error)) { throw error; } }
+  catch (error) { if (!isMissingProcess(error) && !isExitingGroup(error)) { throw error; } }
 }
 
 function groupExists(pid: number): boolean {
   try { process.kill(process.platform === 'win32' ? pid : -pid, 0); return true; }
-  catch (error) { if (isMissingProcess(error)) { return false; } throw error; }
+  catch (error) {
+    if (isMissingProcess(error)) { return false; }
+    if (isExitingGroup(error)) { return true; }
+    throw error;
+  }
 }
 
 function ownedGroupsRemain(groups: ReadonlySet<number>): boolean {
@@ -239,6 +243,15 @@ function ownedGroupsRemain(groups: ReadonlySet<number>): boolean {
 
 function isMissingProcess<T>(error: T): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ESRCH';
+}
+
+/**
+ * Darwin answers EPERM for an owned process group whose members are all
+ * exiting or zombies. The group still exists; polling continues until ESRCH
+ * or the reclamation deadline.
+ */
+function isExitingGroup<T>(error: T): boolean {
+  return process.platform === 'darwin' && error instanceof Error && 'code' in error && error.code === 'EPERM';
 }
 
 function remainingMilliseconds(deadline: bigint): number {
