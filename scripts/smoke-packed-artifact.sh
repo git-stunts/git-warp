@@ -191,6 +191,7 @@ test ! -e "$PACKAGE_DIR/docs/operations"
 CHECK_PACKED="$ROOT/scripts/package-payload/CheckPackedArtifact.ts"
 node "$CHECK_PACKED" documents "$PACKAGE_DIR"
 node "$CHECK_PACKED" imports "$PACKAGE_DIR"
+node "$CHECK_PACKED" comments "$PACKAGE_DIR"
 
 # Type-check all five public type surfaces from the installed tarball with
 # skipLibCheck disabled. The fixture is the repository's own subpath consumer,

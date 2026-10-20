@@ -75,3 +75,9 @@ function isShippedPath(packageDir: string, path: string): boolean {
   const escapes = fromPackage === '..' || fromPackage.startsWith(`..${sep}`);
   return !escapes && !isAbsolute(fromPackage) && existsSync(path);
 }
+
+/** Shipped JavaScript files that still carry a source doc comment. */
+export function findCommentedJavaScript(packageDir: string): string[] {
+  return listFiles(join(packageDir, 'dist'), '.js')
+    .filter((file) => /^\s*\/\*\*/mu.test(readFileSync(file, 'utf8')));
+}

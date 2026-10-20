@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Strip source comments from the published JavaScript while keeping them in
+  the public declarations. The packed payload drops from 3,297,802 to 2,870,940
+  unpacked bytes and from 756,533 to 616,005 compressed bytes, restoring room
+  under unchanged ceilings that a single new source file had crossed
+  ([#1009](https://github.com/git-stunts/git-warp/issues/1009)).
 - Report a missing substrate marker as `E_SUBSTRATE_MARKER_MISSING` instead of
   telling the operator to run the v18 migration. A Lane without a marker now
   requires migration only when a writer head is a v18 patch commit. Current
