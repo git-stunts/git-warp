@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  findCommentedJavaScript,
   findEscapingDocumentLinks,
   findUnresolvedImports,
   markdownLinkTargets,
@@ -99,5 +100,19 @@ describe('packed artifact JavaScript imports', () => {
     });
 
     expect(findUnresolvedImports(root)).toEqual(['dist/bin/cli.js -> ../scripts/missing.js']);
+  });
+});
+
+describe('packed artifact JavaScript comments', () => {
+  it('reports shipped JavaScript that still carries a doc comment', () => {
+    const root = packageFixture({
+      'dist/clean.js': "#!/usr/bin/env node\nexport const a = '/** not a comment */';\n",
+      'dist/src/kept.js': '/** Explains a. */\nexport const a = 1;\n',
+      'dist/src/indented.js': 'class A {\n    /** Explains m. */\n    m() {}\n}\n',
+      'dist/src/types.d.ts': '/** Declarations keep docs. */\nexport declare const a: 1;\n',
+    });
+
+    expect(findCommentedJavaScript(root).map((file) => file.slice(root.length + 1)).sort())
+      .toEqual(['dist/src/indented.js', 'dist/src/kept.js']);
   });
 });
