@@ -141,6 +141,7 @@ export class Writer {
 
     const builderOpts = this._buildPatchOpts({ persistence, graphName, writerId, lamport, expectedParentSha: expectedOldHead });
     const builder = new PatchBuilder(builderOpts);
+    await builder.restoreWriterContext();
 
     return new PatchSession({ builder, persistence, graphName, writerId, expectedOldHead });
   }

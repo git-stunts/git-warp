@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Stop graph-first writers from reusing CRDT dots. `createPatch`, `patch`,
+  `patchMany` and `writer().commitPatch` now continue the writer's dot counter
+  from its parent patch, and a commit advances the host version vector by every
+  dot the patch used instead of by one. Before, a writer that had not
+  materialized gave the same dot to nodes or edges in different patches, so
+  removing one silently removed the others. Patches already written with
+  duplicate dots are not repaired
+  ([#995](https://github.com/git-stunts/git-warp/issues/995)).
 - Replace the published lane-wide WARP fetch and push recipes, which deleted a
   clone's unpublished writer chain under `fetch.prune` and published derived
   checkpoint heads. Sync now documents ref ownership and transport per ref

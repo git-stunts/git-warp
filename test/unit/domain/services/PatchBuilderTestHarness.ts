@@ -7,7 +7,7 @@ import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
-import type Patch from '../../../../src/domain/types/Patch.ts';
+import Patch from '../../../../src/domain/types/Patch.ts';
 import AssetStoragePort, {
   type AssetWriteOptions,
   type StagedAsset,
@@ -148,11 +148,20 @@ export class RecordingPatchJournal extends PatchJournalPort {
     return WarpStream.from([]);
   }
 
+  /**
+   * Yields the writer head. A head published through this journal yields its
+   * recorded patch; a head seeded only through mocked refs yields an
+   * empty-context parent, so restoring the writer context is a no-op.
+   */
   override scanPatchHistory(
-    _writerId: string,
-    _fromSha: string,
+    writerId: string,
+    fromSha: string,
   ): WarpStream<PatchEntry> {
-    return WarpStream.from([]);
+    const recorded = fromSha === this.sha
+      ? [...this.requests].reverse().find((request) => request.patch.writer === writerId)
+      : undefined;
+    const patch = recorded?.patch ?? new Patch({ writer: writerId, lamport: 1, context: {}, ops: [] });
+    return WarpStream.from([new PatchEntry({ patch, sha: fromSha })]);
   }
 }
 

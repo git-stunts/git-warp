@@ -6,6 +6,7 @@ import { NoOpEffectSink } from '../../../src/infrastructure/adapters/NoOpEffectS
 
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage, encodeCheckpointMessage } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import { createMockPatch } from '../../helpers/WarpGraphPatchFixtures.ts';
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -356,13 +357,10 @@ describe('WarpCore', () => {
           return Promise.resolve(null);
         });
         persistence.listRefs.mockResolvedValue([]);
-        persistence.showNode.mockResolvedValue(encodePatchMessage({
-          graph: 'events',
-          writer: 'writer-1',
-          lamport: 5,
-          patchOid: existingPatchOid,
-          schema: 2,
-        }));
+        const parent = createMockPatch({ sha: existingSha, patchOid: existingPatchOid, graphName: 'events', writerId: 'writer-1', lamport: 5 });
+        persistence.showNode.mockResolvedValue(parent.message);
+        persistence.getNodeInfo.mockResolvedValue(parent.nodeInfo);
+        persistence.readBlob.mockResolvedValue(parent.patchBuffer);
 
         const graph = await openRuntimeHostProduct({
           persistence,
