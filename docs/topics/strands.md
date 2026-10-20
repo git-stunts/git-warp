@@ -37,7 +37,9 @@ try {
 
 `Runtime.fork()` accepts only `name` and forks at the parent's live
 coordinate. Any other option, such as `at`, is rejected with
-`E_RUNTIME_FORK_OPTIONS` before any strand ref changes. Forking at a historical
+`E_RUNTIME_FORK_OPTIONS` before any strand ref changes. `Runtime.strand()`
+also accepts only `name` and rejects anything else with
+`E_RUNTIME_STRAND_OPTIONS` before reading the strand. Forking at a historical
 coordinate is tracked in
 [#972](https://github.com/git-stunts/git-warp/issues/972).
 

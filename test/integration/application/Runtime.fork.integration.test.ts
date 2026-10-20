@@ -193,4 +193,31 @@ describe('Runtime fork composition', () => {
       await runtime.close();
     }
   });
+
+  it.each([
+    ['an unsupported at coordinate', () => ({ name: 'try-reopen', at: 'tick:1' }), 'at'],
+    ['a symbol key', () => ({ name: 'try-reopen', [Symbol('at')]: 'tick:1' }), 'Symbol(at)'],
+    ['an accessor name', () => Object.defineProperty({}, 'name', { get: () => 'try-reopen', enumerable: true }), 'name'],
+    ['an inherited at coordinate', () => Object.assign(Object.create({ at: 'tick:1' }), { name: 'try-reopen' }), 'at'],
+  ] as const)('rejects reopening a strand with %s before reading it', async (_case, options, rejected) => {
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'agent-1' });
+    try {
+      const events = await runtime.lane('events');
+      await events.write(Intent.addNode({ subject: 'user:alice' }));
+      await runtime.fork(events, { name: 'try-reopen' });
+      const refsBefore = await repository.persistence.listRefs('refs/warp/');
+
+      // Built outside the call so TypeScript applies no excess-property check, as for JavaScript callers.
+      const strand = runtime.strand.bind(runtime);
+      await expect(strand(events, options())).rejects.toMatchObject({
+        code: 'E_RUNTIME_STRAND_OPTIONS',
+        message: expect.stringContaining(`'${rejected}'`),
+        context: { rejected, supported: ['name'] },
+      });
+      expect(await repository.persistence.listRefs('refs/warp/')).toEqual(refsBefore);
+      await expect(strand(events, { name: 'try-reopen' })).resolves.toMatchObject({ kind: 'strand' });
+    } finally {
+      await runtime.close();
+    }
+  });
 });
