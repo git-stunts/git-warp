@@ -37,8 +37,8 @@ async function removeNodes(graph, start: number, count: number): Promise<void> {
   await graph.materialize();
 }
 
-function sampleIndexes(live: readonly number[]): number[] {
-  return [live[0], live[Math.floor(live.length / 2)], live[live.length - 1]];
+function sampleIndexes(first: number, last: number): number[] {
+  return [first, Math.floor((first + last) / 2), last];
 }
 
 describe('API: retained checkpoints beyond one metadata request', () => {
@@ -72,13 +72,12 @@ describe('API: retained checkpoints beyond one metadata request', () => {
       }
       expect(new Set(checkpoints).size).toBe(CHECKPOINT_ROUNDS);
 
-      const live = Array.from({ length: next - removedThrough }, (_, index) => index + removedThrough);
       const reopened = await repo.openGraph(GRAPH, WRITER);
       await reopened.materialize();
       const nodes = await reopened.getNodes();
-      expect(nodes).toHaveLength(live.length);
+      expect(nodes).toHaveLength(next - removedThrough);
       expect(nodes).not.toContain(nodeId(0));
-      for (const index of sampleIndexes(live)) {
+      for (const index of sampleIndexes(removedThrough, next - 1)) {
         expect(await reopened.getNodeProps(nodeId(index))).toEqual({ value: `value-${index}` });
       }
     },

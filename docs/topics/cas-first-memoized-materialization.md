@@ -223,6 +223,12 @@ the descriptor and materialization roots. `CacheSet` receipts provide the
 generation, policy, reachability, root ref, and path witness for every retained
 materialization.
 
+Retention admission checks every target's object type before it publishes a
+root-set generation. git-cas reads that metadata in ordered request windows of
+at most 1000 objects and 64 KiB of encoded cat-file commands, so large
+checkpoints retain their whole bundle without raising Plumbing's request
+limits. A missing or mismatched target in any window blocks publication.
+
 Inspect retention without changing it:
 
 ```bash

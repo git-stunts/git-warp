@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Retain checkpoints whose retention root set exceeds one Git metadata
+  request. git-cas 6.5.12 validates retention targets in ordered windows of at
+  most 1000 objects and 64 KiB of cat-file commands, including SHA-256 names,
+  so Lanes with roughly 1600 or more live nodes no longer fail with "Workspace
+  staged an object but could not establish retention". Missing and mismatched
+  targets still block publication ([#958](https://github.com/git-stunts/git-warp/issues/958)).
+
 - Load the installed CLI in its current Node process instead of starting a
   second Node process, preserving entry selection, arguments, standard streams
   and command-owned shutdown ([#984](https://github.com/git-stunts/git-warp/issues/984)).
