@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject unrecognized `Runtime.fork` options with `E_RUNTIME_FORK_OPTIONS`
+  before any strand ref changes. Before, a JavaScript caller's `at` field was
+  silently ignored and the strand started at the live coordinate. The error
+  names the rejected key and the supported keys. Symbol keys, inherited keys and
+  accessor properties are rejected too
+  ([#971](https://github.com/git-stunts/git-warp/issues/971)).
 - Replace the published lane-wide WARP fetch and push recipes, which deleted a
   clone's unpublished writer chain under `fetch.prune` and published derived
   checkpoint heads. Sync now documents ref ownership and transport per ref

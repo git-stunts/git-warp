@@ -35,6 +35,12 @@ try {
 }
 ```
 
+`Runtime.fork()` accepts only `name` and forks at the parent's live
+coordinate. Any other option, such as `at`, is rejected with
+`E_RUNTIME_FORK_OPTIONS` before any strand ref changes. Forking at a historical
+coordinate is tracked in
+[#972](https://github.com/git-stunts/git-warp/issues/972).
+
 `Runtime.strand()` fails if the retained descriptor does not contain the
 checkpoint needed to reconstruct the exact parent coordinate. The v18-to-v19
 migration supplies that coordinate for legacy retained data.
