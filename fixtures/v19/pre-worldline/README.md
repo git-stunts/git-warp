@@ -44,8 +44,14 @@ git worktree add --detach ../git-warp-v19.1.0 v19.1.0
 node fixtures/v19/pre-worldline/generate.mjs ../git-warp-v19.1.0 <empty-dir>
 git -C <empty-dir> for-each-ref --format='%(refname)' refs/warp/ \
   | git -C <empty-dir> bundle create "$PWD/fixtures/v19/pre-worldline/v19-pre-worldline.bundle" --stdin
+git init -q --initial-branch=fixture <restored-dir>
+git -C <restored-dir> fetch -q "$PWD/fixtures/v19/pre-worldline/v19-pre-worldline.bundle" \
+  'refs/warp/*:refs/warp/*'
 node fixtures/v19/pre-worldline/census.mjs ../git-warp-v19.1.0 <restored-dir> \
   > fixtures/v19/pre-worldline/release-census.json
+# Copy these into manifest.json as bundleSha256 and refs[]:
+shasum -a 256 fixtures/v19/pre-worldline/v19-pre-worldline.bundle
+git -C <restored-dir> for-each-ref --format='%(refname) %(objectname) %(objecttype)' refs/
 ```
 
 Both the generator and the census refuse to run unless the worktree `HEAD` is

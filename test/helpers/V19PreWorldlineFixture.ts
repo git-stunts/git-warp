@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import process from 'node:process';
 
 import GitStorage from '../../src/application/GitStorage.ts';
 import { getDefaultRuntimeHostNodePorts } from '../../src/application/RuntimeHostNodeDefaults.ts';
@@ -20,6 +21,21 @@ import {
 } from '../../src/domain/warp/RuntimeHostProduct.ts';
 
 export const V19_PRE_WORLDLINE_DIR = resolve('fixtures/v19/pre-worldline');
+
+/**
+ * Git honors these over `-C` and cwd. A hook or wrapper shell can export
+ * them, which would point the restore and the runtime's own git children at
+ * the caller's repository instead of the scratch restore.
+ */
+const GIT_LOCATION_VARIABLES = [
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_COMMON_DIR',
+  'GIT_INDEX_FILE',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_PREFIX',
+] as const;
 
 export type FixtureRef = Readonly<{
   refName: string;
@@ -89,6 +105,9 @@ export async function restoreV19PreWorldlineFixture(
   const digest = createHash('sha256').update(await readFile(bundlePath)).digest('hex');
   if (digest !== manifest.bundleSha256) {
     throw new Error(`v19 fixture bundle digest mismatch: ${digest}`);
+  }
+  for (const name of GIT_LOCATION_VARIABLES) {
+    delete process.env[name];
   }
   const repository = await mkdtemp(join(tmpdir(), 'git-warp-v19-pre-worldline-'));
   git(repository, ['init', '-q', '--initial-branch=fixture']);

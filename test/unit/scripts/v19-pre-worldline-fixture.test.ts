@@ -1,4 +1,6 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { rm } from 'node:fs/promises';
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   censusWithCurrentRuntime,
@@ -13,16 +15,23 @@ describe('v19.1.0 pre-worldline fixture (#1018)', () => {
   let manifest: V19PreWorldlineManifest;
   let releaseCensus: Record<string, GraphCensus>;
   let currentCensus: Record<string, GraphCensus>;
+  let repository: string | undefined;
 
   beforeAll(async () => {
     manifest = await readV19PreWorldlineManifest();
     releaseCensus = await readReleaseCensus(manifest);
-    const repository = await restoreV19PreWorldlineFixture(manifest);
+    repository = await restoreV19PreWorldlineFixture(manifest);
     currentCensus = await censusWithCurrentRuntime(
       repository,
       manifest.scenarios.map((scenario) => scenario.graph).sort(),
     );
   }, 120_000);
+
+  afterAll(async () => {
+    if (repository !== undefined) {
+      await rm(repository, { recursive: true, force: true });
+    }
+  });
 
   it('pins the authoring release and one scenario per graph', () => {
     expect(manifest.release).toEqual({

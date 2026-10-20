@@ -11,6 +11,21 @@ export const RELEASE_TAG = 'v19.1.0';
 export const RELEASE_COMMIT = '20a9b7f76d07195de0782f0852102434bdd200d3';
 const FIXED_DATE = '2026-01-01T00:00:00Z';
 
+// A hook or wrapper shell can export these. Git honors them over `-C` and
+// cwd, so the generator would write into the caller's repository. Clearing
+// them here also isolates the git children the release runtime spawns.
+for (const name of [
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_COMMON_DIR',
+  'GIT_INDEX_FILE',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_PREFIX',
+]) {
+  delete process.env[name];
+}
+
 export function git(cwd, args) {
   return execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8' }).trim();
 }
