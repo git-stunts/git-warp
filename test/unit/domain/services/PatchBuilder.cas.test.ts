@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import DotMint from '../../../../src/domain/crdt/DotMint.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import {
   createPatchBuilderMockPersistence as createMockPersistence,
@@ -122,6 +123,7 @@ function createBuilder(options: {
     writerId: 'writer-1',
     lamport: 1,
     versionVector: VersionVector.empty(),
+    dotMint: DotMint.after('writer-1', 0),
     getCurrentState: () => null,
     expectedParentSha: options.expectedParentSha,
     ...(options.targetRefPath === undefined ? {} : { targetRefPath: options.targetRefPath }),

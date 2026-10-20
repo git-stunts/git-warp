@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import DotMint from '../../../../src/domain/crdt/DotMint.ts';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
 import type WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import { createPatchBuilderMockPersistence } from './PatchBuilderTestHarness.ts';
@@ -23,6 +24,7 @@ function makeBuilder(getCurrentState: () => WarpState | null) {
     writerId: 'w1',
     lamport: 1,
     versionVector: createStateBuilder().build().observedFrontier,
+    dotMint: DotMint.after('w1', 0),
     getCurrentState,
   });
 }

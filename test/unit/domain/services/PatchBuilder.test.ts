@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
 import PatchError from '../../../../src/domain/errors/PatchError.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import DotMint from '../../../../src/domain/crdt/DotMint.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/JoinReducer.ts';
@@ -62,6 +63,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: vv,
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -83,6 +85,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -102,6 +105,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 2,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => state,
       } as any));
 
@@ -127,6 +131,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 3,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => state,
       } as any));
 
@@ -146,6 +151,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => state,
       } as any));
 
@@ -160,6 +166,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -185,6 +192,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 2,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => state,
       } as any));
 
@@ -206,6 +214,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -220,6 +229,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => state,
       } as any));
 
@@ -233,6 +243,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -255,6 +266,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: vv,
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -270,6 +282,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -281,6 +294,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -310,6 +324,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: vv,
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -328,6 +343,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -347,6 +363,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: vv,
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -365,6 +382,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: vv,
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -382,6 +400,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: originalVv,
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -400,6 +419,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -413,6 +433,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => state,
       } as any));
 
@@ -426,6 +447,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -439,6 +461,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => state,
       } as any));
 
@@ -457,6 +480,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: vv,
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -474,6 +498,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -491,6 +516,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -505,6 +531,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => null,
       } as any));
 
@@ -528,6 +555,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 2,
         versionVector: vv,
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => state,
       } as any));
 
@@ -557,6 +585,7 @@ describe('PatchBuilder', () => {
         writerId: 'writer1',
         lamport: 1,
         versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 0),
         getCurrentState: () => state,
       } as any));
 

@@ -6,6 +6,7 @@
  * current substrate.
  */
 import { createEmptyState } from '../../../src/domain/services/JoinReducer.ts';
+import DotMint from '../../../src/domain/crdt/DotMint.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import type WarpState from '../../../src/domain/services/state/WarpState.ts';
 import type { LWWRegister } from '../../../src/domain/crdt/LWW.ts';
@@ -44,15 +45,17 @@ function upgradeAliveEntities({
   readonly vv: VersionVector;
   readonly migrationWriterId: string;
 }): void {
+  const mint = DotMint.after(migrationWriterId, 0);
+  mint.observed(vv);
   for (const [nodeId, reg] of legacyState.nodeAlive) {
     if (reg.value) {
-      const dot = vv.increment(migrationWriterId);
+      const dot = mint.mintInto(vv);
       currentState.nodeAlive.add(nodeId, dot);
     }
   }
   for (const [edgeKey, reg] of legacyState.edgeAlive) {
     if (reg.value) {
-      const dot = vv.increment(migrationWriterId);
+      const dot = mint.mintInto(vv);
       currentState.edgeAlive.add(edgeKey, dot);
     }
   }

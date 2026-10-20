@@ -2,6 +2,7 @@ import StrandError from '../../errors/StrandError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import AssetHandle from '../../storage/AssetHandle.ts';
 import { PatchBuilder } from '../PatchBuilder.ts';
+import { dotMintAfterPatches } from '../openDotMint.ts';
 import {
   maxPatchLamport,
   normalizeStringArray,
@@ -38,6 +39,7 @@ type PatchBuilderOptionsParams = {
   descriptor: StrandDescriptor;
   lamport: number;
   versionVector: VersionVector;
+  patches: Iterable<{ readonly patch: Patch }>;
   getCurrentState: () => WarpState | null;
   evaluationCoordinateRef?: string;
   expectedParentSha: string | null;
@@ -241,6 +243,7 @@ export default class StrandPatchService {
     descriptor,
     lamport,
     versionVector,
+    patches,
     getCurrentState,
     evaluationCoordinateRef,
     expectedParentSha,
@@ -254,6 +257,7 @@ export default class StrandPatchService {
       admissionParticipantId: this._graph._writerId,
       lamport,
       versionVector,
+      dotMint: dotMintAfterPatches(descriptor.overlay.overlayId, patches),
       getCurrentState,
       expectedParentSha,
       onDeleteWithData: this._graph._onDeleteWithData,
@@ -293,6 +297,7 @@ export default class StrandPatchService {
       descriptor,
       lamport: maxPatchLamport(allPatches) + 1,
       versionVector: state.observedFrontier,
+      patches: allPatches,
       getCurrentState: () => state,
       expectedParentSha: descriptor.overlay.headPatchSha ?? null,
     }));
@@ -339,6 +344,7 @@ export default class StrandPatchService {
       descriptor,
       lamport: maxPatchLamport(allPatches) + 1,
       versionVector: state.observedFrontier,
+      patches: allPatches,
       getCurrentState: () => strandState,
       evaluationCoordinateRef: strandPatchCoordinateRef(
         this._graph._graphName,

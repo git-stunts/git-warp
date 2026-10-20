@@ -11,7 +11,7 @@
  */
 
 import { PatchBuilder } from '../PatchBuilder.ts';
-import readWriterHeadContext from '../readWriterHeadContext.ts';
+import openDotMint from '../openDotMint.ts';
 import { joinStates, applyWithDiff, applyWithReceipt, type WarpState } from '../JoinReducer.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { Writer } from '../../warp/Writer.ts';
@@ -160,9 +160,10 @@ export default class PatchController {
       graphName: h._graphName,
       writerId: h._writerId,
       lamport,
-      versionVector: h._versionVector.merge(await readWriterHeadContext({
-        commits: h._persistence, codec: h._commitMessageCodec, journal: h._patchJournal, headSha: parentSha,
-      })),
+      versionVector: h._versionVector,
+      dotMint: await openDotMint({
+        writerId: h._writerId, commits: h._persistence, codec: h._commitMessageCodec, journal: h._patchJournal, headSha: parentSha,
+      }),
       getCurrentState: () => h._cachedState,
       getSnapshotFrontier: () => h._cachedFrontier ?? null,
       expectedParentSha: parentSha,

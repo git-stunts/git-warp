@@ -1,6 +1,7 @@
 import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../../../src/domain/storage/BufferedArtifactLimit.ts';
 import { vi, type Mock } from 'vitest';
 import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.ts';
+import DotMint from '../../../../src/domain/crdt/DotMint.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
@@ -221,6 +222,7 @@ export function createPatchBuilderOptions(
     writerId: 'writer1',
     lamport: 1,
     versionVector: VersionVector.empty(),
+    dotMint: DotMint.after(overrides.writerId ?? 'writer1', 0),
     getCurrentState: () => null,
     commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
     ...overrides,

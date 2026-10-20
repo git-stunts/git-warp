@@ -44,6 +44,13 @@ describe('DotMint', () => {
     expect(() => DotMint.after('alice', 1.5)).toThrow(expect.objectContaining({ code: 'E_CRDT_INVALID_COUNTER' }));
   });
 
+  it('refuses to mint for a different writer', () => {
+    const mint = DotMint.after('alice', 0);
+
+    expect(mint.requireWriter('alice')).toBe(mint);
+    expect(() => mint.requireWriter('bob')).toThrow(expect.objectContaining({ code: 'E_CRDT_DOT_MINT_WRITER' }));
+  });
+
   it('is the only producer of dots: a version vector cannot hand one out', () => {
     const vv = VersionVector.empty();
 

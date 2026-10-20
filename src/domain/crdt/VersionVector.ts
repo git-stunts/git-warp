@@ -1,4 +1,4 @@
-import { Dot } from './Dot.ts';
+import type { Dot } from './Dot.ts';
 import CrdtError from '../errors/CrdtError.ts';
 import { compareStrings } from '../utils/StringComparison.ts';
 
@@ -206,19 +206,20 @@ export default class VersionVector {
   // ---------------------------------------------------------------------------
 
   /**
-   * Increments the counter for a writer and returns the new Dot.
-   * This mutates the VersionVector.
+   * Advances a writer's entry by one and returns the new counter.
+   * This mutates the VersionVector. It records causal context only; new
+   * dots come from a {@link DotMint}.
    */
-  increment(writerId: string): Dot {
+  increment(writerId: string): number {
     if (Object.isFrozen(this)) {
       throw new CrdtError('Cannot mutate a frozen VersionVector', {
         code: 'E_CRDT_FROZEN_MUTATION',
       });
     }
-    // Validate before mutating to avoid partial corruption
-    const dot = new Dot(writerId, (this.#entries.get(writerId) ?? 0) + 1);
-    this.#entries.set(dot.writerId, dot.counter);
-    return dot;
+    const counter = (this.#entries.get(writerId) ?? 0) + 1;
+    _validateEntry(writerId, counter);
+    this.#entries.set(writerId, counter);
+    return counter;
   }
 
   /**

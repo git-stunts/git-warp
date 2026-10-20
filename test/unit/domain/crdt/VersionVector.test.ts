@@ -16,9 +16,7 @@ describe('VersionVector', () => {
     it('increments counter for new writer', () => {
       const vv = VersionVector.empty();
 
-      const dot = vv.increment('alice');
-
-      expect(dot).toEqual({ writerId: 'alice', counter: 1 });
+      expect(vv.increment('alice')).toBe(1);
       expect(vv.get('alice')).toBe(1);
     });
 
@@ -27,9 +25,7 @@ describe('VersionVector', () => {
       vv.increment('alice');
       vv.increment('alice');
 
-      const dot = vv.increment('alice');
-
-      expect(dot).toEqual({ writerId: 'alice', counter: 3 });
+      expect(vv.increment('alice')).toBe(3);
       expect(vv.get('alice')).toBe(3);
     });
 
@@ -52,13 +48,11 @@ describe('VersionVector', () => {
       expect(vv.size).toBe(1);
     });
 
-    it('returns a valid Dot', () => {
+    it('returns the new counter, not a Dot', () => {
       const vv = VersionVector.empty();
 
-      const dot = vv.increment('alice');
-
-      expect(dot.writerId).toBe('alice');
-      expect(dot.counter).toBe(1);
+      expect(vv.increment('alice')).toBe(1);
+      expect(vv.increment('alice')).not.toBeInstanceOf(Dot);
     });
 
     it('refuses exhaustion without reissuing the terminal writer Dot', () => {
@@ -481,9 +475,7 @@ describe('VersionVector', () => {
       const bobMerged = bob.merge(alice);
 
       // Bob continues with merged state
-      const dot = bobMerged.increment('bob');
-
-      expect(dot).toEqual({ writerId: 'bob', counter: 2 });
+      expect(bobMerged.increment('bob')).toBe(2);
       expect(bobMerged.get('alice')).toBe(2);
       expect(bobMerged.get('bob')).toBe(2);
     });
@@ -492,7 +484,7 @@ describe('VersionVector', () => {
       const writer = VersionVector.empty();
 
       // Dot 1 is created
-      const dot1 = writer.increment('writer');
+      const dot1 = Dot.create('writer', writer.increment('writer'));
 
       // At this point, dot1 is contained
       expect(writer.contains(dot1)).toBe(true);
@@ -502,7 +494,7 @@ describe('VersionVector', () => {
       expect(writer.contains(futureDot)).toBe(false);
 
       // Now create dot 2
-      const dot2 = writer.increment('writer');
+      const dot2 = Dot.create('writer', writer.increment('writer'));
       expect(writer.contains(dot2)).toBe(true);
       expect(writer.contains(futureDot)).toBe(true);
     });

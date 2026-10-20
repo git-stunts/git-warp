@@ -18,7 +18,8 @@ import nullLogger from '../utils/nullLogger.ts';
 import { validateWriterId, buildWriterRef } from '../utils/RefLayout.ts';
 import { PatchSession } from './PatchSession.ts';
 import { PatchBuilder } from '../services/PatchBuilder.ts';
-import readWriterHeadContext from '../services/readWriterHeadContext.ts';
+import openDotMint from '../services/openDotMint.ts';
+import type DotMint from '../crdt/DotMint.ts';
 import { requireCommitMessageCodec } from '../services/codec/CommitMessageCodecRequirement.ts';
 import WriterError from '../errors/WriterError.ts';
 import type VersionVector from '../crdt/VersionVector.ts';
@@ -140,10 +141,10 @@ export class Writer {
     const expectedOldHead = await persistence.readRef(writerRef);
     const lamport = await this._resolveNextLamport(expectedOldHead);
 
-    const headContext = await readWriterHeadContext({
-      commits: persistence, codec: this._commitMessageCodec, journal: this._patchJournal, headSha: expectedOldHead,
+    const dotMint = await openDotMint({
+      writerId, commits: persistence, codec: this._commitMessageCodec, journal: this._patchJournal, headSha: expectedOldHead,
     });
-    const builderOpts = this._buildPatchOpts({ persistence, graphName, writerId, lamport, expectedParentSha: expectedOldHead }, headContext);
+    const builderOpts = this._buildPatchOpts({ persistence, graphName, writerId, lamport, expectedParentSha: expectedOldHead, dotMint });
     const builder = new PatchBuilder(builderOpts);
 
     return new PatchSession({ builder, persistence, graphName, writerId, expectedOldHead });
@@ -158,10 +159,11 @@ export class Writer {
     writerId: string;
     lamport: number;
     expectedParentSha: string | null;
-  }, headContext: VersionVector): ConstructorParameters<typeof PatchBuilder>[0] {
+    dotMint: DotMint;
+  }): ConstructorParameters<typeof PatchBuilder>[0] {
     const opts: ConstructorParameters<typeof PatchBuilder>[0] = {
       ...core,
-      versionVector: this._versionVector.merge(headContext),
+      versionVector: this._versionVector,
       getCurrentState: this._getCurrentState,
       onDeleteWithData: this._onDeleteWithData,
       patchJournal: this._patchJournal,
