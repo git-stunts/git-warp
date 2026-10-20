@@ -13,15 +13,7 @@ type WriterHeadContextRequest = Readonly<{
   headSha: string | null;
 }>;
 
-/**
- * Reads the causal context of the patch a writer ref points at.
- *
- * A new patch must continue its writer's dot counter, or it reuses dots
- * that earlier patches gave to other nodes and edges, and one removal then
- * deletes them all (#995). The head may belong to another writer, as after a
- * graph fork, so it is read by SHA without a writer-identity check. Its add
- * dots are included in case its stored context predates them.
- */
+/** Head patch context plus its add dots, read by SHA (fork heads belong to other writers), so new dots never repeat (#995). */
 export default async function readWriterHeadContext(request: WriterHeadContextRequest): Promise<VersionVector> {
   const { commits, codec, headSha } = request;
   if (headSha === null) { return VersionVector.empty(); }
