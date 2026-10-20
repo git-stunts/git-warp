@@ -1,12 +1,13 @@
 # Worldline Dot Mints
 
-Status: proposed technical design
+Status: proposed technical design. Amended on 2026-10-20 after external review.
 
 Target: [v21.0.0 — Bounded retained storage and recursive WARP](./v21.0.0/README.md)
 
-Version boundary: MAJOR. Dot identity, version-vector keys, frontier keys and
-strand ref layout change. Retained data migrates forward through a dedicated
-script; legacy decoding lives only in that script.
+Version boundary: MAJOR. Strand dot identity, strand version-vector and
+frontier keys, and the strand ref layout change. Lane history keeps its v20
+encoding and is not rewritten. Legacy strand decoding lives only in the
+migration.
 
 Decision owner: git-warp maintainers
 
@@ -17,11 +18,11 @@ Parent tracker: [GitHub Issue #1012](https://github.com/git-stunts/git-warp/issu
 A dot is the unique identity of one add operation. OR-Set tombstones are global
 and keyed only by dot, so two different adds that share a dot are removed
 together. Uniqueness therefore depends on one rule: every `(id, counter)` is
-minted at most once, by exactly one sequential minter.
+minted at most once, by exactly one sequential issuer.
 
-Today no object owns that rule. `PatchBuilder` mints with
-`versionVector.increment(writerId)`, so a dot is only as unique as the vector its
-caller seeded. Four seeders build that vector independently:
+Before #1013 no object owned that rule. `PatchBuilder` minted with
+`versionVector.increment(writerId)`, so a dot was only as unique as the vector
+its caller seeded. Four seeders built that vector independently:
 
 | Seeder | Seed |
 | --- | --- |
@@ -30,144 +31,226 @@ caller seeded. Four seeders build that vector independently:
 | `Writer.beginPatch` | the same merge, duplicated |
 | `StrandPatchService` | strand `observedFrontier`, minting as the strand id |
 
-Two defects follow from that:
+Three defects follow:
 
-1. **Lane dot reuse (#995, fixed in #1001).** Graph-first writers continued from
-   a vector that lacked their own prior counters and re-minted used dots. The
-   fix added the head-context merge to two seeders; it did not remove the class.
-2. **Strand dot identity (this design).** Strand writes mint under the strand
-   id (`writerId: descriptor.overlay.overlayId`). Strand ids are per lane, not
-   per writer, and share one unmarked namespace with writer ids, so strand
-   `next` and writer `next` produce the same dot ids. Every participant
-   advances the single `strand-overlays/<strand>` ref. Today strand refs are
-   clone-local (transfer is tracked in #999), so one clone is the only minter
-   for an overlay and cross-clone collisions are latent. They become real the
-   moment strand refs travel: John and Mary writing strand `next` in separate
-   clones would both mint `(next, n)` for different adds and could never both
-   fast-forward the overlay ref. This design is a prerequisite for #999.
+1. **Lane dot reuse (#995, fixed going forward in #1001 and #1013).** Writers
+   continued from a vector that lacked their own prior counters and re-minted
+   used dots. The v19.1.0 fixture (#1018) shows this is common in retained
+   history: any writer that opened a lane in more than one session repeated
+   its counters. One remove then deletes unrelated objects
+   (`dot-reuse-tombstone`).
+2. **Head-only seeding is unsafe for legacy chains (#1021).** After a counter
+   reset, a chain's head can sit below counters the writer already used
+   (`counter-reset`: 100 adds, restart, head context says 1). A mint seeded
+   only from that head reuses dots on unmaterialized writes.
+3. **Strand dot identity (this design).** Strand writes mint under the strand
+   name (`writerId: descriptor.overlay.overlayId`).
+   - Strand names share one unmarked namespace with writer ids, so strand
+     `next` and writer `next` produce the same dot ids (`collision`,
+     `collision-remove`).
+   - Every participant advances the single `strand-overlays/<strand>` ref.
+     Strand refs are clone-local today; transfer is #999. Once they travel,
+     John and Mary writing strands named `next` in separate clones would both
+     mint `(next, n)` for different adds and could never both fast-forward
+     the overlay ref.
 
 ## Decision
 
-Introduce one minting authority per writer per worldline.
+Introduce one issuing authority per writer per worldline, and give worldlines
+an identity that survives names and clones.
 
 ```text
-Worldline (lane root or strand; shared by its participants)
+Worldline (lane root, or a strand with an immutable id)
 ├── Frontier: Map<MintId, head sha>      derived by listing chain refs
 └── WriterChain (writer × worldline)
     ├── Head                             the chain ref's tip
-    └── DotMint                          MintId(writer, worldline); counter from Head
-
-Writer ── participates in ──▶ WriterChain (one per worldline it writes)
+    └── DotMint                          MintId(writer, worldline); starts above the allocation floor
 
 Patch (built on one WriterChain)
-├── dots     minted only by that chain's DotMint
+├── dots     issued only by that chain's DotMint
 └── context  the VersionVector observed on the Worldline at build time
 ```
 
-- **`MintId`** is a runtime value `(writer, worldline)` where `worldline` is
-  `Root` or `Strand(id)`. It replaces the bare `writerId` string as the dot's
-  identity and as the version-vector and frontier key.
-- **`DotMint`** is the only producer of new dots. Its high-water mark is derived
-  from its own chain head: the head patch's context entry for its `MintId`,
-  raised to cover that patch's add dots. It never reads a shared frontier.
-- **Version vectors stop minting.** `VersionVector.increment` no longer returns
-  dots. The vector is causal context only: what a patch observed. Minting and
-  observing are separate concerns; conflating them produced #995.
-- **`Dot` construction outside decoding** goes through a mint. Decoders still
-  construct dots from validated wire data.
+- **`MintId`** is a runtime value `(writer, worldline)`, where `worldline` is
+  `Root` or `Strand(id)`. It is the dot's identity and the key for version
+  vectors and frontiers.
+- **`DotMint`** (#1013) is the only producer of new dots. It issues dots and
+  never touches a caller's vector. The owner records each issued dot in its
+  own context.
+- **Allocation is not observation.** The mint starts above an **allocation
+  floor**: the highest counter the `MintId` has ever used, including
+  outstanding reservations such as queued strand intents. For chains written
+  by the mint, the head is a valid floor. Legacy chains get a floor computed
+  from retained history and persisted (#1021). Knowing a counter is used does
+  not mean the writer observed the operation that carries it, so the floor is
+  never merged into a patch's causal context.
+- **One sequential issuer per `MintId`.** Two processes writing as `alice` on
+  the same worldline, in different clones, can issue the same counter. A
+  `DotMint` cannot prevent that across clones. The rule is stated, and it is
+  enforced where it can be detected: a writer ref that would not fast-forward
+  is never merged into a shared counter. Distinct processes need distinct
+  writer ids.
+
+### Strand identity
+
+A strand's `MintId` uses an immutable **strand id**, not its friendly name. The
+strand id is the hash of the strand's first descriptor commit. That makes it
+unique without domain entropy, stable across clones that share the strand, and
+independent of the name.
+
+- Two independently created strands named `next` get different ids.
+- Sharing a strand preserves its id.
+- Renaming a strand does not change its mints.
+- Deleting and recreating `next` never reuses an old namespace.
+
+The friendly name lives in the descriptor.
 
 ### Persisted `MintId` encoding
 
-Domain code handles `MintId` as a typed value. Where a `MintId` must become one
-string (version-vector keys, patch context, frontier keys, the dot identity),
-codecs encode it with kind sigils:
+Domain code handles `MintId` as a typed value. Where it must become a string
+(version-vector keys, patch context, frontier keys, dot identity), codecs use
+exactly **one canonical spelling per identity**:
 
 ```text
-@w.alice              alice on the root worldline
-@w.alice@s.next       alice on strand "next"
-@b.<id>               reserved for braids (no dots minted today)
+alice                         alice on the lane (root worldline), unchanged from v20
+@w.alice@s.<strand-id>        alice on a strand
+@b.<id>                       reserved for braids (no dots are minted today)
 ```
 
-Writer and strand ids are restricted to `[A-Za-z0-9._-]`, so `@` never occurs
-inside an id and every `@`-prefixed segment is a sigil. Parsing splits on `@`
-and dispatches on the kind letter. Unknown kinds are refused. A key without a
-leading `@` is legacy data and is refused by the v21 codec; only the migration
-script decodes it. `Dot.encode` stays `<mint-id>:<counter>`; the counter after
-the last `:` is unambiguous because sigil ids contain no `:`.
+Writer ids are restricted to `[A-Za-z0-9._-]` (v19 and later), so `@` never
+occurs inside an id.
+
+- A key without `@` is a root-worldline writer.
+- Every `@` begins a sigil. Parsing splits on `@` and dispatches on the kind
+  letter.
+- Unknown kinds are refused, and so are alternate spellings of an existing
+  identity, such as `@w.alice` for a lane writer. Ordinary runtime data never
+  accepts two spellings of one identity.
+- `Dot.encode` stays `<mint-id>:<counter>`. The counter after the last `:` is
+  unambiguous because no spelling contains `:`.
+
+Keeping lane keys bare means lane commits, and everything that references them
+(receipts, signatures, audit chains, checkpoints, other clones' unsynced work),
+are untouched by the upgrade.
 
 ### Ref layout
 
 ```text
 refs/warp/<lane>/
 ├── substrate-version
-├── writers/<writer>                     WriterChain heads on the root worldline
+├── writers/<writer>                     WriterChain heads on the root worldline (unchanged)
 ├── checkpoints/head
 ├── audit/<writer>, trust/records, …     unchanged
-└── strands/<strand>/
-    ├── descriptor                       was strands/<strand>
+└── strands/<strand-id>/
+    ├── descriptor                       friendly name, owner, base observation
     ├── writers/<writer>                 was strand-overlays/<strand> (one shared chain)
-    ├── braids/<support>                 was strand-braids/<strand>/<support>
+    ├── braids/<support-strand-id>       was strand-braids/<strand>/<support>
     └── checkpoints/head                 optional strand materialization
 ```
 
 - Each participant advances only its own chain ref, so strand sync behaves like
   lane sync: no shared ref is ever non-fast-forwarded.
-- The descriptor moves because Git cannot store a ref and a directory at the same
-  path.
 - Fixed names (`descriptor`, `checkpoints`) and ids never share a level, so a
-  writer named `descriptor` cannot collide.
+  writer named `descriptor` cannot collide with them.
 - `strand-overlays` and `strand-braids` leave the reserved lane-name segment set.
 
-### Settlement
+### Settlement and provenance
 
-Settlement already re-mints. Promotion turns each overlay patch back into an
+Settlement re-mints membership. Promotion turns each overlay patch back into an
 intent sequence (`intentSequenceFromPatch`) and commits it on the settling
-Runtime's root-worldline chain through `PatchController`, so strand dots never
-reach the target lane. This design keeps that rule: strand dots are local to
-their worldline, and promotion mints through the settling writer's root
-`DotMint`. Retained-entity admission origins still record the original strand
-`allocationDot` as provenance; that field becomes a `MintId`-keyed dot.
+writer's root chain, so strand **membership** dots never reach the lane.
+
+Strand identities still reach lane history through **provenance**. A retained
+entity's admission origin records its original strand `allocationDot`, and
+that field is persisted in lane patches. "Strand dots never reach the lane"
+therefore holds for membership only. This is why the migration resolves
+references by origin and keeps a verifiable mapping (see below).
 
 Braided support overlays contribute their original dots to strand
-materialization only. Their dots are already distinct because each support has
+materialization only. Their dots are distinct because each support strand has
 its own `MintId`.
 
 ## Atomic delivery
 
 | Unit | Outcome | Prerequisites |
 | --- | --- | --- |
-| [#1013](https://github.com/git-stunts/git-warp/issues/1013) DotMint | One minting authority per chain; every seeder routes through it. No format change; lane behavior unchanged; duplicated head-context logic removed. | none |
-| [#1014](https://github.com/git-stunts/git-warp/issues/1014) Worldline identity format | `MintId` with sigil encoding in dots, contexts and frontiers; per-writer strand chains and the new strand ref layout; substrate marker bumped so unmigrated repositories refuse. | DotMint |
-| [#1015](https://github.com/git-stunts/git-warp/issues/1015) v20→v21 migration | Forward-only script: re-keys lane chains to sigil keys, moves each strand overlay to its owner's chain in the new layout, scans for and reports duplicate dots (#1002), then advances the substrate marker. | Worldline identity format |
+| [#1013](https://github.com/git-stunts/git-warp/issues/1013) DotMint | One issuing authority per chain; every seeder routes through it. No format change. | none |
+| [#1018](https://github.com/git-stunts/git-warp/issues/1018) v19.1.0 fixture | Authentic legacy history with golden, edge-case and known-failure scenarios. | none |
+| [#1014](https://github.com/git-stunts/git-warp/issues/1014) Worldline identity format | `MintId` with one canonical spelling; immutable strand ids; per-writer strand chains; substrate marker bumped so unmigrated repositories refuse. | #1013 |
+| [#1021](https://github.com/git-stunts/git-warp/issues/1021) Allocation floor | Trustworthy, persisted floor for legacy chains, re-established when late legacy commits arrive. | #1013 |
+| [#1015](https://github.com/git-stunts/git-warp/issues/1015) v20→v21 migration | Preserves existing interpretation: converts strands, establishes floors, maps provenance, reports damage. | #1014, #1021, #1018 |
+| [#1022](https://github.com/git-stunts/git-warp/issues/1022) Duplicate-dot repair | Explicit, previewed, audited and idempotent repair, separate from migration. | #1015 |
 
-The format unit and the migration are separately mergeable because the substrate
-gate refuses unmigrated repositories with an actionable error until the migration
-lands; no mainline state silently misreads data. The major version bump ships
-with the v21.0.0 release train.
+The format unit and the migration can merge separately. Until the migration
+lands, the substrate gate refuses unmigrated repositories with an actionable
+error, so no mainline state silently misreads data. The major version bump
+ships with the v21.0.0 release train.
 
 ## Migration contract
 
-- Forward-only. No ref is deleted or rewritten in place; legacy refs remain until
-  an operator removes them after verification.
-- Lane chains are re-encoded into new commits whose dots, contexts and frontier
-  keys use `@w.<writer>`. Counters are preserved, so causal order is preserved.
-- Each legacy strand overlay chain moves to
-  `strands/<strand>/writers/<owner>`, using the descriptor's recorded `owner`.
-  A strand without an owner requires an explicit operator assignment; the
-  migration refuses rather than guessing. Overlays were clone-local with one
-  minter, so their counters are preserved and their dots are re-keyed from
-  `<strand>` to `@w.<owner>@s.<strand>` without re-minting. Contexts, removes
-  and admission-origin dots are re-keyed through the same mapping.
-- Braid pins move to `strands/<strand>/braids/<support>`; descriptors move to
-  `strands/<strand>/descriptor`.
-- Duplicate dots found during the scan are reported with both add sites. The
-  migration refuses to advance the marker while unresolved duplicates remain,
-  unless the operator supplies an explicit resolution.
-- The substrate marker advances last. A partial run leaves the repository on v20
-  and resumable.
+Migration **preserves the existing interpretation of history** and reports
+damage. It never makes new decisions about the user's data.
 
-## Open questions
+- **Forward-only.** No ref is deleted or rewritten in place. Lane chains are
+  untouched. Legacy strand refs remain until an operator removes them after
+  verification.
+- **Allocation floors.** For each `MintId`, compute the floor from retained
+  history and outstanding reservations, and persist it so reopening,
+  cancelling or checkpointing cannot lower it (#1021).
+- **Strand conversion.**
+  - Each legacy overlay chain moves to `strands/<strand-id>/writers/<owner>`,
+    using the descriptor's recorded `owner`.
+  - A strand without an owner requires an explicit operator assignment. The
+    migration refuses rather than guessing.
+  - Overlays were clone-local with one issuer, so their counters are preserved
+    and their dots re-keyed to `@w.<owner>@s.<strand-id>`.
+- **Resolve by origin, not by string.** A legacy `next:1` can name a lane
+  writer's dot or a strand's dot (`collision-remove`). Each context entry,
+  remove and admission-origin `allocationDot` is resolved from the history it
+  came from and the basis it observed. Cases the evidence cannot settle are
+  flagged as ambiguous, never guessed.
+- **Provenance.** Source objects are preserved. The migration writes a
+  verifiable mapping from each legacy identity and commit to its new one.
+  Strands are local, but other data can still reference them.
+- **Damage report.**
+  - Duplicate dots are reported with all their add sites.
+  - Collateral deletions are detected from each remove's named target and
+    reported too.
+  - Duplicates **do not block** the migration. Refusing would block nearly
+    every real repository.
+- **Late legacy writes.** Another clone's v20 lane commits stay readable,
+  because the lane encoding is unchanged. Arriving legacy commits
+  re-establish the affected writer's floor before that writer mints again.
+- **Open clients.** `SubstrateVersionGate` caches successful checks. A client
+  that was open before the marker advanced must refuse to write afterwards;
+  this is tested separately from a fresh open.
+- **Ordering.** The substrate marker advances last. A partial run leaves the
+  repository on v20, and the migration can be resumed.
 
-1. Whether strand audit chains are needed.
-2. Duplicate-dot resolution policy for the migration when both add sites are
-   live.
+## Repair contract (separate from migration)
+
+Repair changes future behaviour, so it is an explicit operator action
+(#1022). Re-adding both members of a duplicate with fresh dots protects the
+innocent object. It also defeats any pending remove of the other object that
+an offline replica already holds. Syncing first narrows that window but cannot
+close it.
+
+- **Preview.** List the affected objects, their add sites, the policy options
+  and their consequences, including pending-remove behaviour.
+- **Apply.** Append ordinary repair patches under a labelled repair writer.
+- **Record.** Store the input frontier, affected add sites, chosen policy and
+  resulting commits.
+- **Idempotent.** Retrying the same repair does not mint another batch of
+  fresh adds.
+- **Guard.** Until a collision is resolved, a remove that would tombstone a
+  shared dot cannot silently cause a new collateral deletion (#1002).
+
+## Resolved questions
+
+1. **Rewrite lane history?** No. Lane keys stay bare, with one canonical
+   spelling per identity.
+2. **Refuse migration on duplicates?** No. Report the damage and preserve
+   access. Repair is a separate, explicit operation.
+3. **Strand audit chains?** Deferred. Nothing depends on them, and they can be
+   added later without another format change.
+4. **Braid sigil.** `@b` stays reserved.
