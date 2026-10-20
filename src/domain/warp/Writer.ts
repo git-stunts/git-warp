@@ -18,6 +18,7 @@ import nullLogger from '../utils/nullLogger.ts';
 import { validateWriterId, buildWriterRef } from '../utils/RefLayout.ts';
 import { PatchSession } from './PatchSession.ts';
 import { PatchBuilder } from '../services/PatchBuilder.ts';
+import readWriterHeadContext from '../services/readWriterHeadContext.ts';
 import { requireCommitMessageCodec } from '../services/codec/CommitMessageCodecRequirement.ts';
 import WriterError from '../errors/WriterError.ts';
 import type VersionVector from '../crdt/VersionVector.ts';
@@ -139,7 +140,10 @@ export class Writer {
     const expectedOldHead = await persistence.readRef(writerRef);
     const lamport = await this._resolveNextLamport(expectedOldHead);
 
-    const builderOpts = this._buildPatchOpts({ persistence, graphName, writerId, lamport, expectedParentSha: expectedOldHead });
+    const headContext = await readWriterHeadContext({
+      commits: persistence, codec: this._commitMessageCodec, journal: this._patchJournal, headSha: expectedOldHead,
+    });
+    const builderOpts = this._buildPatchOpts({ persistence, graphName, writerId, lamport, expectedParentSha: expectedOldHead }, headContext);
     const builder = new PatchBuilder(builderOpts);
 
     return new PatchSession({ builder, persistence, graphName, writerId, expectedOldHead });
@@ -154,10 +158,10 @@ export class Writer {
     writerId: string;
     lamport: number;
     expectedParentSha: string | null;
-  }): ConstructorParameters<typeof PatchBuilder>[0] {
+  }, headContext: VersionVector): ConstructorParameters<typeof PatchBuilder>[0] {
     const opts: ConstructorParameters<typeof PatchBuilder>[0] = {
       ...core,
-      versionVector: this._versionVector.clone(),
+      versionVector: this._versionVector.merge(headContext),
       getCurrentState: this._getCurrentState,
       onDeleteWithData: this._onDeleteWithData,
       patchJournal: this._patchJournal,

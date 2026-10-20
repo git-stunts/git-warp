@@ -320,4 +320,97 @@ describe('No-coordination regression suite', () => {
     });
   });
 
+  describe('graph-first dot uniqueness (#995)', () => {
+    const PATCHES = 3;
+    const PER_PATCH = 5;
+    const ALL = Array.from({ length: PATCHES * PER_PATCH }, (_, i) => `n${i}`);
+    const REMOVED = ['n0', 'n1', 'n2'];
+
+    async function openGraph(repo: Awaited<ReturnType<typeof createGitRepo>>) {
+      return await openRuntimeHostProduct({ persistence: repo.persistence, graphName: 'dots', writerId: 'w1' });
+    }
+
+    function batch(index: number): string[] {
+      return ALL.slice(index * PER_PATCH, (index + 1) * PER_PATCH);
+    }
+
+    type Graph = Awaited<ReturnType<typeof openGraph>>;
+    type Repo = Awaited<ReturnType<typeof createGitRepo>>;
+
+    const writePaths: Array<[string, (graph: Graph, repo: Repo) => Promise<void>]> = [
+      ['createPatch without materialize', async (graph) => {
+        for (let i = 0; i < PATCHES; i++) {
+          const p = await graph.createPatch();
+          batch(i).forEach((n) => p.addNode(n));
+          await p.commit();
+        }
+      }],
+      ['graph.patch()', async (graph) => {
+        for (let i = 0; i < PATCHES; i++) {
+          await graph.patch((p) => { batch(i).forEach((n) => p.addNode(n)); });
+        }
+      }],
+      ['patchMany', async (graph) => {
+        await graph.patchMany(...Array.from({ length: PATCHES }, (_, i) => (p: { addNode(n: string): unknown }) => {
+          batch(i).forEach((n) => p.addNode(n));
+        }));
+      }],
+      ['writer().commitPatch', async (graph) => {
+        const writer = await graph.writer('w1');
+        for (let i = 0; i < PATCHES; i++) {
+          await writer.commitPatch((p) => { batch(i).forEach((n) => p.addNode(n)); });
+        }
+      }],
+      ['a fresh graph instance per patch', async (_graph, repo) => {
+        for (let i = 0; i < PATCHES; i++) {
+          const fresh = await openGraph(repo);
+          const p = await fresh.createPatch();
+          batch(i).forEach((n) => p.addNode(n));
+          await p.commit();
+        }
+      }],
+    ];
+
+    it.each(writePaths)('removing nodes written through %s keeps unrelated nodes', { timeout: 20000 }, async (_name, write) => {
+      const repo = await createGitRepo('dots');
+      try {
+        const graph = await openGraph(repo);
+        await write(graph, repo);
+        await graph.materialize();
+        const removal = await graph.createPatch();
+        REMOVED.forEach((n) => removal.removeNode(n));
+        await removal.commit();
+
+        await graph.materialize();
+        expect((await graph.getNodes()).sort()).toEqual(ALL.filter((n) => !REMOVED.includes(n)).sort());
+      } finally {
+        await repo.cleanup();
+      }
+    });
+
+    it('removing one edge keeps edges written in a later patch', { timeout: 20000 }, async () => {
+      const repo = await createGitRepo('dots');
+      try {
+        const graph = await openGraph(repo);
+        const nodes = await graph.createPatch();
+        ['a', 'b', 'c'].forEach((n) => nodes.addNode(n));
+        await nodes.commit();
+        for (const [from, targets] of [['a', ['b', 'c']], ['b', ['c', 'a']]] as const) {
+          const p = await graph.createPatch();
+          targets.forEach((to) => p.addEdge(from, to, 'link'));
+          await p.commit();
+        }
+        await graph.materialize();
+        const removal = await graph.createPatch();
+        removal.removeEdge('a', 'c', 'link');
+        await removal.commit();
+
+        await graph.materialize();
+        expect((await graph.getEdges()).map(({ from, to }) => `${from}->${to}`).sort()).toEqual(['a->b', 'b->a', 'b->c']);
+      } finally {
+        await repo.cleanup();
+      }
+    });
+  });
+
 });

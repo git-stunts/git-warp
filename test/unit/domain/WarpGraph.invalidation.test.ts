@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
-import { encodePatchMessage } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
+import { createMockPatch } from '../../helpers/WarpGraphPatchFixtures.ts';
 
 /**
  * AP/INVAL/1 + AP/INVAL/2 — Dirty flag tracking and eager re-materialize.
@@ -34,16 +34,11 @@ function mockFirstCommit(/** @type {any} */ persistence) {
  * Configure mocks so a second commit succeeds.
  */
 function mockSecondCommit(/** @type {any} */ persistence) {
-  const patchMessage = encodePatchMessage({
-    graph: 'test',
-    writer: 'writer-1',
-    lamport: 1,
-    patchOid: FAKE_BLOB_OID,
-    schema: 2,
-  });
-
   persistence.readRef.mockResolvedValue(FAKE_COMMIT_SHA);
-  persistence.showNode.mockResolvedValue(patchMessage);
+  const parent = createMockPatch({ sha: FAKE_COMMIT_SHA, patchOid: FAKE_BLOB_OID, graphName: 'test', writerId: 'writer-1', lamport: 1 });
+  persistence.showNode.mockResolvedValue(parent.message);
+  persistence.getNodeInfo.mockResolvedValue(parent.nodeInfo);
+  persistence.readBlob.mockResolvedValue(parent.patchBuffer);
   persistence.writeBlob.mockResolvedValue(FAKE_BLOB_OID);
   persistence.writeTree.mockResolvedValue(FAKE_TREE_OID);
   persistence.commitNodeWithTree.mockResolvedValue(FAKE_COMMIT_SHA_2);

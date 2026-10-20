@@ -7,7 +7,7 @@ import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
-import type Patch from '../../../../src/domain/types/Patch.ts';
+import Patch from '../../../../src/domain/types/Patch.ts';
 import AssetStoragePort, {
   type AssetWriteOptions,
   type StagedAsset,
@@ -112,6 +112,8 @@ export function createPatchBuilderMockPersistence(
 
 export class RecordingPatchJournal extends PatchJournalPort {
   readonly requests: AppendPatchRequest[] = [];
+  /** Successfully published patches, keyed by their distinct patch handle. */
+  readonly #published = new Map<string, Patch>();
   failure: unknown = null;
   sha = DEFAULT_COMMIT_OID;
   readonly #persistence: object;
@@ -127,7 +129,9 @@ export class RecordingPatchJournal extends PatchJournalPort {
       throw this.failure;
     }
     WRITTEN_PATCHES.set(this.#persistence, request.patch);
-    const stagedPatch = stagedAsset(new AssetHandle('asset:test-patch'), 1);
+    const handle = new AssetHandle(`asset:test-patch-${String(this.#published.size + 1)}`);
+    this.#published.set(handle.toString(), request.patch);
+    const stagedPatch = stagedAsset(handle, 1);
     return Object.freeze({
       sha: this.sha,
       bundleHandle: new BundleHandle('bundle:test-patch'),
@@ -136,8 +140,14 @@ export class RecordingPatchJournal extends PatchJournalPort {
     });
   }
 
-  override readPatch(_message: PatchCommitMessage): Promise<Patch> {
-    throw new PatchBuilderFixtureError('readPatch is outside this fixture');
+  /**
+   * Reads a writer head. A head this journal published returns that patch,
+   * located by the message's patch handle; a failed append never counts. A head seeded only through mocked refs returns an empty-context
+   * patch, so it contributes no dots.
+   */
+  override readPatch(message: PatchCommitMessage): Promise<Patch> {
+    return Promise.resolve(this.#published.get(message.patchHandle.toString())
+      ?? new Patch({ writer: message.writer, lamport: message.lamport, context: {}, ops: [] }));
   }
 
   override scanPatchRange(

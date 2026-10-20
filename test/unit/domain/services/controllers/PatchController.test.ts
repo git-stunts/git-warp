@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PatchController from '../../../../../src/domain/services/controllers/PatchController.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
+import Patch from '../../../../../src/domain/types/Patch.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
@@ -111,7 +112,10 @@ function createMockHost(overrides = {}) {
     },
     _patchesSinceCheckpoint: 0,
     _onDeleteWithData: 'reject',
-    _patchJournal: null,
+    // Writer heads in these doubles carry no dots of their own.
+    _patchJournal: {
+      readPatch: vi.fn(async () => new Patch({ writer: 'alice', lamport: 1, context: {}, ops: [] })),
+    },
     _patchInProgress: false,
     _provenanceIndex: null,
     _cachedFrontier: null,
@@ -466,6 +470,14 @@ describe('PatchController', () => {
   // ────────────────────────────────────────────────────────────────────────
 
   describe('_onPatchCommitted()', () => {
+    function committedPatch(
+      lamport: number,
+      context: Record<string, number> = {},
+      provenance: { reads?: string[]; writes?: string[] } = {},
+    ): Patch {
+      return new Patch({ writer: 'alice', lamport, context, ops: [], ...provenance });
+    }
+
     it('increments version vector for the writer', async () => {
       const vv = VersionVector.empty();
       host['_versionVector'] = vv;
@@ -475,10 +487,18 @@ describe('PatchController', () => {
       expect(vv.get('alice')).toBe(1);
     });
 
+    it('adopts every dot the committed patch used, not just one (#995)', async () => {
+      host['_versionVector'] = VersionVector.from({ alice: 2, bob: 4 });
+
+      await ctrl._onPatchCommitted('alice', { patch: committedPatch(1, { alice: 7, bob: 3 }) });
+
+      expect(VersionVector.serialize(host['_versionVector'] as VersionVector)).toEqual({ alice: 7, bob: 4 });
+    });
+
     it('updates maxObservedLamport when patch lamport exceeds it', async () => {
       host['_maxObservedLamport'] = 3;
 
-      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 7 } as any) });
+      await ctrl._onPatchCommitted('alice', { patch: committedPatch(7) });
 
       expect(host['_maxObservedLamport']).toBe(7);
     });
@@ -486,7 +506,7 @@ describe('PatchController', () => {
     it('does not decrease maxObservedLamport', async () => {
       host['_maxObservedLamport'] = 10;
 
-      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 5 } as any) });
+      await ctrl._onPatchCommitted('alice', { patch: committedPatch(5) });
 
       expect(host['_maxObservedLamport']).toBe(10);
     });
@@ -511,7 +531,7 @@ describe('PatchController', () => {
 
 
 
-      const patch = ({ lamport: 1, ops: [] }) as any;
+      const patch = committedPatch(1);
       await ctrl._onPatchCommitted('alice', { patch, sha: 'sha-1' });
 
       expect(applyWithDiffMock).toHaveBeenCalledWith(state, patch, 'sha-1');
@@ -541,7 +561,7 @@ describe('PatchController', () => {
 
 
 
-      const patch = ({ lamport: 1, ops: [] }) as any;
+      const patch = committedPatch(1);
       await ctrl._onPatchCommitted('alice', { patch, sha: 'sha-1' });
 
       expect(applyWithReceiptMock).toHaveBeenCalledWith(state, patch, 'sha-1');
@@ -559,7 +579,7 @@ describe('PatchController', () => {
       applyWithReceiptMock.mockReturnValue({ receipt: {} });
 
       // Should not throw
-      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 1 } as any), sha: 'sha-1' });
+      await ctrl._onPatchCommitted('alice', { patch: committedPatch(1), sha: 'sha-1' });
     });
 
     it('updates provenance index when present', async () => {
@@ -574,7 +594,7 @@ describe('PatchController', () => {
 
 
 
-      const patch = ({ lamport: 1, reads: ['r1'], writes: ['w1'] }) as any;
+      const patch = committedPatch(1, {}, { reads: ['r1'], writes: ['w1'] });
       await ctrl._onPatchCommitted('alice', { patch, sha: 'sha-1' });
 
       expect(provenanceIndex.addPatch).toHaveBeenCalledWith('sha-1', ['r1'], ['w1']);
@@ -590,7 +610,7 @@ describe('PatchController', () => {
 
       applyWithDiffMock.mockReturnValue({ diff: null });
 
-      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 1 } as any), sha: 'sha-1' });
+      await ctrl._onPatchCommitted('alice', { patch: committedPatch(1), sha: 'sha-1' });
 
       expect(frontier.get('alice')).toBe('sha-1');
     });
@@ -599,7 +619,7 @@ describe('PatchController', () => {
       host['_cachedState'] = null;
       host['_stateDirty'] = false;
 
-      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 1 } as any), sha: 'sha-1' });
+      await ctrl._onPatchCommitted('alice', { patch: committedPatch(1), sha: 'sha-1' });
 
       expect(host['_stateDirty']).toBe(true);
       expect(host['_cachedViewHash']).toBeNull();
@@ -609,7 +629,7 @@ describe('PatchController', () => {
       host['_cachedState'] = createStateWithNode('n1');
       host['_stateDirty'] = true;
 
-      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 1 } as any), sha: 'sha-1' });
+      await ctrl._onPatchCommitted('alice', { patch: committedPatch(1), sha: 'sha-1' });
 
       expect(host['_stateDirty']).toBe(true);
     });
@@ -618,7 +638,7 @@ describe('PatchController', () => {
       host['_cachedState'] = createStateWithNode('n1');
       host['_stateDirty'] = false;
 
-      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 1 } as any) });
+      await ctrl._onPatchCommitted('alice', { patch: committedPatch(1) });
 
       expect(host['_stateDirty']).toBe(true);
     });
@@ -634,7 +654,7 @@ describe('PatchController', () => {
       const auditService = { commit: vi.fn() };
       host['_auditService'] = auditService;
 
-      await ctrl._onPatchCommitted('alice', { patch: ({ lamport: 1 } as any), sha: 'sha-1' });
+      await ctrl._onPatchCommitted('alice', { patch: committedPatch(1), sha: 'sha-1' });
 
       expect(host['_auditSkipCount']).toBe(1);
       expect(logger.warn).toHaveBeenCalledWith(

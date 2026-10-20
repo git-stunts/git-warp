@@ -11,6 +11,7 @@
  */
 
 import { PatchBuilder } from '../PatchBuilder.ts';
+import readWriterHeadContext from '../readWriterHeadContext.ts';
 import { joinStates, applyWithDiff, applyWithReceipt, type WarpState } from '../JoinReducer.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { Writer } from '../../warp/Writer.ts';
@@ -25,7 +26,7 @@ import {
   type DiscoverTicksResult,
 } from './PatchDiscovery.ts';
 import type AdjacencyMap from '../../capabilities/AdjacencyMap.ts';
-import type VersionVector from '../../crdt/VersionVector.ts';
+import VersionVector from '../../crdt/VersionVector.ts';
 import type Patch from '../../types/Patch.ts';
 import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
@@ -159,7 +160,9 @@ export default class PatchController {
       graphName: h._graphName,
       writerId: h._writerId,
       lamport,
-      versionVector: h._versionVector,
+      versionVector: h._versionVector.merge(await readWriterHeadContext({
+        commits: h._persistence, codec: h._commitMessageCodec, journal: h._patchJournal, headSha: parentSha,
+      })),
       getCurrentState: () => h._cachedState,
       getSnapshotFrontier: () => h._cachedFrontier ?? null,
       expectedParentSha: parentSha,
@@ -284,7 +287,11 @@ export default class PatchController {
     { patch: committed, sha }: { patch?: Patch; sha?: string } = {},
   ): Promise<void> {
     const h = this._host;
-    h._versionVector.increment(writerId);
+    if (committed === undefined) {
+      h._versionVector.increment(writerId);
+    } else {
+      h._versionVector = h._versionVector.merge(VersionVector.from(committed.context));
+    }
     if (committed?.lamport !== undefined && committed.lamport > h._maxObservedLamport) {
       h._maxObservedLamport = committed.lamport;
     }

@@ -3,6 +3,7 @@ import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../he
 import { encode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { encodePatchMessage } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { createMockPersistence } from '../../helpers/warpGraphTestUtils.ts';
+import { createMockPatch } from '../../helpers/WarpGraphPatchFixtures.ts';
 
 /**
  * Creates a minimal schema:2 patch object.
@@ -212,7 +213,7 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
       graph: 'test',
       writer: 'w1',
       lamport: patchCount,
-      patchOid: fakeSha('blob-w1-last'),
+      patchOid: fakeSha(`blob-w1-${patchCount}`),
       schema: 2,
     });
     persistence.showNode.mockResolvedValue(tipMessage);
@@ -240,14 +241,10 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
 
     // For second commit, readRef now returns the previous commit SHA
     persistence.readRef.mockResolvedValue(fakeSha('commit'));
-    const patchMsg = encodePatchMessage({
-      graph: 'test',
-      writer: 'w1',
-      lamport: 1,
-      patchOid: fakeSha('blob'),
-      schema: 2,
-    });
-    persistence.showNode.mockResolvedValue(patchMsg);
+    const parent = createMockPatch({ sha: fakeSha('commit'), patchOid: fakeSha('blob'), graphName: 'test', writerId: 'w1', lamport: 1 });
+    persistence.showNode.mockResolvedValue(parent.message);
+    persistence.getNodeInfo.mockResolvedValue(parent.nodeInfo);
+    persistence.readBlob.mockResolvedValue(parent.patchBuffer);
 
     const builder2 = await graph.createPatch();
     await builder2.addNode('n:2').commit();

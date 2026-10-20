@@ -437,9 +437,10 @@ describe('WarpCore', () => {
 
       persistence.listRefs.mockResolvedValue([]);
 
-      persistence.showNode.mockResolvedValue(encodePatchMessage(
-        { graph: 'test-graph', writer: 'writer1', lamport: 7, patchOid: existingPatchOid, schema: 2 },
-      ));
+      const parent = createMockPatch({ sha: existingSha, patchOid: existingPatchOid, graphName: 'test-graph', writerId: 'writer1', lamport: 7, ops: [] });
+      persistence.showNode.mockResolvedValue(parent.message);
+      persistence.getNodeInfo.mockResolvedValue(parent.nodeInfo);
+      persistence.readBlob.mockResolvedValue(parent.patchBuffer);
 
       const graph = await openRuntimeHostProduct({
         persistence,
