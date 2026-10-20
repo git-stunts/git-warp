@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removing one silently removed the others. Patches already written with
   duplicate dots are not repaired
   ([#995](https://github.com/git-stunts/git-warp/issues/995)).
+- Reject unrecognized `Runtime.strand` options with `E_RUNTIME_STRAND_OPTIONS`
+  before reopening the strand, matching `Runtime.fork`. A JavaScript caller's
+  `at` field was silently ignored
+  ([#1006](https://github.com/git-stunts/git-warp/issues/1006)).
 - Strip source comments from the published JavaScript while keeping them in
   the public declarations. The packed payload drops from 3,297,802 to 2,870,940
   unpacked bytes and from 756,533 to 616,005 compressed bytes, restoring room
