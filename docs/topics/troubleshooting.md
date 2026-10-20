@@ -53,6 +53,22 @@ enabled it deletes this clone's unpublished writer chain.
 If refs are present but the same bounded Observer still differs, preserve the
 repository before attempting any repair.
 
+## A Lane reports a missing substrate marker
+
+`E_SUBSTRATE_MARKER_MISSING` means the Lane has WARP refs but no
+`refs/warp/<lane>/substrate-version` marker, and its writer heads are current
+patch commits or show no patch evidence. This usually means writer chains were
+fetched without the marker. Receive them again with the recipe in
+[Sync WARP refs](sync.md#receive-other-writers), which fetches the marker with
+the chains and refuses a hub whose marker is missing or different. git-warp
+does not create a marker over existing refs.
+
+`E_SUBSTRATE_MIGRATION_REQUIRED` is different: a writer head is a v18 patch
+commit, so run the one-shot
+[v18-to-v19 migration](../migrations/v19/README.md#migrate-retained-v18-state-first).
+`E_SUBSTRATE_VERSION_UNSUPPORTED` means a marker exists but is not the current
+one.
+
 ## State differs across clones
 
 Compare the same Lane, WARP refs, visible writers, and audit posture:

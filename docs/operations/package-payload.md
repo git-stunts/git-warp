@@ -70,6 +70,18 @@ The resulting artifact contains 993 files, 716,164 compressed bytes, and
 | Unpacked bytes   | 3,300,000 | 156,428 bytes (5.0%)                |
 | Entries          | 1,050     | 57 entries (5.7%)                   |
 
+By October 2026 source growth had used that headroom: the artifact measured
+756,533 compressed and 3,297,802 unpacked bytes, and a single new source file
+crossed the unpacked ceiling. The build now emits published JavaScript with
+`removeComments` and emits declarations in a separate pass that keeps their
+documentation, so source comments no longer count against the payload twice
+([#1009](https://github.com/git-stunts/git-warp/issues/1009)). Declarations are
+byte-identical to the single-pass build. The artifact then measured 994 files,
+616,005 compressed bytes and 2,870,940 unpacked bytes, under unchanged
+ceilings. The packed smoke rejects shipped JavaScript that carries doc
+comments and requires the public `Runtime` declaration to keep its
+documentation.
+
 ## Allowlist
 
 The package may contain only these path classes:
