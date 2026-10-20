@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Replace the published lane-wide WARP fetch and push recipes, which deleted a
+  clone's unpublished writer chain under `fetch.prune` and published derived
+  checkpoint heads. Sync now documents ref ownership and transport per ref
+  family. Each clone pushes only its own writer chain and the substrate marker,
+  and receives other writers with `--no-prune`, no `+`, an exclusion for its
+  own chain, a required marker, and a local checkpoint rebuild. A Docker
+  witness runs the documented commands against a bare hub under local, global,
+  and remote prune settings
+  ([#975](https://github.com/git-stunts/git-warp/issues/975)).
+
 - Retain checkpoints whose retention root set exceeds one Git metadata
   request. git-cas 6.5.12 validates retention targets in ordered windows of at
   most 1000 objects and 64 KiB of cat-file commands, including SHA-256 names,

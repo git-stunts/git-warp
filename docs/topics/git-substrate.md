@@ -24,16 +24,22 @@ refs/warp/<graphName>/
 │   └── head
 ├── coverage/
 │   └── head
-├── cursor/
-│   ├── active
-│   └── saved/<name>
+├── substrate-version
+├── strands/<strand>
+├── strand-overlays/<strand>
 ├── strand-braids/
 │   └── <strand>/<support>
+├── intents/
+│   └── {admitted,queued}/<writerId>
 ├── audit/
 │   └── <writerId>
 └── trust/
-    └── ...
+    └── records
 ```
+
+Seek cursors and retained materializations live in git-cas cache sets under
+`refs/cas/caches/`, not under `refs/warp/`. See [Sync WARP refs](sync.md) for
+which of these refs travel between clones.
 
 Normal source code remains under refs such as `refs/heads/main`.
 
