@@ -152,4 +152,45 @@ describe('Runtime fork composition', () => {
       await second.close();
     }
   });
+
+  it.each([
+    ['an unsupported at coordinate', () => ({ name: 'try-at', at: 'tick:1' }), 'at'],
+    ['a misspelled name', () => ({ nmae: 'try-typo' }), 'nmae'],
+    ['a symbol key', () => ({ name: 'try-symbol', [Symbol('at')]: 'tick:1' }), 'Symbol(at)'],
+    ['an accessor name', () => Object.defineProperty({}, 'name', { get: () => 'try-getter', enumerable: true }), 'name'],
+    ['an inherited at coordinate', () => Object.assign(Object.create({ at: 'tick:1' }), { name: 'try-inherited' }), 'at'],
+  ] as const)('rejects %s before any strand ref changes', async (_case, options, rejected) => {
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'agent-1' });
+    try {
+      const events = await runtime.lane('events');
+      await events.write(Intent.addNode({ subject: 'user:alice' }));
+      const refsBefore = await repository.persistence.listRefs('refs/warp/');
+
+      // Built outside the call so TypeScript applies no excess-property check, as for JavaScript callers.
+      const fork = runtime.fork.bind(runtime);
+      await expect(fork(events, options())).rejects.toMatchObject({
+        code: 'E_RUNTIME_FORK_OPTIONS',
+        message: expect.stringContaining(`'${rejected}'`),
+        context: { rejected, supported: ['name'] },
+      });
+      expect(await repository.persistence.listRefs('refs/warp/')).toEqual(refsBefore);
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it.each([
+    ['null', null],
+    ['an array', [['name', 'try-array']]],
+  ] as const)('rejects %s options with a typed error', async (_case, options) => {
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'agent-1' });
+    try {
+      const events = await runtime.lane('events');
+      const fork = runtime.fork.bind(runtime);
+      // @ts-expect-error JavaScript callers can pass non-object options.
+      await expect(fork(events, options)).rejects.toMatchObject({ code: 'E_RUNTIME_FORK_OPTIONS' });
+    } finally {
+      await runtime.close();
+    }
+  });
 });

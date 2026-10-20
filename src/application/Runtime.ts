@@ -17,6 +17,7 @@ import GitStorage from './GitStorage.ts';
 import RuntimeActivity from './RuntimeActivity.ts';
 import { createWorldlineLane } from './RuntimeLaneAdapter.ts';
 import RuntimeMutationGate from './RuntimeMutationGate.ts';
+import RuntimeOptionAdmission from './RuntimeOptionAdmission.ts';
 import { bindRuntimeStorage } from './RuntimeStorageAccess.ts';
 import {
   previewRuntimeSettlement,
@@ -44,6 +45,12 @@ export type RuntimeStrandOptions = {
 const FORK_IDENTITY_FAILURE = Object.freeze({
   message: 'Runtime.fork requires a non-empty strand name',
   code: 'E_RUNTIME_FORK_IDENTITY',
+});
+
+const FORK_OPTIONS = new RuntimeOptionAdmission({
+  operation: 'Runtime.fork',
+  code: 'E_RUNTIME_FORK_OPTIONS',
+  supported: ['name'],
 });
 
 const STRAND_IDENTITY_FAILURE = Object.freeze({
@@ -192,6 +199,7 @@ function assertForkOptions(options: RuntimeForkOptions): void {
   if (options === null || typeof options !== 'object' || Array.isArray(options)) {
     throw new WarpError('Runtime.fork options are required', 'E_RUNTIME_FORK_OPTIONS');
   }
+  FORK_OPTIONS.admit(options);
 }
 
 function assertStrandParent(parent: Lane): void {
