@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before reopening the strand, matching `Runtime.fork`. A JavaScript caller's
   `at` field was silently ignored
   ([#1006](https://github.com/git-stunts/git-warp/issues/1006)).
+- Report a missing substrate marker as `E_SUBSTRATE_MARKER_MISSING` instead of
+  telling the operator to run the v18 migration. A Lane without a marker now
+  requires migration only when a writer head is a v18 patch commit. Current
+  writer chains fetched without their marker, or refs with no writer patch, get
+  the transfer recovery instead. No marker is created over existing refs
+  ([#977](https://github.com/git-stunts/git-warp/issues/977)).
 - Reject unrecognized `Runtime.fork` options with `E_RUNTIME_FORK_OPTIONS`
   before any strand ref changes. Before, a JavaScript caller's `at` field was
   silently ignored and the strand started at the live coordinate. The error

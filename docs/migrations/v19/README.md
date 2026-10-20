@@ -61,7 +61,9 @@ See the [operator upgrade procedure](https://github.com/git-stunts/git-warp/blob
 v19 does not read or append to an unmarked v18 retained substrate. Opening a
 non-empty lane before migration fails with
 `E_SUBSTRATE_MIGRATION_REQUIRED`; it does not write a v19 commit onto the v18
-writer chain.
+writer chain. That code requires a v18 patch commit at a writer head; a Lane
+with current writer chains but no marker reports `E_SUBSTRATE_MARKER_MISSING`
+instead; the repository's Troubleshooting topic explains its recovery.
 
 Stop every process that can write to the repository, make a normal repository
 backup, and identify the graph name used by the application. Graph names are
