@@ -38,6 +38,7 @@ import GitCasMaterializationCacheDiagnosticsAdapter, {
   type GitCasMaterializationCacheDiagnosticsFacade,
 } from './GitCasMaterializationCacheDiagnosticsAdapter.ts';
 import SubstrateVersionGate from './SubstrateVersionGate.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from './TrailerCommitMessageCodecAdapter.ts';
 
 type GitCasPolicy = {
   execute<T>(operation: () => Promise<T>): Promise<T>;
@@ -108,7 +109,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
     }
     this._cbor = new CborCodec();
     this._contentEncryption = options.contentEncryption;
-    this._substrateVersionGate = new SubstrateVersionGate(this._history);
+    this._substrateVersionGate = new SubstrateVersionGate(this._history, DEFAULT_COMMIT_MESSAGE_CODEC);
   }
 
   async createRuntimeStorageServices(request: RuntimeStorageRequest): Promise<RuntimeStorageServices> {
