@@ -281,4 +281,24 @@ describe('documented selected-writer transfer refusals', () => {
     expect(refused.status).not.toBe(0);
     expect([...refs(fresh.tempDir).keys()].filter(name => name.startsWith('refs/warp/'))).toEqual([]);
   }, CASE_TIMEOUT_MS);
+
+  it('names the missing marker, not a v18 migration, when current chains arrive without it', async () => {
+    const hubPath = await hub();
+    const alice = await clone('unmarked-alice', hubPath, 'none');
+    const fresh = await clone('unmarked-receiver', hubPath, 'none');
+    await write(alice, 'alice', 'a');
+    git(alice.tempDir, ['push', 'origin', `${writerRef('alice')}:${writerRef('alice')}`]);
+    git(fresh.tempDir, ['fetch', '--no-tags', 'origin', `${writerRef('alice')}:${writerRef('alice')}`]);
+
+    const runtime = await Runtime.open({ at: fresh.tempDir, writer: 'carol' });
+    try {
+      await expect(runtime.lane(LANE)).rejects.toMatchObject({
+        code: 'E_SUBSTRATE_MARKER_MISSING',
+        message: expect.stringContaining(MARKER_REF),
+      });
+    } finally {
+      await runtime.close();
+    }
+    expect(refs(fresh.tempDir).has(MARKER_REF)).toBe(false);
+  }, CASE_TIMEOUT_MS);
 });
