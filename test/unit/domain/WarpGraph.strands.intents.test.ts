@@ -388,10 +388,12 @@ describe('WarpCore strand foundation', () => {
    * @returns {Promise<string[]>}
    */
   async function overlayAddDots(strandId) {
-    const entries = await graph.getStrandOverlayPatches(strandId);
-    return entries.flatMap(({ patch }) => patch.ops
-      .filter((op) => op.type === 'NodeAdd' || op.type === 'EdgeAdd')
-      .map((op) => Dot.encode(op.dot)));
+    const entries = await graph.getStrandPatches(strandId);
+    return entries
+      .filter(({ patch }) => patch.writer === strandId)
+      .flatMap(({ patch }) => patch.ops
+        .filter((op) => op.type === 'NodeAdd' || op.type === 'EdgeAdd')
+        .map((op) => Dot.encode(op.dot)));
   }
 
   it('mints distinct overlay dots for intents queued before one tick', async () => {
