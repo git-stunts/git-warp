@@ -37,3 +37,5 @@ The marked `BEGIN GENERATED ISSUE INVENTORY` / `END GENERATED ISSUE INVENTORY` s
 Validate that each active issue has exactly one release/category/workstream, every prerequisite endpoint exists or has an explicit completed/external disposition, no accepted edge points backward across planned releases, and the graph remains acyclic. Regenerate the dependency registers and counts in the same change. Preserve the capture time and source commit; do not silently replace a historical snapshot with an unverified "current" claim.
 
 The [streaming/indexed/recursive design record](./streaming-indexed-recursive-warp.md) retains its historical incident evidence. Its old v20 target and release sequencing are superseded by [v21.0.0](./v21.0.0/README.md); its source anchors are not a fresh implementation audit.
+
+The [worldline dot mints design record](./worldline-dot-mints.md) defines the v21.0.0 dot identity, minting authority, strand ref layout and migration contract tracked by [#1012](https://github.com/git-stunts/git-warp/issues/1012).
