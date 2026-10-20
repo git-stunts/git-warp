@@ -6,25 +6,40 @@ wrote every commit. The **v19.1.0** tag (`20a9b7f7`) was checked out into a
 worktree and built, and the generator imports only that build's `dist`. v20 did
 not change the on-disk format, so this is the input a v21 migration will see.
 
-The bundle is about 64 KiB. It holds 32 `refs/warp/*` refs across seven graphs,
-one scenario per graph:
+The bundle is about 165 KiB. It holds 39 `refs/warp/*` refs across nine
+graphs, one scenario per graph:
 
 | Graph | Class | What it pins |
 | --- | --- | --- |
 | `golden` | golden | Lane writers alice and bob write nodes, edges, properties and an entity. Alice forks strand `review`, which writes the checkpoint, then writes to the strand and settles it into the lane. No duplicate dots. |
 | `braided` | edge case | Strand `main-work` braids strand `support`. The braid pin and the support overlay head are the same commit. |
-| `collision` | edge case | Lane writer `next` and alice's strand `next` both mint the legacy dot `next:1`. Under the v21 keys `@w.next` and `@w.alice@s.next` they no longer collide. |
+| `collision` | edge case | Lane writer `next` and alice's strand `next` both mint the legacy dot `next:1`. Once identities are resolved, the lane dot stays `next` and the strand dot becomes `@w.alice@s.{next}`. |
+| `collision-remove` | edge case | Lane writer `next` mints `next:1`. Alice's strand `next` mints `next:2` and `next:3`, then removes `lane:1` (observing lane dot `next:1`) and `strand:2` (observing its own `next:3`). References have to be resolved by origin, not by string. |
 | `dotted-ids` | edge case | Writer `ops.bot-1` owns strand `rel.v2`. `.` is legal in legacy ids and is also the sigil separator. |
+| `counter-reset` | known failure | 100 adds in one session, then a restarted session mints `alice:1` again. The head's own context counter is 1, so a mint seeded from the head alone would reuse `alice:2` ([#1021](https://github.com/git-stunts/git-warp/issues/1021)). |
 | `dot-reuse` | known failure | Two alice sessions both mint `alice:1`. Each fresh v19 lane handle seeds counters from an empty vector; #1001 fixed this. |
 | `dot-reuse-tombstone` | known failure | The same reuse, then a remove of `note:drop`. The remove tombstones the shared dot, so v19.1.0 also hides `note:keep`. |
 | `ownerless` | known failure | Strand `orphan` has `owner: null`. The release's internal `createStrand` writes that when no owner is given. |
 
-`manifest.json` pins the bundle SHA-256 and every ref head and object type. For
-each scenario it also records the proposed migration outcome: `migrate` with the
-expected v21 mint ids, or `refuse` with a refusal reason. `release-census.json`
-is what v19.1.0 itself observes for each graph, as printed by `census.mjs`:
+For each scenario, `manifest.json` records the bundle SHA-256, every ref head
+and object type, and the proposed migration outcome. That outcome follows the
+amended contract in #1015: preserve the existing interpretation, report the
+damage, and never block because of duplicates.
 
-- every chain and every add dot;
+- `migrate` lists the expected mint ids:
+  - lane keys stay bare, as in v20;
+  - strand mints are written `@w.<owner>@s.{<strand name>}`, where the braces
+    stand for the immutable strand id the migration assigns (#1014).
+- `damage` lists what the migration must report.
+- `allocationFloors` lists the counter each writer must mint above (#1021).
+- `refuse` names the refusal reason. Only ownerless strands refuse.
+- Repair is a separate operation ([#1022](https://github.com/git-stunts/git-warp/issues/1022)).
+
+`release-census.json` is what v19.1.0 itself observes for each graph, as
+printed by `census.mjs`:
+
+- every chain;
+- each patch's own context counter, add dots, and removes with the dots they observed;
 - duplicate dots;
 - strand descriptors;
 - visible lane and strand state.
@@ -33,8 +48,8 @@ is what v19.1.0 itself observes for each graph, as printed by `census.mjs`:
 requires the current runtime to reproduce that census exactly.
 
 Dot reuse is not rare in v19 and v20 history. Any writer that opened a lane in
-more than one session repeated its counters, so the migration's duplicate-dot
-policy decides the outcome for most real repositories.
+more than one session repeated its counters, so a migration that refused on
+duplicates would refuse most real repositories.
 
 ## Regenerating
 
@@ -59,5 +74,7 @@ the release commit. Author and committer identity and time are fixed, so every
 `refs/warp/*` head reproduces exactly. The git-cas materialization cache
 (`refs/cas/caches/git-warp/materializations`) is not deterministic, and it is
 derived data, so the bundle leaves it out. Run the census against a scratch
-restore, because materialization can write caches. These scripts run on the
+restore, because materialization can write caches and automatic checkpoints.
+Take the manifest refs from a fresh restore of the bundle, never from a
+repository the census has touched. These scripts run on the
 host because they author data; tests that read the fixture run in Docker.

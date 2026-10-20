@@ -112,17 +112,72 @@ describe('v19.1.0 pre-worldline fixture (#1018)', () => {
     ]);
   });
 
-  it('known failures name the refusal the migration must report', () => {
-    const refusals = manifest.scenarios
+  it('counter-reset: the chain head understates counters the writer already used', () => {
+    const census = releaseCensus['counter-reset'];
+    const patches = census?.chains[0]?.patches ?? [];
+    const head = patches[patches.length - 1];
+    const used = patches.flatMap((patch) => patch.adds.map((add) => Number(add.dot.split(':')[1])));
+
+    expect(patches).toHaveLength(101);
+    expect(head?.ownContextCounter).toBe(1);
+    expect(head?.adds).toEqual([{ type: 'NodeAdd', target: 'item:after-restart', dot: 'alice:1' }]);
+    expect(Math.max(...used)).toBe(100);
+    expect(census?.duplicateDots.map((duplicate) => duplicate.dot)).toEqual(['alice:1']);
+  });
+
+  it('collision-remove: one legacy key names both lane and strand dots, so removes resolve by origin', () => {
+    const census = releaseCensus['collision-remove'];
+    const addOrigin = new Map<string, string>();
+    for (const chain of census?.chains ?? []) {
+      for (const patch of chain.patches) {
+        for (const add of patch.adds) {
+          addOrigin.set(add.dot, chain.refName.split('/')[3] ?? '');
+        }
+      }
+    }
+    const overlay = census?.chains.find((chain) => chain.refName.endsWith('/strand-overlays/next'));
+    const removes = overlay?.patches.flatMap((patch) => patch.removes) ?? [];
+
+    expect([...addOrigin]).toEqual([
+      ['next:1', 'writers'],
+      ['next:2', 'strand-overlays'],
+      ['next:3', 'strand-overlays'],
+    ]);
+    expect(removes.map((remove) => [remove.target, remove.observedDots.map((dot) => addOrigin.get(dot))]))
+      .toEqual([
+        ['lane:1', ['writers']],
+        ['strand:2', ['strand-overlays']],
+      ]);
+    expect(census?.strands[0]?.visible.nodes).toEqual(['strand:1']);
+    expect(census?.visible.nodes).toEqual(['lane:1']);
+  });
+
+  it('known failures preserve interpretation: damage is reported, only ownerless strands refuse', () => {
+    const outcomes = manifest.scenarios
       .filter((scenario) => scenario.classification === 'known-failure')
       .map((scenario) => [scenario.graph, scenario.proposedMigration]);
-    expect(refusals).toEqual([
-      ['dot-reuse', expect.objectContaining({ verdict: 'refuse', refusal: 'duplicate-dot' })],
-      ['dot-reuse-tombstone', expect.objectContaining({ verdict: 'refuse', refusal: 'duplicate-dot' })],
+    expect(outcomes).toEqual([
+      ['counter-reset', expect.objectContaining({
+        verdict: 'migrate', damage: ['duplicate-dot'], allocationFloors: { alice: 100 },
+      })],
+      ['dot-reuse', expect.objectContaining({ verdict: 'migrate', damage: ['duplicate-dot'] })],
+      ['dot-reuse-tombstone', expect.objectContaining({
+        verdict: 'migrate', damage: ['duplicate-dot', 'collateral-deletion'],
+      })],
       ['ownerless', expect.objectContaining({ verdict: 'refuse', refusal: 'ownerless-strand' })],
     ]);
   });
 
-  it.todo('v21 migration accepts golden and edge-case scenarios with the manifest mints (#1015)');
-  it.todo('v21 migration refuses known-failure scenarios with the manifest refusal (#1015)');
+  it('lane mints keep their bare v20 keys; only strand mints carry sigils', () => {
+    for (const scenario of manifest.scenarios) {
+      for (const mint of scenario.proposedMigration.mints) {
+        expect(mint.includes('@'), `${scenario.graph} ${mint}`).toBe(mint.includes('@s.'));
+        expect(mint.startsWith('@w.') || !mint.includes('@')).toBe(true);
+      }
+    }
+  });
+
+  it.todo('v21 migration converts each migrate scenario to the manifest mints with unchanged visible state (#1015)');
+  it.todo('v21 migration persists the manifest allocation floors; counter-reset writes above alice:100 (#1021)');
+  it.todo('v21 migration reports the manifest damage and refuses ownerless strands without --assign-owner (#1015)');
 });

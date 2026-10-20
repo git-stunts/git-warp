@@ -79,6 +79,38 @@ await withHost('dot-reuse-tombstone', 'alice', async (host) => {
   });
 });
 
+// counter-reset (known failure): 100 adds in one session, then a restarted
+// session mints alice:1 again. The chain head's context says alice -> 1, so a
+// mint seeded from the head alone would issue alice:2, which already exists
+// (#1021). The migration must establish a floor of 100 from history.
+await withRuntime('alice', async (runtime) => {
+  const lane = await runtime.lane('counter-reset');
+  for (let index = 1; index <= 100; index += 1) {
+    await lane.write(intent.node.add({ subject: `item:${String(index).padStart(3, '0')}` }));
+  }
+});
+await withRuntime('alice', async (runtime) => {
+  const lane = await runtime.lane('counter-reset');
+  await lane.write(intent.node.add({ subject: 'item:after-restart' }));
+});
+
+// collision-remove (edge case): lane writer `next` mints next:1. Alice forks
+// strand `next`, whose overlay then mints next:2 and next:3 under the same
+// legacy key. The strand's removes observe next:1 (a lane dot) and next:3
+// (its own), so the migration must re-key by origin, not by string.
+await withRuntime('next', async (runtime) => {
+  const lane = await runtime.lane('collision-remove');
+  await lane.write(intent.node.add({ subject: 'lane:1' }));
+});
+await withRuntime('alice', async (runtime) => {
+  const lane = await runtime.lane('collision-remove');
+  const strand = await runtime.fork(lane, { name: 'next' });
+  await strand.write(intent.node.add({ subject: 'strand:1' }));
+  await strand.write(intent.node.add({ subject: 'strand:2' }));
+  await strand.write(intent.node.remove({ subject: 'lane:1' }));
+  await strand.write(intent.node.remove({ subject: 'strand:2' }));
+});
+
 // dotted-ids (edge case): `.` is legal in v19 writer and strand ids and is
 // also the sigil separator in `@w.<writer>`, so the codec must not split on it.
 await withRuntime('ops.bot-1', async (runtime) => {

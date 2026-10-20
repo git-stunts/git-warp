@@ -5,7 +5,7 @@
     "commit": "20a9b7f76d07195de0782f0852102434bdd200d3"
   },
   "bundlePath": "v19-pre-worldline.bundle",
-  "bundleSha256": "66a461d79a7c3542fd426d25666bb5512c657094ada79a1192586aebc6c8d626",
+  "bundleSha256": "73ae1d103c9c97ecf2cfdbb35c75e7ec1424a71e7bcc372eb445930ab2cf6111",
   "releaseCensusPath": "release-census.json",
   "excludedRefs": [
     "refs/cas/caches/git-warp/materializations"
@@ -47,6 +47,31 @@
       "expectedObjectType": "commit"
     },
     {
+      "refName": "refs/warp/collision-remove/checkpoints/head",
+      "expectedHead": "9026b2bd252b76bc37b980589575f4382db0cd79",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/collision-remove/strand-overlays/next",
+      "expectedHead": "870e567a49c41edb6b3074f2575a0949c188cd09",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/collision-remove/strands/next",
+      "expectedHead": "217efed3f4694b94931986a50cf045685d8dc5bc",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/collision-remove/substrate-version",
+      "expectedHead": "34e4961002abeccf110710d1138bc7cfa6883a45",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/collision-remove/writers/next",
+      "expectedHead": "4ee21f9b8a4098eba9af176d0ecdec83aad1e9be",
+      "expectedObjectType": "commit"
+    },
+    {
       "refName": "refs/warp/collision/checkpoints/head",
       "expectedHead": "503323cd2f4c9909bddb0569f9d5957998522410",
       "expectedObjectType": "commit"
@@ -74,6 +99,16 @@
     {
       "refName": "refs/warp/collision/writers/next",
       "expectedHead": "b640bb071e36a8f919b798b9cfa2f80a697d0b0d",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/counter-reset/substrate-version",
+      "expectedHead": "34e4961002abeccf110710d1138bc7cfa6883a45",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/counter-reset/writers/alice",
+      "expectedHead": "e14965cb03fa0313779b2af96a4d555281fc3d2d",
       "expectedObjectType": "commit"
     },
     {
@@ -176,87 +211,128 @@
     {
       "graph": "golden",
       "classification": "golden",
-      "description": "Two lane writers (alice, bob) with nodes, edges, properties and an entity; alice forks strand `review` (writing the checkpoint), writes into it and settles it back into the lane. No duplicate dots.",
+      "description": "Lane writers alice and bob write nodes, edges, properties and an entity. Alice forks strand `review`, which writes the checkpoint, then writes to the strand and settles it back into the lane. No duplicate dots.",
       "proposedMigration": {
         "verdict": "migrate",
         "mints": [
-          "@w.alice",
-          "@w.alice@s.review",
-          "@w.bob"
+          "alice",
+          "bob",
+          "@w.alice@s.{review}"
         ]
       }
     },
     {
       "graph": "braided",
       "classification": "edge-case",
-      "description": "Owned strands `support` and `main-work`; `main-work` braids `support`, so its view includes support overlay dots. The braid pin and the support overlay head are the same commit.",
+      "description": "Owned strands `support` and `main-work`, where `main-work` braids `support`. The braid pin and the support overlay head are the same commit.",
       "proposedMigration": {
         "verdict": "migrate",
         "mints": [
-          "@w.alice",
-          "@w.alice@s.main-work",
-          "@w.alice@s.support"
+          "alice",
+          "@w.alice@s.{main-work}",
+          "@w.alice@s.{support}"
         ]
       }
     },
     {
       "graph": "collision",
       "classification": "edge-case",
-      "description": "Lane writer `next` and alice-owned strand `next` both mint dot `next:1` (lane:1 and strand:1). The legacy key collides; the v21 keys @w.next and @w.alice@s.next do not, so the duplicate scan must run after re-keying.",
+      "description": "Lane writer `next` and alice-owned strand `next` both mint the legacy dot `next:1`. After re-keying, the lane dot stays `next` and the strand dot becomes `@w.alice@s.{next}`, so the duplicate scan must run on resolved identities.",
       "proposedMigration": {
         "verdict": "migrate",
         "mints": [
-          "@w.alice",
-          "@w.alice@s.next",
-          "@w.next"
+          "alice",
+          "next",
+          "@w.alice@s.{next}"
+        ]
+      }
+    },
+    {
+      "graph": "collision-remove",
+      "classification": "edge-case",
+      "description": "Lane writer `next` mints next:1. Alice forks strand `next`; its overlay mints next:2 and next:3, then removes lane:1 (observing the lane dot next:1) and strand:2 (observing its own next:3). The migration must resolve each reference by origin: next:1 stays a lane dot, while next:2 and next:3 are re-keyed.",
+      "proposedMigration": {
+        "verdict": "migrate",
+        "mints": [
+          "alice",
+          "next",
+          "@w.alice@s.{next}"
         ]
       }
     },
     {
       "graph": "dotted-ids",
       "classification": "edge-case",
-      "description": "Writer `ops.bot-1` owns strand `rel.v2`. `.` is legal in legacy ids and is also the separator in the sigil, so the codec must not split on it.",
+      "description": "Writer `ops.bot-1` owns strand `rel.v2`. `.` is legal in legacy ids and is also the sigil separator.",
       "proposedMigration": {
         "verdict": "migrate",
         "mints": [
-          "@w.ops.bot-1",
-          "@w.ops.bot-1@s.rel.v2"
+          "ops.bot-1",
+          "@w.ops.bot-1@s.{rel.v2}"
         ]
+      }
+    },
+    {
+      "graph": "counter-reset",
+      "classification": "known-failure",
+      "description": "Alice adds 100 nodes in one session, then a restarted session mints alice:1 again. The head context says alice -> 1, so a mint seeded from the head alone would issue alice:2, which already exists. The migration must establish an allocation floor of 100 (#1021) and report the duplicate.",
+      "proposedMigration": {
+        "verdict": "migrate",
+        "mints": [
+          "alice"
+        ],
+        "damage": [
+          "duplicate-dot"
+        ],
+        "allocationFloors": {
+          "alice": 100
+        }
       }
     },
     {
       "graph": "dot-reuse",
       "classification": "known-failure",
-      "description": "Two alice sessions each open a fresh lane and mint `alice:1` (v19.1.0 seeds counters from an empty vector, fixed by #1001). Both add sites are live.",
+      "description": "Two alice sessions each mint `alice:1`, and both add sites are live. The migration keeps the interpretation unchanged and reports the duplicate. Repair is a separate operation (#1022).",
       "proposedMigration": {
-        "verdict": "refuse",
-        "refusal": "duplicate-dot",
+        "verdict": "migrate",
         "mints": [
-          "@w.alice"
-        ]
+          "alice"
+        ],
+        "damage": [
+          "duplicate-dot"
+        ],
+        "allocationFloors": {
+          "alice": 1
+        }
       }
     },
     {
       "graph": "dot-reuse-tombstone",
       "classification": "known-failure",
-      "description": "The same reuse, followed by removing note:drop. The remove observes the shared dot `alice:1`, so v19.1.0 also hides note:keep. The visible state is already empty.",
+      "description": "The same reuse, followed by a remove of note:drop. The remove observes the shared dot `alice:1`, so v19.1.0 also hides note:keep. The migration preserves that visible state and reports both the duplicate and the collateral deletion.",
       "proposedMigration": {
-        "verdict": "refuse",
-        "refusal": "duplicate-dot",
+        "verdict": "migrate",
         "mints": [
-          "@w.alice"
-        ]
+          "alice"
+        ],
+        "damage": [
+          "duplicate-dot",
+          "collateral-deletion"
+        ],
+        "allocationFloors": {
+          "alice": 1
+        }
       }
     },
     {
       "graph": "ownerless",
       "classification": "known-failure",
-      "description": "Strand `orphan` was created through the release's internal createStrand with no owner, so its overlay chain has no writer to re-key under.",
+      "description": "Strand `orphan` was created through the internal createStrand with no owner. The migration refuses unless the operator assigns one.",
       "proposedMigration": {
         "verdict": "refuse",
         "refusal": "ownerless-strand",
         "mints": [
-          "@w.alice"
+          "alice"
         ]
       }
     }

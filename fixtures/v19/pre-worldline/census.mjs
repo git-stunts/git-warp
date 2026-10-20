@@ -76,7 +76,9 @@ function describeChain(refName, entries) {
       sha,
       writer: patch.writer,
       lamport: patch.lamport,
+      ownContextCounter: ownContextCounter(patch),
       adds: patch.ops.flatMap(describeAdd),
+      removes: patch.ops.flatMap(describeRemove),
     })),
   };
 }
@@ -87,6 +89,26 @@ function describeAdd(op) {
   }
   if (op.type === 'EdgeAdd') {
     return [{ type: op.type, target: `${op.from}->${op.to}:${op.label}`, dot: dotKey(op.dot) }];
+  }
+  return [];
+}
+
+/** The patch context's entry for its own writer: what a head-only mint starts from. */
+function ownContextCounter(patch) {
+  const { context, writer } = patch;
+  return (typeof context.get === 'function' ? context.get(writer) : context[writer]) ?? 0;
+}
+
+function describeRemove(op) {
+  if (op.type === 'NodeRemove') {
+    return [{ type: op.type, target: op.node, observedDots: [...op.observedDots].sort() }];
+  }
+  if (op.type === 'EdgeRemove') {
+    return [{
+      type: op.type,
+      target: `${op.from}->${op.to}:${op.label}`,
+      observedDots: [...op.observedDots].sort(),
+    }];
   }
   return [];
 }

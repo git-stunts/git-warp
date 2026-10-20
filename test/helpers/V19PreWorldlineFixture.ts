@@ -9,8 +9,11 @@ import GitStorage from '../../src/application/GitStorage.ts';
 import { getDefaultRuntimeHostNodePorts } from '../../src/application/RuntimeHostNodeDefaults.ts';
 import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
+import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 import EdgeAdd from '../../src/domain/types/ops/EdgeAdd.ts';
+import EdgeRemove from '../../src/domain/types/ops/EdgeRemove.ts';
 import NodeAdd from '../../src/domain/types/ops/NodeAdd.ts';
+import NodeRemove from '../../src/domain/types/ops/NodeRemove.ts';
 import type { SnapshotPropValue } from '../../src/domain/services/snapshot/SnapshotPropValue.ts';
 import type SnapshotWarpState from '../../src/domain/services/snapshot/SnapshotWarpState.ts';
 import type { PatchOp } from '../../src/domain/types/ops/unions.ts';
@@ -49,8 +52,10 @@ export type FixtureScenario = Readonly<{
   description: string;
   proposedMigration: Readonly<{
     verdict: 'migrate' | 'refuse';
-    refusal?: 'duplicate-dot' | 'ownerless-strand';
+    refusal?: 'ownerless-strand';
     mints: readonly string[];
+    damage?: ReadonlyArray<'duplicate-dot' | 'collateral-deletion'>;
+    allocationFloors?: Readonly<Record<string, number>>;
   }>;
 }>;
 
@@ -66,9 +71,17 @@ export type V19PreWorldlineManifest = Readonly<{
 }>;
 
 type AddSite = { type: string; target: string; dot: string };
+type RemoveSite = { type: string; target: string; observedDots: string[] };
 type ChainCensus = {
   refName: string;
-  patches: Array<{ sha: string; writer: string; lamport: number; adds: AddSite[] }>;
+  patches: Array<{
+    sha: string;
+    writer: string;
+    lamport: number;
+    ownContextCounter: number;
+    adds: AddSite[];
+    removes: RemoveSite[];
+  }>;
 };
 type VisibleState = { nodes: string[]; edges: string[] };
 export type GraphCensus = {
@@ -216,7 +229,9 @@ function describeChain(
       sha,
       writer: patch.writer,
       lamport: patch.lamport,
+      ownContextCounter: VersionVector.from(patch.context).get(patch.writer) ?? 0,
       adds: patch.ops.flatMap(describeAdd),
+      removes: patch.ops.flatMap(describeRemove),
     })),
   };
 }
@@ -227,6 +242,20 @@ function describeAdd(op: PatchOp): AddSite[] {
   }
   if (op instanceof EdgeAdd) {
     return [{ type: 'EdgeAdd', target: `${op.from}->${op.to}:${op.label}`, dot: Dot.encode(op.dot) }];
+  }
+  return [];
+}
+
+function describeRemove(op: PatchOp): RemoveSite[] {
+  if (op instanceof NodeRemove) {
+    return [{ type: 'NodeRemove', target: op.node, observedDots: [...op.observedDots].sort() }];
+  }
+  if (op instanceof EdgeRemove) {
+    return [{
+      type: 'EdgeRemove',
+      target: `${op.from}->${op.to}:${op.label}`,
+      observedDots: [...op.observedDots].sort(),
+    }];
   }
   return [];
 }
