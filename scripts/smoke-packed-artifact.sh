@@ -191,14 +191,7 @@ test ! -e "$PACKAGE_DIR/docs/operations"
 CHECK_PACKED="$ROOT/scripts/package-payload/CheckPackedArtifact.ts"
 node "$CHECK_PACKED" documents "$PACKAGE_DIR"
 node "$CHECK_PACKED" imports "$PACKAGE_DIR"
-
-# Published JavaScript carries no source comments; the public declarations keep
-# their documentation for editors.
-if grep -rlE --include='*.js' '^[[:space:]]*/\*\*' "$PACKAGE_DIR/dist" >/dev/null; then
-  echo 'packed-artifact: published JavaScript still carries source doc comments' >&2
-  exit 1
-fi
-grep -q '^/\*\* Production composition root' "$PACKAGE_DIR/dist/src/application/Runtime.d.ts"
+node "$CHECK_PACKED" comments "$PACKAGE_DIR"
 
 # Type-check all five public type surfaces from the installed tarball with
 # skipLibCheck disabled. The fixture is the repository's own subpath consumer,
