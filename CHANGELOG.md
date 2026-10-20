@@ -13,7 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   above the writer chain's head instead of incrementing whatever version vector
   a caller seeded. Lane writes, `writer().beginPatch`, strand writes and the
   v17 visible-state upgrade share the mint, so a stale or empty vector can no
-  longer re-mint a used dot, and a builder refuses a mint for another writer
+  longer re-mint a used dot, and a builder refuses a mint for another writer.
+  Strand overlay mints also continue above queued intents, so two intents
+  queued before one tick, or a queued intent followed by a direct strand
+  patch, no longer commit the same dot
   ([#1013](https://github.com/git-stunts/git-warp/issues/1013)).
 - Stop graph-first writers from reusing CRDT dots. `createPatch`, `patch`,
   `patchMany` and `writer().commitPatch` now continue the writer's dot counter

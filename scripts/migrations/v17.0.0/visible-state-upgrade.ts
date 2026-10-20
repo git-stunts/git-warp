@@ -49,13 +49,15 @@ function upgradeAliveEntities({
   mint.observed(vv);
   for (const [nodeId, reg] of legacyState.nodeAlive) {
     if (reg.value) {
-      const dot = mint.mintInto(vv);
+      const dot = mint.issue();
+      vv.include(dot);
       currentState.nodeAlive.add(nodeId, dot);
     }
   }
   for (const [edgeKey, reg] of legacyState.edgeAlive) {
     if (reg.value) {
-      const dot = mint.mintInto(vv);
+      const dot = mint.issue();
+      vv.include(dot);
       currentState.edgeAlive.add(edgeKey, dot);
     }
   }

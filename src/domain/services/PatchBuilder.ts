@@ -1,7 +1,4 @@
-/**
- * PatchBuilder — fluent API for building schema:2 WARP patches. Add dots come
- * from the writer chain's DotMint; removes observe dots from current state.
- */
+/** Fluent schema:2 patch builder. Add dots come from the chain's DotMint. */
 
 import nullLogger from '../utils/nullLogger.ts';
 import VersionVector from '../crdt/VersionVector.ts';
@@ -166,7 +163,8 @@ export class PatchBuilder {
   addNode(nodeId: string): PatchBuilder {
     this._assertNotCommitted();
     assertNoReservedBytes(nodeId, 'nodeId');
-    const dot = this._dotMint.mintInto(this._vv);
+    const dot = this._dotMint.issue();
+    this._vv.include(dot);
     this._ops.push(new NodeAdd(nodeId, dot));
     this._nodesAdded.add(nodeId);
     this._writes.add(nodeId);
@@ -213,8 +211,8 @@ export class PatchBuilder {
       properties,
       scope: { added: this._nodesAdded, state: this._getSnapshotState() },
       mint: this._dotMint,
-      context: this._vv,
     });
+    this._vv.include(capture.dot);
     const operationIndex = this._ops.length;
     this._ops.push(new NodeAdd(capture.nodeId, capture.dot), ...capture.payload);
     this._nodesAdded.add(capture.nodeId);
@@ -309,7 +307,8 @@ export class PatchBuilder {
     assertNoReservedBytes(from, 'from node ID');
     assertNoReservedBytes(to, 'to node ID');
     assertNoReservedBytes(label, 'edge label');
-    const dot = this._dotMint.mintInto(this._vv);
+    const dot = this._dotMint.issue();
+    this._vv.include(dot);
     this._ops.push(new EdgeAdd({ from, to, label, dot }));
     const edgeKey = encodeEdgeKey(from, to, label);
     this._edgesAdded.add(edgeKey);

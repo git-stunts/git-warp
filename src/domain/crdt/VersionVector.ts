@@ -223,6 +223,13 @@ export default class VersionVector {
   }
 
   /**
+   * Raises the dot's writer entry so this vector covers `dot`. Mutates.
+   */
+  include(dot: Dot): this {
+    return this.set(dot.writerId, Math.max(this.#entries.get(dot.writerId) ?? 0, dot.counter));
+  }
+
+  /**
    * Merges with another VersionVector by taking the pointwise maximum.
    * Returns a new VersionVector; does not mutate either input.
    *

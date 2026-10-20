@@ -257,7 +257,11 @@ export default class StrandPatchService {
       admissionParticipantId: this._graph._writerId,
       lamport,
       versionVector,
-      dotMint: dotMintAfterPatches(descriptor.overlay.overlayId, patches),
+      // Queued intents already hold minted dots and commit unchanged at tick.
+      dotMint: dotMintAfterPatches(descriptor.overlay.overlayId, [
+        ...patches,
+        ...(descriptor.intentQueue?.intents ?? []),
+      ]),
       getCurrentState,
       expectedParentSha,
       onDeleteWithData: this._graph._onDeleteWithData,

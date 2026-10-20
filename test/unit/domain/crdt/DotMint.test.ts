@@ -5,21 +5,31 @@ import DotMint from '../../../../src/domain/crdt/DotMint.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 
 describe('DotMint', () => {
-  it('mints the counter after its high-water mark and records it in the patch context', () => {
+  it('issues the counters after its high-water mark', () => {
     const mint = DotMint.after('alice', 4);
-    const context = VersionVector.from({ bob: 2 });
 
-    expect(mint.mintInto(context)).toEqual(new Dot('alice', 5));
-    expect(mint.mintInto(context)).toEqual(new Dot('alice', 6));
-    expect(VersionVector.serialize(context)).toEqual({ alice: 6, bob: 2 });
+    expect(mint.issue()).toEqual(new Dot('alice', 5));
+    expect(mint.issue()).toEqual(new Dot('alice', 6));
     expect(mint.issued).toBe(6);
   });
 
-  it('never mints below its high-water mark when the context is stale', () => {
+  it('never issues below its high-water mark when an observed context is stale', () => {
     const mint = DotMint.after('alice', 9);
     const stale = VersionVector.from({ alice: 2 });
 
-    expect(mint.mintInto(stale)).toEqual(new Dot('alice', 10));
+    expect(mint.observed(stale)).toBe(stale);
+    expect(mint.issue()).toEqual(new Dot('alice', 10));
+    expect(VersionVector.serialize(stale)).toEqual({ alice: 2 });
+  });
+
+  it('a context records an issued dot through include, leaving other writers alone', () => {
+    const mint = DotMint.after('alice', 4);
+    const context = VersionVector.from({ alice: 7, bob: 2 }).clone();
+    const dot = mint.issue();
+
+    expect(context.include(dot)).toBe(context);
+    expect(VersionVector.serialize(context)).toEqual({ alice: 7, bob: 2 });
+    expect(VersionVector.serialize(VersionVector.empty().include(dot))).toEqual({ alice: 5 });
   });
 
   it('learns a higher counter from an observed context but never lowers', () => {
@@ -35,7 +45,7 @@ describe('DotMint', () => {
     const mint = DotMint.after('alice', 0);
 
     expect(mint.peek()).toEqual(mint.peek());
-    expect(mint.mintInto(VersionVector.empty())).toEqual(new Dot('alice', 1));
+    expect(mint.issue()).toEqual(new Dot('alice', 1));
   });
 
   it('refuses an empty writer or an invalid high-water mark', () => {

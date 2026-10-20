@@ -53,7 +53,7 @@ export default class DotMint {
     return this.#issued;
   }
 
-  /** The dot the next {@link mintInto} call will return. */
+  /** The dot the next {@link issue} call will return. */
   peek(): Dot {
     return new Dot(this.writerId, this.#issued + 1);
   }
@@ -64,11 +64,13 @@ export default class DotMint {
     return context;
   }
 
-  /** Mints the next dot and records it in the patch `context`. */
-  mintInto(context: VersionVector): Dot {
+  /**
+   * Issues the next dot. The mint never touches a caller's version vector;
+   * the patch owner records the dot in its own context.
+   */
+  issue(): Dot {
     const dot = this.peek();
     this.#issued = dot.counter;
-    context.set(this.writerId, Math.max(context.get(this.writerId) ?? 0, dot.counter));
     return dot;
   }
 }

@@ -31,7 +31,6 @@
 import PatchError from '../errors/PatchError.ts';
 import { Dot } from '../crdt/Dot.ts';
 import type DotMint from '../crdt/DotMint.ts';
-import type VersionVector from '../crdt/VersionVector.ts';
 import NodePropertyWriteIntent from '../graph/NodePropertyWriteIntent.ts';
 import NodePropSet from '../types/ops/NodePropSet.ts';
 import type { PropValue } from '../types/PropValue.ts';
@@ -78,12 +77,11 @@ export function allocateEntityCapture(fields: {
   readonly properties: EntityCapturePayload;
   readonly scope: EntityCaptureScope;
   readonly mint: DotMint;
-  readonly context: VersionVector;
 }): Readonly<{ dot: Dot; nodeId: string; payload: readonly NodePropSet[] }> {
-  const { namespace, properties, scope, mint, context } = fields;
+  const { namespace, properties, scope, mint } = fields;
   const nodeId = allocateEntitySubject(namespace, mint.peek());
   const payload = planEntityCapturePayload(nodeId, properties, scope);
-  const dot = mint.mintInto(context);
+  const dot = mint.issue();
   return Object.freeze({ dot, nodeId, payload });
 }
 
