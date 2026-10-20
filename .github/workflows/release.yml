@@ -387,6 +387,16 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
+          persist-credentials: false
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
       - name: Build registry summary
         id: summary
         shell: bash
@@ -413,21 +423,15 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Curated CHANGELOG synopsis first; generated PR history follows as
+          # evidence. Reruns recompose from CHANGELOG.md and keep that history.
           if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
             gh release view "$TAG" --repo "$GH_REPO" --json body --jq .body > EXISTING_RELEASE.md
-
-            if grep -q "^## What's Changed" EXISTING_RELEASE.md; then
-              awk 'BEGIN { keep = 0 } /^## What'\''s Changed/ { keep = 1 } keep { print }' EXISTING_RELEASE.md > GENERATED_NOTES.md
-              cat RELEASE_SUMMARY.md > RELEASE_NOTES.md
-              printf '\n' >> RELEASE_NOTES.md
-              cat GENERATED_NOTES.md >> RELEASE_NOTES.md
-              gh release edit "$TAG" --repo "$GH_REPO" --notes-file RELEASE_NOTES.md
-            else
-              echo "::warning::GitHub Release $TAG already exists but generated notes were not recognized; leaving notes unchanged."
-            fi
+            node scripts/release-notes/ComposeReleaseNotes.ts "$GH_REPO" "$TAG" RELEASE_SUMMARY.md EXISTING_RELEASE.md > RELEASE_NOTES.md
+            gh release edit "$TAG" --repo "$GH_REPO" --notes-file RELEASE_NOTES.md
           else
-            SUMMARY=$(cat RELEASE_SUMMARY.md)
-            args=(release create "$TAG" --repo "$GH_REPO" --generate-notes --notes "$SUMMARY")
+            node scripts/release-notes/ComposeReleaseNotes.ts "$GH_REPO" "$TAG" RELEASE_SUMMARY.md > RELEASE_NOTES.md
+            args=(release create "$TAG" --repo "$GH_REPO" --generate-notes --notes-file RELEASE_NOTES.md)
             if [[ "$IS_PRERELEASE" == "true" ]]; then
               args+=(--prerelease)
             fi

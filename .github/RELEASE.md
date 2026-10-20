@@ -78,7 +78,14 @@ manual registry publish:
 6. A maintainer whose GitHub account is a JSR `@git-stunts` scope member
    manually dispatches the `Release` workflow for that tag.
 7. The `Release` workflow checks out the tag, verifies publishability,
-   publishes npm and JSR, and creates or updates the GitHub Release.
+   publishes npm and JSR, and creates or updates the GitHub Release. The notes
+   open with the tag's `CHANGELOG.md` synopsis: its intro plus any Release
+   notes, Compatibility, Breaking, Upgrade or Migration subsections, with
+   repository links pinned to the tag. A link to the full changelog and the
+   registry summary follow, and GitHub's generated PR history comes last as
+   evidence. A rerun recomposes the notes from `CHANGELOG.md` and keeps the
+   generated history, so it never drops the synopsis
+   (`scripts/release-notes/ComposeReleaseNotes.ts`).
 
 Do not move existing public tags. If the wrong commit was released, cut the
 next patch version from `main`.
@@ -413,7 +420,10 @@ release from `main`.
 
 ### GitHub Release Notes Are Wrong
 
-Update the GitHub Release for the same tag. Do not retag.
+Update the GitHub Release for the same tag. Do not retag. If the synopsis is
+wrong, fix the version's `CHANGELOG.md` section on `main` and edit the release
+by hand; a workflow rerun recomposes the synopsis from the tagged
+`CHANGELOG.md`, so it cannot pick up a later fix.
 
 ### Wrong Commit Tagged But Not Published
 

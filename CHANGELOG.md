@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removing one silently removed the others. Patches already written with
   duplicate dots are not repaired
   ([#995](https://github.com/git-stunts/git-warp/issues/995)).
+- Open GitHub Release notes with the version's `CHANGELOG.md` synopsis and its
+  compatibility, breaking and migration subsections before the generated PR
+  history, which can list superseded intermediate designs. Workflow reruns
+  recompose the notes instead of dropping everything above the generated
+  history ([#803](https://github.com/git-stunts/git-warp/issues/803)).
 - Give release closure a 300-second exact-version visibility window across npm
   and JSR instead of six ten-second polls, which failed while npm was still
   processing an accepted publication. Only not-found, transport and timeout
