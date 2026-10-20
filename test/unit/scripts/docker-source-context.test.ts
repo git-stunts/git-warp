@@ -1,5 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import {
+  existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync,
+  symlinkSync, writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -102,6 +106,30 @@ describe('Docker source context', () => {
     expect(entries).not.toContain('.gitignore');
   });
 
+  it('retains no Dockerfile alias whose target is missing or outside the context', () => {
+    expect(brokenDockerfileAliases(ROOT)).toEqual([]);
+  });
+
+  it.each([
+    { name: 'a valid relative alias', link: 'docker/Dockerfile', target: 'Dockerfile.node22-slim', broken: [] },
+    { name: 'a valid nested relative alias', link: 'Dockerfile', target: 'docker/Dockerfile.node22-slim', broken: [] },
+    { name: 'a nonexistent target', link: 'docker/Dockerfile', target: 'docker/Dockerfile.node22-slim', broken: ['docker/Dockerfile'] },
+    { name: 'a target outside the context', link: 'docker/Dockerfile', target: '../../Dockerfile.outside', broken: ['docker/Dockerfile'] },
+  ])('judges $name by its link target, not its stored bytes', ({ link, target, broken }) => {
+    const root = mkdtempSync(join(tmpdir(), 'docker-alias-'));
+    try {
+      mkdirSync(join(root, 'docker'));
+      writeFileSync(join(root, 'docker/Dockerfile.node22-slim'), 'FROM node:22-slim\n');
+      writeFileSync(join(dirname(root), 'Dockerfile.outside'), 'FROM scratch\n');
+      symlinkSync(target, join(root, link));
+
+      expect(brokenDockerfileAliases(root)).toEqual(broken);
+    } finally {
+      rmSync(join(dirname(root), 'Dockerfile.outside'), { force: true });
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it.each(DEPENDENCY_INSTALL_DOCKERFILES)(
     '%s disables browser downloads before installing dependencies',
     (path) => {
@@ -128,4 +156,27 @@ function dependencyInstallOffset(source: string): number {
     source.indexOf('RUN bun install')]
     .filter((offset) => offset >= 0);
   return Math.min(...offsets);
+}
+
+const SKIPPED_DIRECTORIES = new Set(['.git', 'node_modules', 'coverage']);
+
+/** Lists Dockerfile symlinks whose target is missing or escapes the context root. */
+function brokenDockerfileAliases(root: string): readonly string[] {
+  const broken: string[] = [];
+  const visit = (directory: string): void => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory() && !SKIPPED_DIRECTORIES.has(entry.name)) {
+        visit(path);
+      } else if (entry.isSymbolicLink() && /^Dockerfile(?:\.|$)/u.test(entry.name)) {
+        const target = resolve(dirname(path), readlinkSync(path));
+        const inside = !relative(root, target).startsWith(`..${sep}`);
+        if (!inside || !existsSync(target) || !statSync(target).isFile()) {
+          broken.push(relative(root, path));
+        }
+      }
+    }
+  };
+  visit(root);
+  return Object.freeze(broken.sort());
 }

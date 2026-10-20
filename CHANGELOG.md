@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   names the rejected key and the supported keys. Symbol keys, inherited keys and
   accessor properties are rejected too
   ([#971](https://github.com/git-stunts/git-warp/issues/971)).
+- Remove the unused `docker/Dockerfile` alias, whose relative target pointed at
+  a nonexistent `docker/docker/Dockerfile.node22-slim`. A source-context test
+  now rejects any Dockerfile alias whose target is missing or outside the
+  context. Named Dockerfiles and Compose routes are unchanged
+  ([#954](https://github.com/git-stunts/git-warp/issues/954)).
 - Replace the published lane-wide WARP fetch and push recipes, which deleted a
   clone's unpublished writer chain under `fetch.prune` and published derived
   checkpoint heads. Sync now documents ref ownership and transport per ref
