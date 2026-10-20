@@ -1,0 +1,674 @@
+{
+  "braided": {
+    "chains": [
+      {
+        "refName": "refs/warp/braided/writers/alice",
+        "patches": [
+          {
+            "sha": "a939f4da87b103e835a7315737aafd23d5a2ae16",
+            "writer": "alice",
+            "lamport": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "base:1",
+                "dot": "alice:1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/braided/strand-overlays/main-work",
+        "patches": [
+          {
+            "sha": "96d51415e36943bca914e4df57ff051a8ea44cf8",
+            "writer": "main-work",
+            "lamport": 2,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "work:1",
+                "dot": "main-work:1"
+              },
+              {
+                "type": "EdgeAdd",
+                "target": "work:1->support:1:cites",
+                "dot": "main-work:2"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/braided/strand-overlays/support",
+        "patches": [
+          {
+            "sha": "7bc3435d6c7e560f6a1fe9c300d3135e7345cbd5",
+            "writer": "support",
+            "lamport": 2,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "support:1",
+                "dot": "support:1"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [],
+    "strands": [
+      {
+        "strandId": "main-work",
+        "owner": "alice",
+        "overlayId": "main-work",
+        "overlayPatchCount": 1,
+        "readOverlays": [
+          "support"
+        ],
+        "visible": {
+          "nodes": [
+            "base:1",
+            "support:1",
+            "work:1"
+          ],
+          "edges": [
+            "work:1|support:1|cites"
+          ]
+        }
+      },
+      {
+        "strandId": "support",
+        "owner": "alice",
+        "overlayId": "support",
+        "overlayPatchCount": 1,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [
+            "base:1",
+            "support:1"
+          ],
+          "edges": []
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "base:1"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "collision": {
+    "chains": [
+      {
+        "refName": "refs/warp/collision/writers/alice",
+        "patches": [
+          {
+            "sha": "33391d2160eff905c857c214b8fb32b58a27c1b7",
+            "writer": "alice",
+            "lamport": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "base:1",
+                "dot": "alice:1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/collision/writers/next",
+        "patches": [
+          {
+            "sha": "b640bb071e36a8f919b798b9cfa2f80a697d0b0d",
+            "writer": "next",
+            "lamport": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "lane:1",
+                "dot": "next:1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/collision/strand-overlays/next",
+        "patches": [
+          {
+            "sha": "8377db75997f682de67c1bb121ac227fe5da685b",
+            "writer": "next",
+            "lamport": 2,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "strand:1",
+                "dot": "next:1"
+              }
+            ]
+          },
+          {
+            "sha": "e29acabb158dc9bd4cfde76d4333c97b48392357",
+            "writer": "next",
+            "lamport": 3,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "strand:2",
+                "dot": "next:3"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [
+      {
+        "dot": "next:1",
+        "sites": [
+          {
+            "refName": "refs/warp/collision/writers/next",
+            "sha": "b640bb071e36a8f919b798b9cfa2f80a697d0b0d",
+            "target": "lane:1"
+          },
+          {
+            "refName": "refs/warp/collision/strand-overlays/next",
+            "sha": "8377db75997f682de67c1bb121ac227fe5da685b",
+            "target": "strand:1"
+          }
+        ]
+      }
+    ],
+    "strands": [
+      {
+        "strandId": "next",
+        "owner": "alice",
+        "overlayId": "next",
+        "overlayPatchCount": 2,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [
+            "base:1",
+            "strand:1",
+            "strand:2"
+          ],
+          "edges": []
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "base:1",
+        "lane:1"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "dot-reuse": {
+    "chains": [
+      {
+        "refName": "refs/warp/dot-reuse/writers/alice",
+        "patches": [
+          {
+            "sha": "e8c4ce03ae802fda0a910df07d5a03f1e9b7f1a7",
+            "writer": "alice",
+            "lamport": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "note:first",
+                "dot": "alice:1"
+              }
+            ]
+          },
+          {
+            "sha": "fb249bd998653e7abadb261b7a566b1170f34434",
+            "writer": "alice",
+            "lamport": 2,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "note:second",
+                "dot": "alice:1"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [
+      {
+        "dot": "alice:1",
+        "sites": [
+          {
+            "refName": "refs/warp/dot-reuse/writers/alice",
+            "sha": "e8c4ce03ae802fda0a910df07d5a03f1e9b7f1a7",
+            "target": "note:first"
+          },
+          {
+            "refName": "refs/warp/dot-reuse/writers/alice",
+            "sha": "fb249bd998653e7abadb261b7a566b1170f34434",
+            "target": "note:second"
+          }
+        ]
+      }
+    ],
+    "strands": [],
+    "visible": {
+      "nodes": [
+        "note:first",
+        "note:second"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "dot-reuse-tombstone": {
+    "chains": [
+      {
+        "refName": "refs/warp/dot-reuse-tombstone/writers/alice",
+        "patches": [
+          {
+            "sha": "7942c91d7cd48c69e2fc0715c910bf57b6dceecc",
+            "writer": "alice",
+            "lamport": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "note:keep",
+                "dot": "alice:1"
+              }
+            ]
+          },
+          {
+            "sha": "f0822c90de9d7a139a3fc570adc641d614eb26a7",
+            "writer": "alice",
+            "lamport": 2,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "note:drop",
+                "dot": "alice:1"
+              }
+            ]
+          },
+          {
+            "sha": "2f537953d56106858ff9fcdd9eb9d1a4a6a4236c",
+            "writer": "alice",
+            "lamport": 3,
+            "adds": []
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [
+      {
+        "dot": "alice:1",
+        "sites": [
+          {
+            "refName": "refs/warp/dot-reuse-tombstone/writers/alice",
+            "sha": "7942c91d7cd48c69e2fc0715c910bf57b6dceecc",
+            "target": "note:keep"
+          },
+          {
+            "refName": "refs/warp/dot-reuse-tombstone/writers/alice",
+            "sha": "f0822c90de9d7a139a3fc570adc641d614eb26a7",
+            "target": "note:drop"
+          }
+        ]
+      }
+    ],
+    "strands": [],
+    "visible": {
+      "nodes": [],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "dotted-ids": {
+    "chains": [
+      {
+        "refName": "refs/warp/dotted-ids/writers/ops.bot-1",
+        "patches": [
+          {
+            "sha": "f329122c9adb8f35bd6e512c12b5f08914fa86e0",
+            "writer": "ops.bot-1",
+            "lamport": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "job:1",
+                "dot": "ops.bot-1:1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/dotted-ids/strand-overlays/rel.v2",
+        "patches": [
+          {
+            "sha": "fb22e8476cacebff2bb44129371a9064592029d2",
+            "writer": "rel.v2",
+            "lamport": 2,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "job:2",
+                "dot": "rel.v2:1"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [],
+    "strands": [
+      {
+        "strandId": "rel.v2",
+        "owner": "ops.bot-1",
+        "overlayId": "rel.v2",
+        "overlayPatchCount": 1,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [
+            "job:1",
+            "job:2"
+          ],
+          "edges": []
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "job:1"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "golden": {
+    "chains": [
+      {
+        "refName": "refs/warp/golden/writers/alice",
+        "patches": [
+          {
+            "sha": "a9c5417471de1c5cc95eabb1890f1fe5a7db002a",
+            "writer": "alice",
+            "lamport": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "user:alice",
+                "dot": "alice:1"
+              }
+            ]
+          },
+          {
+            "sha": "f390b2cf93d628408497f1e3eb1cdd4b549d6ef8",
+            "writer": "alice",
+            "lamport": 2,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "user:bob",
+                "dot": "alice:2"
+              }
+            ]
+          },
+          {
+            "sha": "c0ecdb96e3b8395571fd377ca7aa7b0273fbf971",
+            "writer": "alice",
+            "lamport": 3,
+            "adds": []
+          },
+          {
+            "sha": "e9548f7c3ee89bbed72bd30ed761855a1d2866f3",
+            "writer": "alice",
+            "lamport": 4,
+            "adds": [
+              {
+                "type": "EdgeAdd",
+                "target": "user:alice->user:bob:knows",
+                "dot": "alice:4"
+              }
+            ]
+          },
+          {
+            "sha": "6eafcf950be53b08e3a29a17768fe6d35b93ddfd",
+            "writer": "alice",
+            "lamport": 5,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "doc:readme",
+                "dot": "alice:5"
+              }
+            ]
+          },
+          {
+            "sha": "da7db9750df08526e8896a82f0cab149f36a6077",
+            "writer": "alice",
+            "lamport": 9,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "draft:1",
+                "dot": "alice:6"
+              }
+            ]
+          },
+          {
+            "sha": "47091994f7dcbbc8eaf2a6345ec4dd8f7b664261",
+            "writer": "alice",
+            "lamport": 10,
+            "adds": []
+          },
+          {
+            "sha": "4a33eb59c05a9b480ad08ffd0049c0b1c818ca70",
+            "writer": "alice",
+            "lamport": 11,
+            "adds": [
+              {
+                "type": "EdgeAdd",
+                "target": "draft:1->doc:readme:revises",
+                "dot": "alice:8"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/golden/writers/bob",
+        "patches": [
+          {
+            "sha": "1a9ad136b4695392247dc280e03805dc06232b05",
+            "writer": "bob",
+            "lamport": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "user:carol",
+                "dot": "bob:1"
+              }
+            ]
+          },
+          {
+            "sha": "0f9b7ca66ffaa5025f75fae8008f9bc7c53d92e5",
+            "writer": "bob",
+            "lamport": 2,
+            "adds": [
+              {
+                "type": "EdgeAdd",
+                "target": "user:bob->user:carol:follows",
+                "dot": "bob:2"
+              }
+            ]
+          },
+          {
+            "sha": "320da614202dee4f7b328c89988cbc23e81cc478",
+            "writer": "bob",
+            "lamport": 3,
+            "adds": []
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/golden/strand-overlays/review",
+        "patches": [
+          {
+            "sha": "975c81e3e679b5e2b1fe28da4acf6a4b035d3eb9",
+            "writer": "review",
+            "lamport": 6,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "draft:1",
+                "dot": "review:1"
+              }
+            ]
+          },
+          {
+            "sha": "4c60936edf470296ed006f0ed566b4d0d10564eb",
+            "writer": "review",
+            "lamport": 7,
+            "adds": []
+          },
+          {
+            "sha": "20d823e301a93e6d07c7cb49fe2443d8d0794586",
+            "writer": "review",
+            "lamport": 8,
+            "adds": [
+              {
+                "type": "EdgeAdd",
+                "target": "draft:1->doc:readme:revises",
+                "dot": "review:8"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [],
+    "strands": [
+      {
+        "strandId": "review",
+        "owner": "alice",
+        "overlayId": "review",
+        "overlayPatchCount": 3,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [
+            "doc:readme",
+            "draft:1",
+            "user:alice",
+            "user:bob",
+            "user:carol"
+          ],
+          "edges": [
+            "draft:1|doc:readme|revises",
+            "user:alice|user:bob|knows",
+            "user:bob|user:carol|follows"
+          ]
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "doc:readme",
+        "draft:1",
+        "user:alice",
+        "user:bob",
+        "user:carol"
+      ],
+      "edges": [
+        "draft:1|doc:readme|revises",
+        "user:alice|user:bob|knows",
+        "user:bob|user:carol|follows"
+      ],
+      "properties": {
+        "doc:readme": {
+          "title": "Read me"
+        },
+        "draft:1": {
+          "status": "ready"
+        },
+        "user:alice": {
+          "role": "admin"
+        },
+        "user:bob": {
+          "role": "editor"
+        }
+      }
+    }
+  },
+  "ownerless": {
+    "chains": [
+      {
+        "refName": "refs/warp/ownerless/writers/alice",
+        "patches": [
+          {
+            "sha": "f7ab3988e5f9d024a10275698fefa546db24eeab",
+            "writer": "alice",
+            "lamport": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "base:1",
+                "dot": "alice:1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/ownerless/strand-overlays/orphan",
+        "patches": [
+          {
+            "sha": "2347867f53f175d9adadc619dac44d3ea70f6e89",
+            "writer": "orphan",
+            "lamport": 2,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "orphan:1",
+                "dot": "orphan:1"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [],
+    "strands": [
+      {
+        "strandId": "orphan",
+        "owner": null,
+        "overlayId": "orphan",
+        "overlayPatchCount": 1,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [
+            "base:1",
+            "orphan:1"
+          ],
+          "edges": []
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "base:1"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  }
+}

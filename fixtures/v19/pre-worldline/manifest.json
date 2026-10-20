@@ -1,0 +1,264 @@
+{
+  "fixtureId": "v19-pre-worldline-001",
+  "release": {
+    "tag": "v19.1.0",
+    "commit": "20a9b7f76d07195de0782f0852102434bdd200d3"
+  },
+  "bundlePath": "v19-pre-worldline.bundle",
+  "bundleSha256": "66a461d79a7c3542fd426d25666bb5512c657094ada79a1192586aebc6c8d626",
+  "releaseCensusPath": "release-census.json",
+  "excludedRefs": [
+    "refs/cas/caches/git-warp/materializations"
+  ],
+  "refs": [
+    {
+      "refName": "refs/warp/braided/strand-braids/main-work/support",
+      "expectedHead": "7bc3435d6c7e560f6a1fe9c300d3135e7345cbd5",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/braided/strand-overlays/main-work",
+      "expectedHead": "96d51415e36943bca914e4df57ff051a8ea44cf8",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/braided/strand-overlays/support",
+      "expectedHead": "7bc3435d6c7e560f6a1fe9c300d3135e7345cbd5",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/braided/strands/main-work",
+      "expectedHead": "18c32430df56c8b6b5650aec8614136a45916c5a",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/braided/strands/support",
+      "expectedHead": "472321866649fb2748d1e5b1e7a38a850255f55d",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/braided/substrate-version",
+      "expectedHead": "34e4961002abeccf110710d1138bc7cfa6883a45",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/braided/writers/alice",
+      "expectedHead": "a939f4da87b103e835a7315737aafd23d5a2ae16",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/collision/checkpoints/head",
+      "expectedHead": "503323cd2f4c9909bddb0569f9d5957998522410",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/collision/strand-overlays/next",
+      "expectedHead": "e29acabb158dc9bd4cfde76d4333c97b48392357",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/collision/strands/next",
+      "expectedHead": "9df9617c606ccc77627f05d82c3b2f80f2ea988c",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/collision/substrate-version",
+      "expectedHead": "34e4961002abeccf110710d1138bc7cfa6883a45",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/collision/writers/alice",
+      "expectedHead": "33391d2160eff905c857c214b8fb32b58a27c1b7",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/collision/writers/next",
+      "expectedHead": "b640bb071e36a8f919b798b9cfa2f80a697d0b0d",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/dot-reuse-tombstone/substrate-version",
+      "expectedHead": "34e4961002abeccf110710d1138bc7cfa6883a45",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/dot-reuse-tombstone/writers/alice",
+      "expectedHead": "2f537953d56106858ff9fcdd9eb9d1a4a6a4236c",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/dot-reuse/substrate-version",
+      "expectedHead": "34e4961002abeccf110710d1138bc7cfa6883a45",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/dot-reuse/writers/alice",
+      "expectedHead": "fb249bd998653e7abadb261b7a566b1170f34434",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/dotted-ids/checkpoints/head",
+      "expectedHead": "4bbaa0d9102fc0c6f86b4637e546bae7705cf5e3",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/dotted-ids/strand-overlays/rel.v2",
+      "expectedHead": "fb22e8476cacebff2bb44129371a9064592029d2",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/dotted-ids/strands/rel.v2",
+      "expectedHead": "f6164c35e1c777b78b13798efd2d542e168d27be",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/dotted-ids/substrate-version",
+      "expectedHead": "34e4961002abeccf110710d1138bc7cfa6883a45",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/dotted-ids/writers/ops.bot-1",
+      "expectedHead": "f329122c9adb8f35bd6e512c12b5f08914fa86e0",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/golden/checkpoints/head",
+      "expectedHead": "dc626942c202169a6cb21c0c14b4a0538344569b",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/golden/strand-overlays/review",
+      "expectedHead": "20d823e301a93e6d07c7cb49fe2443d8d0794586",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/golden/strands/review",
+      "expectedHead": "a73c592eb0a57809c672b88e642616aa1de4fd6f",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/golden/substrate-version",
+      "expectedHead": "34e4961002abeccf110710d1138bc7cfa6883a45",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/golden/writers/alice",
+      "expectedHead": "4a33eb59c05a9b480ad08ffd0049c0b1c818ca70",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/golden/writers/bob",
+      "expectedHead": "320da614202dee4f7b328c89988cbc23e81cc478",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/ownerless/strand-overlays/orphan",
+      "expectedHead": "2347867f53f175d9adadc619dac44d3ea70f6e89",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/ownerless/strands/orphan",
+      "expectedHead": "39f614e24e5a1fdd368b63a04bbad2c6f732bcba",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/ownerless/substrate-version",
+      "expectedHead": "34e4961002abeccf110710d1138bc7cfa6883a45",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/ownerless/writers/alice",
+      "expectedHead": "f7ab3988e5f9d024a10275698fefa546db24eeab",
+      "expectedObjectType": "commit"
+    }
+  ],
+  "scenarios": [
+    {
+      "graph": "golden",
+      "classification": "golden",
+      "description": "Two lane writers (alice, bob) with nodes, edges, properties and an entity; alice forks strand `review` (writing the checkpoint), writes into it and settles it back into the lane. No duplicate dots.",
+      "proposedMigration": {
+        "verdict": "migrate",
+        "mints": [
+          "@w.alice",
+          "@w.alice@s.review",
+          "@w.bob"
+        ]
+      }
+    },
+    {
+      "graph": "braided",
+      "classification": "edge-case",
+      "description": "Owned strands `support` and `main-work`; `main-work` braids `support`, so its view includes support overlay dots. The braid pin and the support overlay head are the same commit.",
+      "proposedMigration": {
+        "verdict": "migrate",
+        "mints": [
+          "@w.alice",
+          "@w.alice@s.main-work",
+          "@w.alice@s.support"
+        ]
+      }
+    },
+    {
+      "graph": "collision",
+      "classification": "edge-case",
+      "description": "Lane writer `next` and alice-owned strand `next` both mint dot `next:1` (lane:1 and strand:1). The legacy key collides; the v21 keys @w.next and @w.alice@s.next do not, so the duplicate scan must run after re-keying.",
+      "proposedMigration": {
+        "verdict": "migrate",
+        "mints": [
+          "@w.alice",
+          "@w.alice@s.next",
+          "@w.next"
+        ]
+      }
+    },
+    {
+      "graph": "dotted-ids",
+      "classification": "edge-case",
+      "description": "Writer `ops.bot-1` owns strand `rel.v2`. `.` is legal in legacy ids and is also the separator in the sigil, so the codec must not split on it.",
+      "proposedMigration": {
+        "verdict": "migrate",
+        "mints": [
+          "@w.ops.bot-1",
+          "@w.ops.bot-1@s.rel.v2"
+        ]
+      }
+    },
+    {
+      "graph": "dot-reuse",
+      "classification": "known-failure",
+      "description": "Two alice sessions each open a fresh lane and mint `alice:1` (v19.1.0 seeds counters from an empty vector, fixed by #1001). Both add sites are live.",
+      "proposedMigration": {
+        "verdict": "refuse",
+        "refusal": "duplicate-dot",
+        "mints": [
+          "@w.alice"
+        ]
+      }
+    },
+    {
+      "graph": "dot-reuse-tombstone",
+      "classification": "known-failure",
+      "description": "The same reuse, followed by removing note:drop. The remove observes the shared dot `alice:1`, so v19.1.0 also hides note:keep. The visible state is already empty.",
+      "proposedMigration": {
+        "verdict": "refuse",
+        "refusal": "duplicate-dot",
+        "mints": [
+          "@w.alice"
+        ]
+      }
+    },
+    {
+      "graph": "ownerless",
+      "classification": "known-failure",
+      "description": "Strand `orphan` was created through the release's internal createStrand with no owner, so its overlay chain has no writer to re-key under.",
+      "proposedMigration": {
+        "verdict": "refuse",
+        "refusal": "ownerless-strand",
+        "mints": [
+          "@w.alice"
+        ]
+      }
+    }
+  ]
+}
