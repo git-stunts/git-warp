@@ -48,7 +48,7 @@ async function reclaimGroup(exitingProbes: number, hostPlatform = 'darwin'): Pro
 }
 
 it('waits for an exiting Darwin process group instead of failing on EPERM', async () => {
-  await expect(reclaimGroup(4)).resolves.toBeUndefined();
+  await expect(reclaimGroup(6)).resolves.toBeUndefined();
 });
 
 it('fails closed when a Darwin process group keeps reporting EPERM past the deadline', async () => {
