@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Open GitHub Release notes with the version's `CHANGELOG.md` synopsis and its
+  compatibility, breaking and migration subsections before the generated PR
+  history, which can list superseded intermediate designs. Workflow reruns
+  recompose the notes instead of dropping everything above the generated
+  history ([#803](https://github.com/git-stunts/git-warp/issues/803)).
 - Report a missing substrate marker as `E_SUBSTRATE_MARKER_MISSING` instead of
   telling the operator to run the v18 migration. A Lane without a marker now
   requires migration only when a writer head is a v18 patch commit. Current
