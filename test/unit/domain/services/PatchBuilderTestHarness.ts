@@ -136,8 +136,15 @@ export class RecordingPatchJournal extends PatchJournalPort {
     });
   }
 
-  override readPatch(_message: PatchCommitMessage): Promise<Patch> {
-    throw new PatchBuilderFixtureError('readPatch is outside this fixture');
+  /**
+   * Reads a writer head. A head published through this journal returns its
+   * recorded patch; a head seeded only through mocked refs returns an
+   * empty-context patch, so it contributes no dots.
+   */
+  override readPatch(message: PatchCommitMessage): Promise<Patch> {
+    const recorded = [...this.requests].reverse().find((request) => request.patch.writer === message.writer);
+    return Promise.resolve(recorded?.patch
+      ?? new Patch({ writer: message.writer, lamport: message.lamport, context: {}, ops: [] }));
   }
 
   override scanPatchRange(
@@ -148,20 +155,11 @@ export class RecordingPatchJournal extends PatchJournalPort {
     return WarpStream.from([]);
   }
 
-  /**
-   * Yields the writer head. A head published through this journal yields its
-   * recorded patch; a head seeded only through mocked refs yields an
-   * empty-context parent, so restoring the writer context is a no-op.
-   */
   override scanPatchHistory(
-    writerId: string,
-    fromSha: string,
+    _writerId: string,
+    _fromSha: string,
   ): WarpStream<PatchEntry> {
-    const recorded = fromSha === this.sha
-      ? [...this.requests].reverse().find((request) => request.patch.writer === writerId)
-      : undefined;
-    const patch = recorded?.patch ?? new Patch({ writer: writerId, lamport: 1, context: {}, ops: [] });
-    return WarpStream.from([new PatchEntry({ patch, sha: fromSha })]);
+    return WarpStream.from([]);
   }
 }
 

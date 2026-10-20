@@ -11,6 +11,7 @@
  */
 
 import { PatchBuilder } from '../PatchBuilder.ts';
+import readWriterHeadContext from '../readWriterHeadContext.ts';
 import { joinStates, applyWithDiff, applyWithReceipt, type WarpState } from '../JoinReducer.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { Writer } from '../../warp/Writer.ts';
@@ -159,7 +160,9 @@ export default class PatchController {
       graphName: h._graphName,
       writerId: h._writerId,
       lamport,
-      versionVector: h._versionVector,
+      versionVector: h._versionVector.merge(await readWriterHeadContext({
+        commits: h._persistence, codec: h._commitMessageCodec, journal: h._patchJournal, headSha: parentSha,
+      })),
       getCurrentState: () => h._cachedState,
       getSnapshotFrontier: () => h._cachedFrontier ?? null,
       expectedParentSha: parentSha,
@@ -182,9 +185,7 @@ export default class PatchController {
       opts.assetStorage = h._assetStorage;
     }
 
-    const builder = new PatchBuilder(opts);
-    await builder.restoreWriterContext();
-    return builder;
+    return new PatchBuilder(opts);
   }
 
   /**

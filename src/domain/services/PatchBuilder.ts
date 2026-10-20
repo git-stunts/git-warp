@@ -255,7 +255,7 @@ export class PatchBuilder {
     const cachedRemoval = nodeIds.length > 0 && this._getSnapshotState() !== null;
     if (this._targetRefPath !== null || this._patchJournal === null
       || (cachedRemoval && this._snapshotFrontier === undefined)) {
-      await this.restoreWriterContext();
+      await this._restoreWriterContext();
       return;
     }
     const basis = await captureObservedWriteBasis({
@@ -275,8 +275,8 @@ export class PatchBuilder {
       ...readPatchBuilderCausalBasis(this), evaluationCoordinateRef: basis.coordinateRef,
     });
   }
-  /** Continues this writer's dot counter from its parent patch, so no dot is ever reused (#995). */
-  async restoreWriterContext(): Promise<void> {
+
+  private async _restoreWriterContext(): Promise<void> {
     if (this._patchJournal === null || this._expectedParentSha === null) { return; }
     const history = this._patchJournal.scanPatchHistory(this._writerId, this._expectedParentSha)[Symbol.asyncIterator]();
     try {

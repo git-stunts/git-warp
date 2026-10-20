@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PatchController from '../../../../../src/domain/services/controllers/PatchController.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
+import Patch from '../../../../../src/domain/types/Patch.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
@@ -23,12 +24,7 @@ const { patchBuilderMock } = vi.hoisted(() => {
 });
 
 vi.mock('../../../../../src/domain/services/PatchBuilder.ts', () => ({
-  PatchBuilder: function (...args: unknown[]) {
-    const builder = patchBuilderMock(...args);
-    // Hidden from equality checks: createPatch() always restores the writer's dot counter (#995).
-    Object.defineProperty(builder, 'restoreWriterContext', { value: async () => {}, enumerable: false });
-    return builder;
-  },
+  PatchBuilder: patchBuilderMock,
 }));
 
 const { joinStatesMock, applyWithDiffMock, applyWithReceiptMock } = vi.hoisted(() => ({
@@ -116,7 +112,10 @@ function createMockHost(overrides = {}) {
     },
     _patchesSinceCheckpoint: 0,
     _onDeleteWithData: 'reject',
-    _patchJournal: null,
+    // Writer heads in these doubles carry no dots of their own.
+    _patchJournal: {
+      readPatch: vi.fn(async () => new Patch({ writer: 'alice', lamport: 1, context: {}, ops: [] })),
+    },
     _patchInProgress: false,
     _provenanceIndex: null,
     _cachedFrontier: null,

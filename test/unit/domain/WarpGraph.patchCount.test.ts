@@ -213,7 +213,7 @@ describe('AP/CKPT/2: _patchesSinceCheckpoint tracking', () => {
       graph: 'test',
       writer: 'w1',
       lamport: patchCount,
-      patchOid: fakeSha('blob-w1-last'),
+      patchOid: fakeSha(`blob-w1-${patchCount}`),
       schema: 2,
     });
     persistence.showNode.mockResolvedValue(tipMessage);
