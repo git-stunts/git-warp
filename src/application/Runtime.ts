@@ -53,6 +53,12 @@ const FORK_OPTIONS = new RuntimeOptionAdmission({
   supported: ['name'],
 });
 
+const STRAND_OPTIONS = new RuntimeOptionAdmission({
+  operation: 'Runtime.strand',
+  code: 'E_RUNTIME_STRAND_OPTIONS',
+  supported: ['name'],
+});
+
 const STRAND_IDENTITY_FAILURE = Object.freeze({
   message: 'Runtime.strand requires a non-empty strand name',
   code: 'E_RUNTIME_STRAND_IDENTITY',
@@ -218,6 +224,7 @@ function assertStrandOptions(options: RuntimeStrandOptions): void {
       'E_RUNTIME_STRAND_OPTIONS',
     );
   }
+  STRAND_OPTIONS.admit(options);
 }
 
 function requireOwnedLaneRuntime(
