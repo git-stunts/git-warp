@@ -79,6 +79,23 @@ await withHost('dot-reuse-tombstone', 'alice', async (host) => {
   });
 });
 
+// shared-dot-strand-remove (known failure): the same reuse, seen through a
+// strand. Bob forks strand `cleanup` and removes note:drop there. The remove
+// observes the shared alice:1, so the strand view also loses note:keep while
+// the lane keeps both. Migration must preserve that strand-local collateral
+// deletion and report it.
+for (const subject of ['note:keep', 'note:drop']) {
+  await withRuntime('alice', async (runtime) => {
+    const lane = await runtime.lane('shared-dot-strand-remove');
+    await lane.write(intent.node.add({ subject }));
+  });
+}
+await withRuntime('bob', async (runtime) => {
+  const lane = await runtime.lane('shared-dot-strand-remove');
+  const strand = await runtime.fork(lane, { name: 'cleanup' });
+  await strand.write(intent.node.remove({ subject: 'note:drop' }));
+});
+
 // counter-reset (known failure): 100 adds in one session, then a restarted
 // session mints alice:1 again. The chain head's context says alice -> 1, so a
 // mint seeded from the head alone would issue alice:2, which already exists

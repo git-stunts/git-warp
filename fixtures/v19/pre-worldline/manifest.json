@@ -5,7 +5,7 @@
     "commit": "20a9b7f76d07195de0782f0852102434bdd200d3"
   },
   "bundlePath": "v19-pre-worldline.bundle",
-  "bundleSha256": "73ae1d103c9c97ecf2cfdbb35c75e7ec1424a71e7bcc372eb445930ab2cf6111",
+  "bundleSha256": "9f60c4dc1fb83908e3e853fcfe9d90014ddd3985060bac5d5859874c4baa63ce",
   "releaseCensusPath": "release-census.json",
   "excludedRefs": [
     "refs/cas/caches/git-warp/materializations"
@@ -205,6 +205,31 @@
       "refName": "refs/warp/ownerless/writers/alice",
       "expectedHead": "f7ab3988e5f9d024a10275698fefa546db24eeab",
       "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/shared-dot-strand-remove/checkpoints/head",
+      "expectedHead": "a3fc0fe955763d9cb95c66bd9e922e59cd607dc8",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/shared-dot-strand-remove/strand-overlays/cleanup",
+      "expectedHead": "f49cbff46bbdba1700914e05ef218d6d61bc2018",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/shared-dot-strand-remove/strands/cleanup",
+      "expectedHead": "308cd6d55bb3b082cbe7b542cc36ce39e368f8a3",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/shared-dot-strand-remove/substrate-version",
+      "expectedHead": "34e4961002abeccf110710d1138bc7cfa6883a45",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/shared-dot-strand-remove/writers/alice",
+      "expectedHead": "87fca99ec137ca1c33995ee0b88925d130d494c6",
+      "expectedObjectType": "commit"
     }
   ],
   "scenarios": [
@@ -334,6 +359,25 @@
         "mints": [
           "alice"
         ]
+      }
+    },
+    {
+      "graph": "shared-dot-strand-remove",
+      "classification": "known-failure",
+      "description": "Two alice sessions each mint alice:1 (note:keep, note:drop). Bob forks strand `cleanup` and removes note:drop; the remove observes the shared alice:1, so the strand view loses note:keep as well while the lane keeps both. The migration preserves the strand-local collateral deletion and reports it. A translated remove tombstones every identity its legacy dot denoted in the remove's view.",
+      "proposedMigration": {
+        "verdict": "migrate",
+        "mints": [
+          "alice",
+          "@w.bob@s.{cleanup}"
+        ],
+        "damage": [
+          "duplicate-dot",
+          "collateral-deletion"
+        ],
+        "allocationFloors": {
+          "alice": 1
+        }
       }
     }
   ]

@@ -6,7 +6,7 @@ wrote every commit. The **v19.1.0** tag (`20a9b7f7`) was checked out into a
 worktree and built, and the generator imports only that build's `dist`. v20 did
 not change the on-disk format, so this is the input a v21 migration will see.
 
-The bundle is about 165 KiB. It holds 39 `refs/warp/*` refs across nine
+The bundle is about 175 KiB. It holds 44 `refs/warp/*` refs across ten
 graphs, one scenario per graph:
 
 | Graph | Class | What it pins |
@@ -20,6 +20,7 @@ graphs, one scenario per graph:
 | `dot-reuse` | known failure | Two alice sessions both mint `alice:1`. Each fresh v19 lane handle seeds counters from an empty vector; #1001 fixed this. |
 | `dot-reuse-tombstone` | known failure | The same reuse, then a remove of `note:drop`. The remove tombstones the shared dot, so v19.1.0 also hides `note:keep`. |
 | `ownerless` | known failure | Strand `orphan` has `owner: null`. The release's internal `createStrand` writes that when no owner is given. |
+| `shared-dot-strand-remove` | known failure | Two alice sessions both mint `alice:1`. Bob's strand `cleanup` removes `note:drop`, observing the shared dot, so the strand view also loses `note:keep` while the lane keeps both. The migration preserves that strand-local deletion and reports it. |
 
 For each scenario, `manifest.json` records the bundle SHA-256, every ref head
 and object type, and the proposed migration outcome. That outcome follows the
@@ -46,6 +47,22 @@ printed by `census.mjs`:
 
 `test/unit/scripts/v19-pre-worldline-fixture.test.ts` restores the bundle and
 requires the current runtime to reproduce that census exactly.
+
+### What this corpus cannot contain
+
+No released version can put one legacy dot on both a lane object and a
+strand object inside a single view:
+
+- strand mints are seeded from the strand's `observedFrontier`, so they start
+  above every counter already in its view;
+- a strand's base is fixed when it is created;
+- a braid requires identical pinned base observations, and is refused with
+  `E_STRAND_COORDINATE_INVALID` otherwise (covered in
+  `test/unit/domain/WarpGraph.strands.test.ts`).
+
+So a cross-origin alias followed by a remove is not authentic history. The
+migration tests for it (#1015) build that input synthetically and label it as
+such.
 
 Dot reuse is not rare in v19 and v20 history. Any writer that opened a lane in
 more than one session repeated its counters, so a migration that refused on

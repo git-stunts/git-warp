@@ -152,6 +152,20 @@ describe('v19.1.0 pre-worldline fixture (#1018)', () => {
     expect(census?.visible.nodes).toEqual(['lane:1']);
   });
 
+  it('shared-dot-strand-remove: a strand remove of a reused lane dot hides both objects in the strand only', () => {
+    const census = releaseCensus['shared-dot-strand-remove'];
+    const overlay = census?.chains.find((chain) => chain.refName.endsWith('/strand-overlays/cleanup'));
+
+    expect(census?.duplicateDots.map((duplicate) => duplicate.dot)).toEqual(['alice:1']);
+    expect(overlay?.patches.flatMap((patch) => patch.removes)).toEqual([
+      { type: 'NodeRemove', target: 'note:drop', observedDots: ['alice:1'] },
+    ]);
+    expect(census?.strands).toEqual([
+      expect.objectContaining({ strandId: 'cleanup', owner: 'bob', visible: { nodes: [], edges: [] } }),
+    ]);
+    expect(census?.visible.nodes).toEqual(['note:drop', 'note:keep']);
+  });
+
   it('known failures preserve interpretation: damage is reported, only ownerless strands refuse', () => {
     const outcomes = manifest.scenarios
       .filter((scenario) => scenario.classification === 'known-failure')
@@ -165,6 +179,9 @@ describe('v19.1.0 pre-worldline fixture (#1018)', () => {
         verdict: 'migrate', damage: ['duplicate-dot', 'collateral-deletion'],
       })],
       ['ownerless', expect.objectContaining({ verdict: 'refuse', refusal: 'ownerless-strand' })],
+      ['shared-dot-strand-remove', expect.objectContaining({
+        verdict: 'migrate', damage: ['duplicate-dot', 'collateral-deletion'],
+      })],
     ]);
   });
 
@@ -180,4 +197,6 @@ describe('v19.1.0 pre-worldline fixture (#1018)', () => {
   it.todo('v21 migration converts each migrate scenario to the manifest mints with unchanged visible state (#1015)');
   it.todo('v21 migration persists the manifest allocation floors; counter-reset writes above alice:100 (#1021)');
   it.todo('v21 migration reports the manifest damage and refuses ownerless strands without --assign-owner (#1015)');
+  it.todo('v21 migration keeps shared-dot-strand-remove: the strand view still hides note:keep and note:drop (#1015)');
+  it.todo('v21 migration fans a synthetic cross-origin remove out to every identity it denoted, and blocks that strand when its view is unknown (#1015)');
 });

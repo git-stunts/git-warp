@@ -2397,5 +2397,101 @@
       "edges": [],
       "properties": {}
     }
+  },
+  "shared-dot-strand-remove": {
+    "chains": [
+      {
+        "refName": "refs/warp/shared-dot-strand-remove/writers/alice",
+        "patches": [
+          {
+            "sha": "a5317e033d0e58b05ecbaacdecc49d1c369efdb7",
+            "writer": "alice",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "note:keep",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "87fca99ec137ca1c33995ee0b88925d130d494c6",
+            "writer": "alice",
+            "lamport": 2,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "note:drop",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/shared-dot-strand-remove/strand-overlays/cleanup",
+        "patches": [
+          {
+            "sha": "f49cbff46bbdba1700914e05ef218d6d61bc2018",
+            "writer": "cleanup",
+            "lamport": 3,
+            "ownContextCounter": 0,
+            "adds": [],
+            "removes": [
+              {
+                "type": "NodeRemove",
+                "target": "note:drop",
+                "observedDots": [
+                  "alice:1"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [
+      {
+        "dot": "alice:1",
+        "sites": [
+          {
+            "refName": "refs/warp/shared-dot-strand-remove/writers/alice",
+            "sha": "a5317e033d0e58b05ecbaacdecc49d1c369efdb7",
+            "target": "note:keep"
+          },
+          {
+            "refName": "refs/warp/shared-dot-strand-remove/writers/alice",
+            "sha": "87fca99ec137ca1c33995ee0b88925d130d494c6",
+            "target": "note:drop"
+          }
+        ]
+      }
+    ],
+    "strands": [
+      {
+        "strandId": "cleanup",
+        "owner": "bob",
+        "overlayId": "cleanup",
+        "overlayPatchCount": 1,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [],
+          "edges": []
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "note:drop",
+        "note:keep"
+      ],
+      "edges": [],
+      "properties": {}
+    }
   }
 }
