@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Report a missing substrate marker as `E_SUBSTRATE_MARKER_MISSING` instead of
+  telling the operator to run the v18 migration. A Lane without a marker now
+  requires migration only when a writer head is a v18 patch commit. Current
+  writer chains fetched without their marker, or refs with no writer patch, get
+  the transfer recovery instead. No marker is created over existing refs
+  ([#977](https://github.com/git-stunts/git-warp/issues/977)).
 - Remove the unused `docker/Dockerfile` alias, whose relative target pointed at
   a nonexistent `docker/docker/Dockerfile.node22-slim`. A source-context test
   now rejects any Dockerfile alias whose target is missing or outside the

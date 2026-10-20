@@ -1,10 +1,12 @@
 import WarpError from '../../domain/errors/WarpError.ts';
 import {
   buildSubstrateVersionRef,
+  buildWritersPrefix,
   REF_PREFIX,
   validateGraphName,
 } from '../../domain/utils/RefLayout.ts';
 import { textDecode, textEncode } from '../../domain/utils/bytes.ts';
+import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 
 export const CURRENT_SUBSTRATE_MARKER = 'git-warp-retained-substrate\nversion: 19\n';
 
@@ -14,16 +16,22 @@ type SubstrateVersionHistory = {
   readBlob(oid: string): Promise<Uint8Array>;
   readObjectType(oid: string): Promise<string>;
   readRef(ref: string): Promise<string | null>;
+  showNode(sha: string): Promise<string>;
   writeBlob(content: Uint8Array | string): Promise<string>;
 };
+
+/** What the writer heads of an unmarked timeline show about its substrate. */
+type UnmarkedEvidence = 'legacy-patch-commits' | 'current-patch-commits' | 'no-writer-patches';
 
 /** Refuses retained state that has not crossed the current migration boundary. */
 export default class SubstrateVersionGate {
   readonly #checks = new Map<string, Promise<void>>();
   readonly #history: SubstrateVersionHistory;
+  readonly #codec: CommitMessageCodecPort;
 
-  constructor(history: SubstrateVersionHistory) {
+  constructor(history: SubstrateVersionHistory, codec: CommitMessageCodecPort) {
     this.#history = history;
+    this.#codec = codec;
   }
 
   ensure(graphName: string): Promise<void> {
@@ -52,7 +60,7 @@ export default class SubstrateVersionGate {
 
     const refs = await this.#history.listRefs(`${REF_PREFIX}/${graphName}/`, { limit: 1 });
     if (refs.length > 0) {
-      throw migrationRequired(graphName);
+      throw await this.#unmarkedFailure(graphName, markerRef);
     }
 
     const newMarkerOid = await this.#history.writeBlob(textEncode(CURRENT_SUBSTRATE_MARKER));
@@ -64,6 +72,40 @@ export default class SubstrateVersionGate {
         throw error;
       }
       await this.#requireCurrentMarker(markerRef, concurrentMarker);
+    }
+  }
+
+  async #unmarkedFailure(graphName: string, markerRef: string): Promise<WarpError> {
+    const evidence = await this.#unmarkedEvidence(graphName);
+    return evidence === 'legacy-patch-commits'
+      ? migrationRequired(graphName)
+      : markerMissing(graphName, markerRef, evidence);
+  }
+
+  /**
+   * Marker absence alone does not prove legacy data: a receiver may have
+   * fetched current writer chains without the marker. Only a writer head whose
+   * patch commit lacks the current git-cas storage route confirms v18 data.
+   */
+  async #unmarkedEvidence(graphName: string): Promise<UnmarkedEvidence> {
+    let evidence: UnmarkedEvidence = 'no-writer-patches';
+    for (const ref of await this.#history.listRefs(buildWritersPrefix(graphName))) {
+      const head = await this.#history.readRef(ref);
+      const message = head === null ? '' : await this.#history.showNode(head);
+      if (this.#codec.detectKind(message) === 'patch') {
+        if (!this.#isCurrentPatch(message)) { return 'legacy-patch-commits'; }
+        evidence = 'current-patch-commits';
+      }
+    }
+    return evidence;
+  }
+
+  #isCurrentPatch(message: string): boolean {
+    try {
+      this.#codec.decodePatch(message);
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -80,6 +122,16 @@ export default class SubstrateVersionGate {
       );
     }
   }
+}
+
+function markerMissing(graphName: string, markerRef: string, evidence: UnmarkedEvidence): WarpError {
+  return new WarpError(
+    `Timeline '${graphName}' has WARP refs but no substrate marker at ${markerRef}. `
+      + 'If its writer chains came from another clone, fetch that marker with them '
+      + '(see docs/topics/sync.md). git-warp does not create a marker over existing refs.',
+    'E_SUBSTRATE_MARKER_MISSING',
+    { context: { graphName, markerRef, evidence } },
+  );
 }
 
 function migrationRequired(graphName: string): WarpError {

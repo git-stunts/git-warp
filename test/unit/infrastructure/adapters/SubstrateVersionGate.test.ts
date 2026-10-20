@@ -84,9 +84,9 @@ class MemorySubstrateHistory {
 describe('SubstrateVersionGate', () => {
   it('initializes the v19 marker only for an empty timeline', async () => {
     const history = new MemorySubstrateHistory();
-    const gate = new SubstrateVersionGate(history);
+    const gate = new SubstrateVersionGate(history, DEFAULT_COMMIT_MESSAGE_CODEC);
 
-    await Promise.all([gate.ensure('events', DEFAULT_COMMIT_MESSAGE_CODEC), gate.ensure('events', DEFAULT_COMMIT_MESSAGE_CODEC)]);
+    await Promise.all([gate.ensure('events'), gate.ensure('events')]);
 
     expect(history.refs.get(MARKER_REF)).toBe(MARKER_OID);
     expect(history.writes).toBe(1);
@@ -97,9 +97,9 @@ describe('SubstrateVersionGate', () => {
     const history = new MemorySubstrateHistory();
     history.refs.set('refs/warp/events/writers/alice', HEAD_OID);
     history.messages.set(HEAD_OID, V18_PATCH_MESSAGE);
-    const gate = new SubstrateVersionGate(history);
+    const gate = new SubstrateVersionGate(history, DEFAULT_COMMIT_MESSAGE_CODEC);
 
-    const error = await gate.ensure('events', DEFAULT_COMMIT_MESSAGE_CODEC).catch((cause: unknown) => cause);
+    const error = await gate.ensure('events').catch((cause: unknown) => cause);
 
     expect(error).toBeInstanceOf(WarpError);
     if (error instanceof WarpError) {
@@ -121,9 +121,9 @@ describe('SubstrateVersionGate', () => {
   ] as const)('reports a missing marker, not a migration, for %s', async (_case, seed, evidence) => {
     const history = new MemorySubstrateHistory();
     seed(history);
-    const gate = new SubstrateVersionGate(history);
+    const gate = new SubstrateVersionGate(history, DEFAULT_COMMIT_MESSAGE_CODEC);
 
-    const error = await gate.ensure('events', DEFAULT_COMMIT_MESSAGE_CODEC).catch((cause: unknown) => cause);
+    const error = await gate.ensure('events').catch((cause: unknown) => cause);
 
     expect(error).toBeInstanceOf(WarpError);
     if (error instanceof WarpError) {
@@ -141,9 +141,9 @@ describe('SubstrateVersionGate', () => {
     history.refs.set(MARKER_REF, MARKER_OID);
     history.blobs.set(MARKER_OID, textEncode('version: 18\n'));
     history.objectTypes.set(MARKER_OID, 'blob');
-    const gate = new SubstrateVersionGate(history);
+    const gate = new SubstrateVersionGate(history, DEFAULT_COMMIT_MESSAGE_CODEC);
 
-    const error = await gate.ensure('events', DEFAULT_COMMIT_MESSAGE_CODEC).catch((cause: unknown) => cause);
+    const error = await gate.ensure('events').catch((cause: unknown) => cause);
 
     expect(error).toBeInstanceOf(WarpError);
     if (error instanceof WarpError) {
@@ -154,11 +154,11 @@ describe('SubstrateVersionGate', () => {
   it('retries a transient failure without discarding successful caching', async () => {
     const history = new MemorySubstrateHistory();
     history.listFailures = 1;
-    const gate = new SubstrateVersionGate(history);
+    const gate = new SubstrateVersionGate(history, DEFAULT_COMMIT_MESSAGE_CODEC);
 
-    await expect(gate.ensure('events', DEFAULT_COMMIT_MESSAGE_CODEC)).rejects.toThrow('transient ref listing failure');
-    await expect(gate.ensure('events', DEFAULT_COMMIT_MESSAGE_CODEC)).resolves.toBeUndefined();
-    await expect(gate.ensure('events', DEFAULT_COMMIT_MESSAGE_CODEC)).resolves.toBeUndefined();
+    await expect(gate.ensure('events')).rejects.toThrow('transient ref listing failure');
+    await expect(gate.ensure('events')).resolves.toBeUndefined();
+    await expect(gate.ensure('events')).resolves.toBeUndefined();
 
     expect(history.writes).toBe(1);
   });
