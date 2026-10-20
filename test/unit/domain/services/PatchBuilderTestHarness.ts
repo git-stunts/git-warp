@@ -110,8 +110,14 @@ export function createPatchBuilderMockPersistence(
   return persistence;
 }
 
+function publishedKey(writer: string, lamport: number): string {
+  return `${writer}:${String(lamport)}`;
+}
+
 export class RecordingPatchJournal extends PatchJournalPort {
   readonly requests: AppendPatchRequest[] = [];
+  /** Successfully published patches, keyed by writer and Lamport tick. */
+  readonly #published = new Map<string, Patch>();
   failure: unknown = null;
   sha = DEFAULT_COMMIT_OID;
   readonly #persistence: object;
@@ -127,6 +133,7 @@ export class RecordingPatchJournal extends PatchJournalPort {
       throw this.failure;
     }
     WRITTEN_PATCHES.set(this.#persistence, request.patch);
+    this.#published.set(publishedKey(request.patch.writer, request.patch.lamport), request.patch);
     const stagedPatch = stagedAsset(new AssetHandle('asset:test-patch'), 1);
     return Object.freeze({
       sha: this.sha,
@@ -137,13 +144,13 @@ export class RecordingPatchJournal extends PatchJournalPort {
   }
 
   /**
-   * Reads a writer head. A head published through this journal returns its
-   * recorded patch; a head seeded only through mocked refs returns an
-   * empty-context patch, so it contributes no dots.
+   * Reads a writer head. A head this journal published returns that patch,
+   * located by the message's writer and Lamport tick; a failed append never
+   * counts. A head seeded only through mocked refs returns an empty-context
+   * patch, so it contributes no dots.
    */
   override readPatch(message: PatchCommitMessage): Promise<Patch> {
-    const recorded = [...this.requests].reverse().find((request) => request.patch.writer === message.writer);
-    return Promise.resolve(recorded?.patch
+    return Promise.resolve(this.#published.get(publishedKey(message.writer, message.lamport))
       ?? new Patch({ writer: message.writer, lamport: message.lamport, context: {}, ops: [] }));
   }
 
