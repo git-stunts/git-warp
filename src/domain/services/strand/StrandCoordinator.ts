@@ -360,7 +360,8 @@ export default class StrandCoordinator {
   }
 
   private _readParentBasisFor(descriptor: StrandDescriptor): ParentBasisMode {
-    if (descriptor.overlay.headPatchSha !== null && descriptor.overlay.headPatchSha !== undefined) {
+    // Any writer's chain pins the base, not only this runtime writer's own (#1014).
+    if (descriptor.writers.length > 0) {
       return 'pinned';
     }
     if ((descriptor.braid?.readOverlays ?? []).length > 0) {
