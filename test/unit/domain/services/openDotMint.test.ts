@@ -17,7 +17,9 @@ function journalFor(patch: Patch): PatchJournalPort {
 
 function open(message: string, journal: PatchJournalPort | null, headSha: string | null = HEAD): Promise<DotMint> {
   return openDotMint({
-    writerId: 'alice', commits: { showNode: async () => message }, codec: DEFAULT_COMMIT_MESSAGE_CODEC, journal, headSha,
+    writerId: 'alice',
+    commits: { showNode: async () => message, getNodeInfo: async (sha) => ({ sha, message, author: '', date: '', parents: [] }) },
+    codec: DEFAULT_COMMIT_MESSAGE_CODEC, journal, headSha, floors: null,
   });
 }
 

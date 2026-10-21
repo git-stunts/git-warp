@@ -26,6 +26,7 @@ import type VersionVector from '../crdt/VersionVector.ts';
 import type Patch from '../types/Patch.ts';
 import type WarpKernelPort from '../../ports/WarpKernelPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
+import type AllocationFloorStorePort from '../../ports/AllocationFloorStorePort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
@@ -68,6 +69,7 @@ interface WriterOptions {
   onCommitSuccess?: (result: { patch: Patch; sha: string }) => void | Promise<void>;
   onDeleteWithData?: OnDeleteWithData;
   patchJournal: PatchJournalPort;
+  allocationFloors?: AllocationFloorStorePort | null;
   commitMessageCodec?: CommitMessageCodecPort;
   logger?: LoggerPort;
   assetStorage?: AssetStoragePort;
@@ -85,6 +87,7 @@ export class Writer {
   private _onCommitSuccess: ((result: { patch: Patch; sha: string }) => void | Promise<void>) | undefined;
   private _onDeleteWithData: OnDeleteWithData;
   private _patchJournal: PatchJournalPort;
+  private _allocationFloors: AllocationFloorStorePort | null;
   private _commitMessageCodec: CommitMessageCodecPort;
   private _logger: LoggerPort;
   private _assetStorage: AssetStoragePort | null;
@@ -101,6 +104,7 @@ export class Writer {
     this._onCommitSuccess = opts.onCommitSuccess;
     this._onDeleteWithData = opts.onDeleteWithData ?? 'warn';
     this._patchJournal = opts.patchJournal;
+    this._allocationFloors = opts.allocationFloors ?? null;
     this._commitMessageCodec = requireCommitMessageCodec(opts.commitMessageCodec);
     this._logger = opts.logger ?? nullLogger;
     this._assetStorage = opts.assetStorage ?? null;
@@ -142,7 +146,7 @@ export class Writer {
     const lamport = await this._resolveNextLamport(expectedOldHead);
 
     const dotMint = await openDotMint({
-      writerId, commits: persistence, codec: this._commitMessageCodec, journal: this._patchJournal, headSha: expectedOldHead,
+      writerId, commits: persistence, codec: this._commitMessageCodec, journal: this._patchJournal, headSha: expectedOldHead, floors: this._allocationFloors,
     });
     const builderOpts = this._buildPatchOpts({ persistence, graphName, writerId, lamport, expectedParentSha: expectedOldHead, dotMint });
     const builder = new PatchBuilder(builderOpts);

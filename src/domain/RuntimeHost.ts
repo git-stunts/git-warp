@@ -63,6 +63,7 @@ import type { WarpStateCoordinate } from '../ports/WarpStateCachePort.ts';
 import type AssetStoragePort from '../ports/AssetStoragePort.ts';
 import type AuditLogPort from '../ports/AuditLogPort.ts';
 import type PatchJournalPort from '../ports/PatchJournalPort.ts';
+import type AllocationFloorStorePort from '../ports/AllocationFloorStorePort.ts';
 import type StrandStorePort from '../ports/StrandStorePort.ts';
 import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../ports/CheckpointStorePort.ts';
@@ -258,6 +259,7 @@ export default class RuntimeHost {
   _indexDegraded: boolean;
   _effectPipeline: EffectPipeline | null;
   _patchJournal: PatchJournalPort;
+  _allocationFloors: AllocationFloorStorePort | null;
   _strandStore: StrandStorePort;
   _checkpointStore: CheckpointStorePort;
   _indexStore: IndexStorePort;
@@ -296,6 +298,7 @@ export default class RuntimeHost {
       commitMessageCodec,
       trust,
       patchJournal,
+      allocationFloors,
       strandStore,
       checkpointStore,
       indexStore,
@@ -434,6 +437,7 @@ export default class RuntimeHost {
     this._indexDegraded = false;
     this._effectPipeline = effectPipeline || null;
     this._patchJournal = patchJournal;
+    this._allocationFloors = allocationFloors ?? null;
     this._strandStore = strandStore;
     this._checkpointStore = checkpointStore;
     this._indexStore = indexStore;
