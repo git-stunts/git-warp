@@ -96,7 +96,9 @@ describe('v20-to-v21 migration on the v19.1.0 fixture (#1015)', () => {
       const expected = scenario.proposedMigration.mints
         .map((mint) => mint.replace(/\{([^}]+)\}/, (_match, name: string) => ids.get(name) ?? '?'))
         .sort();
-      const actual = [...Object.keys(record.frontier.lanes), ...record.strands.map((strand) => strand.mint ?? '?')].sort();
+      // Lane mints: every lane writer, and every strand owner, whose lane counter reserved the creation.
+      const laneMints = new Set([...Object.keys(record.frontier.lanes), ...record.strands.map((strand) => strand.owner ?? '?')]);
+      const actual = [...laneMints, ...record.strands.map((strand) => strand.mint ?? '?')].sort();
       expect(actual, scenario.graph).toEqual(expected);
       expect(record.strands.every((strand) => strand.status === 'converted')).toBe(true);
     }
