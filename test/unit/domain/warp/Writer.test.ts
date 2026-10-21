@@ -28,7 +28,7 @@ function createMockPersistence() {
     updateRef: vi.fn(),
     compareAndSwapRef: vi.fn(),
     showNode: vi.fn(),
-    getNodeInfo: vi.fn(),
+    getNodeInfo: vi.fn().mockImplementation(async (sha: string) => ({ sha, message: '', author: '', date: '', parents: [] })),
     writeBlob: vi.fn(),
     writeTree: vi.fn(),
     commitNodeWithTree: vi.fn(),
