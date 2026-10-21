@@ -34,7 +34,7 @@ type StrandCas = {
   readonly publications: Pick<PublicationCapability, 'commit'>;
 };
 
-/** v21 strand descriptors live at `strands/<strand-id>/descriptor` (#1014). */
+/** Strand descriptors live at `strands/<strand-id>/descriptor` (#1014). */
 const DESCRIPTOR_SUFFIX = '/descriptor';
 
 /** Retains strand descriptors and queued assets as one causal bundle. */
