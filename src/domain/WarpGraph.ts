@@ -231,7 +231,7 @@ function bindQueryCapability(runtime: WarpGraphRuntimeSurface): QueryCapability 
 function bindPatchCapability(runtime: WarpGraphRuntimeSurface): PatchCapability {
   requireCapability(runtime, 'patch', [
     'createPatch', 'patch', 'patchWithEvidence', 'patchMany', 'getWriterPatches',
-    'writer', 'discoverWriters', 'discoverTicks', 'join',
+    'writer', 'previewDotRepair', 'applyDotRepair', 'discoverWriters', 'discoverTicks', 'join',
   ]);
   return Object.freeze({
     createPatch: runtime.createPatch.bind(runtime),
@@ -240,6 +240,8 @@ function bindPatchCapability(runtime: WarpGraphRuntimeSurface): PatchCapability 
     patchMany: runtime.patchMany.bind(runtime),
     getWriterPatches: runtime.getWriterPatches.bind(runtime),
     writer: runtime.writer.bind(runtime),
+    previewDotRepair: runtime.previewDotRepair.bind(runtime),
+    applyDotRepair: runtime.applyDotRepair.bind(runtime),
     discoverWriters: runtime.discoverWriters.bind(runtime),
     discoverTicks: runtime.discoverTicks.bind(runtime),
     join: runtime.join.bind(runtime),

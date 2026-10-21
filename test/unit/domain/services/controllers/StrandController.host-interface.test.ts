@@ -32,6 +32,7 @@ function createStrandHost(): StrandHost {
     _writerId: 'writer1',
     _persistence: persistence,
     _allocationFloors: new GitAllocationFloorStoreAdapter({ history: persistence, graphName: 'strand-host-interface' }),
+    _dotRepairs: null,
     _crypto: new StrandControllerCrypto(),
     _loadPatchChainFromSha: async (_sha: string): Promise<Array<{ patch: Patch; sha: string }>> => [],
     _loadWriterPatches: async (_writerId: string): Promise<Array<{ patch: Patch; sha: string }>> => [],

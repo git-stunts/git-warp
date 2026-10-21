@@ -1,4 +1,5 @@
-import { validateGraphName, validateWriterId } from '../utils/RefLayout.ts';
+import { validateGraphName } from '../utils/RefLayout.ts';
+import { assertOrdinaryWriterId } from '../utils/WriterId.ts';
 import { AuditReceiptService } from '../services/audit/AuditReceiptService.ts';
 import MaterializedViewService from '../services/MaterializedViewService.ts';
 import StateHashService from '../services/state/StateHashService.ts';
@@ -30,6 +31,7 @@ import type AuditLogPort from '../../ports/AuditLogPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type AllocationFloorStorePort from '../../ports/AllocationFloorStorePort.ts';
 import type AllocationProvenancePort from '../../ports/AllocationProvenancePort.ts';
+import type DotRepairStorePort from '../../ports/DotRepairStorePort.ts';
 import type StrandStorePort from '../../ports/StrandStorePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
@@ -73,6 +75,7 @@ export type RuntimeHostConstructionOptions = {
   patchJournal: PatchJournalPort;
   allocationFloors?: AllocationFloorStorePort;
   allocationProvenance?: AllocationProvenancePort;
+  dotRepairs?: DotRepairStorePort;
   strandStore: StrandStorePort;
   checkpointStore: CheckpointStorePort;
   indexStore: IndexStorePort;
@@ -140,7 +143,7 @@ export class WarpOpenOptions {
       throw new WarpError('persistence is required', 'E_INVALID_ARG');
     }
     validateGraphName(options.graphName);
-    validateWriterId(options.writerId);
+    assertOrdinaryWriterId(options.writerId);
 
     this.persistence = options.persistence;
     if (options.runtimeStorage !== null && options.runtimeStorage !== undefined) {
@@ -403,6 +406,7 @@ export async function resolveRuntimeHostConstructionOptions(
       patchJournal: storageServices.patchJournal,
       ...(storageServices.allocationFloors === undefined ? {} : { allocationFloors: storageServices.allocationFloors }),
       ...(storageServices.allocationProvenance === undefined ? {} : { allocationProvenance: storageServices.allocationProvenance }),
+      ...(storageServices.dotRepairs === undefined ? {} : { dotRepairs: storageServices.dotRepairs }),
       strandStore: storageServices.strands,
       checkpointStore: storageServices.checkpoints,
       indexStore: resolvedIndexStore,

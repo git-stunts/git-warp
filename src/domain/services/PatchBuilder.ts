@@ -1,5 +1,6 @@
 /** Fluent schema:2 patch builder. Add dots come from the chain's DotMint. */
 
+import SharedDotRemovalGuard from './SharedDotRemovalGuard.ts';
 import nullLogger from '../utils/nullLogger.ts';
 import VersionVector from '../crdt/VersionVector.ts';
 import type DotMint from '../crdt/DotMint.ts';
@@ -64,6 +65,7 @@ type PatchBuilderOptions = {
   commitMessageCodec?: CommitMessageCodecPort;
   logger?: LoggerPort;
   assetStorage?: AssetStoragePort;
+  removalGuard?: SharedDotRemovalGuard;
 };
 
 export class PatchBuilder {
@@ -73,6 +75,7 @@ export class PatchBuilder {
   private readonly _targetRefPath: string | null;
   private _lamport: number;
   private _removalBasis: BoundedNodeRemovalBasis | null = null;
+  private readonly _removalGuard: SharedDotRemovalGuard;
   private _observedFrontier: ObservedWriteFrontier | undefined;
   private _vv: VersionVector;
   private readonly _dotMint: DotMint;
@@ -102,11 +105,9 @@ export class PatchBuilder {
     this._persistence = options.persistence;
     this._graphName = options.graphName;
     this._writerId = options.writerId;
-    this._targetRefPath =
-      typeof options.targetRefPath === 'string' && options.targetRefPath.length > 0
-        ? options.targetRefPath
-        : null;
+    this._targetRefPath = options.targetRefPath !== undefined && options.targetRefPath.length > 0 ? options.targetRefPath : null;
     this._lamport = options.lamport;
+    this._removalGuard = options.removalGuard ?? SharedDotRemovalGuard.NONE;
     this._dotMint = options.dotMint.requireWriter(options.writerId);
     this._vv = this._dotMint.observed(options.versionVector.clone());
     this._getCurrentState = options.getCurrentState;
@@ -335,6 +336,7 @@ export class PatchBuilder {
   }
 
   private _recordRemoval(op: NodeRemove | EdgeRemove): void {
+    this._removalGuard.check(op);
     const operand = op instanceof NodeRemove ? op.node : encodeEdgeKey(op.from, op.to, op.label);
     const removed = op instanceof NodeRemove ? this._nodesRemoved : this._edgesRemoved;
     removed.add(operand);
@@ -490,9 +492,7 @@ export class PatchBuilder {
     return new Set(this._writes);
   }
 
-  /**
-   * Asset handles captured via content attachment operations.
-   */
+  /** Asset handles captured via content attachment operations. */
   get contentAssets(): readonly AssetHandle[] {
     return this._properties.contentAssets;
   }

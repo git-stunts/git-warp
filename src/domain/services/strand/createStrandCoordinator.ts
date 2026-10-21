@@ -20,6 +20,7 @@ import type { WarpState } from '../JoinReducer.ts';
 import type Patch from '../../types/Patch.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type AllocationFloorStorePort from '../../../ports/AllocationFloorStorePort.ts';
+import type DotRepairStorePort from '../../../ports/DotRepairStorePort.ts';
 import type StrandStorePort from '../../../ports/StrandStorePort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
@@ -81,6 +82,7 @@ export type StrandCoordinatorGraphRuntime = {
   _cachedState: WarpState | null;
   _patchJournal: PatchJournalPort | null | undefined;
   _allocationFloors: AllocationFloorStorePort | null;
+  _dotRepairs: DotRepairStorePort | null;
   _strandStore: StrandStorePort;
   _assetStorage: AssetStoragePort | null | undefined;
   _commitMessageCodec: CommitMessageCodecPort;
