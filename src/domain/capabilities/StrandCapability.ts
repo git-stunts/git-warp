@@ -49,7 +49,7 @@ export default abstract class StrandCapability {
   abstract renameStrand(_strandId: string, _name: string): Promise<StrandDescriptor>;
 
   /**
-   * Resolve a retained admission's allocation dot through the v21
+   * Resolve a retained admission's allocation dot through the worldline
    * migration record (#1015).
    */
   abstract resolveAllocationProvenance(_commit: string, _operationIndex: number, _original: string): Promise<AllocationProvenance>;

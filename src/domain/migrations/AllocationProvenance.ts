@@ -2,13 +2,13 @@ import WarpError from '../errors/WarpError.ts';
 
 const STATUSES: ReadonlySet<string> = new Set(['resolved', 'unmapped', 'ambiguous']);
 
-/** How a retained admission's `allocationDot` resolves after the v21 migration (#1015). */
+/** How a retained admission's `allocationDot` resolves after the worldline migration (#1015). */
 export type AllocationProvenanceStatus = 'resolved' | 'unmapped' | 'ambiguous';
 
 /**
  * The identity a legacy `allocationDot` denoted. The original bytes stay in
  * the patch (an allocated entity's subject is derived from them) and are
- * returned unchanged; `identity` is the v21 mint id and counter, set only
+ * returned unchanged; `identity` is the current mint id and counter, set only
  * when `status` is `resolved`. A legacy dot such as `next:2` can name a lane
  * writer or a pre-worldline strand, so readers resolve it here rather than
  * through the ordinary mint id codec.

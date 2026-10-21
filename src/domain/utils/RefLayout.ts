@@ -368,13 +368,13 @@ export function buildAllocationFloorRef(graphName: string, writerId: string): st
 }
 
 /**
- * Builds the ref of the v20-to-v21 migration record for a graph (#1015). It
+ * Builds the ref of the worldline migration record for a graph (#1015). It
  * points to a blob recording the migration frontier, converted strands,
  * allocation provenance and reported damage.
  */
-export function buildV21MigrationRecordRef(graphName: string): string {
+export function buildWorldlineMigrationRecordRef(graphName: string): string {
   validateGraphName(graphName);
-  return `${REF_PREFIX}/${graphName}/migrations/v21`;
+  return `${REF_PREFIX}/${graphName}/migrations/worldline`;
 }
 
 /** Builds the prefix of a graph's duplicate-dot repair records (#1022). */

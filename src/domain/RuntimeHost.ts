@@ -701,7 +701,7 @@ export default class RuntimeHost {
   dropStrand: StrandController['dropStrand'] = (...args) => this._strandController.dropStrand(...args);
 
   /**
-   * Resolves a retained admission's allocation dot through the v21 migration
+   * Resolves a retained admission's allocation dot through the worldline migration
    * record (#1015). Unmigrated occurrences are `unmapped`.
    */
   async resolveAllocationProvenance(commit: string, operationIndex: number, original: string): Promise<AllocationProvenance> {
@@ -710,7 +710,7 @@ export default class RuntimeHost {
       : await this._allocationProvenance.resolve(commit, operationIndex, original);
   }
 
-  /** Previews repairs of the dot collisions the v21 migration recorded (#1022). */
+  /** Previews repairs of the dot collisions the worldline migration recorded (#1022). */
   async previewDotRepair(): Promise<readonly DotRepairPreview[]> {
     return await this.#dotRepair().preview();
   }

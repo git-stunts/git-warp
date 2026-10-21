@@ -6,7 +6,7 @@
   },
   "graph": "late",
   "bundlePath": "v20-late-writes.bundle",
-  "bundleSha256": "0109e4c6cb5e918edd82f5bcf2879321c34ca4f9f25723cde4f3b26c7fc79508",
+  "bundleSha256": "f4a4b62862e68ce40306170e371a85b0a75b6976d0bac764ec19999843a98577",
   "refs": [
     {
       "refName": "refs/warp/late/allocation/alice",
@@ -14,7 +14,7 @@
       "expectedObjectType": "blob"
     },
     {
-      "refName": "refs/warp/late/migrations/v21",
+      "refName": "refs/warp/late/migrations/worldline",
       "expectedHead": "1cdc6324a1d26bdd04d8f4ee941a7a33c4ce3cea",
       "expectedObjectType": "blob"
     },

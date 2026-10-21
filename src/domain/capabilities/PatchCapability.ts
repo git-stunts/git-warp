@@ -63,7 +63,7 @@ export default abstract class PatchCapability {
   /** Resolve a writer handle by id or return the current writer. */
   abstract writer(_writerId?: string): Promise<Writer>;
 
-  /** Previews repairs of the dot collisions the v21 migration recorded (#1022). */
+  /** Previews repairs of the dot collisions the worldline migration recorded (#1022). */
   abstract previewDotRepair(): Promise<readonly DotRepairPreview[]>;
 
   /** Appends one duplicate-dot repair under `repair.<writer>`, or returns the one already recorded (#1022). */

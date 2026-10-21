@@ -34,7 +34,7 @@ type StrandCas = {
   readonly publications: Pick<PublicationCapability, 'commit'>;
 };
 
-/** v21 strand descriptors live at `strands/<strand-id>/descriptor` (#1014). */
+/** Strand descriptors live at `strands/<strand-id>/descriptor` (#1014). */
 const DESCRIPTOR_SUFFIX = '/descriptor';
 
 /** Retains strand descriptors and queued assets as one causal bundle. */
@@ -63,7 +63,7 @@ export default class GitCasStrandStoreAdapter extends StrandStorePort {
   }
 
   /**
-   * Reads the descriptor bytes a publication commit carries. The v20-to-v21
+   * Reads the descriptor bytes a publication commit carries. The worldline
    * migration uses it to read pre-worldline descriptors at their legacy refs.
    */
   async readDescriptorRevision(graphName: string, strandId: string, revision: string): Promise<Uint8Array> {

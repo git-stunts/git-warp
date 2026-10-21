@@ -3,7 +3,7 @@ import z from 'zod';
 import WarpError from '../../domain/errors/WarpError.ts';
 import DotCollision from '../../domain/repair/DotCollision.ts';
 import DotRepairRecord from '../../domain/repair/DotRepairRecord.ts';
-import { buildDotRepairRef, buildDotRepairsPrefix, buildV21MigrationRecordRef } from '../../domain/utils/RefLayout.ts';
+import { buildDotRepairRef, buildDotRepairsPrefix, buildWorldlineMigrationRecordRef } from '../../domain/utils/RefLayout.ts';
 import { textDecode, textEncode } from '../../domain/utils/bytes.ts';
 import DotRepairStorePort from '../../ports/DotRepairStorePort.ts';
 
@@ -37,8 +37,8 @@ const repairSchema = z.object({
 });
 
 /**
- * Reads the collisions the v21 migration recorded at
- * `refs/warp/<graph>/migrations/v21`, and keeps one blob per repair at
+ * Reads the collisions the worldline migration recorded at
+ * `refs/warp/<graph>/migrations/worldline`, and keeps one blob per repair at
  * `refs/warp/<graph>/repairs/<repair-id>` (#1022).
  */
 export default class GitDotRepairStoreAdapter extends DotRepairStorePort {
@@ -52,7 +52,7 @@ export default class GitDotRepairStoreAdapter extends DotRepairStorePort {
   }
 
   override async collisions(): Promise<readonly DotCollision[]> {
-    const ref = buildV21MigrationRecordRef(this.#graphName);
+    const ref = buildWorldlineMigrationRecordRef(this.#graphName);
     const oid = await this.#history.readRef(ref);
     if (oid === null) { return []; }
     const record = parse(migrationDamageSchema, await this.#json(oid), ref);

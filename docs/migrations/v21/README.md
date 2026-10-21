@@ -63,7 +63,7 @@ For each graph:
   migration. Repair is a separate, explicit operation (see
   [Repairing duplicate dots](#repairing-duplicate-dots)).
 - **The marker advances last.** The record at
-  `refs/warp/<graph>/migrations/v21` journals progress. An interrupted run
+  `refs/warp/<graph>/migrations/worldline` journals progress. An interrupted run
   leaves the graph on v20, and rerunning resumes it with the same strand ids.
 
 A strand whose view cannot be read (a missing object, a support strand that

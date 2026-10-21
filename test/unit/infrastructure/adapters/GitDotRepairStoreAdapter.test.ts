@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import DotRepairRecord from '../../../../src/domain/repair/DotRepairRecord.ts';
-import { buildDotRepairRef, buildV21MigrationRecordRef } from '../../../../src/domain/utils/RefLayout.ts';
+import { buildDotRepairRef, buildWorldlineMigrationRecordRef } from '../../../../src/domain/utils/RefLayout.ts';
 import { textEncode } from '../../../../src/domain/utils/bytes.ts';
 import GitDotRepairStoreAdapter from '../../../../src/infrastructure/adapters/GitDotRepairStoreAdapter.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
@@ -14,7 +14,7 @@ const RECORD = (dot: string) => new DotRepairRecord({
 describe('GitDotRepairStoreAdapter (#1022)', () => {
   it('reads lane and strand collisions from the migration record, mapping strand names to ids', async () => {
     const history = new InMemoryGraphAdapter();
-    await history.updateRef(buildV21MigrationRecordRef('g'), await history.writeBlob(textEncode(JSON.stringify({
+    await history.updateRef(buildWorldlineMigrationRecordRef('g'), await history.writeBlob(textEncode(JSON.stringify({
       strands: [{ name: 'cleanup', strandId: STRAND }, { name: 'lost', strandId: null }],
       damage: { duplicateDots: [
         { scope: 'lane', identity: 'alice:1', sites: [{ sha: 's1', target: 'a' }, { sha: 's2', target: 'b' }] },
