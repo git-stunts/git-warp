@@ -84,9 +84,12 @@ function packEntryPath(line: string): string | null {
   return match?.[1] ?? null;
 }
 
-/** Admits migration entry modules and their adapter subtree. */
+/** Admits migration entry modules and the v18-to-v19 adapter subtree. */
 function isSupportedV18ToV19Artifact(path: string): boolean {
   const prefix = 'dist/scripts/v18-to-v19/';
+  if (path.startsWith('dist/scripts/v20-to-v21/')) {
+    return !path.slice('dist/scripts/v20-to-v21/'.length).includes('/') && path.endsWith('.js');
+  }
   if (!path.startsWith(prefix)) {
     return false;
   }
@@ -189,6 +192,7 @@ describe('release artifact command evidence', () => {
     expect(entries.has('dist/scripts/upgrade-v16-to-v17.d.ts')).toBe(false);
     expect(entries.has('dist/scripts/v18-to-v19/migrate.js')).toBe(true);
     expect(entries.has('dist/scripts/v18-to-v19/migrate.d.ts')).toBe(false);
+    expect(entries.has('dist/scripts/v20-to-v21/migrate.js')).toBe(true);
     expect(entries.has('dist/bin/git-warp.d.ts')).toBe(false);
     expect(implementationNonJavaScript).toEqual([]);
     expect(entries.has('dist/browser.js')).toBe(false);
@@ -202,6 +206,7 @@ describe('release artifact command evidence', () => {
     expect(entries.has('dist/bin/warp-graph.js')).toBe(false);
     expect(entries.has('README.md')).toBe(true);
     expect(entries.has('docs/migrations/v19/README.md')).toBe(true);
+    expect(entries.has('docs/migrations/v21/README.md')).toBe(true);
     expect(entries.has('docs/READINGS_AND_OPTICS.md')).toBe(true);
     expect(entries.has('LICENSE')).toBe(true);
     expect(entries.has('NOTICE')).toBe(true);

@@ -24,6 +24,7 @@ const REQUIRED_PATHS = Object.freeze([
   'dist/bin/git-warp.js',
   'bin/git-warp',
   'dist/scripts/v18-to-v19/migrate.js',
+  'dist/scripts/v20-to-v21/migrate.js',
   'dist/scripts/formatFailure.js',
   'dist/scripts/upgrade-v16-to-v17.js',
   'dist/scripts/migrations/v17.0.0/CheckpointMaterializationMigration.js',
@@ -31,6 +32,7 @@ const REQUIRED_PATHS = Object.freeze([
   'scripts/install-git-warp.sh',
   'scripts/uninstall-git-warp.sh',
   'docs/migrations/v19/README.md',
+  'docs/migrations/v21/README.md',
   'docs/READINGS_AND_OPTICS.md',
 ]);
 
@@ -40,6 +42,7 @@ const OPTIONAL_ALLOWED_PATHS: readonly string[] = Object.freeze([
   'dist/scripts/migrations/v17.0.0/RuntimeHelper.js',
   'dist/scripts/v18-to-v19/adapters/RuntimeAdapter.js',
   'dist/scripts/v18-to-v19/RuntimeCommand.js',
+  'dist/scripts/v20-to-v21/V21Migration.js',
   'dist/src/RuntimeHelper.d.ts',
 ]);
 

@@ -10,11 +10,11 @@ const REQUIRED_PATHS = [
   'dist/index.js', 'dist/index.d.ts', 'dist/advanced.js', 'dist/advanced.d.ts',
   'dist/diagnostics.js', 'dist/diagnostics.d.ts', 'dist/charts.js', 'dist/charts.d.ts',
   'dist/testing.js', 'dist/testing.d.ts', 'dist/bin/git-warp.js', 'bin/git-warp',
-  'dist/scripts/v18-to-v19/migrate.js', 'dist/scripts/formatFailure.js',
+  'dist/scripts/v18-to-v19/migrate.js', 'dist/scripts/v20-to-v21/migrate.js', 'dist/scripts/formatFailure.js',
   'dist/scripts/upgrade-v16-to-v17.js',
   'dist/scripts/migrations/v17.0.0/CheckpointMaterializationMigration.js',
   'scripts/hooks/post-merge.sh', 'scripts/install-git-warp.sh', 'scripts/uninstall-git-warp.sh',
-  'docs/migrations/v19/README.md', 'docs/READINGS_AND_OPTICS.md',
+  'docs/migrations/v19/README.md', 'docs/migrations/v21/README.md', 'docs/READINGS_AND_OPTICS.md',
 ];
 
 it('reports no findings for a complete artifact with no advisory warnings', () => {
