@@ -17,6 +17,7 @@ mapfile -t REQUIRED_DOCS <<< "$REQUIRED_DOCS_OUTPUT"
 
 CURRENT_MIGRATION_DOCS=(
   "docs/migrations/v19/README.md"
+  "docs/migrations/v21/README.md"
 )
 
 RETIRED_PATHS=(

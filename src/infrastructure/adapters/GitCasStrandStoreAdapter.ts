@@ -59,6 +59,14 @@ export default class GitCasStrandStoreAdapter extends StrandStorePort {
     if (revision === null) {
       return null;
     }
+    return await this.readDescriptorRevision(graphName, strandId, revision);
+  }
+
+  /**
+   * Reads the descriptor bytes a publication commit carries. The worldline
+   * migration uses it to read pre-worldline descriptors at their legacy refs.
+   */
+  async readDescriptorRevision(graphName: string, strandId: string, revision: string): Promise<Uint8Array> {
     await requirePublicationCommit(this.#history, revision, {
       graphName,
       strandId,

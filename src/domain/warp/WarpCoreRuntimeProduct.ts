@@ -90,6 +90,7 @@ export function buildWarpCoreRuntimeSurface(runtime: RuntimeHostProduct): WarpCo
     listStrands: runtime.listStrands.bind(runtime),
     renameStrand: runtime.renameStrand.bind(runtime),
     dropStrand: runtime.dropStrand.bind(runtime),
+    resolveAllocationProvenance: runtime.resolveAllocationProvenance.bind(runtime),
     materializeStrand: runtime.materializeStrand.bind(runtime),
     getStrandPatches: runtime.getStrandPatches.bind(runtime),
     patchesForStrand: runtime.patchesForStrand.bind(runtime),

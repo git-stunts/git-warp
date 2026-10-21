@@ -78,6 +78,7 @@ describe('package payload contract documentation', () => {
   it('publishes only the retained documentation set', () => {
     expect(PUBLISHED_DOCUMENTS).toEqual([
       'docs/migrations/v19/README.md',
+      'docs/migrations/v21/README.md',
       'docs/READINGS_AND_OPTICS.md',
       'README.md',
     ]);

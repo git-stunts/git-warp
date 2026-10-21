@@ -21,7 +21,8 @@
   "types": "./dist/index.d.ts",
   "bin": {
     "git-warp": "./bin/git-warp",
-    "git-warp-v18-to-v19": "./dist/scripts/v18-to-v19/migrate.js"
+    "git-warp-v18-to-v19": "./dist/scripts/v18-to-v19/migrate.js",
+    "git-warp-v20-to-v21": "./dist/scripts/v20-to-v21/migrate.js"
   },
   "exports": {
     ".": {
@@ -69,8 +70,10 @@
     "dist/scripts/migrations/v17.0.0/**/*.js",
     "dist/scripts/v18-to-v19/*.js",
     "dist/scripts/v18-to-v19/adapters/**/*.js",
+    "dist/scripts/v20-to-v21/*.js",
     "bin/git-warp",
     "docs/migrations/v19/README.md",
+    "docs/migrations/v21/README.md",
     "docs/READINGS_AND_OPTICS.md",
     "README.md",
     "LICENSE",
@@ -130,6 +133,7 @@
     "performance:streaming": "bash scripts/RunDockerPerformance.sh streaming",
     "performance:migrated-read": "bash scripts/RunDockerPerformance.sh migrated-read",
     "migrate:v18-to-v19": "npm run build --silent && node dist/scripts/v18-to-v19/migrate.js",
+    "migrate:v20-to-v21": "npm run build --silent && node dist/scripts/v20-to-v21/migrate.js",
     "setup:hooks": "node scripts/setup-hooks.ts",
     "prepare": "node --input-type=module -e \"const result = new (await import('./scripts/TrailerCodecDeclarationInstaller.ts')).default('.').install(); if (result.status === 'refused') throw new Error(result.reason);\" && node scripts/setup-hooks.ts",
     "prepack": "npm run build && npm run lint && npm run test:local && npm run typecheck:consumer && npm run check:package-payload",
