@@ -205,3 +205,14 @@ export function normalizeBraidedStrandIds(ids: string[] | undefined, selfStrandI
   if (!Array.isArray(ids) || ids.length === 0) { return []; }
   return deduplicateIds(ids, selfStrandId);
 }
+
+/** A creation token retries one creation: the same creator (implied by the lookup) and the same name. */
+export function requireSameCreation<T extends { strandId: string; genesis: { name: string; occurrence: number } }>(existing: T, name: string): T {
+  if (existing.genesis.name !== name) {
+    throw new StrandError(`Creation token ${existing.genesis.occurrence} created strand '${existing.genesis.name}', not '${name}'`, {
+      code: 'E_STRAND_CREATION_TOKEN_MISMATCH',
+      context: { strandId: existing.strandId, occurrence: existing.genesis.occurrence, name },
+    });
+  }
+  return existing;
+}
