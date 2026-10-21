@@ -11,7 +11,6 @@ import {
 import { createStateReader } from '../../../src/domain/services/state/StateReader.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
-import { buildStrandBraidRef, buildStrandOverlayRef } from '../../../src/domain/utils/RefLayout.ts';
 
 type WarpCoreRuntime = Awaited<ReturnType<typeof WarpCore.open>>;
 
@@ -176,7 +175,7 @@ describe('WarpCore strand foundation', () => {
     });
 
     await graph.createStrand({ strandId: 'ws_target', owner: 'alice' });
-    await graph.createStrand({ strandId: 'ws_support', owner: 'alice' });
+    const support = await graph.createStrand({ strandId: 'ws_support', owner: 'alice' });
 
     await graph.patchStrand('ws_target', (p) => {
       p.setProperty('task:1', 'status', 'target');
@@ -193,7 +192,7 @@ describe('WarpCore strand foundation', () => {
 
     const transferPlan = await graph.planStrandTransfer('ws_target');
 
-    expect(transferPlan.source.resolved.strand?.braid.braidedStrandIds).toEqual(['ws_support']);
+    expect(transferPlan.source.resolved.strand?.braid.braidedStrandIds).toEqual([support.strandId]);
     expect(transferPlan.ops).toContainEqual({
       op: 'set_node_property',
       nodeId: 'task:1',
@@ -267,17 +266,18 @@ describe('WarpCore strand foundation', () => {
       writes: ['task:queued'],
     });
 
-    await graph.createStrand({ strandId: 'ws_queue', owner: 'alice' });
+    const { strandId } = await graph.createStrand({ strandId: 'ws_queue', owner: 'alice' });
 
     const queued = await graph.queueStrandIntent('ws_queue', (p) => {
       p.setProperty('task:queued', 'status', 'queued');
     });
 
-    expect(queued.intentId).toBe('ws_queue.intent.0001');
+    // Intent ids are built from the immutable strand id, not the name (#1014).
+    expect(queued.intentId).toBe(`${strandId}.intent.0001`);
     expect(queued.patch.writes).toEqual(['task:queued']);
 
     const intents = await graph.listStrandIntents('ws_queue');
-    expect(intents.map((intent) => intent.intentId)).toEqual(['ws_queue.intent.0001']);
+    expect(intents.map((intent) => intent.intentId)).toEqual([`${strandId}.intent.0001`]);
 
     const strandState = await graph.materializeStrand('ws_queue');
     const strandReader = createStateReader(strandState);
@@ -302,7 +302,7 @@ describe('WarpCore strand foundation', () => {
       writes: ['task:red', 'task:blue'],
     });
 
-    await graph.createStrand({ strandId: 'ws_tick', owner: 'alice' });
+    const { strandId } = await graph.createStrand({ strandId: 'ws_tick', owner: 'alice' });
 
     await graph.queueStrandIntent('ws_tick', (p) => {
       p.setProperty('task:red', 'status', 'ready');
@@ -314,8 +314,8 @@ describe('WarpCore strand foundation', () => {
     const result = await graph.tickStrand('ws_tick');
 
     expect(result.admittedIntentIds).toEqual([
-      'ws_tick.intent.0001',
-      'ws_tick.intent.0002',
+      `${strandId}.intent.0001`,
+      `${strandId}.intent.0002`,
     ]);
     expect(result.rejected).toEqual([]);
     expect(result.overlayPatchShas).toHaveLength(2);
@@ -345,7 +345,7 @@ describe('WarpCore strand foundation', () => {
       writes: ['task:conflict'],
     });
 
-    await graph.createStrand({ strandId: 'ws_primary', owner: 'alice' });
+    const { strandId } = await graph.createStrand({ strandId: 'ws_primary', owner: 'alice' });
     await graph.createStrand({ strandId: 'ws_sibling', owner: 'alice' });
 
     await graph.queueStrandIntent('ws_primary', (p) => {
@@ -357,12 +357,12 @@ describe('WarpCore strand foundation', () => {
 
     const result = await graph.tickStrand('ws_primary');
 
-    expect(result.admittedIntentIds).toEqual(['ws_primary.intent.0001']);
+    expect(result.admittedIntentIds).toEqual([`${strandId}.intent.0001`]);
     expect(result.rejected).toEqual([
       {
-        intentId: 'ws_primary.intent.0002',
+        intentId: `${strandId}.intent.0002`,
         reason: 'footprint_overlap',
-        conflictsWith: ['ws_primary.intent.0001'],
+        conflictsWith: [`${strandId}.intent.0001`],
         reads: ['task:conflict'],
         writes: ['task:conflict'],
       },
@@ -384,13 +384,15 @@ describe('WarpCore strand foundation', () => {
   });
 
   /**
-   * @param {string} strandId
+   * @param {string} strandName
    * @returns {Promise<string[]>}
    */
-  async function overlayAddDots(strandId) {
-    const entries = await graph.getStrandPatches(strandId);
+  async function overlayAddDots(strandName) {
+    // Overlay patches carry the runtime writer's strand mint id as their writer (#1014).
+    const { overlay } = await graph.getStrand(strandName);
+    const entries = await graph.getStrandPatches(strandName);
     return entries
-      .filter(({ patch }) => patch.writer === strandId)
+      .filter(({ patch }) => patch.writer === overlay.overlayId)
       .flatMap(({ patch }) => patch.ops
         .filter((op) => op.type === 'NodeAdd' || op.type === 'EdgeAdd')
         .map((op) => Dot.encode(op.dot)));

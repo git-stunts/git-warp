@@ -295,11 +295,10 @@ export function buildIntentRef(
 export function buildStrandBraidRef(
   graphName: string,
   strandId: string,
-  braidedStrandId: string,
-  writerId: string,
+  pin: Readonly<{ braidedStrandId: string; writerId: string }>,
 ): string {
-  validateWriterId(writerId);
-  return `${buildStrandBraidsPrefix(graphName, strandId)}${requireStrandId(braidedStrandId)}/${writerId}`;
+  validateWriterId(pin.writerId);
+  return `${buildStrandBraidsPrefix(graphName, strandId)}${requireStrandId(pin.braidedStrandId)}/${pin.writerId}`;
 }
 
 /** Builds the braid-ref prefix for all support chains pinned inside one target strand. */

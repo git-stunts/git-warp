@@ -130,7 +130,7 @@ export default class StrandDescriptorStore {
   }
 
   buildBraidRef(strandId: string, braidedStrandId: string, writerId: string): string {
-    return this._strandRef(strandId, (graphName, id) => buildStrandBraidRef(graphName, id, braidedStrandId, writerId));
+    return this._strandRef(strandId, (graphName, id) => buildStrandBraidRef(graphName, id, { braidedStrandId, writerId }));
   }
 
   private _strandRef(strandId: string, build: (graphName: string, strandId: string) => string): string {
@@ -150,14 +150,11 @@ export default class StrandDescriptorStore {
    * neither matches; refuses a name that several strands share.
    */
   async resolveStrandId(strandRef: string): Promise<string | null> {
+    requireStrandRef(strandRef);
     if (isStrandId(strandRef) && await this._graph._strandStore.hasDescriptor(this._graph._graphName, strandRef)) {
       return strandRef;
     }
-    const matches: string[] = [];
-    for (const id of await this.listStrandIds()) {
-      const descriptor = await this._readById(id);
-      if (descriptor !== null && descriptor['name'] === strandRef) { matches.push(id); }
-    }
+    const matches = await this._idsNamed(strandRef);
     if (matches.length > 1) {
       throw new StrandError(`Strand name '${strandRef}' is shared by ${matches.length} strands; use a strand id`, {
         code: 'E_STRAND_NAME_AMBIGUOUS',
@@ -165,6 +162,15 @@ export default class StrandDescriptorStore {
       });
     }
     return matches[0] ?? null;
+  }
+
+  private async _idsNamed(name: string): Promise<string[]> {
+    const matches: string[] = [];
+    for (const id of await this.listStrandIds()) {
+      const descriptor = await this._readById(id);
+      if (descriptor !== null && descriptor.name === name) { matches.push(id); }
+    }
+    return matches;
   }
 
   // ── Descriptor I/O ───────────────────────────────────────────────────────
@@ -356,7 +362,7 @@ export default class StrandDescriptorStore {
       : null;
     return {
       ...descriptor,
-      name: typeof descriptor['name'] === 'string' ? descriptor['name'] : descriptor.strandId,
+      name: descriptor.name,
       overlay: {
         ...descriptor.overlay,
         writable: descriptor.overlay.writable ?? true,
@@ -449,4 +455,13 @@ function persistedDescriptor(descriptor: StrandDescriptor): Omit<StrandDescripto
   const { writers, ...stored } = descriptor;
   void writers;
   return { ...stored, overlay: { ...stored.overlay, headPatchSha: null, patchCount: 0 } };
+}
+
+function requireStrandRef(strandRef: string): void {
+  if (typeof strandRef !== 'string' || strandRef.length === 0) {
+    throw new StrandError('Strand id or name must be a non-empty string', {
+      code: 'E_STRAND_ID_INVALID',
+      context: { strandId: strandRef },
+    });
+  }
 }

@@ -166,7 +166,7 @@ export default class StrandPatchService {
    * shared descriptor is not rewritten: chain heads are read from each
    * writer's own ref (#1014), so writers never contend on the descriptor.
    */
-  async syncOverlayDescriptor(_descriptor: StrandDescriptor, { patch }: CommittedPatchResult): Promise<void> {
+  syncOverlayDescriptor(_descriptor: StrandDescriptor, { patch }: CommittedPatchResult): Promise<void> {
     if (patch.lamport > this._graph._maxObservedLamport) {
       this._graph._maxObservedLamport = patch.lamport;
     }
@@ -174,6 +174,7 @@ export default class StrandPatchService {
     this._graph._cachedViewHash = null;
     this._graph._cachedCeiling = null;
     this._graph._cachedFrontier = null;
+    return Promise.resolve();
   }
 
   async commitQueuedPatch({

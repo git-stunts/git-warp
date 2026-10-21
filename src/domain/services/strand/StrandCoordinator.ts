@@ -256,7 +256,7 @@ export default class StrandCoordinator {
 
   async braid(strandId: string, options: { braidedStrandIds?: string[]; writable?: boolean | null } = {}): Promise<StrandDescriptor> {
     const target = await this.getOrThrow(strandId);
-    const braidedIds = normalizeBraidedStrandIds(options.braidedStrandIds, target.strandId);
+    const braidedIds = normalizeBraidedStrandIds(await this._resolveStrandRefs(options.braidedStrandIds), target.strandId);
     const writableOverride = normalizeWritable(options.writable);
     const readOverlays = await this._deps.descriptors.loadBraidedReadOverlays(target, braidedIds);
 
@@ -441,6 +441,16 @@ export default class StrandCoordinator {
         context: { graphName: this._deps.graphName, strandId: name },
       });
     }
+  }
+
+  /** Resolves names to ids so self-braids and duplicates are caught by id. */
+  private async _resolveStrandRefs(refs: string[] | undefined): Promise<string[] | undefined> {
+    if (!Array.isArray(refs)) { return refs; }
+    const resolved: string[] = [];
+    for (const ref of refs) {
+      resolved.push(typeof ref === 'string' ? (await this._deps.descriptors.resolveStrandId(ref)) ?? ref : ref);
+    }
+    return resolved;
   }
 
   private async _findCreation(occurrence: number): Promise<StrandDescriptor | null> {

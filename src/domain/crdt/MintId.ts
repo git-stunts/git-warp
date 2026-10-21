@@ -43,10 +43,7 @@ export default class MintId {
       throw invalidSpelling(String(spelling), 'is empty');
     }
     if (!spelling.includes(SIGIL)) { return MintId.root(spelling); }
-    const [lead, writerPart, strandPart, ...rest] = spelling.split(SIGIL);
-    if (lead !== '' || rest.length > 0 || writerPart === undefined || strandPart === undefined) {
-      throw invalidSpelling(spelling, 'is not @w.<writer>@s.<strand-id>');
-    }
+    const [writerPart, strandPart] = sigilParts(spelling);
     requireKind(spelling, writerPart, WRITER_KIND);
     requireKind(spelling, strandPart, STRAND_KIND);
     return MintId.strand(writerPart.slice(WRITER_KIND.length), strandPart.slice(STRAND_KIND.length));
@@ -76,6 +73,15 @@ export default class MintId {
   equals(other: MintId): boolean {
     return this.writerId === other.writerId && this.strandId === other.strandId;
   }
+}
+
+/** Splits `@w.<writer>@s.<strand>` into its two sigil parts, refusing any other shape. */
+function sigilParts(spelling: string): [string, string] {
+  const [lead, writerPart, strandPart, ...rest] = spelling.split(SIGIL);
+  if (lead !== '' || rest.length > 0 || writerPart === undefined || strandPart === undefined) {
+    throw invalidSpelling(spelling, 'is not @w.<writer>@s.<strand-id>');
+  }
+  return [writerPart, strandPart];
 }
 
 function requireKind(spelling: string, part: string, kind: string): void {

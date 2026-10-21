@@ -132,4 +132,22 @@ describe('worldline identity (#1014)', () => {
     await expect(alice.renameStrand('c', 'a')).rejects.toMatchObject({ code: 'E_STRAND_ALREADY_EXISTS' });
     await expect(alice.getStrand(first.strandId)).resolves.toMatchObject({ name: 'a' });
   });
+
+  it('resolves braid names before refusing self-braids and duplicates', async () => {
+    const persistence = new InMemoryGraphAdapter();
+    const alice = await open(persistence, 'alice');
+    const target = await alice.createStrand({ name: 'target' });
+    const support = await alice.createStrand({ name: 'support' });
+
+    await expect(alice.braidStrand('target', { braidedStrandIds: ['target'] }))
+      .rejects.toMatchObject({ code: 'E_STRAND_BRAID_SELF' });
+    const braided = await alice.braidStrand(target.strandId, { braidedStrandIds: ['support', support.strandId] });
+    expect(braided.braid.readOverlays.map((overlay) => overlay.strandId)).toEqual([support.strandId]);
+  });
+
+  it('refuses an empty strand reference', async () => {
+    const alice = await open(new InMemoryGraphAdapter(), 'alice');
+
+    await expect(alice.getStrand('')).rejects.toMatchObject({ code: 'E_STRAND_ID_INVALID' });
+  });
 });

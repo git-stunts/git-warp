@@ -34,10 +34,10 @@ type StrandCas = {
   readonly publications: Pick<PublicationCapability, 'commit'>;
 };
 
-/** Retains strand descriptors and queued assets as one causal bundle. */
 /** v21 strand descriptors live at `strands/<strand-id>/descriptor` (#1014). */
 const DESCRIPTOR_SUFFIX = '/descriptor';
 
+/** Retains strand descriptors and queued assets as one causal bundle. */
 export default class GitCasStrandStoreAdapter extends StrandStorePort {
   readonly #history: StrandHistory;
   readonly #cas: StrandCas;
