@@ -23,6 +23,7 @@ import {
   STRAND_SCHEMA_VERSION,
   STRAND_COORDINATE_VERSION,
   STRAND_OVERLAY_KIND,
+  STRAND_GENESIS_KIND,
   normalizeOptionalString,
 } from './strandShared.ts';
 import { buildStrandsPrefix } from '../../utils/RefLayout.ts';
@@ -44,8 +45,6 @@ import MintId from '../../crdt/MintId.ts';
 
 // Re-export constants that were on StrandService
 export { STRAND_SCHEMA_VERSION, STRAND_COORDINATE_VERSION, STRAND_OVERLAY_KIND };
-
-const STRAND_GENESIS_KIND = 'git-warp-strand-genesis';
 
 /**
  * Structural description of the graph runtime as seen by the

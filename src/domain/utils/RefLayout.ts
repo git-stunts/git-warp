@@ -56,6 +56,7 @@ export const RESERVED_GRAPH_NAME_SEGMENTS: Set<string> = new Set([
   'seek-cache',
   'state-cache',
   'allocation',
+  'migrations',
 ]);
 
 // -----------------------------------------------------------------------------
@@ -363,6 +364,16 @@ export function buildAllocationFloorRef(graphName: string, writerId: string): st
   validateGraphName(graphName);
   validateWriterId(writerId);
   return `${REF_PREFIX}/${graphName}/allocation/${writerId}`;
+}
+
+/**
+ * Builds the ref of the v20-to-v21 migration record for a graph (#1015). It
+ * points to a blob recording the migration frontier, converted strands,
+ * allocation provenance and reported damage.
+ */
+export function buildV21MigrationRecordRef(graphName: string): string {
+  validateGraphName(graphName);
+  return `${REF_PREFIX}/${graphName}/migrations/v21`;
 }
 
 /**

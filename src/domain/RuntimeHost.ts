@@ -64,6 +64,8 @@ import type AssetStoragePort from '../ports/AssetStoragePort.ts';
 import type AuditLogPort from '../ports/AuditLogPort.ts';
 import type PatchJournalPort from '../ports/PatchJournalPort.ts';
 import type AllocationFloorStorePort from '../ports/AllocationFloorStorePort.ts';
+import type AllocationProvenancePort from '../ports/AllocationProvenancePort.ts';
+import AllocationProvenance from './migrations/AllocationProvenance.ts';
 import type StrandStorePort from '../ports/StrandStorePort.ts';
 import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../ports/CheckpointStorePort.ts';
@@ -260,6 +262,7 @@ export default class RuntimeHost {
   _effectPipeline: EffectPipeline | null;
   _patchJournal: PatchJournalPort;
   _allocationFloors: AllocationFloorStorePort | null;
+  _allocationProvenance: AllocationProvenancePort | null;
   _strandStore: StrandStorePort;
   _checkpointStore: CheckpointStorePort;
   _indexStore: IndexStorePort;
@@ -299,6 +302,7 @@ export default class RuntimeHost {
       trust,
       patchJournal,
       allocationFloors,
+      allocationProvenance,
       strandStore,
       checkpointStore,
       indexStore,
@@ -438,6 +442,7 @@ export default class RuntimeHost {
     this._effectPipeline = effectPipeline || null;
     this._patchJournal = patchJournal;
     this._allocationFloors = allocationFloors ?? null;
+    this._allocationProvenance = allocationProvenance ?? null;
     this._strandStore = strandStore;
     this._checkpointStore = checkpointStore;
     this._indexStore = indexStore;
@@ -688,6 +693,16 @@ export default class RuntimeHost {
   listStrands: StrandController['listStrands'] = (...args) => this._strandController.listStrands(...args);
   renameStrand: StrandController['renameStrand'] = (...args) => this._strandController.renameStrand(...args);
   dropStrand: StrandController['dropStrand'] = (...args) => this._strandController.dropStrand(...args);
+
+  /**
+   * Resolves a retained admission's allocation dot through the v21 migration
+   * record (#1015). Unmigrated occurrences are `unmapped`.
+   */
+  async resolveAllocationProvenance(commit: string, operationIndex: number, original: string): Promise<AllocationProvenance> {
+    return this._allocationProvenance === null
+      ? AllocationProvenance.unmapped(original)
+      : await this._allocationProvenance.resolve(commit, operationIndex, original);
+  }
   getStrandPatches: StrandController['getStrandPatches'] = (...args) => this._strandController.getStrandPatches(...args);
   getStrandOverlayPatches: StrandController['getStrandOverlayPatches'] = (...args) =>
     this._strandController.getStrandOverlayPatches(...args);

@@ -4,6 +4,7 @@
  * 14 methods covering the full strand API.
  */
 
+import type AllocationProvenance from '../migrations/AllocationProvenance.ts';
 import type { PatchBuilder } from '../services/PatchBuilder.ts';
 import type Patch from '../types/Patch.ts';
 import type SnapshotWarpState from '../services/snapshot/SnapshotWarpState.ts';
@@ -46,6 +47,12 @@ export default abstract class StrandCapability {
 
   /** Rename a strand. Its id and its mint ids never change (#1014). */
   abstract renameStrand(_strandId: string, _name: string): Promise<StrandDescriptor>;
+
+  /**
+   * Resolve a retained admission's allocation dot through the v21
+   * migration record (#1015).
+   */
+  abstract resolveAllocationProvenance(_commit: string, _operationIndex: number, _original: string): Promise<AllocationProvenance>;
 
   /** Drop a strand descriptor and return whether it existed. */
   abstract dropStrand(_strandId: string): Promise<boolean>;
