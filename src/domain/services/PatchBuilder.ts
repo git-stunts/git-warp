@@ -1,14 +1,8 @@
-/**
- * PatchBuilder — fluent API for building schema:2 WARP patches.
- * Maintains a VersionVector per writer, assigns dots on add operations,
- * reads current state to populate observedDots for removes, and includes
- * context VersionVector in the patch.
- *
- * @module domain/services/PatchBuilder
- */
+/** Fluent schema:2 patch builder. Add dots come from the chain's DotMint. */
 
 import nullLogger from '../utils/nullLogger.ts';
 import VersionVector from '../crdt/VersionVector.ts';
+import type DotMint from '../crdt/DotMint.ts';
 import Patch from '../types/Patch.ts';
 import NodeAdd from '../types/ops/NodeAdd.ts';
 import PropSet from '../types/ops/PropSet.ts';
@@ -57,6 +51,7 @@ type PatchBuilderOptions = {
   writerId: string;
   lamport: number;
   versionVector: VersionVector;
+  dotMint: DotMint;
   getCurrentState: () => WarpState | null;
   getSnapshotFrontier?: () => ReadonlyMap<string, string> | null;
   evaluationCoordinateRef?: string;
@@ -80,6 +75,7 @@ export class PatchBuilder {
   private _removalBasis: BoundedNodeRemovalBasis | null = null;
   private _observedFrontier: ObservedWriteFrontier | undefined;
   private _vv: VersionVector;
+  private readonly _dotMint: DotMint;
   private readonly _getCurrentState: () => WarpState | null;
   private _snapshotFrontier: ReadonlyMap<string, string> | undefined;
   private readonly _getSnapshotFrontier: (() => ReadonlyMap<string, string> | null) | undefined;
@@ -111,7 +107,8 @@ export class PatchBuilder {
         ? options.targetRefPath
         : null;
     this._lamport = options.lamport;
-    this._vv = options.versionVector.clone();
+    this._dotMint = options.dotMint.requireWriter(options.writerId);
+    this._vv = this._dotMint.observed(options.versionVector.clone());
     this._getCurrentState = options.getCurrentState;
     this._getSnapshotFrontier = options.getSnapshotFrontier;
     this._expectedParentSha = options.expectedParentSha ?? null;
@@ -166,7 +163,8 @@ export class PatchBuilder {
   addNode(nodeId: string): PatchBuilder {
     this._assertNotCommitted();
     assertNoReservedBytes(nodeId, 'nodeId');
-    const dot = this._vv.increment(this._writerId);
+    const dot = this._dotMint.issue();
+    this._vv.include(dot);
     this._ops.push(new NodeAdd(nodeId, dot));
     this._nodesAdded.add(nodeId);
     this._writes.add(nodeId);
@@ -212,9 +210,9 @@ export class PatchBuilder {
       namespace,
       properties,
       scope: { added: this._nodesAdded, state: this._getSnapshotState() },
-      writerId: this._writerId,
-      versionVector: this._vv,
+      mint: this._dotMint,
     });
+    this._vv.include(capture.dot);
     const operationIndex = this._ops.length;
     this._ops.push(new NodeAdd(capture.nodeId, capture.dot), ...capture.payload);
     this._nodesAdded.add(capture.nodeId);
@@ -244,7 +242,7 @@ export class PatchBuilder {
     this._assertNotCommitted();
     if (this._ops.length > 0) {throw new PatchError('Write changed during basis capture', { code: 'E_PATCH_NO_STATE' });}
     this._removalBasis = basis;
-    this._vv = this._vv.merge(basis.context());
+    this._vv = this._dotMint.observed(this._vv.merge(basis.context()));
     this._lamport = Math.max(this._lamport, basis.lamport + 1);
     capturePatchBuilderCausalBasis(this, {
       ...readPatchBuilderCausalBasis(this), evaluationCoordinateRef: basis.coordinateRef,
@@ -269,7 +267,7 @@ export class PatchBuilder {
       throw new PatchError('Write changed during observation capture', { code: 'E_WRITE_INTENT_PUBLICATION' });
     }
     this._observedFrontier = basis.observation;
-    this._vv = basis.context();
+    this._vv = this._dotMint.observed(basis.context());
     this._lamport = basis.lamport;
     capturePatchBuilderCausalBasis(this, {
       ...readPatchBuilderCausalBasis(this), evaluationCoordinateRef: basis.coordinateRef,
@@ -283,7 +281,7 @@ export class PatchBuilder {
       const head = await history.next();
       if (head.done === true) { throw new PatchError('Writer parent is unavailable', { code: 'E_PATCH_NO_STATE' }); }
       this._assertNotCommitted();
-      this._vv = this._vv.merge(VersionVector.from(head.value.patch.context));
+      this._vv = this._dotMint.observed(this._vv.merge(VersionVector.from(head.value.patch.context)));
     } finally {
       await history.return?.();
     }
@@ -309,7 +307,8 @@ export class PatchBuilder {
     assertNoReservedBytes(from, 'from node ID');
     assertNoReservedBytes(to, 'to node ID');
     assertNoReservedBytes(label, 'edge label');
-    const dot = this._vv.increment(this._writerId);
+    const dot = this._dotMint.issue();
+    this._vv.include(dot);
     this._ops.push(new EdgeAdd({ from, to, label, dot }));
     const edgeKey = encodeEdgeKey(from, to, label);
     this._edgesAdded.add(edgeKey);
@@ -480,8 +479,9 @@ export class PatchBuilder {
   get ops(): PatchOp[] {
     return this._ops;
   }
+  /** A copy of the patch context; the builder alone advances its own. */
   get versionVector(): VersionVector {
-    return this._vv;
+    return this._vv.clone();
   }
   get reads(): ReadonlySet<string> {
     return new Set(this._observedOperands);

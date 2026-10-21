@@ -30,7 +30,7 @@
 
 import PatchError from '../errors/PatchError.ts';
 import { Dot } from '../crdt/Dot.ts';
-import type VersionVector from '../crdt/VersionVector.ts';
+import type DotMint from '../crdt/DotMint.ts';
 import NodePropertyWriteIntent from '../graph/NodePropertyWriteIntent.ts';
 import NodePropSet from '../types/ops/NodePropSet.ts';
 import type { PropValue } from '../types/PropValue.ts';
@@ -71,24 +71,17 @@ export function allocateEntitySubject(namespace: string, dot: Dot): string {
   return `${namespace}:${hexEncode(textEncode(Dot.encode(dot)))}`;
 }
 
-/** Validates, allocates, and advances the writer-local dot exactly once. */
+/** Validates the payload, then mints the entity's dot exactly once. */
 export function allocateEntityCapture(fields: {
   readonly namespace: string;
   readonly properties: EntityCapturePayload;
   readonly scope: EntityCaptureScope;
-  readonly writerId: string;
-  readonly versionVector: VersionVector;
+  readonly mint: DotMint;
 }): Readonly<{ dot: Dot; nodeId: string; payload: readonly NodePropSet[] }> {
-  const { namespace, properties, scope, writerId, versionVector } = fields;
-  const expectedDot = new Dot(writerId, (versionVector.get(writerId) ?? 0) + 1);
-  const nodeId = allocateEntitySubject(namespace, expectedDot);
+  const { namespace, properties, scope, mint } = fields;
+  const nodeId = allocateEntitySubject(namespace, mint.peek());
   const payload = planEntityCapturePayload(nodeId, properties, scope);
-  const dot = versionVector.increment(writerId);
-  if (!Dot.equals(expectedDot, dot)) {
-    throw new PatchError('Entity allocation diverged from the writer-local dot', {
-      code: 'E_PATCH_ENTITY_ALLOCATION_DIVERGED',
-    });
-  }
+  const dot = mint.issue();
   return Object.freeze({ dot, nodeId, payload });
 }
 

@@ -5,6 +5,7 @@ import NodeRemovalObservation from '../../../../src/domain/services/NodeRemovalO
 import { readPatchBuilderCausalBasis } from '../../../../src/domain/services/admission/PatchBuilderCausalBasis.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import DotMint from '../../../../src/domain/crdt/DotMint.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.ts';
 import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
@@ -33,7 +34,7 @@ function fixture(entries: readonly PatchEntry[]) {
 }
 function builder(fields: ReturnType<typeof fixture>, overrides: Partial<ConstructorParameters<typeof PatchBuilder>[0]> = {}) {
   return new PatchBuilder({ persistence: fields.refs, patchJournal: fields.journal, graphName: 'events',
-    writerId: 'bob', lamport: 1, versionVector: VersionVector.empty(), getCurrentState: () => null, ...overrides });
+    writerId: 'bob', lamport: 1, versionVector: VersionVector.empty(), dotMint: DotMint.after(overrides.writerId ?? 'bob', 0), getCurrentState: () => null, ...overrides });
 }
 
 it('observes all live additions, respects removals, and captures incident edges without payload values', async () => {

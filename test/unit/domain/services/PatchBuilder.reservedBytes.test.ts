@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import DotMint from '../../../../src/domain/crdt/DotMint.ts';
 
 /**
  * ADR 1-T12: Reserved-byte validation rejects ambiguous identifiers.
@@ -11,6 +12,7 @@ function makeBuilder(opts = ({} as any)) {
     writerId: opts.writerId ?? 'w1',
     lamport: opts.lamport ?? 1,
     versionVector: opts.versionVector ?? VersionVector.empty(),
+    dotMint: DotMint.after(opts.writerId ?? 'w1', 0),
     getCurrentState: opts.getCurrentState ?? (() => null),
   }) as any));
 }
