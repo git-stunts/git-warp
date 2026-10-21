@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { getDefaultRuntimeHostNodePorts } from '../../../src/application/RuntimeHostNodeDefaults.ts';
 import Patch from '../../../src/domain/types/Patch.ts';
+import { computeChecksum } from '../../../src/domain/utils/checksumUtils.ts';
 import NodeAdd from '../../../src/domain/types/ops/NodeAdd.ts';
 import NodeRemove from '../../../src/domain/types/ops/NodeRemove.ts';
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
@@ -172,6 +173,46 @@ describe('duplicate-dot repair (#1022)', () => {
       }
       expect(await host.applyDotRepair({ dot: 'alice:1', policy: 'separate' })).toEqual(applied);
       expect(await host.getWriterPatches('repair.alice')).toHaveLength(1);
+    });
+  });
+
+  it('finishes one repair writer\'s pending repair before starting another, and never adopts a foreign commit', async () => {
+    const repository = await migrated('dot-reuse');
+    repositories.push(repository);
+    await withFixtureHost(repository, 'dot-reuse', 'alice', async (host) => {
+      const applied = await host.applyDotRepair({ dot: 'alice:1', policy: 'separate' });
+      const history = await historyOf(repository);
+      try {
+        // A different repair left pending at the head before the separate commit.
+        await new GitDotRepairStoreAdapter({ history, graphName: 'dot-reuse' }).writeRepair(new DotRepairRecord({
+          ...applied, repairId: 'd'.repeat(64), policy: 'restore', targets: ['note:first'], status: 'pending', commits: [],
+        }));
+      } finally {
+        await history.close();
+      }
+      await expect(host.applyDotRepair({ dot: 'alice:1', policy: 'restore', targets: ['note:second'] }))
+        .rejects.toMatchObject({ code: 'E_DOT_REPAIR_PENDING' });
+    });
+  });
+
+  it('refuses to adopt a commit after a pending repair\'s head that adds other objects', async () => {
+    const repository = await migrated('dot-reuse');
+    repositories.push(repository);
+    await withFixtureHost(repository, 'dot-reuse', 'alice', async (host) => {
+      const separated = await host.applyDotRepair({ dot: 'alice:1', policy: 'separate' });
+      const repairId = await computeChecksum({
+        kind: 'git-warp-dot-repair', graph: 'dot-reuse', dot: 'alice:1', policy: 'restore', targets: ['note:first'], repairWriter: 'repair.alice',
+      }, getDefaultRuntimeHostNodePorts().crypto);
+      const history = await historyOf(repository);
+      try {
+        await new GitDotRepairStoreAdapter({ history, graphName: 'dot-reuse' }).writeRepair(new DotRepairRecord({
+          ...separated, repairId, policy: 'restore', targets: ['note:first'], status: 'pending', commits: [],
+        }));
+      } finally {
+        await history.close();
+      }
+      await expect(host.applyDotRepair({ dot: 'alice:1', policy: 'restore', targets: ['note:first'] }))
+        .rejects.toMatchObject({ code: 'E_DOT_REPAIR_DIVERGED' });
     });
   });
 

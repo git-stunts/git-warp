@@ -83,6 +83,8 @@ import type WarpState from './services/state/WarpState.ts';
 import type SnapshotWarpState from './services/snapshot/SnapshotWarpState.ts';
 import type { ProvenanceIndex } from './services/provenance/ProvenanceIndex.ts';
 import type Patch from './types/Patch.ts';
+import EdgeAdd from './types/ops/EdgeAdd.ts';
+import NodeAdd from './types/ops/NodeAdd.ts';
 import type { PatchDiff } from './types/PatchDiff.ts';
 import type { TickReceipt } from './types/TickReceipt.ts';
 import type PropertyIndexReader from './services/index/PropertyIndexReader.ts';
@@ -729,7 +731,7 @@ export default class RuntimeHost {
       materialize: async () => await this.materialize(),
       getFrontier: async () => await this.getFrontier(),
       commitAs: async (writerId, build) => await this._patchController._writerFor(writerId).commitPatch(build),
-      writerCommits: async (writerId) => (await this.getWriterPatches(writerId)).map(({ sha }) => sha),
+      writerCommits: async (writerId) => (await this.getWriterPatches(writerId)).map(({ sha, patch }) => ({ sha, addTargets: addTargetsOf(patch) })),
     });
   }
   getStrandPatches: StrandController['getStrandPatches'] = (...args) => this._strandController.getStrandPatches(...args);
@@ -1025,4 +1027,12 @@ export async function openRuntimeHost(options: RuntimeHostOpenInput): Promise<Ru
   const graph = new RuntimeHost(resolvedOptions);
   await graph._validateMigrationBoundary();
   return graph;
+}
+
+/** The objects a patch's adds target; edges as `from\0to\0label`. */
+function addTargetsOf(patch: Patch): string[] {
+  return patch.ops.flatMap((op) => {
+    if (op instanceof NodeAdd) { return [op.node]; }
+    return op instanceof EdgeAdd ? [`${op.from}\0${op.to}\0${op.label}`] : [];
+  });
 }

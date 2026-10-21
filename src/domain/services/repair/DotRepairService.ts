@@ -40,8 +40,8 @@ export type DotRepairHost = Readonly<{
   materialize: () => Promise<VisibleState>;
   getFrontier: () => Promise<Map<string, string>>;
   commitAs: (writerId: string, build: (patch: PatchSession) => void) => Promise<string>;
-  /** The writer's patch commits, oldest first. */
-  writerCommits: (writerId: string) => Promise<readonly string[]>;
+  /** The writer's patch commits, oldest first, each with the objects its adds target. */
+  writerCommits: (writerId: string) => Promise<readonly Readonly<{ sha: string; addTargets: readonly string[] }>[]>;
 }>;
 
 /**
@@ -103,22 +103,40 @@ export default class DotRepairService {
   ): Promise<DotRepairRecord> {
     const existing = await store.readRepair(repair.repairId);
     if (existing !== null) { return existing; }
+    const unfinished = (await store.repairs())
+      .find((other) => other.status === 'pending' && other.repairWriter === repair.repairWriter);
+    if (unfinished !== undefined) {
+      // One repair writer serves every repair, so a pending one is finished first: its commit is then the only one after its head.
+      throw repairError(`Repair ${unfinished.repairId} of ${unfinished.dot} is unfinished; apply it again first`, 'E_DOT_REPAIR_PENDING', {
+        dot: unfinished.dot, repairId: unfinished.repairId,
+      });
+    }
     const pending = new DotRepairRecord({
       ...repair,
       inputFrontier: Object.fromEntries(await this.#host.getFrontier()),
       status: 'pending',
-      parentHead: (await this.#host.writerCommits(repair.repairWriter)).at(-1) ?? null,
+      parentHead: (await this.#host.writerCommits(repair.repairWriter)).at(-1)?.sha ?? null,
       commits: [],
     });
     await store.writeRepair(pending);
     return pending;
   }
 
-  /** The repair commit an interrupted apply already made: the one right after the recorded parent. */
+  /**
+   * The repair commit an interrupted apply already made: the one right after
+   * the recorded parent, which must add exactly this repair's targets.
+   */
   async #committedSince(pending: DotRepairRecord): Promise<string | null> {
     const commits = await this.#host.writerCommits(pending.repairWriter);
-    const index = pending.parentHead === null ? 0 : commits.indexOf(pending.parentHead) + 1;
-    return commits[index] ?? null;
+    const index = pending.parentHead === null ? 0 : commits.findIndex((commit) => commit.sha === pending.parentHead) + 1;
+    const next = commits[index];
+    if (next === undefined) { return null; }
+    if ([...new Set(next.addTargets)].sort().join('\n') !== pending.targets.join('\n')) {
+      throw repairError(`Commit ${next.sha} after repair ${pending.repairId}'s head is not that repair`, 'E_DOT_REPAIR_DIVERGED', {
+        dot: pending.dot, repairId: pending.repairId,
+      });
+    }
+    return next.sha;
   }
 
   #requireStore(): DotRepairStorePort {
