@@ -14,17 +14,12 @@ import {
 describe('v19.1.0 pre-worldline fixture (#1018)', () => {
   let manifest: V19PreWorldlineManifest;
   let releaseCensus: Record<string, GraphCensus>;
-  let currentCensus: Record<string, GraphCensus>;
   let repository: string | undefined;
 
   beforeAll(async () => {
     manifest = await readV19PreWorldlineManifest();
     releaseCensus = await readReleaseCensus(manifest);
     repository = await restoreV19PreWorldlineFixture(manifest);
-    currentCensus = await censusWithCurrentRuntime(
-      repository,
-      manifest.scenarios.map((scenario) => scenario.graph).sort(),
-    );
   }, 120_000);
 
   afterAll(async () => {
@@ -57,8 +52,13 @@ describe('v19.1.0 pre-worldline fixture (#1018)', () => {
     ]);
   });
 
-  it('reads every scenario on the current runtime exactly as v19.1.0 did', () => {
-    expect(currentCensus).toEqual(releaseCensus);
+  it('the current runtime refuses every scenario until the worldline migration runs (#1014)', async () => {
+    for (const scenario of manifest.scenarios) {
+      await expect(
+        censusWithCurrentRuntime(repository ?? '', [scenario.graph]),
+        scenario.graph,
+      ).rejects.toMatchObject({ code: 'E_SUBSTRATE_MIGRATION_REQUIRED' });
+    }
   });
 
   it('golden and edge-case scenarios have owners and no duplicate dot within a v21 mint', () => {
@@ -194,6 +194,7 @@ describe('v19.1.0 pre-worldline fixture (#1018)', () => {
     }
   });
 
+  it.todo('after the v21 migration, the current runtime reads every lane exactly as v19.1.0 did (#1015)');
   it.todo('v21 migration converts each migrate scenario to the manifest mints with unchanged visible state (#1015)');
   it.todo('v21 migration persists the manifest allocation floors; counter-reset writes above alice:100 (#1021)');
   it.todo('v21 migration reports the manifest damage and refuses ownerless strands without --assign-owner (#1015)');

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import process from 'node:process';
 
+import { CURRENT_SUBSTRATE_MARKER } from '../../src/infrastructure/adapters/SubstrateVersionGate.ts';
 import GitStorage from '../../src/application/GitStorage.ts';
 import { getDefaultRuntimeHostNodePorts } from '../../src/application/RuntimeHostNodeDefaults.ts';
 import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
@@ -292,6 +293,26 @@ function visibleState(state: SnapshotWarpState): VisibleState {
     nodes: [...state.nodeAlive.elements()].sort(),
     edges: [...state.edgeAlive.elements()].map((edge) => edge.split('\0').join('|')).sort(),
   };
+}
+
+/**
+ * Advances a lane-only graph's substrate marker to the v21 marker. Lane
+ * history keeps its v20 encoding, so a graph with no legacy strand refs
+ * needs no conversion; this stands in for the v21 migration (#1015) in
+ * tests of lane behavior. Refuses a graph that has legacy strand refs.
+ */
+export function advanceLaneOnlyMarker(repository: string, graphName: string): void {
+  const strandRefs = git(repository, ['for-each-ref', '--format=%(refname)', `refs/warp/${graphName}/strands/`, `refs/warp/${graphName}/strand-overlays/`]);
+  if (strandRefs.length > 0) {
+    throw new Error(`${graphName} has legacy strand refs; it needs the v21 migration`);
+  }
+  const markerRef = `refs/warp/${graphName}/substrate-version`;
+  const legacy = git(repository, ['rev-parse', markerRef]);
+  const current = execFileSync('git', ['-C', repository, 'hash-object', '-w', '--stdin'], {
+    encoding: 'utf8',
+    input: CURRENT_SUBSTRATE_MARKER,
+  }).trim();
+  git(repository, ['update-ref', markerRef, current, legacy]);
 }
 
 function git(cwd: string, args: readonly string[]): string {
