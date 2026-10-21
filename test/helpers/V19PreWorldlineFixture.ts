@@ -199,6 +199,16 @@ async function withHost<T>(
   graphName: string,
   work: (host: RuntimeHostProduct) => Promise<T>,
 ): Promise<T> {
+  return await withFixtureHost(repository, graphName, 'fixture-census', work);
+}
+
+/** Opens the current runtime on a restored fixture repository as `writerId`. */
+export async function withFixtureHost<T>(
+  repository: string,
+  graphName: string,
+  writerId: string,
+  work: (host: RuntimeHostProduct) => Promise<T>,
+): Promise<T> {
   const storage = await GitStorage.open({ cwd: repository });
   try {
     const binding = resolveWarpStorage(storage);
@@ -207,7 +217,7 @@ async function withHost<T>(
       persistence: binding.history,
       runtimeStorage: binding.runtimeStorage,
       graphName,
-      writerId: 'fixture-census',
+      writerId,
       codec: ports.codec,
       crypto: ports.crypto,
       trustCrypto: ports.trustCrypto,

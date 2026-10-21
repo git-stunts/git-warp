@@ -28,6 +28,7 @@ import type WarpStateCachePort from '../../ports/WarpStateCachePort.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type AuditLogPort from '../../ports/AuditLogPort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
+import type AllocationFloorStorePort from '../../ports/AllocationFloorStorePort.ts';
 import type StrandStorePort from '../../ports/StrandStorePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
@@ -69,6 +70,7 @@ export type RuntimeHostConstructionOptions = {
   commitMessageCodec: CommitMessageCodecPort;
   trust?: { mode?: TrustMode; pin?: string | null };
   patchJournal: PatchJournalPort;
+  allocationFloors?: AllocationFloorStorePort;
   strandStore: StrandStorePort;
   checkpointStore: CheckpointStorePort;
   indexStore: IndexStorePort;
@@ -397,6 +399,7 @@ export async function resolveRuntimeHostConstructionOptions(
       commitMessageCodec: resolvedCommitMessageCodec,
       ...(trust !== undefined ? { trust } : {}),
       patchJournal: storageServices.patchJournal,
+      ...(storageServices.allocationFloors === undefined ? {} : { allocationFloors: storageServices.allocationFloors }),
       strandStore: storageServices.strands,
       checkpointStore: storageServices.checkpoints,
       indexStore: resolvedIndexStore,

@@ -144,7 +144,7 @@ function createMockPersistence() {
     readRef: vi.fn(),
     updateRef: vi.fn(),
     showNode: vi.fn(),
-    getNodeInfo: vi.fn(),
+    getNodeInfo: vi.fn().mockImplementation(async (sha: string) => ({ sha, message: '', author: '', date: '', parents: [] })),
     listRefs: vi.fn().mockResolvedValue([]),
     configGet: vi.fn(),
     configSet: vi.fn(),

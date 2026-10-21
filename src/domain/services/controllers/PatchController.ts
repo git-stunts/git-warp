@@ -11,6 +11,7 @@
  */
 
 import { PatchBuilder } from '../PatchBuilder.ts';
+import type AllocationFloorStorePort from '../../../ports/AllocationFloorStorePort.ts';
 import openDotMint from '../openDotMint.ts';
 import { joinStates, applyWithDiff, applyWithReceipt, type WarpState } from '../JoinReducer.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
@@ -42,8 +43,6 @@ import type { MaterializedStateUpdateOptions } from '../../capabilities/Material
 import { E_NO_STATE_MSG, E_STALE_STATE_MSG } from './QueryStateMessages.ts';
 import { graphFrontierCoordinateRef } from '../admission/GraphCoordinateRef.ts';
 
-// ── PatchHost ─────────────────────────────────────────────────────────────────
-
 type DeletePolicy = 'reject' | 'cascade' | 'warn';
 type MaterializedAdjacency = {
   outgoing: ReadonlyMap<string, readonly { neighborId: string; label: string }[]>;
@@ -66,6 +65,7 @@ type SetMaterializedState = (
  * in unit tests.
  */
 export interface PatchHost extends PatchDiscoveryHost {
+  _allocationFloors: AllocationFloorStorePort | null;
   _writerId: string;
   _versionVector: VersionVector;
   _cachedState: WarpState | null;
@@ -162,7 +162,7 @@ export default class PatchController {
       lamport,
       versionVector: h._versionVector,
       dotMint: await openDotMint({
-        writerId: h._writerId, commits: h._persistence, codec: h._commitMessageCodec, journal: h._patchJournal, headSha: parentSha,
+        writerId: h._writerId, commits: h._persistence, codec: h._commitMessageCodec, journal: h._patchJournal, headSha: parentSha, floors: h._allocationFloors,
       }),
       getCurrentState: () => h._cachedState,
       getSnapshotFrontier: () => h._cachedFrontier ?? null,
@@ -385,6 +385,7 @@ export default class PatchController {
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: (opts) => this._onPatchCommitted(resolvedWriterId, opts),
       patchJournal,
+      allocationFloors: h._allocationFloors,
       commitMessageCodec: h._commitMessageCodec,
     };
     if (h._logger !== null && h._logger !== undefined) {
