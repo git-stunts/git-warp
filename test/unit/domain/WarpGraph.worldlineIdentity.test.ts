@@ -106,6 +106,8 @@ describe('worldline identity (#1014)', () => {
 
     expect(retried.strandId).toBe(created.strandId);
     expect(await floorCounter(persistence, 'alice')).toBe(reserved);
+    await expect(alice.createStrand({ name: 'other', creationToken: created.genesis.occurrence }))
+      .rejects.toMatchObject({ code: 'E_STRAND_CREATION_TOKEN_MISMATCH' });
   });
 
   it('persists the creation occurrence as a lane reservation the writer never reissues', async () => {

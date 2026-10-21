@@ -15,7 +15,7 @@ import {
 } from '../ImmutableSnapshot.ts';
 import {
   normalizeBaseFrontier, normalizeCreateOptions, normalizeLamportCeiling,
-  normalizeWritable, normalizeBraidedStrandIds, patchTouchesEntity,
+  normalizeWritable, normalizeBraidedStrandIds, patchTouchesEntity, requireSameCreation,
   frontierToRecord,
   type NormalizedCreateOptions,
 } from './StrandDescriptorValidation.ts';
@@ -214,7 +214,7 @@ export default class StrandCoordinator {
     );
     if (options.creationToken !== undefined) {
       const existing = await this._findCreation(options.creationToken);
-      if (existing !== null) { return existing; }
+      if (existing !== null) { return requireSameCreation(existing, normalized.strandId); }
     }
     await this._assertStrandDoesNotExist(normalized.strandId);
 
