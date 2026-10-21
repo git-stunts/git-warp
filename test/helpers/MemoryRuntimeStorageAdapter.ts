@@ -9,6 +9,7 @@ import { CborPatchJournalAdapter } from '../../src/infrastructure/adapters/CborP
 import GitCasAuditLogAdapter from '../../src/infrastructure/adapters/GitCasAuditLogAdapter.ts';
 import GitCasIntentStoreAdapter from '../../src/infrastructure/adapters/GitCasIntentStoreAdapter.ts';
 import GitCasMaterializationStoreAdapter from '../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
+import GitAllocationFloorStoreAdapter from '../../src/infrastructure/adapters/GitAllocationFloorStoreAdapter.ts';
 import GitCasStrandStoreAdapter from '../../src/infrastructure/adapters/GitCasStrandStoreAdapter.ts';
 import GitCasAssetStorageAdapter from '../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
 import CasContentEncryptionPolicy from '../../src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
@@ -69,6 +70,7 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         assets: this.#content,
         codec: request.codec,
       }),
+      allocationFloors: new GitAllocationFloorStoreAdapter({ history: this.#history, graphName: request.timelineName }),
       patchJournal: new CborPatchJournalAdapter({
         assetStorage: this.#content,
         cas: this.#cas,
