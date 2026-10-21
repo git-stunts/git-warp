@@ -10,9 +10,12 @@ import {
 import { createStateReader } from '../../../src/domain/services/state/StateReader.ts';
 import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
-import { buildStrandBraidRef, buildStrandOverlayRef } from '../../../src/domain/utils/RefLayout.ts';
+import { buildStrandBraidRef, buildStrandWriterRef } from '../../../src/domain/utils/RefLayout.ts';
 
 type WarpCoreRuntime = any;
+
+/** Strand patches are minted by the runtime writer under @w.<writer>@s.<strand-id> (#1014). */
+const mintOf = (strandId) => `@w.tester@s.${strandId}`;
 
 /**
  * @param {number} counter
@@ -183,13 +186,14 @@ describe('WarpCore strand foundation', () => {
       leaseExpiresAt: '2026-03-17T00:00:00Z',
     });
 
-    expect(created.strandId).toBe('ws_demo');
+    expect(created.strandId).toMatch(/^[0-9a-f]{64}$/);
+    expect(created.name).toBe('ws_demo');
     expect(created.owner).toBe('alice');
     expect(created.scope).toBe('review');
     expect(created.baseObservation.lamportCeiling).toBe(1);
     expect(created.baseObservation.frontier.alice).toBe(sha);
     expect(created.overlay).toEqual({
-      overlayId: 'ws_demo',
+      overlayId: mintOf(created.strandId),
       kind: 'patch-log',
       headPatchSha: null,
       patchCount: 0,
@@ -202,7 +206,7 @@ describe('WarpCore strand foundation', () => {
     expect(loaded?.baseObservation.frontierDigest).toBe(created.baseObservation.frontierDigest);
 
     const listed = await graph.listStrands();
-    expect(listed.map((entry) => entry.strandId)).toEqual(['ws_demo']);
+    expect(listed.map((entry) => [entry.strandId, entry.name])).toEqual([[created.strandId, 'ws_demo']]);
 
     const dropped = await graph.dropStrand('ws_demo');
     expect(dropped).toBe(true);
@@ -403,13 +407,13 @@ describe('WarpCore strand foundation', () => {
       ],
     });
 
-    await graph.createStrand({
+    const created = await graph.createStrand({
       strandId: 'ws_overlay',
       owner: 'alice',
     });
 
     const liveFrontierBefore = await graph.getFrontier();
-    const overlayRef = buildStrandOverlayRef(graphName, 'ws_overlay');
+    const overlayRef = buildStrandWriterRef(graphName, created.strandId, 'tester');
 
     const overlaySha = await graph.patchStrand('ws_overlay', (p) => {
       p.setProperty('n1', 'color', 'blue');
@@ -421,12 +425,11 @@ describe('WarpCore strand foundation', () => {
 
     const descriptor = await graph.getStrand('ws_overlay');
     expect(descriptor?.overlay).toEqual({
-      overlayId: 'ws_overlay',
-      kind: 'patch-log',
-      headPatchSha: overlaySha,
-      patchCount: 1,
-      writable: true,
+      overlayId: mintOf(created.strandId), kind: 'patch-log', headPatchSha: overlaySha, patchCount: 1, writable: true,
     });
+    expect(descriptor?.writers).toEqual([
+      { writerId: 'tester', overlayId: mintOf(created.strandId), headPatchSha: overlaySha, patchCount: 1 },
+    ]);
     expect(descriptor?.braid).toEqual({ readOverlays: [] });
 
     const strandState = (await graph.materializeStrand('ws_overlay') as any);
@@ -449,7 +452,7 @@ describe('WarpCore strand foundation', () => {
       ],
     });
 
-    await graph.createStrand({
+    const created = await graph.createStrand({
       strandId: 'ws_receipts',
       owner: 'alice',
     });
@@ -472,7 +475,7 @@ describe('WarpCore strand foundation', () => {
     }
     expect(liveProps.status).toBeUndefined();
 
-    const overlayRef = buildStrandOverlayRef(graphName, 'ws_receipts');
+    const overlayRef = buildStrandWriterRef(graphName, created.strandId, 'tester');
     expect(await persistence.readRef(overlayRef)).toBe(overlaySha);
 
     await expect(graph.dropStrand('ws_receipts')).resolves.toBe(true);
@@ -524,14 +527,9 @@ describe('WarpCore strand foundation', () => {
       ],
     });
 
-    await graph.createStrand({
-      strandId: 'ws_target',
-      owner: 'alice',
-    });
-    await graph.createStrand({
-      strandId: 'ws_support',
-      owner: 'alice',
-    });
+    const target = await graph.createStrand({ strandId: 'ws_target', owner: 'alice' });
+    const support = await graph.createStrand({ strandId: 'ws_support', owner: 'alice' });
+    const braidRef = buildStrandBraidRef(graphName, target.strandId, { braidedStrandId: support.strandId, writerId: 'tester' });
 
     const supportSha = await graph.patchStrand('ws_support', (p) => {
       p.setProperty('n1', 'support', 'held');
@@ -547,14 +545,14 @@ describe('WarpCore strand foundation', () => {
     expect(braided.overlay.writable).toBe(true);
     expect(braided.braid.readOverlays).toEqual([
       {
-        strandId: 'ws_support',
-        overlayId: 'ws_support',
+        strandId: support.strandId,
+        overlayId: mintOf(support.strandId),
         kind: 'patch-log',
         headPatchSha: supportSha,
         patchCount: 1,
       },
     ]);
-    expect(await persistence.readRef(buildStrandBraidRef(graphName, 'ws_target', 'ws_support'))).toBe(supportSha);
+    expect(await persistence.readRef(braidRef)).toBe(supportSha);
 
     const braidedState = (await graph.materializeStrand('ws_target') as any);
     const braidedReader = createStateReader(braidedState);
@@ -569,20 +567,20 @@ describe('WarpCore strand foundation', () => {
       status: 'base',
     });
 
-    const comparison = await graph.compareStrand('ws_target', { targetId: 'n1' });
+    const comparison = await graph.compareStrand(target.strandId, { targetId: 'n1' });
     expect(comparison.left.resolved.strand).toMatchObject({
-      strandId: 'ws_target',
+      strandId: target.strandId,
       overlayHeadPatchSha: targetSha,
       overlayPatchCount: 1,
       overlayWritable: true,
       braid: {
         readOverlayCount: 1,
-        braidedStrandIds: ['ws_support'],
+        braidedStrandIds: [support.strandId],
       },
     });
 
     await expect(graph.dropStrand('ws_support')).resolves.toBe(true);
-    expect(await persistence.readRef(buildStrandBraidRef(graphName, 'ws_target', 'ws_support'))).toBe(supportSha);
+    expect(await persistence.readRef(braidRef)).toBe(supportSha);
   });
 
   it('braidStrand rejects support strands with a different pinned base observation', async () => {
@@ -626,8 +624,8 @@ describe('WarpCore strand foundation', () => {
       ],
     });
 
-    await graph.createStrand({ strandId: 'ws_target', owner: 'alice' });
-    await graph.createStrand({ strandId: 'ws_support', owner: 'alice' });
+    const target = await graph.createStrand({ strandId: 'ws_target', owner: 'alice' });
+    const support = await graph.createStrand({ strandId: 'ws_support', owner: 'alice' });
 
     const supportSha = await graph.patchStrand('ws_support', (p) => {
       p.setProperty('n1', 'support', 'held');
@@ -644,7 +642,7 @@ describe('WarpCore strand foundation', () => {
       code: 'E_STRAND_INVALID_ARGS',
     });
 
-    const braidRef = buildStrandBraidRef(graphName, 'ws_target', 'ws_support');
+    const braidRef = buildStrandBraidRef(graphName, target.strandId, { braidedStrandId: support.strandId, writerId: 'tester' });
     expect(await persistence.readRef(braidRef)).toBe(supportSha);
     await expect(graph.dropStrand('ws_target')).resolves.toBe(true);
     await expect(persistence.readRef(braidRef)).resolves.toBeNull();
@@ -700,7 +698,7 @@ describe('WarpCore strand foundation', () => {
       ],
     });
 
-    await graph.createStrand({
+    const created = await graph.createStrand({
       strandId: 'ws_entries',
       owner: 'alice',
     });
@@ -713,7 +711,7 @@ describe('WarpCore strand foundation', () => {
     const baseOnly = await graph.getStrandPatches('ws_entries', { ceiling: 1 });
 
     expect(full).toHaveLength(2);
-    expect(full.map(({ patch }) => patch.writer)).toEqual(['alice', 'ws_entries']);
+    expect(full.map(({ patch }) => patch.writer)).toEqual(['alice', created.overlay.overlayId]);
     expect(baseOnly).toHaveLength(1);
     expect(baseOnly[0].patch.writer).toBe('alice');
   });

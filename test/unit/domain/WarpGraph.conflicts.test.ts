@@ -301,7 +301,7 @@ describe('WarpCore.analyzeConflicts()', () => {
       ops: [{ type: 'PropSet', node: 'n1', key: 'color', value: 'red' }],
     });
 
-    await graph.createStrand({
+    const created = await graph.createStrand({
       strandId: 'ws_review',
       owner: 'alice',
     });
@@ -319,7 +319,7 @@ describe('WarpCore.analyzeConflicts()', () => {
     expect(liveAnalysis.conflicts).toHaveLength(0);
     expect(strandAnalysis.resolvedCoordinate.coordinateKind).toBe('strand');
     expect(strandAnalysis.resolvedCoordinate.strand).toMatchObject({
-      strandId: 'ws_review',
+      strandId: created.strandId,
       overlayPatchCount: 1,
     });
     expect(strandAnalysis.conflicts).toHaveLength(1);
@@ -327,7 +327,8 @@ describe('WarpCore.analyzeConflicts()', () => {
       kind: 'eventual_override',
       winner: {
         anchor: {
-          writerId: 'ws_review',
+          // Strand overlay patches are minted under @w.<writer>@s.<strand-id> (#1014).
+          writerId: created.overlay.overlayId,
         },
       },
     });

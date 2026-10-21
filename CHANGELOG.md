@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- Give every strand an immutable id and every strand writer its own dots.
+  A strand id is now the sha256 of a genesis record naming a creation
+  occurrence reserved from the creating writer's lane counter, so two strands
+  never share an id and renaming a strand keeps it. The former `strandId`
+  option of `createStrand` is now the strand's name; strand operations accept
+  either a unique name or the id. Each writer advances its own chain at
+  `refs/warp/<graph>/strands/<strand-id>/writers/<writer>` and mints dots
+  spelled `@w.<writer>@s.<strand-id>`, so a lane writer and a strand with the
+  same name, or two writers on one strand, no longer share dots. Descriptors
+  move to `strands/<strand-id>/descriptor` (schema 2) and braid pins to
+  `strands/<strand-id>/braids/<support-id>/<writer>`. Lane writer keys and lane
+  history are unchanged. `renameStrand` is new. The substrate marker advances
+  to version 21: a v19 or v20 repository is refused with
+  `E_SUBSTRATE_MIGRATION_REQUIRED` until the v20-to-v21 migration
+  ([#1015](https://github.com/git-stunts/git-warp/issues/1015)) has run
+  ([#1014](https://github.com/git-stunts/git-warp/issues/1014)).
+
 ### Fixed
 
 - Mint above every counter a writer has used, not only the counters in its

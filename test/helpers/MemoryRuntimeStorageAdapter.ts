@@ -16,6 +16,8 @@ import CasContentEncryptionPolicy from '../../src/infrastructure/adapters/CasCon
 import type AssetStoragePort from '../../src/ports/AssetStoragePort.ts';
 import InMemoryBlobStorageAdapter from './InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from './InMemoryGitCasFacade.ts';
+import InMemoryAllocationFloorStore from './InMemoryAllocationFloorStore.ts';
+import type AllocationFloorStorePort from '../../src/ports/AllocationFloorStorePort.ts';
 import InMemoryGraphAdapter from './InMemoryGraphAdapter.ts';
 import InMemorySyncReplayProtection from './InMemorySyncReplayProtection.ts';
 
@@ -33,6 +35,7 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
   readonly #cas: InMemoryGitCasFacade;
   readonly #encrypted: boolean;
   readonly #modelsRefs: boolean;
+  readonly #memoryFloors = new Map<string, InMemoryAllocationFloorStore>();
   readonly #syncReplayProtection = new Map<string, InMemorySyncReplayProtection>();
   readonly backing: InMemoryBlobStorageAdapter;
 
@@ -51,6 +54,21 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
       contentEncryption,
     });
     this.#encrypted = contentEncryption.enabled;
+  }
+
+  /**
+   * Hand-rolled vi.fn persistence mocks answer every readRef with one value,
+   * so they get map-backed floors instead of floor refs.
+   */
+  #allocationFloors(graphName: string): AllocationFloorStorePort {
+    if (this.#modelsRefs) {
+      return new GitAllocationFloorStoreAdapter({ history: this.#history, graphName });
+    }
+    const existing = this.#memoryFloors.get(graphName);
+    if (existing !== undefined) { return existing; }
+    const floors = new InMemoryAllocationFloorStore();
+    this.#memoryFloors.set(graphName, floors);
+    return floors;
   }
 
   createRuntimeStorageServices(request: RuntimeStorageRequest): Promise<RuntimeStorageServices> {
@@ -72,11 +90,7 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         assets: this.#content,
         codec: request.codec,
       }),
-      // Hand-rolled vi.fn persistence mocks do not model refs, so they get no
-      // floor store and openDotMint walks the whole chain instead.
-      ...(this.#modelsRefs
-        ? { allocationFloors: new GitAllocationFloorStoreAdapter({ history: this.#history, graphName: request.timelineName }) }
-        : {}),
+      allocationFloors: this.#allocationFloors(request.timelineName),
       patchJournal: new CborPatchJournalAdapter({
         assetStorage: this.#content,
         cas: this.#cas,

@@ -5,7 +5,7 @@ export const STRAND_TICK_ID_WIDTH = 4;
 export const STRAND_COUNTERFACTUAL_REASON = 'footprint_overlap';
 
 // Re-export constants consumed by StrandCoordinator
-export const STRAND_SCHEMA_VERSION = 1;
+export const STRAND_SCHEMA_VERSION = 2;
 export const STRAND_COORDINATE_VERSION = 'frontier-lamport/v1';
 export const STRAND_OVERLAY_KIND = 'patch-log';
 

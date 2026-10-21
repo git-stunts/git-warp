@@ -460,7 +460,9 @@ function strandFrontier(
   descriptor: NonNullable<Awaited<ReturnType<RuntimeGraph['getStrand']>>>,
 ): Map<string, string> {
   const frontier = new Map(Object.entries(descriptor.baseObservation.frontier));
-  addOverlayHead(frontier, descriptor.overlay);
+  for (const chain of descriptor.writers) {
+    addOverlayHead(frontier, chain);
+  }
   for (const overlay of descriptor.braid.readOverlays) {
     addOverlayHead(frontier, overlay);
   }

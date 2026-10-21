@@ -76,7 +76,6 @@ type ServiceOptions = {
     receipts?: TickReceipt[];
     allPatches: Array<{ patch: Patch; sha: string }>;
   }>;
-  writeDescriptor: (descriptor: StrandDescriptor) => Promise<void>;
   buildOverlayRef: (strandId: string) => string;
   buildIntentId: (strandId: string, sequence: number) => string;
 };
@@ -85,7 +84,6 @@ export default class StrandPatchService {
   private readonly _graph: WarpRuntime;
   private readonly _loadStrandOrThrow: (strandId: string) => Promise<StrandDescriptor>;
   private readonly _materializeDescriptor: ServiceOptions['materializeDescriptor'];
-  private readonly _writeDescriptor: (descriptor: StrandDescriptor) => Promise<void>;
   private readonly _buildOverlayRef: (strandId: string) => string;
   private readonly _buildIntentId: (strandId: string, sequence: number) => string;
 
@@ -96,14 +94,12 @@ export default class StrandPatchService {
     graph,
     loadStrandOrThrow,
     materializeDescriptor,
-    writeDescriptor,
     buildOverlayRef,
     buildIntentId,
   }: ServiceOptions) {
     this._graph = graph;
     this._loadStrandOrThrow = loadStrandOrThrow;
     this._materializeDescriptor = materializeDescriptor;
-    this._writeDescriptor = writeDescriptor;
     this._buildOverlayRef = buildOverlayRef;
     this._buildIntentId = buildIntentId;
   }
@@ -165,20 +161,12 @@ export default class StrandPatchService {
   /**
    * Update the strand descriptor and graph caches after a successful overlay commit.
    */
-  async syncOverlayDescriptor(descriptor: StrandDescriptor, { patch, sha }: CommittedPatchResult): Promise<void> {
-    const now = String(this._graph._maxObservedLamport);
-    const nextDescriptor: StrandDescriptor = {
-      ...descriptor,
-      updatedAt: now,
-      overlay: {
-        ...descriptor.overlay,
-        headPatchSha: sha,
-        patchCount: descriptor.overlay.patchCount + 1,
-      },
-    };
-
-    await this._writeDescriptor(nextDescriptor);
-
+  /**
+   * Records a committed strand patch in the runtime's caches. The strand's
+   * shared descriptor is not rewritten: chain heads are read from each
+   * writer's own ref (#1014), so writers never contend on the descriptor.
+   */
+  syncOverlayDescriptor(_descriptor: StrandDescriptor, { patch }: CommittedPatchResult): Promise<void> {
     if (patch.lamport > this._graph._maxObservedLamport) {
       this._graph._maxObservedLamport = patch.lamport;
     }
@@ -186,11 +174,9 @@ export default class StrandPatchService {
     this._graph._cachedViewHash = null;
     this._graph._cachedCeiling = null;
     this._graph._cachedFrontier = null;
+    return Promise.resolve();
   }
 
-  /**
-   * Encode, persist, and commit a single queued patch to the overlay chain.
-   */
   async commitQueuedPatch({
     strandId,
     overlayId,

@@ -74,13 +74,30 @@ function validateStringArray(value: unknown, message: string): void { // nosemgr
  * Validates the top-level identity and timestamp fields of a strand descriptor.
  */
 function validateTopLevelFields(obj: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  invariant(obj['schemaVersion'] === 1, `Corrupted ${label}: unsupported schemaVersion`);
+  invariant(obj['schemaVersion'] === 2, `Corrupted ${label}: unsupported schemaVersion`);
   assertNonEmptyString(obj['strandId'], `Corrupted ${label}: missing strandId`);
+  assertNonEmptyString(obj['name'], `Corrupted ${label}: missing name`);
   assertNonEmptyString(obj['graphName'], `Corrupted ${label}: missing graphName`);
   assertNonEmptyString(obj['createdAt'], `Corrupted ${label}: missing createdAt`);
   assertNonEmptyString(obj['updatedAt'], `Corrupted ${label}: missing updatedAt`);
   validateNullableString(obj['owner'], `Corrupted ${label}: owner must be string|null`);
   validateNullableString(obj['scope'], `Corrupted ${label}: scope must be string|null`);
+}
+
+/**
+ * Validates the genesis record a strand id is the hash of (#1014).
+ */
+function validateGenesis(obj: Record<string, unknown>, label: string): void { // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  const { genesis } = obj;
+  invariant(isPlainObject(genesis), `Corrupted ${label}: missing genesis object`);
+  for (const field of ['lane', 'creator', 'name', 'base']) {
+    assertNonEmptyString(genesis[field], `Corrupted ${label}: missing genesis.${field}`);
+  }
+  const { occurrence } = genesis;
+  invariant(
+    typeof occurrence === 'number' && Number.isSafeInteger(occurrence) && occurrence > 0,
+    `Corrupted ${label}: genesis.occurrence must be a positive integer`,
+  );
 }
 
 /**
@@ -296,6 +313,14 @@ function validateEvolution(obj: Record<string, unknown>, label: string): void { 
 export interface StrandDescriptor {
   readonly schemaVersion: number;
   readonly strandId: string;
+  readonly name: string;
+  readonly genesis: {
+    readonly lane: string;
+    readonly creator: string;
+    readonly occurrence: number;
+    readonly name: string;
+    readonly base: string;
+  };
   readonly graphName: string;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -350,6 +375,7 @@ export function parseStrandBlob(buf: Uint8Array, label: string): StrandDescripto
   }
 
   validateTopLevelFields(obj, label);
+  validateGenesis(obj, label);
   validateLease(obj, label);
   validateBaseObservation(obj, label);
   validateOverlay(obj, label);

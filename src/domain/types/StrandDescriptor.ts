@@ -45,9 +45,31 @@ export type StrandTickRecord = {
   overlayPatchShas: string[];
 };
 
+/** One writer's patch chain on a strand (#1014). */
+export type StrandWriterChain = {
+  writerId: string;
+  /** The chain's mint id spelling, `@w.<writer>@s.<strand-id>`. */
+  overlayId: string;
+  headPatchSha: string;
+  patchCount: number;
+};
+
+/** The creation occurrence a strand id is the hash of (#1014). */
+export type StrandGenesis = {
+  lane: string;
+  creator: string;
+  occurrence: number;
+  name: string;
+  base: string;
+};
+
 export type StrandDescriptor = {
   schemaVersion: number;
   strandId: string;
+  name: string;
+  genesis: StrandGenesis;
+  /** Every writer chain the strand view reads. `overlay` is this runtime writer's own. */
+  writers: StrandWriterChain[];
   graphName: string;
   createdAt: string;
   updatedAt: string;
@@ -85,7 +107,16 @@ export type StrandDescriptor = {
 };
 
 export type StrandCreateOptions = {
+  /** The strand's friendly name. The strand id is derived from its genesis (#1014). */
+  name?: string;
+  /** Former spelling of `name`; the strand id is never chosen by the caller. */
   strandId?: string;
+  /**
+   * The creation token a previous `createStrand` returned as
+   * `genesis.occurrence`. Retrying with it returns that strand instead of
+   * creating another.
+   */
+  creationToken?: number;
   lamportCeiling?: number | null;
   owner?: string | null;
   scope?: string | null;

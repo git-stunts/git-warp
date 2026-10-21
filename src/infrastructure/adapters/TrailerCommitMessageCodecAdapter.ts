@@ -11,10 +11,11 @@ import CommitMessageCodecPort, {
   PATCH_STORAGE_SCHEMA_GIT_CAS_CBOR_PATCH,
   PATCH_STORAGE_FORMAT,
 } from '../../ports/CommitMessageCodecPort.ts';
+import MintId from '../../domain/crdt/MintId.ts';
 import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import BundleHandle from '../../domain/storage/BundleHandle.ts';
-import { validateGraphName, validateWriterId } from '../../domain/utils/RefLayout.ts';
+import { validateGraphName } from '../../domain/utils/RefLayout.ts';
 
 export type {
   AnchorCommitMessage,
@@ -51,9 +52,10 @@ const graphNameSchema = z.string().superRefine((value, ctx) => {
   }
 });
 
-const writerIdSchema = z.string().superRefine((value, ctx) => {
+/** A patch writer is a mint id: a bare lane writer or `@w.<writer>@s.<strand-id>` (#1014). */
+const mintIdSchema = z.string().superRefine((value, ctx) => {
   try {
-    validateWriterId(value);
+    MintId.decode(value);
   } catch (error) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -93,7 +95,7 @@ const gitCasStorageSchema = z.object({
 const patchCommitMessageBaseSchema = z.object({
   kind: z.literal('patch'),
   graph: graphNameSchema,
-  writer: writerIdSchema,
+  writer: mintIdSchema,
   lamport: positiveIntegerSchema,
   schema: positiveIntegerSchema,
 });

@@ -31,7 +31,7 @@ between clones. They are separate decisions.
 | `writers/<writerId>` | The one clone that writes as `<writerId>` | Owner pushes; everyone else fetches, fast-forward only |
 | `substrate-version` | Shared, content-addressed marker | Pushed and fetched by name; identical on every clone |
 | `checkpoints/head`, `coverage/head`, `allocation/*` | Each clone, derived locally | Never transferred; each clone rebuilds its own |
-| `strands/*`, `strand-overlays/*`, `strand-braids/*` | The clone that created the strand | Clone-local; transfer rules are tracked in [#999](https://github.com/git-stunts/git-warp/issues/999) |
+| `strands/<strand-id>/*` | The clone that created the strand | Clone-local; transfer rules are tracked in [#999](https://github.com/git-stunts/git-warp/issues/999) |
 | `intents/*`, `audit/*`, `trust/records` | Writer or operator | Clone-local; transfer rules are tracked in [#999](https://github.com/git-stunts/git-warp/issues/999) |
 
 A checkpoint head is replaced, not fast-forwarded, whenever its clone

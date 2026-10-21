@@ -44,6 +44,9 @@ export default abstract class StrandCapability {
   /** List known strand descriptors. */
   abstract listStrands(): Promise<StrandDescriptor[]>;
 
+  /** Rename a strand. Its id and its mint ids never change (#1014). */
+  abstract renameStrand(_strandId: string, _name: string): Promise<StrandDescriptor>;
+
   /** Drop a strand descriptor and return whether it existed. */
   abstract dropStrand(_strandId: string): Promise<boolean>;
 

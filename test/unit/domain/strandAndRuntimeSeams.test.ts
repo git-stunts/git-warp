@@ -53,18 +53,21 @@ describe('strand and runtime host seams', () => {
     const patches = await core.getStrandPatches('review');
     const entityPatches = await core.patchesForStrand('review', 'task:review');
 
-    expect(descriptor.strandId).toBe('review');
+    // The caller's value is the friendly name; the id is the genesis hash (#1014).
+    expect(descriptor.name).toBe('review');
+    expect(descriptor.strandId).toMatch(/^[0-9a-f]{64}$/);
     expect(descriptor.owner).toBe('agent-1');
     expect(braided.overlay.writable).toBe(false);
     expect(materialized.nodeAlive.contains('task:review')).toBe(true);
     expect(patches).toHaveLength(1);
     expect(entityPatches).toEqual([requireSinglePatchSha(patches)]);
     await expect(core.getStrand('review')).resolves.toMatchObject({
-      strandId: 'review',
+      strandId: descriptor.strandId,
+      name: 'review',
       overlay: { patchCount: 1, writable: false },
     });
     await expect(core.listStrands()).resolves.toEqual([
-      expect.objectContaining({ strandId: 'review' }),
+      expect.objectContaining({ strandId: descriptor.strandId, name: 'review' }),
     ]);
   });
 
