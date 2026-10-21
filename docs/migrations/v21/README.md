@@ -60,8 +60,8 @@ For each graph:
   `resolved`, `unmapped` or `ambiguous`.
 - **Damage is reported, not repaired.** Duplicate dots and the collateral
   deletions they caused are listed in the report. They never block the
-  migration. Repair is a separate, explicit operation
-  ([#1022](https://github.com/git-stunts/git-warp/issues/1022)).
+  migration. Repair is a separate, explicit operation (see
+  [Repairing duplicate dots](#repairing-duplicate-dots)).
 - **The marker advances last.** The record at
   `refs/warp/<graph>/migrations/v21` journals progress. An interrupted run
   leaves the graph on v20, and rerunning resumes it with the same strand ids.
@@ -90,3 +90,32 @@ npx git-warp-v20-to-v21 --repo ./team-repo --check
 
 A fresh v20.0.0 open of a migrated graph is refused with
 `E_SUBSTRATE_VERSION_UNSUPPORTED`.
+
+## Repairing duplicate dots
+
+Until a recorded lane collision is repaired, a remove that would tombstone its
+shared dot is refused with `E_PATCH_REMOVE_SHARED_DOT`, because it would also
+hide every other object carrying that dot.
+
+```ts
+const previews = await core.previewDotRepair();
+// [{ dot: 'alice:1', members: [...], options: [{ policy: 'separate', ... }, ...] }]
+
+await core.applyDotRepair({ dot: 'alice:1', policy: 'separate' });
+await core.applyDotRepair({ dot: 'alice:7', policy: 'restore', targets: ['note:keep'] });
+```
+
+- `separate` gives every visible member its own dot. Visible state does not
+  change.
+- `restore` re-adds the members you select, including ones the shared dot
+  already hid.
+
+Either way, a remove of the shared dot that an offline replica already holds
+no longer hides a re-added member. Read the preview before applying.
+
+A repair appends ordinary patches under `repair.<your writer id>`, so two
+clones repairing the same collision never mint the same dots. Each repair is
+recorded at `refs/warp/<graph>/repairs/<id>`, and repeating it returns that
+record instead of minting again. A collision that is visible only inside a
+strand cannot be repaired from the lane, because the strand's base is pinned.
+It stays guarded.

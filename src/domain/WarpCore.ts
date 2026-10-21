@@ -71,6 +71,8 @@ export default class WarpCore {
   declare readonly patchMany: WarpCoreRuntimeSurface['patchMany'];
   declare readonly getWriterPatches: WarpCoreRuntimeSurface['getWriterPatches'];
   declare readonly writer: WarpCoreRuntimeSurface['writer'];
+  declare readonly previewDotRepair: WarpCoreRuntimeSurface['previewDotRepair'];
+  declare readonly applyDotRepair: WarpCoreRuntimeSurface['applyDotRepair'];
   declare readonly discoverWriters: WarpCoreRuntimeSurface['discoverWriters'];
   declare readonly discoverTicks: WarpCoreRuntimeSurface['discoverTicks'];
   declare readonly join: WarpCoreRuntimeSurface['join'];

@@ -39,6 +39,7 @@ import GitCasMaterializationCacheDiagnosticsAdapter, {
 } from './GitCasMaterializationCacheDiagnosticsAdapter.ts';
 import GitAllocationFloorStoreAdapter from './GitAllocationFloorStoreAdapter.ts';
 import GitV21MigrationProvenanceAdapter from './GitV21MigrationProvenanceAdapter.ts';
+import GitDotRepairStoreAdapter from './GitDotRepairStoreAdapter.ts';
 import SubstrateVersionGate from './SubstrateVersionGate.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from './TrailerCommitMessageCodecAdapter.ts';
 
@@ -147,6 +148,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       patchJournal: this._createPatchJournal(request, content),
       allocationFloors: new GitAllocationFloorStoreAdapter({ history: this._history, graphName: request.timelineName }),
       allocationProvenance: new GitV21MigrationProvenanceAdapter({ history: this._history, graphName: request.timelineName }),
+      dotRepairs: new GitDotRepairStoreAdapter({ history: this._history, graphName: request.timelineName }),
       checkpoints: this._createCheckpointStore(request),
       indexes: this._createIndexStore(request, content),
       materializations,

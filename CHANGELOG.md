@@ -28,6 +28,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Repair duplicate dots explicitly. `previewDotRepair()` lists each collision
+  the v21 migration recorded, which members are visible, and what each policy
+  would do, including that a remove an offline replica already holds stops
+  hiding a re-added member. `applyDotRepair({ dot, policy, targets })`
+  appends ordinary patches under `repair.<writer>`: `separate` gives every
+  visible member its own dot, and `restore` re-adds the members you select.
+  Each repair is recorded at `refs/warp/<graph>/repairs/<id>`, and retrying it
+  returns that record without minting again. Until a lane collision is
+  repaired, a remove that would tombstone its shared dot is refused with
+  `E_PATCH_REMOVE_SHARED_DOT`. Collisions only visible inside a strand stay
+  guarded, because a strand's base is pinned
+  ([#1022](https://github.com/git-stunts/git-warp/issues/1022)).
 - Add the `git-warp-v20-to-v21` migration. It converts v19/v20 strands to
   immutable ids and per-writer chains without rewriting lane history,
   resolving every legacy dot by origin: a remove tombstones every identity

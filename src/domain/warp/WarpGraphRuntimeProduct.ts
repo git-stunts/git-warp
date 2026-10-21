@@ -38,6 +38,8 @@ export function buildWarpGraphRuntimeSurface(runtime: RuntimeGraphHostProduct): 
     patchMany: runtime.patchMany.bind(runtime),
     getWriterPatches: runtime.getWriterPatches.bind(runtime),
     writer: runtime.writer.bind(runtime),
+    previewDotRepair: runtime.previewDotRepair.bind(runtime),
+    applyDotRepair: runtime.applyDotRepair.bind(runtime),
     discoverWriters: runtime.discoverWriters.bind(runtime),
     discoverTicks: runtime.discoverTicks.bind(runtime),
     join: runtime.join.bind(runtime),

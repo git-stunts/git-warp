@@ -57,6 +57,7 @@ export const RESERVED_GRAPH_NAME_SEGMENTS: Set<string> = new Set([
   'state-cache',
   'allocation',
   'migrations',
+  'repairs',
 ]);
 
 // -----------------------------------------------------------------------------
@@ -374,6 +375,20 @@ export function buildAllocationFloorRef(graphName: string, writerId: string): st
 export function buildV21MigrationRecordRef(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/migrations/v21`;
+}
+
+/** Builds the prefix of a graph's duplicate-dot repair records (#1022). */
+export function buildDotRepairsPrefix(graphName: string): string {
+  validateGraphName(graphName);
+  return `${REF_PREFIX}/${graphName}/repairs/`;
+}
+
+/** Builds the ref of one duplicate-dot repair record; ids are 64-hex digests. */
+export function buildDotRepairRef(graphName: string, repairId: string): string {
+  if (!/^[0-9a-f]{64}$/.test(repairId)) {
+    throw new WarpError(`Invalid repair id: ${repairId}`, 'E_DOT_REPAIR_INVALID', { context: { repairId } });
+  }
+  return `${buildDotRepairsPrefix(graphName)}${repairId}`;
 }
 
 /**

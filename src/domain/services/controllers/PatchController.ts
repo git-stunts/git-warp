@@ -12,6 +12,8 @@
 
 import { PatchBuilder } from '../PatchBuilder.ts';
 import type AllocationFloorStorePort from '../../../ports/AllocationFloorStorePort.ts';
+import type DotRepairStorePort from '../../../ports/DotRepairStorePort.ts';
+import SharedDotRemovalGuard from '../SharedDotRemovalGuard.ts';
 import openDotMint from '../openDotMint.ts';
 import { joinStates, applyWithDiff, applyWithReceipt, type WarpState } from '../JoinReducer.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
@@ -66,6 +68,7 @@ type SetMaterializedState = (
  */
 export interface PatchHost extends PatchDiscoveryHost {
   _allocationFloors: AllocationFloorStorePort | null;
+  _dotRepairs: DotRepairStorePort | null;
   _writerId: string;
   _versionVector: VersionVector;
   _cachedState: WarpState | null;
@@ -147,9 +150,7 @@ export default class PatchController {
 
   // ── Patch creation ──────────────────────────────────────────────────────────
 
-  /**
-   * Creates a new PatchBuilder for this graph.
-   */
+  /** Creates a new PatchBuilder for this graph. */
   async createPatch(): Promise<PatchBuilder> {
     const h = this._host;
 
@@ -166,6 +167,7 @@ export default class PatchController {
       }),
       getCurrentState: () => h._cachedState,
       getSnapshotFrontier: () => h._cachedFrontier ?? null,
+      removalGuard: await SharedDotRemovalGuard.load(h._dotRepairs, 'lane'),
       expectedParentSha: parentSha,
       onDeleteWithData: h._onDeleteWithData,
       onCommitSuccess: (commitOpts) => this._onPatchCommitted(h._writerId, commitOpts),
@@ -189,9 +191,7 @@ export default class PatchController {
     return new PatchBuilder(opts);
   }
 
-  /**
-   * Convenience wrapper: creates a patch, runs the callback, and commits.
-   */
+  /** Convenience wrapper: creates a patch, runs the callback, and commits. */
   async patch(build: (p: PatchBuilder) => void | Promise<void>): Promise<string> {
     return (await this.patchWithEvidence(build)).sha;
   }
@@ -217,9 +217,7 @@ export default class PatchController {
     }
   }
 
-  /**
-   * Applies multiple patches sequentially.
-   */
+  /** Applies multiple patches sequentially. */
   async patchMany(...builds: Array<(p: PatchBuilder) => void | Promise<void>>): Promise<string[]> {
     if (builds.length === 0) {
       return [];
@@ -386,6 +384,7 @@ export default class PatchController {
       onCommitSuccess: (opts) => this._onPatchCommitted(resolvedWriterId, opts),
       patchJournal,
       allocationFloors: h._allocationFloors,
+      dotRepairs: h._dotRepairs,
       commitMessageCodec: h._commitMessageCodec,
     };
     if (h._logger !== null && h._logger !== undefined) {

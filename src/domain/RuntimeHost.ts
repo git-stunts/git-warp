@@ -65,6 +65,9 @@ import type AuditLogPort from '../ports/AuditLogPort.ts';
 import type PatchJournalPort from '../ports/PatchJournalPort.ts';
 import type AllocationFloorStorePort from '../ports/AllocationFloorStorePort.ts';
 import type AllocationProvenancePort from '../ports/AllocationProvenancePort.ts';
+import type DotRepairStorePort from '../ports/DotRepairStorePort.ts';
+import type DotRepairRecord from './repair/DotRepairRecord.ts';
+import DotRepairService, { type DotRepairPlan, type DotRepairPreview } from './services/repair/DotRepairService.ts';
 import AllocationProvenance from './migrations/AllocationProvenance.ts';
 import type StrandStorePort from '../ports/StrandStorePort.ts';
 import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
@@ -263,6 +266,7 @@ export default class RuntimeHost {
   _patchJournal: PatchJournalPort;
   _allocationFloors: AllocationFloorStorePort | null;
   _allocationProvenance: AllocationProvenancePort | null;
+  _dotRepairs: DotRepairStorePort | null;
   _strandStore: StrandStorePort;
   _checkpointStore: CheckpointStorePort;
   _indexStore: IndexStorePort;
@@ -303,6 +307,7 @@ export default class RuntimeHost {
       patchJournal,
       allocationFloors,
       allocationProvenance,
+      dotRepairs,
       strandStore,
       checkpointStore,
       indexStore,
@@ -443,6 +448,7 @@ export default class RuntimeHost {
     this._patchJournal = patchJournal;
     this._allocationFloors = allocationFloors ?? null;
     this._allocationProvenance = allocationProvenance ?? null;
+    this._dotRepairs = dotRepairs ?? null;
     this._strandStore = strandStore;
     this._checkpointStore = checkpointStore;
     this._indexStore = indexStore;
@@ -702,6 +708,28 @@ export default class RuntimeHost {
     return this._allocationProvenance === null
       ? AllocationProvenance.unmapped(original)
       : await this._allocationProvenance.resolve(commit, operationIndex, original);
+  }
+
+  /** Previews repairs of the dot collisions the v21 migration recorded (#1022). */
+  async previewDotRepair(): Promise<readonly DotRepairPreview[]> {
+    return await this.#dotRepair().preview();
+  }
+
+  /** Appends one previewed duplicate-dot repair under `repair.<writer>`, or returns the one already recorded (#1022). */
+  async applyDotRepair(plan: DotRepairPlan): Promise<DotRepairRecord> {
+    return await this.#dotRepair().apply(plan);
+  }
+
+  #dotRepair(): DotRepairService {
+    return new DotRepairService({
+      graphName: this._graphName,
+      writerId: this._writerId,
+      crypto: this._crypto,
+      store: this._dotRepairs,
+      materialize: async () => await this.materialize(),
+      getFrontier: async () => await this.getFrontier(),
+      commitAs: async (writerId, build) => await (await this.writer(writerId)).commitPatch(build),
+    });
   }
   getStrandPatches: StrandController['getStrandPatches'] = (...args) => this._strandController.getStrandPatches(...args);
   getStrandOverlayPatches: StrandController['getStrandOverlayPatches'] = (...args) =>
