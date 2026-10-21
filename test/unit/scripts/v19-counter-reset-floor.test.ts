@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import NodeAdd from '../../../src/domain/types/ops/NodeAdd.ts';
 import {
+  advanceLaneOnlyMarker,
   readV19PreWorldlineManifest,
   restoreV19PreWorldlineFixture,
   withFixtureHost,
@@ -41,6 +42,7 @@ describe('allocation floor on the v19.1.0 counter-reset fixture (#1021)', () => 
 
   it('mints above alice:100 although the reset head says alice -> 1, and stays above after a reopen', async () => {
     repository = await restoreV19PreWorldlineFixture(await readV19PreWorldlineManifest());
+    advanceLaneOnlyMarker(repository, GRAPH);
 
     await writeUnmaterialized(repository, 'item:after-floor');
     await writeUnmaterialized(repository, 'item:after-reopen');

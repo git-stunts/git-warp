@@ -226,6 +226,10 @@ export default class WarpApp {
     return await this.core().braidStrand(strandId, options);
   }
 
+  async renameStrand(strandId: string, name: string): Promise<Awaited<ReturnType<WarpCore['renameStrand']>>> {
+    return await this.core().renameStrand(strandId, name);
+  }
+
   async dropStrand(strandId: string): Promise<Awaited<ReturnType<WarpCore['dropStrand']>>> {
     return await this.core().dropStrand(strandId);
   }

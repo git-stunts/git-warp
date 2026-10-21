@@ -52,6 +52,10 @@ export default class StrandController {
     return await this._strandService.list();
   }
 
+  async renameStrand(strandId: string, name: string): Promise<StrandDescriptor> {
+    return await this._strandService.rename(strandId, name);
+  }
+
   async dropStrand(strandId: string): Promise<boolean> {
     return await this._strandService.drop(strandId);
   }

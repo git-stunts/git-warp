@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildStrandRef } from '../../../../src/domain/utils/RefLayout.ts';
+import { buildStrandBraidRef, buildStrandRef, buildStrandWriterRef } from '../../../../src/domain/utils/RefLayout.ts';
 import GitCasAssetStorageAdapter from '../../../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
 import GitCasStrandStoreAdapter from '../../../../src/infrastructure/adapters/GitCasStrandStoreAdapter.ts';
 import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
@@ -8,6 +8,15 @@ import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
 const encoder = new TextEncoder();
+
+/** Strand ids are 64-hex genesis hashes (#1014); names never reach the store. */
+const DRAFT = 'd'.repeat(64);
+const ALPHA = 'a'.repeat(64);
+const ZETA = 'f'.repeat(64);
+const RETIRED = 'e'.repeat(64);
+const MISSING = '0'.repeat(64);
+const TREE = 'b'.repeat(64);
+const MALFORMED = 'c'.repeat(64);
 
 function createFixture() {
   const history = new InMemoryGraphAdapter();
@@ -30,7 +39,7 @@ describe('GitCasStrandStoreAdapter', () => {
     });
     const published = await strands.publishDescriptor({
       graphName: 'events',
-      strandId: 'draft',
+      strandId: DRAFT,
       descriptor: encoder.encode('{"version":1}'),
       attachments: [attachment.handle, attachment.handle],
     });
@@ -44,7 +53,7 @@ describe('GitCasStrandStoreAdapter', () => {
       ['descriptor', published.descriptorAsset.handle.toString()],
       ['attachments/00000000', attachment.handle.toString()],
     ]);
-    await expect(strands.readDescriptor('events', 'draft'))
+    await expect(strands.readDescriptor('events', DRAFT))
       .resolves.toEqual(encoder.encode('{"version":1}'));
   });
 
@@ -52,23 +61,24 @@ describe('GitCasStrandStoreAdapter', () => {
     const { history, strands } = createFixture();
     const alpha = await strands.publishDescriptor({
       graphName: 'events',
-      strandId: 'alpha',
+      strandId: ALPHA,
       descriptor: encoder.encode('alpha'),
       attachments: [],
     });
     await strands.publishDescriptor({
       graphName: 'events',
-      strandId: 'zeta',
+      strandId: ZETA,
       descriptor: encoder.encode('zeta'),
       attachments: [],
     });
-    await history.updateRef('refs/warp/events/strands/alpha/braids/other', alpha.revision);
+    await history.updateRef(buildStrandBraidRef('events', ALPHA, { braidedStrandId: ZETA, writerId: 'alice' }), alpha.revision);
+    await history.updateRef(buildStrandWriterRef('events', ALPHA, 'alice'), alpha.revision);
 
-    expect(await strands.listStrandIds('events')).toEqual(['alpha', 'zeta']);
-    expect(await strands.hasDescriptor('events', 'alpha')).toBe(true);
-    expect(await strands.deleteDescriptor('events', 'alpha')).toBe(true);
-    expect(await strands.deleteDescriptor('events', 'alpha')).toBe(false);
-    expect(await strands.hasDescriptor('events', 'alpha')).toBe(false);
+    expect(await strands.listStrandIds('events')).toEqual([ALPHA, ZETA]);
+    expect(await strands.hasDescriptor('events', ALPHA)).toBe(true);
+    expect(await strands.deleteDescriptor('events', ALPHA)).toBe(true);
+    expect(await strands.deleteDescriptor('events', ALPHA)).toBe(false);
+    expect(await strands.hasDescriptor('events', ALPHA)).toBe(false);
   });
 
   it('rejects descriptor refs that point directly to blobs', async () => {
@@ -76,24 +86,24 @@ describe('GitCasStrandStoreAdapter', () => {
     const readObjectType = vi.spyOn(history, 'readObjectType');
     const readBlob = vi.spyOn(history, 'readBlob');
     const blob = await history.writeBlob(encoder.encode('retired descriptor'));
-    await history.updateRef(buildStrandRef('events', 'retired'), blob);
+    await history.updateRef(buildStrandRef('events', RETIRED), blob);
 
-    await expect(strands.readDescriptor('events', 'retired'))
+    await expect(strands.readDescriptor('events', RETIRED))
       .rejects.toMatchObject({ code: 'E_STRAND_CORRUPT' });
     expect(readBlob).not.toHaveBeenCalled();
     expect(readObjectType).toHaveBeenCalledWith(blob);
-    await expect(strands.readDescriptor('events', 'missing')).resolves.toBeNull();
+    await expect(strands.readDescriptor('events', MISSING)).resolves.toBeNull();
   });
 
   it('does not delete a descriptor concurrently replaced after the read', async () => {
     const { history, strands } = createFixture();
     await strands.publishDescriptor({
       graphName: 'events',
-      strandId: 'draft',
+      strandId: DRAFT,
       descriptor: encoder.encode('draft'),
       attachments: [],
     });
-    const ref = buildStrandRef('events', 'draft');
+    const ref = buildStrandRef('events', DRAFT);
     const replacement = 'd'.repeat(40);
     const compareAndDelete = history.compareAndDeleteRef.bind(history);
     vi.spyOn(history, 'compareAndDeleteRef').mockImplementationOnce(async (target, expected) => {
@@ -101,18 +111,18 @@ describe('GitCasStrandStoreAdapter', () => {
       return await compareAndDelete(target, expected);
     });
 
-    await expect(strands.deleteDescriptor('events', 'draft')).resolves.toBe(false);
+    await expect(strands.deleteDescriptor('events', DRAFT)).resolves.toBe(false);
     await expect(history.readRef(ref)).resolves.toBe(replacement);
   });
 
   it('refuses to publish over a non-commit descriptor head', async () => {
     const { history, strands } = createFixture();
     const blob = await history.writeBlob(encoder.encode('retired descriptor'));
-    await history.updateRef(buildStrandRef('events', 'retired'), blob);
+    await history.updateRef(buildStrandRef('events', RETIRED), blob);
 
     await expect(strands.publishDescriptor({
       graphName: 'events',
-      strandId: 'retired',
+      strandId: RETIRED,
       descriptor: encoder.encode('current descriptor'),
       attachments: [],
     })).rejects.toMatchObject({ code: 'E_STRAND_CORRUPT' });
@@ -120,9 +130,9 @@ describe('GitCasStrandStoreAdapter', () => {
 
   it('rejects descriptor refs targeting unsupported object types', async () => {
     const { history, strands } = createFixture();
-    await history.updateRef(buildStrandRef('events', 'tree'), history.emptyTree);
+    await history.updateRef(buildStrandRef('events', TREE), history.emptyTree);
 
-    await expect(strands.readDescriptor('events', 'tree'))
+    await expect(strands.readDescriptor('events', TREE))
       .rejects.toMatchObject({ code: 'E_STRAND_CORRUPT' });
   });
 
@@ -132,17 +142,17 @@ describe('GitCasStrandStoreAdapter', () => {
       'warp:strand-descriptor',
       '',
       'eg-graph: other',
-      'eg-strand: draft',
+      `eg-strand: ${DRAFT}`,
       'eg-strand-descriptor-handle: unused',
     ].join('\n'));
-    await history.updateRef(buildStrandRef('events', 'draft'), mismatched);
+    await history.updateRef(buildStrandRef('events', DRAFT), mismatched);
 
-    await expect(strands.readDescriptor('events', 'draft'))
+    await expect(strands.readDescriptor('events', DRAFT))
       .rejects.toMatchObject({ code: 'E_STRAND_CORRUPT' });
 
     const malformed = await commitDescriptorMessage(history, 'warp:strand-descriptor');
-    await history.updateRef(buildStrandRef('events', 'malformed'), malformed);
-    await expect(strands.readDescriptor('events', 'malformed'))
+    await history.updateRef(buildStrandRef('events', MALFORMED), malformed);
+    await expect(strands.readDescriptor('events', MALFORMED))
       .rejects.toMatchObject({ code: 'E_STRAND_CORRUPT' });
   });
 });

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import createStrandCoordinator from '../../../../../src/domain/services/strand/createStrandCoordinator.ts';
 import {
@@ -19,6 +20,13 @@ import BundleHandle from '../../../../../src/domain/storage/BundleHandle.ts';
 import type PatchType from '../../../../../src/domain/types/Patch.ts';
 import type { StrandDescriptor as StrandDescriptorType } from '../../../../../src/domain/services/strand/strandTypes.ts';
 import InMemoryBlobStorageAdapter from '../../../../helpers/InMemoryBlobStorageAdapter.ts';
+import InMemoryAllocationFloorStore from '../../../../helpers/InMemoryAllocationFloorStore.ts';
+import MintId from '../../../../../src/domain/crdt/MintId.ts';
+import {
+  buildStrandBraidRef,
+  buildStrandRef,
+  buildStrandWriterRef,
+} from '../../../../../src/domain/utils/RefLayout.ts';
 import { testRetentionWitness } from '../../../../helpers/storageRetention.ts';
 
 /** @typedef {import('../../../../../src/domain/utils/parseStrandBlob.ts').StrandDescriptor} ParsedStrandBlob */
@@ -50,6 +58,31 @@ let blobs;
 /** @type {Map<string, Array<{patch: object, sha: string}>>} sha -> patch chain */
 let patchChains;
 
+const GRAPH = 'test-graph';
+const WRITER = 'writer1';
+const HEX64 = /^[0-9a-f]{64}$/;
+
+/**
+ * Fixture strands are named; their ids are deterministic 64-hex stand-ins
+ * for genesis hashes (#1014), so fixtures resolve by name like real strands.
+ */
+function sid(name: string): string {
+  return createHash('sha256').update(`fixture-strand:${name}`).digest('hex');
+}
+/** A writer's strand mint id: the overlay id and patch writer of its chain. */
+function mintOf(name: string, writerId: string = WRITER): string {
+  return MintId.strand(writerId, sid(name)).encode();
+}
+function descriptorRef(name: string): string {
+  return buildStrandRef(GRAPH, sid(name));
+}
+function writerRef(name: string, writerId: string = WRITER): string {
+  return buildStrandWriterRef(GRAPH, sid(name), writerId);
+}
+function braidRef(target: string, support: string, writerId: string = WRITER): string {
+  return buildStrandBraidRef(GRAPH, sid(target), { braidedStrandId: sid(support), writerId });
+}
+
 const DERIVED_CACHE_AUTHORITY = ('derived' as 'derived');
 const COORDINATE_VERSION = (STRAND_COORDINATE_VERSION);
 const OVERLAY_KIND = (STRAND_OVERLAY_KIND);
@@ -60,11 +93,6 @@ const OVERLAY_KIND = (STRAND_OVERLAY_KIND);
  *   _resolveQueuedIntentIdentity(candidate: Record<string, unknown>): { patch: Patch, intentId: string, enqueuedAt: string }|null,
  *   _normalizeQueuedIntents(value: unknown): StrandQueuedIntent[],
  *   _normalizeRejectedCounterfactuals(value: unknown): Array<{ intentId: string, reason: string, conflictsWith: string[], reads: string[], writes: string[] }>,
- *   _matchesHydratedDescriptor(
- *     descriptor: StrandDescriptor,
- *     braidedReadOverlays: StrandDescriptor['braid']['readOverlays'],
- *     overlay: { headPatchSha: string|null, patchCount: number }
- *   ): boolean
  * }} DescriptorStorePrivate
  */
 
@@ -232,10 +260,14 @@ function makeQueuedIntent(overrides = {}) {
  * @param {Partial<StrandDescriptor>} [overrides]
  * @returns {StrandDescriptor}
  */
-function buildValidDescriptor(overrides = {}) {
-  return (({
-    schemaVersion:  (1),
-    strandId: 'test-strand',
+type DescriptorOverrides = { name?: string; [field: string]: object | string | number | null | undefined };
+
+function buildValidDescriptor({ name = 'test-strand', ...overrides }: DescriptorOverrides = {}) {
+  const descriptor = (({
+    schemaVersion: STRAND_SCHEMA_VERSION,
+    strandId: sid(name),
+    name,
+    genesis: { lane: GRAPH, creator: WRITER, occurrence: 1, name, base: 'digest-abc' },
     graphName: 'test-graph',
     createdAt: '2026-04-06T00:00:00.000Z',
     updatedAt: '2026-04-06T00:00:00.000Z',
@@ -249,7 +281,7 @@ function buildValidDescriptor(overrides = {}) {
       lamportCeiling: null,
     },
     overlay: {
-      overlayId: 'test-strand',
+      overlayId: mintOf(name),
       kind: OVERLAY_KIND,
       headPatchSha: null,
       patchCount: 0,
@@ -262,8 +294,19 @@ function buildValidDescriptor(overrides = {}) {
     intentQueue: { nextIntentSeq: 1, intents: [] },
     evolution: { tickCount: 0, lastTick: null },
     materialization: { cacheAuthority: DERIVED_CACHE_AUTHORITY },
+    writers: [],
     ...overrides,
   }) as unknown as StrandDescriptorType);
+  // Like a hydrated descriptor, the runtime writer's own chain is one of the writer chains.
+  const { overlay } = descriptor;
+  if (overrides['writers'] === undefined && overlay.headPatchSha !== null) {
+    descriptor.writers = [chainOf(WRITER, overlay.overlayId, overlay.headPatchSha, overlay.patchCount)];
+  }
+  return descriptor;
+}
+
+function chainOf(writerId: string, overlayId: string, headPatchSha: string, patchCount: number) {
+  return { writerId, overlayId, headPatchSha, patchCount };
 }
 
 /**
@@ -273,7 +316,7 @@ function buildValidDescriptor(overrides = {}) {
 function storeDescriptor(descriptor) {
   const oid = nextOid();
   blobs.set(oid, textEncode(JSON.stringify(descriptor)));
-  const refPath = `refs/warp/test-graph/strands/${descriptor.strandId}`;
+  const refPath = buildStrandRef(GRAPH, descriptor.strandId);
   refs.set(refPath, oid);
   return oid;
 }
@@ -321,7 +364,7 @@ function createMockGraph() {
 
   const strandStore = {
     readDescriptor: vi.fn((graphName, strandId) => {
-      const ref = `refs/warp/${graphName}/strands/${strandId}`;
+      const ref = buildStrandRef(graphName, strandId);
       const revision = refs.get(ref);
       if (revision === undefined) {
         return Promise.resolve(null);
@@ -335,7 +378,7 @@ function createMockGraph() {
     publishDescriptor: vi.fn((request) => {
       const revision = nextOid();
       blobs.set(revision, request.descriptor.slice());
-      refs.set(`refs/warp/${request.graphName}/strands/${request.strandId}`, revision);
+      refs.set(buildStrandRef(request.graphName, request.strandId), revision);
       const descriptorHandle = new AssetHandle(`asset:${revision}`);
       return Promise.resolve({
         revision,
@@ -355,16 +398,15 @@ function createMockGraph() {
     listStrandIds: vi.fn((graphName) => {
       const prefix = `refs/warp/${graphName}/strands/`;
       return Promise.resolve([...refs.keys()]
-        .filter((ref) => ref.startsWith(prefix))
-        .map((ref) => ref.slice(prefix.length))
-        .filter((strandId) => !strandId.includes('/'))
+        .filter((ref) => ref.startsWith(prefix) && ref.endsWith('/descriptor'))
+        .map((ref) => ref.slice(prefix.length, ref.length - '/descriptor'.length))
         .sort());
     }),
     hasDescriptor: vi.fn((graphName, strandId) => Promise.resolve(
-      refs.has(`refs/warp/${graphName}/strands/${strandId}`),
+      refs.has(buildStrandRef(graphName, strandId)),
     )),
     deleteDescriptor: vi.fn((graphName, strandId) => Promise.resolve(
-      refs.delete(`refs/warp/${graphName}/strands/${strandId}`),
+      refs.delete(buildStrandRef(graphName, strandId)),
     )),
   };
 
@@ -410,7 +452,7 @@ function createMockGraph() {
       }),
     },
     _crypto: {
-      hash: vi.fn(async (_algo, data) => `sha256:${typeof data === 'string' ? data.slice(0, 16) : 'bytes'}`),
+      hash: vi.fn(async (_algo, data) => createHash('sha256').update(data).digest('hex')),
     },
     _cachedState: null,
     _patchInProgress: false,
@@ -423,6 +465,7 @@ function createMockGraph() {
     _provenanceDegraded: true,
     _strandStore: strandStore,
     _patchJournal: patchJournal,
+    _allocationFloors: new InMemoryAllocationFloorStore(),
     _logger: /** @type {{ info: ReturnType<typeof vi.fn>, warn: ReturnType<typeof vi.fn>, error: ReturnType<typeof vi.fn> }|null} */ (null),
     _assetStorage: new InMemoryBlobStorageAdapter(),
     _commitMessageCodec: {
@@ -452,8 +495,8 @@ describe('StrandService', () => {
   // ── Exported constants ────────────────────────────────────────────────────
 
   describe('exported constants', () => {
-    it('exports STRAND_SCHEMA_VERSION as 1', () => {
-      expect(STRAND_SCHEMA_VERSION).toBe(1);
+    it('exports STRAND_SCHEMA_VERSION as 2', () => {
+      expect(STRAND_SCHEMA_VERSION).toBe(2);
     });
 
     it('exports STRAND_COORDINATE_VERSION', () => {
@@ -499,7 +542,7 @@ describe('StrandService', () => {
 
   describe('descriptor store seam', () => {
     it('reads overlay metadata directly from the descriptor store', async () => {
-      const metadata = await service._descriptorStore.readOverlayMetadata('alpha');
+      const metadata = await service._descriptorStore.readOverlayMetadata(sid('alpha'));
 
       expect(metadata).toEqual({ headPatchSha: null, patchCount: 0 });
     });
@@ -540,7 +583,7 @@ describe('StrandService', () => {
             buildValidDescriptor(
                (
                  ({
-                  strandId: 'alpha',
+                  name: 'alpha',
                   braid: {},
                 })
               ),
@@ -551,14 +594,15 @@ describe('StrandService', () => {
       expect(hydrated.braid.readOverlays).toEqual([]);
     });
 
-    it('returns false when hydrated overlay comparison sees a sparse candidate slot', () => {
-      const privateStore = descriptorStorePrivate(service._descriptorStore);
+    it('hydrates from live refs without republishing the stored descriptor', async () => {
+      // #1014: hydration no longer compares against and rewrites the persisted
+      // descriptor; chain heads and writers are read from refs on every load.
       const descriptor = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         braid: {
           readOverlays: [{
-            strandId: 'beta',
-            overlayId: 'beta',
+            strandId: sid('beta'),
+            overlayId: mintOf('beta'),
             kind: STRAND_OVERLAY_KIND,
             headPatchSha: null,
             patchCount: 0,
@@ -566,11 +610,13 @@ describe('StrandService', () => {
         },
       });
 
-      expect(privateStore._matchesHydratedDescriptor(
-        descriptor,
-        new Array(1),
-        { headPatchSha: null, patchCount: 0 },
-      )).toBe(false);
+      storeDescriptor(descriptor);
+
+      const hydrated = requirePresent(await service.get('alpha'));
+
+      expect(hydrated.braid.readOverlays).toHaveLength(1);
+      expect(hydrated.writers).toEqual([]);
+      expect(graph._strandStore.publishDescriptor).not.toHaveBeenCalled();
     });
 
     it('throws boundary validation errors for invalid descriptor field types', () => {
@@ -589,19 +635,19 @@ describe('StrandService', () => {
 
   describe('patch service seam', () => {
     it('builds queued intents through the patch service boundary', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       const intent = await service._patchService.buildQueuedIntent(desc, (builder) => {
         builder.addNode('node:test');
       });
 
-      expect(intent.intentId).toBe('alpha.intent.0001');
+      expect(intent.intentId).toBe(`${sid('alpha')}.intent.0001`);
       expect(Object.isFrozen(intent)).toBe(true);
     });
 
     it('normalizes sparse queued intent arrays through the patch service boundary', () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       const privatePatchService = patchServicePrivate(service._patchService);
 
       const intent = privatePatchService._freezeQueuedIntent(
@@ -625,7 +671,7 @@ describe('StrandService', () => {
     });
 
     it('rejects non-string queued intent footprint entries at the patch service boundary', () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       const privatePatchService = patchServicePrivate(service._patchService);
 
       expect(() => privatePatchService._freezeQueuedIntent(
@@ -645,7 +691,7 @@ describe('StrandService', () => {
     });
 
     it('rejects blank queued intent footprint entries at the patch service boundary', () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       const privatePatchService = patchServicePrivate(service._patchService);
 
       expect(() => privatePatchService._freezeQueuedIntent(
@@ -683,12 +729,17 @@ describe('StrandService', () => {
       const descriptor = await service.create({ strandId: 'alpha' });
 
       expect(descriptor.schemaVersion).toBe(STRAND_SCHEMA_VERSION);
-      expect(descriptor.strandId).toBe('alpha');
+      // The caller's value names the strand; its id hashes the genesis record (#1014).
+      expect(descriptor.name).toBe('alpha');
+      expect(descriptor.strandId).toMatch(HEX64);
+      expect(descriptor.genesis).toEqual({
+        lane: 'test-graph', creator: 'writer1', occurrence: 1, name: 'alpha', base: descriptor.baseObservation.frontierDigest,
+      });
       expect(descriptor.graphName).toBe('test-graph');
       expect(descriptor.baseObservation.coordinateVersion).toBe(STRAND_COORDINATE_VERSION);
       expect(descriptor.baseObservation.frontier).toEqual({ writer1: 'tip-sha-1' });
       expect(descriptor.baseObservation.checkpointSha).toBeNull();
-      expect(descriptor.overlay.overlayId).toBe('alpha');
+      expect(descriptor.overlay.overlayId).toBe(MintId.strand('writer1', descriptor.strandId).encode());
       expect(descriptor.overlay.kind).toBe(STRAND_OVERLAY_KIND);
       expect(descriptor.overlay.headPatchSha).toBeNull();
       expect(descriptor.overlay.patchCount).toBe(0);
@@ -756,13 +807,13 @@ describe('StrandService', () => {
     });
 
     it('publishes the descriptor through the semantic strand store', async () => {
-      await service.create({ strandId: 'alpha' });
+      const created = await service.create({ strandId: 'alpha' });
 
       expect(graph._strandStore.publishDescriptor).toHaveBeenCalledTimes(1);
       expect(graph._strandStore.publishDescriptor).toHaveBeenCalledWith(
         expect.objectContaining({
           graphName: 'test-graph',
-          strandId: 'alpha',
+          strandId: created.strandId,
           attachments: [],
         }),
       );
@@ -776,7 +827,7 @@ describe('StrandService', () => {
     });
 
     it('throws E_STRAND_ALREADY_EXISTS when strand exists', async () => {
-      const desc = buildValidDescriptor({ strandId: 'existing' });
+      const desc = buildValidDescriptor({ name: 'existing' });
       storeDescriptor(desc);
 
       await expect(service.create({ strandId: 'existing' }))
@@ -866,12 +917,12 @@ describe('StrandService', () => {
 
   describe('get', () => {
     it('returns descriptor when strand exists', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       const result = await service.get('alpha');
 
-      expect(requirePresent(result).strandId).toBe('alpha');
+      expect(requirePresent(result).strandId).toBe(sid('alpha'));
     });
 
     it('returns null when strand does not exist', async () => {
@@ -881,7 +932,7 @@ describe('StrandService', () => {
     });
 
     it('hydrates overlay metadata from live refs', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       const result = await service.get('alpha');
@@ -891,19 +942,19 @@ describe('StrandService', () => {
 
     it('sorts braided read overlays from persisted descriptors', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         braid: {
           readOverlays: [
             {
-              strandId: 'zeta',
-              overlayId: 'zeta',
+              strandId: sid('zeta'),
+              overlayId: mintOf('zeta'),
               kind: STRAND_OVERLAY_KIND,
               headPatchSha: 'zeta-head',
               patchCount: 1,
             },
             {
-              strandId: 'beta',
-              overlayId: 'beta',
+              strandId: sid('beta'),
+              overlayId: mintOf('beta'),
               kind: STRAND_OVERLAY_KIND,
               headPatchSha: 'beta-head',
               patchCount: 2,
@@ -915,25 +966,25 @@ describe('StrandService', () => {
 
       const result = await service.get('alpha');
 
-      expect(requirePresent(result).braid.readOverlays.map((overlay) => overlay.strandId)).toEqual(['beta', 'zeta']);
+      expect(requirePresent(result).braid.readOverlays.map((overlay) => overlay.strandId)).toEqual([sid('beta'), sid('zeta')].sort());
     });
 
-    it('throws E_STRAND_ID_INVALID for invalid strandId', async () => {
-      await expect(service.get('')).rejects.toThrow(StrandError);
+    it('throws E_STRAND_ID_INVALID for an empty strand reference', async () => {
+      await expect(service.get('')).rejects.toMatchObject({ code: 'E_STRAND_ID_INVALID' });
     });
 
     it('throws E_STRAND_MISSING_OBJECT when blob is missing', async () => {
       // Set ref to point to a non-existent blob
-      refs.set('refs/warp/test-graph/strands/ghost', 'nonexistent-oid');
+      refs.set(descriptorRef('ghost'), 'nonexistent-oid');
 
       await expect(service.get('ghost')).rejects.toThrow(StrandError);
     });
 
     it('throws E_STRAND_CORRUPT when descriptor graphName differs', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha', graphName: 'other-graph' });
+      const desc = buildValidDescriptor({ name: 'alpha', graphName: 'other-graph' });
       const oid = nextOid();
       blobs.set(oid, textEncode(JSON.stringify(desc)));
-      refs.set('refs/warp/test-graph/strands/alpha', oid);
+      refs.set(descriptorRef('alpha'), oid);
 
       await expect(service.get('alpha')).rejects.toThrow(StrandError);
     });
@@ -941,7 +992,7 @@ describe('StrandService', () => {
     it('throws E_STRAND_CORRUPT for invalid JSON', async () => {
       const oid = nextOid();
       blobs.set(oid, textEncode('not valid json!!!'));
-      refs.set('refs/warp/test-graph/strands/broken', oid);
+      refs.set(descriptorRef('broken'), oid);
 
       await expect(service.get('broken')).rejects.toThrow(StrandError);
     });
@@ -951,11 +1002,11 @@ describe('StrandService', () => {
 
   describe('getOrThrow', () => {
     it('returns descriptor when strand exists', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       const result = await service.getOrThrow('alpha');
-      expect(result.strandId).toBe('alpha');
+      expect(result.strandId).toBe(sid('alpha'));
     });
 
     it('throws E_STRAND_NOT_FOUND when strand is missing', async () => {
@@ -972,16 +1023,15 @@ describe('StrandService', () => {
 
   describe('list', () => {
     it('returns all strands sorted by strandId', async () => {
-      storeDescriptor(buildValidDescriptor({ strandId: 'charlie' }));
-      storeDescriptor(buildValidDescriptor({ strandId: 'alpha' }));
-      storeDescriptor(buildValidDescriptor({ strandId: 'bravo' }));
+      storeDescriptor(buildValidDescriptor({ name: 'charlie' }));
+      storeDescriptor(buildValidDescriptor({ name: 'alpha' }));
+      storeDescriptor(buildValidDescriptor({ name: 'bravo' }));
 
       const result = await service.list();
 
-      expect(result).toHaveLength(3);
-      expect(requirePresent(result[0]).strandId).toBe('alpha');
-      expect(requirePresent(result[1]).strandId).toBe('bravo');
-      expect(requirePresent(result[2]).strandId).toBe('charlie');
+      // Strands list in strand-id order; ids are genesis hashes, not names (#1014).
+      expect(result.map((entry) => entry.strandId)).toEqual([sid('alpha'), sid('bravo'), sid('charlie')].sort());
+      expect(result.map((entry) => entry.name).sort()).toEqual(['alpha', 'bravo', 'charlie']);
     });
 
     it('returns empty array when no strands exist', async () => {
@@ -990,11 +1040,11 @@ describe('StrandService', () => {
     });
 
     it('throws when a strand blob is corrupt', async () => {
-      storeDescriptor(buildValidDescriptor({ strandId: 'good' }));
+      storeDescriptor(buildValidDescriptor({ name: 'good' }));
       // Create a ref pointing to broken blob
       const badOid = nextOid();
       blobs.set(badOid, textEncode('not json'));
-      refs.set('refs/warp/test-graph/strands/bad', badOid);
+      refs.set(descriptorRef('bad'), badOid);
 
       await expect(service.list()).rejects.toThrow(StrandError);
     });
@@ -1004,16 +1054,16 @@ describe('StrandService', () => {
 
   describe('drop', () => {
     it('deletes all refs for a strand and returns true', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
       // Also add overlay and braid refs using correct ref layout
-      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'overlay-sha');
-      refs.set('refs/warp/test-graph/strand-braids/alpha/beta', 'braid-sha');
+      refs.set(writerRef('alpha'), 'overlay-sha');
+      refs.set(braidRef('alpha', 'beta'), 'braid-sha');
 
       const result = await service.drop('alpha');
 
       expect(result).toBe(true);
-      expect(refs.has('refs/warp/test-graph/strands/alpha/descriptor')).toBe(false);
+      expect(refs.has(descriptorRef('alpha'))).toBe(false);
     });
 
     it('returns false when strand does not exist', async () => {
@@ -1027,14 +1077,14 @@ describe('StrandService', () => {
   describe('braid', () => {
     it('attaches read-only overlay strands', async () => {
       // Create target strand
-      const target = buildValidDescriptor({ strandId: 'target' });
+      const target = buildValidDescriptor({ name: 'target' });
       storeDescriptor(target);
 
       // Create a braided strand with matching base observation
       const braided = buildValidDescriptor({
-        strandId: 'support',
+        name: 'support',
         overlay: {
-          overlayId: 'support',
+          overlayId: mintOf('support'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: 'support-head',
           patchCount: 2,
@@ -1048,15 +1098,15 @@ describe('StrandService', () => {
       });
 
       expect(result.braid.readOverlays).toHaveLength(1);
-      expect(requirePresent(result.braid.readOverlays[0]).strandId).toBe('support');
+      expect(requirePresent(result.braid.readOverlays[0]).strandId).toBe(sid('support'));
     });
 
     it('throws E_STRAND_COORDINATE_INVALID for mismatched base observations', async () => {
-      const target = buildValidDescriptor({ strandId: 'target' });
+      const target = buildValidDescriptor({ name: 'target' });
       storeDescriptor(target);
 
       const mismatched = buildValidDescriptor({
-        strandId: 'divergent',
+        name: 'divergent',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { writer2: 'different-tip' },
@@ -1072,11 +1122,11 @@ describe('StrandService', () => {
     });
 
     it('throws when braided strands have different frontier cardinality', async () => {
-      const target = buildValidDescriptor({ strandId: 'target' });
+      const target = buildValidDescriptor({ name: 'target' });
       storeDescriptor(target);
 
       const support = buildValidDescriptor({
-        strandId: 'support',
+        name: 'support',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { writer1: 'tip-sha-1', writer2: 'tip-sha-2' },
@@ -1092,7 +1142,7 @@ describe('StrandService', () => {
     });
 
     it('overrides writable flag when provided', async () => {
-      const target = buildValidDescriptor({ strandId: 'target' });
+      const target = buildValidDescriptor({ name: 'target' });
       storeDescriptor(target);
 
       const result = await service.braid('target', { writable: false });
@@ -1105,11 +1155,11 @@ describe('StrandService', () => {
     });
 
     it('throws E_STRAND_BRAID_SELF for self-braids', async () => {
-      const target = buildValidDescriptor({ strandId: 'target' });
+      const target = buildValidDescriptor({ name: 'target' });
       storeDescriptor(target);
 
       try {
-        await service.braid('target', { braidedStrandIds: ['target'] });
+        await service.braid('target', { braidedStrandIds: [sid('target')] });
         expect.unreachable('should have thrown');
       } catch (err) {
         expect(requireStrandError(err).code).toBe('E_STRAND_BRAID_SELF');
@@ -1117,10 +1167,10 @@ describe('StrandService', () => {
     });
 
     it('deduplicates braided strand IDs', async () => {
-      const target = buildValidDescriptor({ strandId: 'target' });
+      const target = buildValidDescriptor({ name: 'target' });
       storeDescriptor(target);
 
-      const support = buildValidDescriptor({ strandId: 'support' });
+      const support = buildValidDescriptor({ name: 'support' });
       storeDescriptor(support);
 
       const result = await service.braid('target', {
@@ -1131,7 +1181,7 @@ describe('StrandService', () => {
     });
 
     it('silently ignores non-array braidedStrandIds (treats as empty)', async () => {
-      const target = buildValidDescriptor({ strandId: 'target' });
+      const target = buildValidDescriptor({ name: 'target' });
       storeDescriptor(target);
 
       // normalizeBraidedStrandIds returns [] for non-array inputs without throwing
@@ -1140,7 +1190,7 @@ describe('StrandService', () => {
     });
 
     it('throws E_STRAND_INVALID_ARGS for empty braided strand ids', async () => {
-      const target = buildValidDescriptor({ strandId: 'target' });
+      const target = buildValidDescriptor({ name: 'target' });
       storeDescriptor(target);
 
       await expect(
@@ -1149,7 +1199,7 @@ describe('StrandService', () => {
     });
 
     it('throws E_STRAND_INVALID_ARGS for non-boolean writable overrides', async () => {
-      const target = buildValidDescriptor({ strandId: 'target' });
+      const target = buildValidDescriptor({ name: 'target' });
       storeDescriptor(target);
 
       await expect(
@@ -1185,7 +1235,7 @@ describe('StrandService', () => {
     });
 
     it('returns materialized state for a strand with no patches', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
             const result = (await service.materialize('alpha')) as any;
@@ -1199,7 +1249,7 @@ describe('StrandService', () => {
     });
 
     it('returns state + receipts when receipts option is true', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
             const result = (await service.materialize('alpha', { receipts: true })) as any;
@@ -1215,7 +1265,7 @@ describe('StrandService', () => {
 
     it('applies lamport ceiling filter', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { writer1: 'tip-sha-1' },
@@ -1242,7 +1292,7 @@ describe('StrandService', () => {
     });
 
     it('freezes the returned state', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       const result = await service.materialize('alpha');
@@ -1251,7 +1301,7 @@ describe('StrandService', () => {
     });
 
     it('materializes correctly when runtime options are set on the graph', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
       graph._checkpointPolicy = { every: 10 };
       graph._logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
@@ -1272,9 +1322,9 @@ describe('StrandService', () => {
 
     it('throws E_STRAND_INVALID_ARGS when overlay is not writable', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'readonly',
+        name: 'readonly',
         overlay: {
-          overlayId: 'readonly',
+          overlayId: mintOf('readonly'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: null,
           patchCount: 0,
@@ -1292,7 +1342,7 @@ describe('StrandService', () => {
     });
 
     it('returns a PatchBuilder for writable strands', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
             const builder = (await service.createPatchBuilder('alpha')) as any;
@@ -1303,7 +1353,7 @@ describe('StrandService', () => {
     });
 
     it('passes logger through to the patch builder and getCurrentState returns strand-materialized state', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
       const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
       graph._logger = logger;
@@ -1345,7 +1395,7 @@ describe('StrandService', () => {
     });
 
     it('sets and clears patchInProgress flag', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       let wasInProgress = false;
@@ -1388,7 +1438,7 @@ describe('StrandService', () => {
     });
 
     it('throws E_STRAND_EMPTY_INTENT for empty operations', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       try {
@@ -1403,9 +1453,9 @@ describe('StrandService', () => {
 
     it('throws E_STRAND_INVALID_ARGS when overlay is not writable', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'readonly',
+        name: 'readonly',
         overlay: {
-          overlayId: 'readonly',
+          overlayId: mintOf('readonly'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: null,
           patchCount: 0,
@@ -1425,14 +1475,14 @@ describe('StrandService', () => {
     });
 
     it('returns a frozen queued intent with deterministic intentId', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
             const intent = await service.queueIntent('alpha', (/** @type {any} */ builder) => {
         builder.addNode('node:test');
       });
 
-      expect(intent.intentId).toMatch(/^alpha\.intent\./);
+      expect(intent.intentId).toBe(`${sid('alpha')}.intent.0001`);
       expect(intent.enqueuedAt).toBeTruthy();
       expect(intent.patch).toBeDefined();
       expect(Array.isArray(intent.reads)).toBe(true);
@@ -1442,7 +1492,7 @@ describe('StrandService', () => {
     });
 
     it('persists updated descriptor with intent in queue', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       await service.queueIntent('alpha', (/** @type {any} */ builder) => {
@@ -1457,7 +1507,7 @@ describe('StrandService', () => {
 
     it('clears cachedViewHash after queuing', async () => {
       graph._cachedViewHash = 'stale';
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       await service.queueIntent('alpha', (/** @type {any} */ builder) => {
@@ -1468,7 +1518,7 @@ describe('StrandService', () => {
     });
 
     it('builds queued intents with snapshot state and logger wiring', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
       const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
       const snapshotState = createEmptyState();
@@ -1495,7 +1545,7 @@ describe('StrandService', () => {
 
   describe('listIntents', () => {
     it('returns empty array when no intents queued', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       const intents = await service.listIntents('alpha');
@@ -1504,7 +1554,7 @@ describe('StrandService', () => {
 
     it('returns frozen intent snapshots', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         intentQueue: {
           nextIntentSeq: 2,
           intents: [{
@@ -1535,13 +1585,13 @@ describe('StrandService', () => {
 
   describe('tick', () => {
     it('returns a frozen tick record for empty queue', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
             const tickRecord = (await service.tick('alpha')) as any;
 
       expect(tickRecord.tickId).toBeTruthy();
-      expect(tickRecord.strandId).toBe('alpha');
+      expect(tickRecord.strandId).toBe(sid('alpha'));
       expect(tickRecord.tickIndex).toBe(1);
       expect(tickRecord.drainedIntentCount).toBe(0);
       expect(tickRecord.admittedIntentIds).toEqual([]);
@@ -1551,7 +1601,7 @@ describe('StrandService', () => {
 
     it('increments tickIndex from existing evolution', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         evolution: {
           tickCount: 3,
           lastTick: null,
@@ -1565,7 +1615,7 @@ describe('StrandService', () => {
 
     it('admits independent intents and rejects overlapping ones', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         intentQueue: {
           nextIntentSeq: 4,
           intents: [
@@ -1612,7 +1662,7 @@ describe('StrandService', () => {
 
     it('clears the intent queue after tick', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         intentQueue: {
           nextIntentSeq: 2,
           intents: [{
@@ -1634,7 +1684,7 @@ describe('StrandService', () => {
     });
 
     it('updates graph cache flags after tick', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       graph._stateDirty = false;
@@ -1660,7 +1710,7 @@ describe('StrandService', () => {
   describe('getPatchEntries', () => {
     it('returns patches from base observation writers', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { writer1: 'tip-sha-1' },
@@ -1681,7 +1731,7 @@ describe('StrandService', () => {
 
     it('uses live parent basis for patch entries when no pinned overlays exist', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { writer1: 'base-tip' },
@@ -1706,7 +1756,7 @@ describe('StrandService', () => {
 
     it('filters by ceiling when provided', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { writer1: 'tip-sha-1' },
@@ -1729,7 +1779,7 @@ describe('StrandService', () => {
 
     it('deduplicates patches by SHA', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { writer1: 'tip-sha-1', writer2: 'tip-sha-2' },
@@ -1749,9 +1799,9 @@ describe('StrandService', () => {
 
     it('includes overlay patches', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         overlay: {
-          overlayId: 'alpha',
+          overlayId: mintOf('alpha'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: 'overlay-head',
           patchCount: 1,
@@ -1760,13 +1810,13 @@ describe('StrandService', () => {
       });
       storeDescriptor(desc);
       // Also set overlay ref so hydration sees it
-      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'overlay-head');
+      refs.set(writerRef('alpha'), 'overlay-head');
 
       patchChains.set('tip-sha-1', [
         { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'base-1' },
       ]);
       patchChains.set('overlay-head', [
-        { patch: makePatch({ lamport: 2, writer: 'alpha' }), sha: 'overlay-1' },
+        { patch: makePatch({ lamport: 2, writer: mintOf('alpha') }), sha: 'overlay-1' },
       ]);
 
       const entries = await service.getPatchEntries('alpha');
@@ -1775,11 +1825,11 @@ describe('StrandService', () => {
 
     it('includes braided overlay patches', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         braid: {
           readOverlays: [{
-            strandId: 'support',
-            overlayId: 'overlay-support',
+            strandId: sid('support'),
+            overlayId: mintOf('support'),
             kind: STRAND_OVERLAY_KIND,
             headPatchSha: 'support-head',
             patchCount: 1,
@@ -1792,7 +1842,7 @@ describe('StrandService', () => {
         { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'base-1' },
       ]);
       patchChains.set('support-head', [
-        { patch: makePatch({ lamport: 3, writer: 'overlay-support' }), sha: 'support-1' },
+        { patch: makePatch({ lamport: 3, writer: mintOf('support') }), sha: 'support-1' },
       ]);
 
       const entries = await service.getPatchEntries('alpha');
@@ -1808,7 +1858,7 @@ describe('StrandService', () => {
 
   describe('patchesFor', () => {
     it('returns sorted SHAs of patches touching the entity', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       patchChains.set('tip-sha-1', [
@@ -1843,7 +1893,7 @@ describe('StrandService', () => {
     });
 
     it('returns empty array when no patches touch the entity', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       patchChains.set('tip-sha-1', [
@@ -1863,7 +1913,7 @@ describe('StrandService', () => {
     });
 
     it('throws E_STRAND_INVALID_ARGS for empty entityId', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       try {
@@ -1875,7 +1925,7 @@ describe('StrandService', () => {
     });
 
     it('throws E_STRAND_INVALID_ARGS for null entityId', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       await expect(
@@ -1884,7 +1934,7 @@ describe('StrandService', () => {
     });
 
     it('returns results sorted lexicographically', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       patchChains.set('tip-sha-1', [
@@ -1992,30 +2042,29 @@ describe('StrandService', () => {
 
   describe('ref building', () => {
     it('_buildRef returns correct ref path', () => {
-      const ref = strandServicePrivate(service)._buildRef('alpha');
-      expect(ref).toContain('test-graph');
-      expect(ref).toContain('alpha');
+      const ref = strandServicePrivate(service)._buildRef(sid('alpha'));
+      expect(ref).toBe(`refs/warp/test-graph/strands/${sid('alpha')}/descriptor`);
     });
 
-    it('_buildOverlayRef returns correct ref path', () => {
-      const ref = strandServicePrivate(service)._buildOverlayRef('alpha');
-      expect(ref).toContain('test-graph');
-      expect(ref).toContain('alpha');
-      expect(ref).toContain('overlay');
+    it('_buildOverlayRef returns the runtime writer chain ref', () => {
+      const ref = strandServicePrivate(service)._buildOverlayRef(sid('alpha'));
+      expect(ref).toBe(`refs/warp/test-graph/strands/${sid('alpha')}/writers/writer1`);
     });
 
     it('_buildBraidPrefix returns correct prefix', () => {
-      const prefix = strandServicePrivate(service)._buildBraidPrefix('alpha');
-      expect(prefix).toContain('test-graph');
-      expect(prefix).toContain('alpha');
-      expect(prefix).toContain('braids');
+      const prefix = strandServicePrivate(service)._buildBraidPrefix(sid('alpha'));
+      expect(prefix).toBe(`refs/warp/test-graph/strands/${sid('alpha')}/braids/`);
     });
 
     it('descriptor store buildBraidRef returns correct ref path', () => {
-      const ref = service._descriptorStore.buildBraidRef('alpha', 'beta');
-      expect(ref).toContain('test-graph');
-      expect(ref).toContain('alpha');
-      expect(ref).toContain('beta');
+      const ref = service._descriptorStore.buildBraidRef(sid('alpha'), sid('beta'), 'writer2');
+      expect(ref).toBe(`refs/warp/test-graph/strands/${sid('alpha')}/braids/${sid('beta')}/writer2`);
+    });
+
+    it('ref builders refuse friendly names with E_STRAND_ID_INVALID', () => {
+      expect(() => strandServicePrivate(service)._buildRef('alpha')).toThrow(
+        expect.objectContaining({ code: 'E_STRAND_ID_INVALID' }),
+      );
     });
 
     it('_buildRef throws E_STRAND_ID_INVALID for empty strandId', () => {
@@ -2043,15 +2092,15 @@ describe('StrandService', () => {
 
   describe('descriptor store seam', () => {
     it('parses a valid descriptor from the semantic store', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       storeDescriptor(desc);
 
       const result = await service._descriptorStore.readDescriptor('alpha');
-      expect(requirePresent(result).strandId).toBe('alpha');
+      expect(requirePresent(result).strandId).toBe(sid('alpha'));
     });
 
     it('throws E_STRAND_MISSING_OBJECT when descriptor storage cannot open a publication', async () => {
-      refs.set('refs/warp/test-graph/strands/ghost', 'nonexistent');
+      refs.set(descriptorRef('ghost'), 'nonexistent');
       try {
         await service._descriptorStore.readDescriptor('ghost');
         expect.unreachable('should have thrown');
@@ -2063,7 +2112,7 @@ describe('StrandService', () => {
     it('throws E_STRAND_CORRUPT for invalid JSON', async () => {
       const oid = nextOid();
       blobs.set(oid, textEncode('not json'));
-      refs.set('refs/warp/test-graph/strands/broken', oid);
+      refs.set(descriptorRef('broken'), oid);
 
       try {
         await service._descriptorStore.readDescriptor('broken');
@@ -2074,10 +2123,10 @@ describe('StrandService', () => {
     });
 
     it('throws E_STRAND_CORRUPT when graphName does not match', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha', graphName: 'other-graph' });
+      const desc = buildValidDescriptor({ name: 'alpha', graphName: 'other-graph' });
       const oid = nextOid();
       blobs.set(oid, textEncode(JSON.stringify(desc)));
-      refs.set('refs/warp/test-graph/strands/alpha', oid);
+      refs.set(descriptorRef('alpha'), oid);
 
       try {
         await service._descriptorStore.readDescriptor('alpha');
@@ -2093,7 +2142,7 @@ describe('StrandService', () => {
 
   describe('_writeDescriptor', () => {
     it('serializes and publishes a descriptor through StrandStorePort', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
 
       await strandServicePrivate(service)._writeDescriptor(desc);
 
@@ -2101,12 +2150,12 @@ describe('StrandService', () => {
       const request = requirePresent(graph._strandStore.publishDescriptor.mock.calls[0])[0];
       expect(request).toMatchObject({
         graphName: 'test-graph',
-        strandId: 'alpha',
+        strandId: sid('alpha'),
         attachments: [],
       });
       const writtenData = request.descriptor;
       const parsed = JSON.parse(textDecode(writtenData));
-      expect(parsed.strandId).toBe('alpha');
+      expect(parsed.strandId).toBe(sid('alpha'));
     });
   });
 
@@ -2114,19 +2163,19 @@ describe('StrandService', () => {
 
   describe('descriptor store readOverlayMetadata', () => {
     it('returns null head and zero patches when no overlay ref exists', async () => {
-      const metadata = await service._descriptorStore.readOverlayMetadata('alpha');
+      const metadata = await service._descriptorStore.readOverlayMetadata(sid('alpha'));
 
       expect(metadata).toEqual({ headPatchSha: null, patchCount: 0 });
     });
 
     it('returns live overlay head and patch count from the overlay chain', async () => {
-      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'overlay-head');
+      refs.set(writerRef('alpha'), 'overlay-head');
       patchChains.set('overlay-head', [
-        { patch: makePatch({ lamport: 2, writer: 'alpha' }), sha: 'overlay-1' },
-        { patch: makePatch({ lamport: 3, writer: 'alpha' }), sha: 'overlay-2' },
+        { patch: makePatch({ lamport: 2, writer: mintOf('alpha') }), sha: 'overlay-1' },
+        { patch: makePatch({ lamport: 3, writer: mintOf('alpha') }), sha: 'overlay-2' },
       ]);
 
-      const metadata = await service._descriptorStore.readOverlayMetadata('alpha');
+      const metadata = await service._descriptorStore.readOverlayMetadata(sid('alpha'));
 
       expect(metadata).toEqual({ headPatchSha: 'overlay-head', patchCount: 2 });
     });
@@ -2135,9 +2184,9 @@ describe('StrandService', () => {
   describe('_hydrateOverlayMetadata', () => {
     it('normalizes braid overlays and preserves matching live overlay metadata', async () => {
       const descriptor = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         overlay: {
-          overlayId: 'alpha',
+          overlayId: mintOf('alpha'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: 'overlay-head',
           patchCount: 2,
@@ -2146,15 +2195,15 @@ describe('StrandService', () => {
         braid: {
           readOverlays: [
             {
-              strandId: 'zeta',
-              overlayId: 'zeta',
+              strandId: sid('zeta'),
+              overlayId: mintOf('zeta'),
               kind: STRAND_OVERLAY_KIND,
               headPatchSha: null,
               patchCount: 0,
             },
             {
-              strandId: 'beta',
-              overlayId: 'beta',
+              strandId: sid('beta'),
+              overlayId: mintOf('beta'),
               kind: STRAND_OVERLAY_KIND,
               headPatchSha: null,
               patchCount: 0,
@@ -2162,33 +2211,33 @@ describe('StrandService', () => {
           ],
         },
       });
-      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'overlay-head');
+      refs.set(writerRef('alpha'), 'overlay-head');
       patchChains.set('overlay-head', [
-        { patch: makePatch({ lamport: 2, writer: 'alpha' }), sha: 'overlay-1' },
-        { patch: makePatch({ lamport: 3, writer: 'alpha' }), sha: 'overlay-2' },
+        { patch: makePatch({ lamport: 2, writer: mintOf('alpha') }), sha: 'overlay-1' },
+        { patch: makePatch({ lamport: 3, writer: mintOf('alpha') }), sha: 'overlay-2' },
       ]);
 
       const hydrated = await strandServicePrivate(service)._hydrateOverlayMetadata(descriptor);
 
       expect(hydrated.overlay.headPatchSha).toBe('overlay-head');
       expect(hydrated.overlay.patchCount).toBe(2);
-      expect(hydrated.braid.readOverlays.map((overlay) => overlay.strandId)).toEqual(['beta', 'zeta']);
+      expect(hydrated.braid.readOverlays.map((overlay) => overlay.strandId)).toEqual([sid('beta'), sid('zeta')].sort());
     });
 
     it('replaces stale persisted overlay metadata with live overlay state', async () => {
       const descriptor = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         overlay: {
-          overlayId: 'alpha',
+          overlayId: mintOf('alpha'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: null,
           patchCount: 0,
           writable: true,
         },
       });
-      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'live-head');
+      refs.set(writerRef('alpha'), 'live-head');
       patchChains.set('live-head', [
-        { patch: makePatch({ lamport: 4, writer: 'alpha' }), sha: 'overlay-1' },
+        { patch: makePatch({ lamport: 4, writer: mintOf('alpha') }), sha: 'overlay-1' },
       ]);
 
       const hydrated = await strandServicePrivate(service)._hydrateOverlayMetadata(descriptor);
@@ -2200,11 +2249,11 @@ describe('StrandService', () => {
 
   describe('descriptor store loadBraidedReadOverlays', () => {
     it('returns live overlay metadata for matching braided strands', async () => {
-      const target = buildValidDescriptor({ strandId: 'target' });
+      const target = buildValidDescriptor({ name: 'target' });
       const support = buildValidDescriptor({
-        strandId: 'support',
+        name: 'support',
         overlay: {
-          overlayId: 'support',
+          overlayId: mintOf('support'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: null,
           patchCount: 0,
@@ -2212,18 +2261,18 @@ describe('StrandService', () => {
         },
       });
       storeDescriptor(support);
-      refs.set('refs/warp/test-graph/strand-overlays/support', 'support-head');
+      refs.set(writerRef('support'), 'support-head');
       patchChains.set('support-head', [
-        { patch: makePatch({ lamport: 5, writer: 'support' }), sha: 'support-1' },
-        { patch: makePatch({ lamport: 6, writer: 'support' }), sha: 'support-2' },
+        { patch: makePatch({ lamport: 5, writer: mintOf('support') }), sha: 'support-1' },
+        { patch: makePatch({ lamport: 6, writer: mintOf('support') }), sha: 'support-2' },
       ]);
 
       const readOverlays = await service._descriptorStore.loadBraidedReadOverlays(target, ['support']);
 
       expect(readOverlays).toEqual([
         {
-          strandId: 'support',
-          overlayId: 'support',
+          strandId: sid('support'),
+          overlayId: mintOf('support'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: 'support-head',
           patchCount: 2,
@@ -2237,7 +2286,7 @@ describe('StrandService', () => {
   describe('materializer seam', () => {
     it('collects patches from all frontier writers', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { w1: 'tip1', w2: 'tip2' },
@@ -2259,7 +2308,7 @@ describe('StrandService', () => {
 
     it('respects lamportCeiling from base observation', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { w1: 'tip1' },
@@ -2280,7 +2329,7 @@ describe('StrandService', () => {
 
     it('skips writers with empty tip SHA', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { w1: '', w2: 'tip2' },
@@ -2299,7 +2348,7 @@ describe('StrandService', () => {
 
     it('iterates frontier writers in sorted order', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { z_writer: 'tipZ', a_writer: 'tipA' },
@@ -2322,7 +2371,7 @@ describe('StrandService', () => {
   describe('_collectPatchEntries', () => {
     it('deduplicates duplicate SHAs by first-seen source order', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { writer1: 'base-tip' },
@@ -2330,7 +2379,7 @@ describe('StrandService', () => {
           lamportCeiling: null,
         },
         overlay: {
-          overlayId: 'alpha',
+          overlayId: mintOf('alpha'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: 'overlay-head',
           patchCount: 1,
@@ -2338,8 +2387,8 @@ describe('StrandService', () => {
         },
         braid: {
           readOverlays: [{
-            strandId: 'support',
-            overlayId: 'support',
+            strandId: sid('support'),
+            overlayId: mintOf('support'),
             kind: STRAND_OVERLAY_KIND,
             headPatchSha: 'support-head',
             patchCount: 1,
@@ -2351,10 +2400,10 @@ describe('StrandService', () => {
         { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'shared-sha' },
       ]);
       patchChains.set('support-head', [
-        { patch: makePatch({ lamport: 9, writer: 'support' }), sha: 'shared-sha' },
+        { patch: makePatch({ lamport: 9, writer: mintOf('support') }), sha: 'shared-sha' },
       ]);
       patchChains.set('overlay-head', [
-        { patch: makePatch({ lamport: 10, writer: 'alpha' }), sha: 'overlay-sha' },
+        { patch: makePatch({ lamport: 10, writer: mintOf('alpha') }), sha: 'overlay-sha' },
       ]);
 
       const entries = await strandServicePrivate(service)._collectPatchEntries(desc, { ceiling: null });
@@ -2366,7 +2415,7 @@ describe('StrandService', () => {
 
     it('applies explicit ceiling after merging base, braid, and overlay patches', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { writer1: 'base-tip' },
@@ -2374,7 +2423,7 @@ describe('StrandService', () => {
           lamportCeiling: null,
         },
         overlay: {
-          overlayId: 'alpha',
+          overlayId: mintOf('alpha'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: 'overlay-head',
           patchCount: 1,
@@ -2382,8 +2431,8 @@ describe('StrandService', () => {
         },
         braid: {
           readOverlays: [{
-            strandId: 'support',
-            overlayId: 'support',
+            strandId: sid('support'),
+            overlayId: mintOf('support'),
             kind: STRAND_OVERLAY_KIND,
             headPatchSha: 'support-head',
             patchCount: 1,
@@ -2395,10 +2444,10 @@ describe('StrandService', () => {
         { patch: makePatch({ lamport: 1, writer: 'writer1' }), sha: 'base-1' },
       ]);
       patchChains.set('support-head', [
-        { patch: makePatch({ lamport: 4, writer: 'support' }), sha: 'support-1' },
+        { patch: makePatch({ lamport: 4, writer: mintOf('support') }), sha: 'support-1' },
       ]);
       patchChains.set('overlay-head', [
-        { patch: makePatch({ lamport: 8, writer: 'alpha' }), sha: 'overlay-1' },
+        { patch: makePatch({ lamport: 8, writer: mintOf('alpha') }), sha: 'overlay-1' },
       ]);
 
       const entries = await strandServicePrivate(service)._collectPatchEntries(desc, { ceiling: 4 });
@@ -2412,29 +2461,29 @@ describe('StrandService', () => {
 
   describe('materializer collectOverlayPatches', () => {
     it('returns empty for null headPatchSha', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       const patches = await service._materializer.collectOverlayPatches(desc);
       expect(patches).toEqual([]);
     });
 
-    it('loads patches from overlay head', async () => {
+    it('loads patches from every writer chain on the strand', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
-        overlay: {
-          overlayId: 'alpha',
-          kind: STRAND_OVERLAY_KIND,
-          headPatchSha: 'overlay-head',
-          patchCount: 1,
-          writable: true,
-        },
+        name: 'alpha',
+        writers: [
+          chainOf('writer1', mintOf('alpha'), 'overlay-head', 1),
+          chainOf('writer2', mintOf('alpha', 'writer2'), 'other-head', 1),
+        ],
       });
 
       patchChains.set('overlay-head', [
-        { patch: makePatch({ lamport: 5, writer: 'alpha' }), sha: 'op1' },
+        { patch: makePatch({ lamport: 5, writer: mintOf('alpha') }), sha: 'op1' },
+      ]);
+      patchChains.set('other-head', [
+        { patch: makePatch({ lamport: 6, writer: mintOf('alpha', 'writer2') }), sha: 'op2' },
       ]);
 
       const patches = await service._materializer.collectOverlayPatches(desc);
-      expect(patches).toHaveLength(1);
+      expect(patches.map((entry) => entry.sha)).toEqual(['op1', 'op2']);
     });
   });
 
@@ -2442,18 +2491,18 @@ describe('StrandService', () => {
 
   describe('materializer collectBraidedOverlayPatches', () => {
     it('returns empty for no braided overlays', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       const patches = await service._materializer.collectBraidedOverlayPatches(desc);
       expect(patches).toEqual([]);
     });
 
     it('collects patches from all braided overlay heads', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         braid: {
           readOverlays: [
-            { strandId: 's1', overlayId: 'o1', kind: STRAND_OVERLAY_KIND, headPatchSha: 'braid-head-1', patchCount: 1 },
-            { strandId: 's2', overlayId: 'o2', kind: STRAND_OVERLAY_KIND, headPatchSha: 'braid-head-2', patchCount: 1 },
+            { strandId: sid('s1'), overlayId: mintOf('s1'), kind: STRAND_OVERLAY_KIND, headPatchSha: 'braid-head-1', patchCount: 1 },
+            { strandId: sid('s2'), overlayId: mintOf('s2'), kind: STRAND_OVERLAY_KIND, headPatchSha: 'braid-head-2', patchCount: 1 },
           ],
         },
       });
@@ -2471,10 +2520,10 @@ describe('StrandService', () => {
 
     it('skips braided overlays with null headPatchSha', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         braid: {
           readOverlays: [
-            { strandId: 's1', overlayId: 'o1', kind: STRAND_OVERLAY_KIND, headPatchSha: null, patchCount: 0 },
+            { strandId: sid('s1'), overlayId: mintOf('s1'), kind: STRAND_OVERLAY_KIND, headPatchSha: null, patchCount: 0 },
           ],
         },
       });
@@ -2489,7 +2538,7 @@ describe('StrandService', () => {
   describe('_materializeDescriptor', () => {
     it('returns empty state when no patches exist', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: {},
@@ -2510,7 +2559,7 @@ describe('StrandService', () => {
 
     it('reduces patches through JoinReducer', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { writer1: 'chain-head' },
@@ -2542,7 +2591,7 @@ describe('StrandService', () => {
 
     it('collects receipts when requested', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { writer1: 'chain-head' },
@@ -2572,7 +2621,7 @@ describe('StrandService', () => {
 
     it('does not mutate live graph state (maxObservedLamport unchanged)', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         baseObservation: {
           coordinateVersion: STRAND_COORDINATE_VERSION,
           frontier: { writer1: 'chain-head' },
@@ -2592,7 +2641,7 @@ describe('StrandService', () => {
     });
 
     it('does not set _provenanceIndex on graph (live state isolation)', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
 
       patchChains.set('tip-sha-1', [
         {
@@ -2609,7 +2658,7 @@ describe('StrandService', () => {
     });
 
     it('does not call _setMaterializedState on graph (live state isolation)', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
 
       await strandServicePrivate(service)._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
 
@@ -2621,7 +2670,7 @@ describe('StrandService', () => {
       graph._cachedCeiling = 99;
       graph._cachedFrontier = new Map();
 
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       await strandServicePrivate(service)._materializeDescriptor(desc, { collectReceipts: false, ceiling: null });
 
       // Strand materialization must not clear live cache references.
@@ -2633,11 +2682,12 @@ describe('StrandService', () => {
   // ── patch service seam ────────────────────────────────────────────────────
 
   describe('patch service seam', () => {
-    it('updates descriptor with new head SHA and incremented patch count', async () => {
+    it('does not rewrite the descriptor after a strand patch (#1014)', async () => {
+      // The chain head lives only in the writer's ref; the descriptor is not republished per patch.
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         overlay: {
-          overlayId: 'alpha',
+          overlayId: mintOf('alpha'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: null,
           patchCount: 0,
@@ -2646,25 +2696,20 @@ describe('StrandService', () => {
       });
 
       await service._patchService.syncOverlayDescriptor(desc, {
-        patch: makePatch({ lamport: 5, writer: 'alpha' }),
+        patch: makePatch({ lamport: 5, writer: mintOf('alpha') }),
         sha: 'new-head-sha',
       });
 
-      expect(graph._strandStore.publishDescriptor).toHaveBeenCalledTimes(1);
-      const request = requirePresent(graph._strandStore.publishDescriptor.mock.calls[0])[0];
-      const published = JSON.parse(textDecode(request.descriptor));
-      expect(published.overlay).toMatchObject({
-        headPatchSha: 'new-head-sha',
-        patchCount: 1,
-      });
+      expect(graph._strandStore.publishDescriptor).not.toHaveBeenCalled();
+      expect(graph._stateDirty).toBe(true);
     });
 
     it('updates maxObservedLamport when patch lamport exceeds current', async () => {
       graph._maxObservedLamport = 3;
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
 
       await service._patchService.syncOverlayDescriptor(desc, {
-        patch: makePatch({ lamport: 10, writer: 'alpha' }),
+        patch: makePatch({ lamport: 10, writer: mintOf('alpha') }),
         sha: 'sha1',
       });
 
@@ -2673,10 +2718,10 @@ describe('StrandService', () => {
 
     it('does not lower maxObservedLamport', async () => {
       graph._maxObservedLamport = 20;
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
 
       await service._patchService.syncOverlayDescriptor(desc, {
-        patch: makePatch({ lamport: 5, writer: 'alpha' }),
+        patch: makePatch({ lamport: 5, writer: mintOf('alpha') }),
         sha: 'sha1',
       });
 
@@ -2688,10 +2733,10 @@ describe('StrandService', () => {
       graph._cachedViewHash = 'old';
       graph._cachedCeiling = 42;
       graph._cachedFrontier = new Map();
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
 
       await service._patchService.syncOverlayDescriptor(desc, {
-        patch: makePatch({ lamport: 1, writer: 'alpha' }),
+        patch: makePatch({ lamport: 1, writer: mintOf('alpha') }),
         sha: 'sha1',
       });
 
@@ -2709,8 +2754,8 @@ describe('StrandService', () => {
       const appendPatch = graph._patchJournal.appendPatch;
 
       const result = await strandServicePrivate(service)._commitQueuedPatch({
-        strandId: 'alpha',
-        overlayId: 'alpha',
+        strandId: sid('alpha'),
+        overlayId: mintOf('alpha'),
         parentSha: null,
         patch: makePatch({ ops: [makeNodeAddOp('n1', 'w1', 1)] }),
         contentAssetHandles: [],
@@ -2720,15 +2765,15 @@ describe('StrandService', () => {
       expect(appendPatch).toHaveBeenCalledWith(
         expect.objectContaining({
           graph: 'test-graph',
-          writer: 'alpha',
-          targetRef: 'refs/warp/test-graph/strand-overlays/alpha',
+          writer: mintOf('alpha'),
+          targetRef: writerRef('alpha'),
           expectedHead: null,
           parent: null,
           attachments: [],
-          patch: expect.objectContaining({ writer: 'alpha', lamport: 5 }),
+          patch: expect.objectContaining({ writer: mintOf('alpha'), lamport: 5 }),
         }),
       );
-      expect(result.patch.writer).toBe('alpha');
+      expect(result.patch.writer).toBe(mintOf('alpha'));
       expect(result.patch.lamport).toBe(5);
       expect(result.retention.handle.toString()).toBe(`test-asset:${result.sha}`);
       expect(result.bundleHandle.toString()).toBe(`bundle:${result.sha}`);
@@ -2739,8 +2784,8 @@ describe('StrandService', () => {
       graph._patchJournal = null;
 
       await expect(strandServicePrivate(service)._commitQueuedPatch({
-        strandId: 'alpha',
-        overlayId: 'alpha',
+        strandId: sid('alpha'),
+        overlayId: mintOf('alpha'),
         parentSha: null,
         patch: makePatch(),
         contentAssetHandles: [],
@@ -2752,8 +2797,8 @@ describe('StrandService', () => {
       const appendPatch = graph._patchJournal.appendPatch;
 
       await strandServicePrivate(service)._commitQueuedPatch({
-        strandId: 'alpha',
-        overlayId: 'alpha',
+        strandId: sid('alpha'),
+        overlayId: mintOf('alpha'),
         parentSha: null,
         patch: makePatch(),
         contentAssetHandles: ['asset:1', 'asset:2'],
@@ -2769,8 +2814,8 @@ describe('StrandService', () => {
       const appendPatch = graph._patchJournal.appendPatch;
 
       await strandServicePrivate(service)._commitQueuedPatch({
-        strandId: 'alpha',
-        overlayId: 'alpha',
+        strandId: sid('alpha'),
+        overlayId: mintOf('alpha'),
         parentSha: null,
         patch: makePatch(),
         contentAssetHandles: ['asset:1', 'asset:1'],
@@ -2784,11 +2829,11 @@ describe('StrandService', () => {
 
     it('passes the expected head and parent to the journal', async () => {
       const appendPatch = graph._patchJournal.appendPatch;
-      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'parent-sha-abc');
+      refs.set(writerRef('alpha'), 'parent-sha-abc');
 
       await strandServicePrivate(service)._commitQueuedPatch({
-        strandId: 'alpha',
-        overlayId: 'alpha',
+        strandId: sid('alpha'),
+        overlayId: mintOf('alpha'),
         parentSha: 'parent-sha-abc',
         patch: makePatch(),
         contentAssetHandles: [],
@@ -2805,8 +2850,8 @@ describe('StrandService', () => {
       const appendPatch = graph._patchJournal.appendPatch;
 
       await strandServicePrivate(service)._commitQueuedPatch({
-        strandId: 'alpha',
-        overlayId: 'alpha',
+        strandId: sid('alpha'),
+        overlayId: mintOf('alpha'),
         parentSha: null,
         patch: makePatch(),
         contentAssetHandles: [],
@@ -2820,17 +2865,17 @@ describe('StrandService', () => {
     });
 
     it('rejects a stale expected overlay head', async () => {
-      refs.set('refs/warp/test-graph/strand-overlays/alpha', 'advanced-head');
+      refs.set(writerRef('alpha'), 'advanced-head');
 
       await expect(strandServicePrivate(service)._commitQueuedPatch({
-        strandId: 'alpha',
-        overlayId: 'alpha',
+        strandId: sid('alpha'),
+        overlayId: mintOf('alpha'),
         parentSha: null,
         patch: makePatch(),
         contentAssetHandles: [],
         lamport: 1,
       })).rejects.toBeInstanceOf(PatchPublicationConflictError);
-      expect(refs.get('refs/warp/test-graph/strand-overlays/alpha')).toBe('advanced-head');
+      expect(refs.get(writerRef('alpha'))).toBe('advanced-head');
     });
   });
 
@@ -2839,37 +2884,35 @@ describe('StrandService', () => {
   describe('descriptor braid seam', () => {
     it('creates refs for braided overlays with head SHAs', async () => {
       const readOverlays = [
-        { strandId: 's1', overlayId: 'o1', kind: STRAND_OVERLAY_KIND, headPatchSha: 'head-1', patchCount: 1 },
+        { strandId: sid('s1'), overlayId: mintOf('s1'), kind: STRAND_OVERLAY_KIND, headPatchSha: 'head-1', patchCount: 1 },
       ];
 
-      await service._descriptorStore.syncBraidRefs('alpha', readOverlays);
+      await service._descriptorStore.syncBraidRefs(sid('alpha'), readOverlays);
 
-      expect(graph._persistence.updateRef).toHaveBeenCalledWith(
-        expect.stringContaining('braids'),
-        'head-1',
-      );
+      // One pinned braid ref per support writer chain (#1014).
+      expect(graph._persistence.updateRef).toHaveBeenCalledWith(braidRef('alpha', 's1'), 'head-1');
     });
 
     it('deletes refs for braided overlays with null head SHAs', async () => {
       // Pre-seed a braid ref
-      const braidRef = service._descriptorStore.buildBraidRef('alpha', 's1');
-      refs.set(braidRef, 'old-sha');
+      const pinnedRef = service._descriptorStore.buildBraidRef(sid('alpha'), sid('s1'), WRITER);
+      refs.set(pinnedRef, 'old-sha');
 
       const readOverlays = [
-        { strandId: 's1', overlayId: 'o1', kind: STRAND_OVERLAY_KIND, headPatchSha: null, patchCount: 0 },
+        { strandId: sid('s1'), overlayId: mintOf('s1'), kind: STRAND_OVERLAY_KIND, headPatchSha: null, patchCount: 0 },
       ];
 
-      await service._descriptorStore.syncBraidRefs('alpha', readOverlays);
+      await service._descriptorStore.syncBraidRefs(sid('alpha'), readOverlays);
 
-      expect(graph._persistence.deleteRef).toHaveBeenCalledWith(braidRef);
+      expect(graph._persistence.deleteRef).toHaveBeenCalledWith(pinnedRef);
     });
 
     it('deletes stale braid refs not in current overlays', async () => {
       // Pre-seed a stale braid ref
-      const staleRef = service._descriptorStore.buildBraidRef('alpha', 'removed');
+      const staleRef = service._descriptorStore.buildBraidRef(sid('alpha'), sid('removed'), WRITER);
       refs.set(staleRef, 'old-sha');
 
-      await service._descriptorStore.syncBraidRefs('alpha', []);
+      await service._descriptorStore.syncBraidRefs(sid('alpha'), []);
 
       expect(graph._persistence.deleteRef).toHaveBeenCalledWith(staleRef);
     });
@@ -2880,9 +2923,9 @@ describe('StrandService', () => {
   describe('intent commit seam', () => {
     it('returns baseline values when no intents are admitted', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         overlay: {
-          overlayId: 'alpha',
+          overlayId: mintOf('alpha'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: 'existing-head',
           patchCount: 3,
@@ -2899,9 +2942,9 @@ describe('StrandService', () => {
 
     it('commits multiple intents sequentially with incrementing lamport', async () => {
       const desc = buildValidDescriptor({
-        strandId: 'alpha',
+        name: 'alpha',
         overlay: {
-          overlayId: 'alpha',
+          overlayId: mintOf('alpha'),
           kind: STRAND_OVERLAY_KIND,
           headPatchSha: null,
           patchCount: 0,
@@ -2942,7 +2985,7 @@ describe('StrandService', () => {
 
   describe('intent persistence seam', () => {
     it('updates descriptor and clears graph caches', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       graph._stateDirty = false;
       graph._cachedViewHash = 'old';
       graph._cachedCeiling = 42;
@@ -2977,7 +3020,7 @@ describe('StrandService', () => {
     });
 
     it('updates maxObservedLamport when committed lamport exceeds current', async () => {
-      const desc = buildValidDescriptor({ strandId: 'alpha' });
+      const desc = buildValidDescriptor({ name: 'alpha' });
       graph._maxObservedLamport = 5;
 
       await service._intentService.persistTickResult({

@@ -1,3 +1,4 @@
+import GitAllocationFloorStoreAdapter from '../../../../../src/infrastructure/adapters/GitAllocationFloorStoreAdapter.ts';
 import { describe, expect, it } from 'vitest';
 
 import StrandController, {
@@ -25,10 +26,12 @@ class StrandControllerCrypto extends CryptoPort {
 }
 
 function createStrandHost(): StrandHost {
+  const persistence = new InMemoryGraphAdapter();
   return {
     _graphName: 'strand-host-interface',
     _writerId: 'writer1',
-    _persistence: new InMemoryGraphAdapter(),
+    _persistence: persistence,
+    _allocationFloors: new GitAllocationFloorStoreAdapter({ history: persistence, graphName: 'strand-host-interface' }),
     _crypto: new StrandControllerCrypto(),
     _loadPatchChainFromSha: async (_sha: string): Promise<Array<{ patch: Patch; sha: string }>> => [],
     _loadWriterPatches: async (_writerId: string): Promise<Array<{ patch: Patch; sha: string }>> => [],

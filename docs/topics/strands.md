@@ -47,6 +47,19 @@ coordinate is tracked in
 checkpoint needed to reconstruct the exact parent coordinate. The v18-to-v19
 migration supplies that coordinate for legacy retained data.
 
+## Identity
+
+A strand's name is a label. Its id is the sha256 of a genesis record: the
+lane, the creating writer, a creation occurrence reserved from that writer's
+lane counter, the name, and the base frontier digest. Two strands never share
+an id, even when created from identical inputs, and renaming a strand keeps
+its id. Within one clone a name is unique, and every strand operation accepts
+either the name or the id.
+
+Each writer that writes to a strand advances its own chain and mints its own
+dots, spelled `@w.<writer>@s.<strand-id>`. Lane writers keep their bare
+writer ids. A strand view reads every writer chain on the strand.
+
 Settlement plans are Runtime-owned immutable values. A lookalike object or a
 plan from another Runtime is rejected.
 

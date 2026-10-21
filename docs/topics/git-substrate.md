@@ -27,10 +27,10 @@ refs/warp/<graphName>/
 ├── substrate-version
 ├── allocation/
 │   └── <writerId>
-├── strands/<strand>
-├── strand-overlays/<strand>
-├── strand-braids/
-│   └── <strand>/<support>
+├── strands/<strand-id>/
+│   ├── descriptor
+│   ├── writers/<writerId>
+│   └── braids/<support-strand-id>/<writerId>
 ├── intents/
 │   └── {admitted,queued}/<writerId>
 ├── audit/

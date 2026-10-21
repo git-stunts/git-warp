@@ -51,14 +51,13 @@ export default class StrandMaterializer {
     return allPatches;
   }
 
-  /**
-   * Collect patches from the strand's own writable overlay chain.
-   */
+  /** Patches of every writer chain on the strand, by writer id (#1014). */
   async collectOverlayPatches(descriptor: StrandDescriptor): Promise<Array<{ patch: Patch; sha: string }>> {
-    if (descriptor.overlay.headPatchSha === null || descriptor.overlay.headPatchSha === undefined) {
-      return [];
+    const allPatches: Array<{ patch: Patch; sha: string }> = [];
+    for (const chain of descriptor.writers) {
+      allPatches.push(...await this._graph._loadPatchChainFromSha(chain.headPatchSha));
     }
-    return await this._graph._loadPatchChainFromSha(descriptor.overlay.headPatchSha);
+    return allPatches;
   }
 
   /**

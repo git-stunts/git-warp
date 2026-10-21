@@ -259,12 +259,12 @@ export async function collectPatchEntriesForFrontier(
 }
 
 export function buildStrandMetadata(
-  strandId: string,
+  _strandRef: string,
   descriptor: StrandDescriptor,
 ): StrandComparisonMetadata {
   const readOverlays = descriptor.braid?.readOverlays ?? [];
   return {
-    strandId,
+    strandId: descriptor.strandId,
     baseLamportCeiling: descriptor.baseObservation.lamportCeiling,
     overlayHeadPatchSha: descriptor.overlay.headPatchSha,
     overlayPatchCount: descriptor.overlay.patchCount,
