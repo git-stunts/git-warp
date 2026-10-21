@@ -411,6 +411,22 @@ describe('PatchBuilder', () => {
       // Builder's copy should be updated
       expect(builder.versionVector.get('writer1')).toBe(4);
     });
+
+    it('does not let callers advance the patch context through the exposed vector', () => {
+      const builder = new PatchBuilder(({
+        writerId: 'writer1',
+        lamport: 1,
+        versionVector: VersionVector.empty(),
+        dotMint: DotMint.after('writer1', 4),
+        getCurrentState: () => null,
+      } as any));
+
+      builder.versionVector.set('writer1', 7);
+      builder.addNode('x');
+
+      expect((builder.ops[0] as any).dot).toEqual({ writerId: 'writer1', counter: 5 });
+      expect(builder.versionVector.get('writer1')).toBe(5);
+    });
   });
 
   describe('entity removal requires existing live dots', () => {
