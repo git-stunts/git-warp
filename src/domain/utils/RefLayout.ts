@@ -56,6 +56,7 @@ export const RESERVED_GRAPH_NAME_SEGMENTS: Set<string> = new Set([
   'intents',
   'seek-cache',
   'state-cache',
+  'allocation',
 ]);
 
 // -----------------------------------------------------------------------------
@@ -348,6 +349,22 @@ export function buildAuditPrefix(graphName: string): string {
 export function buildStateCacheRef(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/state-cache`;
+}
+
+/**
+ * Builds the allocation floor ref for a writer (#1021).
+ *
+ * The ref points to a blob recording the highest dot counter the writer has
+ * used on this clone. It is clone-local and never synced.
+ *
+ * @example
+ * buildAllocationFloorRef('events', 'alice');
+ * // => 'refs/warp/events/allocation/alice'
+ */
+export function buildAllocationFloorRef(graphName: string, writerId: string): string {
+  validateGraphName(graphName);
+  validateWriterId(writerId);
+  return `${REF_PREFIX}/${graphName}/allocation/${writerId}`;
 }
 
 /**

@@ -1,4 +1,5 @@
 import type TrieStorePort from '../domain/orset/trie/TrieStorePort.ts';
+import type AllocationFloorStorePort from './AllocationFloorStorePort.ts';
 import type AssetStoragePort from './AssetStoragePort.ts';
 import type AuditLogPort from './AuditLogPort.ts';
 import type CheckpointStorePort from './CheckpointStorePort.ts';
@@ -28,6 +29,7 @@ export type RuntimeStorageServices = {
   readonly content: AssetStoragePort;
   readonly auditLog: AuditLogPort;
   readonly patchJournal: PatchJournalPort;
+  readonly allocationFloors?: AllocationFloorStorePort;
   readonly strands: StrandStorePort;
   readonly checkpoints: CheckpointStorePort;
   readonly indexes: IndexStorePort;
