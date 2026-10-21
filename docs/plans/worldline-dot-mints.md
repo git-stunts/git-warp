@@ -168,22 +168,28 @@ are untouched by the upgrade.
 
 ```text
 refs/warp/<lane>/
-├── substrate-version
+├── substrate-version                    version 21
 ├── writers/<writer>                     WriterChain heads on the root worldline (unchanged)
+├── allocation/<writer>                  allocation floor blob, clone-local (#1021)
+├── migrations/v21                       migration record blob (#1015)
 ├── checkpoints/head
 ├── audit/<writer>, trust/records, …     unchanged
 └── strands/<strand-id>/
-    ├── descriptor                       friendly name, owner, base observation
+    ├── descriptor                       name, genesis, owner, base observation (schema 2)
     ├── writers/<writer>                 was strand-overlays/<strand> (one shared chain)
-    ├── braids/<support-strand-id>       was strand-braids/<strand>/<support>
-    └── checkpoints/head                 optional strand materialization
+    └── braids/<support-id>/<writer>     was strand-braids/<strand>/<support>
 ```
 
 - Each participant advances only its own chain ref, so strand sync behaves like
   lane sync: no shared ref is ever non-fast-forwarded.
 - Fixed names (`descriptor`, `checkpoints`) and ids never share a level, so a
   writer named `descriptor` cannot collide with them.
-- `strand-overlays` and `strand-braids` leave the reserved lane-name segment set.
+- `strand-overlays` and `strand-braids` leave the reserved lane-name segment set;
+  `allocation` and `migrations` join it.
+- The descriptor is not rewritten when a writer patches the strand: chain heads
+  are read from each writer's ref, so writers never contend on it. A braid
+  pins every writer chain of a support strand. A strand view reads every
+  writer chain.
 
 ### Settlement and provenance
 
@@ -260,7 +266,8 @@ damage. It never makes new decisions about the user's data.
 - **Provenance resolver.** v21 readers never interpret a legacy
   `allocationDot` through the ordinary `MintId` codec. A resolver keyed by
   source occurrence returns the original bytes, unchanged, together with one
-  typed outcome:
+  typed outcome (`resolveAllocationProvenance(commit, operationIndex,
+  original)`, backed by the record at `migrations/v21`):
   - `resolved`: the v21 identity;
   - `unmapped`: no mapping exists, for example a commit that arrived after
     migration;
