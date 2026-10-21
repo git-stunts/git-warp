@@ -28,7 +28,8 @@ amended contract in #1015: preserve the existing interpretation, report the
 damage, and never block because of duplicates.
 
 - `migrate` lists the expected mint ids:
-  - lane keys stay bare, as in v20;
+  - lane keys stay bare, as in v20, and include each strand owner, whose lane
+    counter reserves the strand's creation occurrence;
   - strand mints are written `@w.<owner>@s.{<strand name>}`, where the braces
     stand for the immutable strand id the migration assigns (#1014).
 - `damage` lists what the migration must report.

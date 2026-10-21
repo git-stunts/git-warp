@@ -133,6 +133,7 @@ for (const key of expectedExportKeys.filter((name) => name !== './package.json')
 const expectedBins = {
   'git-warp': './bin/git-warp',
   'git-warp-v18-to-v19': './dist/scripts/v18-to-v19/migrate.js',
+  'git-warp-v20-to-v21': './dist/scripts/v20-to-v21/migrate.js',
 };
 if (Object.keys(metadata.bin).length !== Object.keys(expectedBins).length ||
     Object.entries(expectedBins).some(([name, target]) => metadata.bin[name] !== target)) {
@@ -176,7 +177,7 @@ LEGACY_UPGRADE="$(cd "$PACKAGE_DIR" && pwd -P)/dist/scripts/upgrade-v16-to-v17.j
 node "$LEGACY_UPGRADE" --help | grep -q 'npm run upgrade'
 test -f "$PACKAGE_DIR/scripts/hooks/post-merge.sh"
 test -f "$PACKAGE_DIR/docs/READINGS_AND_OPTICS.md"
-test -f "$PACKAGE_DIR/docs/migrations/v19/README.md"
+for guide in v19 v21; do test -f "$PACKAGE_DIR/docs/migrations/$guide/README.md"; done
 bash "$PACKAGE_DIR/scripts/install-git-warp.sh" --help >/dev/null
 bash "$PACKAGE_DIR/scripts/uninstall-git-warp.sh" --help >/dev/null
 

@@ -10,6 +10,8 @@ import GitCasAuditLogAdapter from '../../src/infrastructure/adapters/GitCasAudit
 import GitCasIntentStoreAdapter from '../../src/infrastructure/adapters/GitCasIntentStoreAdapter.ts';
 import GitCasMaterializationStoreAdapter from '../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
 import GitAllocationFloorStoreAdapter from '../../src/infrastructure/adapters/GitAllocationFloorStoreAdapter.ts';
+import GitMigrationProvenanceAdapter from '../../src/infrastructure/adapters/GitMigrationProvenanceAdapter.ts';
+import GitDotRepairStoreAdapter from '../../src/infrastructure/adapters/GitDotRepairStoreAdapter.ts';
 import GitCasStrandStoreAdapter from '../../src/infrastructure/adapters/GitCasStrandStoreAdapter.ts';
 import GitCasAssetStorageAdapter from '../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
 import CasContentEncryptionPolicy from '../../src/infrastructure/adapters/CasContentEncryptionPolicy.ts';
@@ -91,6 +93,8 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
         codec: request.codec,
       }),
       allocationFloors: this.#allocationFloors(request.timelineName),
+      allocationProvenance: new GitMigrationProvenanceAdapter({ history: this.#history, graphName: request.timelineName }),
+      ...(this.#modelsRefs ? { dotRepairs: new GitDotRepairStoreAdapter({ history: this.#history, graphName: request.timelineName }) } : {}),
       patchJournal: new CborPatchJournalAdapter({
         assetStorage: this.#content,
         cas: this.#cas,

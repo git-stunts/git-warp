@@ -2,6 +2,8 @@ import StrandError from '../../errors/StrandError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import AssetHandle from '../../storage/AssetHandle.ts';
 import { PatchBuilder } from '../PatchBuilder.ts';
+import SharedDotRemovalGuard from '../SharedDotRemovalGuard.ts';
+import type DotRepairStorePort from '../../../ports/DotRepairStorePort.ts';
 import { dotMintAfterPatches } from '../openDotMint.ts';
 import {
   maxPatchLamport,
@@ -45,6 +47,7 @@ type PatchBuilderOptionsParams = {
   expectedParentSha: string | null;
   targetRefPath?: string;
   onCommitSuccess?: PatchCommitSuccessHandler;
+  removalGuard: SharedDotRemovalGuard;
 };
 
 type WarpRuntime = {
@@ -59,6 +62,7 @@ type WarpRuntime = {
   _cachedFrontier: Map<string, string> | null;
   _cachedState: WarpState | null;
   _patchJournal: PatchJournalPort | null | undefined;
+  _dotRepairs: DotRepairStorePort | null;
   _assetStorage: AssetStoragePort | null | undefined;
   _commitMessageCodec: CommitMessageCodecPort;
   _logger: LoggerPort | null | undefined;
@@ -153,7 +157,7 @@ export default class StrandPatchService {
       collectReceipts: false,
       ceiling: null,
     });
-    const builder = this._buildQueuedIntentBuilder(descriptor, state, allPatches);
+    const builder = this._buildQueuedIntentBuilder(descriptor, state, allPatches, await this._removalGuard(descriptor));
     await build(builder);
     return this._freezeQueuedIntent(descriptor, intentQueue, builder);
   }
@@ -222,7 +226,7 @@ export default class StrandPatchService {
       collectReceipts: false,
       ceiling: null,
     });
-    return new PatchBuilder(this._buildOverlayPatchBuilderOptions(descriptor, state, allPatches));
+    return new PatchBuilder(this._buildOverlayPatchBuilderOptions(descriptor, state, allPatches, await this._removalGuard(descriptor)));
   }
 
   private _buildPatchBuilderOptions({
@@ -235,6 +239,7 @@ export default class StrandPatchService {
     expectedParentSha,
     targetRefPath,
     onCommitSuccess,
+    removalGuard,
   }: PatchBuilderOptionsParams): PatchBuilderCtorOptions {
     const pbOpts: MutablePatchBuilderCtorOptions = {
       persistence: this._graph._persistence,
@@ -252,6 +257,7 @@ export default class StrandPatchService {
       expectedParentSha,
       onDeleteWithData: this._graph._onDeleteWithData,
       commitMessageCodec: this._graph._commitMessageCodec,
+      removalGuard,
     };
     if (evaluationCoordinateRef !== undefined) {
       pbOpts.evaluationCoordinateRef = evaluationCoordinateRef;
@@ -282,6 +288,7 @@ export default class StrandPatchService {
     descriptor: StrandDescriptor,
     state: WarpState,
     allPatches: Array<{ patch: Patch; sha: string }>,
+    removalGuard: SharedDotRemovalGuard,
   ): PatchBuilder {
     return new PatchBuilder(this._buildPatchBuilderOptions({
       descriptor,
@@ -290,6 +297,7 @@ export default class StrandPatchService {
       patches: allPatches,
       getCurrentState: () => state,
       expectedParentSha: descriptor.overlay.headPatchSha ?? null,
+      removalGuard,
     }));
   }
 
@@ -325,6 +333,7 @@ export default class StrandPatchService {
     descriptor: StrandDescriptor,
     state: WarpState,
     allPatches: Array<{ patch: Patch; sha: string }>,
+    removalGuard: SharedDotRemovalGuard,
   ): PatchBuilderCtorOptions {
     const overlayRef = this._buildOverlayRef(descriptor.strandId);
     // Use the strand-materialized state (not the live _cachedState) so that
@@ -343,10 +352,16 @@ export default class StrandPatchService {
       ),
       expectedParentSha: descriptor.overlay.headPatchSha ?? null,
       targetRefPath: overlayRef,
+      removalGuard,
       onCommitSuccess: async (result: CommittedPatchResult) => {
         await this.syncOverlayDescriptor(descriptor, result);
       },
     });
+  }
+
+  /** Collisions recorded in this strand's view stay guarded: a lane repair does not reach a pinned base. */
+  private async _removalGuard(descriptor: StrandDescriptor): Promise<SharedDotRemovalGuard> {
+    return await SharedDotRemovalGuard.load(this._graph._dotRepairs, descriptor.strandId);
   }
 
   private _attachOptionalPatchJournal(pbOpts: MutablePatchBuilderCtorOptions): void {

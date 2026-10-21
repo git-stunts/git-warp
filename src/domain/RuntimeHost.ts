@@ -64,6 +64,11 @@ import type AssetStoragePort from '../ports/AssetStoragePort.ts';
 import type AuditLogPort from '../ports/AuditLogPort.ts';
 import type PatchJournalPort from '../ports/PatchJournalPort.ts';
 import type AllocationFloorStorePort from '../ports/AllocationFloorStorePort.ts';
+import type AllocationProvenancePort from '../ports/AllocationProvenancePort.ts';
+import type DotRepairStorePort from '../ports/DotRepairStorePort.ts';
+import type DotRepairRecord from './repair/DotRepairRecord.ts';
+import DotRepairService, { type DotRepairPlan, type DotRepairPreview } from './services/repair/DotRepairService.ts';
+import AllocationProvenance from './migrations/AllocationProvenance.ts';
 import type StrandStorePort from '../ports/StrandStorePort.ts';
 import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../ports/CheckpointStorePort.ts';
@@ -78,6 +83,8 @@ import type WarpState from './services/state/WarpState.ts';
 import type SnapshotWarpState from './services/snapshot/SnapshotWarpState.ts';
 import type { ProvenanceIndex } from './services/provenance/ProvenanceIndex.ts';
 import type Patch from './types/Patch.ts';
+import EdgeAdd from './types/ops/EdgeAdd.ts';
+import NodeAdd from './types/ops/NodeAdd.ts';
 import type { PatchDiff } from './types/PatchDiff.ts';
 import type { TickReceipt } from './types/TickReceipt.ts';
 import type PropertyIndexReader from './services/index/PropertyIndexReader.ts';
@@ -260,6 +267,8 @@ export default class RuntimeHost {
   _effectPipeline: EffectPipeline | null;
   _patchJournal: PatchJournalPort;
   _allocationFloors: AllocationFloorStorePort | null;
+  _allocationProvenance: AllocationProvenancePort | null;
+  _dotRepairs: DotRepairStorePort | null;
   _strandStore: StrandStorePort;
   _checkpointStore: CheckpointStorePort;
   _indexStore: IndexStorePort;
@@ -299,6 +308,8 @@ export default class RuntimeHost {
       trust,
       patchJournal,
       allocationFloors,
+      allocationProvenance,
+      dotRepairs,
       strandStore,
       checkpointStore,
       indexStore,
@@ -438,6 +449,8 @@ export default class RuntimeHost {
     this._effectPipeline = effectPipeline || null;
     this._patchJournal = patchJournal;
     this._allocationFloors = allocationFloors ?? null;
+    this._allocationProvenance = allocationProvenance ?? null;
+    this._dotRepairs = dotRepairs ?? null;
     this._strandStore = strandStore;
     this._checkpointStore = checkpointStore;
     this._indexStore = indexStore;
@@ -688,6 +701,39 @@ export default class RuntimeHost {
   listStrands: StrandController['listStrands'] = (...args) => this._strandController.listStrands(...args);
   renameStrand: StrandController['renameStrand'] = (...args) => this._strandController.renameStrand(...args);
   dropStrand: StrandController['dropStrand'] = (...args) => this._strandController.dropStrand(...args);
+
+  /**
+   * Resolves a retained admission's allocation dot through the worldline migration
+   * record (#1015). Unmigrated occurrences are `unmapped`.
+   */
+  async resolveAllocationProvenance(commit: string, operationIndex: number, original: string): Promise<AllocationProvenance> {
+    return this._allocationProvenance === null
+      ? AllocationProvenance.unmapped(original)
+      : await this._allocationProvenance.resolve(commit, operationIndex, original);
+  }
+
+  /** Previews repairs of the dot collisions the worldline migration recorded (#1022). */
+  async previewDotRepair(): Promise<readonly DotRepairPreview[]> {
+    return await this.#dotRepair().preview();
+  }
+
+  /** Appends one previewed duplicate-dot repair under `repair.<writer>`, or returns the one already recorded (#1022). */
+  async applyDotRepair(plan: DotRepairPlan): Promise<DotRepairRecord> {
+    return await this.#dotRepair().apply(plan);
+  }
+
+  #dotRepair(): DotRepairService {
+    return new DotRepairService({
+      graphName: this._graphName,
+      writerId: this._writerId,
+      crypto: this._crypto,
+      store: this._dotRepairs,
+      materialize: async () => await this.materialize(),
+      getFrontier: async () => await this.getFrontier(),
+      commitAs: async (writerId, build) => await this._patchController._writerFor(writerId).commitPatch(build),
+      writerCommits: async (writerId) => (await this.getWriterPatches(writerId)).map(({ sha, patch }) => ({ sha, addTargets: addTargetsOf(patch) })),
+    });
+  }
   getStrandPatches: StrandController['getStrandPatches'] = (...args) => this._strandController.getStrandPatches(...args);
   getStrandOverlayPatches: StrandController['getStrandOverlayPatches'] = (...args) =>
     this._strandController.getStrandOverlayPatches(...args);
@@ -981,4 +1027,12 @@ export async function openRuntimeHost(options: RuntimeHostOpenInput): Promise<Ru
   const graph = new RuntimeHost(resolvedOptions);
   await graph._validateMigrationBoundary();
   return graph;
+}
+
+/** The objects a patch's adds target; edges as `from\0to\0label`. */
+function addTargetsOf(patch: Patch): string[] {
+  return patch.ops.flatMap((op) => {
+    if (op instanceof NodeAdd) { return [op.node]; }
+    return op instanceof EdgeAdd ? [`${op.from}\0${op.to}\0${op.label}`] : [];
+  });
 }

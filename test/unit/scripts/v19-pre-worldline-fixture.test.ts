@@ -52,6 +52,7 @@ describe('v19.1.0 pre-worldline fixture (#1018)', () => {
     ]);
   });
 
+  // The migration itself is exercised in v20-to-v21-migration.test.ts (#1015).
   it('the current runtime refuses every scenario until the worldline migration runs (#1014)', async () => {
     for (const scenario of manifest.scenarios) {
       await expect(
@@ -194,10 +195,4 @@ describe('v19.1.0 pre-worldline fixture (#1018)', () => {
     }
   });
 
-  it.todo('after the v21 migration, the current runtime reads every lane exactly as v19.1.0 did (#1015)');
-  it.todo('v21 migration converts each migrate scenario to the manifest mints with unchanged visible state (#1015)');
-  it.todo('v21 migration persists the manifest allocation floors; counter-reset writes above alice:100 (#1021)');
-  it.todo('v21 migration reports the manifest damage and refuses ownerless strands without --assign-owner (#1015)');
-  it.todo('v21 migration keeps shared-dot-strand-remove: the strand view still hides note:keep and note:drop (#1015)');
-  it.todo('v21 migration fans a synthetic cross-origin remove out to every identity it denoted, and blocks that strand when its view is unknown (#1015)');
 });

@@ -1,0 +1,61 @@
+{
+  "fixtureId": "v20-late-writes-001",
+  "release": {
+    "tag": "v20.0.0",
+    "commit": "ceb58e656ec5bc85f0ae5991bf2a55599693bbb3"
+  },
+  "graph": "late",
+  "bundlePath": "v20-late-writes.bundle",
+  "bundleSha256": "f4a4b62862e68ce40306170e371a85b0a75b6976d0bac764ec19999843a98577",
+  "refs": [
+    {
+      "refName": "refs/warp/late/allocation/alice",
+      "expectedHead": "61c78eddd72fc780359046e2492dce5163609670",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/late/migrations/worldline",
+      "expectedHead": "1cdc6324a1d26bdd04d8f4ee941a7a33c4ce3cea",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/late/strand-overlays/side",
+      "expectedHead": "4849004a8ed3d203e6dae86e9998dd0cd71f7a2d",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/late/strands/c21408561b62d8a6aadd4231129e8cebaecf4382a802ec14cb05feb36520d07f/descriptor",
+      "expectedHead": "74ab2edc6b7c4b0dfd46c1e4e6e0280e9f156b04",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/late/strands/c21408561b62d8a6aadd4231129e8cebaecf4382a802ec14cb05feb36520d07f/writers/alice",
+      "expectedHead": "6a8b07c9c2add23f4938b1f7197208585e610148",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/late/strands/side",
+      "expectedHead": "5921c23e6656b9eced35e05feacbb652bc44f6c6",
+      "expectedObjectType": "commit"
+    },
+    {
+      "refName": "refs/warp/late/substrate-version",
+      "expectedHead": "8d505ff2ae963e41436421b65d47af46735b45c9",
+      "expectedObjectType": "blob"
+    },
+    {
+      "refName": "refs/warp/late/writers/alice",
+      "expectedHead": "f1a535d148eedf0781dbc4943fb5bf9c64ccc067",
+      "expectedObjectType": "commit"
+    }
+  ],
+  "outcome": {
+    "lateLaneCommit": "f1a535d148eedf0781dbc4943fb5bf9c64ccc067",
+    "lateLaneNode": "late:lane",
+    "lateStrandNode": "late:strand",
+    "freshV20Open": {
+      "refused": true,
+      "code": "E_SUBSTRATE_VERSION_UNSUPPORTED"
+    }
+  }
+}

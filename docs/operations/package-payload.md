@@ -94,11 +94,12 @@ The package may contain only these path classes:
 | `dist/src/**`                                                                | Emitted runtime modules and the public declaration dependency closure |
 | `dist/bin/**/*.js`, `bin/git-warp`                                           | Supported `git-warp` executable implementation and launcher         |
 | `dist/scripts/v18-to-v19/*.js`, `dist/scripts/v18-to-v19/adapters/**/*.js`   | Supported `git-warp-v18-to-v19` migration executable               |
+| `dist/scripts/v20-to-v21/*.js`                                               | Supported `git-warp-v20-to-v21` migration executable               |
 | `dist/scripts/upgrade-v16-to-v17.js`                                         | Supported legacy `npm run upgrade` operator command                 |
 | `dist/scripts/migrations/v17.0.0/**/*.js`, `dist/scripts/formatFailure.js`   | Private implementation required by supported migration commands     |
 | `scripts/hooks/post-merge.sh`                                                | Runtime asset required by CLI hook installation and diagnostics     |
 | `scripts/{install-git-warp,uninstall-git-warp}.sh`                           | Existing explicit bootstrap and removal command surfaces            |
-| `docs/migrations/v19/README.md`                                              | Safety-critical guide for the supported migration executable        |
+| `docs/migrations/v19/README.md`, `docs/migrations/v21/README.md`             | Safety-critical guides for the supported migration executables      |
 | `docs/READINGS_AND_OPTICS.md`                                                | Runtime guidance named by public reading-basis errors               |
 
 Repository policy, tests, fixtures, plans, maintainer utilities, performance
@@ -114,7 +115,7 @@ rejects them explicitly, so they cannot return merely because other payload
 shrank.
 
 The retained packaged documents (`README.md`, `docs/migrations/v19/README.md`,
-and `docs/READINGS_AND_OPTICS.md`) must not link package-relative into any
+`docs/migrations/v21/README.md`, and `docs/READINGS_AND_OPTICS.md`) must not link package-relative into any
 path the artifact does not contain. Links to withheld documentation use a
 release-tagged or commit-pinned repository URL. A unit test checks the source
 documents and the packed-artifact smoke checks the installed copies.

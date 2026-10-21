@@ -11,6 +11,7 @@ const REQUIRED_PATHS = Object.freeze([
   'dist/bin/git-warp.js',
   'bin/git-warp',
   'dist/scripts/v18-to-v19/migrate.js',
+  'dist/scripts/v20-to-v21/migrate.js',
   'dist/scripts/formatFailure.js',
   'dist/scripts/upgrade-v16-to-v17.js',
   'dist/scripts/migrations/v17.0.0/CheckpointMaterializationMigration.js',
@@ -18,6 +19,7 @@ const REQUIRED_PATHS = Object.freeze([
   'scripts/install-git-warp.sh',
   'scripts/uninstall-git-warp.sh',
   'docs/migrations/v19/README.md',
+  'docs/migrations/v21/README.md',
   'docs/READINGS_AND_OPTICS.md',
 ]);
 
@@ -74,7 +76,7 @@ export default class PackagePayloadPolicy {
     return (
       REQUIRED_PATH_SET.has(path) ||
       ALLOWED_PREFIXES.some((prefix) => path.startsWith(prefix)) ||
-      isDirectV18ToV19Artifact(path)
+      isDirectMigrationArtifact(path)
     );
   }
 }
@@ -95,14 +97,17 @@ function isNonJavaScriptImplementationArtifact(path: string): boolean {
   );
 }
 
+const DIRECT_MIGRATION_PREFIXES = Object.freeze(['dist/scripts/v18-to-v19/', 'dist/scripts/v20-to-v21/']);
+
 /** Admits direct migration modules without admitting additional subtrees. */
-function isDirectV18ToV19Artifact(path: string): boolean {
-  const prefix = 'dist/scripts/v18-to-v19/';
-  if (!path.startsWith(prefix)) {
-    return false;
-  }
-  const relativePath = path.slice(prefix.length);
-  return !relativePath.includes('/') && relativePath.endsWith('.js');
+function isDirectMigrationArtifact(path: string): boolean {
+  return DIRECT_MIGRATION_PREFIXES.some((prefix) => {
+    if (!path.startsWith(prefix)) {
+      return false;
+    }
+    const relativePath = path.slice(prefix.length);
+    return !relativePath.includes('/') && relativePath.endsWith('.js');
+  });
 }
 
 /** Checks compressed bytes, unpacked bytes, and entries independently. */

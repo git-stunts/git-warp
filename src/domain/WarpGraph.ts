@@ -231,7 +231,7 @@ function bindQueryCapability(runtime: WarpGraphRuntimeSurface): QueryCapability 
 function bindPatchCapability(runtime: WarpGraphRuntimeSurface): PatchCapability {
   requireCapability(runtime, 'patch', [
     'createPatch', 'patch', 'patchWithEvidence', 'patchMany', 'getWriterPatches',
-    'writer', 'discoverWriters', 'discoverTicks', 'join',
+    'writer', 'previewDotRepair', 'applyDotRepair', 'discoverWriters', 'discoverTicks', 'join',
   ]);
   return Object.freeze({
     createPatch: runtime.createPatch.bind(runtime),
@@ -240,6 +240,8 @@ function bindPatchCapability(runtime: WarpGraphRuntimeSurface): PatchCapability 
     patchMany: runtime.patchMany.bind(runtime),
     getWriterPatches: runtime.getWriterPatches.bind(runtime),
     writer: runtime.writer.bind(runtime),
+    previewDotRepair: runtime.previewDotRepair.bind(runtime),
+    applyDotRepair: runtime.applyDotRepair.bind(runtime),
     discoverWriters: runtime.discoverWriters.bind(runtime),
     discoverTicks: runtime.discoverTicks.bind(runtime),
     join: runtime.join.bind(runtime),
@@ -270,7 +272,7 @@ function bindSyncCapability(runtime: WarpGraphRuntimeSurface): SyncCapability {
 
 function bindStrandCapability(runtime: WarpGraphRuntimeSurface): StrandCapability {
   requireCapability(runtime, 'strand', [
-    'createStrand', 'braidStrand', 'getStrand', 'listStrands', 'renameStrand', 'dropStrand',
+    'createStrand', 'braidStrand', 'getStrand', 'listStrands', 'renameStrand', 'dropStrand', 'resolveAllocationProvenance',
     'materializeStrand', 'getStrandPatches', 'patchesForStrand',
     'createStrandPatch', 'patchStrand', 'patchStrandWithEvidence', 'queueStrandIntent',
     'listStrandIntents', 'tickStrand', 'analyzeConflicts',
@@ -282,6 +284,7 @@ function bindStrandCapability(runtime: WarpGraphRuntimeSurface): StrandCapabilit
     listStrands: runtime.listStrands.bind(runtime),
     renameStrand: runtime.renameStrand.bind(runtime),
     dropStrand: runtime.dropStrand.bind(runtime),
+    resolveAllocationProvenance: runtime.resolveAllocationProvenance.bind(runtime),
     materializeStrand: runtime.materializeStrand.bind(runtime),
     getStrandPatches: runtime.getStrandPatches.bind(runtime),
     patchesForStrand: runtime.patchesForStrand.bind(runtime),

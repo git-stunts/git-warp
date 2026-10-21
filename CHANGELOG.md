@@ -26,6 +26,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#1015](https://github.com/git-stunts/git-warp/issues/1015)) has run
   ([#1014](https://github.com/git-stunts/git-warp/issues/1014)).
 
+### Added
+
+- Repair duplicate dots explicitly. `previewDotRepair()` lists each collision
+  the v21 migration recorded, which members are visible, and what each policy
+  would do, including that a remove an offline replica already holds stops
+  hiding a re-added member. `applyDotRepair({ dot, policy, targets })`
+  appends ordinary patches under `repair.<writer>`: `separate` gives every
+  visible member its own dot, and `restore` re-adds the members you select.
+  Each repair is recorded at `refs/warp/<graph>/repairs/<id>` before it
+  commits and again after, so retrying it, even after a crash between the two,
+  returns that record without minting again. `repair.` writer ids are reserved
+  for repairs (`E_WRITER_ID_RESERVED`). Until a lane collision is
+  repaired, a remove that would tombstone its shared dot is refused with
+  `E_PATCH_REMOVE_SHARED_DOT`. Collisions only visible inside a strand stay
+  guarded, because a strand's base is pinned
+  ([#1022](https://github.com/git-stunts/git-warp/issues/1022)).
+- Add the `git-warp-v20-to-v21` migration. It converts v19/v20 strands to
+  immutable ids and per-writer chains without rewriting lane history,
+  resolving every legacy dot by origin: a remove tombstones every identity
+  its legacy dot denoted in its view. It persists allocation floors, records
+  allocation provenance at `refs/warp/<graph>/migrations/worldline`, reports
+  duplicate dots and collateral deletions without blocking on them, and
+  advances the substrate marker last, so an interrupted run resumes. Ownerless
+  strands wait for `--assign-owner`, and a strand whose view cannot be read is
+  blocked while the rest of the graph migrates. `--check` reports v20 writes
+  that arrived after the migration. `resolveAllocationProvenance` returns what
+  a retained allocation dot denoted (`resolved`, `unmapped` or `ambiguous`)
+  with its original bytes. See `docs/migrations/v21/README.md`
+  ([#1015](https://github.com/git-stunts/git-warp/issues/1015)).
+
 ### Fixed
 
 - Mint above every counter a writer has used, not only the counters in its

@@ -4,6 +4,8 @@
  * 8 methods covering patch building, writer discovery, and state merge.
  */
 
+import type DotRepairRecord from '../repair/DotRepairRecord.ts';
+import type { DotRepairPlan, DotRepairPreview } from '../services/repair/DotRepairService.ts';
 import type { PatchBuilder } from '../services/PatchBuilder.ts';
 import type Patch from '../types/Patch.ts';
 import type { Writer } from '../warp/Writer.ts';
@@ -60,6 +62,12 @@ export default abstract class PatchCapability {
 
   /** Resolve a writer handle by id or return the current writer. */
   abstract writer(_writerId?: string): Promise<Writer>;
+
+  /** Previews repairs of the dot collisions the worldline migration recorded (#1022). */
+  abstract previewDotRepair(): Promise<readonly DotRepairPreview[]>;
+
+  /** Appends one duplicate-dot repair under `repair.<writer>`, or returns the one already recorded (#1022). */
+  abstract applyDotRepair(_plan: DotRepairPlan): Promise<DotRepairRecord>;
 
   /** Discover writer ids present in the graph. */
   abstract discoverWriters(): Promise<string[]>;

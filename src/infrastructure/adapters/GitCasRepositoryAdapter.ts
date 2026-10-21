@@ -38,6 +38,8 @@ import GitCasMaterializationCacheDiagnosticsAdapter, {
   type GitCasMaterializationCacheDiagnosticsFacade,
 } from './GitCasMaterializationCacheDiagnosticsAdapter.ts';
 import GitAllocationFloorStoreAdapter from './GitAllocationFloorStoreAdapter.ts';
+import GitMigrationProvenanceAdapter from './GitMigrationProvenanceAdapter.ts';
+import GitDotRepairStoreAdapter from './GitDotRepairStoreAdapter.ts';
 import SubstrateVersionGate from './SubstrateVersionGate.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from './TrailerCommitMessageCodecAdapter.ts';
 
@@ -76,6 +78,12 @@ export type GitCasRepositoryAdapterOptions = {
 };
 
 /** Repository-scoped adapter for every git-cas-backed WARP service. */
+/** Runtime storage services with the concrete adapters a substrate migration reads through. */
+export type MigrationStorageServices = RuntimeStorageServices & {
+  readonly strands: GitCasStrandStoreAdapter;
+  readonly allocationFloors: GitAllocationFloorStoreAdapter;
+};
+
 export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPort {
   private readonly _plumbing: GitPlumbing;
   private readonly _history: GitTimelineHistoryAdapter;
@@ -116,6 +124,19 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   async createRuntimeStorageServices(request: RuntimeStorageRequest): Promise<RuntimeStorageServices> {
     this._assertOpen();
     await this._substrateVersionGate.ensure(request.timelineName);
+    return this._createServices(request);
+  }
+
+  /**
+   * Storage services for a substrate migration. They skip the substrate gate
+   * because the migration itself moves the marker; nothing else may use them.
+   */
+  createMigrationStorageServices(request: RuntimeStorageRequest): MigrationStorageServices {
+    this._assertOpen();
+    return this._createServices(request);
+  }
+
+  private _createServices(request: RuntimeStorageRequest): MigrationStorageServices {
     const content = this._createContentStorage();
     const materializations = this._createMaterializationStore(request);
     this._materializations.add(materializations);
@@ -126,6 +147,8 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       intents: this._createIntentStore(request, content),
       patchJournal: this._createPatchJournal(request, content),
       allocationFloors: new GitAllocationFloorStoreAdapter({ history: this._history, graphName: request.timelineName }),
+      allocationProvenance: new GitMigrationProvenanceAdapter({ history: this._history, graphName: request.timelineName }),
+      dotRepairs: new GitDotRepairStoreAdapter({ history: this._history, graphName: request.timelineName }),
       checkpoints: this._createCheckpointStore(request),
       indexes: this._createIndexStore(request, content),
       materializations,

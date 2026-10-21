@@ -71,6 +71,8 @@ export default class WarpCore {
   declare readonly patchMany: WarpCoreRuntimeSurface['patchMany'];
   declare readonly getWriterPatches: WarpCoreRuntimeSurface['getWriterPatches'];
   declare readonly writer: WarpCoreRuntimeSurface['writer'];
+  declare readonly previewDotRepair: WarpCoreRuntimeSurface['previewDotRepair'];
+  declare readonly applyDotRepair: WarpCoreRuntimeSurface['applyDotRepair'];
   declare readonly discoverWriters: WarpCoreRuntimeSurface['discoverWriters'];
   declare readonly discoverTicks: WarpCoreRuntimeSurface['discoverTicks'];
   declare readonly join: WarpCoreRuntimeSurface['join'];
@@ -99,6 +101,7 @@ export default class WarpCore {
   declare readonly listStrands: WarpCoreRuntimeSurface['listStrands'];
   declare readonly renameStrand: WarpCoreRuntimeSurface['renameStrand'];
   declare readonly dropStrand: WarpCoreRuntimeSurface['dropStrand'];
+  declare readonly resolveAllocationProvenance: WarpCoreRuntimeSurface['resolveAllocationProvenance'];
   /** @deprecated ALL materialization APIs are deprecated in favor of pure Optic lenses and unmaterialized Intent admission. */
   declare readonly materializeStrand: WarpCoreRuntimeSurface['materializeStrand'];
   declare readonly getStrandPatches: WarpCoreRuntimeSurface['getStrandPatches'];

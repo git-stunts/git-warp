@@ -334,7 +334,7 @@
     {
       "graph": "dot-reuse-tombstone",
       "classification": "known-failure",
-      "description": "The same reuse, followed by a remove of note:drop. The remove observes the shared dot `alice:1`, so v19.1.0 also hides note:keep. The migration preserves that visible state and reports both the duplicate and the collateral deletion.",
+      "description": "The same reuse, followed by a remove of note:drop. The remove observes the shared dot `alice:1`, so v19.1.0 also hides note:keep. The migration preserves that visible state and reports both the duplicate and the collateral deletion. The remove patch's own context records alice -> 2, so the allocation floor is 2.",
       "proposedMigration": {
         "verdict": "migrate",
         "mints": [
@@ -345,7 +345,7 @@
           "collateral-deletion"
         ],
         "allocationFloors": {
-          "alice": 1
+          "alice": 2
         }
       }
     },
@@ -369,6 +369,7 @@
         "verdict": "migrate",
         "mints": [
           "alice",
+          "bob",
           "@w.bob@s.{cleanup}"
         ],
         "damage": [
