@@ -10,7 +10,7 @@ import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 
 export const CURRENT_SUBSTRATE_MARKER = 'git-warp-retained-substrate\nversion: 21\n';
 
-/** The v19/v20 marker: lane history is current, strands still use the pre-worldline layout (#1014). */
+/** The pre-worldline marker: lane history is current, strands still use the earlier layout (#1014). */
 export const PRE_WORLDLINE_SUBSTRATE_MARKER = 'git-warp-retained-substrate\nversion: 19\n';
 
 type SubstrateVersionHistory = {
@@ -151,8 +151,8 @@ function migrationRequired(graphName: string): WarpError {
 
 function worldlineMigrationRequired(markerRef: string): WarpError {
   return new WarpError(
-    `Timeline at ${markerRef} uses the v19/v20 substrate. `
-      + 'Run the v20-to-v21 worldline migration (docs/migrations/v21) before opening it with this runtime.',
+    `Timeline at ${markerRef} uses the pre-worldline substrate. `
+      + 'Run git-warp-v20-to-v21 before opening it with this runtime.',
     'E_SUBSTRATE_MIGRATION_REQUIRED',
     { context: { markerRef, migration: 'worldline-dot-mints' } },
   );

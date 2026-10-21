@@ -10,7 +10,7 @@ const BRAID_KIND = 'b.';
 /**
  * The issuing authority behind a dot: one writer on one worldline (#1014).
  *
- * A root-worldline (lane) writer keeps its bare v20 key, so lane history is
+ * A root-worldline (lane) writer keeps its bare key, so lane history is
  * untouched. A writer on a strand is spelled `@w.<writer>@s.<strand-id>`.
  * Each identity has exactly one spelling; `decode` refuses every other one.
  */
