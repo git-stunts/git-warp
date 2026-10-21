@@ -7,6 +7,7 @@ import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import DotMint from '../../../../src/domain/crdt/DotMint.ts';
 import {
   createPatchBuilder,
   createPatchBuilderMockPersistence,
@@ -194,6 +195,7 @@ function createBuilder(state: WarpState | null): PatchBuilder {
     writerId: 'writer',
     lamport: 1,
     versionVector: VersionVector.empty(),
+    dotMint: DotMint.after('writer', 0),
     getCurrentState: () => state,
   });
 }

@@ -2,6 +2,7 @@ import { expect, it, vi } from 'vitest';
 import Patch from '../../../../src/domain/types/Patch.ts';
 import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import DotMint from '../../../../src/domain/crdt/DotMint.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import ObservedWriterHead from '../../../../src/domain/types/ObservedWriterHead.ts';
@@ -25,7 +26,7 @@ function fixture(overrides: Partial<ConstructorParameters<typeof PatchBuilder>[0
   const journal = new ObservationJournal(new Map([[PARENT, retainedHead()]]));
   const builder = new PatchBuilder({
     persistence, patchJournal: journal, graphName: 'events', writerId: 'alice',
-    lamport: 4, versionVector: VersionVector.empty(), expectedParentSha: PARENT,
+    lamport: 4, versionVector: VersionVector.empty(), dotMint: DotMint.after('alice', 0), expectedParentSha: PARENT,
     getCurrentState: () => null, ...overrides,
   });
   return { persistence, journal, builder };
@@ -75,7 +76,7 @@ it('refuses mutation during membership replay after immutable head capture', asy
   });
   const builder = new PatchBuilder({
     persistence, patchJournal: journal, graphName: 'events', writerId: 'alice',
-    lamport: 4, versionVector: VersionVector.empty(), expectedParentSha: PARENT,
+    lamport: 4, versionVector: VersionVector.empty(), dotMint: DotMint.after('alice', 0), expectedParentSha: PARENT,
     getCurrentState: () => null,
   });
   mutate = () => { builder.addNode('racing'); };

@@ -382,4 +382,50 @@ describe('WarpCore strand foundation', () => {
     expect(liveReader.getNodeProps('task:conflict')).toMatchObject({ status: 'base' });
     expect(liveReader.getNodeProps('task:conflict')).not.toHaveProperty('priority');
   });
+
+  /**
+   * @param {string} strandId
+   * @returns {Promise<string[]>}
+   */
+  async function overlayAddDots(strandId) {
+    const entries = await graph.getStrandPatches(strandId);
+    return entries
+      .filter(({ patch }) => patch.writer === strandId)
+      .flatMap(({ patch }) => patch.ops
+        .filter((op) => op.type === 'NodeAdd' || op.type === 'EdgeAdd')
+        .map((op) => Dot.encode(op.dot)));
+  }
+
+  it('mints distinct overlay dots for intents queued before one tick', async () => {
+    await graph.createStrand({ strandId: 'ws_queued_dots', owner: 'alice' });
+    await graph.queueStrandIntent('ws_queued_dots', (p) => {
+      p.addNode('task:first');
+    });
+    await graph.queueStrandIntent('ws_queued_dots', (p) => {
+      p.addNode('task:second');
+    });
+
+    const result = await graph.tickStrand('ws_queued_dots');
+
+    expect(result.overlayPatchShas).toHaveLength(2);
+    const dots = await overlayAddDots('ws_queued_dots');
+    expect(dots).toHaveLength(2);
+    expect(new Set(dots).size).toBe(2);
+  });
+
+  it('does not reuse a queued intent dot for a direct overlay patch', async () => {
+    await graph.createStrand({ strandId: 'ws_queued_direct', owner: 'alice' });
+    await graph.queueStrandIntent('ws_queued_direct', (p) => {
+      p.addNode('task:queued');
+    });
+    await graph.patchStrand('ws_queued_direct', (p) => {
+      p.addNode('task:direct');
+    });
+
+    await graph.tickStrand('ws_queued_direct');
+
+    const dots = await overlayAddDots('ws_queued_direct');
+    expect(dots).toHaveLength(2);
+    expect(new Set(dots).size).toBe(2);
+  });
 });

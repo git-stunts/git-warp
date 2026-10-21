@@ -10,6 +10,7 @@ import {
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import DotMint from '../../../../src/domain/crdt/DotMint.ts';
 
 const TEST_SHA = 'a'.repeat(40);
 
@@ -118,6 +119,7 @@ function createBuilder(state: WarpState | null): PatchBuilder {
     writerId: 'writer',
     lamport: 1,
     versionVector: VersionVector.empty(),
+    dotMint: DotMint.after('writer', 0),
     getCurrentState: () => state,
   });
 }
