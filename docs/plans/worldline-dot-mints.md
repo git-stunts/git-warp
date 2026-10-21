@@ -89,7 +89,9 @@ Patch (built on one WriterChain)
   `allocation/<writer>` recording the counter and the chain head it was
   computed through. Opening the writer walks only the commits after that head
   and replaces the blob with compare-and-swap; a lost race recomputes, so a
-  concurrent reservation is never lost. A strand writer's floor is not
+  concurrent reservation is never lost. A commit that lands after the walk is
+  not lost either: the floor names the head it covers, and the next open
+  walks from the then-current head back to it. A strand writer's floor is not
   stored: strand chains are written only by the mint, so every open derives
   it from the whole chain plus its queued intents.
 - **Reservation is not issuance.** `reserveAllocation` takes the next counter
@@ -140,7 +142,9 @@ strings, with no Unicode normalization.
   token. A retry by the same creator with that token and the same name
   returns the existing strand; a different name is refused
   (`E_STRAND_CREATION_TOKEN_MISMATCH`). A call without a token is a new
-  creation and consumes a new counter.
+  creation and consumes a new counter. The token is returned only after the
+  genesis record is published; a creation that fails after its reservation
+  wastes that occurrence, which is never reissued.
 - **Stable.** Sharing a strand preserves its id, and renaming it does not
   change its mints. Deleting and recreating `next` never reuses an old
   namespace.
@@ -299,6 +303,11 @@ damage. It never makes new decisions about the user's data.
   - `unmapped`: no mapping exists, for example a commit that arrived after
     migration;
   - `ambiguous`: the evidence named more than one identity.
+
+  A reader resolves an admission by the commit it read the patch from and the
+  admission's operation index, which every patch already carries; nothing new
+  is persisted in lane patches. All three outcomes are provenance only:
+  membership and materialization never depend on them.
 - **Damage report.**
   - Duplicate dots are reported with all their add sites.
   - Collateral deletions are detected from each remove's named target and
@@ -357,11 +366,15 @@ close it.
 - **Record.** Store the input frontier, affected add sites, chosen policy and
   resulting commits at `repairs/<repair-id>`. The repair id is the sha256 of
   the canonical JSON of the dot, policy, sorted selection and repair writer.
+  The repair derives its writer internally; ordinary runtime and writer
+  creation keep refusing the prefix.
 - **Idempotent.** The record is written as `pending`, with the repair
   writer's chain head, before the repair commits, and as `applied` after.
   A retry finds the record: `applied` returns it; `pending` takes the commit
   that follows the recorded head if one exists, and commits otherwise. A
-  retry never mints another batch.
+  retry never mints another batch. One repair writer serves every repair, so
+  a repair does not start while another of that writer is pending, and a
+  pending repair adopts only a commit that adds exactly its targets.
 - **Guard.** Until a collision is resolved, a remove that would tombstone a
   shared dot cannot silently cause a new collateral deletion (#1002).
 
