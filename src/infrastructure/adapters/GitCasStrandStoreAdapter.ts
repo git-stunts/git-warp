@@ -63,7 +63,7 @@ export default class GitCasStrandStoreAdapter extends StrandStorePort {
   }
 
   /**
-   * Reads the descriptor bytes a publication commit carries. The v20-to-v21
+   * Reads the descriptor bytes a publication commit carries. The worldline
    * migration uses it to read pre-worldline descriptors at their legacy refs.
    */
   async readDescriptorRevision(graphName: string, strandId: string, revision: string): Promise<Uint8Array> {

@@ -76,6 +76,7 @@ RETIRED_DOC_PATHS=(
 
 CURRENT_MIGRATION_DOCS=(
   "docs/migrations/v19/README.md"
+  "docs/migrations/v21/README.md"
 )
 
 pass() {

@@ -1,5 +1,5 @@
 import { textDecode, textEncode } from '../../src/domain/utils/bytes.ts';
-import { buildV21MigrationRecordRef } from '../../src/domain/utils/RefLayout.ts';
+import { buildWorldlineMigrationRecordRef } from '../../src/domain/utils/RefLayout.ts';
 import type { V21Damage } from './V21DamageReport.ts';
 import type { V21ProvenanceEntry } from './V21Provenance.ts';
 
@@ -45,7 +45,7 @@ type RecordHistory = {
   compareAndSwapRef(ref: string, newOid: string, expectedOid: string | null): Promise<void>;
 };
 
-export { buildV21MigrationRecordRef as v21MigrationRecordRef } from '../../src/domain/utils/RefLayout.ts';
+export { buildWorldlineMigrationRecordRef as v21MigrationRecordRef } from '../../src/domain/utils/RefLayout.ts';
 
 /** Reads and writes the record with compare-and-swap, so two runs cannot interleave. */
 export default class V21MigrationRecordStore {
@@ -55,7 +55,7 @@ export default class V21MigrationRecordStore {
 
   constructor(history: RecordHistory, graph: string) {
     this.#history = history;
-    this.#ref = buildV21MigrationRecordRef(graph);
+    this.#ref = buildWorldlineMigrationRecordRef(graph);
   }
 
   async read(): Promise<V21MigrationRecord | null> {

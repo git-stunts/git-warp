@@ -2,7 +2,7 @@ import z from 'zod';
 
 import WarpError from '../../domain/errors/WarpError.ts';
 import AllocationProvenance, { type AllocationProvenanceStatus } from '../../domain/migrations/AllocationProvenance.ts';
-import { buildV21MigrationRecordRef } from '../../domain/utils/RefLayout.ts';
+import { buildWorldlineMigrationRecordRef } from '../../domain/utils/RefLayout.ts';
 import { textDecode } from '../../domain/utils/bytes.ts';
 import AllocationProvenancePort from '../../ports/AllocationProvenancePort.ts';
 
@@ -19,11 +19,11 @@ type RecordedProvenance = Readonly<{
 }>;
 
 /**
- * Resolves allocation provenance from the v20-to-v21 migration record at
- * `refs/warp/<graph>/migrations/v21` (#1015). A graph that was never
+ * Resolves allocation provenance from the worldline migration record at
+ * `refs/warp/<graph>/migrations/worldline` (#1015). A graph that was never
  * migrated, or an occurrence the record does not list, is `unmapped`.
  */
-export default class GitV21MigrationProvenanceAdapter extends AllocationProvenancePort {
+export default class GitMigrationProvenanceAdapter extends AllocationProvenancePort {
   readonly #history: RecordHistory;
   readonly #graphName: string;
   #entries: Promise<ReadonlyMap<string, RecordedProvenance>> | null = null;
@@ -44,7 +44,7 @@ export default class GitV21MigrationProvenanceAdapter extends AllocationProvenan
   }
 
   async #load(): Promise<ReadonlyMap<string, RecordedProvenance>> {
-    const ref = buildV21MigrationRecordRef(this.#graphName);
+    const ref = buildWorldlineMigrationRecordRef(this.#graphName);
     const oid = await this.#history.readRef(ref);
     if (oid === null) { return new Map(); }
     const record: unknown = JSON.parse(textDecode(await this.#history.readBlob(oid)));
@@ -66,7 +66,7 @@ const recordSchema = z.object({
 function provenanceOf(record: unknown, ref: string): Array<RecordedProvenance & { commit: string; operationIndex: number }> {
   const parsed = recordSchema.safeParse(record);
   if (!parsed.success) {
-    throw new WarpError(`${ref} is not a readable v21 migration record`, 'E_MIGRATION_RECORD_CORRUPT', {
+    throw new WarpError(`${ref} is not a readable worldline migration record`, 'E_MIGRATION_RECORD_CORRUPT', {
       context: { ref, issue: parsed.error.issues[0]?.message ?? 'unknown' },
     });
   }

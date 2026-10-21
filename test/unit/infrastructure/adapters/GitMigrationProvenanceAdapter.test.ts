@@ -1,20 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildV21MigrationRecordRef } from '../../../../src/domain/utils/RefLayout.ts';
+import { buildWorldlineMigrationRecordRef } from '../../../../src/domain/utils/RefLayout.ts';
 import { textEncode } from '../../../../src/domain/utils/bytes.ts';
-import GitV21MigrationProvenanceAdapter from '../../../../src/infrastructure/adapters/GitV21MigrationProvenanceAdapter.ts';
+import GitMigrationProvenanceAdapter from '../../../../src/infrastructure/adapters/GitMigrationProvenanceAdapter.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
 const COMMIT = 'c'.repeat(40);
 const MINT = `@w.alice@s.${'a'.repeat(64)}`;
 
-async function withRecord(record: string): Promise<GitV21MigrationProvenanceAdapter> {
+async function withRecord(record: string): Promise<GitMigrationProvenanceAdapter> {
   const history = new InMemoryGraphAdapter();
-  await history.updateRef(buildV21MigrationRecordRef('events'), await history.writeBlob(textEncode(record)));
-  return new GitV21MigrationProvenanceAdapter({ history, graphName: 'events' });
+  await history.updateRef(buildWorldlineMigrationRecordRef('events'), await history.writeBlob(textEncode(record)));
+  return new GitMigrationProvenanceAdapter({ history, graphName: 'events' });
 }
 
-describe('GitV21MigrationProvenanceAdapter (#1015)', () => {
+describe('GitMigrationProvenanceAdapter (#1015)', () => {
   it('returns the recorded outcome with the original bytes', async () => {
     const provenance = await withRecord(JSON.stringify({
       provenance: [
@@ -31,7 +31,7 @@ describe('GitV21MigrationProvenanceAdapter (#1015)', () => {
     const provenance = await withRecord(JSON.stringify({
       provenance: [{ commit: COMMIT, operationIndex: 0, status: 'resolved', original: 'next:2', identity: 'next:2', candidates: ['next:2'] }],
     }));
-    const unmigrated = new GitV21MigrationProvenanceAdapter({ history: new InMemoryGraphAdapter(), graphName: 'events' });
+    const unmigrated = new GitMigrationProvenanceAdapter({ history: new InMemoryGraphAdapter(), graphName: 'events' });
 
     expect(await provenance.resolve(COMMIT, 1, 'next:2')).toMatchObject({ status: 'unmapped', original: 'next:2' });
     expect(await provenance.resolve(COMMIT, 0, 'next:3')).toMatchObject({ status: 'unmapped', original: 'next:3' });

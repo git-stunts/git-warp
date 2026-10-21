@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   immutable ids and per-writer chains without rewriting lane history,
   resolving every legacy dot by origin: a remove tombstones every identity
   its legacy dot denoted in its view. It persists allocation floors, records
-  allocation provenance at `refs/warp/<graph>/migrations/v21`, reports
+  allocation provenance at `refs/warp/<graph>/migrations/worldline`, reports
   duplicate dots and collateral deletions without blocking on them, and
   advances the substrate marker last, so an interrupted run resumes. Ownerless
   strands wait for `--assign-owner`, and a strand whose view cannot be read is
