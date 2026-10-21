@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Mint above every counter a writer has used, not only the counters in its
+  chain head. Chains written before the dot-mint fix could reset their
+  counter, so the head can sit below counters already used and an
+  unmaterialized write could reuse one. Opening a writer now walks the chain
+  back to the last stored allocation floor, mints above the highest counter
+  found, and stores the floor at `refs/warp/<graph>/allocation/<writer>`, so
+  later opens read only new commits. Floors are clone-local and never enter a
+  patch's causal context. Reservations (`reserveAllocation`) persist a counter
+  before it is used, and a lost race recomputes the floor so a reservation is
+  never reissued ([#1021](https://github.com/git-stunts/git-warp/issues/1021)).
 - Mint every new CRDT dot through one per-writer `DotMint` that continues
   above the writer chain's head instead of incrementing whatever version vector
   a caller seeded. Lane writes, `writer().beginPatch`, strand writes and the

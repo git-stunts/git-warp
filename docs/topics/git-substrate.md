@@ -25,6 +25,8 @@ refs/warp/<graphName>/
 ├── coverage/
 │   └── head
 ├── substrate-version
+├── allocation/
+│   └── <writerId>
 ├── strands/<strand>
 ├── strand-overlays/<strand>
 ├── strand-braids/
@@ -36,6 +38,12 @@ refs/warp/<graphName>/
 └── trust/
     └── records
 ```
+
+`allocation/<writerId>` points to a small blob recording the highest dot
+counter that writer has used, as far as the chain head it names shows. It lets
+a writer mint above counters an older chain reset without rereading the whole
+chain on every write. It is clone-local and rebuilt from the writer chain when
+absent.
 
 Seek cursors and retained materializations live in git-cas cache sets under
 `refs/cas/caches/`, not under `refs/warp/`. See [Sync WARP refs](sync.md) for
