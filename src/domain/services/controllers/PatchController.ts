@@ -99,11 +99,7 @@ export interface PatchHost extends PatchDiscoveryHost {
   _buildAdjacency: (state: WarpState) => MaterializedAdjacency;
 }
 
-/**
- * PatchController-level assertion that _persistence implements ConfigPort.
- * Verifies configuration access on the injected kernel before fallback use.
- * Explicit writer identities do not require this additional capability.
- */
+/** Asserts that `_persistence` implements ConfigPort; explicit writer ids do not need it. */
 function assertConfigReadPersistence(
   host: PatchHost,
 ): asserts host is PatchHost & { _persistence: PatchHost['_persistence'] & Pick<ConfigPort, 'configGet'> } {
@@ -368,7 +364,12 @@ export default class PatchController {
       configGet,
       configSet,
     });
+    return this._writerFor(resolvedWriterId);
+  }
 
+  /** A Writer for an already resolved writer id, including a derived `repair.<writer>` id (#1022). */
+  _writerFor(resolvedWriterId: string): Writer {
+    const h = this._host;
     const persistence = h._persistence;
     const patchJournal = h._patchJournal;
     if (patchJournal === null || patchJournal === undefined) {

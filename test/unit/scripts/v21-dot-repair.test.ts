@@ -9,6 +9,8 @@ import NodeRemove from '../../../src/domain/types/ops/NodeRemove.ts';
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import { openDefaultGitPlumbing } from '../../../src/infrastructure/adapters/GitPlumbingRuntimeAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
+import GitDotRepairStoreAdapter from '../../../src/infrastructure/adapters/GitDotRepairStoreAdapter.ts';
+import DotRepairRecord from '../../../src/domain/repair/DotRepairRecord.ts';
 import V21MigrationSession from '../../../scripts/v20-to-v21/V21MigrationSession.ts';
 import {
   readV19PreWorldlineManifest,
@@ -154,4 +156,36 @@ describe('duplicate-dot repair (#1022)', () => {
     expect(rightDots.every((dot) => dot.startsWith('repair.bob:'))).toBe(true);
     expect(leftDots.filter((dot) => rightDots.includes(dot))).toEqual([]);
   });
+
+  it('finishes an apply interrupted after its commit, and makes an apply interrupted before it exactly once', async () => {
+    const repository = await migrated('dot-reuse');
+    repositories.push(repository);
+    await withFixtureHost(repository, 'dot-reuse', 'alice', async (host) => {
+      const applied = await host.applyDotRepair({ dot: 'alice:1', policy: 'separate' });
+      const history = await historyOf(repository);
+      try {
+        // Crash after the commit, before the record was finalized.
+        await new GitDotRepairStoreAdapter({ history, graphName: 'dot-reuse' })
+          .writeRepair(new DotRepairRecord({ ...applied, status: 'pending', commits: [] }));
+      } finally {
+        await history.close();
+      }
+      expect(await host.applyDotRepair({ dot: 'alice:1', policy: 'separate' })).toEqual(applied);
+      expect(await host.getWriterPatches('repair.alice')).toHaveLength(1);
+    });
+  });
+
+  it('reserves repair.<writer> ids for repairs', async () => {
+    const repository = await migrated('dot-reuse');
+    repositories.push(repository);
+    await expect(withFixtureHost(repository, 'dot-reuse', 'repair.alice', async () => undefined))
+      .rejects.toMatchObject({ code: 'E_WRITER_ID_RESERVED' });
+    await withFixtureHost(repository, 'dot-reuse', 'alice', async (host) => {
+      await expect(host.writer('repair.alice')).rejects.toMatchObject({ code: 'E_WRITER_ID_RESERVED' });
+    });
+  });
 });
+
+async function historyOf(repository: string): Promise<GitTimelineHistoryAdapter> {
+  return new GitTimelineHistoryAdapter({ plumbing: await openDefaultGitPlumbing(repository) });
+}

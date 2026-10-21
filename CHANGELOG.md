@@ -34,8 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hiding a re-added member. `applyDotRepair({ dot, policy, targets })`
   appends ordinary patches under `repair.<writer>`: `separate` gives every
   visible member its own dot, and `restore` re-adds the members you select.
-  Each repair is recorded at `refs/warp/<graph>/repairs/<id>`, and retrying it
-  returns that record without minting again. Until a lane collision is
+  Each repair is recorded at `refs/warp/<graph>/repairs/<id>` before it
+  commits and again after, so retrying it, even after a crash between the two,
+  returns that record without minting again. `repair.` writer ids are reserved
+  for repairs (`E_WRITER_ID_RESERVED`). Until a lane collision is
   repaired, a remove that would tombstone its shared dot is refused with
   `E_PATCH_REMOVE_SHARED_DOT`. Collisions only visible inside a strand stay
   guarded, because a strand's base is pinned

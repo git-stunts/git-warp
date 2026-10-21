@@ -10,5 +10,6 @@ export default abstract class DotRepairStorePort {
 
   abstract readRepair(_repairId: string): Promise<DotRepairRecord | null>;
 
+  /** Creates or replaces the record for `record.repairId`. */
   abstract writeRepair(_record: DotRepairRecord): Promise<void>;
 }

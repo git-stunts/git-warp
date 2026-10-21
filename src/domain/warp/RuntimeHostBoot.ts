@@ -1,4 +1,5 @@
-import { validateGraphName, validateWriterId } from '../utils/RefLayout.ts';
+import { validateGraphName } from '../utils/RefLayout.ts';
+import { assertOrdinaryWriterId } from '../utils/WriterId.ts';
 import { AuditReceiptService } from '../services/audit/AuditReceiptService.ts';
 import MaterializedViewService from '../services/MaterializedViewService.ts';
 import StateHashService from '../services/state/StateHashService.ts';
@@ -142,7 +143,7 @@ export class WarpOpenOptions {
       throw new WarpError('persistence is required', 'E_INVALID_ARG');
     }
     validateGraphName(options.graphName);
-    validateWriterId(options.writerId);
+    assertOrdinaryWriterId(options.writerId);
 
     this.persistence = options.persistence;
     if (options.runtimeStorage !== null && options.runtimeStorage !== undefined) {

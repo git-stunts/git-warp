@@ -29,7 +29,7 @@ export default class SharedDotRemovalGuard {
   static async load(store: DotRepairStorePort | null | undefined, scope: string): Promise<SharedDotRemovalGuard> {
     if (store === null || store === undefined) { return SharedDotRemovalGuard.NONE; }
     const [collisions, repairs] = await Promise.all([store.collisions(), store.repairs()]);
-    const repaired = new Set(repairs.map((repair) => repair.dot));
+    const repaired = new Set(repairs.filter((repair) => repair.status === 'applied').map((repair) => repair.dot));
     return new SharedDotRemovalGuard(new Set(collisions
       .filter((collision) => collision.scope === scope && !(scope === 'lane' && repaired.has(collision.dot)))
       .map((collision) => collision.dot)));

@@ -728,7 +728,8 @@ export default class RuntimeHost {
       store: this._dotRepairs,
       materialize: async () => await this.materialize(),
       getFrontier: async () => await this.getFrontier(),
-      commitAs: async (writerId, build) => await (await this.writer(writerId)).commitPatch(build),
+      commitAs: async (writerId, build) => await this._patchController._writerFor(writerId).commitPatch(build),
+      writerCommits: async (writerId) => (await this.getWriterPatches(writerId)).map(({ sha }) => sha),
     });
   }
   getStrandPatches: StrandController['getStrandPatches'] = (...args) => this._strandController.getStrandPatches(...args);

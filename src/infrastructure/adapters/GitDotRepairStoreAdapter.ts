@@ -33,6 +33,8 @@ const repairSchema = z.object({
   targets: z.array(z.string()),
   repairWriter: z.string(),
   inputFrontier: z.record(z.string(), z.string()),
+  status: z.enum(['pending', 'applied']),
+  parentHead: z.string().nullable(),
   commits: z.array(z.string()),
 });
 
@@ -83,15 +85,12 @@ export default class GitDotRepairStoreAdapter extends DotRepairStorePort {
     return oid === null ? null : new DotRepairRecord(parse(repairSchema, await this.#json(oid), ref));
   }
 
-  /** Creates the record once; a record that already exists is left as it is. */
+  /** Creates or replaces the record with compare-and-swap against the head it read. */
   override async writeRepair(record: DotRepairRecord): Promise<void> {
     const ref = buildDotRepairRef(this.#graphName, record.repairId);
+    const expected = await this.#history.readRef(ref);
     const oid = await this.#history.writeBlob(textEncode(`${JSON.stringify(record, null, 2)}\n`));
-    try {
-      await this.#history.compareAndSwapRef(ref, oid, null);
-    } catch (error) {
-      if (await this.#history.readRef(ref) === null) { throw error; }
-    }
+    if (oid !== expected) { await this.#history.compareAndSwapRef(ref, oid, expected); }
   }
 
   async #json(oid: string): Promise<unknown> {

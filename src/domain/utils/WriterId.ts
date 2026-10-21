@@ -8,6 +8,7 @@
  * @see WARP WriterId Spec v1
  */
 
+import WarpError from '../errors/WarpError.ts';
 import { validateWriterId } from './RefLayout.ts';
 
 /**
@@ -156,7 +157,7 @@ interface ResolveWriterIdArgs {
  */
 export async function resolveWriterId({ graphName, explicitWriterId, configGet, configSet }: ResolveWriterIdArgs): Promise<string> {
   if (explicitWriterId !== null && explicitWriterId !== undefined) {
-    validateWriterId(explicitWriterId);
+    assertOrdinaryWriterId(explicitWriterId);
     return explicitWriterId;
   }
 
@@ -219,4 +220,20 @@ async function generateAndPersist(configSet: (key: string, value: string) => Pro
   }
 
   return fresh;
+}
+
+/** Writer ids under this prefix belong to duplicate-dot repairs (#1022). */
+export const REPAIR_WRITER_PREFIX = 'repair.';
+
+/**
+ * Validates a writer id a caller chose. `repair.<writer>` ids are reserved
+ * for the repair that derives them, so ordinary writes never mint repair dots.
+ */
+export function assertOrdinaryWriterId(writerId: string): void {
+  validateWriterId(writerId);
+  if (writerId.startsWith(REPAIR_WRITER_PREFIX)) {
+    throw new WarpError(`Writer id '${writerId}' is reserved for duplicate-dot repairs`, 'E_WRITER_ID_RESERVED', {
+      context: { writerId },
+    });
+  }
 }

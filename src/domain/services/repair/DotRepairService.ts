@@ -2,6 +2,7 @@ import WarpError from '../../errors/WarpError.ts';
 import type DotCollision from '../../repair/DotCollision.ts';
 import DotRepairRecord, { type DotRepairPolicy } from '../../repair/DotRepairRecord.ts';
 import { computeChecksum } from '../../utils/checksumUtils.ts';
+import { REPAIR_WRITER_PREFIX } from '../../utils/WriterId.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type DotRepairStorePort from '../../../ports/DotRepairStorePort.ts';
 import type { PatchSession } from '../../warp/PatchSession.ts';
@@ -39,6 +40,8 @@ export type DotRepairHost = Readonly<{
   materialize: () => Promise<VisibleState>;
   getFrontier: () => Promise<Map<string, string>>;
   commitAs: (writerId: string, build: (patch: PatchSession) => void) => Promise<string>;
+  /** The writer's patch commits, oldest first. */
+  writerCommits: (writerId: string) => Promise<readonly string[]>;
 }>;
 
 /**
@@ -66,7 +69,7 @@ export default class DotRepairService {
         scope: collision.scope,
         members,
         repairable,
-        resolvedBy: repairs.find((repair) => repair.dot === collision.dot)?.repairId ?? null,
+        resolvedBy: repairs.find((repair) => repair.dot === collision.dot && repair.status === 'applied')?.repairId ?? null,
         options: repairable ? optionsFor(collision.dot, members) : [],
       });
     });
@@ -79,21 +82,43 @@ export default class DotRepairService {
       throw repairError(`No lane collision on dot ${plan.dot} is recorded`, 'E_DOT_REPAIR_UNKNOWN', { dot: plan.dot });
     }
     const targets = targetsFor(plan, membersOf(collision, await this.#host.materialize()));
-    const repairWriter = `repair.${this.#host.writerId}`;
+    const repairWriter = `${REPAIR_WRITER_PREFIX}${this.#host.writerId}`;
     const repairId = await computeChecksum({
       kind: REPAIR_KIND, graph: this.#host.graphName, dot: plan.dot, policy: plan.policy, targets, repairWriter,
     }, this.#host.crypto);
-    const existing = await store.readRepair(repairId);
-    if (existing !== null) { return existing; }
-    const inputFrontier = Object.fromEntries(await this.#host.getFrontier());
-    const commit = await this.#host.commitAs(repairWriter, (patch) => {
+    const pending = await this.#pending(store, { repairId, dot: plan.dot, policy: plan.policy, targets, repairWriter });
+    if (pending.status === 'applied') { return pending; }
+    const commit = await this.#committedSince(pending) ?? await this.#host.commitAs(repairWriter, (patch) => {
       for (const target of targets) { addTarget(patch, target); }
     });
-    const record = new DotRepairRecord({
-      repairId, dot: plan.dot, policy: plan.policy, targets, repairWriter, inputFrontier, commits: [commit],
+    const applied = new DotRepairRecord({ ...pending, status: 'applied', commits: [commit] });
+    await store.writeRepair(applied);
+    return applied;
+  }
+
+  /** The existing record, or a new pending one written before anything is committed. */
+  async #pending(
+    store: DotRepairStorePort,
+    repair: Pick<DotRepairRecord, 'repairId' | 'dot' | 'policy' | 'targets' | 'repairWriter'>,
+  ): Promise<DotRepairRecord> {
+    const existing = await store.readRepair(repair.repairId);
+    if (existing !== null) { return existing; }
+    const pending = new DotRepairRecord({
+      ...repair,
+      inputFrontier: Object.fromEntries(await this.#host.getFrontier()),
+      status: 'pending',
+      parentHead: (await this.#host.writerCommits(repair.repairWriter)).at(-1) ?? null,
+      commits: [],
     });
-    await store.writeRepair(record);
-    return record;
+    await store.writeRepair(pending);
+    return pending;
+  }
+
+  /** The repair commit an interrupted apply already made: the one right after the recorded parent. */
+  async #committedSince(pending: DotRepairRecord): Promise<string | null> {
+    const commits = await this.#host.writerCommits(pending.repairWriter);
+    const index = pending.parentHead === null ? 0 : commits.indexOf(pending.parentHead) + 1;
+    return commits[index] ?? null;
   }
 
   #requireStore(): DotRepairStorePort {

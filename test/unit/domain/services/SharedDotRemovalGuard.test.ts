@@ -20,8 +20,9 @@ const collision = (scope: string, dot: string) => new DotCollision({
   scope, dot, sites: [{ commit: 'c1', target: 'a' }, { commit: 'c2', target: 'b' }],
 });
 
-const repaired = (dot: string) => new DotRepairRecord({
-  repairId: 'f'.repeat(64), dot, policy: 'separate', targets: ['a', 'b'], repairWriter: 'repair.alice', inputFrontier: {}, commits: ['c3'],
+const repaired = (dot: string, status: 'pending' | 'applied' = 'applied') => new DotRepairRecord({
+  repairId: 'f'.repeat(64), dot, policy: 'separate', targets: ['a', 'b'], repairWriter: 'repair.alice', inputFrontier: {},
+  status, parentHead: null, commits: status === 'applied' ? ['c3'] : [],
 });
 
 describe('SharedDotRemovalGuard (#1022)', () => {
@@ -46,5 +47,7 @@ describe('SharedDotRemovalGuard (#1022)', () => {
     expect(() => lane.check(new NodeRemove('a', ['carol:4']))).toThrow();
     expect(() => strand.check(new NodeRemove('a', ['alice:1']))).toThrow();
     expect(await SharedDotRemovalGuard.load(null, 'lane')).toBe(SharedDotRemovalGuard.NONE);
+    const pendingOnly = await SharedDotRemovalGuard.load(store([collision('lane', 'alice:1')], [repaired('alice:1', 'pending')]), 'lane');
+    expect(() => pendingOnly.check(new NodeRemove('a', ['alice:1']))).toThrow();
   });
 });

@@ -3,6 +3,9 @@ import WarpError from '../errors/WarpError.ts';
 /** `separate` re-adds every visible member; `restore` re-adds the members an operator selected. */
 export type DotRepairPolicy = 'separate' | 'restore';
 
+/** `pending` is written before the repair commit, `applied` after it, so a retry after a crash finds the commit. */
+export type DotRepairStatus = 'pending' | 'applied';
+
 /**
  * What one duplicate-dot repair did (#1022): the collision it resolved, the
  * policy and selection the operator chose, the frontier it read, the repair
@@ -17,6 +20,9 @@ export default class DotRepairRecord {
   readonly targets: readonly string[];
   readonly repairWriter: string;
   readonly inputFrontier: Readonly<Record<string, string>>;
+  readonly status: DotRepairStatus;
+  /** The repair writer's chain head before the repair commit, or null for its first commit. */
+  readonly parentHead: string | null;
   readonly commits: readonly string[];
 
   constructor(options: Readonly<{
@@ -26,6 +32,8 @@ export default class DotRepairRecord {
     targets: readonly string[];
     repairWriter: string;
     inputFrontier: Readonly<Record<string, string>>;
+    status: DotRepairStatus;
+    parentHead: string | null;
     commits: readonly string[];
   }>) {
     if (options.repairId.length === 0 || options.dot.length === 0 || options.repairWriter.length === 0) {
@@ -39,6 +47,8 @@ export default class DotRepairRecord {
     this.targets = Object.freeze([...options.targets].sort());
     this.repairWriter = options.repairWriter;
     this.inputFrontier = Object.freeze({ ...options.inputFrontier });
+    this.status = options.status;
+    this.parentHead = options.parentHead;
     this.commits = Object.freeze([...options.commits]);
     Object.freeze(this);
   }

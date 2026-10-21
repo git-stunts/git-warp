@@ -8,7 +8,8 @@ import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 
 const STRAND = 'b'.repeat(64);
 const RECORD = (dot: string) => new DotRepairRecord({
-  repairId: 'e'.repeat(64), dot, policy: 'restore', targets: ['note:keep'], repairWriter: 'repair.alice', inputFrontier: { alice: 'a'.repeat(40) }, commits: ['c'.repeat(40)],
+  repairId: 'e'.repeat(64), dot, policy: 'restore', targets: ['note:keep'], repairWriter: 'repair.alice', inputFrontier: { alice: 'a'.repeat(40) },
+  status: 'applied', parentHead: null, commits: ['c'.repeat(40)],
 });
 
 describe('GitDotRepairStoreAdapter (#1022)', () => {
@@ -31,7 +32,7 @@ describe('GitDotRepairStoreAdapter (#1022)', () => {
     ]);
   });
 
-  it('has no collisions without a migration record, and writes each repair once', async () => {
+  it('has no collisions without a migration record, and replaces a repair record by id', async () => {
     const history = new InMemoryGraphAdapter();
     const store = new GitDotRepairStoreAdapter({ history, graphName: 'g' });
 
@@ -39,7 +40,7 @@ describe('GitDotRepairStoreAdapter (#1022)', () => {
     await store.writeRepair(RECORD('alice:1'));
     await store.writeRepair(RECORD('alice:9'));
 
-    expect(await store.repairs()).toEqual([RECORD('alice:1')]);
+    expect(await store.repairs()).toEqual([RECORD('alice:9')]);
     expect(await store.readRepair('d'.repeat(64))).toBeNull();
   });
 

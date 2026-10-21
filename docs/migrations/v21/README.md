@@ -114,8 +114,11 @@ Either way, a remove of the shared dot that an offline replica already holds
 no longer hides a re-added member. Read the preview before applying.
 
 A repair appends ordinary patches under `repair.<your writer id>`, so two
-clones repairing the same collision never mint the same dots. Each repair is
-recorded at `refs/warp/<graph>/repairs/<id>`, and repeating it returns that
-record instead of minting again. A collision that is visible only inside a
+clones repairing the same collision never mint the same dots. `repair.` writer
+ids are reserved: opening a runtime or a writer with one is refused with
+`E_WRITER_ID_RESERVED`. Each repair is recorded at
+`refs/warp/<graph>/repairs/<id>` before it commits and again after it.
+Repeating it, even after a crash between the two, returns that record instead
+of minting again. A collision that is visible only inside a
 strand cannot be repaired from the lane, because the strand's base is pinned.
 It stays guarded.
