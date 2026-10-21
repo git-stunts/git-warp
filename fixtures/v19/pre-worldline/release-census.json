@@ -1,0 +1,2497 @@
+{
+  "braided": {
+    "chains": [
+      {
+        "refName": "refs/warp/braided/writers/alice",
+        "patches": [
+          {
+            "sha": "a939f4da87b103e835a7315737aafd23d5a2ae16",
+            "writer": "alice",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "base:1",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/braided/strand-overlays/main-work",
+        "patches": [
+          {
+            "sha": "96d51415e36943bca914e4df57ff051a8ea44cf8",
+            "writer": "main-work",
+            "lamport": 2,
+            "ownContextCounter": 2,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "work:1",
+                "dot": "main-work:1"
+              },
+              {
+                "type": "EdgeAdd",
+                "target": "work:1->support:1:cites",
+                "dot": "main-work:2"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/braided/strand-overlays/support",
+        "patches": [
+          {
+            "sha": "7bc3435d6c7e560f6a1fe9c300d3135e7345cbd5",
+            "writer": "support",
+            "lamport": 2,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "support:1",
+                "dot": "support:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [],
+    "strands": [
+      {
+        "strandId": "main-work",
+        "owner": "alice",
+        "overlayId": "main-work",
+        "overlayPatchCount": 1,
+        "readOverlays": [
+          "support"
+        ],
+        "visible": {
+          "nodes": [
+            "base:1",
+            "support:1",
+            "work:1"
+          ],
+          "edges": [
+            "work:1|support:1|cites"
+          ]
+        }
+      },
+      {
+        "strandId": "support",
+        "owner": "alice",
+        "overlayId": "support",
+        "overlayPatchCount": 1,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [
+            "base:1",
+            "support:1"
+          ],
+          "edges": []
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "base:1"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "collision": {
+    "chains": [
+      {
+        "refName": "refs/warp/collision/writers/alice",
+        "patches": [
+          {
+            "sha": "33391d2160eff905c857c214b8fb32b58a27c1b7",
+            "writer": "alice",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "base:1",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/collision/writers/next",
+        "patches": [
+          {
+            "sha": "b640bb071e36a8f919b798b9cfa2f80a697d0b0d",
+            "writer": "next",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "lane:1",
+                "dot": "next:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/collision/strand-overlays/next",
+        "patches": [
+          {
+            "sha": "8377db75997f682de67c1bb121ac227fe5da685b",
+            "writer": "next",
+            "lamport": 2,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "strand:1",
+                "dot": "next:1"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "e29acabb158dc9bd4cfde76d4333c97b48392357",
+            "writer": "next",
+            "lamport": 3,
+            "ownContextCounter": 3,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "strand:2",
+                "dot": "next:3"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [
+      {
+        "dot": "next:1",
+        "sites": [
+          {
+            "refName": "refs/warp/collision/writers/next",
+            "sha": "b640bb071e36a8f919b798b9cfa2f80a697d0b0d",
+            "target": "lane:1"
+          },
+          {
+            "refName": "refs/warp/collision/strand-overlays/next",
+            "sha": "8377db75997f682de67c1bb121ac227fe5da685b",
+            "target": "strand:1"
+          }
+        ]
+      }
+    ],
+    "strands": [
+      {
+        "strandId": "next",
+        "owner": "alice",
+        "overlayId": "next",
+        "overlayPatchCount": 2,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [
+            "base:1",
+            "strand:1",
+            "strand:2"
+          ],
+          "edges": []
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "base:1",
+        "lane:1"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "collision-remove": {
+    "chains": [
+      {
+        "refName": "refs/warp/collision-remove/writers/next",
+        "patches": [
+          {
+            "sha": "4ee21f9b8a4098eba9af176d0ecdec83aad1e9be",
+            "writer": "next",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "lane:1",
+                "dot": "next:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/collision-remove/strand-overlays/next",
+        "patches": [
+          {
+            "sha": "58936413b0fe92fa1d352f56ad8f26e8746db7df",
+            "writer": "next",
+            "lamport": 2,
+            "ownContextCounter": 2,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "strand:1",
+                "dot": "next:2"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "fc9dd318d7e99582f88359a18917ff64fd4de2a8",
+            "writer": "next",
+            "lamport": 3,
+            "ownContextCounter": 3,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "strand:2",
+                "dot": "next:3"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "c34570c7b9a496503e273c095fa93743c5505296",
+            "writer": "next",
+            "lamport": 4,
+            "ownContextCounter": 3,
+            "adds": [],
+            "removes": [
+              {
+                "type": "NodeRemove",
+                "target": "lane:1",
+                "observedDots": [
+                  "next:1"
+                ]
+              }
+            ]
+          },
+          {
+            "sha": "870e567a49c41edb6b3074f2575a0949c188cd09",
+            "writer": "next",
+            "lamport": 5,
+            "ownContextCounter": 4,
+            "adds": [],
+            "removes": [
+              {
+                "type": "NodeRemove",
+                "target": "strand:2",
+                "observedDots": [
+                  "next:3"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [],
+    "strands": [
+      {
+        "strandId": "next",
+        "owner": "alice",
+        "overlayId": "next",
+        "overlayPatchCount": 4,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [
+            "strand:1"
+          ],
+          "edges": []
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "lane:1"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "counter-reset": {
+    "chains": [
+      {
+        "refName": "refs/warp/counter-reset/writers/alice",
+        "patches": [
+          {
+            "sha": "2eba03ec4de924eea5ce69c5d1f807151c8d373d",
+            "writer": "alice",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:001",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "8b0f22ca2c3a5093f0994ab7fd493e6e4620840d",
+            "writer": "alice",
+            "lamport": 2,
+            "ownContextCounter": 2,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:002",
+                "dot": "alice:2"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "0eb4cc50d60482997fd62c7249d58add8c4b264f",
+            "writer": "alice",
+            "lamport": 3,
+            "ownContextCounter": 3,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:003",
+                "dot": "alice:3"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "79ebc4e5894675e21c1e053f6852b5161a1118a4",
+            "writer": "alice",
+            "lamport": 4,
+            "ownContextCounter": 4,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:004",
+                "dot": "alice:4"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "1e4f6085bf360d33d007773badd815908b7ca8b5",
+            "writer": "alice",
+            "lamport": 5,
+            "ownContextCounter": 5,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:005",
+                "dot": "alice:5"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "0d833fb66ff313d1e5c75d50613eb9fcf7c417ad",
+            "writer": "alice",
+            "lamport": 6,
+            "ownContextCounter": 6,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:006",
+                "dot": "alice:6"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "e25fb31f1e25f4fb36a95a7dd28fadc1d8b93f72",
+            "writer": "alice",
+            "lamport": 7,
+            "ownContextCounter": 7,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:007",
+                "dot": "alice:7"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "75dc1dab118cf5147186ff5a3965e75c2c681c06",
+            "writer": "alice",
+            "lamport": 8,
+            "ownContextCounter": 8,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:008",
+                "dot": "alice:8"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "7a1f5c3490b2cdcf5e9ec415a5f169b6307341f9",
+            "writer": "alice",
+            "lamport": 9,
+            "ownContextCounter": 9,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:009",
+                "dot": "alice:9"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "825b71c50c7195891bdb4a8dda47d5d6484f84c5",
+            "writer": "alice",
+            "lamport": 10,
+            "ownContextCounter": 10,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:010",
+                "dot": "alice:10"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "05efd115994a407e5defbdd6a9d43bddd003e061",
+            "writer": "alice",
+            "lamport": 11,
+            "ownContextCounter": 11,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:011",
+                "dot": "alice:11"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "4f2b99c0913b7916e4ce50d3c8233d1aa2b8e7e5",
+            "writer": "alice",
+            "lamport": 12,
+            "ownContextCounter": 12,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:012",
+                "dot": "alice:12"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "4658e315b867ad3556ebdfaeb5b99d0da9516975",
+            "writer": "alice",
+            "lamport": 13,
+            "ownContextCounter": 13,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:013",
+                "dot": "alice:13"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "ab414f9483485865f151e15296e638d4c4d3f08a",
+            "writer": "alice",
+            "lamport": 14,
+            "ownContextCounter": 14,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:014",
+                "dot": "alice:14"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "c981b126af24dc73ab7a145b155db5d08065eeab",
+            "writer": "alice",
+            "lamport": 15,
+            "ownContextCounter": 15,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:015",
+                "dot": "alice:15"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "c09042126986051f2fe9e3864eac18a64451379b",
+            "writer": "alice",
+            "lamport": 16,
+            "ownContextCounter": 16,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:016",
+                "dot": "alice:16"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "535754a3ddec690898737cc3c46ed66439043718",
+            "writer": "alice",
+            "lamport": 17,
+            "ownContextCounter": 17,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:017",
+                "dot": "alice:17"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "7ffda72675ec3f4f7f7ffe8c4f28206cab4be7a0",
+            "writer": "alice",
+            "lamport": 18,
+            "ownContextCounter": 18,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:018",
+                "dot": "alice:18"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "1a7f2b4c58d7735be4eef210aebedb7b09dddd92",
+            "writer": "alice",
+            "lamport": 19,
+            "ownContextCounter": 19,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:019",
+                "dot": "alice:19"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "d52c24d41b7efbe27062d25df39f774674cae73d",
+            "writer": "alice",
+            "lamport": 20,
+            "ownContextCounter": 20,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:020",
+                "dot": "alice:20"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "6bd9dd80379b12aaf66064265c9aaa6c94d5573b",
+            "writer": "alice",
+            "lamport": 21,
+            "ownContextCounter": 21,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:021",
+                "dot": "alice:21"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "3ef512d69f98aed4d44240d9684c35da020d31a9",
+            "writer": "alice",
+            "lamport": 22,
+            "ownContextCounter": 22,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:022",
+                "dot": "alice:22"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "75bed5a1acdb26d9043f6d9b388e93b4281524f0",
+            "writer": "alice",
+            "lamport": 23,
+            "ownContextCounter": 23,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:023",
+                "dot": "alice:23"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "3075af3941257bcd8641a2ccb5a00729e9e8ea79",
+            "writer": "alice",
+            "lamport": 24,
+            "ownContextCounter": 24,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:024",
+                "dot": "alice:24"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "00503cc6a433fff7e37582a12b7ea724e7100ebf",
+            "writer": "alice",
+            "lamport": 25,
+            "ownContextCounter": 25,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:025",
+                "dot": "alice:25"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "ac61b6682382118994b6a88ccaac19f5a5e8781c",
+            "writer": "alice",
+            "lamport": 26,
+            "ownContextCounter": 26,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:026",
+                "dot": "alice:26"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "1fc7171a92728c5b84f23878477335d22c61894e",
+            "writer": "alice",
+            "lamport": 27,
+            "ownContextCounter": 27,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:027",
+                "dot": "alice:27"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "3fca8b668ccd21e8524b04c903d01db5df64f496",
+            "writer": "alice",
+            "lamport": 28,
+            "ownContextCounter": 28,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:028",
+                "dot": "alice:28"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "c1a7b71ee26103609bcccca0b39d2a7aa83162ed",
+            "writer": "alice",
+            "lamport": 29,
+            "ownContextCounter": 29,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:029",
+                "dot": "alice:29"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "c8b7f49d1c2d797170b34d21378eb68283618995",
+            "writer": "alice",
+            "lamport": 30,
+            "ownContextCounter": 30,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:030",
+                "dot": "alice:30"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "a5f9ed0091e8a62ec92e4b9d781a0fb7e6073710",
+            "writer": "alice",
+            "lamport": 31,
+            "ownContextCounter": 31,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:031",
+                "dot": "alice:31"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "96b52c8f3af3d1ddbd5b4d31f6707fbbd692e599",
+            "writer": "alice",
+            "lamport": 32,
+            "ownContextCounter": 32,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:032",
+                "dot": "alice:32"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "855ae06cf79ca0ff529a0d23a8d51d203e85a63e",
+            "writer": "alice",
+            "lamport": 33,
+            "ownContextCounter": 33,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:033",
+                "dot": "alice:33"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "2c429a7a84dd98c9517c590fb032ac485a20f34b",
+            "writer": "alice",
+            "lamport": 34,
+            "ownContextCounter": 34,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:034",
+                "dot": "alice:34"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "5f6832d73665f26959c01c44c01ec673928cda43",
+            "writer": "alice",
+            "lamport": 35,
+            "ownContextCounter": 35,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:035",
+                "dot": "alice:35"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "d4f0540957980e2b62a6fa6e44d9422ada18c13b",
+            "writer": "alice",
+            "lamport": 36,
+            "ownContextCounter": 36,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:036",
+                "dot": "alice:36"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "e4f88413cea020bc25ce76dff25ab51a86bcd12f",
+            "writer": "alice",
+            "lamport": 37,
+            "ownContextCounter": 37,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:037",
+                "dot": "alice:37"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "bc046d22c981d226b612951cffbadf885fcdf934",
+            "writer": "alice",
+            "lamport": 38,
+            "ownContextCounter": 38,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:038",
+                "dot": "alice:38"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "3d6cd157d248487e4178da7b9d5dfacc9a279b25",
+            "writer": "alice",
+            "lamport": 39,
+            "ownContextCounter": 39,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:039",
+                "dot": "alice:39"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "6ecfd6a3ca7950ef96a9dfd0ca07fc94709a40a1",
+            "writer": "alice",
+            "lamport": 40,
+            "ownContextCounter": 40,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:040",
+                "dot": "alice:40"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "c9a50cb6b72dc6f1fcfab0b4a9d033f7591d8a4b",
+            "writer": "alice",
+            "lamport": 41,
+            "ownContextCounter": 41,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:041",
+                "dot": "alice:41"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "3e16ddb7c0871cb36fa4ae0002a257825a874b87",
+            "writer": "alice",
+            "lamport": 42,
+            "ownContextCounter": 42,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:042",
+                "dot": "alice:42"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "969f0086d4490924bd1f5d39dcddcf534c833cab",
+            "writer": "alice",
+            "lamport": 43,
+            "ownContextCounter": 43,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:043",
+                "dot": "alice:43"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "e05e55496c32f75beecdb00109cc420936e20906",
+            "writer": "alice",
+            "lamport": 44,
+            "ownContextCounter": 44,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:044",
+                "dot": "alice:44"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "128e1f44325b317073dfd943ccdaa925160fefdd",
+            "writer": "alice",
+            "lamport": 45,
+            "ownContextCounter": 45,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:045",
+                "dot": "alice:45"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "21ad01e4763a6bee88f0dd2830505cace2fc0e46",
+            "writer": "alice",
+            "lamport": 46,
+            "ownContextCounter": 46,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:046",
+                "dot": "alice:46"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "931704a7ea493cf1f881c53a1666789b8d265dd7",
+            "writer": "alice",
+            "lamport": 47,
+            "ownContextCounter": 47,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:047",
+                "dot": "alice:47"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "0b0d31958f1de41ab57127803c337c98ce5ebbc3",
+            "writer": "alice",
+            "lamport": 48,
+            "ownContextCounter": 48,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:048",
+                "dot": "alice:48"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "94a133eeffb57d87533d8dc0ff0b51ad458c7fde",
+            "writer": "alice",
+            "lamport": 49,
+            "ownContextCounter": 49,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:049",
+                "dot": "alice:49"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "3aa4b2db624ff19877ae43866f03b8d3050e3548",
+            "writer": "alice",
+            "lamport": 50,
+            "ownContextCounter": 50,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:050",
+                "dot": "alice:50"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "f5bade619d636e65ba7ae9ae50376c1a2a9310e5",
+            "writer": "alice",
+            "lamport": 51,
+            "ownContextCounter": 51,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:051",
+                "dot": "alice:51"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "b52ae041df1a57e4ec3d84d41cb59f24534cb428",
+            "writer": "alice",
+            "lamport": 52,
+            "ownContextCounter": 52,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:052",
+                "dot": "alice:52"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "f6f8b147a4e2c943e19af6ce6762bfceacbe04f5",
+            "writer": "alice",
+            "lamport": 53,
+            "ownContextCounter": 53,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:053",
+                "dot": "alice:53"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "6b581aa4242aa7ea935395425f59f9d7ecce9099",
+            "writer": "alice",
+            "lamport": 54,
+            "ownContextCounter": 54,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:054",
+                "dot": "alice:54"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "db645e42ad0f1f3fb0864cb903b6039995af7cb4",
+            "writer": "alice",
+            "lamport": 55,
+            "ownContextCounter": 55,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:055",
+                "dot": "alice:55"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "84e0a6ee253d592c289ada14acbd1f900004f193",
+            "writer": "alice",
+            "lamport": 56,
+            "ownContextCounter": 56,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:056",
+                "dot": "alice:56"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "f8d4254e610ad5506eb79f9c054fefdac8673896",
+            "writer": "alice",
+            "lamport": 57,
+            "ownContextCounter": 57,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:057",
+                "dot": "alice:57"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "c0affe768468b05acfc27e41c579bb212f69f243",
+            "writer": "alice",
+            "lamport": 58,
+            "ownContextCounter": 58,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:058",
+                "dot": "alice:58"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "b5bfb9934c430febda91ed9192bf8534949dd3ed",
+            "writer": "alice",
+            "lamport": 59,
+            "ownContextCounter": 59,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:059",
+                "dot": "alice:59"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "076ebc9e023bbb9b0ceca9437e232807ee753b70",
+            "writer": "alice",
+            "lamport": 60,
+            "ownContextCounter": 60,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:060",
+                "dot": "alice:60"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "33e4ce1a93349a15110859aa0d98bef4be7943e0",
+            "writer": "alice",
+            "lamport": 61,
+            "ownContextCounter": 61,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:061",
+                "dot": "alice:61"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "4d29b1d7b9f8e62be818d227573d757f1eed0d73",
+            "writer": "alice",
+            "lamport": 62,
+            "ownContextCounter": 62,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:062",
+                "dot": "alice:62"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "5cd4478841cf65d8f63081ac055da000ec45d823",
+            "writer": "alice",
+            "lamport": 63,
+            "ownContextCounter": 63,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:063",
+                "dot": "alice:63"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "3aa1e072bfff64618ef4588f2f77460fcf40f66d",
+            "writer": "alice",
+            "lamport": 64,
+            "ownContextCounter": 64,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:064",
+                "dot": "alice:64"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "0a9406734f01a89ba762521415fd13aa8b906387",
+            "writer": "alice",
+            "lamport": 65,
+            "ownContextCounter": 65,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:065",
+                "dot": "alice:65"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "39be88c57631b5d69d2602bd9eb7f8cb590aa8a3",
+            "writer": "alice",
+            "lamport": 66,
+            "ownContextCounter": 66,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:066",
+                "dot": "alice:66"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "414c00510d66b044c8a808a8964e85de0ef44834",
+            "writer": "alice",
+            "lamport": 67,
+            "ownContextCounter": 67,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:067",
+                "dot": "alice:67"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "aa441ae4db55abd254ca7e8c3b8a880026f325c7",
+            "writer": "alice",
+            "lamport": 68,
+            "ownContextCounter": 68,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:068",
+                "dot": "alice:68"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "ae280fd5c720bf5b4488c2a38103daac6637deb4",
+            "writer": "alice",
+            "lamport": 69,
+            "ownContextCounter": 69,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:069",
+                "dot": "alice:69"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "c1793a59d3297117a781e424d7679aecbbd116d9",
+            "writer": "alice",
+            "lamport": 70,
+            "ownContextCounter": 70,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:070",
+                "dot": "alice:70"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "ee2215d3dd5e640f4bed46a1e2c873dbd0be273c",
+            "writer": "alice",
+            "lamport": 71,
+            "ownContextCounter": 71,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:071",
+                "dot": "alice:71"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "f71753f40b5faf5590c9f2aaf782678844e2af46",
+            "writer": "alice",
+            "lamport": 72,
+            "ownContextCounter": 72,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:072",
+                "dot": "alice:72"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "135238ac3d622908bcde8a628a92564a01588be1",
+            "writer": "alice",
+            "lamport": 73,
+            "ownContextCounter": 73,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:073",
+                "dot": "alice:73"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "a55a3699c00f358b40339ec1d21d608718932b6a",
+            "writer": "alice",
+            "lamport": 74,
+            "ownContextCounter": 74,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:074",
+                "dot": "alice:74"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "6129f02f6a4744f169157bcfd82df81ea4ec9681",
+            "writer": "alice",
+            "lamport": 75,
+            "ownContextCounter": 75,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:075",
+                "dot": "alice:75"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "3094df24f2684772b54f1cebb7b7503271437a5a",
+            "writer": "alice",
+            "lamport": 76,
+            "ownContextCounter": 76,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:076",
+                "dot": "alice:76"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "84b695e0cb75a621649c1510c8ca9eaf9caf6c94",
+            "writer": "alice",
+            "lamport": 77,
+            "ownContextCounter": 77,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:077",
+                "dot": "alice:77"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "91986158989bcfc0d1ec7d8c2e6537bcc52fc943",
+            "writer": "alice",
+            "lamport": 78,
+            "ownContextCounter": 78,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:078",
+                "dot": "alice:78"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "8b9678dbf62c76cc091f110bc4b0980c5846d544",
+            "writer": "alice",
+            "lamport": 79,
+            "ownContextCounter": 79,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:079",
+                "dot": "alice:79"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "070710ee042915658268c11d67c3c9248af9cba5",
+            "writer": "alice",
+            "lamport": 80,
+            "ownContextCounter": 80,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:080",
+                "dot": "alice:80"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "9d5cc396c312e47d475584a26575c4c2f8686e1e",
+            "writer": "alice",
+            "lamport": 81,
+            "ownContextCounter": 81,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:081",
+                "dot": "alice:81"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "ad1b8b799a13bf352b10c63edf91f5b932532b16",
+            "writer": "alice",
+            "lamport": 82,
+            "ownContextCounter": 82,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:082",
+                "dot": "alice:82"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "a861f8ea09f1e452c923b0a79e8fb097c3737180",
+            "writer": "alice",
+            "lamport": 83,
+            "ownContextCounter": 83,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:083",
+                "dot": "alice:83"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "5ab9d11d5ed2ec421d49c3cc5227686bbb1145b0",
+            "writer": "alice",
+            "lamport": 84,
+            "ownContextCounter": 84,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:084",
+                "dot": "alice:84"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "7ff83a89963fad9735875c7c8dcd4d58b72ecea7",
+            "writer": "alice",
+            "lamport": 85,
+            "ownContextCounter": 85,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:085",
+                "dot": "alice:85"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "55446a1c75824c5860bd7a500ed54ee3b88a0f94",
+            "writer": "alice",
+            "lamport": 86,
+            "ownContextCounter": 86,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:086",
+                "dot": "alice:86"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "03ee6dcb340f7d904b22b3f661208a9c745d9cc4",
+            "writer": "alice",
+            "lamport": 87,
+            "ownContextCounter": 87,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:087",
+                "dot": "alice:87"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "54a119488cb132710d69d898c6057c4eb09d3d38",
+            "writer": "alice",
+            "lamport": 88,
+            "ownContextCounter": 88,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:088",
+                "dot": "alice:88"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "2da7a6bab457a6e44beca023cbe311047127b5bf",
+            "writer": "alice",
+            "lamport": 89,
+            "ownContextCounter": 89,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:089",
+                "dot": "alice:89"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "aa935f3003a34e9bf1d6f84c9b8f15753c6f717f",
+            "writer": "alice",
+            "lamport": 90,
+            "ownContextCounter": 90,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:090",
+                "dot": "alice:90"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "0b7ba932d7d0c46f8190623d75566e359147d954",
+            "writer": "alice",
+            "lamport": 91,
+            "ownContextCounter": 91,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:091",
+                "dot": "alice:91"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "1f459e691fc5f117d1083411cf13c47c0f708a6c",
+            "writer": "alice",
+            "lamport": 92,
+            "ownContextCounter": 92,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:092",
+                "dot": "alice:92"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "bb0b0199b9e189ff73ab3ee9b8806fa1e908473c",
+            "writer": "alice",
+            "lamport": 93,
+            "ownContextCounter": 93,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:093",
+                "dot": "alice:93"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "9305fff46f8071be8be5265a851f61be02b3d626",
+            "writer": "alice",
+            "lamport": 94,
+            "ownContextCounter": 94,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:094",
+                "dot": "alice:94"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "5fdc61002d28b6908a36a42f8e425c950a2eb05e",
+            "writer": "alice",
+            "lamport": 95,
+            "ownContextCounter": 95,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:095",
+                "dot": "alice:95"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "50a4e9bba0983cbc488a49521bb4efe3d6286462",
+            "writer": "alice",
+            "lamport": 96,
+            "ownContextCounter": 96,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:096",
+                "dot": "alice:96"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "812e1bfc69c5e4fc7f6c1ac2eb8dee44ab9e4b61",
+            "writer": "alice",
+            "lamport": 97,
+            "ownContextCounter": 97,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:097",
+                "dot": "alice:97"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "801b07d8e5c3aec7c83712da9704efd9a881271b",
+            "writer": "alice",
+            "lamport": 98,
+            "ownContextCounter": 98,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:098",
+                "dot": "alice:98"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "9e1b5a72253fc5fd59c6606e535bc99c71278a44",
+            "writer": "alice",
+            "lamport": 99,
+            "ownContextCounter": 99,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:099",
+                "dot": "alice:99"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "5c7d485175899bcbf84cac09652bbe3156d8a05b",
+            "writer": "alice",
+            "lamport": 100,
+            "ownContextCounter": 100,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:100",
+                "dot": "alice:100"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "e14965cb03fa0313779b2af96a4d555281fc3d2d",
+            "writer": "alice",
+            "lamport": 101,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "item:after-restart",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [
+      {
+        "dot": "alice:1",
+        "sites": [
+          {
+            "refName": "refs/warp/counter-reset/writers/alice",
+            "sha": "2eba03ec4de924eea5ce69c5d1f807151c8d373d",
+            "target": "item:001"
+          },
+          {
+            "refName": "refs/warp/counter-reset/writers/alice",
+            "sha": "e14965cb03fa0313779b2af96a4d555281fc3d2d",
+            "target": "item:after-restart"
+          }
+        ]
+      }
+    ],
+    "strands": [],
+    "visible": {
+      "nodes": [
+        "item:001",
+        "item:002",
+        "item:003",
+        "item:004",
+        "item:005",
+        "item:006",
+        "item:007",
+        "item:008",
+        "item:009",
+        "item:010",
+        "item:011",
+        "item:012",
+        "item:013",
+        "item:014",
+        "item:015",
+        "item:016",
+        "item:017",
+        "item:018",
+        "item:019",
+        "item:020",
+        "item:021",
+        "item:022",
+        "item:023",
+        "item:024",
+        "item:025",
+        "item:026",
+        "item:027",
+        "item:028",
+        "item:029",
+        "item:030",
+        "item:031",
+        "item:032",
+        "item:033",
+        "item:034",
+        "item:035",
+        "item:036",
+        "item:037",
+        "item:038",
+        "item:039",
+        "item:040",
+        "item:041",
+        "item:042",
+        "item:043",
+        "item:044",
+        "item:045",
+        "item:046",
+        "item:047",
+        "item:048",
+        "item:049",
+        "item:050",
+        "item:051",
+        "item:052",
+        "item:053",
+        "item:054",
+        "item:055",
+        "item:056",
+        "item:057",
+        "item:058",
+        "item:059",
+        "item:060",
+        "item:061",
+        "item:062",
+        "item:063",
+        "item:064",
+        "item:065",
+        "item:066",
+        "item:067",
+        "item:068",
+        "item:069",
+        "item:070",
+        "item:071",
+        "item:072",
+        "item:073",
+        "item:074",
+        "item:075",
+        "item:076",
+        "item:077",
+        "item:078",
+        "item:079",
+        "item:080",
+        "item:081",
+        "item:082",
+        "item:083",
+        "item:084",
+        "item:085",
+        "item:086",
+        "item:087",
+        "item:088",
+        "item:089",
+        "item:090",
+        "item:091",
+        "item:092",
+        "item:093",
+        "item:094",
+        "item:095",
+        "item:096",
+        "item:097",
+        "item:098",
+        "item:099",
+        "item:100",
+        "item:after-restart"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "dot-reuse": {
+    "chains": [
+      {
+        "refName": "refs/warp/dot-reuse/writers/alice",
+        "patches": [
+          {
+            "sha": "e8c4ce03ae802fda0a910df07d5a03f1e9b7f1a7",
+            "writer": "alice",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "note:first",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "fb249bd998653e7abadb261b7a566b1170f34434",
+            "writer": "alice",
+            "lamport": 2,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "note:second",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [
+      {
+        "dot": "alice:1",
+        "sites": [
+          {
+            "refName": "refs/warp/dot-reuse/writers/alice",
+            "sha": "e8c4ce03ae802fda0a910df07d5a03f1e9b7f1a7",
+            "target": "note:first"
+          },
+          {
+            "refName": "refs/warp/dot-reuse/writers/alice",
+            "sha": "fb249bd998653e7abadb261b7a566b1170f34434",
+            "target": "note:second"
+          }
+        ]
+      }
+    ],
+    "strands": [],
+    "visible": {
+      "nodes": [
+        "note:first",
+        "note:second"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "dot-reuse-tombstone": {
+    "chains": [
+      {
+        "refName": "refs/warp/dot-reuse-tombstone/writers/alice",
+        "patches": [
+          {
+            "sha": "7942c91d7cd48c69e2fc0715c910bf57b6dceecc",
+            "writer": "alice",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "note:keep",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "f0822c90de9d7a139a3fc570adc641d614eb26a7",
+            "writer": "alice",
+            "lamport": 2,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "note:drop",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "2f537953d56106858ff9fcdd9eb9d1a4a6a4236c",
+            "writer": "alice",
+            "lamport": 3,
+            "ownContextCounter": 2,
+            "adds": [],
+            "removes": [
+              {
+                "type": "NodeRemove",
+                "target": "note:drop",
+                "observedDots": [
+                  "alice:1"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [
+      {
+        "dot": "alice:1",
+        "sites": [
+          {
+            "refName": "refs/warp/dot-reuse-tombstone/writers/alice",
+            "sha": "7942c91d7cd48c69e2fc0715c910bf57b6dceecc",
+            "target": "note:keep"
+          },
+          {
+            "refName": "refs/warp/dot-reuse-tombstone/writers/alice",
+            "sha": "f0822c90de9d7a139a3fc570adc641d614eb26a7",
+            "target": "note:drop"
+          }
+        ]
+      }
+    ],
+    "strands": [],
+    "visible": {
+      "nodes": [],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "dotted-ids": {
+    "chains": [
+      {
+        "refName": "refs/warp/dotted-ids/writers/ops.bot-1",
+        "patches": [
+          {
+            "sha": "f329122c9adb8f35bd6e512c12b5f08914fa86e0",
+            "writer": "ops.bot-1",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "job:1",
+                "dot": "ops.bot-1:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/dotted-ids/strand-overlays/rel.v2",
+        "patches": [
+          {
+            "sha": "fb22e8476cacebff2bb44129371a9064592029d2",
+            "writer": "rel.v2",
+            "lamport": 2,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "job:2",
+                "dot": "rel.v2:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [],
+    "strands": [
+      {
+        "strandId": "rel.v2",
+        "owner": "ops.bot-1",
+        "overlayId": "rel.v2",
+        "overlayPatchCount": 1,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [
+            "job:1",
+            "job:2"
+          ],
+          "edges": []
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "job:1"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "golden": {
+    "chains": [
+      {
+        "refName": "refs/warp/golden/writers/alice",
+        "patches": [
+          {
+            "sha": "a9c5417471de1c5cc95eabb1890f1fe5a7db002a",
+            "writer": "alice",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "user:alice",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "f390b2cf93d628408497f1e3eb1cdd4b549d6ef8",
+            "writer": "alice",
+            "lamport": 2,
+            "ownContextCounter": 2,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "user:bob",
+                "dot": "alice:2"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "c0ecdb96e3b8395571fd377ca7aa7b0273fbf971",
+            "writer": "alice",
+            "lamport": 3,
+            "ownContextCounter": 2,
+            "adds": [],
+            "removes": []
+          },
+          {
+            "sha": "e9548f7c3ee89bbed72bd30ed761855a1d2866f3",
+            "writer": "alice",
+            "lamport": 4,
+            "ownContextCounter": 4,
+            "adds": [
+              {
+                "type": "EdgeAdd",
+                "target": "user:alice->user:bob:knows",
+                "dot": "alice:4"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "6eafcf950be53b08e3a29a17768fe6d35b93ddfd",
+            "writer": "alice",
+            "lamport": 5,
+            "ownContextCounter": 5,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "doc:readme",
+                "dot": "alice:5"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "da7db9750df08526e8896a82f0cab149f36a6077",
+            "writer": "alice",
+            "lamport": 9,
+            "ownContextCounter": 6,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "draft:1",
+                "dot": "alice:6"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "47091994f7dcbbc8eaf2a6345ec4dd8f7b664261",
+            "writer": "alice",
+            "lamport": 10,
+            "ownContextCounter": 6,
+            "adds": [],
+            "removes": []
+          },
+          {
+            "sha": "4a33eb59c05a9b480ad08ffd0049c0b1c818ca70",
+            "writer": "alice",
+            "lamport": 11,
+            "ownContextCounter": 8,
+            "adds": [
+              {
+                "type": "EdgeAdd",
+                "target": "draft:1->doc:readme:revises",
+                "dot": "alice:8"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/golden/writers/bob",
+        "patches": [
+          {
+            "sha": "1a9ad136b4695392247dc280e03805dc06232b05",
+            "writer": "bob",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "user:carol",
+                "dot": "bob:1"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "0f9b7ca66ffaa5025f75fae8008f9bc7c53d92e5",
+            "writer": "bob",
+            "lamport": 2,
+            "ownContextCounter": 2,
+            "adds": [
+              {
+                "type": "EdgeAdd",
+                "target": "user:bob->user:carol:follows",
+                "dot": "bob:2"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "320da614202dee4f7b328c89988cbc23e81cc478",
+            "writer": "bob",
+            "lamport": 3,
+            "ownContextCounter": 2,
+            "adds": [],
+            "removes": []
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/golden/strand-overlays/review",
+        "patches": [
+          {
+            "sha": "975c81e3e679b5e2b1fe28da4acf6a4b035d3eb9",
+            "writer": "review",
+            "lamport": 6,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "draft:1",
+                "dot": "review:1"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "4c60936edf470296ed006f0ed566b4d0d10564eb",
+            "writer": "review",
+            "lamport": 7,
+            "ownContextCounter": 6,
+            "adds": [],
+            "removes": []
+          },
+          {
+            "sha": "20d823e301a93e6d07c7cb49fe2443d8d0794586",
+            "writer": "review",
+            "lamport": 8,
+            "ownContextCounter": 8,
+            "adds": [
+              {
+                "type": "EdgeAdd",
+                "target": "draft:1->doc:readme:revises",
+                "dot": "review:8"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [],
+    "strands": [
+      {
+        "strandId": "review",
+        "owner": "alice",
+        "overlayId": "review",
+        "overlayPatchCount": 3,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [
+            "doc:readme",
+            "draft:1",
+            "user:alice",
+            "user:bob",
+            "user:carol"
+          ],
+          "edges": [
+            "draft:1|doc:readme|revises",
+            "user:alice|user:bob|knows",
+            "user:bob|user:carol|follows"
+          ]
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "doc:readme",
+        "draft:1",
+        "user:alice",
+        "user:bob",
+        "user:carol"
+      ],
+      "edges": [
+        "draft:1|doc:readme|revises",
+        "user:alice|user:bob|knows",
+        "user:bob|user:carol|follows"
+      ],
+      "properties": {
+        "doc:readme": {
+          "title": "Read me"
+        },
+        "draft:1": {
+          "status": "ready"
+        },
+        "user:alice": {
+          "role": "admin"
+        },
+        "user:bob": {
+          "role": "editor"
+        }
+      }
+    }
+  },
+  "ownerless": {
+    "chains": [
+      {
+        "refName": "refs/warp/ownerless/writers/alice",
+        "patches": [
+          {
+            "sha": "f7ab3988e5f9d024a10275698fefa546db24eeab",
+            "writer": "alice",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "base:1",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/ownerless/strand-overlays/orphan",
+        "patches": [
+          {
+            "sha": "2347867f53f175d9adadc619dac44d3ea70f6e89",
+            "writer": "orphan",
+            "lamport": 2,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "orphan:1",
+                "dot": "orphan:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [],
+    "strands": [
+      {
+        "strandId": "orphan",
+        "owner": null,
+        "overlayId": "orphan",
+        "overlayPatchCount": 1,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [
+            "base:1",
+            "orphan:1"
+          ],
+          "edges": []
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "base:1"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  },
+  "shared-dot-strand-remove": {
+    "chains": [
+      {
+        "refName": "refs/warp/shared-dot-strand-remove/writers/alice",
+        "patches": [
+          {
+            "sha": "a5317e033d0e58b05ecbaacdecc49d1c369efdb7",
+            "writer": "alice",
+            "lamport": 1,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "note:keep",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          },
+          {
+            "sha": "87fca99ec137ca1c33995ee0b88925d130d494c6",
+            "writer": "alice",
+            "lamport": 2,
+            "ownContextCounter": 1,
+            "adds": [
+              {
+                "type": "NodeAdd",
+                "target": "note:drop",
+                "dot": "alice:1"
+              }
+            ],
+            "removes": []
+          }
+        ]
+      },
+      {
+        "refName": "refs/warp/shared-dot-strand-remove/strand-overlays/cleanup",
+        "patches": [
+          {
+            "sha": "f49cbff46bbdba1700914e05ef218d6d61bc2018",
+            "writer": "cleanup",
+            "lamport": 3,
+            "ownContextCounter": 0,
+            "adds": [],
+            "removes": [
+              {
+                "type": "NodeRemove",
+                "target": "note:drop",
+                "observedDots": [
+                  "alice:1"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "duplicateDots": [
+      {
+        "dot": "alice:1",
+        "sites": [
+          {
+            "refName": "refs/warp/shared-dot-strand-remove/writers/alice",
+            "sha": "a5317e033d0e58b05ecbaacdecc49d1c369efdb7",
+            "target": "note:keep"
+          },
+          {
+            "refName": "refs/warp/shared-dot-strand-remove/writers/alice",
+            "sha": "87fca99ec137ca1c33995ee0b88925d130d494c6",
+            "target": "note:drop"
+          }
+        ]
+      }
+    ],
+    "strands": [
+      {
+        "strandId": "cleanup",
+        "owner": "bob",
+        "overlayId": "cleanup",
+        "overlayPatchCount": 1,
+        "readOverlays": [],
+        "visible": {
+          "nodes": [],
+          "edges": []
+        }
+      }
+    ],
+    "visible": {
+      "nodes": [
+        "note:drop",
+        "note:keep"
+      ],
+      "edges": [],
+      "properties": {}
+    }
+  }
+}
