@@ -270,7 +270,7 @@ function bindSyncCapability(runtime: WarpGraphRuntimeSurface): SyncCapability {
 
 function bindStrandCapability(runtime: WarpGraphRuntimeSurface): StrandCapability {
   requireCapability(runtime, 'strand', [
-    'createStrand', 'braidStrand', 'getStrand', 'listStrands', 'dropStrand',
+    'createStrand', 'braidStrand', 'getStrand', 'listStrands', 'renameStrand', 'dropStrand',
     'materializeStrand', 'getStrandPatches', 'patchesForStrand',
     'createStrandPatch', 'patchStrand', 'patchStrandWithEvidence', 'queueStrandIntent',
     'listStrandIntents', 'tickStrand', 'analyzeConflicts',
@@ -280,6 +280,7 @@ function bindStrandCapability(runtime: WarpGraphRuntimeSurface): StrandCapabilit
     braidStrand: runtime.braidStrand.bind(runtime),
     getStrand: runtime.getStrand.bind(runtime),
     listStrands: runtime.listStrands.bind(runtime),
+    renameStrand: runtime.renameStrand.bind(runtime),
     dropStrand: runtime.dropStrand.bind(runtime),
     materializeStrand: runtime.materializeStrand.bind(runtime),
     getStrandPatches: runtime.getStrandPatches.bind(runtime),

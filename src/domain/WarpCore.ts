@@ -97,6 +97,7 @@ export default class WarpCore {
   declare readonly braidStrand: WarpCoreRuntimeSurface['braidStrand'];
   declare readonly getStrand: WarpCoreRuntimeSurface['getStrand'];
   declare readonly listStrands: WarpCoreRuntimeSurface['listStrands'];
+  declare readonly renameStrand: WarpCoreRuntimeSurface['renameStrand'];
   declare readonly dropStrand: WarpCoreRuntimeSurface['dropStrand'];
   /** @deprecated ALL materialization APIs are deprecated in favor of pure Optic lenses and unmaterialized Intent admission. */
   declare readonly materializeStrand: WarpCoreRuntimeSurface['materializeStrand'];
