@@ -1,7 +1,9 @@
 # Worldline Dot Mints
 
-Status: proposed technical design. Amended twice on 2026-10-20 after external
-review.
+Status: accepted and implemented for v21.0.0: #1013 (PR #1017), #1018 (PR
+#1019), #1021 (PR #1026), #1014 (PR #1027), #1015 (PR #1028) and #1022 (PR
+#1029). Amended twice on 2026-10-20 after external review. Fencing
+publications for the next marker change is #1025.
 
 Target: [v21.0.0 — Bounded retained storage and recursive WARP](./v21.0.0/README.md)
 
