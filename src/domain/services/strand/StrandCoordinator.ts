@@ -39,10 +39,13 @@ import type { PatchBuilder } from '../PatchBuilder.ts';
 import type { StrandDescriptor } from './strandTypes.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
-import type { StrandCreateOptions } from '../../types/StrandDescriptor.ts';
+import type { StrandCreateOptions, StrandGenesis } from '../../types/StrandDescriptor.ts';
+import MintId from '../../crdt/MintId.ts';
 
 // Re-export constants that were on StrandService
 export { STRAND_SCHEMA_VERSION, STRAND_COORDINATE_VERSION, STRAND_OVERLAY_KIND };
+
+const STRAND_GENESIS_KIND = 'git-warp-strand-genesis';
 
 /**
  * Structural description of the graph runtime as seen by the
@@ -57,6 +60,10 @@ export type StrandCoordinatorGraph = {
 /** Dependencies for StrandCoordinator. */
 export type StrandCoordinatorDeps = {
   graphName: string;
+  /** The runtime writer: creator of new strands and owner of its own strand chains. */
+  writerId: string;
+  /** Reserves a creation occurrence from the runtime writer's lane mint (#1021). */
+  reserveCreation: () => Promise<number>;
   maxObservedLamport: () => number;
   crypto: CryptoPort;
   persistence: GraphPersistencePort;
@@ -94,20 +101,28 @@ function buildStrandDescriptor({
   frontierRecord,
   frontierDigest,
   normalized,
+  strandId,
+  genesis,
+  writerId,
 }: {
   graphName: string;
   now: string;
   frontierRecord: Record<string, string>;
   frontierDigest: string;
   normalized: NormalizedCreateOptions;
+  strandId: string;
+  genesis: StrandGenesis;
+  writerId: string;
 }): StrandDescriptor {
   return {
     schemaVersion: STRAND_SCHEMA_VERSION,
-    strandId: normalized.strandId,
+    strandId,
+    name: genesis.name,
+    genesis,
     graphName,
     createdAt: now,
     updatedAt: now,
-    owner: normalized.owner,
+    owner: normalized.owner ?? writerId,
     scope: normalized.scope,
     lease: {
       expiresAt: normalized.leaseExpiresAt,
@@ -120,7 +135,7 @@ function buildStrandDescriptor({
       checkpointSha: normalized.baseCheckpointSha,
     },
     overlay: {
-      overlayId: normalized.strandId,
+      overlayId: MintId.strand(writerId, strandId).encode(),
       kind: STRAND_OVERLAY_KIND,
       headPatchSha: null,
       patchCount: 0,
@@ -140,6 +155,7 @@ function buildStrandDescriptor({
     materialization: {
       cacheAuthority: 'derived' as const,
     },
+    writers: [],
   };
 }
 
@@ -183,29 +199,59 @@ export default class StrandCoordinator {
 
   // ── Lifecycle (owns the logic) ──────────────────────────────────
 
+  /**
+   * Creates a strand. Its id is the hash of a genesis record naming one
+   * creation occurrence, a counter reserved from the creator's lane mint
+   * (#1014, #1021), so two creations never share an id even with identical
+   * inputs. The returned `genesis.occurrence` is the creation token.
+   */
   async create(options: StrandCreateOptions = {}): Promise<StrandDescriptor> {
-    const normalized = normalizeCreateOptions(options);
+    const name = options.name ?? options.strandId;
+    const normalized = normalizeCreateOptions(name === undefined ? options : { ...options, strandId: name });
     const baseFrontier = normalizeBaseFrontier(options.baseFrontier);
     assertCapturedCoordinatePair(
       normalized.baseCheckpointSha,
       baseFrontier,
     );
+    if (options.creationToken !== undefined) {
+      const existing = await this._findCreation(options.creationToken);
+      if (existing !== null) { return existing; }
+    }
     await this._assertStrandDoesNotExist(normalized.strandId);
 
     const frontier = baseFrontier ?? await this._getFrontier();
     const frontierRecord = frontierToRecord(frontier);
     const frontierDigest = await computeChecksum(frontierRecord, this._deps.crypto);
-    const now = String(this._deps.maxObservedLamport());
+    const genesis: StrandGenesis = {
+      lane: this._deps.graphName,
+      creator: this._deps.writerId,
+      occurrence: await this._deps.reserveCreation(),
+      name: normalized.strandId,
+      base: frontierDigest,
+    };
     const descriptor = buildStrandDescriptor({
       graphName: this._deps.graphName,
-      now,
+      now: String(this._deps.maxObservedLamport()),
       frontierRecord,
       frontierDigest,
       normalized,
+      strandId: await computeChecksum({ kind: STRAND_GENESIS_KIND, ...genesis }, this._deps.crypto),
+      genesis,
+      writerId: this._deps.writerId,
     });
 
     await this._deps.descriptors.writeDescriptor(descriptor);
     return descriptor;
+  }
+
+  /** Renames a strand. Its id and its mints never change. */
+  async rename(strandId: string, name: string): Promise<StrandDescriptor> {
+    const target = await this.getOrThrow(strandId);
+    const normalizedName = normalizeCreateOptions({ strandId: name }).strandId;
+    if (normalizedName !== target.name) { await this._assertStrandDoesNotExist(normalizedName); }
+    const next: StrandDescriptor = { ...target, name: normalizedName, updatedAt: String(this._deps.maxObservedLamport()) };
+    await this._deps.descriptors.writeDescriptor(next);
+    return next;
   }
 
   async braid(strandId: string, options: { braidedStrandIds?: string[]; writable?: boolean | null } = {}): Promise<StrandDescriptor> {
@@ -253,25 +299,17 @@ export default class StrandCoordinator {
     return descriptors;
   }
 
-  async drop(strandId: string): Promise<boolean> {
-    const overlayRef = this._deps.descriptors.buildOverlayRef(strandId);
-    const braidPrefix = this._deps.descriptors.buildBraidPrefix(strandId);
-    const hasDescriptor = await this._deps.descriptors.hasDescriptor(strandId);
-    const overlayHeadSha = await this._deps.persistence.readRef(overlayRef);
-    const braidRefs = await this._deps.persistence.listRefs(braidPrefix);
-    const hasOverlaySha = overlayHeadSha !== null && overlayHeadSha !== undefined;
-    if (!hasDescriptor && !hasOverlaySha && braidRefs.length === 0) {
+  async drop(strandRef: string): Promise<boolean> {
+    const strandId = await this._deps.descriptors.resolveStrandId(strandRef);
+    if (strandId === null) {
       return false;
     }
-    for (const braidRef of braidRefs) {
-      await this._deps.persistence.deleteRef(braidRef);
+    const descriptorRef = this._deps.descriptors.buildRef(strandId);
+    const refs = await this._deps.persistence.listRefs(this._deps.descriptors.buildStrandPrefix(strandId));
+    for (const ref of refs.filter((candidate) => candidate !== descriptorRef)) {
+      await this._deps.persistence.deleteRef(ref);
     }
-    if (hasOverlaySha) {
-      await this._deps.persistence.deleteRef(overlayRef);
-    }
-    if (hasDescriptor) {
-      await this._deps.descriptors.deleteDescriptor(strandId);
-    }
+    await this._deps.descriptors.deleteDescriptor(strandId);
     return true;
   }
 
@@ -396,13 +434,22 @@ export default class StrandCoordinator {
 
   // ── Private ─────────────────────────────────────────────────────
 
-  private async _assertStrandDoesNotExist(strandId: string): Promise<void> {
-    if (await this._deps.descriptors.hasDescriptor(strandId)) {
-      throw new StrandError(`Strand '${strandId}' already exists`, {
+  private async _assertStrandDoesNotExist(name: string): Promise<void> {
+    if (await this._deps.descriptors.resolveStrandId(name) !== null) {
+      throw new StrandError(`Strand '${name}' already exists`, {
         code: 'E_STRAND_ALREADY_EXISTS',
-        context: { graphName: this._deps.graphName, strandId },
+        context: { graphName: this._deps.graphName, strandId: name },
       });
     }
+  }
+
+  private async _findCreation(occurrence: number): Promise<StrandDescriptor | null> {
+    for (const descriptor of await this.list()) {
+      if (descriptor.genesis.creator === this._deps.writerId && descriptor.genesis.occurrence === occurrence) {
+        return descriptor;
+      }
+    }
+    return null;
   }
 
   private async _getFrontier(): Promise<Map<string, string>> {

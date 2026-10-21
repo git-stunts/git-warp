@@ -1,3 +1,4 @@
+import { requireStrandId } from '../crdt/StrandId.ts';
 import WarpError from '../errors/WarpError.ts';
 
 /**
@@ -49,8 +50,6 @@ export const RESERVED_GRAPH_NAME_SEGMENTS: Set<string> = new Set([
   'coverage',
   'cursor',
   'strands',
-  'strand-overlays',
-  'strand-braids',
   'audit',
   'trust',
   'intents',
@@ -243,21 +242,38 @@ export function buildWritersPrefix(graphName: string): string {
 }
 
 /**
- * Builds a strand descriptor ref path for the given graph and id.
+ * Builds a strand descriptor ref path (#1014):
+ * `refs/warp/<graph>/strands/<strand-id>/descriptor`.
  *
- * Strand ids use the same ref-safe validation as writer ids because they
- * appear as the final ref path segment.
+ * Strand ids are immutable 64-hex genesis hashes, never friendly names.
  */
 export function buildStrandRef(graphName: string, strandId: string): string {
-  validateGraphName(graphName);
-  validateWriterId(strandId);
-  return `${REF_PREFIX}/${graphName}/strands/${strandId}`;
+  return `${buildStrandPrefix(graphName, strandId)}descriptor`;
 }
 
 /** Builds the strand prefix path for the given graph. */
 export function buildStrandsPrefix(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/strands/`;
+}
+
+/** Builds the ref prefix holding everything that belongs to one strand. */
+export function buildStrandPrefix(graphName: string, strandId: string): string {
+  return `${buildStrandsPrefix(graphName)}${requireStrandId(strandId)}/`;
+}
+
+/** Builds the prefix of one strand's per-writer patch chains. */
+export function buildStrandWritersPrefix(graphName: string, strandId: string): string {
+  return `${buildStrandPrefix(graphName, strandId)}writers/`;
+}
+
+/**
+ * Builds one writer's patch-chain ref on a strand. Each participant advances
+ * only its own chain, so strand sync never non-fast-forwards a shared ref.
+ */
+export function buildStrandWriterRef(graphName: string, strandId: string, writerId: string): string {
+  validateWriterId(writerId);
+  return `${buildStrandWritersPrefix(graphName, strandId)}${writerId}`;
 }
 
 /** Builds an admitted or queued intent-journal ref. */
@@ -272,40 +288,23 @@ export function buildIntentRef(
 }
 
 /**
- * Builds a strand overlay ref path for the given graph and id.
- *
- * Overlay refs keep the patch-log head for a strand separate from the
- * descriptor ref itself, allowing the descriptor to remain a single ref while
- * the overlay history advances independently.
+ * Builds a pinned braid ref for one writer chain of a support strand inside
+ * a target strand. It keeps the pinned support chain reachable even if the
+ * support strand is later dropped or continues independently.
  */
-export function buildStrandOverlayRef(graphName: string, strandId: string): string {
-  validateGraphName(graphName);
-  validateWriterId(strandId);
-  return `${REF_PREFIX}/${graphName}/strand-overlays/${strandId}`;
+export function buildStrandBraidRef(
+  graphName: string,
+  strandId: string,
+  braidedStrandId: string,
+  writerId: string,
+): string {
+  validateWriterId(writerId);
+  return `${buildStrandBraidsPrefix(graphName, strandId)}${requireStrandId(braidedStrandId)}/${writerId}`;
 }
 
-/**
- * Builds a pinned braid ref for one support overlay inside a target strand.
- *
- * The ref points at the pinned head SHA for the support overlay at braid time,
- * keeping the support patch chain reachable even if the source strand is
- * later dropped or continues independently.
- */
-export function buildStrandBraidRef(graphName: string, strandId: string, braidedStrandId: string): string {
-  validateGraphName(graphName);
-  validateWriterId(strandId);
-  validateWriterId(braidedStrandId);
-  return `${REF_PREFIX}/${graphName}/strand-braids/${strandId}/${braidedStrandId}`;
-}
-
-/**
- * Builds the braid-ref prefix path for all support overlays pinned inside one
- * target strand.
- */
+/** Builds the braid-ref prefix for all support chains pinned inside one target strand. */
 export function buildStrandBraidsPrefix(graphName: string, strandId: string): string {
-  validateGraphName(graphName);
-  validateWriterId(strandId);
-  return `${REF_PREFIX}/${graphName}/strand-braids/${strandId}/`;
+  return `${buildStrandPrefix(graphName, strandId)}braids/`;
 }
 
 /**

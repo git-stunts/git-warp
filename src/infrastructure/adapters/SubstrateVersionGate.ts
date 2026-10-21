@@ -8,7 +8,10 @@ import {
 import { textDecode, textEncode } from '../../domain/utils/bytes.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 
-export const CURRENT_SUBSTRATE_MARKER = 'git-warp-retained-substrate\nversion: 19\n';
+export const CURRENT_SUBSTRATE_MARKER = 'git-warp-retained-substrate\nversion: 21\n';
+
+/** The v19/v20 marker: lane history is current, strands still use the pre-worldline layout (#1014). */
+export const PRE_WORLDLINE_SUBSTRATE_MARKER = 'git-warp-retained-substrate\nversion: 19\n';
 
 type SubstrateVersionHistory = {
   compareAndSwapRef(ref: string, newOid: string, expectedOid: string | null): Promise<void>;
@@ -114,6 +117,9 @@ export default class SubstrateVersionGate {
     const marker = objectType === 'blob'
       ? textDecode(await this.#history.readBlob(markerOid))
       : null;
+    if (marker === PRE_WORLDLINE_SUBSTRATE_MARKER) {
+      throw worldlineMigrationRequired(markerRef);
+    }
     if (marker !== CURRENT_SUBSTRATE_MARKER) {
       throw new WarpError(
         `Unsupported retained-substrate marker at ${markerRef}`,
@@ -140,5 +146,14 @@ function migrationRequired(graphName: string): WarpError {
       + 'Run git-warp-v18-to-v19 before opening it with this runtime.',
     'E_SUBSTRATE_MIGRATION_REQUIRED',
     { context: { graphName, migration: 'retained-substrate' } },
+  );
+}
+
+function worldlineMigrationRequired(markerRef: string): WarpError {
+  return new WarpError(
+    `Timeline at ${markerRef} uses the v19/v20 substrate. `
+      + 'Run the v20-to-v21 worldline migration (docs/migrations/v21) before opening it with this runtime.',
+    'E_SUBSTRATE_MIGRATION_REQUIRED',
+    { context: { markerRef, migration: 'worldline-dot-mints' } },
   );
 }

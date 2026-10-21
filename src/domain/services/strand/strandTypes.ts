@@ -10,6 +10,9 @@
 import type { StrandDescriptor as ParsedStrandBlob } from '../../utils/parseStrandBlob.ts';
 import type { StrandReadOverlayDescriptor, StrandIntentQueue, StrandEvolution } from './descriptorNormalization.ts';
 import type Patch from '../../types/Patch.ts';
+import type { StrandWriterChain } from '../../types/StrandDescriptor.ts';
+
+export type { StrandWriterChain };
 
 export type { StrandReadOverlayDescriptor, StrandIntentQueue, StrandEvolution };
 
@@ -43,8 +46,13 @@ export type StrandTickRecord = {
   overlayPatchShas: string[];
 };
 
-/** Full runtime strand descriptor (overlay + braid + intentQueue + evolution). */
+/**
+ * Full runtime strand descriptor. `overlay` is this runtime writer's own
+ * chain; `writers` lists every writer chain the strand view reads.
+ */
 export type StrandDescriptor = ParsedStrandBlob & {
+  name: string;
+  writers: StrandWriterChain[];
   overlay: ParsedStrandBlob['overlay'] & { writable: boolean };
   braid: { readOverlays: StrandReadOverlayDescriptor[] };
   intentQueue: StrandIntentQueue;

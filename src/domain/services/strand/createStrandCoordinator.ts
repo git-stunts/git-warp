@@ -9,6 +9,8 @@ import StrandMaterializer from './StrandMaterializer.ts';
 import StrandPatchService from './StrandPatchService.ts';
 import StrandIntentService from './StrandIntentService.ts';
 import StrandCoordinator from './StrandCoordinator.ts';
+import { reserveAllocation } from '../openDotMint.ts';
+import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { frontierRecordsEqual } from './StrandDescriptorValidation.ts';
 import { buildIntentId, buildTickId } from './strandShared.ts';
 import type { StrandDescriptor } from './strandTypes.ts';
@@ -17,6 +19,7 @@ import type { ProvenanceIndex } from '../provenance/ProvenanceIndex.ts';
 import type { WarpState } from '../JoinReducer.ts';
 import type Patch from '../../types/Patch.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
+import type AllocationFloorStorePort from '../../../ports/AllocationFloorStorePort.ts';
 import type StrandStorePort from '../../../ports/StrandStorePort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
@@ -77,6 +80,7 @@ export type StrandCoordinatorGraphRuntime = {
   _cachedViewHash: string | null;
   _cachedState: WarpState | null;
   _patchJournal: PatchJournalPort | null | undefined;
+  _allocationFloors: AllocationFloorStorePort | null;
   _strandStore: StrandStorePort;
   _assetStorage: AssetStoragePort | null | undefined;
   _commitMessageCodec: CommitMessageCodecPort;
@@ -104,7 +108,6 @@ function wirePatches(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: S
     loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
     materializeDescriptor: async (descriptor: StrandDescriptor, options: { collectReceipts: boolean; ceiling: number | null }) =>
       await subs.materializer.materializeDescriptor(descriptor, options),
-    writeDescriptor: async (descriptor: StrandDescriptor) => await subs.descriptors.writeDescriptor(descriptor),
     buildOverlayRef: (strandId: string) => subs.descriptors.buildOverlayRef(strandId),
     buildIntentId,
   });
@@ -135,6 +138,15 @@ export default function createStrandCoordinator(graph: StrandCoordinatorGraphRun
 
   ref.coordinator = new StrandCoordinator({
     graphName: graph._graphName,
+    writerId: graph._writerId,
+    reserveCreation: async () => await reserveAllocation({
+      writerId: graph._writerId,
+      commits: graph._persistence,
+      codec: graph._commitMessageCodec,
+      journal: graph._patchJournal,
+      headSha: await graph._persistence.readRef(buildWriterRef(graph._graphName, graph._writerId)),
+      floors: graph._allocationFloors,
+    }),
     maxObservedLamport: () => graph._maxObservedLamport,
     crypto: graph._crypto,
     persistence: graph._persistence,

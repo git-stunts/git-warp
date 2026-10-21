@@ -1,3 +1,4 @@
+import { isStrandId } from '../../domain/crdt/StrandId.ts';
 import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../domain/storage/BufferedArtifactLimit.ts';
 import type {
   BundleCapability,
@@ -34,6 +35,9 @@ type StrandCas = {
 };
 
 /** Retains strand descriptors and queued assets as one causal bundle. */
+/** v21 strand descriptors live at `strands/<strand-id>/descriptor` (#1014). */
+const DESCRIPTOR_SUFFIX = '/descriptor';
+
 export default class GitCasStrandStoreAdapter extends StrandStorePort {
   readonly #history: StrandHistory;
   readonly #cas: StrandCas;
@@ -102,9 +106,9 @@ export default class GitCasStrandStoreAdapter extends StrandStorePort {
     const prefix = buildStrandsPrefix(graphName);
     const refs = await this.#history.listRefs(prefix);
     return refs
-      .filter((ref) => ref.startsWith(prefix))
-      .map((ref) => ref.slice(prefix.length))
-      .filter((strandId) => strandId.length > 0 && !strandId.includes('/'))
+      .filter((ref) => ref.startsWith(prefix) && ref.endsWith(DESCRIPTOR_SUFFIX))
+      .map((ref) => ref.slice(prefix.length, ref.length - DESCRIPTOR_SUFFIX.length))
+      .filter((strandId) => isStrandId(strandId))
       .sort();
   }
 
