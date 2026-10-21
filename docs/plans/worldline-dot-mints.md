@@ -264,9 +264,11 @@ damage. It never makes new decisions about the user's data.
   `allocationDot` can name a strand dot, and the provenance resolver covers
   it. The v19.1.0 fixture checks that every migrated lane reads exactly as
   v19.1.0 did.
-- **Allocation floors.** For each `MintId`, compute the floor from retained
-  history and outstanding reservations, and persist it so reopening,
-  cancelling or checkpointing cannot lower it (#1021).
+- **Allocation floors.** For each lane writer, compute the floor from its
+  whole retained chain and persist it at `allocation/<writer>`, so reopening,
+  cancelling or checkpointing cannot lower it (#1021). Strand writer floors
+  are not stored: a converted strand chain keeps its counters, and every open
+  derives the floor from the whole chain plus queued intents.
 - **Strand conversion.**
   - Each legacy overlay chain moves to `strands/<strand-id>/writers/<owner>`,
     using the descriptor's recorded `owner`.
@@ -331,8 +333,11 @@ containment, not prevention:
 - **Late lane writes.** A v20 process that keeps writing to a lane stays
   readable, because lane keys are unchanged. Lane commits beyond the migration
   frontier are detected as late legacy arrivals. They raise the writer's
-  allocation floor (#1021) before that writer mints again, and they are
-  reported, because v20.0.0 still mints from an unsafe seed.
+  allocation floor (#1021) before that writer mints again in v21, and they
+  are reported, because v20.0.0 still mints from an unsafe seed. The report
+  only observes: a v20 process that keeps running keeps minting from that
+  seed, so every later commit it publishes is another reported damage window
+  until the process stops. v21 writers still mint above all of it.
 - **Late strand writes.** These land on legacy strand refs that v21 never
   reads. They are reported, never silently dropped or merged.
 - **Late arrivals by sync.** Another clone's v20 commits are handled the same
