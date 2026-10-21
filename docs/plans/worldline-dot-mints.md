@@ -85,6 +85,17 @@ Patch (built on one WriterChain)
   from retained history and persisted (#1021). Knowing a counter is used does
   not mean the writer observed the operation that carries it, so the floor is
   never merged into a patch's causal context.
+- **Floor storage.** A lane writer's floor is a blob at
+  `allocation/<writer>` recording the counter and the chain head it was
+  computed through. Opening the writer walks only the commits after that head
+  and replaces the blob with compare-and-swap; a lost race recomputes, so a
+  concurrent reservation is never lost. A strand writer's floor is not
+  stored: strand chains are written only by the mint, so every open derives
+  it from the whole chain plus its queued intents.
+- **Reservation is not issuance.** `reserveAllocation` takes the next counter
+  above the floor and persists it before returning, without issuing a dot. A
+  reserved counter never appears on an add, in a remove's observed dots, or in
+  a patch context.
 - **One sequential issuer per `MintId`.** Two processes writing as `alice` on
   the same worldline, in different clones, can issue the same counter. A
   `DotMint` cannot prevent that across clones. The rule is stated, and it is
@@ -113,17 +124,23 @@ Genesis
 └── base          digest of the pinned base observation
 ```
 
-The strand id is the hash of the canonical genesis encoding.
+The strand id is the lowercase hex sha256 of the UTF-8 canonical JSON of
+`{ kind: 'git-warp-strand-genesis', lane, creator, occurrence, name, base }`
+(`canonicalStringify`: object keys sorted by UTF-16 code unit, no whitespace,
+JSON string escaping, integers in decimal). Names are compared as exact
+strings, with no Unicode normalization.
 
-- **Uniqueness without entropy.** The occurrence counter comes from the
-  creator's lane `DotMint`, and the allocation floor (#1021) is raised and
-  persisted before the genesis record is published. One sequential issuer per
-  `MintId` means two creations never share an occurrence, even with identical
-  inputs and frozen clocks. The counter is a reservation, not a dot: no add
-  carries it.
+- **Uniqueness without entropy.** The occurrence is reserved from the
+  creator's lane floor (#1021) before the genesis record is published. Under
+  the one-issuer rule, two creations never share an occurrence, even with
+  identical inputs and frozen clocks. The guarantee is exactly as strong as
+  that rule: one writer id used by two clones can produce identical genesis
+  records, and then identical ids, just as it can produce identical dots.
 - **Idempotent retry.** `createStrand` returns the occurrence as a creation
-  token. Retrying with that token returns the existing strand. A call without
-  it is a new creation and consumes a new counter.
+  token. A retry by the same creator with that token and the same name
+  returns the existing strand; a different name is refused
+  (`E_STRAND_CREATION_TOKEN_MISMATCH`). A call without a token is a new
+  creation and consumes a new counter.
 - **Stable.** Sharing a strand preserves its id, and renaming it does not
   change its mints. Deleting and recreating `next` never reuses an old
   namespace.
@@ -195,7 +212,10 @@ refs/warp/<lane>/
 
 Settlement re-mints membership. Promotion turns each overlay patch back into an
 intent sequence (`intentSequenceFromPatch`) and commits it on the settling
-writer's root chain, so strand **membership** dots never reach the lane.
+writer's root chain, so strand **membership** dots never reach the lane. A
+settlement plan is bound to the target frontier it previewed, so once its
+promotion commit lands, a retried plan is stale and refused: a retry after an
+unknown outcome cannot promote twice. This design does not change that.
 
 Strand identities still reach lane history through **provenance**. A retained
 entity's admission origin records its original strand `allocationDot`, and
@@ -231,6 +251,13 @@ damage. It never makes new decisions about the user's data.
 - **Forward-only.** No ref is deleted or rewritten in place. Lane chains are
   untouched. Legacy strand refs remain until an operator removes them after
   verification.
+- **Lane history reads unchanged.** Untouched lane bytes need no read-side
+  translation. Lane removes observe only lane membership dots, and lane
+  contexts carry only lane keys, because settlement re-mints strand membership
+  and strand overlays never fold into lane state. Only a retained
+  `allocationDot` can name a strand dot, and the provenance resolver covers
+  it. The v19.1.0 fixture checks that every migrated lane reads exactly as
+  v19.1.0 did.
 - **Allocation floors.** For each `MintId`, compute the floor from retained
   history and outstanding reservations, and persist it so reopening,
   cancelling or checkpointing cannot lower it (#1021).
@@ -323,11 +350,18 @@ close it.
   operator's own writer id on that clone, for example `repair.alice`. It is
   never a fixed name shared across clones: two clones repairing from different
   frontiers under one writer id would issue the same repair dots and recreate
-  the collateral deletion the repair exists to prevent.
+  the collateral deletion the repair exists to prevent. The `repair.` prefix
+  is reserved: a runtime or writer cannot be opened with it
+  (`E_WRITER_ID_RESERVED`). Its uniqueness rests on the same one-issuer rule
+  as the operator's own writer id.
 - **Record.** Store the input frontier, affected add sites, chosen policy and
-  resulting commits.
-- **Idempotent.** Retrying the same repair does not mint another batch of
-  fresh adds.
+  resulting commits at `repairs/<repair-id>`. The repair id is the sha256 of
+  the canonical JSON of the dot, policy, sorted selection and repair writer.
+- **Idempotent.** The record is written as `pending`, with the repair
+  writer's chain head, before the repair commits, and as `applied` after.
+  A retry finds the record: `applied` returns it; `pending` takes the commit
+  that follows the recorded head if one exists, and commits otherwise. A
+  retry never mints another batch.
 - **Guard.** Until a collision is resolved, a remove that would tombstone a
   shared dot cannot silently cause a new collateral deletion (#1002).
 
