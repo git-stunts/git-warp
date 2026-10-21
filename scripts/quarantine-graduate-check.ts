@@ -32,13 +32,21 @@
  * stacked commits, and merge workflows. The target branch defaults to
  * `origin/main`, overridable via `GIT_WARP_QUARANTINE_BASE`.
  *
+ * Rename handling and path fidelity live in `quarantineDiffBasis.ts`.
+ *
  * ## Exit codes
  *
- * - 0: No touched files are still quarantined, or this is a full-clean
- *      CI run with no diff basis available.
+ * - 0: No touched files are still quarantined.
  * - 1: At least one touched file remains in a quarantine manifest and
  *      has not been graduated. Output names offenders explicitly.
- * - 2: Tooling/environment failure (cannot read manifests, etc.).
+ * - 2: Tooling/environment failure — unreadable manifests, or a diff
+ *      basis that cannot be resolved.
+ *
+ * A gate that cannot determine what changed does not pass; it fails
+ * closed. This previously returned "skip" on an unresolvable merge-base,
+ * which made the gate a no-op on any shallow clone whose branch point was
+ * absent — the common case for a PR branch that diverged before the tip.
+ * CI must fetch enough history for the merge-base to resolve.
  *
  * ## Human-readable output
  *
@@ -48,12 +56,15 @@
  */
 
 import { readdir, readFile } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DiffBasisError, getTouchedFiles } from './quarantineDiffBasis.ts';
 
 const THIS_FILE = fileURLToPath(import.meta.url);
-const REPO_ROOT = join(dirname(THIS_FILE), '..');
+// Overridable so the gate itself can be exercised against fixture
+// repositories. Without this the check can only ever run against its own
+// checkout, which is why it shipped untested.
+const REPO_ROOT = process.env['GIT_WARP_QUARANTINE_ROOT'] ?? join(dirname(THIS_FILE), '..');
 const QUARANTINE_DIR = join(REPO_ROOT, 'policy', 'quarantines');
 const DEFAULT_BASE = process.env['GIT_WARP_QUARANTINE_BASE'] ?? 'origin/main';
 
@@ -106,46 +117,6 @@ async function loadAllManifests(): Promise<readonly Manifest[]> {
     out.push(await loadManifest(p));
   }
   return out;
-}
-
-/**
- * Returns the touched-file set for the current branch against the
- * target base. Uses git merge-base to compute a true branch-diff
- * rather than a single-commit diff.
- *
- * Returns null if the base ref cannot be resolved (e.g. on a freshly
- * cloned CI shallow checkout without the base branch). Null means
- * "don't know what changed" — the caller treats it as a pass because
- * we refuse to be falsely strict when we lack information.
- */
-function getTouchedFiles(base: string): readonly string[] | null {
-  let mergeBase: string;
-  try {
-    mergeBase = execFileSync('git', ['merge-base', base, 'HEAD'], {
-      cwd: REPO_ROOT,
-      encoding: 'utf8',
-    }).trim();
-  } catch {
-    return null;
-  }
-  if (mergeBase.length === 0) {
-    return null;
-  }
-  let output: string;
-  try {
-    output = execFileSync(
-      'git',
-      ['diff', '--name-only', '-z', `${mergeBase}..HEAD`],
-      { cwd: REPO_ROOT, encoding: 'utf8' },
-    );
-  } catch {
-    return null;
-  }
-  const files = output
-    .split('\0')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  return files;
 }
 
 interface Accusation {
@@ -228,12 +199,27 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
-  const touched = getTouchedFiles(DEFAULT_BASE);
-  if (touched === null) {
-    console.log(`quarantine-graduate-check: skipped (could not resolve merge-base against ${DEFAULT_BASE}).`);
-    console.log('  This is expected on a fresh CI shallow clone before the base branch is fetched.');
-    console.log('  Set GIT_WARP_QUARANTINE_BASE to override the target branch.');
-    return;
+  let touched: readonly string[];
+  try {
+    touched = getTouchedFiles(DEFAULT_BASE, REPO_ROOT);
+  } catch (err) {
+    if (!(err instanceof DiffBasisError)) {
+      throw err;
+    }
+    console.error('');
+    console.error('quarantine-graduate-check: FAIL — cannot establish a diff basis.');
+    console.error(`  ${err.message}`);
+    console.error('');
+    console.error('  This gate fails closed. A run that cannot determine which');
+    console.error('  files changed cannot prove that no quarantined file was');
+    console.error('  touched, so it must not report success.');
+    console.error('');
+    console.error('  On CI, check out with full history (`fetch-depth: 0`); a');
+    console.error('  shallow clone will not contain the branch point whenever the');
+    console.error('  branch diverged before the base tip.');
+    console.error(`  Override the target branch with GIT_WARP_QUARANTINE_BASE (currently ${DEFAULT_BASE}).`);
+    console.error('');
+    process.exit(2);
   }
 
   if (touched.length === 0) {

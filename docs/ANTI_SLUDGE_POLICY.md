@@ -518,7 +518,7 @@ Also reject if:
 | Shell sludge check (`npm run lint:sludge`) | Junk-drawer filenames + regex sweeps across `src/` | `scripts/check-anti-sludge.sh` (TBD) |
 | IRONCLAD M9 (`npm run typecheck:policy`) | `@ts-ignore`, `z.any()`, wildcard ratchet | `scripts/ts-policy-check.ts` |
 | Determinism (`ban-nondeterminism`) | Time/random/env in `src/domain/**` | `scripts/ban-nondeterminism.ts` |
-| Quarantine graduation | Touched quarantined files must graduate or narrow | `scripts/quarantine-graduate-check.ts` (TBD) |
+| Quarantine graduation | Touched quarantined files must graduate or narrow | `scripts/quarantine-graduate-check.ts` (`npm run lint:quarantine-graduate`; fails closed without a diff basis) |
 | TypeScript (`npm run typecheck`) | `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, etc. | `tsconfig.base.json` |
 
 All gates run in CI (`ci.yml`) and must pass before merge.

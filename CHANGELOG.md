@@ -58,6 +58,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Make the quarantine graduate-check fail closed. A branch whose merge-base
+  with the target cannot be resolved now fails the gate (exit 2) instead of
+  skipping it, CI checks out full history and no longer swallows a failed base
+  fetch, renames count both their old and new paths (`--no-renames`), and
+  touched paths stay byte-exact
+  ([#1030](https://github.com/git-stunts/git-warp/issues/1030)).
 - Mint above every counter a writer has used, not only the counters in its
   chain head. Chains written before the dot-mint fix could reset their
   counter, so the head can sit below counters already used and an
