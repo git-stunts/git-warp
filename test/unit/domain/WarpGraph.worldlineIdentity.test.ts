@@ -150,4 +150,18 @@ describe('worldline identity (#1014)', () => {
 
     await expect(alice.getStrand('')).rejects.toMatchObject({ code: 'E_STRAND_ID_INVALID' });
   });
+
+  it('reads the pinned base for a writer with no chain on a strand others wrote to', async () => {
+    const persistence = new InMemoryGraphAdapter();
+    const alice = await open(persistence, 'alice');
+    await alice.patch((patch) => { patch.addNode('base:1'); });
+    await alice.createStrand({ name: 'work' });
+    await alice.patchStrand('work', (patch) => { patch.addNode('strand:1'); });
+    await alice.patch((patch) => { patch.addNode('lane:after-fork'); });
+
+    const reader = await open(persistence, 'reader');
+    const state = await reader.materializeStrand('work');
+
+    expect([...state.nodeAlive.elements()].sort()).toEqual(['base:1', 'strand:1']);
+  });
 });
