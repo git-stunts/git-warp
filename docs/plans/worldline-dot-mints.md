@@ -207,7 +207,7 @@ its own `MintId`.
 | --- | --- | --- |
 | [#1013](https://github.com/git-stunts/git-warp/issues/1013) DotMint | One issuing authority per chain; every seeder routes through it. No format change. | none |
 | [#1018](https://github.com/git-stunts/git-warp/issues/1018) v19.1.0 fixture | Authentic legacy history with golden, edge-case and known-failure scenarios. | none |
-| [#1014](https://github.com/git-stunts/git-warp/issues/1014) Worldline identity format | `MintId` with one canonical spelling; strand ids from genesis records with idempotent creation tokens; per-writer strand chains; marker-verifying ref transactions; substrate marker bumped so unmigrated repositories refuse. | #1013, #1021 (the creation occurrence is a persisted reservation) |
+| [#1014](https://github.com/git-stunts/git-warp/issues/1014) Worldline identity format | `MintId` with one canonical spelling; strand ids from genesis records with idempotent creation tokens; per-writer strand chains; substrate marker bumped so unmigrated repositories refuse. | #1013, #1021 (the creation occurrence is a persisted reservation) |
 | [#1021](https://github.com/git-stunts/git-warp/issues/1021) Allocation floor | Trustworthy, persisted floor for legacy chains, covering reservations such as strand-creation occurrences, re-established when late legacy commits arrive. | #1013 |
 | [#1015](https://github.com/git-stunts/git-warp/issues/1015) v20→v21 migration | Preserves existing interpretation: converts strands, fans removes out, establishes floors, maps and resolves provenance, contains late legacy writes, reports damage. | #1014, #1021, #1018 |
 | [#1022](https://github.com/git-stunts/git-warp/issues/1022) Duplicate-dot repair | Explicit, previewed, audited and idempotent repair, separate from migration. | #1015 |
@@ -292,10 +292,11 @@ containment, not prevention:
   reads. They are reported, never silently dropped or merged.
 - **Late arrivals by sync.** Another clone's v20 commits are handled the same
   way when they arrive.
-- **Fenced v21 publication.** Every v21 ref publication verifies the marker in
-  the same atomic ref transaction as the update
-  (`git update-ref --stdin` with `verify` and `update`), so there is no window
-  between checking and writing.
+- **Fencing the next boundary.** A v21 process that opened before a later
+  marker change would keep writing in the same way. Before any later marker
+  change, every publication must verify the marker in the same atomic ref
+  transaction as its update (#1025). Most publications go through git-cas,
+  which needs an option for that first.
 - **Acceptance.** A real v20.0.0 process, opened before migration, writes to a
   lane and to a strand afterwards; each outcome above is asserted. A fresh v20
   open after migration is refused.
