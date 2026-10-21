@@ -479,8 +479,9 @@ export class PatchBuilder {
   get ops(): PatchOp[] {
     return this._ops;
   }
+  /** A copy of the patch context; the builder alone advances its own. */
   get versionVector(): VersionVector {
-    return this._vv;
+    return this._vv.clone();
   }
   get reads(): ReadonlySet<string> {
     return new Set(this._observedOperands);
