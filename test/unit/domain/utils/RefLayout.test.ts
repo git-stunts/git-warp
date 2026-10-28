@@ -6,6 +6,7 @@ import {
   buildWriterRef,
   buildCheckpointRef,
   buildCoverageRef,
+  buildConeHeadRef,
   buildWritersPrefix,
   parseWriterIdFromRef as _parseWriterIdFromRef,
   validateGraphName as _validateGraphName,
@@ -222,6 +223,19 @@ describe('RefLayout', () => {
       expect(() => buildCheckpointRef('../etc')).toThrow("contains path traversal sequence '..'");
       expect(() => buildCheckpointRef('')).toThrow('cannot be empty');
       expect(() => buildCheckpointRef('my graph')).toThrow('contains space');
+    });
+  });
+
+  describe('buildConeHeadRef', () => {
+    it('builds the clone-local cone basis head ref', () => {
+      expect(buildConeHeadRef('events')).toBe('refs/warp/events/cone/head');
+      expect(buildConeHeadRef('team/events')).toBe('refs/warp/team/events/cone/head');
+    });
+
+    it('reserves the cone segment and rejects invalid graph names', () => {
+      expect(RESERVED_GRAPH_NAME_SEGMENTS.has('cone')).toBe(true);
+      expect(() => buildConeHeadRef('team/cone')).toThrow();
+      expect(() => buildConeHeadRef('')).toThrow('cannot be empty');
     });
   });
 

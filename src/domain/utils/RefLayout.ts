@@ -11,6 +11,7 @@ import WarpError from '../errors/WarpError.ts';
  * - refs/warp/<graph>/writers/<writer_id>
  * - refs/warp/<graph>/checkpoints/head
  * - refs/warp/<graph>/coverage/head
+ * - refs/warp/<graph>/cone/head
  * - refs/warp/<graph>/strands/<id>
  * - refs/warp/<graph>/strand-overlays/<id>
  * - refs/warp/<graph>/strand-braids/<id>/<support_id>
@@ -48,6 +49,7 @@ export const RESERVED_GRAPH_NAME_SEGMENTS: Set<string> = new Set([
   'writers',
   'checkpoints',
   'coverage',
+  'cone',
   'cursor',
   'strands',
   'audit',
@@ -227,6 +229,22 @@ export function buildCheckpointRef(graphName: string): string {
 export function buildCoverageRef(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/coverage/head`;
+}
+
+/**
+ * Builds the cone basis head ref path for the given graph (#1039).
+ *
+ * The cone basis is derived and clone-local, like the checkpoint head: it
+ * points at this clone's per-entity record trie and folded writer frontier,
+ * and it is never transferred between clones.
+ *
+ * @example
+ * buildConeHeadRef('events');
+ * // => 'refs/warp/events/cone/head'
+ */
+export function buildConeHeadRef(graphName: string): string {
+  validateGraphName(graphName);
+  return `${REF_PREFIX}/${graphName}/cone/head`;
 }
 
 /**
