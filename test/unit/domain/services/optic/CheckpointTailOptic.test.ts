@@ -11,7 +11,7 @@ import NodeOptic from '../../../../../src/domain/services/optic/NodeOptic.ts';
 import NodePropertyOptic from '../../../../../src/domain/services/optic/NodePropertyOptic.ts';
 import Optic from '../../../../../src/domain/services/optic/Optic.ts';
 import OpticCoordinatePosture from '../../../../../src/domain/services/optic/OpticCoordinatePosture.ts';
-import WorldlineOptic from '../../../../../src/domain/services/optic/WorldlineOptic.ts';
+import CheckpointTailOptic from '../../../../../src/domain/services/optic/CheckpointTailOptic.ts';
 import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
 import MockIndexStorage from '../../../../helpers/MockIndexStorage.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
@@ -47,9 +47,9 @@ class TestCheckpointTailOpticSource extends CheckpointTailOpticSource {
   }
 }
 
-describe('WorldlineOptic', () => {
+describe('CheckpointTailOptic', () => {
   it('lowers node and property scopes into reified Optic nouns', () => {
-    const worldlineOptic = new WorldlineOptic({
+    const worldlineOptic = new CheckpointTailOptic({
       source: new TestCheckpointTailOpticSource(),
       coordinatePosture: OpticCoordinatePosture.capturedCoordinate(),
     });
@@ -73,7 +73,7 @@ describe('WorldlineOptic', () => {
   });
 
   it('lowers neighborhood and traversal scopes with bounded-support posture', () => {
-    const worldlineOptic = new WorldlineOptic({
+    const worldlineOptic = new CheckpointTailOptic({
       source: new TestCheckpointTailOpticSource(),
     });
 
@@ -105,7 +105,7 @@ describe('WorldlineOptic', () => {
   it('rejects mismatched reified Optic kinds at scope construction', () => {
     const source = new TestCheckpointTailOpticSource();
     const locator = new CheckpointTailWitnessLocator({ source });
-    const worldlineOptic = new WorldlineOptic({ source });
+    const worldlineOptic = new CheckpointTailOptic({ source });
     const nodeOptic = worldlineOptic.node('node:alpha').toOptic();
     const propertyOptic = worldlineOptic.node('node:alpha').prop('role').toOptic();
     const neighborhoodOptic = worldlineOptic.neighborhood('node:alpha').toOptic();

@@ -9,7 +9,7 @@ import { cloneState } from '../JoinReducer.ts';
 import LiveQueryReadModelProvider from '../query/LiveQueryReadModelProvider.ts';
 import Observer from '../query/Observer.ts';
 import ProjectionHandle from '../ProjectionHandle.ts';
-import WorldlineOptic from '../optic/WorldlineOptic.ts';
+import CheckpointTailOptic from '../optic/CheckpointTailOptic.ts';
 import type CheckpointTailOpticSource from '../optic/CheckpointTailOpticSource.ts';
 import { computeTranslationCost } from '../TranslationCost.ts';
 import { toInternalStrandShape } from '../../utils/strandPublicShape.ts';
@@ -313,7 +313,7 @@ async function boundedExactReadModel(
   }
   return new CheckpointTailExactIdQueryReadModel({
     nodeId,
-    optic: new WorldlineOptic({ source: graph }),
+    optic: new CheckpointTailOptic({ source: graph }),
   });
 }
 

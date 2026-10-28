@@ -1,5 +1,5 @@
 import type ProjectionHandle from '../ProjectionHandle.ts';
-import type WorldlineOptic from '../optic/WorldlineOptic.ts';
+import type CheckpointTailOptic from '../optic/CheckpointTailOptic.ts';
 import type { OpticReadIdentity } from '../optic/OpticReadIdentity.ts';
 import type { PrecommitGuard } from '../../types/WarpIntentDescriptor.ts';
 import type { PropValue } from '../../types/PropValue.ts';
@@ -27,7 +27,7 @@ export type BoundedIntentGuardSource = {
 export default class BoundedIntentGuardReader {
   readonly evaluationCoordinateRef: string;
   readonly #worldline: ProjectionHandle;
-  #optic: WorldlineOptic | null;
+  #optic: CheckpointTailOptic | null;
 
   constructor(worldline: ProjectionHandle, evaluationCoordinateRef: string) {
     this.#worldline = worldline;
