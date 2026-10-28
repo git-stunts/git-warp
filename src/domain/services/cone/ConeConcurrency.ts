@@ -37,19 +37,17 @@ export type ConeDeferredConcurrency = {
  * a race, so a Reading of a register nothing raced never decodes them.
  */
 export default class ConeConcurrency {
-  #sets: ConeConcurrencySets | null;
-  readonly #load: () => ConeConcurrencySets;
+  /** The sets, or until first use the loader that decodes them. */
+  #source: ConeConcurrencySets | (() => ConeConcurrencySets);
   readonly #hint: ConeConcurrencyHint;
 
   constructor(fields: ConeConcurrencySets | ConeDeferredConcurrency) {
     if ('load' in fields) {
-      this.#sets = null;
-      this.#load = fields.load;
+      this.#source = fields.load;
       this.#hint = Object.freeze({ racedKeys: Object.freeze([...fields.hint.racedKeys]), lifecycleRaced: fields.hint.lifecycleRaced });
     } else {
       const sets = requireSets(fields);
-      this.#sets = sets;
-      this.#load = () => sets;
+      this.#source = sets;
       this.#hint = hintOf(sets);
     }
     Object.freeze(this);
@@ -99,8 +97,10 @@ export default class ConeConcurrency {
   }
 
   #loaded(): ConeConcurrencySets {
-    this.#sets ??= requireSets(this.#load());
-    return this.#sets;
+    if (typeof this.#source === 'function') {
+      this.#source = requireSets(this.#source());
+    }
+    return this.#source;
   }
 }
 

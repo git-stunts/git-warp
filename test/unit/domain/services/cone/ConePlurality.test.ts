@@ -74,6 +74,10 @@ describe('cone plurality readings (#1039)', () => {
       element: { kind: 'node', subject: 'n' }, removedBy: ['bob'], editedBy: ['alice'], overflow: 0, causality: 'observed',
     }));
     expect(ConePluralityReader.node(node({ members: [], lifecycle: raced.slice(1) }))).toBeNull();
+    // Edits alone past the cap: the hint says the lifecycle may race, but no remove is retained.
+    const edits = Array.from({ length: 17 }, (_unused, index) =>
+      new ConeLifecycleEvent({ event: event(`e${String(index).padStart(2, '0')}`, index + 1), role: 'edit', causal: true }));
+    expect(ConePluralityReader.node(node({ members: [], lifecycle: edits }))).toBeNull();
     let lifecycle = ConeConcurrentSet.empty<ConeLifecycleEvent>();
     for (const member of raced) {
       lifecycle = lifecycle.with(member, nothingSeen(member.event.writerId, 9));
