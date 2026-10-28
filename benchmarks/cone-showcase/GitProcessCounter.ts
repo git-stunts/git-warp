@@ -1,3 +1,4 @@
+/// <reference path="../../test/type-check/plumbing-declarations.d.ts" />
 import GitPlumbing from '@git-stunts/plumbing';
 
 /**
@@ -13,8 +14,6 @@ import GitPlumbing from '@git-stunts/plumbing';
  */
 
 type CommandOptions = Readonly<{ args: readonly string[] }>;
-type PlumbingMethod = (this: object, options: CommandOptions) => Promise<object>;
-type PlumbingPrototype = { executeStream: PlumbingMethod; openSession: PlumbingMethod };
 
 export type GitProcessSnapshot = Readonly<{ total: number; byCommand: Readonly<Record<string, number>> }>;
 
@@ -22,18 +21,17 @@ class GitProcessCounter {
   #total = 0;
   readonly #byCommand = new Map<string, number>();
 
-  install(prototype: PlumbingPrototype): void {
-    const counter = this;
-    const executeStream = prototype.executeStream;
-    const openSession = prototype.openSession;
-    prototype.executeStream = function countedExecuteStream(options) {
-      counter.#record(options.args[0] ?? '<empty>');
-      return executeStream.call(this, options);
-    };
-    prototype.openSession = function countedOpenSession(options) {
-      counter.#record(`session:${options.args[0] ?? '<empty>'}`);
-      return openSession.call(this, options);
-    };
+  /** Wraps one process-starting method of the plumbing prototype. */
+  wrap(prototype: object, method: 'executeStream' | 'openSession', category: (command: string) => string): void {
+    const original: unknown = Reflect.get(prototype, method);
+    if (typeof original !== 'function') {
+      throw new TypeError(`@git-stunts/plumbing no longer exposes ${method}`);
+    }
+    const record = (command: string): void => { this.#record(category(command)); };
+    Reflect.set(prototype, method, function counted(this: object, options: CommandOptions): unknown {
+      record(options.args[0] ?? '<empty>');
+      return Reflect.apply(original, this, [options]);
+    });
   }
 
   snapshot(): GitProcessSnapshot {
@@ -59,6 +57,7 @@ class GitProcessCounter {
 }
 
 const counter = new GitProcessCounter();
-counter.install(GitPlumbing.prototype);
+counter.wrap(GitPlumbing.prototype, 'executeStream', (command) => command);
+counter.wrap(GitPlumbing.prototype, 'openSession', (command) => `session:${command}`);
 
 export default counter;
