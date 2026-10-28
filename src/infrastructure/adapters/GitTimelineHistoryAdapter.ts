@@ -19,7 +19,6 @@ import type TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
 import type TreeEntryPrefixBatch from '../../domain/tree/TreeEntryPrefixBatch.ts';
 import type { TreeEntryProbeResult } from '../../domain/tree/TreeEntryProbeResult.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
-import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import GraphPersistencePort from '../../ports/GraphPersistencePort.ts';
 import { buildLogArgs } from './GitLogArgs.ts';
 import GitCasGraphReaderAdapter from './GitCasGraphReaderAdapter.ts';
@@ -34,13 +33,16 @@ import {
   type GitError,
   getExitCode,
   isDanglingObjectError,
-  gitDiagnosticText,
   wrapGitError,
   toGitError,
   DEFAULT_RETRY_OPTIONS,
 } from './gitErrorClassification.ts';
 import type OperationPolicyPort from '../../ports/OperationPolicyPort.ts';
 import type { OperationPolicyExecuteOptions } from '../../ports/OperationPolicyPort.ts';
+import { createGitCasRetryPolicy } from './GitCasRetryPolicy.ts';
+import { assertBlobExistsForEmptyRead } from './GitEmptyBlobProbe.ts';
+import { parseRefTargetListing, refTargetListingArgs } from './GitRefTargetListing.ts';
+import type { GitTreeObjectEntry } from './GitTreeObjectEntry.ts';
 export type { GitPlumbing, GitError, CollectableStream } from './gitErrorClassification.ts';
 
 export type GitTimelineHistoryAdapterOptions = {
@@ -56,10 +58,6 @@ export type GitTreeCommitOptions = {
   message: string;
   sign?: boolean;
 };
-interface GitCasPolicy {
-  execute<T>(operation: () => Promise<T>): Promise<T>;
-}
-
 /**
  * Normalizes graph blob writes to the content shape expected by git-cas.
  */
@@ -68,20 +66,6 @@ function toGitCasBlobContent(content: Uint8Array | string): Uint8Array {
     return textEncode(content);
   }
   return content;
-}
-
-/**
- * Adapts git-warp retry options to git-cas's policy-shaped boundary.
- */
-function createGitCasRetryPolicy(
-  policy: OperationPolicyPort,
-  retryOptions: OperationPolicyExecuteOptions
-): GitCasPolicy {
-  return Object.freeze({
-    async execute<T>(operation: () => Promise<T>): Promise<T> {
-      return await policy.execute(operation, retryOptions);
-    },
-  });
 }
 
 function buildListRefsArgs(prefix: string, limit: number | null | undefined): string[] {
@@ -153,23 +137,7 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
    * blob stream returns no bytes.
    */
   private async _assertBlobExistsForEmptyRead(oid: string): Promise<void> {
-    try {
-      await this._executeWithRetry({ args: ['cat-file', '-e', oid] });
-    } catch (raw) {
-      const err = toGitError(raw);
-      const wrapped = wrapGitError(err, { oid });
-      const exitCode = getExitCode(err);
-      const diagnostics = gitDiagnosticText(err);
-      const ambiguousMissingObject = exitCode === 1 && diagnostics === '';
-      if (wrapped === err && ambiguousMissingObject) {
-        throw new PersistenceError(
-          `Missing Git object: ${oid}`,
-          PersistenceError.E_MISSING_OBJECT,
-          { cause: err, context: { oid } }
-        );
-      }
-      throw wrapped;
-    }
+    await assertBlobExistsForEmptyRead((args) => this._executeWithRetry({ args }), oid);
   }
 
   get emptyTree(): string {
@@ -326,6 +294,16 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
     return await this._recursiveTreeOidReader.readTreeEntryPrefix(treeOid, prefix, limit);
   }
 
+  /** The entries of one tree object, read through the long-lived object session and cached by id. */
+  async readTreeObjectEntries(treeOid: string): Promise<readonly GitTreeObjectEntry[]> {
+    validateOid(treeOid);
+    try {
+      return await this._gitCasPersistence.readTree(treeOid);
+    } catch (raw) {
+      throw wrapGitError(toGitError(raw), { oid: treeOid });
+    }
+  }
+
   async readBlob(oid: string): Promise<Uint8Array> {
     validateOid(oid);
     try {
@@ -433,6 +411,18 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
       throw wrapGitError(toGitError(raw), { ref: prefix });
     }
     return output.split('\n').filter((line) => line.trim() !== '');
+  }
+
+  /** Every ref under `prefix` with the object it points at, from one `for-each-ref`. */
+  async readRefTargets(prefix: string): Promise<ReadonlyMap<string, string>> {
+    validateRef(prefix);
+    let output: string;
+    try {
+      output = await this._executeWithRetry({ args: refTargetListingArgs(prefix) });
+    } catch (raw) {
+      throw wrapGitError(toGitError(raw), { ref: prefix });
+    }
+    return parseRefTargetListing(output, prefix);
   }
 
   async ping(): Promise<PingResult> {

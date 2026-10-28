@@ -44,10 +44,15 @@ describe('GitConePatchFeedAdapter', () => {
     const tip1 = await append('w1', 1, null);
     const tip2 = await append('w2', 1, null);
     await history.updateRef(`refs/warp/${LANE}/writers/nested/name`, tip1);
+    const listings = vi.spyOn(history, 'readRefTargets');
+    const reads = vi.spyOn(history, 'readRef');
     expect(await feed.writerTips(LANE)).toEqual(new Map([['w1', tip1], ['w2', tip2]]));
-    const vanished = vi.spyOn(history, 'readRef').mockResolvedValueOnce(null);
+    expect(listings).toHaveBeenCalledTimes(1);
+    expect(reads).not.toHaveBeenCalled();
+    listings.mockResolvedValueOnce(new Map([[`refs/warp/${LANE}/writers/w2`, tip2], ['refs/warp/elsewhere', tip1]]));
     expect(await feed.writerTips(LANE)).toEqual(new Map([['w2', tip2]]));
-    vanished.mockRestore();
+    listings.mockRestore();
+    reads.mockRestore();
   });
 
   it('returns a range oldest first from one bulk log, decoding each patch once', async () => {

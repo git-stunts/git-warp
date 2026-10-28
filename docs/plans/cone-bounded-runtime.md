@@ -157,11 +157,11 @@ The core engine lives in `src/domain/services/cone/` behind two ports, `ConeReco
 - **Adjacency.** An edge key joins `out` of `from` and `in` of `to` once, when its record is first created.
   Node records count registrations; edge key `i` lives on adjacency page `floor(i / 256)`, so appending
   touches the last page only and a hub's node record stays small.
-- **Trie.** Records are blobs at `<family>/<r0r1>/<r2r3>/<route>` (families `n`, `e`, `d`, `a`), where
-  `route` is the BLAKE3 route key of the record identity, the same routing `MaterializationPropertyProfile`
-  uses for node ids. A write rewrites the blobs and directories on touched paths only. The head
-  `refs/warp/<lane>/cone/head` points at a tree of the `frontier` blob and the `records` trie, published by
-  compare-and-swap; it is clone-local and never transferred.
+- **Trie.** (Layout 1, replaced by layout 2 below.) Records are blobs at `<family>/<r0r1>/<r2r3>/<route>`
+  (families `n`, `e`, `d`, `a`), where `route` is the BLAKE3 route key of the record identity, the same routing
+  `MaterializationPropertyProfile` uses for node ids. A write rewrites the blobs and directories on touched
+  paths only. The head `refs/warp/<lane>/cone/head` points at a tree of the `frontier` blob and the `records`
+  trie, published by compare-and-swap; it is clone-local and never transferred.
 - **Ingest.** `ConeIngest.advance()` reads one bulk `git log --first-parent from..tip` per changed writer,
   decodes each new patch once, folds writers in id order and chains in order, and publishes all or nothing;
   a lost race retries, a writer whose tip does not descend from its folded position is reported as
@@ -175,8 +175,68 @@ The core engine lives in `src/domain/services/cone/` behind two ports, `ConeReco
 
 Known limits of slice 1: a lane whose history already holds a remove of a shared dot stays obstructed even
 after `applyDotRepair`, because the repair appends patches and the old remove remains; record reads cost two
-Git processes each (probe and blob), which a batched object reader would reduce; a writer whose tip is a
+Git processes each (probe and blob), which the storage record below removes; a writer whose tip is a
 non-patch commit is re-listed on every advance.
+
+## Storage layout 2 record
+
+Profiling the annotations workload at 200 threads on the slice 1-3 store, a margins read (four Observations)
+started 370 Git processes: 342 `ls-tree` probes from record reads and 28 from four ingest advances (a writer
+listing, one `rev-parse` per writer and three processes per basis read). A one-patch save spent 41 of its 67
+processes in the cone, one `ls-tree` per probed or listed directory and one `hash-object` per record blob,
+and the batched bulk load wrote 10,369 loose objects (41 MiB, mostly 4 KiB filesystem blocks).
+
+- **Reads.** `GitConeRecordStoreAdapter` walks tree objects through the history's long-lived
+  `cat-file --batch-command` session (git-cas `readTree`, cached by tree id) and reads record blobs through
+  the same session, so a record read starts no process. A basis read is one `rev-parse` of the head plus
+  session reads; writer tips come from one `for-each-ref --format='%(objectname) %(refname)'`.
+- **Layout 2.** Each family directory of the records root is an adaptive 16-way trie on the route's hex
+  digits (`GitConeRecordTrie`): a directory is a bucket of record blobs named by their full route while at
+  most 32 routes share its prefix, and a branch of digit directories otherwise. Records are only added or
+  replaced, so the shape is a function of the set of routes, not of insertion order. No directory exceeds
+  32 entries, so a touched record rewrites a few small trees instead of a 256-entry level.
+- **Writes.** A `writeRecords` call of any size is one `git fast-import` program
+  (`GitFastImportTreeScript`, `GitFastImportTreeWriter`): it grafts the current family trees, writes changed
+  blobs inline, moves the records of a splitting bucket by blob id, and reads the new root back with
+  `ls ""`; its throwaway commit is built on a branch the program resets, so no ref changes. Every changed
+  directory is written once per call, and a fold session already writes once per run of patches. Git
+  explodes a small fast-import pack into loose objects (`fastimport.unpackLimit`, default 100) and keeps a
+  large one, so a save stays loose and a bulk fold lands in one pack. The basis head tree is written the
+  same way.
+- **Version marker.** Every head tree holds a `layout` blob naming layout 2. A head with no marker (layout
+  1) or another marker is refused with `ConeRecordError` code `E_CONE_LAYOUT_UNSUPPORTED`; the basis is
+  clone-local derived state, so the remedy is to delete the named head ref and fold again.
+- **With slice 4.** The layout applies to every `ConeBasisHead`: the lane's `cone/head` and a strand's
+  `cone/strands/<id>/base` and `cone/strands/<id>/head` are written by the same fast-import basis writer, carry
+  the marker and are refused the same way (the refusal names the head's ref). The retained-bases tree
+  (`cone/retained`, `r/<sequence>-<tree id>`) is read through the object session and written by one
+  fast-import per retention; no cone path writes a blob or tree with `hash-object` or `mktree`, or probes one
+  with `ls-tree`.
+- **Doctrine note.** [Git performance](../topics/git-perf.md) assigns bulk object writing to git-cas. git-cas
+  has no tree-edit write yet, and its blob-then-`mktree` path leaves every tree loose, which does not fit
+  the 20,000-thread budget; the fast-import tree writer is adapter-local until git-cas owns that operation.
+
+Cost witness (annotations example, three writers; `benchmarks/cone-showcase` on the showcase branch, run in
+Docker):
+
+| | 200 threads (before / after) | 2,000 threads (before / after) | 20,000 threads (after) |
+| --- | --- | --- | --- |
+| Bulk load, batched patches | 9.1 s / 1.0 s (15 patches) | 104.5 s / 13.2 s (123) | 254.5 s (1,203) |
+| Repo after load | 41 / 3 MiB | 401 / 46 MiB | 575 MiB (before: over the 4 GiB budget) |
+| One-patch save, p50 | 55 / 33 ms; 67 / 30 processes | 60 / 47 ms; 67 / 30 processes | 175 ms; 30 processes |
+| Margins read, p50 | 289 / 32 ms; 384 / 8 processes | 287 / 36 ms; 370 / 8 processes | 65 ms; 8 processes |
+| Cold open to first margins, p50 | 516 / 268 ms; 416 / 20 processes | 518 / 272 ms; 382 / 20 processes | 331 ms; 20 processes |
+
+Process counts are flat in graph size; the cone's share of a save is 4 processes (`rev-parse`, two
+`fast-import`, `update-ref`). The 20,000-thread save is slower only because the bulk load leaves one pack per
+batched fold (1,203 packs), and every Git process pays for each pack it searches: in Docker, a one-shot
+`cat-file -e` costs 0.28 ms with one pack, 0.69 ms with 123 and 4.46 ms with 1,230. After one
+`git repack -a -d` (14 s; one 58 MiB pack), the same repository saves in 33-44 ms and reads margins in 53-65 ms.
+
+Known limits of layout 2: git-warp starts no repository maintenance, so a bulk import's packs accumulate until
+`git gc` or `git repack` runs, and saves slow by about 4 ms per 1,000 packs per process; a save writes about 25
+loose objects (about 100 KiB of filesystem blocks before `git gc`); each `fast-import` leaves one unreachable
+commit object.
 
 ## Slice 2 and 3 implementation record
 

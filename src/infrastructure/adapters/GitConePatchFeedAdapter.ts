@@ -15,10 +15,9 @@ import ConePatchFeedPort from '../../ports/ConePatchFeedPort.ts';
 /** Log format matching GitLogParser's record contract: sha, author, date, parents, message. */
 const CHAIN_LOG_FORMAT = '%H%n%an <%ae>%n%aI%n%P%n%B';
 
-/** The history surface the feed reads: writer refs and one bulk log per range. */
+/** The history surface the feed reads: every writer tip in one listing and one bulk log per range. */
 export type ConeFeedHistory = {
-  listRefs(prefix: string): Promise<string[]>;
-  readRef(ref: string): Promise<string | null>;
+  readRefTargets(prefix: string): Promise<ReadonlyMap<string, string>>;
   logNodesStream(options: LogNodesOptions): Promise<WarpStream<CommitLogChunk>>;
 };
 
@@ -32,6 +31,7 @@ type PendingPatch = { readonly sha: string; readonly message: PatchCommitMessage
 /**
  * Reads unfolded writer ranges for cone ingest.
  *
+ * Every writer tip of a lane comes from one ref listing.
  * A range `(fromSha, toSha]` costs one `git log --first-parent fromSha..toSha`
  * for all of its commit metadata, then one payload read per patch; history
  * at or below `fromSha` is neither listed nor decoded. When `toSha` does not
@@ -56,10 +56,9 @@ export default class GitConePatchFeedAdapter extends ConePatchFeedPort {
 
   override async writerTips(lane: string): Promise<ReadonlyMap<string, string>> {
     const tips = new Map<string, string>();
-    for (const ref of await this.#history.listRefs(buildWritersPrefix(lane))) {
+    for (const [ref, tip] of await this.#history.readRefTargets(buildWritersPrefix(lane))) {
       const writerId = parseWriterIdFromRef(ref);
-      const tip = writerId === null ? null : await this.#history.readRef(ref);
-      if (writerId !== null && tip !== null) {
+      if (writerId !== null) {
         tips.set(writerId, tip);
       }
     }
