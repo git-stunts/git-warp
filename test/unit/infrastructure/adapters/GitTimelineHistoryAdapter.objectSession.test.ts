@@ -98,6 +98,14 @@ describe('empty blob probe', () => {
     await expect(assertBlobExistsForEmptyRead(async () => { throw new Error('fatal: corrupt pack'); }, 'a'.repeat(40)))
       .rejects.toThrow('fatal: corrupt pack');
   });
+
+  it('confirms an empty blob read through the history with one existence probe', async () => {
+    const { plumbing, history } = await fixture();
+    const empty = await history.writeBlob(new Uint8Array());
+    const executions = vi.spyOn(plumbing, 'execute');
+    expect(await history.readBlob(empty)).toEqual(new Uint8Array());
+    expect(executions.mock.calls.map((call) => call[0].args.slice(0, 2))).toEqual([['cat-file', '-e']]);
+  });
 });
 
 describe('git-cas retry policy', () => {
