@@ -1,7 +1,5 @@
 import QueryError from '../../errors/QueryError.ts';
 import { compareStrings } from '../../utils/StringComparison.ts';
-import type ConeBasis from '../cone/ConeBasis.ts';
-import type ConeRecordKey from '../cone/ConeRecordKey.ts';
 
 export type ConeReadIdentityFrontierEntry = {
   readonly writerId: string;
@@ -9,11 +7,17 @@ export type ConeReadIdentityFrontierEntry = {
   readonly lamport: number;
 };
 
+/**
+ * The identity's fields in their published form. A witness is a public
+ * noun, so its declaration names strings and plain frontier entries rather
+ * than the internal cone basis and record-key classes they are rendered from.
+ */
 export type ConeReadIdentityOptions = {
   readonly worldline: string;
   readonly entityAspect: string;
-  readonly basis: ConeBasis;
-  readonly records: readonly ConeRecordKey[];
+  readonly coneRoot: string;
+  readonly coneFrontier: readonly ConeReadIdentityFrontierEntry[];
+  readonly coneRecords: readonly string[];
   readonly reducerVersion: string;
   readonly projectionVersion: string;
 };
@@ -22,7 +26,7 @@ export type ConeReadIdentityOptions = {
  * What one cone-bounded Reading answered from (#1039): the cone basis (the
  * record trie root and the writer frontier it folds) and the records it
  * read. The root is content-addressed, so root plus record key names the
- * exact bytes the Reading saw.
+ * exact bytes the Reading saw. Record keys are kept once each, in order.
  */
 export default class ConeReadIdentity {
   readonly kind: 'cone-read' = 'cone-read';
@@ -38,25 +42,22 @@ export default class ConeReadIdentity {
   constructor(options: ConeReadIdentityOptions) {
     assertNonEmpty(options.worldline, 'worldline');
     assertNonEmpty(options.entityAspect, 'entityAspect');
+    assertNonEmpty(options.coneRoot, 'coneRoot');
     assertNonEmpty(options.reducerVersion, 'reducerVersion');
     assertNonEmpty(options.projectionVersion, 'projectionVersion');
     this.worldline = options.worldline;
     this.entityAspect = options.entityAspect;
-    this.coneRoot = options.basis.root.toString();
-    this.coneFrontier = frontierIdentity(options.basis);
-    this.coneRecords = Object.freeze([...new Set(options.records.map((key) => key.toString()))].sort(compareStrings));
+    this.coneRoot = options.coneRoot;
+    this.coneFrontier = Object.freeze(options.coneFrontier.map((entry) => Object.freeze({
+      writerId: entry.writerId,
+      patchSha: entry.patchSha,
+      lamport: entry.lamport,
+    })));
+    this.coneRecords = Object.freeze([...new Set(options.coneRecords)].sort(compareStrings));
     this.reducerVersion = options.reducerVersion;
     this.projectionVersion = options.projectionVersion;
     Object.freeze(this);
   }
-}
-
-function frontierIdentity(basis: ConeBasis): readonly ConeReadIdentityFrontierEntry[] {
-  return Object.freeze(basis.frontier.entries().map(([writerId, position]) => Object.freeze({
-    writerId,
-    patchSha: position.sha,
-    lamport: position.lamport,
-  })));
 }
 
 function assertNonEmpty(value: string, field: string): void {

@@ -49,7 +49,7 @@ async function graph() {
   ]);
   feed.append('w1', [new NodeAdd('gone', new Dot('w1', 20))]);
   const cone = ConeLaneBasis.ofLane({ store, feed, lane: LANE });
-  return { cone, feed, optic: new WorldlineOptic({ worldline: LANE, cone: new LiveConeReadBasis(cone), coordinatePosture: OpticCoordinatePosture.liveOneOff() }) };
+  return { cone, feed, optic: new WorldlineOptic({ locator: new ConeWitnessLocator({ worldline: LANE, source: new LiveConeReadBasis(cone) }), coordinatePosture: OpticCoordinatePosture.liveOneOff() }) };
 }
 
 const POSTURE = Object.freeze({
@@ -82,7 +82,7 @@ describe('ConeWitnessLocator node and property reads', () => {
     const { cone, feed } = await graph();
     const basis = await cone.advance();
     if (!(basis instanceof ConeBasis)) { throw new Error('expected a basis'); }
-    const pinned = new WorldlineOptic({ worldline: LANE, cone: new PinnedConeReadBasis(cone, basis), coordinatePosture: OpticCoordinatePosture.capturedCoordinate() });
+    const pinned = new WorldlineOptic({ locator: new ConeWitnessLocator({ worldline: LANE, source: new PinnedConeReadBasis(cone, basis) }), coordinatePosture: OpticCoordinatePosture.capturedCoordinate() });
     feed.append('w1', [new NodePropSet('hub', 'title', 'Later')]);
     const read = await pinned.node('hub').prop('title').read();
     expect(read.value).toBe('Hub');
@@ -154,11 +154,33 @@ describe('TraversalOptic', () => {
   });
 });
 
+describe('WorldlineOptic', () => {
+  it('reads only through a cone witness locator', () => {
+    // @ts-expect-error exercising runtime validation for JavaScript callers
+    expect(() => new WorldlineOptic({ locator: {}, coordinatePosture: OpticCoordinatePosture.liveOneOff() }))
+      .toThrow(expect.objectContaining({ code: 'E_WORLDLINE_OPTIC', context: { field: 'locator' } }));
+  });
+});
+
 describe('ConeReadIdentity', () => {
   it('requires its identity fields', () => {
-    expect(() => new ConeReadIdentity({
-      worldline: LANE, entityAspect: '', basis: ConeBasis.empty(), records: [], reducerVersion: 'r', projectionVersion: 'p',
-    })).toThrow(expect.objectContaining({ code: 'E_OPTIC_READ_IDENTITY' }));
+    const fields = {
+      worldline: LANE, entityAspect: 'node:a', coneRoot: '(empty)', coneFrontier: [], coneRecords: [], reducerVersion: 'r', projectionVersion: 'p',
+    };
+    expect(() => new ConeReadIdentity({ ...fields, entityAspect: '' })).toThrow(expect.objectContaining({ code: 'E_OPTIC_READ_IDENTITY' }));
+    expect(() => new ConeReadIdentity({ ...fields, coneRoot: '' })).toThrow(expect.objectContaining({ code: 'E_OPTIC_READ_IDENTITY', context: { field: 'coneRoot' } }));
+  });
+
+  it('keeps each record key once, in order, and freezes its frontier', () => {
+    const frontier = [{ writerId: 'w1', patchSha: 'abcd', lamport: 2 }];
+    const identity = new ConeReadIdentity({
+      worldline: LANE, entityAspect: 'node:a', coneRoot: '(empty)', coneFrontier: frontier,
+      coneRecords: ['node:b', 'node:a', 'node:b'], reducerVersion: 'r', projectionVersion: 'p',
+    });
+    expect(identity.coneRecords).toEqual(['node:a', 'node:b']);
+    expect(identity.coneFrontier).toEqual(frontier);
+    expect(identity.coneFrontier).not.toBe(frontier);
+    expect(Object.isFrozen(identity.coneFrontier[0])).toBe(true);
   });
 });
 
@@ -187,7 +209,7 @@ describe('ConeWitnessLocator plurality (#1039)', () => {
       new EdgeRemove({ from: 'hub', to: 'a', label: 'tag', observedDots: ['w1:4'] }),
     ]);
     const cone = ConeLaneBasis.ofLane({ store, feed, lane: LANE });
-    return new WorldlineOptic({ worldline: LANE, cone: new LiveConeReadBasis(cone), coordinatePosture: OpticCoordinatePosture.liveOneOff() });
+    return new WorldlineOptic({ locator: new ConeWitnessLocator({ worldline: LANE, source: new LiveConeReadBasis(cone) }), coordinatePosture: OpticCoordinatePosture.liveOneOff() });
   }
 
   it('reports a raced register value, a raced node lifecycle and raced incident edges on the first page', async () => {

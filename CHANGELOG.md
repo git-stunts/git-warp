@@ -184,6 +184,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edge.remove` and `node.remove` of an element added earlier in the same
   atomic write now observe the in-write add dot instead of finding nothing to
   remove ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- Keep the npm artifact within its entry ceiling: the public `Optic`
+  constructor and `Witness` declarations no longer name internal cone
+  classes, so the internal cone engine ships as JavaScript only and the
+  published declaration closure falls to 94 files
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 - Admit `edge.remove` on a Lane: it takes the edge's live dots from its cone
   record instead of requiring materialized state
   ([#1037](https://github.com/git-stunts/git-warp/issues/1037)). Neighborhood

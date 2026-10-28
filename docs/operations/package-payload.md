@@ -82,6 +82,16 @@ ceilings. The packed smoke rejects shipped JavaScript that carries doc
 comments and requires the public `Runtime` declaration to keep its
 documentation.
 
+The cone-bounded Runtime ([#1039](https://github.com/git-stunts/git-warp/issues/1039))
+added 97 JavaScript modules and briefly carried the artifact to 1,119 entries.
+Its public `Optic` constructor and `Witness` union had named internal cone
+classes, which pulled 77 private declarations into the public closure. Those
+public declarations now name only public nouns (a witness locator base and
+string-rendered witness fields), so the internal cone engine publishes
+JavaScript only. The closure holds 94 declarations and the artifact measured
+1,042 entries, 645,625 compressed bytes and 3,007,708 unpacked bytes, under
+unchanged ceilings.
+
 ## Allowlist
 
 The package may contain only these path classes:

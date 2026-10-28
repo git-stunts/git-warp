@@ -133,8 +133,13 @@ export default class ConeWitnessLocator extends OpticWitnessLocator {
     return new ConeReadIdentity({
       worldline: this.#worldline,
       entityAspect: read.aspect,
-      basis,
-      records: read.records,
+      coneRoot: basis.root.toString(),
+      coneFrontier: basis.frontier.entries().map(([writerId, position]) => ({
+        writerId,
+        patchSha: position.sha,
+        lamport: position.lamport,
+      })),
+      coneRecords: read.records.map((key) => key.toString()),
       reducerVersion: REDUCER_VERSION,
       projectionVersion: PROJECTION_VERSION,
     });

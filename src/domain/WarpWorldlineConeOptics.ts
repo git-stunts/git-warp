@@ -5,6 +5,7 @@ import type ConeLaneBasis from './services/cone/ConeLaneBasis.ts';
 import type ConeObstruction from './services/cone/ConeObstruction.ts';
 import LiveConeReadBasis from './services/cone/LiveConeReadBasis.ts';
 import PinnedConeReadBasis from './services/cone/PinnedConeReadBasis.ts';
+import ConeWitnessLocator from './services/optic/ConeWitnessLocator.ts';
 import OpticCoordinatePosture from './services/optic/OpticCoordinatePosture.ts';
 import WorldlineOptic from './services/optic/WorldlineOptic.ts';
 import WarpWorldlineCoordinate from './WarpWorldlineCoordinate.ts';
@@ -34,8 +35,7 @@ export async function captureRetainedConeCoordinate(worldlineName: string, cone:
 /** A live optic over a Lane's cone basis: each read folds the Lane's new patches first. */
 export function liveConeOptic(worldlineName: string, cone: ConeLaneBasis): WorldlineOptic {
   return new WorldlineOptic({
-    worldline: worldlineName,
-    cone: new LiveConeReadBasis(cone),
+    locator: new ConeWitnessLocator({ worldline: worldlineName, source: new LiveConeReadBasis(cone) }),
     coordinatePosture: OpticCoordinatePosture.liveOneOff(),
   });
 }
@@ -64,8 +64,7 @@ function coneCoordinate(
     coneRoot: basis.root.toString(),
     frontier: new Map(basis.writerHeads()),
     createOptic: () => new WorldlineOptic({
-      worldline: worldlineName,
-      cone: new PinnedConeReadBasis(cone, basis),
+      locator: new ConeWitnessLocator({ worldline: worldlineName, source: new PinnedConeReadBasis(cone, basis) }),
       coordinatePosture: OpticCoordinatePosture.capturedCoordinate(),
     }),
   });

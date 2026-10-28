@@ -1,15 +1,20 @@
-import ConeWitnessLocator from './ConeWitnessLocator.ts';
-import type ConeReadBasisSource from '../cone/ConeReadBasisSource.ts';
 import ContinuumEvidencePosture from '../../continuum/ContinuumEvidencePosture.ts';
+import QueryError from '../../errors/QueryError.ts';
+import ConeWitnessLocator from './ConeWitnessLocator.ts';
 import LocatedOptic from './LocatedOptic.ts';
 import OpticAperturePosture from './OpticAperturePosture.ts';
 import OpticBasisPosture from './OpticBasisPosture.ts';
 import type OpticCoordinatePosture from './OpticCoordinatePosture.ts';
+import type OpticWitnessLocator from './OpticWitnessLocator.ts';
 
-/** An optic over a Lane's cone records (#1039): live, or pinned to a captured coordinate. */
+/**
+ * An optic over a Lane's cone records (#1039): live, or pinned to a captured
+ * coordinate. The locator is typed by its public base so the published
+ * declaration of this public class names no internal cone type; the
+ * constructor still admits only a cone witness locator.
+ */
 type WorldlineOpticOptions = {
-  readonly worldline: string;
-  readonly cone: ConeReadBasisSource;
+  readonly locator: OpticWitnessLocator;
   readonly coordinatePosture: OpticCoordinatePosture;
 };
 
@@ -20,7 +25,7 @@ type WorldlineOpticOptions = {
  */
 export default class WorldlineOptic extends LocatedOptic {
   constructor(options: WorldlineOpticOptions) {
-    super(new ConeWitnessLocator({ worldline: options.worldline, source: options.cone }), {
+    super(requireConeLocator(options.locator), {
       coordinatePosture: options.coordinatePosture,
       aperturePosture: OpticAperturePosture.defaultFullRead(),
       basisPosture: OpticBasisPosture.coneBasis(),
@@ -28,4 +33,14 @@ export default class WorldlineOptic extends LocatedOptic {
     });
     Object.freeze(this);
   }
+}
+
+function requireConeLocator(locator: OpticWitnessLocator): ConeWitnessLocator {
+  if (!(locator instanceof ConeWitnessLocator)) {
+    throw new QueryError('A worldline optic reads only through a cone witness locator.', {
+      code: 'E_WORLDLINE_OPTIC',
+      context: { field: 'locator' },
+    });
+  }
+  return locator;
 }
