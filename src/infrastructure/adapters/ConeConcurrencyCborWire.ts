@@ -1,5 +1,6 @@
 import ConeRecordError from '../../domain/errors/ConeRecordError.ts';
-import ConeConcurrency from '../../domain/services/cone/ConeConcurrency.ts';
+import ConeConcurrency, { type ConeConcurrencySets } from '../../domain/services/cone/ConeConcurrency.ts';
+import type CodecPort from '../../ports/CodecPort.ts';
 import ConeConcurrentSet, { type ConeConcurrentMember } from '../../domain/services/cone/ConeConcurrentSet.ts';
 import ConeConcurrentValue from '../../domain/services/cone/ConeConcurrentValue.ts';
 import ConeLifecycleEvent from '../../domain/services/cone/ConeLifecycleEvent.ts';
@@ -12,36 +13,50 @@ type ClocksWire = Array<[string, number]>;
 
 /**
  * CBOR wire form of cone record concurrency (#1039). A record with no
- * retained concurrency encodes no field, so its bytes are unchanged; sets
+ * retained concurrency encodes no field, so its bytes are unchanged. A record
+ * with some encodes its hint (`k`: register keys that can hold a race, `l`:
+ * whether the lifecycle can) beside the sets, which are nested as one byte
+ * string (`b`): reading the record decodes the hint only, and the sets are
+ * decoded when a fold, a write check or a raced Reading needs them. Sets
  * encode members newest first and clocks in writer order, so equal sets
  * always yield equal bytes.
  */
-export function encodeConcurrency(concurrency: ConeConcurrency): { readonly conc?: object } {
+export function encodeConcurrency(concurrency: ConeConcurrency, codec: CodecPort): { readonly conc?: object } {
   if (concurrency.isEmpty()) {
     return {};
   }
-  return {
-    conc: {
-      r: [...concurrency.registers].map(([key, set]) => [key, encodeSet(set, (member) => member.value)]),
-      l: encodeSet(concurrency.lifecycle, (member) => member.role),
-    },
+  const hint = concurrency.hint();
+  const sets = {
+    r: [...concurrency.registers].map(([key, set]) => [key, encodeSet(set, (member) => member.value)]),
+    l: encodeSet(concurrency.lifecycle, (member) => member.role),
   };
+  return { conc: { k: [...hint.racedKeys], l: hint.lifecycleRaced, b: codec.encode(sets) } };
 }
 
-/**
- * Decodes a record's stored concurrency, validating by hand rather than by
- * schema: every record of a read carries it, so this is on the read path.
- */
-export function decodeConcurrency(wire: unknown): ConeConcurrency {
+/** The stored concurrency of a record, its sets deferred until first use. */
+export function decodeConcurrency(wire: unknown, codec: CodecPort): ConeConcurrency {
   if (wire === undefined) {
     return ConeConcurrency.empty();
   }
+  const fields = requireRecord(wire);
+  const bytes = fields['b'];
+  if (!(bytes instanceof Uint8Array)) {
+    throw corrupt();
+  }
+  return new ConeConcurrency({
+    hint: { racedKeys: requireArray(fields['k']).map(requireString), lifecycleRaced: requireBoolean(fields['l']) },
+    load: () => decodeSets(codec.decode<unknown>(bytes)),
+  });
+}
+
+/** Decodes stored sets, validating by hand. */
+function decodeSets(wire: unknown): ConeConcurrencySets {
   const fields = requireRecord(wire);
   const registers = new Map(requireArray(fields['r']).map((entry) => {
     const [key, set] = requireTuple(entry, 2);
     return [requireString(key), decodeSet(set, (payload) => requireValue(payload), valueMember)];
   }));
-  return new ConeConcurrency({ registers, lifecycle: decodeSet(fields['l'], requireRole, lifecycleMember) });
+  return { registers, lifecycle: decodeSet(fields['l'], requireRole, lifecycleMember) };
 }
 
 function valueMember(event: EventId, causal: boolean, value: ConeConcurrentValue['value']): ConeConcurrentValue {

@@ -190,28 +190,32 @@ describe('cone concurrency fold (#1039)', () => {
     expect(session.implicitObservation('alice')).toEqual(new Map());
   });
 
-  it('refuses a stored concurrent value of an unsupported type', async () => {
+  it('reads only the hint of stored concurrency until its sets are needed, and refuses malformed sets', async () => {
     const codec = new CborCodec();
     const records = new ConeRecordCborCodec(codec);
     const { store, root } = await fold([entry({ writer: 'alice', lamport: 1, heads: [], ops: [new NodeAdd('n', new Dot('alice', 1)), new NodePropSet('n', 'k', 'v')] })]);
-    const wire = codec.decode<{ conc: { r: Array<[string, { m: Array<[unknown, boolean, unknown]> }]> } }>(records.encode(await new ConeReader(store).node(root, 'n')));
-    const member = wire.conc.r[0]?.[1].m[0];
-    if (member === undefined) { throw new Error('expected a member'); }
-    member[2] = { constructor: 1 };
-    expect(() => records.decode(codec.encode(wire))).toThrowError(expect.objectContaining({ code: 'E_CONE_RECORD_CORRUPT' }));
+    const wire = codec.decode<Record<string, unknown>>(records.encode(await new ConeReader(store).node(root, 'n')));
+    const withSets = (sets: unknown, hint: Record<string, unknown> = { k: [], l: false }): Uint8Array =>
+      codec.encode({ ...wire, conc: { ...hint, b: codec.encode(sets) } });
     const good = { r: [['k', { m: [[[1, 'alice', 'a'.repeat(40), 1], true, 'v']], o: [['alice', 0]], x: [] }]],
       l: { m: [[[1, 'alice', 'a'.repeat(40), 0], true, 'edit']], o: [], x: [] } };
+    const decoded = records.decode(withSets(good));
+    expect(decoded instanceof ConeNodeRecord ? decoded.concurrency.register('k').members.map((member) => member.value) : []).toEqual(['v']);
     const malformed: unknown[] = [
       [], { ...good, r: 'x' }, { ...good, r: [['k']] }, { ...good, r: [[1, good.r[0]?.[1]]] },
+      { ...good, r: [['k', { m: [[[1, 'alice', 'a'.repeat(40), 1], true, { constructor: 1 }]], o: [], x: [] }]] },
       { ...good, l: { ...good.l, m: [[[1, 'alice', 'a'.repeat(40), 0], 'yes', 'edit']] } },
       { ...good, l: { ...good.l, m: [[[1, 'alice', 'a'.repeat(40), 0], true, 'gone']] } },
       { ...good, l: { ...good.l, o: [['alice', 'one']] } },
     ];
-    expect(records.decode(codec.encode({ ...wire, conc: good }))).toBeInstanceOf(ConeNodeRecord);
-    for (const conc of malformed) {
-      expect(() => records.decode(codec.encode({ ...wire, conc })), JSON.stringify(conc)).toThrowError(
+    for (const sets of malformed) {
+      const record = records.decode(withSets(sets));
+      expect(() => (record instanceof ConeNodeRecord ? record.concurrency.lifecycle : null), JSON.stringify(sets)).toThrowError(
         expect.objectContaining({ code: 'E_CONE_RECORD_CORRUPT' }),
       );
+    }
+    for (const conc of [{ k: [], l: false, b: 'not bytes' }, { k: [1], l: false, b: codec.encode(good) }, { k: [], l: 'no', b: codec.encode(good) }]) {
+      expect(() => records.decode(codec.encode({ ...wire, conc }))).toThrowError(expect.objectContaining({ code: 'E_CONE_RECORD_CORRUPT' }));
     }
   });
 });

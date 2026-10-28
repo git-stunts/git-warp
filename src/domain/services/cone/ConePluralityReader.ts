@@ -6,6 +6,7 @@ import RegisterPlurality from '../../api/RegisterPlurality.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import { compareEventIds } from '../../utils/EventId.ts';
 import { compareStrings } from '../../utils/StringComparison.ts';
+import type ConeConcurrency from './ConeConcurrency.ts';
 import type ConeConcurrentSet from './ConeConcurrentSet.ts';
 import type ConeConcurrentValue from './ConeConcurrentValue.ts';
 import type ConeEdgeRecord from './ConeEdgeRecord.ts';
@@ -25,8 +26,8 @@ import { hydrateConeState } from './ConeStateHydration.ts';
 export default class ConePluralityReader {
   /** The plurality of the visible register `key` of a live node, or null. */
   static register(record: ConeNodeRecord, key: string): RegisterPlurality | null {
+    const winner = racingWinner(record, key);
     const set = record.concurrency.register(key);
-    const winner = racingWinner(record, set, key);
     const siblings = winner === null ? [] : visibleSiblings(record, set, winner.eventId);
     if (winner === null || siblings.length + set.overflow === 0) {
       return null;
@@ -43,12 +44,12 @@ export default class ConePluralityReader {
 
   /** The delete-versus-edit plurality of a node, or null. */
   static node(record: ConeNodeRecord): LifecyclePlurality | null {
-    return lifecycle({ kind: 'node', subject: record.nodeId }, record.concurrency.lifecycle);
+    return lifecycle({ kind: 'node', subject: record.nodeId }, record.concurrency);
   }
 
   /** The delete-versus-edit plurality of an edge, or null. */
   static edge(record: ConeEdgeRecord): LifecyclePlurality | null {
-    return lifecycle({ kind: 'edge', from: record.from, to: record.to, label: record.label }, record.concurrency.lifecycle);
+    return lifecycle({ kind: 'edge', from: record.from, to: record.to, label: record.label }, record.concurrency);
   }
 }
 
@@ -63,14 +64,22 @@ function visibleSiblings(
     && !state.isStaleNodeRegister(record.nodeId, new LWWRegister<PropValue>(member.event, member.value)));
 }
 
-/** The visible register's LWW value when its set can hide anything (a second member or a counted eviction), else null. */
-function racingWinner(record: ConeNodeRecord, set: ConeConcurrentSet<ConeConcurrentValue>, key: string): LWWRegister<PropValue> | null {
+/**
+ * The visible register's LWW value when its set can hide anything (a second
+ * member or a counted eviction, as the record's hint says without loading
+ * the sets), else null.
+ */
+function racingWinner(record: ConeNodeRecord, key: string): LWWRegister<PropValue> | null {
   const winner = record.props.get(key);
-  const holdsRace = set.members.length > 1 || set.overflow > 0;
+  const holdsRace = record.concurrency.hint().racedKeys.includes(key);
   return winner !== undefined && holdsRace && record.isAlive() ? winner : null;
 }
 
-function lifecycle(element: LifecycleElement, set: ConeConcurrentSet<ConeLifecycleEvent>): LifecyclePlurality | null {
+function lifecycle(element: LifecycleElement, concurrency: ConeConcurrency): LifecyclePlurality | null {
+  if (!concurrency.hint().lifecycleRaced) {
+    return null;
+  }
+  const set = concurrency.lifecycle;
   const removedBy = writersOf(set, 'remove');
   const editedBy = writersOf(set, 'edit');
   if (removedBy.length === 0 || editedBy.length === 0) {

@@ -77,12 +77,12 @@ export default class ConeRecordCborCodec {
   }
 
   encode(record: ConeRecord): Uint8Array {
-    return this.#codec.encode(encodeRecord(record));
+    return this.#codec.encode(encodeRecord(record, this.#codec));
   }
 
   decode(bytes: Uint8Array): ConeRecord {
     const raw = this.#codec.decode<unknown>(bytes);
-    const record = decodeElement(raw) ?? decodeDotPage(raw) ?? decodeAdjacencyPage(raw) ?? decodeAdmissionIndex(raw);
+    const record = decodeElement(raw, this.#codec) ?? decodeDotPage(raw) ?? decodeAdjacencyPage(raw) ?? decodeAdmissionIndex(raw);
     if (record === null) {
       throw corrupt('does not decode as a cone record');
     }
@@ -90,19 +90,19 @@ export default class ConeRecordCborCodec {
   }
 }
 
-function encodeRecord(record: ConeRecord): object {
+function encodeRecord(record: ConeRecord, codec: CodecPort): object {
   if (record instanceof ConeNodeRecord) {
     return {
       kind: 'node', id: record.nodeId, adds: sorted(record.addDots), tombs: sorted(record.tombstones),
       birth: encodeEvent(record.birth), clear: encodeEvent(record.clear), props: encodeProps(record.props),
-      out: record.outDegree, in: record.inDegree, ...encodeConcurrency(record.concurrency),
+      out: record.outDegree, in: record.inDegree, ...encodeConcurrency(record.concurrency, codec),
     };
   }
   if (record instanceof ConeEdgeRecord) {
     return {
       kind: 'edge', key: record.edgeKey, adds: sorted(record.addDots), tombs: sorted(record.tombstones),
       birth: encodeEvent(record.birth), remove: encodeEvent(record.remove), props: encodeProps(record.props),
-      ...encodeConcurrency(record.concurrency),
+      ...encodeConcurrency(record.concurrency, codec),
     };
   }
   return encodePage(record);
@@ -120,11 +120,11 @@ function encodePage(record: ConeDotPage | ConeAdjacencyPage | AdmissionIndexReco
   return { kind: 'adjacency', node: record.nodeId, dir: record.direction, page: record.pageIndex, edges: [...record.edgeKeys] };
 }
 
-function decodeElement(raw: unknown): ConeNodeRecord | ConeEdgeRecord | null {
-  return decodeNode(raw) ?? decodeEdge(raw);
+function decodeElement(raw: unknown, codec: CodecPort): ConeNodeRecord | ConeEdgeRecord | null {
+  return decodeNode(raw, codec) ?? decodeEdge(raw, codec);
 }
 
-function decodeNode(raw: unknown): ConeNodeRecord | null {
+function decodeNode(raw: unknown, codec: CodecPort): ConeNodeRecord | null {
   const parsed = NODE_WIRE.safeParse(raw);
   if (!parsed.success) {
     return null;
@@ -133,11 +133,11 @@ function decodeNode(raw: unknown): ConeNodeRecord | null {
   return new ConeNodeRecord({
     nodeId: wire.id, addDots: new Set(wire.adds), tombstones: new Set(wire.tombs),
     birth: decodeEvent(wire.birth), clear: decodeEvent(wire.clear), props: decodeProps(wire.props),
-    outDegree: wire.out, inDegree: wire.in, concurrency: decodeConcurrency(wire.conc),
+    outDegree: wire.out, inDegree: wire.in, concurrency: decodeConcurrency(wire.conc, codec),
   });
 }
 
-function decodeEdge(raw: unknown): ConeEdgeRecord | null {
+function decodeEdge(raw: unknown, codec: CodecPort): ConeEdgeRecord | null {
   const parsed = EDGE_WIRE.safeParse(raw);
   if (!parsed.success) {
     return null;
@@ -146,7 +146,7 @@ function decodeEdge(raw: unknown): ConeEdgeRecord | null {
   return new ConeEdgeRecord({
     edgeKey: wire.key, addDots: new Set(wire.adds), tombstones: new Set(wire.tombs),
     birth: decodeEvent(wire.birth), remove: decodeEvent(wire.remove), props: decodeProps(wire.props),
-    concurrency: decodeConcurrency(wire.conc),
+    concurrency: decodeConcurrency(wire.conc, codec),
   });
 }
 
