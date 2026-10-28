@@ -54,7 +54,7 @@ export { STRAND_SCHEMA_VERSION, STRAND_COORDINATE_VERSION, STRAND_OVERLAY_KIND }
  * the sub-services.
  */
 export type StrandCoordinatorGraph = {
-  getFrontier?: () => Promise<Map<string, string>>;
+  getFrontier: () => Promise<Map<string, string>>;
 };
 
 /** Dependencies for StrandCoordinator. */
@@ -73,8 +73,8 @@ export type StrandCoordinatorDeps = {
   intents: StrandIntentService;
   /** Pinned bases and strand bases over cone records (#1039). */
   cones: StrandConeBases;
-  /** The full graph runtime, stored for test-seam access and forward compatibility. */
-  graph?: StrandCoordinatorGraph;
+  /** The runtime whose live frontier an uncaptured strand starts from. */
+  graph: StrandCoordinatorGraph;
 };
 
 /**
@@ -169,7 +169,7 @@ export default class StrandCoordinator {
   }
 
   // ── Test seam accessors (private-by-convention) ─────────────────
-  get _graph(): StrandCoordinatorGraph | undefined { return this._deps.graph; }
+  get _graph(): StrandCoordinatorGraph { return this._deps.graph; }
   get _descriptorStore(): StrandDescriptorStore { return this._deps.descriptors; }
   get _materializer(): StrandMaterializer { return this._deps.materializer; }
   get _patchService(): StrandPatchService { return this._deps.patches; }
@@ -472,9 +472,7 @@ export default class StrandCoordinator {
   }
 
   private async _getFrontier(): Promise<Map<string, string>> {
-    const { graph } = this._deps;
-    // Without the runtime's frontier (a test seam) a strand starts from the empty frontier.
-    return graph !== undefined && typeof graph.getFrontier === 'function' ? await graph.getFrontier() : new Map();
+    return await this._deps.graph.getFrontier();
   }
 }
 

@@ -11,7 +11,8 @@ import ConeRecordKey from '../../../../src/domain/services/cone/ConeRecordKey.ts
 import ConeRoot from '../../../../src/domain/services/cone/ConeRoot.ts';
 import ConeWriterPosition from '../../../../src/domain/services/cone/ConeWriterPosition.ts';
 import { encodeEdgeKey } from '../../../../src/domain/services/KeyCodec.ts';
-import GitConeRecordStoreAdapter, { recordPath } from '../../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
+import GitConeRecordStoreAdapter, { CONE_RETAINED_BASES, recordPath } from '../../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
+import StoredConeBasis from '../../../../src/domain/services/cone/StoredConeBasis.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import ConeBasisHead from '../../../../src/domain/services/cone/ConeBasisHead.ts';
@@ -123,6 +124,90 @@ describe('GitConeRecordStoreAdapter', () => {
     const bare = await history.writeTree([]);
     await history.updateRef(HEAD, bare);
     await expect(store.readBasis(HEAD_OF_LANE)).rejects.toMatchObject({ code: 'E_CONE_RECORD_CORRUPT' });
+  });
+});
+
+describe('GitConeRecordStoreAdapter retained bases and dropped heads (#1039)', () => {
+  const RETAINED = `refs/warp/${LANE}/cone/retained`;
+
+  async function retainedNames(plumbing: Awaited<ReturnType<typeof fixture>>['plumbing']): Promise<string[]> {
+    return (await plumbing.execute({ args: ['ls-tree', '--name-only', `${RETAINED}:r`] })).trim().split('\n');
+  }
+
+  async function captured(store: GitConeRecordStoreAdapter, id: string): Promise<StoredConeBasis> {
+    const root = await store.writeRecords(ConeRoot.empty(), [node(id)]);
+    const stored = await store.publishBasis(ConeBasisHead.forStrandBase(LANE, id.padStart(64, '0')), new ConeBasis(root, ConeFrontier.empty()), null);
+    if (stored === null) { throw new Error('publication lost'); }
+    return stored;
+  }
+
+  it('keeps each captured basis tree reachable once, oldest evicted past the bound', async () => {
+    const { plumbing, store } = await fixture();
+    const first = await captured(store, 'a1');
+    await store.retainBasis(LANE, first);
+    await store.retainBasis(LANE, first);
+    expect(await retainedNames(plumbing)).toEqual([`000000000001-${first.revision}`]);
+    const second = await captured(store, 'a2');
+    await store.retainBasis(LANE, second);
+    expect((await retainedNames(plumbing)).map((name) => name.slice(13))).toEqual([first.revision, second.revision]);
+    expect((await plumbing.execute({ args: ['cat-file', '-t', `${RETAINED}:r/000000000002-${second.revision}`] })).trim()).toBe('tree');
+  });
+
+  it('bounds the retained bases to the most recent captures', async () => {
+    const { plumbing, store } = await fixture();
+    const stored: StoredConeBasis[] = [];
+    for (let index = 0; index <= CONE_RETAINED_BASES; index += 1) {
+      const basis = await captured(store, `b${index}`);
+      stored.push(basis);
+      await store.retainBasis(LANE, basis);
+    }
+    const names = await retainedNames(plumbing);
+    expect(names).toHaveLength(CONE_RETAINED_BASES);
+    expect(names[0]?.endsWith(stored[1]?.revision ?? '')).toBe(true);
+    expect(names.some((name) => name.endsWith(stored[0]?.revision ?? ''))).toBe(false);
+  }, 60_000);
+
+  it('retries a lost retention race, reports persistent contention and surfaces other ref failures', async () => {
+    const { history, plumbing, store } = await fixture();
+    const first = await captured(store, 'c1');
+    const swap = vi.spyOn(history, 'compareAndSwapRef');
+    swap.mockImplementationOnce(async (ref, oid) => { await history.updateRef(ref, oid); throw new Error('lost race'); });
+    await store.retainBasis(LANE, first);
+    expect(swap).toHaveBeenCalledTimes(1);
+    expect(await retainedNames(plumbing)).toEqual([`000000000001-${first.revision}`]);
+
+    const second = await captured(store, 'c2');
+    let rival = 100;
+    swap.mockImplementation(async (ref) => {
+      rival += 1;
+      const directory = await history.writeTree([`040000 tree ${first.revision}\t000000000${rival}-${first.revision}`]);
+      await history.updateRef(ref, await history.writeTree([`040000 tree ${directory}\tr`]));
+      throw new Error('lost race');
+    });
+    await expect(store.retainBasis(LANE, second)).rejects.toMatchObject({ code: 'E_CONE_RETAIN_CONTENDED' });
+
+    swap.mockRestore();
+    vi.spyOn(history, 'compareAndSwapRef').mockRejectedValueOnce(new Error('disk full'));
+    await expect(store.retainBasis(LANE, second)).rejects.toThrow('disk full');
+  });
+
+  it('refuses a malformed retained entry', async () => {
+    const { history, store } = await fixture();
+    const basis = await captured(store, 'd1');
+    const directory = await history.writeTree([`040000 tree ${basis.revision}\tnot-a-sequence`]);
+    await history.updateRef(RETAINED, await history.writeTree([`040000 tree ${directory}\tr`]));
+    await expect(store.retainBasis(LANE, basis)).rejects.toMatchObject({ code: 'E_CONE_RECORD_CORRUPT' });
+  });
+
+  it('drops a published head and ignores an absent one', async () => {
+    const { history, store } = await fixture();
+    const head = ConeBasisHead.forStrand(LANE, 'e'.repeat(64));
+    await store.dropBasis(head);
+    await store.publishBasis(head, ConeBasis.empty(), null);
+    expect(await history.readRef(head.ref())).not.toBeNull();
+    await store.dropBasis(head);
+    expect(await history.readRef(head.ref())).toBeNull();
+    expect(await store.readBasis(head)).toBeNull();
   });
 });
 

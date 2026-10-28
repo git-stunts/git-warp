@@ -4,6 +4,7 @@ import { openWarp } from '../../../src/application/openWarp.ts';
 import RuntimeActivity from '../../../src/application/RuntimeActivity.ts';
 import { createWorldlineLane } from '../../../src/application/RuntimeLaneAdapter.ts';
 import Intent from '../../../src/domain/api/Intent.ts';
+import { createTimeline } from '../../../src/domain/api/TimelineRuntime.ts';
 import { requireLaneRuntime } from '../../../src/domain/api/LaneRuntime.ts';
 import {
   createManyObserver,
@@ -476,6 +477,48 @@ describe('Runtime Lane adapter', () => {
     } finally {
       await storage.close();
     }
+  });
+
+  it('cancels an Observation whose basis was obstructed at capture without inventing tick evidence', async () => {
+    const storage = MemoryStorage.create();
+    try {
+      const warp = await openWarp({ storage, writer: 'agent-1' });
+      const timeline = await warp.timeline('events');
+      const lane = createWorldlineLane(timeline, new RuntimeActivity());
+      await lane.write(Intent.addNode({ subject: 'user:alice' }));
+      storage.divergeLaneBasis('events', 'agent-1');
+      const observer = createManyObserver<boolean>(
+        'users.exist',
+        async function* () {
+          // The obstruction clears before the first Reading: each live read refolds the lane.
+          await storage.clearLaneBasis('events');
+          yield LegacyReading.nodeExists({ subject: 'user:alice' });
+          yield LegacyReading.nodeExists({ subject: 'user:bob' });
+        },
+        (value) => Boolean(value),
+      );
+      const observation = lane.observe(observer);
+      const iterator = observation[Symbol.asyncIterator]();
+      await expect(iterator.next()).resolves.toMatchObject({ value: { value: true } });
+      await iterator.return?.();
+      const receipt = await observation.receipt;
+      expect(receipt).toMatchObject({ reason: 'consumer_cancelled', status: 'obstructed' });
+      expect(receipt.evidence).toBeUndefined();
+    } finally {
+      await storage.close();
+    }
+  });
+
+  it('lets a runtime that keeps no cone records fail the Observation instead of obstructing it', async () => {
+    const runtime = new WarpWorldline({
+      worldlineName: 'events', writerId: 'agent-1', commitPatch: async () => 'unused',
+      createWorldline: () => { throw new Error('unused compatibility projection'); },
+      admitIntent: async () => { throw new Error('unused admission'); },
+    });
+    const context = { createOpaqueId: async () => 'evidence:test', reserveRecoveryNonce: () => 'nonce', bindReceipt: () => undefined };
+    const lane = createWorldlineLane(createTimeline(runtime, context), new RuntimeActivity());
+    const observer = createObserver<boolean>('users.exists', LegacyReading.nodeExists({ subject: 'user:alice' }), (value) => Boolean(value));
+    await expect(lane.observe(observer).receipt).rejects.toMatchObject({ code: 'E_WARP_WORLDLINE_CONE_UNAVAILABLE' });
   });
 
   it('rejects incompatible generated values as runtime failures', async () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
+import WarpWorldlineCoordinate from '../../../src/domain/WarpWorldlineCoordinate.ts';
 import WarpWorldline, { type WarpWorldlinePatchBuild } from '../../../src/domain/WarpWorldline.ts';
 import { openMemoryWarpWorldline as openWarpWorldline } from '../../helpers/MemoryRuntimeHost.ts';
 import ProjectionHandle from '../../../src/domain/services/ProjectionHandle.ts';
@@ -324,6 +325,21 @@ describe('WarpWorldline', () => {
     await expect(missingConfig).rejects.toMatchObject({
       code: 'E_WARP_WORLDLINE_OBSERVER_CONFIG',
     });
+  });
+
+  it('refuses draft operations on a handle opened without draft support', async () => {
+    const handle = createHandle();
+    const coordinate = new WarpWorldlineCoordinate({
+      worldlineName: 'events', coneRoot: 'abcd', frontier: new Map(), createOptic: () => handle.optic(),
+    });
+    const unavailable = { code: 'E_WARP_WORLDLINE_DRAFT_UNAVAILABLE' };
+    await expect(handle.createDraft('draft', coordinate)).rejects.toMatchObject(unavailable);
+    await expect(handle.openDraft('draft')).rejects.toMatchObject(unavailable);
+    await expect(handle.loadDraftPatchEntries('draft')).rejects.toMatchObject(unavailable);
+    await expect(handle.patchDraftWithEvidence('draft', () => undefined)).rejects.toMatchObject(unavailable);
+    await expect(handle.previewDraftJoin('draft')).rejects.toMatchObject(unavailable);
+    await expect(handle.captureCoordinate()).rejects.toMatchObject({ code: 'E_WARP_WORLDLINE_CONE_UNAVAILABLE' });
+    await expect(handle.captureReadCoordinate()).rejects.toMatchObject({ code: 'E_WARP_WORLDLINE_CONE_UNAVAILABLE' });
   });
 
   it('refuses public optics on a handle whose storage keeps no cone records', () => {

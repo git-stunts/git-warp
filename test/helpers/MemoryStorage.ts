@@ -36,4 +36,9 @@ export default class MemoryStorage extends WarpStorage {
     const frontier = ConeFrontier.empty().advanced(writerId, new ConeWriterPosition('f'.repeat(40), 1));
     CONE_RECORDS.get(this)?.forceHead(ConeBasisHead.forLane(lane), new ConeBasis(ConeRoot.empty(), frontier));
   }
+
+  /** Deletes a lane's published basis, so its next advance refolds the writer chains from the start. */
+  async clearLaneBasis(lane: string): Promise<void> {
+    await CONE_RECORDS.get(this)?.dropBasis(ConeBasisHead.forLane(lane));
+  }
 }
