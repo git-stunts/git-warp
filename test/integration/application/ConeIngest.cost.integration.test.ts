@@ -28,6 +28,9 @@ const LANE = 'L';
 const CASE_TIMEOUT_MS = 300_000;
 /** Patches appended after the first ingest; the second ingest must cost only these. */
 const NEW_PATCHES = 3;
+/** Ceilings over the measured process counts (13 and 11), with a margin. */
+const FIRST_INGEST_PROCESS_CEILING = 16;
+const SECOND_INGEST_PROCESS_CEILING = 14;
 
 type Repository = Awaited<ReturnType<typeof repository>>;
 
@@ -138,7 +141,13 @@ it('ingest touches only the new patches, independent of history size', async () 
     expect(run.second.decoded).toBe(NEW_PATCHES);
     expect(run.second.logs).toBe(1);
   }
-  // The first ingest folds the whole history, so it grows with it; the second must not.
-  expect(large.first.processes).toBeGreaterThan(small.first.processes);
-  expect(large.second.processes).toBeLessThanOrEqual(Math.ceil(small.second.processes * 1.25) + 4);
+  // The first ingest decodes the whole history, but its records are read through the object
+  // session and written by one fast-import, so neither ingest's processes grow with history.
+  expect(large.first.decoded).toBe(120);
+  expect(large.first.processes).toBeLessThanOrEqual(small.first.processes + 2);
+  expect(large.second.processes).toBeLessThanOrEqual(small.second.processes + 2);
+  // Measured 13 (first) and 11 (second) with storage layout 2; the slice-1 store spent two
+  // processes per record read and several per record written.
+  expect(large.first.processes).toBeLessThanOrEqual(FIRST_INGEST_PROCESS_CEILING);
+  expect(large.second.processes).toBeLessThanOrEqual(SECOND_INGEST_PROCESS_CEILING);
 }, CASE_TIMEOUT_MS);

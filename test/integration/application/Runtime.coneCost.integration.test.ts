@@ -12,6 +12,8 @@ import { createTestRepo } from '../api/helpers/setup.ts';
 
 const CASE_TIMEOUT_MS = 600_000;
 const WRITERS = ['alice', 'bob'] as const;
+/** Ceiling over the measured processes of one warm Observation (4), with a margin. */
+const OBSERVATION_PROCESS_CEILING = 8;
 
 type Measured = { readonly observation: number; readonly nodeRemove: number; readonly edgeRemove: number; readonly blindWrite: number };
 
@@ -77,4 +79,6 @@ it('per-Observation and per-write Git processes do not grow with 10x history', a
   for (const key of ['observation', 'nodeRemove', 'edgeRemove', 'blindWrite'] as const) {
     expect(large[key], key).toBeLessThanOrEqual(Math.ceil(small[key] * 1.1) + 2);
   }
+  // Cone record reads start no process (measured 4 per Observation, from 24 before storage layout 2).
+  expect(large.observation).toBeLessThanOrEqual(OBSERVATION_PROCESS_CEILING);
 }, CASE_TIMEOUT_MS);
