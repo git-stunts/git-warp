@@ -1,10 +1,7 @@
 import type ORSet from '../../crdt/ORSet.ts';
 import type { LWWRegister } from '../../crdt/LWW.ts';
 import type PatchEntry from '../../artifacts/PatchEntry.ts';
-import ConeRecordError from '../../errors/ConeRecordError.ts';
 import type { PropValue } from '../../types/PropValue.ts';
-import { EventId } from '../../utils/EventId.ts';
-import type LegacyEventId from '../../utils/LegacyEventId.ts';
 import { applyFast } from '../JoinReducer.ts';
 import { encodeEdgeKey } from '../KeyCodec.ts';
 import type WarpState from '../state/WarpState.ts';
@@ -13,6 +10,7 @@ import { hydrateConeState } from './ConeStateHydration.ts';
 import type ConeFootprint from './ConeFootprint.ts';
 import ConeNodeRecord from './ConeNodeRecord.ts';
 import type ConeRecordSnapshot from './ConeRecordSnapshot.ts';
+import { requireAdmittedEvent } from './ConeRecordValidation.ts';
 
 /**
  * A `WarpState` holding only the records a patch's footprint names.
@@ -54,8 +52,8 @@ export default class ConeWorkspace {
       ...previous.fields(),
       addDots: entryDots(this.#state.nodeAlive, previous.nodeId),
       tombstones: union(previous.tombstones, this.#footprint.nodeTombstones(previous.nodeId)),
-      birth: admitted(this.#state.nodeBirthEvent.get(previous.nodeId)),
-      clear: admitted(this.#state.nodeClearEvent.get(previous.nodeId)),
+      birth: requireAdmittedEvent(this.#state.nodeBirthEvent.get(previous.nodeId), 'node birth'),
+      clear: requireAdmittedEvent(this.#state.nodeClearEvent.get(previous.nodeId), 'node clear'),
       props: props.get(previous.nodeId) ?? new Map(),
     }));
   }
@@ -67,8 +65,8 @@ export default class ConeWorkspace {
       edgeKey: previous.edgeKey,
       addDots: entryDots(this.#state.edgeAlive, previous.edgeKey),
       tombstones: union(previous.tombstones, this.#footprint.edgeTombstones(previous.edgeKey)),
-      birth: admitted(this.#state.edgeBirthEvent.get(previous.edgeKey)),
-      remove: admitted(this.#state.edgeRemoveEvent.get(previous.edgeKey)),
+      birth: requireAdmittedEvent(this.#state.edgeBirthEvent.get(previous.edgeKey), 'edge birth'),
+      remove: requireAdmittedEvent(this.#state.edgeRemoveEvent.get(previous.edgeKey), 'edge remove'),
       props: props.get(previous.edgeKey) ?? new Map(),
     }));
   }
@@ -104,15 +102,4 @@ function entryDots(set: ORSet, element: string): ReadonlySet<string> {
 
 function union(left: ReadonlySet<string>, right: ReadonlySet<string>): ReadonlySet<string> {
   return new Set([...left, ...right]);
-}
-
-/** Workspaces are hydrated from records, so every event is an admitted EventId. */
-function admitted(event: EventId | LegacyEventId | undefined): EventId | null {
-  if (event === undefined) {
-    return null;
-  }
-  if (!(event instanceof EventId)) {
-    throw new ConeRecordError('Cone workspace produced a legacy lifecycle event');
-  }
-  return event;
 }

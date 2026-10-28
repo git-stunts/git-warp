@@ -232,11 +232,8 @@ export function buildCoverageRef(graphName: string): string {
 }
 
 /**
- * Builds the cone basis head ref path for the given graph (#1039).
- *
- * The cone basis is derived and clone-local, like the checkpoint head: it
- * points at this clone's per-entity record trie and folded writer frontier,
- * and it is never transferred between clones.
+ * Builds the cone basis head ref path for the given graph (#1039). Like the
+ * checkpoint head it is derived, clone-local and never transferred.
  *
  * @example
  * buildConeHeadRef('events');

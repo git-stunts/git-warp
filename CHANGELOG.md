@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `E_SUBSTRATE_MIGRATION_REQUIRED` until the v20-to-v21 migration
   ([#1015](https://github.com/git-stunts/git-warp/issues/1015)) has run
   ([#1014](https://github.com/git-stunts/git-warp/issues/1014)).
+- Reserve `refs/warp/<graph>/cone/head` for the clone-local cone basis of the
+  cone-bounded Runtime: graph names may no longer contain a `cone` segment.
+  The internal cone engine behind it folds each patch into per-entity records
+  (node, edge, dot-claim and adjacency pages in a route-keyed Git tree trie)
+  through the existing reducer, refuses a patch whose removed dot two elements
+  share, and advances by one bulk log per changed writer. Public reads and
+  writes do not use it yet
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 
 ### Added
 

@@ -136,6 +136,48 @@ replaces a register it did not observe can report `conflict`. This is scheduled 
 - The equivalence oracle: random multi-writer histories folded by the cone engine match a full reduction for every
   entity's liveness, properties and neighbourhood.
 
+## Slice 1 implementation record
+
+The core engine lives in `src/domain/services/cone/` behind two ports, `ConeRecordStorePort` and
+`ConePatchFeedPort`, with Git adapters `GitConeRecordStoreAdapter` and `GitConePatchFeedAdapter`.
+
+- **Strategy audit.** Every op's `mutate` touches only the element it names: OR-Set `add`/`remove`, one
+  LWW register, and that element's birth, clear or remove event. Three reducer paths read wider state, and the
+  cone avoids all three: receipt `outcome()` and diff `snapshot()`/`accumulate()` for removes scan the whole
+  OR-Set by dot (`ReceiptBuilder` effective-removal checks, `DiffCalculator.aliveElementsForDots`), and
+  `foldPatch` merges the global observed frontier. A fold applies patches with `applyFast` (mutate only), keeps
+  the per-writer frontier in the basis instead, and leaves receipts to read-time evidence. The dead-property
+  sweep runs only in GC, never during apply, so records keep every register and readers apply the staleness
+  rules.
+- **Tombstones per element.** The reducer's tombstone set is global per OR-Set; records keep the dots each
+  element's removes named, including dots not yet added there. That is exact unless one dot tags, or is removed
+  for, two elements. `ConeDotPage` records, per writer and 256 counters, which elements each dot was claimed by
+  as owner or remover; a patch that makes a removed dot belong to two elements, in either arrival order,
+  returns `ConeSharedDotObstruction` and stages nothing. A shared dot that is never removed stays foldable.
+- **Adjacency.** An edge key joins `out` of `from` and `in` of `to` once, when its record is first created.
+  Node records count registrations; edge key `i` lives on adjacency page `floor(i / 256)`, so appending
+  touches the last page only and a hub's node record stays small.
+- **Trie.** Records are blobs at `<family>/<r0r1>/<r2r3>/<route>` (families `n`, `e`, `d`, `a`), where
+  `route` is the BLAKE3 route key of the record identity, the same routing `MaterializationPropertyProfile`
+  uses for node ids. A write rewrites the blobs and directories on touched paths only. The head
+  `refs/warp/<lane>/cone/head` points at a tree of the `frontier` blob and the `records` trie, published by
+  compare-and-swap; it is clone-local and never transferred.
+- **Ingest.** `ConeIngest.advance()` reads one bulk `git log --first-parent from..tip` per changed writer,
+  decodes each new patch once, folds writers in id order and chains in order, and publishes all or nothing;
+  a lost race retries, a writer whose tip does not descend from its folded position is reported as
+  `ConeWriterDivergedObstruction`. `foldCommitted(entry, parentSha)` folds a just-committed local patch alone
+  when the basis holds its parent.
+- **Evidence.** A seeded fast-check oracle folds generated multi-writer histories (concurrent LWW, observed
+  removes delivered before their adds, node clears and re-adds, legacy `PropSet`, random per-writer fold
+  interleavings and commit points) and compares every entity's liveness, properties and neighbourhood with a
+  full `reducePatches`. A real-repository test shows a second ingest of three patches costs the same Git
+  processes after a 20-patch and a 120-patch history.
+
+Known limits of slice 1: a lane whose history already holds a remove of a shared dot stays obstructed even
+after `applyDotRepair`, because the repair appends patches and the old remove remains; record reads cost two
+Git processes each (probe and blob), which a batched object reader would reduce; a writer whose tip is a
+non-patch commit is re-listed on every advance.
+
 ## Slices
 
 1. Cone records, workspace, record trie adapter, basis ref and ingest, with the equivalence oracle.

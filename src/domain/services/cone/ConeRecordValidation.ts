@@ -13,6 +13,7 @@ import { LWWRegister } from '../../crdt/LWW.ts';
 import ConeRecordError from '../../errors/ConeRecordError.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import { EventId } from '../../utils/EventId.ts';
+import type LegacyEventId from '../../utils/LegacyEventId.ts';
 
 /** Requires a non-empty identity string. */
 export function requireIdentity(value: string, field: string): string {
@@ -56,6 +57,17 @@ export function requireIdentities(members: ReadonlySet<string>, field: string): 
 export function requireEventOrNull(event: EventId | null, field: string): EventId | null {
   if (event !== null && !(event instanceof EventId)) {
     throw new ConeRecordError(`Cone record ${field} must be an EventId or null`, { context: { field } });
+  }
+  return event;
+}
+
+/** Narrows a reducer lifecycle event to an admitted EventId; cone state never holds legacy events. */
+export function requireAdmittedEvent(event: EventId | LegacyEventId | undefined, field: string): EventId | null {
+  if (event === undefined) {
+    return null;
+  }
+  if (!(event instanceof EventId)) {
+    throw new ConeRecordError(`Cone ${field} must be an admitted EventId, not a legacy checkpoint event`, { context: { field } });
   }
   return event;
 }

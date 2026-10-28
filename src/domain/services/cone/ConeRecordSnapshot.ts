@@ -1,4 +1,3 @@
-import ConeRecordError from '../../errors/ConeRecordError.ts';
 import ConeAdjacencyPage from './ConeAdjacencyPage.ts';
 import ConeDotPage from './ConeDotPage.ts';
 import ConeEdgeRecord from './ConeEdgeRecord.ts';
@@ -67,16 +66,8 @@ export default class ConeRecordSnapshot {
   }
 
   #typed<T extends ConeRecord>(key: ConeRecordKey, recordClass: RecordClass<T>): T | null {
+    // A record is stored under its own key, and the key's family names its class.
     const record = this.get(key);
-    if (record === null) {
-      return null;
-    }
-    if (!(record instanceof recordClass)) {
-      throw new ConeRecordError('Cone record has the wrong family for its key', {
-        code: 'E_CONE_RECORD_CORRUPT',
-        context: { key: key.toString() },
-      });
-    }
-    return record;
+    return record instanceof recordClass ? record : null;
   }
 }

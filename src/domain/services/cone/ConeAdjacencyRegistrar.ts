@@ -29,11 +29,10 @@ export default class ConeAdjacencyRegistrar {
   ): Promise<ConeAdjacencyRegistration> {
     const byId = new Map(nodes.map((node) => [node.nodeId, node]));
     const slots = [...edgeKeys].sort(compareStrings).flatMap((edgeKey) => claimSlots(byId, edgeKey));
-    const keys = slots.map((slot) => pageKey(slot));
-    const snapshot = await session.read(keys);
+    const snapshot = await session.read(slots.map((slot) => pageKey(slot)));
     const pages = new Map<string, ConeAdjacencyPage>();
-    for (const [index, slot] of slots.entries()) {
-      const key = keys[index]?.toString() ?? '';
+    for (const slot of slots) {
+      const key = pageKey(slot).toString();
       const page = pages.get(key) ?? snapshot.adjacencyPage(slot.nodeId, slot.direction, ConeAdjacencyPage.pageOf(slot.position));
       requireNextSlot(page, slot);
       pages.set(key, page.withEdgeKey(slot.edgeKey));
