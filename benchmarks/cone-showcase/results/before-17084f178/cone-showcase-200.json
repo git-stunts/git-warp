@@ -1,0 +1,188 @@
+{
+  "threads": 200,
+  "writers": 3,
+  "startedAt": "2026-10-28T09:01:38.257Z",
+  "shape": {
+    "documents": 20,
+    "threadsPerDocument": 10,
+    "repliesPerThread": 2
+  },
+  "bulkLoad": {
+    "label": "batched: 50 actions per patch, not a save measurement",
+    "patches": 15,
+    "totalMs": 410,
+    "perPatch": {
+      "samples": 15,
+      "ms": {
+        "n": 15,
+        "p50": 25.35,
+        "p95": 43.83,
+        "max": 43.83
+      },
+      "gitProcesses": {
+        "n": 15,
+        "p50": 26,
+        "p95": 26,
+        "max": 26
+      },
+      "results": {
+        "derived": 15
+      },
+      "reasons": {}
+    },
+    "repoBytes": 618496
+  },
+  "status": "complete",
+  "elapsedMs": 2726,
+  "maxRssMiB": 163,
+  "saves": {
+    "label": "one user action per patch",
+    "samples": 60,
+    "ms": {
+      "n": 60,
+      "p50": 21.23,
+      "p95": 24.69,
+      "max": 30.73
+    },
+    "gitProcesses": {
+      "n": 60,
+      "p50": 26,
+      "p95": 26,
+      "max": 26
+    },
+    "results": {
+      "derived": 60
+    },
+    "reasons": {},
+    "deadlineReached": false
+  },
+  "margins": {
+    "label": "one document's threads and comments, four generated Observers",
+    "samples": 30,
+    "ms": {
+      "n": 30,
+      "p50": 1.15,
+      "p95": 1.7,
+      "max": 2.73
+    },
+    "gitProcesses": {
+      "n": 30,
+      "p50": 2,
+      "p95": 2,
+      "max": 2
+    },
+    "results": {
+      "obstructed": 30
+    },
+    "reasons": {
+      "documentThreads: missing_bounded_basis": 30
+    },
+    "mismatches": 0,
+    "deadlineReached": false,
+    "rssAfterReadsMiB": 163
+  },
+  "coldOpen": {
+    "label": "fresh process: Runtime.open to first margins, module loading included",
+    "firstMarginsMs": {
+      "n": 5,
+      "p50": 181,
+      "p95": 184,
+      "max": 184
+    },
+    "gitProcesses": {
+      "n": 5,
+      "p50": 14,
+      "p95": 14,
+      "max": 14
+    },
+    "maxRssMiB": {
+      "n": 5,
+      "p50": 129,
+      "p95": 130,
+      "max": 130
+    },
+    "runs": [
+      {
+        "firstMarginsMs": 184,
+        "openMs": 24,
+        "gitProcesses": 14,
+        "byCommand": {
+          "rev-parse": 8,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 1,
+          "show": 3
+        },
+        "result": "obstructed",
+        "reason": "documentThreads: missing_bounded_basis",
+        "threads": null,
+        "maxRssMiB": 126
+      },
+      {
+        "firstMarginsMs": 181,
+        "openMs": 26,
+        "gitProcesses": 14,
+        "byCommand": {
+          "rev-parse": 8,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 1,
+          "show": 3
+        },
+        "result": "obstructed",
+        "reason": "documentThreads: missing_bounded_basis",
+        "threads": null,
+        "maxRssMiB": 128
+      },
+      {
+        "firstMarginsMs": 182,
+        "openMs": 26,
+        "gitProcesses": 14,
+        "byCommand": {
+          "rev-parse": 8,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 1,
+          "show": 3
+        },
+        "result": "obstructed",
+        "reason": "documentThreads: missing_bounded_basis",
+        "threads": null,
+        "maxRssMiB": 130
+      },
+      {
+        "firstMarginsMs": 176,
+        "openMs": 24,
+        "gitProcesses": 14,
+        "byCommand": {
+          "rev-parse": 8,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 1,
+          "show": 3
+        },
+        "result": "obstructed",
+        "reason": "documentThreads: missing_bounded_basis",
+        "threads": null,
+        "maxRssMiB": 129
+      },
+      {
+        "firstMarginsMs": 180,
+        "openMs": 24,
+        "gitProcesses": 14,
+        "byCommand": {
+          "rev-parse": 8,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 1,
+          "show": 3
+        },
+        "result": "obstructed",
+        "reason": "documentThreads: missing_bounded_basis",
+        "threads": null,
+        "maxRssMiB": 129
+      }
+    ]
+  },
+  "repoBytesAtEnd": 2584576
+}

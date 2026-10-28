@@ -1,0 +1,18 @@
+{
+  "threads": 20000,
+  "writers": 3,
+  "startedAt": "2026-10-28T10:11:05.621Z",
+  "shape": {
+    "documents": 2000,
+    "threadsPerDocument": 10,
+    "repliesPerThread": 2
+  },
+  "bulkLoadProgress": {
+    "patches": 1150,
+    "elapsedMs": 1464890
+  },
+  "status": "aborted",
+  "elapsedMs": 1498609,
+  "maxRssMiB": 326,
+  "abort": "WitnessBudgetExceeded: generated data reached 4390014976 bytes, over the 4294967296-byte budget"
+}

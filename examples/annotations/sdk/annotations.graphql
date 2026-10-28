@@ -1,0 +1,160 @@
+# Margin notes on documents, as a git-warp domain.
+#
+# This file is the single authored source of the annotations SDK. Wesley
+# preserves its structure in annotations.wesley.generated.ts; the renderer in
+# scripts/generated-sdk/RenderAnnotationsSdk.ts gives each directive its
+# git-warp meaning and emits annotations.generated.ts.
+#
+# Graph shape:
+#   document:<id> --has_thread--> thread:<id> --has_comment--> comment:<id>
+# Every field is one node property. Membership is an edge, never a list
+# property, so two writers adding comments concurrently both survive.
+#
+# Each Mutation becomes one ordered Intent array: one lane.write, one patch,
+# one WriteReceipt. Each Query becomes one Observer: a bounded question about
+# the named subjects only.
+
+directive @intent(
+  kind: IntentKind!
+  subject: String
+  prefix: String
+  key: String
+  value: String
+  literal: String
+  from: String
+  fromPrefix: String
+  to: String
+  toPrefix: String
+  label: String
+  when: String
+) repeatable on FIELD_DEFINITION
+
+directive @observer(
+  id: String!
+  reading: ReadingKind!
+  subject: String!
+  prefix: String!
+  key: String
+  label: String
+  neighborPrefix: String
+  limit: Int
+  cursor: String
+  cardinality: ObserverCardinality!
+  decoder: ValueDecoder!
+  maxSubjects: Int
+) repeatable on FIELD_DEFINITION
+
+enum IntentKind {
+  NODE_ADD
+  NODE_REMOVE
+  PROPERTY_SET
+  EDGE_ADD
+  EDGE_REMOVE
+}
+
+enum ReadingKind {
+  PROPERTY
+  NEIGHBORHOOD
+}
+
+enum ObserverCardinality {
+  EXACTLY_ONE
+  MANY
+}
+
+enum ValueDecoder {
+  SCALAR
+  NEIGHBOR_PAGE
+}
+
+type IntentBinding {
+  operation: String!
+}
+
+type Mutation {
+  # A new highlight with its first comment, in one patch.
+  openThread(
+    documentId: ID!
+    threadId: ID!
+    quote: String!
+    start: Int!
+    end: Int!
+    commentId: ID!
+    author: String!
+    body: String!
+    createdAt: String!
+  ): IntentBinding!
+    @intent(kind: NODE_ADD, subject: "documentId", prefix: "document:")
+    @intent(kind: NODE_ADD, subject: "threadId", prefix: "thread:")
+    @intent(kind: PROPERTY_SET, subject: "threadId", prefix: "thread:", key: "document", value: "documentId")
+    @intent(kind: PROPERTY_SET, subject: "threadId", prefix: "thread:", key: "quote", value: "quote")
+    @intent(kind: PROPERTY_SET, subject: "threadId", prefix: "thread:", key: "start", value: "start")
+    @intent(kind: PROPERTY_SET, subject: "threadId", prefix: "thread:", key: "end", value: "end")
+    @intent(kind: PROPERTY_SET, subject: "threadId", prefix: "thread:", key: "status", literal: "open")
+    @intent(kind: EDGE_ADD, from: "documentId", fromPrefix: "document:", to: "threadId", toPrefix: "thread:", label: "has_thread")
+    @intent(kind: NODE_ADD, subject: "commentId", prefix: "comment:")
+    @intent(kind: PROPERTY_SET, subject: "commentId", prefix: "comment:", key: "author", value: "author")
+    @intent(kind: PROPERTY_SET, subject: "commentId", prefix: "comment:", key: "body", value: "body")
+    @intent(kind: PROPERTY_SET, subject: "commentId", prefix: "comment:", key: "createdAt", value: "createdAt")
+    @intent(kind: EDGE_ADD, from: "threadId", fromPrefix: "thread:", to: "commentId", toPrefix: "comment:", label: "has_comment")
+
+  # A reply in an existing thread, optionally answering one comment.
+  reply(
+    threadId: ID!
+    commentId: ID!
+    inReplyTo: ID
+    author: String!
+    body: String!
+    createdAt: String!
+  ): IntentBinding!
+    @intent(kind: NODE_ADD, subject: "commentId", prefix: "comment:")
+    @intent(kind: PROPERTY_SET, subject: "commentId", prefix: "comment:", key: "author", value: "author")
+    @intent(kind: PROPERTY_SET, subject: "commentId", prefix: "comment:", key: "body", value: "body")
+    @intent(kind: PROPERTY_SET, subject: "commentId", prefix: "comment:", key: "createdAt", value: "createdAt")
+    @intent(kind: PROPERTY_SET, subject: "commentId", prefix: "comment:", key: "inReplyTo", value: "inReplyTo", when: "inReplyTo")
+    @intent(kind: EDGE_ADD, from: "threadId", fromPrefix: "thread:", to: "commentId", toPrefix: "comment:", label: "has_comment")
+
+  editComment(commentId: ID!, body: String!, editedAt: String!): IntentBinding!
+    @intent(kind: PROPERTY_SET, subject: "commentId", prefix: "comment:", key: "body", value: "body")
+    @intent(kind: PROPERTY_SET, subject: "commentId", prefix: "comment:", key: "editedAt", value: "editedAt")
+
+  resolveThread(threadId: ID!, resolvedBy: String!): IntentBinding!
+    @intent(kind: PROPERTY_SET, subject: "threadId", prefix: "thread:", key: "status", literal: "resolved")
+    @intent(kind: PROPERTY_SET, subject: "threadId", prefix: "thread:", key: "resolvedBy", value: "resolvedBy")
+
+  # Unlink the comment from its thread, then remove the comment itself.
+  deleteComment(threadId: ID!, commentId: ID!): IntentBinding!
+    @intent(kind: EDGE_REMOVE, from: "threadId", fromPrefix: "thread:", to: "commentId", toPrefix: "comment:", label: "has_comment")
+    @intent(kind: NODE_REMOVE, subject: "commentId", prefix: "comment:")
+}
+
+type Query {
+  # One bounded page of a document's thread ids.
+  documentThreads(documentId: ID!, cursor: String): String!
+    @observer(id: "annotations.document-threads", reading: NEIGHBORHOOD, subject: "documentId", prefix: "document:", label: "has_thread", neighborPrefix: "thread:", limit: 100, cursor: "cursor", cardinality: EXACTLY_ONE, decoder: NEIGHBOR_PAGE)
+
+  # Every field of each named thread, thread-major in directive order.
+  threadFields(threadIds: [ID!]!): [String!]!
+    @observer(id: "annotations.thread-fields", reading: PROPERTY, subject: "threadIds", prefix: "thread:", key: "document", cardinality: MANY, decoder: SCALAR, maxSubjects: 100)
+    @observer(id: "annotations.thread-fields", reading: PROPERTY, subject: "threadIds", prefix: "thread:", key: "quote", cardinality: MANY, decoder: SCALAR, maxSubjects: 100)
+    @observer(id: "annotations.thread-fields", reading: PROPERTY, subject: "threadIds", prefix: "thread:", key: "start", cardinality: MANY, decoder: SCALAR, maxSubjects: 100)
+    @observer(id: "annotations.thread-fields", reading: PROPERTY, subject: "threadIds", prefix: "thread:", key: "end", cardinality: MANY, decoder: SCALAR, maxSubjects: 100)
+    @observer(id: "annotations.thread-fields", reading: PROPERTY, subject: "threadIds", prefix: "thread:", key: "status", cardinality: MANY, decoder: SCALAR, maxSubjects: 100)
+    @observer(id: "annotations.thread-fields", reading: PROPERTY, subject: "threadIds", prefix: "thread:", key: "resolvedBy", cardinality: MANY, decoder: SCALAR, maxSubjects: 100)
+
+  # The first page of each named thread's comment ids.
+  threadComments(threadIds: [ID!]!): [String!]!
+    @observer(id: "annotations.thread-comments", reading: NEIGHBORHOOD, subject: "threadIds", prefix: "thread:", label: "has_comment", neighborPrefix: "comment:", limit: 100, cardinality: MANY, decoder: NEIGHBOR_PAGE, maxSubjects: 100)
+
+  # Later pages of one thread's comment ids.
+  threadCommentPage(threadId: ID!, cursor: String): String!
+    @observer(id: "annotations.thread-comment-page", reading: NEIGHBORHOOD, subject: "threadId", prefix: "thread:", label: "has_comment", neighborPrefix: "comment:", limit: 100, cursor: "cursor", cardinality: EXACTLY_ONE, decoder: NEIGHBOR_PAGE)
+
+  # Every field of each named comment, comment-major in directive order.
+  commentFields(commentIds: [ID!]!): [String!]!
+    @observer(id: "annotations.comment-fields", reading: PROPERTY, subject: "commentIds", prefix: "comment:", key: "author", cardinality: MANY, decoder: SCALAR, maxSubjects: 200)
+    @observer(id: "annotations.comment-fields", reading: PROPERTY, subject: "commentIds", prefix: "comment:", key: "body", cardinality: MANY, decoder: SCALAR, maxSubjects: 200)
+    @observer(id: "annotations.comment-fields", reading: PROPERTY, subject: "commentIds", prefix: "comment:", key: "createdAt", cardinality: MANY, decoder: SCALAR, maxSubjects: 200)
+    @observer(id: "annotations.comment-fields", reading: PROPERTY, subject: "commentIds", prefix: "comment:", key: "inReplyTo", cardinality: MANY, decoder: SCALAR, maxSubjects: 200)
+    @observer(id: "annotations.comment-fields", reading: PROPERTY, subject: "commentIds", prefix: "comment:", key: "editedAt", cardinality: MANY, decoder: SCALAR, maxSubjects: 200)
+}

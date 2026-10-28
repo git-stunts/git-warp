@@ -32,6 +32,9 @@ The named v19.1.0 performance witness below is historical evidence.
 
 ## Read and observe
 
+- [Cone-bounded reads and writes](cone-bounded-reads.md): what one write or
+  read costs, why there is no repair step, the annotations example, and its
+  cost witness.
 - [Optic reads](optic-reads.md): ask bounded questions of causal history.
 - [Observers](observers.md): expose a filtered read surface through an aperture.
 - [Entity admission inventory](entity-admission-inventory.md): stream every

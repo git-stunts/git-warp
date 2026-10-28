@@ -88,6 +88,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which keeps the last 64 captured bases reachable. Dropping a strand releases
   its cone refs ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 
+- Add the annotations example (`examples/annotations/`), a multi-writer
+  margin-notes store built only on `Runtime` and a Wesley-generated domain SDK.
+  It opens a thread, replies, edits, resolves, deletes a comment, syncs two
+  clones with the sync.md refspecs, and keeps every receipt. Add the cone
+  showcase cost witness (`npm run witness:cone-showcase`) and the topic page
+  [Cone-bounded reads and writes](docs/topics/cone-bounded-reads.md). The
+  baseline taken before public reads moved onto cone records is retained in
+  `benchmarks/cone-showcase/results/before-17084f178/`.
+
 - Repair duplicate dots explicitly. `previewDotRepair()` lists each collision
   the v21 migration recorded, which members are visible, and what each policy
   would do, including that a remove an offline replica already holds stops
