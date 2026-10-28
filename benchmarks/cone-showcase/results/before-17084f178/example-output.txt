@@ -1,0 +1,16 @@
+margins of essay, as alice reads them:
+  unavailable: documentThreads obstructed (missing_bounded_basis)
+margins of essay, as bob reads them:
+  unavailable: documentThreads obstructed (missing_bounded_basis)
+receipts kept by alice:
+  write openThread t1: derived
+  write reply c3: derived
+  write editComment c1: derived
+  write deleteComment c3: obstruction (git-warp.write.missing-bounded-basis)
+  write resolveThread t1: derived
+  observe documentThreads: obstructed (missing_bounded_basis)
+receipts kept by bob:
+  write reply c2: derived
+  write openThread t2: derived
+  observe documentThreads: obstructed (missing_bounded_basis)
+annotations example did not settle: 3 unsettled receipts, margins differ from the expected margins

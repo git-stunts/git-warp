@@ -1,0 +1,192 @@
+{
+  "threads": 2000,
+  "writers": 3,
+  "startedAt": "2026-10-28T09:01:41.476Z",
+  "shape": {
+    "documents": 200,
+    "threadsPerDocument": 10,
+    "repliesPerThread": 2
+  },
+  "bulkLoadProgress": {
+    "patches": 100,
+    "elapsedMs": 2976
+  },
+  "status": "complete",
+  "elapsedMs": 6560,
+  "maxRssMiB": 220,
+  "bulkLoad": {
+    "label": "batched: 50 actions per patch, not a save measurement",
+    "patches": 123,
+    "totalMs": 3695,
+    "perPatch": {
+      "samples": 123,
+      "ms": {
+        "n": 123,
+        "p50": 29.62,
+        "p95": 37.14,
+        "max": 49.81
+      },
+      "gitProcesses": {
+        "n": 123,
+        "p50": 26,
+        "p95": 26,
+        "max": 28
+      },
+      "results": {
+        "derived": 123
+      },
+      "reasons": {}
+    },
+    "repoBytes": 4304896
+  },
+  "saves": {
+    "label": "one user action per patch",
+    "samples": 60,
+    "ms": {
+      "n": 60,
+      "p50": 29.45,
+      "p95": 35.5,
+      "max": 43.69
+    },
+    "gitProcesses": {
+      "n": 60,
+      "p50": 26,
+      "p95": 26,
+      "max": 28
+    },
+    "results": {
+      "derived": 60
+    },
+    "reasons": {},
+    "deadlineReached": false
+  },
+  "margins": {
+    "label": "one document's threads and comments, four generated Observers",
+    "samples": 30,
+    "ms": {
+      "n": 30,
+      "p50": 1.44,
+      "p95": 2.14,
+      "max": 2.84
+    },
+    "gitProcesses": {
+      "n": 30,
+      "p50": 2,
+      "p95": 2,
+      "max": 2
+    },
+    "results": {
+      "obstructed": 30
+    },
+    "reasons": {
+      "documentThreads: missing_bounded_basis": 30
+    },
+    "mismatches": 0,
+    "deadlineReached": false,
+    "rssAfterReadsMiB": 219
+  },
+  "coldOpen": {
+    "label": "fresh process: Runtime.open to first margins, module loading included",
+    "firstMarginsMs": {
+      "n": 5,
+      "p50": 181,
+      "p95": 186,
+      "max": 186
+    },
+    "gitProcesses": {
+      "n": 5,
+      "p50": 14,
+      "p95": 14,
+      "max": 14
+    },
+    "maxRssMiB": {
+      "n": 5,
+      "p50": 127,
+      "p95": 129,
+      "max": 129
+    },
+    "runs": [
+      {
+        "firstMarginsMs": 184,
+        "openMs": 24,
+        "gitProcesses": 14,
+        "byCommand": {
+          "rev-parse": 8,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 1,
+          "show": 3
+        },
+        "result": "obstructed",
+        "reason": "documentThreads: missing_bounded_basis",
+        "threads": null,
+        "maxRssMiB": 129
+      },
+      {
+        "firstMarginsMs": 177,
+        "openMs": 24,
+        "gitProcesses": 14,
+        "byCommand": {
+          "rev-parse": 8,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 1,
+          "show": 3
+        },
+        "result": "obstructed",
+        "reason": "documentThreads: missing_bounded_basis",
+        "threads": null,
+        "maxRssMiB": 127
+      },
+      {
+        "firstMarginsMs": 181,
+        "openMs": 24,
+        "gitProcesses": 14,
+        "byCommand": {
+          "rev-parse": 8,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 1,
+          "show": 3
+        },
+        "result": "obstructed",
+        "reason": "documentThreads: missing_bounded_basis",
+        "threads": null,
+        "maxRssMiB": 126
+      },
+      {
+        "firstMarginsMs": 180,
+        "openMs": 24,
+        "gitProcesses": 14,
+        "byCommand": {
+          "rev-parse": 8,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 1,
+          "show": 3
+        },
+        "result": "obstructed",
+        "reason": "documentThreads: missing_bounded_basis",
+        "threads": null,
+        "maxRssMiB": 127
+      },
+      {
+        "firstMarginsMs": 186,
+        "openMs": 35,
+        "gitProcesses": 14,
+        "byCommand": {
+          "rev-parse": 8,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 1,
+          "show": 3
+        },
+        "result": "obstructed",
+        "reason": "documentThreads: missing_bounded_basis",
+        "threads": null,
+        "maxRssMiB": 129
+      }
+    ]
+  },
+  "repoBytesAtEnd": 6270976
+}
