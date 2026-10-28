@@ -362,6 +362,45 @@ integrating storage layout 2 and the showcase), so the `cli-failures` and `cli-l
 the budget is decided; the entity admission inventory still
 scans history by design.
 
+## Entity admission index record
+
+The entity admission inventory (`createEntityAdmissionInventoryObserver`) was the last public export that walked
+every writer's history from its tip, one `git show` per commit. It now reads a cone-maintained index.
+
+- **Records.** A fifth record family, `admission` (trie directory `i`): per writer chain a `ConeAdmissionTally`
+  (how many admissions the chain has indexed) and one `ConeAdmissionRecord` per admission at its ordinal in the
+  chain (patch order, then operation order), holding the subject, initial properties, origin, dot, event and
+  causal context that a Reading needs. A patch whose admissions cannot be proven (an unmarked whole-patch entity
+  footprint) takes one `ConeUnprovenAdmissionRecord` carrying the refusal instead, so the fold continues and
+  only an inventory that reaches it is refused.
+- **Fold.** `ConeAdmissionIndexer` runs inside `ConeFold`: a patch without admissions reads and writes nothing;
+  one with admissions reads its chain's tally and stages the entries and the new tally. The fold of an admitting
+  patch therefore costs one more record read and `admissions + 1` more record writes.
+- **Read.** `ConeEntityAdmissionInventory` reads every frontier writer's tally in one batch and pages each chain
+  downwards in batches of at most 256 records (`ConeAdmissionMerge`, a k-way merge newest event first). Chains keep
+  one admission loaded, as the scan's cursors did, so order, values and the position of a legacy refusal match the
+  scan exactly. Reading `n` admissions costs `O(n + writers × 256)` record reads, independent of history.
+- **Basis and certificate.** An inventory Tick is the lane's advanced cone basis (root and frontier); the Tick id
+  is computed from the frontier exactly as before, and the certificate binds that Tick. Strand inventories stay
+  refused.
+- **Paging.** An Observation emits at most `limit` admissions (default 10,000). A page that stops with admissions
+  left retains its basis (with the captured Coordinates' 64) and binds an `EntityAdmissionInventoryCursor`: Lane,
+  Tick id, count and rolling digest so far, and per writer how many admissions are unread, with a check digest.
+  A resumed Observation finds the cursor's basis as the current basis or among the retained ones, or is refused
+  with `E_ENTITY_ADMISSION_INVENTORY_CURSOR_BASIS`. The last page certifies the whole inventory.
+- **Layout.** The trie marker becomes layout 3; a layout 2 head lacks the index and is refused like layout 1.
+- **Evidence.** The equivalence oracle now also generates entity admissions in 30% of patches and compares the
+  cone inventory, read in pages of three, with a scan of every chain for every generated history (each fold
+  interleaving). Unit tests cover the legacy refusal position, resumption positions, a corrupt index and every
+  record's codec round trip. Through the public Runtime: paging with a limit across lane writes reproduces the
+  single Observation's admissions, count and digest; a damaged cursor and another Lane's cursor are refused; a
+  two-admission page reads at most 11 index records after a 40-patch history; the CLI pages with `limit` and
+  `cursor`. The trap test drives the inventory with the history-walk trap armed.
+
+Known limits: a cursor is resumable only while its basis is current or among the last 64 retained captures; the
+default limit truncates an inventory larger than 10,000 admissions into pages where one Observation used to
+stream everything.
+
 ## Slices
 
 1. Cone records, workspace, record trie adapter, basis ref and ingest, with the equivalence oracle.

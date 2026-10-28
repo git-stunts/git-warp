@@ -93,37 +93,39 @@ Bounded formal reads and runtime-backed construction for generated SDK infrastru
 
 ### Value exports
 
-Source: `advanced.ts`. Count: 11.
+Source: `advanced.ts`. Count: 12.
 
 ```text
 captureCoordinate @ advanced.ts#L10
 Coordinate @ advanced.ts#L11
-createEdgeContentObserver @ advanced.ts#L36
+createEdgeContentObserver @ advanced.ts#L40
 createEntityAdmissionInventoryObserver @ advanced.ts#L19
 createManyObserver @ advanced.ts#L16
-createNodeContentObserver @ advanced.ts#L36
+createNodeContentObserver @ advanced.ts#L40
 createObserver @ advanced.ts#L17
+findEntityAdmissionInventoryContinuation @ advanced.ts#L22
 intent @ advanced.ts#L13
 Optic @ advanced.ts#L12
 reading @ advanced.ts#L14
-requireEntityAdmissionInventoryCertificate @ advanced.ts#L20
+requireEntityAdmissionInventoryCertificate @ advanced.ts#L23
 ```
 
 ### Type exports
 
-Source: `advanced.ts`. Count: 10.
+Source: `advanced.ts`. Count: 11.
 
 ```text
-NeighborhoodOpticCompleteness @ advanced.ts#L24
-NeighborhoodOpticEdge @ advanced.ts#L25
-NeighborhoodOpticReadDirection @ advanced.ts#L26
-NeighborhoodOpticReadOptions @ advanced.ts#L22
-ReadIdentityFrontierEntry @ advanced.ts#L30
-ReadIdentityIndexShard @ advanced.ts#L31
-ReadIdentityOptions @ advanced.ts#L32
-ReadIdentityTailWitness @ advanced.ts#L33
-WarpWorldlineCoordinateFrontierEntry @ advanced.ts#L21
-Witness @ advanced.ts#L28
+EntityAdmissionInventoryObserverOptions @ advanced.ts#L20
+NeighborhoodOpticCompleteness @ advanced.ts#L28
+NeighborhoodOpticEdge @ advanced.ts#L29
+NeighborhoodOpticReadDirection @ advanced.ts#L30
+NeighborhoodOpticReadOptions @ advanced.ts#L26
+ReadIdentityFrontierEntry @ advanced.ts#L34
+ReadIdentityIndexShard @ advanced.ts#L35
+ReadIdentityOptions @ advanced.ts#L36
+ReadIdentityTailWitness @ advanced.ts#L37
+WarpWorldlineCoordinateFrontierEntry @ advanced.ts#L25
+Witness @ advanced.ts#L32
 ```
 
 ## Diagnostics export surface

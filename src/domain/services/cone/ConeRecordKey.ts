@@ -3,7 +3,7 @@ import ConeRecordError from '../../errors/ConeRecordError.ts';
 import { FIELD_SEPARATOR } from '../KeyCodec.ts';
 
 /** The record families of a cone record trie. */
-export type ConeRecordFamily = 'node' | 'edge' | 'dot' | 'adjacency';
+export type ConeRecordFamily = 'node' | 'edge' | 'dot' | 'adjacency' | 'admission';
 
 /** The OR-Set a dot belongs to: node membership or edge membership. */
 export type ConeDotSet = 'node' | 'edge';
@@ -11,7 +11,7 @@ export type ConeDotSet = 'node' | 'edge';
 /** The adjacency direction of an edge key relative to a node. */
 export type ConeDirection = 'out' | 'in';
 
-const FAMILIES: ReadonlySet<string> = new Set(['node', 'edge', 'dot', 'adjacency']);
+const FAMILIES: ReadonlySet<string> = new Set(['node', 'edge', 'dot', 'adjacency', 'admission']);
 const ROUTE_PATTERN = /^[0-9a-f]{64}$/u;
 
 /**
@@ -56,6 +56,16 @@ export default class ConeRecordKey {
   /** The key of one page of a node's adjacency references in one direction. */
   static forAdjacencyPage(nodeId: string, direction: ConeDirection, pageIndex: number): ConeRecordKey {
     return new ConeRecordKey('adjacency', routeOf([nodeId, direction, String(pageIndex)]));
+  }
+
+  /** The key of a writer's entity admission tally: how many admissions its chain has indexed. */
+  static forAdmissionTally(writerId: string): ConeRecordKey {
+    return new ConeRecordKey('admission', routeOf(['tally', writerId]));
+  }
+
+  /** The key of a writer's entity admission at `ordinal` in its chain's admission order. */
+  static forAdmission(writerId: string, ordinal: number): ConeRecordKey {
+    return new ConeRecordKey('admission', routeOf(['entry', writerId, String(ordinal)]));
   }
 
   /** Stable text form, used as a map key. */

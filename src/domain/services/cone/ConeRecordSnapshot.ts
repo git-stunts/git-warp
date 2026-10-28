@@ -1,4 +1,7 @@
 import ConeAdjacencyPage from './ConeAdjacencyPage.ts';
+import ConeAdmissionRecord from './ConeAdmissionRecord.ts';
+import ConeAdmissionTally from './ConeAdmissionTally.ts';
+import ConeUnprovenAdmissionRecord from './ConeUnprovenAdmissionRecord.ts';
 import ConeDotPage from './ConeDotPage.ts';
 import ConeEdgeRecord from './ConeEdgeRecord.ts';
 import ConeNodeRecord from './ConeNodeRecord.ts';
@@ -54,6 +57,17 @@ export default class ConeRecordSnapshot {
   adjacencyPage(nodeId: string, direction: ConeDirection, pageIndex: number): ConeAdjacencyPage {
     const key = ConeRecordKey.forAdjacencyPage(nodeId, direction, pageIndex);
     return this.#typed(key, ConeAdjacencyPage) ?? ConeAdjacencyPage.empty(nodeId, direction, pageIndex);
+  }
+
+  /** How many admissions a writer chain has indexed; a chain with no tally has indexed none. */
+  admissionTally(writerId: string): ConeAdmissionTally {
+    return this.#typed(ConeRecordKey.forAdmissionTally(writerId), ConeAdmissionTally) ?? ConeAdmissionTally.empty(writerId);
+  }
+
+  /** The indexed admission (or ambiguity marker) of a writer chain at `ordinal`, or null when none is stored. */
+  admission(writerId: string, ordinal: number): ConeAdmissionRecord | ConeUnprovenAdmissionRecord | null {
+    const key = ConeRecordKey.forAdmission(writerId, ordinal);
+    return this.#typed(key, ConeAdmissionRecord) ?? this.#typed(key, ConeUnprovenAdmissionRecord);
   }
 
   /** This snapshot with `records` replacing any stored record at the same key. */

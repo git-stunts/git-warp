@@ -208,6 +208,9 @@ describe('GitConeRecordStoreAdapter', () => {
     failure.mockRestore();
     await history.updateRef(HEAD, await history.writeTree([]));
     await expect(store.readBasis(HEAD_OF_LANE)).rejects.toMatchObject({ code: 'E_CONE_LAYOUT_UNSUPPORTED', context: { layout: '(unmarked)' } });
+    const layoutTwo = await history.writeBlob('git-warp cone record trie\nlayout 2: 16-way route digits, buckets of 32 records\n');
+    await history.updateRef(HEAD, await history.writeTree([`100644 blob ${layoutTwo}\tlayout`]));
+    await expect(store.readBasis(HEAD_OF_LANE)).rejects.toMatchObject({ code: 'E_CONE_LAYOUT_UNSUPPORTED' });
     const otherLayout = await history.writeBlob('git-warp cone record trie\nlayout 9\n');
     await history.updateRef(HEAD, await history.writeTree([`100644 blob ${otherLayout}\tlayout`]));
     await expect(store.readBasis(HEAD_OF_LANE)).rejects.toMatchObject({ code: 'E_CONE_LAYOUT_UNSUPPORTED' });
@@ -257,6 +260,18 @@ describe('GitConeRecordStoreAdapter strand heads, retained bases and dropped hea
     await store.retainBasis(LANE, second);
     expect((await retainedNames(plumbing)).map((name) => name.slice(13))).toEqual([first.revision, second.revision]);
     expect((await plumbing.execute({ args: ['cat-file', '-t', `${RETAINED}:r/000000000002-${second.revision}`] })).trim()).toBe('tree');
+  });
+
+  it('reads the retained bases back, oldest first, and none before any retention', async () => {
+    const { store } = await fixture();
+    expect(await store.readRetainedBases(LANE)).toEqual([]);
+    const first = await captured(store, 'd1');
+    const second = await captured(store, 'd2');
+    await store.retainBasis(LANE, first);
+    await store.retainBasis(LANE, second);
+    const retained = await store.readRetainedBases(LANE);
+    expect(retained.map((stored) => stored.revision)).toEqual([first.revision, second.revision]);
+    expect(retained[1]?.basis.equals(second.basis)).toBe(true);
   });
 
   it('bounds the retained bases to the most recent captures', async () => {

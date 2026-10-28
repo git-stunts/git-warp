@@ -4,9 +4,11 @@ import {
   captureCoordinate,
   createEdgeContentObserver,
   createNodeContentObserver,
+  createEntityAdmissionInventoryObserver,
   createObserver,
   intent,
   reading,
+  requireEntityAdmissionInventoryCertificate,
 } from '../../../advanced.ts';
 import RuntimeHost from '../../../src/domain/RuntimeHost.ts';
 import CheckpointController from '../../../src/domain/services/controllers/CheckpointController.ts';
@@ -26,8 +28,9 @@ import { closeCliStorages } from '../../../bin/cli/shared.ts';
 /**
  * Architecture trap (#1039): every client-facing entry point (Lane writes
  * and Observations on worldline and strand Lanes, content Observations,
- * captured-coordinate optic reads on both, Runtime.fork, previewSettlement,
- * settle and the `repair --action basis` CLI path) stays off whole-state
+ * captured-coordinate optic reads on both, the entity admission inventory,
+ * Runtime.fork, previewSettlement, settle and the `repair --action basis`
+ * CLI path) stays off whole-state
  * materialization, whole-state
  * checkpoints, the checkpoint-tail basis and locator, strand
  * materialization and history replay. A trap that fires fails the test with
@@ -141,6 +144,13 @@ async function readEveryKind(lane: Lane, edge: TestEdge, removed: string): Promi
   ];
 }
 
+/** The whole-Lane admission inventory, read from the cone admission index; returns its certified count. */
+async function inventoried(lane: Lane): Promise<number> {
+  const observation = lane.observe(createEntityAdmissionInventoryObserver('trap.inventory'));
+  for await (const _admission of observation) { /* drain */ }
+  return requireEntityAdmissionInventoryCertificate(await observation.receipt).admissionCount;
+}
+
 const READ_EVERY_KIND = ['completed', 'completed', 'completed', 'completed', 'completed', true, 'T', [], 'complete'];
 const DERIVED = Array.from({ length: 10 }, () => 'derived');
 
@@ -154,6 +164,7 @@ it('drives every public entry point, worldline and strand, without reaching a wh
     installTraps();
     expect(await writeEveryIntentKind(lane, EDGE, 'history3')).toEqual(DERIVED);
     expect(await readEveryKind(lane, EDGE, 'history3')).toEqual(READ_EVERY_KIND);
+    expect(await inventoried(lane)).toBe(2);
 
     const strand = await runtime.fork(lane, { name: 'draft' });
     expect(await writeEveryIntentKind(strand, STRAND_EDGE, 'history5')).toEqual(DERIVED);

@@ -13,6 +13,14 @@ import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import ConeFrontierCborCodec from '../../../../src/infrastructure/adapters/ConeFrontierCborCodec.ts';
 import ConeRecordCborCodec from '../../../../src/infrastructure/adapters/ConeRecordCborCodec.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
+import { recordedEntityAdmission } from '../../../../src/domain/entity/RecordedEntityAdmission.ts';
+import ConeAdmissionRecord from '../../../../src/domain/services/cone/ConeAdmissionRecord.ts';
+import ConeAdmissionTally from '../../../../src/domain/services/cone/ConeAdmissionTally.ts';
+import ConeUnprovenAdmissionRecord from '../../../../src/domain/services/cone/ConeUnprovenAdmissionRecord.ts';
+import EntityAdmissionOrigin from '../../../../src/domain/types/EntityAdmissionOrigin.ts';
+import { allocateEntitySubject } from '../../../../src/domain/services/PatchBuilderEntity.ts';
 
 const SHA = 'c'.repeat(40);
 const event = (lamport: number): EventId => new EventId(lamport, 'w1', SHA, 0);
@@ -74,3 +82,54 @@ describe('ConeFrontierCborCodec', () => {
     expect(() => frontiers.decode(cbor.encode({ kind: 'other' }))).toThrow('Stored cone frontier does not decode');
   });
 });
+
+/** A record's observable content; an admission compares by its retained fields, not its Intent object. */
+function comparable(record: ReturnType<ConeRecordCborCodec['decode']>): object {
+  if (!(record instanceof ConeAdmissionRecord)) {
+    return record;
+  }
+  const { admission } = record;
+  return {
+    writerId: record.writerId, ordinal: record.ordinal, subject: admission.subject, properties: admission.properties,
+    origin: admission.origin, dot: admission.dot, eventId: admission.eventId, context: [...admission.context.entries()].sort(),
+    intent: admission.intent.descriptor,
+  };
+}
+
+describe('ConeRecordCborCodec entity admission index records (#1039)', () => {
+  function admissionRecord(origin: EntityAdmissionOrigin, subject: string, ordinal: number): ConeAdmissionRecord {
+    const admission = recordedEntityAdmission({
+      context: VersionVector.from({ w2: 4, w1: 2 }),
+      dot: new Dot('w1', 7),
+      eventId: new EventId(9, 'w1', SHA, 3),
+      origin,
+      properties: { title: 'T', nested: { list: [1, null] } },
+      subject,
+    });
+    return new ConeAdmissionRecord({ writerId: 'w1', ordinal, admission });
+  }
+
+  it('round-trips tallies, admissions of every origin and unproven entries', () => {
+    const allocatedDot = new Dot('w1', 7);
+    const records = [
+      new ConeAdmissionTally({ writerId: 'w1', count: 3 }),
+      admissionRecord(EntityAdmissionOrigin.suppliedSubject(), 'capture:1', 0),
+      admissionRecord(EntityAdmissionOrigin.allocated('cards', allocatedDot), allocateEntitySubject('cards', allocatedDot), 1),
+      admissionRecord(EntityAdmissionOrigin.legacyUnrecorded(), 'capture:legacy', 2),
+      new ConeUnprovenAdmissionRecord({ writerId: 'w1', ordinal: 3, patchSha: SHA, code: 'E_X', message: 'unproven' }),
+    ];
+    for (const record of records) {
+      const decoded = codec.decode(codec.encode(record));
+      expect(decoded.constructor).toBe(record.constructor);
+      expect(decoded.key().equals(record.key())).toBe(true);
+      expect(comparable(decoded)).toEqual(comparable(record));
+    }
+  });
+
+  it('refuses an admission record holding an unsupported property value', () => {
+    const wire = cbor.decode<Record<string, unknown>>(codec.encode(admissionRecord(EntityAdmissionOrigin.suppliedSubject(), 'capture:1', 0)));
+    const bytes = cbor.encode({ ...wire, props: [['title', { constructor: 1 }]] });
+    expect(() => codec.decode(bytes)).toThrowError(expect.objectContaining({ code: 'E_CONE_RECORD_CORRUPT' }));
+  });
+});
+

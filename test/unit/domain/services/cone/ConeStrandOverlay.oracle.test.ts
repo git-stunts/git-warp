@@ -71,7 +71,7 @@ async function checkOverlay(seed: number): Promise<number> {
   const baseRecords = new Map(store.allRecords(baseBasis.root).map((record) => [record.key().toString(), record]));
   for (const record of store.allRecords(strandBasis.root)) {
     const key = record.key().toString();
-    if (!overlayKeys.has(key) && record.key().family !== 'adjacency') {
+    if (!overlayKeys.has(key) && record.key().family !== 'adjacency' && record.key().family !== 'admission') {
       expect(record, `record ${key} shared with the base, seed ${seed}`).toBe(baseRecords.get(key));
     }
   }

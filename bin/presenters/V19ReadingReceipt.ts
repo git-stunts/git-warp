@@ -20,7 +20,10 @@ import { stableStringify } from './json.ts';
 import { defineMcpJsonProperty, toMcpJson } from './V19Json.ts';
 import WarpError from '../../src/domain/errors/WarpError.ts';
 import type EntityAdmissionInventoryCertificate from '../../src/domain/api/EntityAdmissionInventoryCertificate.ts';
-import { findEntityAdmissionInventoryCertificate } from '../../src/domain/api/EntityAdmissionInventoryCertificateRuntime.ts';
+import {
+  findEntityAdmissionInventoryCertificate,
+  findEntityAdmissionInventoryContinuation,
+} from '../../src/domain/api/EntityAdmissionInventoryCertificateRuntime.ts';
 
 export type V19Receipt =
   | WriteReceipt<WriteIntentInput>
@@ -92,6 +95,7 @@ function isIntentArray(input: WriteIntentInput): input is readonly Intent[] {
 
 function observationReceiptEnvelope(receipt: ObservationReceipt): McpJsonValue {
   const inventory = findEntityAdmissionInventoryCertificate(receipt);
+  const continuation = findEntityAdmissionInventoryContinuation(receipt);
   return Object.freeze({
     type: 'Receipt',
     reducerVersion: receipt.reducerVersion,
@@ -109,6 +113,7 @@ function observationReceiptEnvelope(receipt: ObservationReceipt): McpJsonValue {
     ...(inventory === null
       ? {}
       : { inventoryCertificate: inventoryCertificateEnvelope(inventory) }),
+    ...(continuation === null ? {} : { inventoryContinuation: continuation }),
   });
 }
 

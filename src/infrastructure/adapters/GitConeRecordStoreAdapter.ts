@@ -28,16 +28,18 @@ export type ConeTrieHistory = {
   deleteRef(ref: string): Promise<void>;
 };
 
-const FAMILY_DIRECTORIES = Object.freeze({ node: 'n', edge: 'e', dot: 'd', adjacency: 'a' });
+const FAMILY_DIRECTORIES = Object.freeze({ node: 'n', edge: 'e', dot: 'd', adjacency: 'a', admission: 'i' });
 const ROOT_DIRECTORIES: ReadonlySet<string> = new Set(Object.values(FAMILY_DIRECTORIES));
 const FRONTIER_ENTRY = 'frontier';
 const LAYOUT_ENTRY = 'layout';
 const RECORDS_ENTRY = 'records';
 /**
  * The trie layout this adapter reads and writes, stored in every basis head.
- * Layout 1 (slice 1, unmarked) used two fixed 256-way levels.
+ * Layout 1 (slice 1, unmarked) used two fixed 256-way levels; layout 2 had
+ * the same trie but no entity admission index, so its bases cannot answer an
+ * inventory and are refused rather than read as empty.
  */
-export const CONE_TRIE_LAYOUT = 'git-warp cone record trie\nlayout 2: 16-way route digits, buckets of 32 records\n';
+export const CONE_TRIE_LAYOUT = 'git-warp cone record trie\nlayout 3: 16-way route digits, buckets of 32 records; entity admission index\n';
 /** Captured bases a clone keeps reachable under its retained ref, most recent first to survive. */
 export const CONE_RETAINED_BASES = 64;
 const RETAINED_DIRECTORY = 'r';
@@ -45,10 +47,12 @@ const RETAINED_SEQUENCE_DIGITS = 12;
 const RETAIN_ATTEMPTS = 4;
 
 type RetainedEntry = { readonly sequence: number; readonly revision: string };
+/** Where a basis tree was found: the ref that names it and its lane. */
+type BasisLocation = { readonly ref: string; readonly lane: string };
 
 /**
- * Stores cone records as a Git tree trie (layout 2). The records root holds
- * one directory per family (`n`, `e`, `d`, `a`); each is an adaptive 16-way
+ * Stores cone records as a Git tree trie (layout 3). The records root holds
+ * one directory per family (`n`, `e`, `d`, `a`, `i`); each is an adaptive 16-way
  * trie on the record key's BLAKE3 route (`GitConeRecordTrie`), with record
  * blobs named by their full route.
  *
@@ -107,17 +111,7 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
 
   override async readBasis(head: ConeBasisHead): Promise<StoredConeBasis | null> {
     const revision = await this.#history.readRef(head.ref());
-    if (revision === null) {
-      return null;
-    }
-    const entries = new Map((await this.#history.readTreeObjectEntries(revision)).map((entry) => [entry.name, entry]));
-    await this.#requireLayout(head, entries.get(LAYOUT_ENTRY));
-    const frontier = entries.get(FRONTIER_ENTRY);
-    if (frontier === undefined) {
-      throw new ConeRecordError('Cone basis head has no frontier', { code: 'E_CONE_RECORD_CORRUPT', context: { ref: head.ref() } });
-    }
-    const basis = new ConeBasis(recordsRoot(entries.get(RECORDS_ENTRY)), this.#frontiers.decode(await this.#history.readBlob(frontier.oid)));
-    return new StoredConeBasis(basis, revision);
+    return revision === null ? null : await this.#readBasisTree(revision, head.ref(), head.lane);
   }
 
   override async publishBasis(
@@ -143,6 +137,17 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
     throw new ConeRecordError('Retaining a captured cone basis kept losing to concurrent captures', {
       code: 'E_CONE_RETAIN_CONTENDED', context: { lane, attempts: RETAIN_ATTEMPTS },
     });
+  }
+
+  override async readRetainedBases(lane: string): Promise<readonly StoredConeBasis[]> {
+    const ref = buildConeRetainedRef(lane);
+    const current = await this.#history.readRef(ref);
+    const entries = current === null ? [] : await this.#retainedEntries(current);
+    const bases: StoredConeBasis[] = [];
+    for (const entry of entries) {
+      bases.push(await this.#readBasisTree(entry.revision, ref, lane));
+    }
+    return bases;
   }
 
   override async dropBasis(head: ConeBasisHead): Promise<void> {
@@ -238,7 +243,19 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
     return record;
   }
 
-  async #requireLayout(head: ConeBasisHead, layout: GitTreeObjectEntry | undefined): Promise<void> {
+  /** The basis a basis tree names; `ref` and `lane` name where it was found, for refusals. */
+  async #readBasisTree(revision: string, ref: string, lane: string): Promise<StoredConeBasis> {
+    const entries = new Map((await this.#history.readTreeObjectEntries(revision)).map((entry) => [entry.name, entry]));
+    await this.#requireLayout({ ref, lane }, entries.get(LAYOUT_ENTRY));
+    const frontier = entries.get(FRONTIER_ENTRY);
+    if (frontier === undefined) {
+      throw new ConeRecordError('Cone basis head has no frontier', { code: 'E_CONE_RECORD_CORRUPT', context: { ref } });
+    }
+    const basis = new ConeBasis(recordsRoot(entries.get(RECORDS_ENTRY)), this.#frontiers.decode(await this.#history.readBlob(frontier.oid)));
+    return new StoredConeBasis(basis, revision);
+  }
+
+  async #requireLayout(head: BasisLocation, layout: GitTreeObjectEntry | undefined): Promise<void> {
     if (layout === undefined) {
       throw layoutUnsupported(head, null);
     }
@@ -281,11 +298,11 @@ function recordsRoot(entry: GitTreeObjectEntry | undefined): ConeRoot {
   return entry === undefined ? ConeRoot.empty() : ConeRoot.at(entry.oid);
 }
 
-function layoutUnsupported(head: ConeBasisHead, marker: string | null): ConeRecordError {
+function layoutUnsupported(head: BasisLocation, marker: string | null): ConeRecordError {
   return new ConeRecordError(
-    `Cone basis head ${head.ref()} uses a record trie layout this version does not read; `
+    `Cone basis head ${head.ref} uses a record trie layout this version does not read; `
     + 'delete it to rebuild it from the writer chains',
-    { code: 'E_CONE_LAYOUT_UNSUPPORTED', context: { lane: head.lane, ref: head.ref(), layout: marker ?? '(unmarked)' } },
+    { code: 'E_CONE_LAYOUT_UNSUPPORTED', context: { lane: head.lane, ref: head.ref, layout: marker ?? '(unmarked)' } },
   );
 }
 

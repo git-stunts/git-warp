@@ -3,6 +3,7 @@ import EntityAdmissionInventoryCertificate from './EntityAdmissionInventoryCerti
 import { isEntityAdmissionInventoryObserver } from './EntityAdmissionInventoryObserverRuntime.ts';
 import ObservationReceipt from './ObservationReceipt.ts';
 
+const INVENTORY_CONTINUATIONS = new WeakMap<ObservationReceipt, string>();
 const INVENTORY_CERTIFICATES = new WeakMap<
   ObservationReceipt,
   EntityAdmissionInventoryCertificate
@@ -46,7 +47,7 @@ function requireMatchingInventoryCertificate(
 }
 
 function requireUnboundInventoryCertificate(receipt: ObservationReceipt): void {
-  if (INVENTORY_CERTIFICATES.has(receipt)) {
+  if (INVENTORY_CERTIFICATES.has(receipt) || INVENTORY_CONTINUATIONS.has(receipt)) {
     throw certificateError('Inventory certificate is already bound');
   }
 }
@@ -71,6 +72,27 @@ export function findEntityAdmissionInventoryCertificate(
     throw certificateError('Inventory certificate lookup requires an ObservationReceipt');
   }
   return INVENTORY_CERTIFICATES.get(receipt) ?? null;
+}
+
+/** Binds the cursor of a completed inventory page that stopped at its limit with admissions left. */
+export function bindEntityAdmissionInventoryContinuation(receipt: ObservationReceipt, cursor: string): void {
+  requireCompletedInventoryReceipt(receipt);
+  if (INVENTORY_CERTIFICATES.has(receipt) || INVENTORY_CONTINUATIONS.has(receipt)) {
+    throw certificateError('Inventory receipt already carries a certificate or continuation');
+  }
+  INVENTORY_CONTINUATIONS.set(receipt, cursor);
+}
+
+/**
+ * The continuation cursor of an inventory page that stopped at its limit, or
+ * null when the receipt certifies a complete inventory or carries neither.
+ * Pass it as `cursor` to `createEntityAdmissionInventoryObserver` to resume.
+ */
+export function findEntityAdmissionInventoryContinuation(receipt: ObservationReceipt): string | null {
+  if (!(receipt instanceof ObservationReceipt)) {
+    throw certificateError('Inventory continuation lookup requires an ObservationReceipt');
+  }
+  return INVENTORY_CONTINUATIONS.get(receipt) ?? null;
 }
 
 function certificateError(message: string): WarpError {

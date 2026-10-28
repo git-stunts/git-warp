@@ -7,7 +7,7 @@ import ConeFoldSession from '../../../../../src/domain/services/cone/ConeFoldSes
 import ConeRoot from '../../../../../src/domain/services/cone/ConeRoot.ts';
 import { reducePatches } from '../../../../../src/domain/services/JoinReducer.ts';
 import ConeHistoryGenerator, { interleave, type ConeHistoryShape } from '../../../../helpers/ConeHistoryGenerator.ts';
-import { assertConeEquivalent } from '../../../../helpers/coneEquivalence.ts';
+import { assertConeAdmissionsEquivalent, assertConeEquivalent } from '../../../../helpers/coneEquivalence.ts';
 import InMemoryConeRecordStore from '../../../../helpers/InMemoryConeRecordStore.ts';
 import { createRng } from '../../../../helpers/seededRng.ts';
 
@@ -21,7 +21,7 @@ const SHAPES: ReadonlyArray<{ readonly name: string; readonly runs: number; read
   { name: 'long synced', runs: 20, shape: { writers: 3, patches: 150, nodes: 6, maxOps: 3, syncChance: 0.8 } },
 ];
 
-type Totals = { histories: number; patches: number; folds: number; entities: number; ops: Map<string, number> };
+type Totals = { histories: number; patches: number; folds: number; entities: number; admissions: number; ops: Map<string, number> };
 
 /** Folds `order` into a fresh trie, committing every `chunk` patches, and returns the final root. */
 async function foldAll(store: InMemoryConeRecordStore, order: readonly PatchEntry[], chunk: number): Promise<ConeRoot> {
@@ -47,6 +47,7 @@ async function checkHistory(seed: number, shape: ConeHistoryShape, totals: Total
     const order = interleave(rng, history.chains);
     const root = await foldAll(store, order, rng.nextInt(1, order.length + 1));
     totals.entities += await assertConeEquivalent(history, full, { store, root });
+    totals.admissions += await assertConeAdmissionsEquivalent(history, { store, root });
     totals.folds += order.length;
   }
   totals.histories += 1;
@@ -56,16 +57,17 @@ async function checkHistory(seed: number, shape: ConeHistoryShape, totals: Total
   }
 }
 
-describe('cone engine equivalence oracle (#1039)', () => {
+describe('cone engine equivalence oracle (#1039): entity state and the entity admission index', () => {
   for (const { name, runs, shape } of SHAPES) {
     it(`matches a full JoinReducer reduction for every entity: ${name}`, async () => {
-      const totals: Totals = { histories: 0, patches: 0, folds: 0, entities: 0, ops: new Map() };
+      const totals: Totals = { histories: 0, patches: 0, folds: 0, entities: 0, admissions: 0, ops: new Map() };
       await fc.assert(
         fc.asyncProperty(fc.integer({ min: 1, max: 0x7fffffff }), async (seed) => { await checkHistory(seed, shape, totals); }),
         { seed: ORACLE_SEED, numRuns: runs },
       );
       console.log('CONE_ORACLE', JSON.stringify({ name, shape, ...totals, ops: Object.fromEntries(totals.ops) }));
       expect(totals.histories).toBe(runs);
+      expect(totals.admissions).toBeGreaterThan(0);
     }, 300_000);
   }
 });

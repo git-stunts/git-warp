@@ -2,6 +2,14 @@ import z from 'zod';
 import { LWWRegister } from '../../domain/crdt/LWW.ts';
 import ConeRecordError from '../../domain/errors/ConeRecordError.ts';
 import ConeAdjacencyPage from '../../domain/services/cone/ConeAdjacencyPage.ts';
+import ConeAdmissionRecord from '../../domain/services/cone/ConeAdmissionRecord.ts';
+import ConeAdmissionTally from '../../domain/services/cone/ConeAdmissionTally.ts';
+import ConeUnprovenAdmissionRecord from '../../domain/services/cone/ConeUnprovenAdmissionRecord.ts';
+import { Dot } from '../../domain/crdt/Dot.ts';
+import VersionVector from '../../domain/crdt/VersionVector.ts';
+import { recordedEntityAdmission } from '../../domain/entity/RecordedEntityAdmission.ts';
+import type RetainedEntityAdmission from '../../domain/entity/RetainedEntityAdmission.ts';
+import EntityAdmissionOrigin from '../../domain/types/EntityAdmissionOrigin.ts';
 import ConeDotClaim from '../../domain/services/cone/ConeDotClaim.ts';
 import ConeDotPage from '../../domain/services/cone/ConeDotPage.ts';
 import ConeEdgeRecord from '../../domain/services/cone/ConeEdgeRecord.ts';
@@ -32,7 +40,25 @@ const ADJACENCY_WIRE = z.object({
   edges: z.array(z.string()),
 });
 
+const TALLY_WIRE = z.object({ kind: z.literal('admission-tally'), writer: z.string(), count: z.number() });
+const ORIGIN_WIRE = z.union([
+  z.tuple([z.literal('allocated'), z.string(), z.string()]),
+  z.tuple([z.literal('supplied-subject')]),
+  z.tuple([z.literal('legacy-unrecorded')]),
+]);
+const ADMISSION_WIRE = z.object({
+  kind: z.literal('admission'), writer: z.string(), ordinal: z.number(), subject: z.string(),
+  props: z.array(z.tuple([z.string(), z.unknown()])), origin: ORIGIN_WIRE, dot: z.string(),
+  event: z.tuple([z.number(), z.string(), z.string(), z.number()]), context: z.array(z.tuple([z.string(), z.number()])),
+});
+const UNPROVEN_WIRE = z.object({
+  kind: z.literal('admission-unproven'), writer: z.string(), ordinal: z.number(), patch: z.string(),
+  code: z.string(), message: z.string(),
+});
+
 type EventWire = z.infer<typeof EVENT_WIRE>;
+type OriginWire = z.infer<typeof ORIGIN_WIRE>;
+type AdmissionIndexRecord = ConeAdmissionTally | ConeAdmissionRecord | ConeUnprovenAdmissionRecord;
 type PropsWire = z.infer<typeof PROPS_WIRE>;
 type PropsEncoded = Array<[string, EventWire, PropValue]>;
 
@@ -54,7 +80,7 @@ export default class ConeRecordCborCodec {
 
   decode(bytes: Uint8Array): ConeRecord {
     const raw = this.#codec.decode<unknown>(bytes);
-    const record = decodeNode(raw) ?? decodeEdge(raw) ?? decodeDotPage(raw) ?? decodeAdjacencyPage(raw);
+    const record = decodeElement(raw) ?? decodeDotPage(raw) ?? decodeAdjacencyPage(raw) ?? decodeAdmissionIndex(raw);
     if (record === null) {
       throw corrupt('does not decode as a cone record');
     }
@@ -79,13 +105,20 @@ function encodeRecord(record: ConeRecord): object {
   return encodePage(record);
 }
 
-function encodePage(record: ConeDotPage | ConeAdjacencyPage): object {
+function encodePage(record: ConeDotPage | ConeAdjacencyPage | AdmissionIndexRecord): object {
+  if (record instanceof ConeAdmissionTally || record instanceof ConeAdmissionRecord || record instanceof ConeUnprovenAdmissionRecord) {
+    return encodeAdmissionIndex(record);
+  }
   if (record instanceof ConeDotPage) {
     const claims = [...record.claims].sort(([left], [right]) => left - right)
       .map(([counter, claim]) => [counter, sorted(claim.owners), sorted(claim.removers)]);
     return { kind: 'dot', set: record.set, writer: record.writerId, page: record.pageIndex, claims };
   }
   return { kind: 'adjacency', node: record.nodeId, dir: record.direction, page: record.pageIndex, edges: [...record.edgeKeys] };
+}
+
+function decodeElement(raw: unknown): ConeNodeRecord | ConeEdgeRecord | null {
+  return decodeNode(raw) ?? decodeEdge(raw);
 }
 
 function decodeNode(raw: unknown): ConeNodeRecord | null {
@@ -134,6 +167,88 @@ function decodeAdjacencyPage(raw: unknown): ConeAdjacencyPage | null {
   }
   const wire = parsed.data;
   return new ConeAdjacencyPage({ nodeId: wire.node, direction: wire.dir, pageIndex: wire.page, edgeKeys: wire.edges });
+}
+
+function encodeAdmissionIndex(record: AdmissionIndexRecord): object {
+  if (record instanceof ConeAdmissionTally) {
+    return { kind: 'admission-tally', writer: record.writerId, count: record.count };
+  }
+  if (record instanceof ConeUnprovenAdmissionRecord) {
+    return {
+      kind: 'admission-unproven', writer: record.writerId, ordinal: record.ordinal, patch: record.patchSha,
+      code: record.code, message: record.message,
+    };
+  }
+  return { kind: 'admission', writer: record.writerId, ordinal: record.ordinal, ...encodeAdmission(record.admission) };
+}
+
+function encodeAdmission(admission: RetainedEntityAdmission): object {
+  const { eventId } = admission;
+  return {
+    subject: admission.subject,
+    props: Object.entries(admission.properties).sort(([left], [right]) => compareStrings(left, right)),
+    origin: encodeOrigin(admission.origin),
+    dot: Dot.encode(admission.dot),
+    event: [eventId.lamport, eventId.writerId, eventId.patchSha, eventId.opIndex],
+    context: [...admission.context.entries()].sort(([left], [right]) => compareStrings(left, right)),
+  };
+}
+
+function encodeOrigin(origin: EntityAdmissionOrigin): OriginWire {
+  if (origin.namespace !== null && origin.allocationDot !== null) {
+    return ['allocated', origin.namespace, Dot.encode(origin.allocationDot)];
+  }
+  return origin.kind === 'supplied-subject' ? ['supplied-subject'] : ['legacy-unrecorded'];
+}
+
+function decodeAdmissionIndex(raw: unknown): AdmissionIndexRecord | null {
+  const tally = TALLY_WIRE.safeParse(raw);
+  if (tally.success) {
+    return new ConeAdmissionTally({ writerId: tally.data.writer, count: tally.data.count });
+  }
+  const unproven = UNPROVEN_WIRE.safeParse(raw);
+  if (unproven.success) {
+    const wire = unproven.data;
+    return new ConeUnprovenAdmissionRecord({
+      writerId: wire.writer, ordinal: wire.ordinal, patchSha: wire.patch, code: wire.code, message: wire.message,
+    });
+  }
+  return decodeAdmission(raw);
+}
+
+function decodeAdmission(raw: unknown): ConeAdmissionRecord | null {
+  const parsed = ADMISSION_WIRE.safeParse(raw);
+  if (!parsed.success) {
+    return null;
+  }
+  const wire = parsed.data;
+  const admission = recordedEntityAdmission({
+    context: VersionVector.from(new Map(wire.context)),
+    dot: Dot.decode(wire.dot),
+    eventId: new EventId(wire.event[0], wire.event[1], wire.event[2], wire.event[3]),
+    origin: decodeOrigin(wire.origin),
+    properties: decodeAdmissionProps(wire.props),
+    subject: wire.subject,
+  });
+  return new ConeAdmissionRecord({ writerId: wire.writer, ordinal: wire.ordinal, admission });
+}
+
+function decodeOrigin(wire: OriginWire): EntityAdmissionOrigin {
+  if (wire[0] === 'allocated') {
+    return EntityAdmissionOrigin.allocated(wire[1], Dot.decode(wire[2]));
+  }
+  return wire[0] === 'supplied-subject' ? EntityAdmissionOrigin.suppliedSubject() : EntityAdmissionOrigin.legacyUnrecorded();
+}
+
+function decodeAdmissionProps(wire: ReadonlyArray<readonly [string, unknown]>): Record<string, PropValue> {
+  const properties = new Map<string, PropValue>();
+  for (const [key, value] of wire) {
+    if (!isPropValue(value)) {
+      throw corrupt('has an entity admission property with an unsupported value');
+    }
+    properties.set(key, value);
+  }
+  return Object.fromEntries(properties);
 }
 
 function encodeEvent(event: EventId | null): EventWire {

@@ -99,6 +99,29 @@ export default class ConeLaneBasis {
     return outcome.settled();
   }
 
+  /**
+   * Advances like `advance()` without retaining anything, and answers how to
+   * retain the basis it settled on later, once a caller knows it needs it
+   * (an entity admission inventory page that leaves a continuation).
+   */
+  async advanceRetainable(): Promise<{ readonly basis: ConeBasis | ConeObstruction; readonly retain: () => Promise<void> }> {
+    const outcome = await this.refresh();
+    const stored = publishedBasis(outcome);
+    return {
+      basis: outcome.settled(),
+      retain: async () => {
+        if (stored !== null) {
+          await this.#store.retainBasis(this.lane, stored);
+        }
+      },
+    };
+  }
+
+  /** The bases this lane's captures retained, oldest first. */
+  async retainedBases(): Promise<readonly ConeBasis[]> {
+    return (await this.#store.readRetainedBases(this.lane)).map((stored) => stored.basis);
+  }
+
   /** Folds a patch this clone just committed on top of `parentSha`. */
   async foldCommitted(entry: PatchEntry, parentSha: string | null): Promise<ConeBasis | ConeObstruction> {
     return (await this.#ingest.foldCommitted(entry, parentSha)).settled();

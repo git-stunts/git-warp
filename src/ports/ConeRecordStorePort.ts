@@ -42,6 +42,9 @@ export default abstract class ConeRecordStorePort {
    */
   abstract retainBasis(_lane: string, _stored: StoredConeBasis): Promise<void>;
 
+  /** The bases `retainBasis` keeps reachable for `lane`, oldest first; none when nothing is retained. */
+  abstract readRetainedBases(_lane: string): Promise<readonly StoredConeBasis[]>;
+
   /** Deletes whatever basis is published under `head`, such as a dropped strand's; absent heads are ignored. */
   abstract dropBasis(_head: ConeBasisHead): Promise<void>;
 }

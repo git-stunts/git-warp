@@ -1,5 +1,10 @@
 import { expect } from 'vitest';
 import type ConeRecordStorePort from '../../src/ports/ConeRecordStorePort.ts';
+import type PatchEntry from '../../src/domain/artifacts/PatchEntry.ts';
+import ConeEntityAdmissionInventory from '../../src/domain/entity/ConeEntityAdmissionInventory.ts';
+import EntityAdmissionInventoryBasis from '../../src/domain/entity/EntityAdmissionInventoryBasis.ts';
+import { entityAdmissionsFromPatch } from '../../src/domain/entity/EntityAdmissionPatchReader.ts';
+import type RetainedEntityAdmission from '../../src/domain/entity/RetainedEntityAdmission.ts';
 import { CONE_ADJACENCY_PAGE_SIZE } from '../../src/domain/services/cone/ConeAdjacencyPage.ts';
 import ConeReader from '../../src/domain/services/cone/ConeReader.ts';
 import type { ConeDirection } from '../../src/domain/services/cone/ConeRecordKey.ts';
@@ -9,6 +14,32 @@ import { createStateReader } from '../../src/domain/services/state/StateReader.t
 import type WarpState from '../../src/domain/services/state/WarpState.ts';
 import type { VisibleNodeView } from '../../src/domain/types/VisibleNodeView.ts';
 import type { VisibleStateReader } from '../../src/domain/types/VisibleStateReader.ts';
+
+/**
+ * Compares the cone admission index with a scan of every writer chain: the
+ * same admissions, values and descending deterministic event order, read in
+ * pages smaller than the chains. Returns the admissions compared.
+ */
+export async function assertConeAdmissionsEquivalent(
+  history: { readonly seed: number; readonly chains: ReadonlyMap<string, readonly PatchEntry[]> },
+  cone: { store: ConeRecordStorePort; root: ConeRoot },
+): Promise<number> {
+  const scanned = [...history.chains.values()].flat()
+    .flatMap((entry) => [...entityAdmissionsFromPatch(entry)])
+    .sort((left, right) => right.compare(left));
+  const basis = new EntityAdmissionInventoryBasis({
+    frontier: new Map([...history.chains.keys()].map((writerId) => [writerId, 'f'.repeat(40)])),
+    root: cone.root,
+    worldlineName: 'oracle',
+  });
+  const merge = await new ConeEntityAdmissionInventory({ reader: new ConeReader(cone.store), page: 3 }).open(basis, null);
+  const indexed: RetainedEntityAdmission[] = [];
+  for (let next = await merge.next(); next !== null; next = await merge.next()) {
+    indexed.push(next);
+  }
+  expect(indexed, `admission inventory, seed ${history.seed}`).toEqual(scanned);
+  return indexed.length;
+}
 
 /** The element universe a cone is compared over. */
 export type ConeUniverse = { readonly seed: number; readonly nodeIds: readonly string[]; readonly edgeKeys: readonly string[] };

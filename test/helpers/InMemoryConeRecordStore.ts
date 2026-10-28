@@ -65,6 +65,10 @@ export default class InMemoryConeRecordStore extends ConeRecordStorePort {
     this.#retained.set(lane, retained);
   }
 
+  override async readRetainedBases(lane: string): Promise<readonly StoredConeBasis[]> {
+    return [...(this.#retained.get(lane) ?? [])];
+  }
+
   override async dropBasis(head: ConeBasisHead): Promise<void> {
     this.#heads.delete(head.ref());
   }

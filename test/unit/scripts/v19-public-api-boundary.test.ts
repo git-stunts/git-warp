@@ -222,6 +222,7 @@ describe('v19 public API boundary', () => {
         'createEdgeContentObserver',
         'createManyObserver',
         'createObserver',
+        'findEntityAdmissionInventoryContinuation',
         'intent',
         'reading',
         'requireEntityAdmissionInventoryCertificate',
@@ -229,6 +230,7 @@ describe('v19 public API boundary', () => {
     );
     expect(surface.typeExports).toEqual(
       sorted([
+        'EntityAdmissionInventoryObserverOptions',
         'NeighborhoodOpticCompleteness',
         'NeighborhoodOpticEdge',
         'NeighborhoodOpticReadDirection',

@@ -12,6 +12,8 @@ import NodePropSet from '../../src/domain/types/ops/NodePropSet.ts';
 import NodeRemove from '../../src/domain/types/ops/NodeRemove.ts';
 import PropSet from '../../src/domain/types/ops/PropSet.ts';
 import type { PatchOp } from '../../src/domain/types/ops/unions.ts';
+import EntityAdmissionBoundary from '../../src/domain/types/EntityAdmissionBoundary.ts';
+import EntityAdmissionOrigin from '../../src/domain/types/EntityAdmissionOrigin.ts';
 import Patch from '../../src/domain/types/Patch.ts';
 import { createRng } from './seededRng.ts';
 
@@ -46,6 +48,8 @@ type Writer = {
 };
 
 const LABELS = ['links', 'cites'];
+/** Probability that a generated patch also admits one entity (a NodeAdd plus its payload, with its boundary). */
+const ENTITY_CHANCE = 0.3;
 const KEYS = ['title', 'score'];
 
 /**
@@ -106,13 +110,25 @@ export default class ConeHistoryGenerator {
   #commit(writer: Writer): void {
     const count = this.#rng.nextInt(1, this.#shape.maxOps + 1);
     const ops = Array.from({ length: count }, () => this.#op(writer));
+    const entityAdmissions = this.#rng.next() < ENTITY_CHANCE ? [this.#entity(writer, ops)] : [];
     writer.clock += 1;
     this.#shas += 1;
     const sha = (this.#seed >>> 0).toString(16).padStart(8, '0') + this.#shas.toString(16).padStart(32, '0');
-    const entry = new PatchEntry({ patch: new Patch({ writer: writer.id, lamport: writer.clock, context: {}, ops }), sha });
+    const patch = new Patch({ writer: writer.id, lamport: writer.clock, context: {}, ops, entityAdmissions });
+    const entry = new PatchEntry({ patch, sha });
     writer.chain.push(entry);
     writer.seen.add(sha);
     applyFast(writer.view, entry.patch, sha);
+  }
+
+  /** Appends one supplied-subject entity admission to `ops` and returns its boundary. */
+  #entity(writer: Writer, ops: PatchOp[]): EntityAdmissionBoundary {
+    this.#opCounts.set('entity', (this.#opCounts.get('entity') ?? 0) + 1);
+    writer.counter += 1;
+    const subject = this.#node();
+    const operationIndex = ops.length;
+    ops.push(new NodeAdd(subject, new Dot(writer.id, writer.counter)), new NodePropSet(subject, 'kind', this.#value()));
+    return new EntityAdmissionBoundary({ operationIndex, operationCount: 2, origin: EntityAdmissionOrigin.suppliedSubject() });
   }
 
   #op(writer: Writer): PatchOp {

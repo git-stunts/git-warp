@@ -4,6 +4,7 @@ import WarpError from '../errors/WarpError.ts';
 import EntityAdmissionOrigin from '../types/EntityAdmissionOrigin.ts';
 import { compareEventIds, EventId } from '../utils/EventId.ts';
 import Intent from '../api/Intent.ts';
+import type { EntityCapturePayload } from '../types/EntityCapturePayload.ts';
 
 type RetainedEntityAdmissionOptions = Readonly<{
   context: VersionVector | Readonly<Record<string, number>>;
@@ -21,6 +22,8 @@ export default class RetainedEntityAdmission {
   readonly eventId: EventId;
   readonly intent: Intent;
   readonly origin: EntityAdmissionOrigin;
+  /** The complete initial property envelope of the admitting `entity.add`. */
+  readonly properties: EntityCapturePayload;
   readonly subject: string;
 
   constructor(options: RetainedEntityAdmissionOptions | null | undefined) {
@@ -32,7 +35,9 @@ export default class RetainedEntityAdmission {
     this.context = context;
     this.dot = required.dot;
     this.eventId = required.eventId;
-    this.intent = requireEntityIntent(required.intent, required.subject);
+    const entity = requireEntityIntent(required.intent, required.subject);
+    this.intent = entity.intent;
+    this.properties = entity.properties;
     this.origin = required.origin;
     this.subject = required.subject;
     Object.freeze(this);
@@ -74,15 +79,22 @@ function requireAdmissionOrigin(options: RetainedEntityAdmissionOptions): void {
   }
 }
 
-function requireEntityIntent(intent: Intent, subject: string): Intent {
-  if (!(intent instanceof Intent) || intent.kind !== 'entity.add') {
+function requireEntityIntent(
+  intent: Intent,
+  subject: string,
+): Readonly<{ intent: Intent; properties: EntityCapturePayload }> {
+  const descriptor = intent instanceof Intent ? intent.descriptor : null;
+  if (descriptor?.kind !== 'entity.add') {
     throw retainedError('Retained entity admission requires an entity Intent');
   }
-  const { descriptor } = intent;
+  requireSameSubject(descriptor, subject);
+  return Object.freeze({ intent, properties: descriptor.properties });
+}
+
+function requireSameSubject(descriptor: Intent['descriptor'], subject: string): void {
   if ('subject' in descriptor && descriptor.subject !== subject) {
     throw retainedError('Retained entity admission Intent has another subject');
   }
-  return intent;
 }
 
 function retainedError(message: string): WarpError {

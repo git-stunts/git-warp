@@ -144,12 +144,16 @@ searches, so saves slow down by a few milliseconds per thousand packs until
 | `lane.write` of one action | The entities the action names, and patches new since this clone last looked | Total entities, total history |
 | One Reading (property, node, neighbourhood page) | The records it reads; a neighbourhood page also reads its edges and their endpoints, up to the page limit | Total entities, total history |
 | One document's margins | The document's threads and comments | Other documents |
+| One entity admission inventory page | The page's admissions, plus one batch of index records per writer chain | Total history, non-admitting patches |
 | `Runtime.open` | Nothing; the basis is not loaded up front | Graph size |
 | First use after receiving | The received patches (folded once) | Earlier history |
 
-Global questions remain global: label scans, whole-graph traversal, inventories
-and export. They keep their own plans and support rules and are not answered
-from a cone.
+Global questions remain global: label scans, whole-graph traversal and
+export. They keep their own plans and support rules and are not answered from
+a cone. The [entity admission inventory](entity-admission-inventory.md) is the
+one inventory the cone answers: every fold appends a patch's `entity.add`
+admissions to its writer chain's admission index, and an inventory pages that
+index under a declared limit instead of scanning history.
 
 Model your data so the common screens are bounded questions:
 

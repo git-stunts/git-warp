@@ -1,5 +1,6 @@
 import type PatchEntry from '../../artifacts/PatchEntry.ts';
 import ConeAdjacencyRegistrar from './ConeAdjacencyRegistrar.ts';
+import ConeAdmissionIndexer from './ConeAdmissionIndexer.ts';
 import ConeDotLedger from './ConeDotLedger.ts';
 import type ConeEdgeRecord from './ConeEdgeRecord.ts';
 import ConeFolded from './ConeFolded.ts';
@@ -15,8 +16,8 @@ import ConeWorkspace from './ConeWorkspace.ts';
  *
  * The fold reads only the records the patch's footprint names, settles its
  * dot claims, applies the patch through the reducer over a workspace of
- * those records, registers newly recorded edges with their endpoints, and
- * stages exactly the records that changed. Its cost is proportional to the
+ * those records, registers newly recorded edges with their endpoints,
+ * indexes its entity admissions, and stages exactly the records that changed. Its cost is proportional to the
  * patch, never to the graph.
  */
 export default class ConeFold {
@@ -37,6 +38,7 @@ export default class ConeFold {
       ...changedEdges(snapshot, edges),
       ...dots,
       ...adjacency.pages,
+      ...await ConeAdmissionIndexer.index(session, entry),
     ];
     await session.stage(changed);
     return new ConeFolded(entry.sha, changed.length);

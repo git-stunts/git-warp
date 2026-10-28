@@ -81,6 +81,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CONE_BASIS_*`, and an absent coverage anchor is no longer a warning
   ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 
+- Answer the entity admission inventory (`createEntityAdmissionInventoryObserver`)
+  from a cone admission index instead of a scan of every writer's history:
+  each folded patch appends its `entity.add` admissions to its writer chain's
+  index, and an inventory pages that index downwards, reading at most 256
+  index records per writer chain at a time. Readings, order, digest and the
+  certificate are unchanged, but the certificate is now issued against the
+  Lane's cone basis frontier. An unmarked v19.1 entity-shaped patch is indexed
+  as a refusal, so the inventory still obstructs with
+  `E_ENTITY_ADMISSION_INVENTORY_LEGACY_AMBIGUOUS` where the scan did. The cone
+  trie layout marker becomes layout 3: a basis head written by an earlier build
+  is refused with `E_CONE_LAYOUT_UNSUPPORTED` until its ref is deleted and the
+  basis is folded again. The internal `PatchJournalEntityAdmissionInventory`
+  and `EntityAdmissionInventoryPort` are removed
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- One entity admission inventory Observation now emits at most a declared
+  `limit` of admissions (default 10,000, at most 1,000,000):
+  `createEntityAdmissionInventoryObserver(id, { limit, cursor })`. A page that
+  stops with admissions left settles `completed` without a certificate and
+  carries a continuation cursor (`findEntityAdmissionInventoryContinuation`,
+  advanced; `inventoryContinuation` in the CLI receipt); an Observer created
+  with that `cursor` resumes the same basis, and the last page certifies the
+  whole inventory with the same count and digest a single Observation would
+  have. The CLI reading accepts `limit` and `cursor`
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+
 ### Added
 
 - Keep saved Coordinates readable through `git gc`: `captureCoordinate()`

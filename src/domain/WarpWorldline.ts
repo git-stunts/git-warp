@@ -24,7 +24,6 @@ import type { WarpIntentDescriptor } from './types/WarpIntentDescriptor.ts';
 import type { PatchCommitResult } from './types/PatchCommitResult.ts';
 import WarpDraftPatchEntry from './WarpDraftPatchEntry.ts';
 import { createWorldlineDraft } from './WarpWorldlineDraftStorage.ts';
-import PatchJournalEntityAdmissionInventory from './entity/PatchJournalEntityAdmissionInventory.ts';
 import { bindEntityAdmissionInventoryRuntime } from './entity/EntityAdmissionInventoryRuntime.ts';
 
 export { WarpDraftPatchEntry };
@@ -250,6 +249,7 @@ export async function openWarpWorldline(
 }
 
 function createWarpWorldline(worldlineName: string, graph: RuntimeGraph): WarpWorldline {
+  const cone = coneLaneBasis(worldlineName, graph);
   const worldline = new WarpWorldline({
     worldlineName, writerId: graph.writerId, assetStorage: graph._assetStorage,
     commitPatch: async (build) => await graph.patch(build),
@@ -257,12 +257,11 @@ function createWarpWorldline(worldlineName: string, graph: RuntimeGraph): WarpWo
     ...draftWorldlineOptions(graph),
     createWorldline: (worldlineOptions) => graph.worldline(worldlineOptions),
     admitIntent: async (descriptor) => await graph.admitIntent(descriptor),
-    cone: coneLaneBasis(worldlineName, graph),
+    cone,
   });
-  bindEntityAdmissionInventoryRuntime(worldline, {
-    getFrontier: async () => await graph.getFrontier(),
-    inventory: new PatchJournalEntityAdmissionInventory({ journal: graph._patchJournal }),
-  });
+  if (cone !== null) {
+    bindEntityAdmissionInventoryRuntime(worldline, cone);
+  }
   return worldline;
 }
 

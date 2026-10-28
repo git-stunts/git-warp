@@ -1,14 +1,21 @@
 import WarpError from '../errors/WarpError.ts';
+import ConeRoot from '../services/cone/ConeRoot.ts';
 import type { WarpWorldlineCoordinateFrontierEntry } from '../WarpWorldlineCoordinate.ts';
 
 type EntityAdmissionInventoryBasisOptions = Readonly<{
   frontier: ReadonlyMap<string, string>;
+  root: ConeRoot;
   worldlineName: string;
 }>;
 
-/** Exact retained-writer frontier for one entity admission inventory. */
+/**
+ * Exact writer frontier for one entity admission inventory, with the root of
+ * the lane's cone records folded up to it, whose admission index answers the
+ * inventory (#1039).
+ */
 export default class EntityAdmissionInventoryBasis {
   readonly frontierEntries: readonly WarpWorldlineCoordinateFrontierEntry[];
+  readonly root: ConeRoot;
   readonly worldlineName: string;
 
   constructor(options: EntityAdmissionInventoryBasisOptions | null | undefined) {
@@ -17,6 +24,10 @@ export default class EntityAdmissionInventoryBasis {
     }
     this.worldlineName = requireIdentity(options.worldlineName, 'worldlineName');
     this.frontierEntries = freezeFrontier(options.frontier);
+    if (!(options.root instanceof ConeRoot)) {
+      throw basisError('Entity admission inventory basis requires a cone records root');
+    }
+    this.root = options.root;
     Object.freeze(this);
   }
 }
