@@ -31,7 +31,7 @@ survives. Schema bumps do not fence an old reader or writer.
 3. Deploy the same reviewed v20 interpretation to all readers and writers. Do not
    resume a mixed-interpreter fleet.
 4. Regenerate derived materializations/checkpoints from immutable patch history.
-   Use the explicit [bounded-basis repair](#prepare-a-bounded-basis) for each affected
+   Use the explicit [cone basis advance](#advance-the-cone-basis) for each affected
    Lane, then verify bounded reads, a write and its Receipt, restart and backup.
    An unavailable lifecycle/checkpoint basis is a refusal, not permission to use a
    whole-graph fallback or relabel old evidence.

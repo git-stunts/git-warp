@@ -145,7 +145,7 @@ The COPY-only gate builds and installs the actual npm tarball into a fresh consu
 | Generated 64 MiB streaming, producer failure, early termination, close refusal and retained reopen | [Packed public lifecycle fixture](../../test/fixtures/packed-content.mjs) |
 | Concurrent writers converge with matching winning MIME/size, foreign/copied values and missing owners refuse without partial writes, size/cancellation failures preserve refs, missing bytes fail, retained snapshot survives reopen | [Packed consumer fixture](../../test/fixtures/packed-content-consumer.mjs) |
 | Observation obstruction and unexpected failure propagation; active-stream lease cleanup and cancellation | [Runtime content observation tests](../../test/unit/application/RuntimeContentObservation.test.ts), [reading tests](../../test/unit/application/RuntimeContentReading.test.ts) |
-| Bounded projection, causal metadata compatibility and node/edge removal parity | [Projection tests](../../test/unit/domain/services/ContentReadProjection.test.ts), [removal parity tests](../../test/unit/domain/services/ContentReadRemovalParity.test.ts) |
+| Content reads from the owner's cone records: metadata after replacement and clearing, concurrent winners, removed owners, strand pins | [Cone content read integration tests](../../test/integration/application/Runtime.contentRead.integration.test.ts), [cone-bounded Runtime tests](../../test/integration/application/Runtime.coneBounded.integration.test.ts) |
 
 The 64 MiB generated payload is a streaming witness, not an attachment-size ceiling. The eager artifact decoding limits below govern different inputs.
 
