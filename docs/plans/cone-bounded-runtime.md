@@ -220,11 +220,93 @@ default `warn` policy reads only the node record, so its warning does not count 
 an edge added in the same atomic write still finds no dot to observe; a pinned coordinate keeps an old root only
 in memory, so a `git gc --prune=now` can remove it; the entity admission inventory still scans history by design.
 
+## Slice 4 implementation record
+
+Every client-facing entry point now runs on cone bases: `Runtime.fork`, every strand Lane write and Observation,
+strand content Observations, `captureCoordinate` on both Lane kinds, `previewSettlement`, `settle`, and the
+`repair --action basis` CLI path. None verifies, creates or loads a checkpoint, materializes a lane or a strand,
+or walks history.
+
+- **Named heads.** A basis is published under a `ConeBasisHead`: the lane's `cone/head`, a strand's pinned base
+  `cone/strands/<id>/base` and the strand's own `cone/strands/<id>/head`. `ConeIngest` advances one
+  `ConeBasisScope` (head, writer tips, seed): `LaneConeScope` follows the lane's writer refs from the empty
+  basis, `StrandBaseConeScope` folds a fixed base frontier, and `StrandConeScope` seeds from the strand base and
+  follows the strand's tips (`StrandConeTips`: base frontier, the head of each strand writer chain and each
+  braided read overlay, read from the descriptor and the chain head refs without walking a chain). Strand chains
+  are named by their mint ids (`@w.<writer>@s.<strand>`), which `ConeFrontier` now accepts.
+- **Fork.** `Runtime.fork` captures one lane coordinate (`captureReadCoordinate`) and the strand is created with
+  that coordinate's frontier as its base frontier; `StrandConeBases.pinBase` publishes the captured basis under
+  the strand's base head. Pinning writes one ref and no records. The descriptor records no checkpoint. A strand
+  whose pin is missing refolds its base frontier once.
+- **Strand reads and writes.** A strand Lane's reads, content reads and coordinates use the strand basis; its
+  record trie path-copies the base root, so untouched records stay shared (asserted by the strand-overlay oracle
+  and by a real-repository test). Strand writes use `StrandPatchService.patchOnConeWithEvidence`: the builder
+  takes its clock and context from one head patch per strand tip, its read-before-write from the strand basis
+  (`prepareConeWriteBasis` over the strand's `ConeLaneBasis`), and the published patch is folded into the strand
+  basis at once.
+- **Settlement.** Identity binds frontiers only (base, strand and target); the three compared cone roots are
+  evidence handles. A preview is `derived` when the target has not moved since the fork, or moved without
+  changing any node or edge the strand's patches name (`ConeSettlementFootprint`, reading only those records under
+  the base and target roots; node edge registrations are ignored). The policy digest is
+  `git-warp:settlement-policy/footprint-records/v1`. `settle()` replays the strand's sequences through the target's
+  cone basis (`commitSequenceOnCone`). The session-event BATS oracle now has both strands touch the direct event so
+  Beta still overlaps Alpha's settlement, and counts the cone-root evidence.
+- **Retention (Gap A analog).** `ConeLaneBasis.capture()` (behind `captureCoordinate`) retains the captured basis
+  tree under `refs/warp/<lane>/cone/retained`, a tree whose `r/` directory names the last 64 captured bases
+  (sequence-prefixed, oldest evicted, compare-and-swap with retries). Strand bases and strand heads are durable
+  refs of their own and are released when the strand is dropped. All are listed as never transferred in sync.md.
+- **CLI.** `git warp repair --action basis` advances a Lane's cone basis through a new `refreshBasis` Lane port
+  (`refreshLaneBasis`, also for `--strand`) and reports `foldedPatches`, or the obstruction and its hint with exit
+  code 3; `--action materialization` is documented as global maintenance. `doctor` replaces `checkpoint-fresh`
+  with `cone-basis-lag`: per writer, `rev-list --count` of the tip minus the folded position (two counts per lagging
+  writer, no patch read), a warning above 10,000 unfolded patches and a failure for a diverged chain.
+- **In-write removes.** `PatchBuilder` records the add dots it issues (`InWriteAddDots`); `edge.remove` and
+  `node.remove` of an element added earlier in the same atomic write observe them.
+- **Deleted.** `WarpWorldline.prepareOpticBasis`, `prepareForkOpticBasis` (and its materialize plus checkpoint
+  fallback), `coordinate()`, `prepareStrandOptic`, `openDraftCoordinate` and `patchDraft`; `createForkTick`;
+  `CheckpointTailBasisVerifier`; `WarpWorldlineOpticBasis`; `WarpWorldlineStrandOptic`; `WarpStrandOpticBasis`;
+  `BoundedNodeRemovalBasis` and `PatchBuilder.prepareWriteBasis` with its snapshot-frontier plumbing;
+  `ContentReadProjection`, `ContentReadBasis` and `ContentReadRuntime`; the checkpoint-tail `Coordinate` variant
+  (`checkpointSha`, `requireCheckpointSha()`, `source()`); the checkpoint-tail failure branches of the public
+  reading runtime, which now treats only cone obstructions as operational failures; and the strand create option
+  `baseCheckpointSha` (replaced by `baseBasis`). The memory test storage now provides cone services.
+- **Maintenance-only, with explicit boundaries.** `CheckpointTailOptic` (split from the public `WorldlineOptic`,
+  which is now cone-only) and `CheckpointTailWitnessLocator` serve only `ProjectionHandle.optic()`, the internal
+  exact-id query read model (`QueryController`) and `BoundedIntentGuardReader` (`WarpWorldline.admitIntent`).
+  `StrandMaterializer` and `StrandPatchService.createPatchBuilder/patchWithEvidence` serve only the internal graph
+  strand API (`StrandCapability`, used by the deprecated `WarpGraph`/`WarpCore` facades and queued strand intents).
+  `RuntimeHost.materialize`/`createCheckpoint` serve `repair --action materialization`, migrations and the
+  deprecated facades; `WarpWorldline.live()/seek()/observer()` and `previewDraftJoin` (internal Timeline API) stay
+  deprecated compatibility. A `WarpWorldline` over storage without cone records refuses every public path with
+  `E_WARP_WORLDLINE_CONE_UNAVAILABLE`.
+- **Evidence.** The trap test now also traps `materializeStrand`, `_materializeStrandGraph`, the checkpoint-tail
+  basis loader, `StrandMaterializer` and whole-chain loads, and drives every intent kind and every Reading kind on a
+  worldline and a forked strand, both content observers on each, captured-coordinate optic reads on each,
+  `previewSettlement`, `settle` and `repair --action basis`: no trap fires; the armed control still fires on a global
+  materialization and a history walk. Real-repository tests cover fork then read, strand write/read overlay and
+  record sharing, reopen and base refold, a preview that survives a global checkpoint and a cone head rebuild with an
+  identical plan digest, footprint-unchanged and footprint-advanced settlement, saved Coordinates (worldline and
+  strand) surviving `git gc --prune=now` while an unretained root is pruned, and in-write removes. A seeded oracle
+  folds 60 generated histories as base plus overlay and matches a full reduction of base and strand patches.
+
+Known limits after slice 4: reopening a strand (`Runtime.strand`) reads the strand's own patches to rebuild the
+intents a settlement replays (strand-proportional, not graph-proportional), and resolving a strand by friendly
+name reads every strand descriptor of the clone once; a strand write reads one head patch per strand tip; only the
+last 64 captured bases are retained, so an older saved Coordinate can be pruned by `git gc` (its failure mode
+after pruning is not separately tested), and an Observation's own coordinate is not retained; a cone
+obstruction while previewing settlement rejects the call instead of returning an obstruction outcome; the
+footprint check treats any change to a footprint node's membership, lifecycle or properties as a conflict, even a
+property the strand never read; a strand created below a Lamport ceiling (an internal option) is refused with
+`E_STRAND_CONE_CEILING`; the package payload is over its 1,050-entry budget since slices 1-3 (1,089 entries), so the
+`cli-failures` and `cli-launcher` BATS cases fail until the budget is decided; the entity admission inventory still
+scans history by design.
+
 ## Slices
 
 1. Cone records, workspace, record trie adapter, basis ref and ingest, with the equivalence oracle.
 2. Public reads through `ConeWitnessLocator` (property, node, neighbourhood, traversal, content Observations).
 3. Public writes through cone records (`node.remove`, `edge.remove`, content owner checks) and own-patch folding.
-4. Lifecycle: open without repair, bounded basis CLI, fork/strand/settlement on cone bases, materialization traps.
+4. Lifecycle: open without repair, bounded basis CLI, fork/strand/settlement on cone bases, materialization traps
+   (done; see the slice 4 record).
 5. Showcase: example application and cost witness.
 6. Conflict visibility.

@@ -48,10 +48,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Observation or write as obstructed or underdetermined with a repair hint
   (reasons `cone_shared_dot`, `cone_writer_diverged`, `cone_contended`;
   `git-warp.write.<reason>` for writes), never a throw or a whole-state
-  fallback. Fork and strand Lanes still use checkpoint-tail bases
+  fallback ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- Run `Runtime.fork`, strand Lanes and settlement on cone bases. A fork pins
+  the lane cone basis it captured (`refs/warp/<lane>/cone/strands/<id>/base`)
+  and never verifies, creates or materializes a checkpoint; the strand's
+  descriptor keeps its base frontier and no checkpoint. Strand writes,
+  Observations, content Observations and coordinates read the strand basis:
+  that base with the strand's own patches folded on top
+  (`cone/strands/<id>/head`), sharing every untouched record with the base.
+  `captureCoordinate()` now works on strand Lanes. Settlement identity binds
+  frontiers only (cone roots become evidence), so a basis rebuild or a global
+  checkpoint no longer obstructs a preview; and the settlement policy becomes
+  `git-warp:settlement-policy/footprint-records/v1`: a preview stays
+  `derived` when the target moved without changing any node or edge the
+  strand's patches name, and `settle()` replays the strand's intents through
+  the target's cone basis. Preview evidence now cites the three compared cone
+  roots ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- `Coordinate` (advanced) is cone-only: `checkpointSha`,
+  `requireCheckpointSha()` and `source()` are removed, and `Optic` is
+  constructed only over a cone basis. Checkpoint-tail optics remain only on
+  the deprecated graph facades as the internal `CheckpointTailOptic`
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- `git warp repair --action basis` is the public repair: it advances the
+  Lane's cone basis (`--strand` for a strand Lane) and reports the patches it
+  folded, or the cone obstruction with its repair hint and exit code 3.
+  `--action materialization` remains as explicitly global maintenance that
+  writes a whole-state checkpoint no public read needs. The MCP `warp_repair`
+  tool takes both actions. `git warp doctor` replaces the wall-clock
+  `checkpoint-fresh` check with `cone-basis-lag` (unfolded patches per writer,
+  warning above `coneBasisLagWarnPatches` = 10,000, failure for a diverged
+  writer chain); the `CHECKPOINT_*` finding codes are replaced by
+  `CONE_BASIS_*`, and an absent coverage anchor is no longer a warning
   ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 
 ### Added
+
+- Keep saved Coordinates readable through `git gc`: `captureCoordinate()`
+  retains its basis under the clone-local `refs/warp/<lane>/cone/retained`,
+  which keeps the last 64 captured bases reachable. Dropping a strand releases
+  its cone refs ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 
 - Repair duplicate dots explicitly. `previewDotRepair()` lists each collision
   the v21 migration recorded, which members are visible, and what each policy
@@ -83,6 +118,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `edge.remove` and `node.remove` of an element added earlier in the same
+  atomic write now observe the in-write add dot instead of finding nothing to
+  remove ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 - Admit `edge.remove` on a Lane: it takes the edge's live dots from its cone
   record instead of requiring materialized state
   ([#1037](https://github.com/git-stunts/git-warp/issues/1037)). Neighborhood

@@ -224,10 +224,10 @@ under `diagnostics`. Support-plan and host machinery stay behind the runtime.
 - Missing support should produce an honest receipt status, not a silent
   whole-history materialization.
 
-Prepare a missing bounded basis with
-`git warp repair --lane <name> --action materialization`. Inspect the local
-Runtime boundary with `git warp doctor --lane <name>`; physical cache repair
-remains owned by git-cas.
+No basis needs preparing: every read and write folds the Lane's new patches
+into its clone-local cone basis. `git warp repair --lane <name> --action basis`
+does that folding up front, and `git warp doctor --lane <name>` reports how far
+the basis lags each writer; physical cache repair remains owned by git-cas.
 
 <details>
 <summary><h4>For the Nerds™: Optics</h4></summary>

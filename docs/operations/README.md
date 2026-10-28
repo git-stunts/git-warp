@@ -95,19 +95,34 @@ run garbage collection as part of the migration window. The
 rewrite, capacity formula, compare-and-swap promotion, automatic rollback, and
 recovery topology.
 
-## Prepare a bounded basis
+## Advance the cone basis
 
-When an Observation reports that no bounded basis is available:
+Public reads and writes need no prepared basis: each one folds the Lane's new
+patches into its clone-local cone basis (`refs/warp/<lane>/cone/head`). After
+receiving many patches, fold them up front and see how many there were:
 
 ```bash
+git warp doctor --repo ./team-repo --lane users
 git warp repair \
   --repo ./team-repo \
   --lane users \
-  --action materialization
+  --action basis
 ```
 
-This is an explicit local repair. Patch history remains authoritative;
-materializations and checkpoints are derived acceleration/evidence structures.
+`doctor` reports `cone-basis-lag` per writer. Add `--strand <name>` to the
+repair to advance a strand Lane's basis.
+
+### Global maintenance checkpoint
+
+```bash
+git warp repair --repo ./team-repo --lane users --action materialization
+```
+
+This reduces the whole Lane state and writes a whole-state checkpoint. It is
+global maintenance for migration, export and inspection; no Observation, write,
+fork or settlement reads it. Patch history remains authoritative; cone bases,
+materializations and checkpoints are derived acceleration and evidence
+structures.
 
 ## Audit
 

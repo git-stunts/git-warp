@@ -30,20 +30,24 @@ between clones. They are separate decisions.
 | --- | --- | --- |
 | `writers/<writerId>` | The one clone that writes as `<writerId>` | Owner pushes; everyone else fetches, fast-forward only |
 | `substrate-version` | Shared, content-addressed marker | Pushed and fetched by name; identical on every clone |
-| `checkpoints/head`, `coverage/head`, `cone/head`, `allocation/*` | Each clone, derived locally | Never transferred; each clone rebuilds its own |
+| `checkpoints/head`, `coverage/head`, `cone/head`, `cone/retained`, `cone/strands/<strand-id>/*`, `allocation/*` | Each clone, derived locally | Never transferred; each clone rebuilds its own |
 | `strands/<strand-id>/*` | The clone that created the strand | Clone-local; transfer rules are tracked in [#999](https://github.com/git-stunts/git-warp/issues/999) |
 | `intents/*`, `audit/*`, `trust/records` | Writer or operator | Clone-local; transfer rules are tracked in [#999](https://github.com/git-stunts/git-warp/issues/999) |
 
-A checkpoint head is replaced, not fast-forwarded, whenever its clone
-checkpoints. Two clones' heads therefore never share a fast-forward history.
-Transferring one would either fail as a non-fast-forward or need a forced
-update. A receiver instead rebuilds its own checkpoint from the received writer
-chains.
+Derived heads are replaced, not fast-forwarded: a cone head points at a new
+basis tree whenever its clone folds patches, and a checkpoint head moves
+whenever its clone checkpoints. Two clones' heads therefore never share a
+fast-forward history. Transferring one would either fail as a non-fast-forward
+or need a forced update. A receiver instead folds the received writer chains
+into its own cone basis.
 
 Saved Coordinates are values, not refs. Nothing is published or fetched for
-them, so they cannot collide across clones. A Coordinate names its clone's
-checkpoint, which the clone may replace, so treat a Coordinate as local to the
-clone that captured it.
+them, so they cannot collide across clones. A Coordinate names one of its
+clone's cone bases. The clone keeps the last 64 captured bases reachable under
+`cone/retained`, so a saved Coordinate survives `git gc`; another clone holds
+different bases, so treat a Coordinate as local to the clone that captured it.
+A strand's pinned base and overlay basis (`cone/strands/<strand-id>/base` and
+`head`) are derived the same way and stay with the clone that holds the strand.
 
 Git object support travels with the refs: fetching a writer chain transfers its
 patch commits and every object they reference, including content attachments.
@@ -70,8 +74,9 @@ receives this chain.
 ## Receive other writers
 
 Check the hub's substrate marker, fetch every other writer's chain explicitly
-without pruning, then rebuild this clone's checkpoint. Save the recipe as a
-script and run it with `sh` so it stops at the first failure:
+without pruning, then fold the received patches into this clone's cone basis.
+Save the recipe as a script and run it with `sh` so it stops at the first
+failure:
 
 ```bash
 set -e
@@ -86,7 +91,7 @@ git fetch --no-prune --no-tags origin \
   "$marker:$marker" \
   "refs/warp/$LANE/writers/*:refs/warp/$LANE/writers/*" \
   "^refs/warp/$LANE/writers/$WRITER"
-git warp repair --repo . --lane "$LANE" --writer "$WRITER" --action materialization
+git warp repair --repo . --lane "$LANE" --writer "$WRITER" --action basis
 ```
 
 - The marker check runs before any ref changes. Git updates refs that point at
@@ -100,10 +105,13 @@ git warp repair --repo . --lane "$LANE" --writer "$WRITER" --action materializat
   which only this clone advances.
 - Without `+`, a stale hub cannot move a newer local writer chain backward: Git
   rejects that update, leaves the local ref unchanged and exits non-zero.
-- The repair step rebuilds this clone's checkpoint head from the received
-  chains; no checkpoint travels between clones.
+- The repair step folds the received patches into this clone's cone basis once
+  and reports how many it folded; no derived basis travels between clones. It
+  is optional: the next read or write folds them anyway. It does not write a
+  checkpoint.
 
-After receiving, close and reopen affected Runtime resources before observing.
+An open Runtime sees the received chains on its next read or write; it does not
+need to be reopened.
 
 ## v19 boundary
 
