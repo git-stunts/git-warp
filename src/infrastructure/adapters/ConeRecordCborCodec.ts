@@ -20,18 +20,18 @@ import { EventId } from '../../domain/utils/EventId.ts';
 import { compareStrings } from '../../domain/utils/StringComparison.ts';
 import { requireAdmittedEvent } from '../../domain/services/cone/ConeRecordValidation.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
-import { CONCURRENCY_WIRE, decodeConcurrency, encodeConcurrency } from './ConeConcurrencyCborWire.ts';
+import { decodeConcurrency, encodeConcurrency } from './ConeConcurrencyCborWire.ts';
 
 const EVENT_WIRE = z.tuple([z.number(), z.string(), z.string(), z.number()]).nullable();
 const PROPS_WIRE = z.array(z.tuple([z.string(), EVENT_WIRE, z.unknown()]));
 const NODE_WIRE = z.object({
   kind: z.literal('node'), id: z.string(), adds: z.array(z.string()), tombs: z.array(z.string()),
   birth: EVENT_WIRE, clear: EVENT_WIRE, props: PROPS_WIRE, out: z.number(), in: z.number(),
-  conc: CONCURRENCY_WIRE.optional(),
+  conc: z.unknown().optional(),
 });
 const EDGE_WIRE = z.object({
   kind: z.literal('edge'), key: z.string(), adds: z.array(z.string()), tombs: z.array(z.string()),
-  birth: EVENT_WIRE, remove: EVENT_WIRE, props: PROPS_WIRE, conc: CONCURRENCY_WIRE.optional(),
+  birth: EVENT_WIRE, remove: EVENT_WIRE, props: PROPS_WIRE, conc: z.unknown().optional(),
 });
 const DOT_WIRE = z.object({
   kind: z.literal('dot'), set: z.enum(['node', 'edge']), writer: z.string(), page: z.number(),

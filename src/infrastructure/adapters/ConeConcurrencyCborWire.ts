@@ -1,4 +1,3 @@
-import z from 'zod';
 import ConeRecordError from '../../domain/errors/ConeRecordError.ts';
 import ConeConcurrency from '../../domain/services/cone/ConeConcurrency.ts';
 import ConeConcurrentSet, { type ConeConcurrentMember } from '../../domain/services/cone/ConeConcurrentSet.ts';
@@ -8,17 +7,8 @@ import { isPropValue } from '../../domain/types/PropValue.ts';
 import { EventId } from '../../domain/utils/EventId.ts';
 import { compareStrings } from '../../domain/utils/StringComparison.ts';
 
-const EVENT = z.tuple([z.number(), z.string(), z.string(), z.number()]);
-const CLOCKS = z.array(z.tuple([z.string(), z.number()]));
-const VALUE_SET = z.object({ m: z.array(z.tuple([EVENT, z.boolean(), z.unknown()])), o: CLOCKS, x: CLOCKS });
-const LIFECYCLE_SET = z.object({ m: z.array(z.tuple([EVENT, z.boolean(), z.enum(['remove', 'edit'])])), o: CLOCKS, x: CLOCKS });
-
-/** The wire form of a record's retained concurrency: register sets by key and the lifecycle set. */
-export const CONCURRENCY_WIRE = z.object({ r: z.array(z.tuple([z.string(), VALUE_SET])), l: LIFECYCLE_SET });
-
-type ConcurrencyWire = z.infer<typeof CONCURRENCY_WIRE>;
-type EventWire = z.infer<typeof EVENT>;
-type ClocksWire = z.infer<typeof CLOCKS>;
+type EventWire = [number, string, string, number];
+type ClocksWire = Array<[string, number]>;
 
 /**
  * CBOR wire form of cone record concurrency (#1039). A record with no
@@ -38,21 +28,110 @@ export function encodeConcurrency(concurrency: ConeConcurrency): { readonly conc
   };
 }
 
-export function decodeConcurrency(wire: ConcurrencyWire | undefined): ConeConcurrency {
+/**
+ * Decodes a record's stored concurrency, validating by hand rather than by
+ * schema: every record of a read carries it, so this is on the read path.
+ */
+export function decodeConcurrency(wire: unknown): ConeConcurrency {
   if (wire === undefined) {
     return ConeConcurrency.empty();
   }
-  const registers = new Map(wire.r.map(([key, set]) => [key, new ConeConcurrentSet<ConeConcurrentValue>({
-    members: set.m.map(([event, causal, value]) => new ConeConcurrentValue({ event: decodeEvent(event), value: requireValue(value), causal })),
-    observed: new Map(set.o),
-    evicted: new Map(set.x),
-  })]));
-  const lifecycle = new ConeConcurrentSet<ConeLifecycleEvent>({
-    members: wire.l.m.map(([event, causal, role]) => new ConeLifecycleEvent({ event: decodeEvent(event), role, causal })),
-    observed: new Map(wire.l.o),
-    evicted: new Map(wire.l.x),
+  const fields = requireRecord(wire);
+  const registers = new Map(requireArray(fields['r']).map((entry) => {
+    const [key, set] = requireTuple(entry, 2);
+    return [requireString(key), decodeSet(set, (payload) => requireValue(payload), valueMember)];
+  }));
+  return new ConeConcurrency({ registers, lifecycle: decodeSet(fields['l'], requireRole, lifecycleMember) });
+}
+
+function valueMember(event: EventId, causal: boolean, value: ConeConcurrentValue['value']): ConeConcurrentValue {
+  return new ConeConcurrentValue({ event, value, causal });
+}
+
+function lifecycleMember(event: EventId, causal: boolean, role: ConeLifecycleEvent['role']): ConeLifecycleEvent {
+  return new ConeLifecycleEvent({ event, role, causal });
+}
+
+function decodeSet<T extends ConeConcurrentMember, P>(
+  wire: unknown,
+  payload: (raw: unknown) => P,
+  member: (event: EventId, causal: boolean, payload: P) => T,
+): ConeConcurrentSet<T> {
+  const fields = requireRecord(wire);
+  return new ConeConcurrentSet<T>({
+    members: requireArray(fields['m']).map((entry) => {
+      const [event, causal, raw] = requireTuple(entry, 3);
+      return member(decodeEvent(event), requireBoolean(causal), payload(raw));
+    }),
+    observed: decodeClocks(fields['o']),
+    evicted: decodeClocks(fields['x']),
   });
-  return new ConeConcurrency({ registers, lifecycle });
+}
+
+function decodeClocks(wire: unknown): Map<string, number> {
+  return new Map(requireArray(wire).map((entry) => {
+    const [writer, lamport] = requireTuple(entry, 2);
+    return [requireString(writer), requireNumber(lamport)];
+  }));
+}
+
+function decodeEvent(wire: unknown): EventId {
+  const [lamport, writer, sha, opIndex] = requireTuple(wire, 4);
+  return new EventId(requireNumber(lamport), requireString(writer), requireString(sha), requireNumber(opIndex));
+}
+
+function requireRecord(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw corrupt();
+  }
+  return Object.fromEntries(Object.entries(value));
+}
+
+function requireArray(value: unknown): unknown[] {
+  if (!Array.isArray(value)) {
+    throw corrupt();
+  }
+  return Array.from(value);
+}
+
+function requireTuple(value: unknown, length: number): unknown[] {
+  const tuple = requireArray(value);
+  if (tuple.length !== length) {
+    throw corrupt();
+  }
+  return tuple;
+}
+
+function requireString(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw corrupt();
+  }
+  return value;
+}
+
+function requireNumber(value: unknown): number {
+  if (typeof value !== 'number') {
+    throw corrupt();
+  }
+  return value;
+}
+
+function requireBoolean(value: unknown): boolean {
+  if (typeof value !== 'boolean') {
+    throw corrupt();
+  }
+  return value;
+}
+
+function requireRole(value: unknown): ConeLifecycleEvent['role'] {
+  if (value !== 'remove' && value !== 'edit') {
+    throw corrupt();
+  }
+  return value;
+}
+
+function corrupt(): ConeRecordError {
+  return new ConeRecordError('Stored cone record has malformed concurrency', { code: 'E_CONE_RECORD_CORRUPT' });
 }
 
 function encodeSet<T extends ConeConcurrentMember>(set: ConeConcurrentSet<T>, payload: (member: T) => object | string | number | boolean | null): object {
@@ -69,10 +148,6 @@ function sortedClocks(clocks: ReadonlyMap<string, number>): ClocksWire {
 
 function encodeEvent(event: EventId): EventWire {
   return [event.lamport, event.writerId, event.patchSha, event.opIndex];
-}
-
-function decodeEvent(wire: EventWire): EventId {
-  return new EventId(wire[0], wire[1], wire[2], wire[3]);
 }
 
 function requireValue<T>(value: T): T & ConeConcurrentValue['value'] {

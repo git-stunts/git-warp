@@ -199,5 +199,19 @@ describe('cone concurrency fold (#1039)', () => {
     if (member === undefined) { throw new Error('expected a member'); }
     member[2] = { constructor: 1 };
     expect(() => records.decode(codec.encode(wire))).toThrowError(expect.objectContaining({ code: 'E_CONE_RECORD_CORRUPT' }));
+    const good = { r: [['k', { m: [[[1, 'alice', 'a'.repeat(40), 1], true, 'v']], o: [['alice', 0]], x: [] }]],
+      l: { m: [[[1, 'alice', 'a'.repeat(40), 0], true, 'edit']], o: [], x: [] } };
+    const malformed: unknown[] = [
+      [], { ...good, r: 'x' }, { ...good, r: [['k']] }, { ...good, r: [[1, good.r[0]?.[1]]] },
+      { ...good, l: { ...good.l, m: [[[1, 'alice', 'a'.repeat(40), 0], 'yes', 'edit']] } },
+      { ...good, l: { ...good.l, m: [[[1, 'alice', 'a'.repeat(40), 0], true, 'gone']] } },
+      { ...good, l: { ...good.l, o: [['alice', 'one']] } },
+    ];
+    expect(records.decode(codec.encode({ ...wire, conc: good }))).toBeInstanceOf(ConeNodeRecord);
+    for (const conc of malformed) {
+      expect(() => records.decode(codec.encode({ ...wire, conc })), JSON.stringify(conc)).toThrowError(
+        expect.objectContaining({ code: 'E_CONE_RECORD_CORRUPT' }),
+      );
+    }
   });
 });

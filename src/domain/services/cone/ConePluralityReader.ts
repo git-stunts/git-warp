@@ -25,16 +25,10 @@ import { hydrateConeState } from './ConeStateHydration.ts';
 export default class ConePluralityReader {
   /** The plurality of the visible register `key` of a live node, or null. */
   static register(record: ConeNodeRecord, key: string): RegisterPlurality | null {
-    const winner = record.props.get(key);
-    if (winner === undefined || !record.isAlive()) {
-      return null;
-    }
-    const state = hydrateConeState([record], []);
     const set = record.concurrency.register(key);
-    const visible = (member: ConeConcurrentValue): boolean =>
-      !state.isStaleNodeRegister(record.nodeId, new LWWRegister<PropValue>(member.event, member.value));
-    const siblings = set.members.filter((member) => compareEventIds(member.event, winner.eventId) !== 0 && visible(member));
-    if (siblings.length === 0 && set.overflow === 0) {
+    const winner = racingWinner(record, set, key);
+    const siblings = winner === null ? [] : visibleSiblings(record, set, winner.eventId);
+    if (winner === null || siblings.length + set.overflow === 0) {
       return null;
     }
     return new RegisterPlurality({
@@ -56,6 +50,24 @@ export default class ConePluralityReader {
   static edge(record: ConeEdgeRecord): LifecyclePlurality | null {
     return lifecycle({ kind: 'edge', from: record.from, to: record.to, label: record.label }, record.concurrency.lifecycle);
   }
+}
+
+/** The members other than the winner that the node's latest clear has not made stale. */
+function visibleSiblings(
+  record: ConeNodeRecord,
+  set: ConeConcurrentSet<ConeConcurrentValue>,
+  winner: LWWRegister<PropValue>['eventId'],
+): ConeConcurrentValue[] {
+  const state = hydrateConeState([record], []);
+  return set.members.filter((member) => compareEventIds(member.event, winner) !== 0
+    && !state.isStaleNodeRegister(record.nodeId, new LWWRegister<PropValue>(member.event, member.value)));
+}
+
+/** The visible register's LWW value when its set can hide anything (a second member or a counted eviction), else null. */
+function racingWinner(record: ConeNodeRecord, set: ConeConcurrentSet<ConeConcurrentValue>, key: string): LWWRegister<PropValue> | null {
+  const winner = record.props.get(key);
+  const holdsRace = set.members.length > 1 || set.overflow > 0;
+  return winner !== undefined && holdsRace && record.isAlive() ? winner : null;
 }
 
 function lifecycle(element: LifecycleElement, set: ConeConcurrentSet<ConeLifecycleEvent>): LifecyclePlurality | null {
