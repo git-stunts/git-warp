@@ -1,0 +1,146 @@
+# Cone-bounded Runtime: public reads and writes without whole-state materialization
+
+Status: proposed design record for the cone-bounded Runtime goalpost (#1039). Baseline: main `6ba2e7eca` (package 20.0.0).
+
+## Decision
+
+No client-facing public application API may materialize the graph. Every `Lane.write`, every `Lane.observe`
+Reading, every advanced `Coordinate`/`Optic` read and every content Observation is answered from the **causal cone
+of the entities it touches**: the patches that wrote those entities, folded into small per-entity records. Work is
+proportional to the touched entities and to the patches that are new since the clone last looked, never to total
+graph size or total history.
+
+This is the public-path realisation of the [streaming, indexed, recursive WARP](./streaming-indexed-recursive-warp.md)
+decision ("Apply a patch by opening only records and pages named by its operations") for the operations an
+application performs every second. It does not replace the retained-manifest, Roaring selection plane or recursive
+graph work tracked by #824/#815/#816/#817; global questions (label scans, traversal, inventory, export) keep their
+own plans and their own honest support rules.
+
+## Why the current public path is not bounded
+
+Audit of main `6ba2e7eca` (evidence by file and line in the goalpost issue):
+
+- A reading basis can only be created by `git warp repair --action materialization`, which reduces the whole
+  `WarpState` and stores it as one `state.cbor`; refresh fails once that passes the 5 MiB decoder bound (#1034,
+  #962, #963). The default `checkpointPolicy` never fires through `Runtime` (#962).
+- Every Observation enumerates every member of the checkpoint's property bundle, one per node, before its first
+  Reading (#1036). Every Reading reloads and decodes the whole uncheckpointed tail and proves ancestry with one
+  `git show` per tail commit (#1035).
+- Neighbourhood reads and `edge.remove` obstruct because the checkpoint carries no per-edge live dots (#961, #1037).
+- `node.remove`, content attach/clear existence checks and content Observations replay every writer's history from
+  genesis, capped at 10,000 patches or 50,000 ops.
+- Strand writes and reads reload base chains from genesis and reduce whole state.
+- Settlement identity hashes the checkpoint SHA, so a refresh alone invalidates strand previews.
+
+## Why a cone suffices
+
+Every operation in the patch format names the element it changes:
+
+| Op | Element(s) |
+| --- | --- |
+| `NodeAdd`, `NodeRemove`, `NodePropSet`, `BlobValue` | the node `node` (its OR-Set entry, lifecycle events, property registers) |
+| `EdgeAdd`, `EdgeRemove`, `EdgePropSet` | the edge `(from, to, label)` (its OR-Set entry, birth/remove events, property registers); adjacency of `from` and `to` |
+
+The join rules are per element: OR-Set add/remove touches one element's dots (remove names `observedDots` of that
+element), LWW compares one register's EventIds, the node-wide clear is the node's own lifecycle, edge-property
+visibility depends on that edge's birth/remove events, and edge visibility depends on the edge plus the liveness of
+its two endpoints. So the state of an element is a function of the ops that name it, and a Reading is a function of
+the records of the elements it asks about. The full `JoinReducer` is the specification: the cone engine reuses the
+same `OpStrategy` implementations over a **cone workspace** (a `WarpState` hydrated with only the touched records),
+and an equivalence oracle in the tests compares every entity against a full reduction.
+
+Known limit, made explicit rather than hidden: a dot shared across elements (the #1022 duplicate-dot class) breaks
+per-element tombstone locality. The cone engine refuses such a patch with a typed obstruction pointing at the
+duplicate-dot repair, instead of guessing.
+
+## Design
+
+### Records
+
+Records are runtime-backed domain values, keyed by the existing BLAKE3 route key of the entity id:
+
+- `ConeNodeRecord`: live and tombstoned dots of the node, birth/clear/pending-remove lifecycle events, property
+  registers (key → LWW register), and adjacency references: the set of edge keys ever added with this node as
+  `from` (out) or `to` (in), paged by bounded count so hubs stay bounded.
+- `ConeEdgeRecord`: live and tombstoned dots of the edge, birth and remove events, property registers.
+
+Records hold no derived visibility; visibility is computed at read time from records (edge visible ⇔ edge alive ∧
+both endpoints alive; property visible ⇔ register not stale against the owner's lifecycle).
+
+### Basis
+
+A `ConeBasis` is `(root, frontier)`: a record-trie root and, per writer, the last folded patch (sha, lamport). It is
+clone-local and derived, like `checkpoints/head`: stored under `refs/warp/<lane>/cone/head`, never transferred,
+rebuildable from writer chains. The trie is a git tree keyed by route-key prefix with record blobs at the leaves, so
+an update rewrites only the paths to touched records and every untouched record is structurally shared.
+
+### Folding (ingest)
+
+`ConeIngest` advances a basis from frontier `F` to the current writer tips `F'`:
+
+1. For each writer whose tip differs from `F`, list `(F_w, F'_w]` once with one bulk log.
+2. Decode each new patch exactly once. Its footprint is the set of elements its ops name (plus endpoint nodes for
+   edge ops, for adjacency).
+3. Load only those records, hydrate a cone workspace, apply the patch through the existing op strategies, extract
+   the changed records, and path-copy them into the trie.
+4. Publish the new root and frontier with a compare-and-swap ref update; a losing racer re-reads and retries.
+
+Cost: `O(new patches + touched records × trie depth)`. A clone that writes locally folds its own patch at commit
+time, so the common case is one patch and a handful of records. A fetch of other writers' chains folds each received
+patch once, on the next read or write.
+
+Folding order: per writer in chain order; across writers any interleaving is valid because the per-element join is
+commutative and idempotent. The oracle tests assert this by folding random interleavings.
+
+### Reads
+
+A `ConeWitnessLocator` implements the four locator calls the public optics make (`readNode`, `readNodeProperty`,
+`readNeighborhood`, `readTraversal`):
+
+- node / property: ingest to tips, load one record, answer.
+- neighbourhood: ingest, load the node record, page its adjacency references, load those edge records and the
+  neighbour node records for liveness. Degree-bounded; cursors page the adjacency.
+- traversal: neighbourhood hops under the optic's declared limits; it stays refused for global discovery as today.
+
+Receipts cite the cone basis (root, frontier) and the records read. Observations sharing a captured coordinate share
+one basis.
+
+### Writes
+
+`Lane.write` ingests to tips, then reads the records it needs: `node.remove` and `edge.remove` take their observed
+dots from the target record; content attach/clear checks owner liveness from the record. After the patch commits,
+its own fold is applied immediately. `edge.remove` therefore admits through a bounded basis (#1037).
+
+### Lifecycle
+
+- `Runtime.open` needs no prior repair: an absent cone basis is the empty basis and folds forward on first use.
+- `git warp repair --action materialization` is replaced, for the public path, by a bounded basis advance; the
+  whole-state checkpoint remains available only as an explicitly global, streaming-budgeted maintenance operation.
+- `Runtime.fork` and strand Lanes read the base through a cone basis pinned at the strand's base frontier, plus the
+  strand's own patches folded on top.
+- Settlement identity binds the base frontier, not a checkpoint SHA.
+
+### Conflict visibility (follow-on in the same goalpost)
+
+Each Lane patch already records `observedFrontier`. A register record can retain concurrent siblings (writes not
+dominated by each other's observed frontier) at bounded cost, so a Reading can report `plural` and a write that
+replaces a register it did not observe can report `conflict`. This is scheduled after the bounded path lands.
+
+## Enforcement
+
+- An architecture test installs throwing traps on `_materializeGraph`, whole-state checkpoint creation and full-history
+  journal scans, then drives `Lane.write`, `Lane.observe`, `captureCoordinate` reads, content Observations and strand
+  Lanes; any call fails the test.
+- A cost witness drives a Reader-shaped workload (2k and 20k annotation threads, three writers) and asserts git
+  processes and bytes decoded per save and per margins read are independent of graph size.
+- The equivalence oracle: random multi-writer histories folded by the cone engine match a full reduction for every
+  entity's liveness, properties and neighbourhood.
+
+## Slices
+
+1. Cone records, workspace, record trie adapter, basis ref and ingest, with the equivalence oracle.
+2. Public reads through `ConeWitnessLocator` (property, node, neighbourhood, traversal, content Observations).
+3. Public writes through cone records (`node.remove`, `edge.remove`, content owner checks) and own-patch folding.
+4. Lifecycle: open without repair, bounded basis CLI, fork/strand/settlement on cone bases, materialization traps.
+5. Showcase: example application and cost witness.
+6. Conflict visibility.
