@@ -45,6 +45,11 @@ export default class ConeFrontier {
     return Object.freeze([...this.#positions]);
   }
 
+  /** The highest Lamport clock any folded writer position carries; 0 for the empty frontier. */
+  maxLamport(): number {
+    return [...this.#positions.values()].reduce((maximum, position) => Math.max(maximum, position.lamport), 0);
+  }
+
   equals(other: ConeFrontier): boolean {
     const entries = other.entries();
     return entries.length === this.#positions.size

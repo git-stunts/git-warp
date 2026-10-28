@@ -15,11 +15,13 @@ import type { ReadingDescriptor, ReadingKind } from './Reading.ts';
 import ReadReceipt, { type ReadReceiptOutcome } from './ReadReceipt.ts';
 import type { RepairHint } from './ReceiptSupport.ts';
 import ReadingResult from './ReadingResult.ts';
+import type { Plurality } from './Plurality.ts';
 import type Tick from './Tick.ts';
 
 type BoundedReading = {
   readonly evidence: OpticReadIdentity;
   readonly value: SnapshotPropValue;
+  readonly plurality: readonly Plurality[];
 };
 
 type ReadingExecutor = (
@@ -105,6 +107,7 @@ async function readProperty(
   return {
     value: result.value === undefined ? null : createSnapshotPropValue(result.value),
     evidence: result.readIdentity,
+    plurality: result.plurality,
   };
 }
 
@@ -116,7 +119,7 @@ async function readNodeExists(
     throw new WarpError('Reading executor received a mismatched descriptor', 'E_READING_KIND');
   }
   const result = await optic.node(descriptor.subject).read();
-  return { value: result.alive, evidence: result.readIdentity };
+  return { value: result.alive, evidence: result.readIdentity, plurality: result.plurality };
 }
 
 async function readNeighborhood(
@@ -127,7 +130,7 @@ async function readNeighborhood(
     throw new WarpError('Reading executor received a mismatched descriptor', 'E_READING_KIND');
   }
   const result = await optic.neighborhood(descriptor.subject).read(neighborhoodOptions(descriptor));
-  return { evidence: result.readIdentity, value: neighborhoodValue(result) };
+  return { evidence: result.readIdentity, value: neighborhoodValue(result), plurality: result.plurality };
 }
 
 function neighborhoodOptions(
@@ -179,6 +182,7 @@ async function readingResult(fields: AcceptedReadingFields): Promise<ReadingResu
     reading,
     outcome: 'accepted',
     evidence: await createReadEvidence(context, result.evidence, basis?.tick),
+    plurality: result.plurality,
   });
   context.bindReceipt(receipt, { operation: 'read', identity: result.evidence });
   return new ReadingResult({

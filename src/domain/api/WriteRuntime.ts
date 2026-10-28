@@ -34,9 +34,13 @@ import type AdmissionEvaluation from '../admission/AdmissionEvaluation.ts';
 import type EntityOccurrence from './EntityOccurrence.ts';
 import { createEntityOccurrence } from './EntityOccurrenceRuntime.ts';
 import { EventId } from '../utils/EventId.ts';
+import type DerivedAdmission from '../admission/DerivedAdmission.ts';
+import type PluralAdmission from '../admission/PluralAdmission.ts';
+import ConeWriteRaces from '../services/cone/ConeWriteRaces.ts';
 import {
   createDerivedWriteAdmission,
   createObstructedWriteAdmission,
+  createPluralWriteAdmission,
   prepareWriteAdmission,
   type WriteObstruction,
 } from './WriteAdmissionRuntime.ts';
@@ -69,6 +73,7 @@ type WriteAttempt = {
   basis?: PatchBuilderCausalBasis;
   evaluation?: AdmissionEvaluation;
   publishedEntities?: readonly PublishedEntityCoordinate[];
+  races?: ConeWriteRaces;
 };
 
 type PreparedWriteAttempt = Readonly<{
@@ -78,6 +83,7 @@ type PreparedWriteAttempt = Readonly<{
 
 type PublishedWriteAttempt = PreparedWriteAttempt & Readonly<{
   readonly publishedEntities: readonly PublishedEntityCoordinate[];
+  readonly races: ConeWriteRaces;
 }>;
 
 type FailedWriteFields = {
@@ -149,6 +155,7 @@ async function publishIntentWrite(
     }
     applyIntentSequenceToPatch(fields.sequence, patch, fields.context.content);
     attempt.publishedEntities = inspectPublishedIntentSequence(fields.sequence, patch.build());
+    attempt.races = patch.coneWriteRaces();
   });
   await foldPublishedWrite(cone, publication, attempt.basis?.expectedParentSha ?? null);
   return publication;
@@ -258,7 +265,7 @@ function requirePublishedWriteAttempt(
   if (attempt.publishedEntities === undefined) {
     throw error;
   }
-  return { ...prepared, publishedEntities: attempt.publishedEntities };
+  return { ...prepared, publishedEntities: attempt.publishedEntities, races: attempt.races ?? ConeWriteRaces.none() };
 }
 
 function missingPublishedBasisError(): WarpError {
@@ -275,12 +282,20 @@ async function derivedWriteReceipt(
     lane: runtime.worldlineName,
     writer: runtime.writerId,
     intent: sequence.input,
-    outcome: projectAdmissionOutcome(createDerivedWriteAdmission(fields), evidence.basis),
+    outcome: projectAdmissionOutcome(await admittedWrite(fields), evidence.basis),
     evidence,
     ...(occurrences.length === 0 ? {} : { occurrences }),
+    ...(fields.races.isEmpty() ? {} : { plurality: fields.races.plurality }),
   });
   context.bindReceipt(receipt, { operation: 'write', patchSha: publication.sha });
   return receipt;
+}
+
+/** A published write is plural when it left concurrent values it never observed standing beside its own (#1039). */
+async function admittedWrite(
+  fields: PublishedWriteFields & PublishedWriteAttempt,
+): Promise<DerivedAdmission | PluralAdmission> {
+  return fields.races.isEmpty() ? createDerivedWriteAdmission(fields) : await createPluralWriteAdmission(fields);
 }
 
 function publishedEntityOccurrences(
@@ -399,7 +414,14 @@ function coneWriteTargets(sequence: IntentSequence): ConeWriteTargets {
   return new ConeWriteTargets({
     nodes: targets.flatMap((target) => (typeof target === 'string' ? [target] : [])),
     edges: targets.flatMap((target) => (target === null || typeof target === 'string' ? [] : [target])),
+    registerNodes: sequence.intents.flatMap((intent) => registerTarget(intent) ?? []),
   });
+}
+
+/** The node whose registers one intent sets by name: a property set, or an entity admission with a supplied subject. */
+function registerTarget({ descriptor }: Intent): string | null {
+  if (descriptor.kind === 'property.set') { return descriptor.subject; }
+  return descriptor.kind === 'entity.add' && 'subject' in descriptor ? descriptor.subject : null;
 }
 
 /** The node or edge one intent must observe, or null for a blind intent. */

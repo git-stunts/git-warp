@@ -1,7 +1,11 @@
 import QueryError from '../../errors/QueryError.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import type ConeBasis from '../cone/ConeBasis.ts';
+import type ConeNeighbourhood from '../cone/ConeNeighbourhood.ts';
 import type ConeNodeRecord from '../cone/ConeNodeRecord.ts';
+import ConePluralityReader from '../cone/ConePluralityReader.ts';
+import type { Plurality } from '../../api/Plurality.ts';
+import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 import type ConeReadBasisSource from '../cone/ConeReadBasisSource.ts';
 import type ConeRecordKey from '../cone/ConeRecordKey.ts';
 import { hydrateConeState } from '../cone/ConeStateHydration.ts';
@@ -24,7 +28,10 @@ const REDUCER_VERSION = `cone-records/${NODE_PROPERTY_CLEAR_SEMANTICS}`;
 const PROJECTION_VERSION = 'optic-read-foundation';
 
 /** A neighbourhood page with the identity of the records it was read from. */
-type ConeNeighborhoodRead = TraversalNeighborhoodReadResult & { readonly direction: NeighborhoodOpticReadResult['direction'] };
+type ConeNeighborhoodRead = TraversalNeighborhoodReadResult & {
+  readonly direction: NeighborhoodOpticReadResult['direction'];
+  readonly plurality: readonly Plurality[];
+};
 
 /**
  * Answers public optic reads from a lane's cone records (#1039).
@@ -53,6 +60,7 @@ export default class ConeWitnessLocator extends OpticWitnessLocator {
       nodeId,
       alive: record.isAlive(),
       readIdentity: this.#identity(basis, { aspect: `node:${nodeId}:liveness`, records: [record.key()] }),
+      plurality: present([ConePluralityReader.node(record)]),
     });
   }
 
@@ -66,6 +74,7 @@ export default class ConeWitnessLocator extends OpticWitnessLocator {
       key,
       value: visiblePropertyValue(record, key),
       readIdentity: this.#identity(basis, { aspect: `node:${nodeId}:prop:${key}`, records: [record.key()] }),
+      plurality: present([ConePluralityReader.register(record, key), ConePluralityReader.node(record)]),
     });
   }
 
@@ -79,6 +88,7 @@ export default class ConeWitnessLocator extends OpticWitnessLocator {
       completeness: page.cursor === null ? 'complete' : 'truncated',
       cursor: page.cursor,
       readIdentity: page.readIdentity,
+      plurality: page.plurality,
     });
   }
 
@@ -114,6 +124,8 @@ export default class ConeWitnessLocator extends OpticWitnessLocator {
       cursor: page.cursor,
       resumeCursors: page.resumeCursors,
       readIdentity: this.#identity(basis, { aspect, records: neighbourhood.recordKeys() }),
+      plurality: request.cursor === undefined || request.cursor.length === 0
+        ? edgePluralities(neighbourhood, { nodeId: request.nodeId, direction, labels }) : [],
     });
   }
 
@@ -136,6 +148,30 @@ function visiblePropertyValue(record: ConeNodeRecord, key: string): PropValue | 
     return undefined;
   }
   return hydrateConeState([record], []).isStaleNodeRegister(record.nodeId, register) ? undefined : register.value;
+}
+
+/** Delete-versus-edit pluralities of the node's incident edges in the read's direction and labels. */
+function edgePluralities(
+  neighbourhood: ConeNeighbourhood,
+  scope: { readonly nodeId: string; readonly direction: Direction; readonly labels: readonly string[] },
+): Plurality[] {
+  return present(neighbourhood.edges.filter((edge) => inReadScope(edge, scope)).map((edge) => ConePluralityReader.edge(edge)));
+}
+
+function inReadScope(
+  edge: { readonly from: string; readonly to: string; readonly label: string },
+  scope: { readonly nodeId: string; readonly direction: Direction; readonly labels: readonly string[] },
+): boolean {
+  const labelled = scope.labels.length === 0 || scope.labels.includes(edge.label);
+  return labelled && (incidentAs(edge.from, 'out', scope) || incidentAs(edge.to, 'in', scope));
+}
+
+function incidentAs(endpoint: string, direction: 'out' | 'in', scope: { readonly nodeId: string; readonly direction: Direction }): boolean {
+  return endpoint === scope.nodeId && (scope.direction === 'both' || scope.direction === direction);
+}
+
+function present(pluralities: ReadonlyArray<Plurality | null>): Plurality[] {
+  return pluralities.flatMap((plurality) => (plurality === null ? [] : [plurality]));
 }
 
 function labelsAspect(labels: readonly string[]): string {

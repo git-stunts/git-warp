@@ -4,6 +4,7 @@ import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import type Evidence from './Evidence.ts';
 import { freezeOptionalEvidence } from './EvidenceRuntime.ts';
 import Reading from './Reading.ts';
+import { freezePlurality, type Plurality } from './PluralityRuntime.ts';
 import {
   READ_JOIN_RECEIPT_OUTCOMES,
   type ReadJoinReceiptOutcome,
@@ -17,6 +18,8 @@ type ReadReceiptFields = {
   readonly writer: string;
   readonly reading: Reading;
   readonly repairHints?: readonly RepairHint[];
+  /** Concurrency the accepted read observed (#1039); none when omitted. */
+  readonly plurality?: readonly Plurality[];
 };
 
 export type ReadReceiptOptions = ReadReceiptFields &
@@ -41,6 +44,8 @@ export default class ReadReceipt {
   readonly evidence: Evidence | undefined;
   readonly operation: 'read' = 'read';
   readonly outcome: ReadReceiptOutcome;
+  /** Register races and deletes raced by edits the read observed (#1039); empty when none. */
+  readonly plurality: readonly Plurality[];
   readonly reading: Reading;
   readonly repairHints: readonly RepairHint[];
   readonly reason: string | undefined;
@@ -57,6 +62,7 @@ export default class ReadReceipt {
     this.outcome = fields.outcome;
     this.evidence = freezeOptionalEvidence(fields.evidence, 'readReceipt.evidence');
     this.repairHints = freezeRepairHints(fields.repairHints ?? []);
+    this.plurality = freezePlurality(fields.plurality ?? []);
     this.reason = fields.reason;
     Object.freeze(this);
   }

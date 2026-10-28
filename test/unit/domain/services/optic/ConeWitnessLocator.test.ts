@@ -169,3 +169,45 @@ describe('OpticBasisPosture cone basis', () => {
     expect(OpticBasisPosture.coneBasis().toString()).toBe('cone-basis');
   });
 });
+
+describe('ConeWitnessLocator plurality (#1039)', () => {
+  /** Two writers whose patches record no causal context, so every cross-writer pair raced. */
+  function racing() {
+    const store = new InMemoryConeRecordStore();
+    const feed = new MemoryConeFeed(LANE);
+    feed.append('w1', [
+      new NodeAdd('hub', new Dot('w1', 1)), new NodeAdd('a', new Dot('w1', 2)), new NodeAdd('b', new Dot('w1', 3)),
+      new EdgeAdd({ from: 'hub', to: 'a', label: 'tag', dot: new Dot('w1', 4) }),
+      new EdgeAdd({ from: 'hub', to: 'b', label: 'has', dot: new Dot('w1', 5) }),
+      new NodeAdd('c', new Dot('w1', 6)), new EdgeAdd({ from: 'hub', to: 'c', label: 'has', dot: new Dot('w1', 7) }),
+      new NodePropSet('hub', 'title', 'one'),
+    ]);
+    feed.append('w2', [
+      new NodePropSet('hub', 'title', 'two'),
+      new EdgeRemove({ from: 'hub', to: 'a', label: 'tag', observedDots: ['w1:4'] }),
+    ]);
+    const cone = ConeLaneBasis.ofLane({ store, feed, lane: LANE });
+    return new WorldlineOptic({ worldline: LANE, cone: new LiveConeReadBasis(cone), coordinatePosture: OpticCoordinatePosture.liveOneOff() });
+  }
+
+  it('reports a raced register value, a raced node lifecycle and raced incident edges on the first page', async () => {
+    const optic = racing();
+    const title = await optic.node('hub').prop('title').read();
+    expect(title.value).toBe('two');
+    expect(title.plurality).toEqual([expect.objectContaining({
+      kind: 'register', winner: { writer: 'w2', value: 'two' }, siblings: [{ writer: 'w1', value: 'one' }], causality: 'underdetermined',
+    })]);
+    expect((await optic.node('hub').read()).plurality).toEqual([]);
+    const first = await optic.neighborhood('hub').read({ limit: 1 });
+    expect(first.plurality).toEqual([expect.objectContaining({
+      kind: 'lifecycle', element: { kind: 'edge', from: 'hub', to: 'a', label: 'tag' }, removedBy: ['w2'], editedBy: ['w1'],
+    })]);
+    const second = await optic.neighborhood('hub').read({ limit: 1, cursor: first.cursor ?? '' });
+    expect([second.edges.length, second.plurality]).toEqual([1, []]);
+    expect((await optic.neighborhood('hub').read({ labels: ['has'] })).plurality).toEqual([]);
+    expect((await optic.neighborhood('hub').read({ direction: 'in' })).plurality).toEqual([]);
+    expect((await optic.neighborhood('a').read({ direction: 'in' })).plurality).toHaveLength(1);
+    expect((await optic.neighborhood('a').read({ direction: 'both' })).plurality).toHaveLength(1);
+  });
+});
+

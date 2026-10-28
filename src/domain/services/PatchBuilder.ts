@@ -9,7 +9,8 @@ import NodeAdd from '../types/ops/NodeAdd.ts';
 import PropSet from '../types/ops/PropSet.ts';
 import captureObservedWriteBasis, { readWriterHeadContext } from './captureObservedWriteBasis.ts';
 import ConeObstructedError from '../errors/ConeObstructedError.ts';
-import ConeBasis from './cone/ConeBasis.ts';
+import ConeObstruction from './cone/ConeObstruction.ts';
+import ConeWriteRaces from './cone/ConeWriteRaces.ts';
 import type ConeLaneBasis from './cone/ConeLaneBasis.ts';
 import ConeWriteBasis from './cone/ConeWriteBasis.ts';
 import type ConeWriteTargets from './cone/ConeWriteTargets.ts';
@@ -228,17 +229,34 @@ export class PatchBuilder {
     }));
     return this;
   }
-  /** Observes a public write's targets from the lane's cone records instead of history (#1039). */
+  /**
+   * Observes a public write's targets from the lane's cone records instead of
+   * history (#1039). A write that reads records to lower (removes, content)
+   * records the advanced basis as observed; a write that only sets
+   * properties records the basis the lane held when it began, which is what
+   * this clone had read, so a concurrent value fetched since stays its
+   * sibling instead of being silently replaced. Its clock still passes every
+   * folded tip.
+   */
   async prepareConeWriteBasis(targets: ConeWriteTargets, cone: ConeLaneBasis): Promise<void> {
     this._assertUnlowered();
-    const basis = targets.isEmpty() ? null : await cone.advance();
-    if (basis !== null && !(basis instanceof ConeBasis)) { throw new ConeObstructedError(cone.lane, basis); }
-    await this._prepareObservation(basis?.writerHeads());
-    if (basis === null) {return;}
-    const observed = await ConeWriteBasis.capture({ reader: cone.reader, basis, targets, policy: this._onDeleteWithData });
+    const advanced = targets.isEmpty() ? null : await cone.advanceObserved();
+    if (advanced instanceof ConeObstruction) { throw new ConeObstructedError(cone.lane, advanced); }
+    const observed = advanced === null ? undefined : (targets.readsRecords() ? advanced.basis : advanced.from);
+    await this._prepareObservation(observed?.writerHeads(), advanced?.basis.frontier.maxLamport() ?? 0);
+    if (advanced === null) {return;}
+    const basis = await ConeWriteBasis.capture({ reader: cone.reader, basis: advanced.basis, targets, policy: this._onDeleteWithData });
     this._assertNotCommitted();
     if (this._ops.length > 0) {throw new PatchError('Write changed during basis capture', { code: 'E_PATCH_NO_STATE' });}
-    this._removalBasis = observed;
+    this._removalBasis = basis;
+  }
+
+  /** The concurrent values this lowered write leaves standing beside its own (#1039). */
+  coneWriteRaces(): ConeWriteRaces {
+    if (this._removalBasis === null || this._observedFrontier === undefined) { return ConeWriteRaces.none(); }
+    return ConeWriteRaces.of({
+      owners: this._removalBasis.registerOwners, observation: this._observedFrontier, writer: this._writerId, lamport: this._lamport, ops: this._ops,
+    });
   }
 
   private _assertUnlowered(): void {
@@ -252,7 +270,7 @@ export class PatchBuilder {
    * (`targetRefPath`) already took its clock and context from the strand's
    * tips, so it only restores its own chain context.
    */
-  private async _prepareObservation(selected: ReadonlyMap<string, string> | undefined): Promise<void> {
+  private async _prepareObservation(selected: ReadonlyMap<string, string> | undefined, clockFloor: number): Promise<void> {
     if (this._targetRefPath !== null || this._patchJournal === null) {
       await this._restoreWriterContext();
       return;
@@ -260,7 +278,7 @@ export class PatchBuilder {
     const basis = await captureObservedWriteBasis({
       refs: this._persistence, journal: this._patchJournal, graphName: this._graphName,
       writerId: this._writerId, expectedParentSha: this._expectedParentSha,
-      ownCandidate: this._lamport, context: this._vv,
+      ownCandidate: Math.max(this._lamport, clockFloor + 1), context: this._vv,
       selectedFrontier: selected,
     });
     this._assertNotCommitted();

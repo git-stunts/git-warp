@@ -3,6 +3,8 @@ import { encodeEdgeKey } from '../KeyCodec.ts';
 import NodeRemovalObservation from '../NodeRemovalObservation.ts';
 import type ConeBasis from './ConeBasis.ts';
 import type ConeEdgeRecord from './ConeEdgeRecord.ts';
+import type ConeNodeRecord from './ConeNodeRecord.ts';
+import ConeRecordKey from './ConeRecordKey.ts';
 import type ConeReader from './ConeReader.ts';
 import { hydrateConeState } from './ConeStateHydration.ts';
 import type ConeWriteTargets from './ConeWriteTargets.ts';
@@ -20,10 +22,17 @@ export type ConeRemovalPolicy = 'reject' | 'cascade' | 'warn';
 export default class ConeWriteBasis {
   readonly #removals: ReadonlyMap<string, NodeRemovalObservation>;
   readonly #edges: ReadonlyMap<string, ConeEdgeRecord>;
+  /** Records of the nodes whose registers the write sets, for its race check. */
+  readonly registerOwners: ReadonlyMap<string, ConeNodeRecord>;
 
-  private constructor(removals: ReadonlyMap<string, NodeRemovalObservation>, edges: ReadonlyMap<string, ConeEdgeRecord>) {
+  private constructor(
+    removals: ReadonlyMap<string, NodeRemovalObservation>,
+    edges: ReadonlyMap<string, ConeEdgeRecord>,
+    registerOwners: ReadonlyMap<string, ConeNodeRecord>,
+  ) {
     this.#removals = removals;
     this.#edges = edges;
+    this.registerOwners = registerOwners;
     Object.freeze(this);
   }
 
@@ -42,7 +51,8 @@ export default class ConeWriteBasis {
       const edgeKey = encodeEdgeKey(edge.from, edge.to, edge.label);
       edges.set(edgeKey, await fields.reader.edge(fields.basis.root, edgeKey));
     }
-    return new ConeWriteBasis(removals, edges);
+    const owners = await fields.reader.records(fields.basis.root, fields.targets.registerNodes.map((nodeId) => ConeRecordKey.forNode(nodeId)));
+    return new ConeWriteBasis(removals, edges, new Map(fields.targets.registerNodes.map((nodeId) => [nodeId, owners.node(nodeId)])));
   }
 
   /** Whether a target node is alive; a node outside the targets is unobserved. */

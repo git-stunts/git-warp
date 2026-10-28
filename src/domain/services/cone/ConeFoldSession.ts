@@ -1,4 +1,6 @@
 import type ConeRecordStorePort from '../../../ports/ConeRecordStorePort.ts';
+import MintId from '../../crdt/MintId.ts';
+import type ConeFrontier from './ConeFrontier.ts';
 import type { ConeRecord } from './ConeRecord.ts';
 import type ConeRecordKey from './ConeRecordKey.ts';
 import ConeRecordSnapshot from './ConeRecordSnapshot.ts';
@@ -21,12 +23,32 @@ export default class ConeFoldSession {
   readonly #flushRecords: number;
   readonly #known = new Map<string, ConeRecord | null>();
   readonly #staged = new Map<string, ConeRecord>();
+  readonly #laneClocks: ReadonlyMap<string, number>;
   #root: ConeRoot;
 
-  constructor(options: { readonly store: ConeRecordStorePort; readonly root: ConeRoot; readonly flushRecords?: number }) {
+  constructor(options: {
+    readonly store: ConeRecordStorePort;
+    readonly root: ConeRoot;
+    readonly flushRecords?: number;
+    /** The frontier the folded basis started from; its lane chains are what strand patches were written on. */
+    readonly from?: ConeFrontier;
+  }) {
     this.#store = options.store;
     this.#root = options.root;
     this.#flushRecords = options.flushRecords ?? CONE_SESSION_FLUSH_RECORDS;
+    this.#laneClocks = new Map((options.from?.entries() ?? [])
+      .filter(([writerId]) => MintId.decode(writerId).strandId === null)
+      .map(([writerId, position]) => [writerId, position.lamport]));
+  }
+
+  /**
+   * What a patch of `writerId` observed without recording it (#1039): a
+   * strand chain's patch was written on the strand's pinned base, whose lane
+   * chains are the lane chains this session's basis started from; a lane
+   * chain's patch observed only what it recorded.
+   */
+  implicitObservation(writerId: string): ReadonlyMap<string, number> {
+    return MintId.decode(writerId).strandId === null ? new Map() : this.#laneClocks;
   }
 
   /** The records at `keys`, as this session currently sees them. */

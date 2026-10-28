@@ -1,6 +1,8 @@
 import type { LWWRegister } from '../../crdt/LWW.ts';
 import type { PropValue } from '../../types/PropValue.ts';
+import ConeRecordError from '../../errors/ConeRecordError.ts';
 import type { EventId } from '../../utils/EventId.ts';
+import ConeConcurrency from './ConeConcurrency.ts';
 import ConeRecordKey, { type ConeDirection } from './ConeRecordKey.ts';
 import { sameEvent, sameMembers, sameRegisters } from './ConeRecordEquality.ts';
 import {
@@ -26,6 +28,8 @@ export type ConeNodeRecordFields = {
   readonly outDegree: number;
   /** Number of edge keys registered with this node as `to`. */
   readonly inDegree: number;
+  /** The node's concurrent register writes and lifecycle effects; none when omitted. */
+  readonly concurrency?: ConeConcurrency;
 };
 
 /**
@@ -47,6 +51,7 @@ export default class ConeNodeRecord {
   readonly props: ReadonlyMap<string, LWWRegister<PropValue>>;
   readonly outDegree: number;
   readonly inDegree: number;
+  readonly concurrency: ConeConcurrency;
 
   constructor(fields: ConeNodeRecordFields) {
     this.nodeId = requireIdentity(fields.nodeId, 'nodeId');
@@ -57,6 +62,7 @@ export default class ConeNodeRecord {
     this.props = requireRegisters(fields.props);
     this.outDegree = requireCount(fields.outDegree, 'outDegree');
     this.inDegree = requireCount(fields.inDegree, 'inDegree');
+    this.concurrency = requireConcurrency(fields.concurrency);
     Object.freeze(this);
   }
 
@@ -96,6 +102,11 @@ export default class ConeNodeRecord {
     });
   }
 
+  /** This record with `concurrency` retained. */
+  withConcurrency(concurrency: ConeConcurrency): ConeNodeRecord {
+    return new ConeNodeRecord({ ...this.fields(), concurrency });
+  }
+
   /** True when no operation has left any evidence in this record. */
   isEmpty(): boolean {
     return this.equals(ConeNodeRecord.empty(this.nodeId));
@@ -113,7 +124,7 @@ export default class ConeNodeRecord {
    */
   sameElementState(other: ConeNodeRecord): boolean {
     return other.nodeId === this.nodeId && this.sameMembership(other) && this.sameLifecycle(other)
-      && sameRegisters(other.props, this.props);
+      && sameRegisters(other.props, this.props) && other.concurrency.equals(this.concurrency);
   }
 
   /** The constructor fields of this record, for derived copies. */
@@ -121,7 +132,7 @@ export default class ConeNodeRecord {
     return {
       nodeId: this.nodeId, addDots: this.addDots, tombstones: this.tombstones, birth: this.birth,
       clear: this.clear, props: this.props,
-      outDegree: this.outDegree, inDegree: this.inDegree,
+      outDegree: this.outDegree, inDegree: this.inDegree, concurrency: this.concurrency,
     };
   }
 
@@ -136,4 +147,14 @@ export default class ConeNodeRecord {
   private sameLifecycle(other: ConeNodeRecord): boolean {
     return sameEvent(other.birth, this.birth) && sameEvent(other.clear, this.clear);
   }
+}
+
+function requireConcurrency(concurrency: ConeConcurrency | undefined): ConeConcurrency {
+  if (concurrency === undefined) {
+    return ConeConcurrency.empty();
+  }
+  if (!(concurrency instanceof ConeConcurrency)) {
+    throw new ConeRecordError('Cone record concurrency must be a ConeConcurrency');
+  }
+  return concurrency;
 }

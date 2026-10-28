@@ -68,6 +68,7 @@ export default class ConeWorkspace {
       birth: requireAdmittedEvent(this.#state.edgeBirthEvent.get(previous.edgeKey), 'edge birth'),
       remove: requireAdmittedEvent(this.#state.edgeRemoveEvent.get(previous.edgeKey), 'edge remove'),
       props: props.get(previous.edgeKey) ?? new Map(),
+      concurrency: previous.concurrency,
     }));
   }
 }

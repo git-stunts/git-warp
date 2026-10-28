@@ -7,7 +7,7 @@ import ConeIngest from './ConeIngest.ts';
 import ConeIngestAdvanced from './ConeIngestAdvanced.ts';
 import ConeIngestCurrent from './ConeIngestCurrent.ts';
 import type ConeIngestOutcome from './ConeIngestOutcome.ts';
-import type ConeObstruction from './ConeObstruction.ts';
+import ConeObstruction from './ConeObstruction.ts';
 import ConeReader from './ConeReader.ts';
 import type ConeTipSource from './ConeTipSource.ts';
 import LaneConeScope from './LaneConeScope.ts';
@@ -115,6 +115,20 @@ export default class ConeLaneBasis {
         }
       },
     };
+  }
+
+  /**
+   * Advances like `advance()` and also answers the basis the lane held before
+   * this advance: what this clone had folded, and its Observations had read,
+   * when the call began (#1039, conflict visibility).
+   */
+  async advanceObserved(): Promise<{ readonly from: ConeBasis; readonly basis: ConeBasis } | ConeObstruction> {
+    const outcome = await this.refresh();
+    if (outcome instanceof ConeIngestAdvanced) {
+      return { from: outcome.from, basis: outcome.stored.basis };
+    }
+    const settled = outcome.settled();
+    return settled instanceof ConeObstruction ? settled : { from: settled, basis: settled };
   }
 
   /** The bases this lane's captures retained, oldest first. */

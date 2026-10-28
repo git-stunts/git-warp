@@ -156,6 +156,54 @@ status `obstructed` (reason `cone_shared_dot` or `cone_writer_diverged`) or
 `underdetermined` (reason `cone_contended`) and a repair hint; see
 [Troubleshooting](troubleshooting.md#a-read-or-write-is-obstructed-by-the-cone-basis).
 
+## See Concurrent Edits
+
+Two clones can replace the same property while neither has seen the other's
+write. Last-writer-wins still decides the Reading's `value`, identically on
+every clone, but the Reading no longer hides the value it replaced:
+`reading.plurality` lists what raced.
+
+```typescript
+const body = await comments.observe(
+  margins.observers.commentBody({ comment: 'comment:1' }),
+).one();
+
+for (const race of body.plurality) {
+  if (race.kind === 'register') {
+    console.log(`${race.winner.writer} wrote ${String(race.winner.value)}`);
+    for (const sibling of race.siblings) {
+      console.log(`concurrently, ${sibling.writer} wrote ${String(sibling.value)}`);
+    }
+  } else {
+    console.log(`${race.removedBy.join(', ')} deleted it while ${race.editedBy.join(', ')} edited it`);
+  }
+}
+```
+
+- A `register` plurality names the LWW `winner` and the `siblings` it hides,
+  each with its writer. A write that observed every sibling (any write made
+  after an Observation that showed them) resolves the race, and later Readings
+  report no plurality.
+- A `lifecycle` plurality reports a delete that raced an edit or re-add of the
+  same node (on a property or existence Reading) or edge (on the first page of
+  a neighborhood Reading). The value is still what the CRDT join decided: an
+  observed remove hides the concurrent edit, and a concurrent add survives the
+  remove.
+- `causality` is `underdetermined` when a write involved recorded no causal
+  context (patches from before conflict visibility, or deprecated facade
+  writes), so the race may be an artefact of missing history. `overflow`
+  counts concurrent values beyond the 16 each register keeps.
+- `ReadReceipt.plurality` carries the same list, and the CLI renders it as a
+  `plurality` field on each Reading line.
+
+A race is decided by what each write recorded as observed. A Lane write that
+only sets properties records the cone basis this clone held when the write
+began, which is what its Observations had read; values fetched since then and
+not yet read stay concurrent with it. Such a write is admitted `plural` instead
+of `derived`, and its `WriteReceipt.plurality` lists the values it raced. A
+write that removes or attaches content reads the records it changes and
+records that newer basis.
+
 ## Unsupported Root Queries
 
 The root does not provide wildcard matching, arbitrary traversal, aggregation,

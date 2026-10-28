@@ -1,3 +1,4 @@
+import type { Plurality } from '../../api/Plurality.ts';
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 import type { OpticReadIdentity } from './OpticReadIdentity.ts';
 
@@ -17,6 +18,8 @@ export default class NeighborhoodOpticReadResult {
   readonly completeness: NeighborhoodOpticCompleteness;
   readonly cursor: string | null;
   readonly readIdentity: OpticReadIdentity;
+  /** Concurrency the read observed (#1039): a register race or a delete raced by an edit; empty when none. */
+  readonly plurality: readonly Plurality[];
 
   constructor(options: {
     readonly nodeId: string;
@@ -25,6 +28,7 @@ export default class NeighborhoodOpticReadResult {
     readonly completeness: NeighborhoodOpticCompleteness;
     readonly cursor: string | null;
     readonly readIdentity: OpticReadIdentity;
+    readonly plurality?: readonly Plurality[];
   }) {
     this.nodeId = options.nodeId;
     this.direction = options.direction;
@@ -32,6 +36,7 @@ export default class NeighborhoodOpticReadResult {
     this.completeness = options.completeness;
     this.cursor = options.cursor;
     this.readIdentity = options.readIdentity;
+    this.plurality = Object.freeze([...(options.plurality ?? [])]);
     Object.freeze(this);
   }
 }

@@ -362,6 +362,7 @@ function readingFrom<TValue extends ReadingValue>(
     evidence: requireEvidence(result.receipt),
     lane,
     value: decodeObserverValue(observer, result.value),
+    plurality: result.receipt.plurality,
   });
 }
 

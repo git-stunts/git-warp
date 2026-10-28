@@ -12,6 +12,7 @@ import IntentSequence, {
   type WriteIntentInput,
 } from './IntentSequence.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
+import { freezePlurality, type Plurality } from './PluralityRuntime.ts';
 
 type WriteReceiptFields<TIntent extends WriteIntentInput> = {
   readonly lane: string;
@@ -22,6 +23,7 @@ type WriteReceiptFields<TIntent extends WriteIntentInput> = {
   readonly occurrence?: EntityOccurrence;
   readonly occurrences?: readonly EntityOccurrence[];
   readonly repairHints?: readonly RepairHint[];
+  readonly plurality?: readonly Plurality[];
 };
 
 type WriteReceiptOccurrenceFields<TIntent extends WriteIntentInput> = Pick<
@@ -52,6 +54,12 @@ export default class WriteReceipt<TIntent extends WriteIntentInput = Intent> {
   readonly outcome: AdmissionOutcome;
   readonly occurrence: EntityOccurrence | undefined;
   readonly occurrences: readonly EntityOccurrence[];
+  /**
+   * The concurrent values a `plural` write left standing beside its own
+   * (#1039): register writes and removes of the nodes it set that it never
+   * observed, each with its writer. Empty for any other outcome.
+   */
+  readonly plurality: readonly Plurality[];
   readonly repairHints: readonly RepairHint[];
   readonly reason: string | undefined;
   readonly lane: string;
@@ -70,6 +78,7 @@ export default class WriteReceipt<TIntent extends WriteIntentInput = Intent> {
     this.occurrences = validateOccurrences(fields, this.evidence, this.intents);
     this.occurrence = this.occurrences.length === 1 ? this.occurrences[0] : undefined;
     this.repairHints = freezeRepairHints(fields.repairHints ?? []);
+    this.plurality = freezePlurality(fields.plurality ?? []);
     this.reason =
       fields.outcome.kind === 'obstruction' ? fields.outcome.witness.reason.code : undefined;
     Object.freeze(this);

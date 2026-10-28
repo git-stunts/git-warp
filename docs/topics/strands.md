@@ -66,7 +66,11 @@ worldline Lane's do ([Optic reads](optic-reads.md)):
   shared with the base.
 - **Writes** take their read-before-write (removals, content owner checks) from
   that overlay, and their clock from one head patch per strand tip. The
-  published patch is folded into the overlay at once.
+  published patch is folded into the overlay at once. A strand patch records no
+  observed frontier; for [concurrent edits](cone-bounded-reads.md#concurrent-edits)
+  it counts as having observed the strand's pinned base, so editing a base
+  value in a strand is not a race, and strand writes are never admitted
+  `plural`.
 - **Saved Coordinates.** `captureCoordinate()` works on a strand Lane and returns
   a Coordinate over the overlay basis. Like a worldline Coordinate, its basis is
   retained under `refs/warp/<lane>/cone/retained`, so it survives

@@ -17,6 +17,7 @@ import type {
 } from '../cli/commands/mcp/McpJsonValue.ts';
 import { settlementPlanFields } from '../cli/v19/V19SettlementReview.ts';
 import { stableStringify } from './json.ts';
+import { pluralityEnvelope } from './V19PluralityEnvelope.ts';
 import { defineMcpJsonProperty, toMcpJson } from './V19Json.ts';
 import WarpError from '../../src/domain/errors/WarpError.ts';
 import type EntityAdmissionInventoryCertificate from '../../src/domain/api/EntityAdmissionInventoryCertificate.ts';
@@ -38,6 +39,7 @@ export function readingEnvelope(reading: ObservedReading): McpJsonValue {
     coordinate: readingCoordinateEnvelope(reading.coordinate),
     support: toMcpJson(reading.support),
     witnessRefs: toMcpJson([...reading.witnessRefs]),
+    ...(reading.plurality.length === 0 ? {} : { plurality: pluralityEnvelope(reading.plurality, readingValueToJson) }),
   });
 }
 
@@ -76,6 +78,7 @@ function writeReceiptEnvelope(receipt: WriteReceipt<WriteIntentInput>): McpJsonV
         }),
     evidence: evidenceEnvelope(receipt.evidence),
     repairHints: toMcpJson([...receipt.repairHints]),
+    ...(receipt.plurality.length === 0 ? {} : { plurality: pluralityEnvelope(receipt.plurality, readingValueToJson) }),
   });
 }
 

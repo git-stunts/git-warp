@@ -59,7 +59,7 @@ async function append(repo: Repository, patch: Patch): Promise<string> {
 
 /** Seeds a generated multi-writer history into real writer chains. */
 async function seed(repo: Repository, patches: number): Promise<ConeHistory> {
-  const history = new ConeHistoryGenerator(7, { writers: 3, patches, nodes: 12, maxOps: 3, syncChance: 0.4 }).generate();
+  const history = new ConeHistoryGenerator(7, { writers: 3, patches, nodes: 12, maxOps: 3, syncChance: 0.4, graph: LANE }).generate();
   for (const chain of history.chains.values()) {
     for (const entry of chain) {
       await append(repo, entry.patch);

@@ -106,8 +106,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   have. The CLI reading accepts `limit` and `cursor`
   ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 
+- A worldline `Lane.write` that only sets properties (`property.set`, or
+  `entity.add` with a supplied subject) now records as observed the cone basis
+  this clone held when the write began, which is what its Observations had
+  read, instead of every writer head present at write time; its clock still
+  passes every fetched head, so the LWW winner is unchanged. When the Lane's
+  records hold a write to one of its registers, or a remove of its node, that
+  it never observed, the write is admitted `plural` (a `PluralityWitness`
+  naming its publication and the raced patches) rather than `derived`, and
+  `WriteReceipt.plurality` lists the concurrent values with their writers.
+  Writes that remove or attach content record the advanced basis as before.
+  The cone trie layout marker becomes layout 4; a layout 3 head is refused
+  with `E_CONE_LAYOUT_UNSUPPORTED` until its ref is deleted
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+
 ### Added
 
+- Report concurrent edits instead of converging silently. Cone records keep,
+  beside each property's LWW register, the writes to it that no other write
+  observed (by each patch's recorded `observedFrontier`), and the removes and
+  edits of each node and edge that raced. Property and existence Readings
+  report them as `reading.plurality` (also on `ReadReceipt` and in CLI Reading
+  lines): a `register` plurality keeps the LWW `winner` as the value and lists
+  the hidden `siblings` with their writers; a `lifecycle` plurality reports a
+  delete that raced an edit (`removedBy`, `editedBy`); the first page of a
+  neighborhood Reading reports raced incident edges. A write that observed
+  every sibling resolves the race. Each set keeps at most 16 values and
+  reports `overflow` beyond that; a race involving a patch without a recorded
+  frontier is `underdetermined`. New root types: `Plurality`,
+  `RegisterPlurality`, `LifecyclePlurality`, `ConcurrentValue`,
+  `PluralityCausality`, `LifecycleElement`
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 - Keep saved Coordinates readable through `git gc`: `captureCoordinate()`
   retains its basis under the clone-local `refs/warp/<lane>/cone/retained`,
   which keeps the last 64 captured bases reachable. Dropping a strand releases

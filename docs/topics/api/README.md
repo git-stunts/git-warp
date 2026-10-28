@@ -508,8 +508,14 @@ obstruction
 ```
 
 Implementation checkpoint: `Lane.write()` returns this closed
-`AdmissionOutcome` union. `ObservationReceipt.status` remains an independent
-operation status; it is not an admission classification or root outcome alias.
+`AdmissionOutcome` union. A worldline write is `plural` when it sets a property
+whose records hold a concurrent write or remove it never observed: both are
+admitted and retained as siblings (see
+[concurrent edits](../cone-bounded-reads.md#concurrent-edits)). No Lane write
+classifies as `conflict` yet: the graph-intent law treats a register as
+last-writer-wins with retained siblings, not as an exclusive footprint.
+`ObservationReceipt.status` remains an independent operation status; it is not
+an admission classification or root outcome alias.
 
 These variants are disjoint causal relations, not success and failure labels:
 

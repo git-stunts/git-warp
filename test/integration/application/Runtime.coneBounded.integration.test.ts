@@ -106,6 +106,8 @@ describe('Runtime cone-bounded public reads and writes', () => {
     expect(execFileSync('git', ['-C', a.tempDir, 'for-each-ref', 'refs/warp/'], { encoding: 'utf8' })).not.toContain('checkpoints');
     fetchWriters(b, a);
     await withLane(b, 'bob', async (lane) => {
+      // Bob reads the fetched title before replacing it, so the write observed it and stays derived (#1039).
+      expect(await observeOne(lane, reading.property({ subject: 'doc', key: 'title' }))).toEqual({ value: 'Draft', status: 'completed' });
       await write(lane, [
         intent.node.add({ subject: 'note' }), intent.edge.add({ from: 'note', to: 'doc', label: 'about' }),
         intent.property.set({ subject: 'doc', key: 'title', value: 'Final' }),

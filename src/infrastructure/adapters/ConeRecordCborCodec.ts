@@ -20,16 +20,18 @@ import { EventId } from '../../domain/utils/EventId.ts';
 import { compareStrings } from '../../domain/utils/StringComparison.ts';
 import { requireAdmittedEvent } from '../../domain/services/cone/ConeRecordValidation.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
+import { CONCURRENCY_WIRE, decodeConcurrency, encodeConcurrency } from './ConeConcurrencyCborWire.ts';
 
 const EVENT_WIRE = z.tuple([z.number(), z.string(), z.string(), z.number()]).nullable();
 const PROPS_WIRE = z.array(z.tuple([z.string(), EVENT_WIRE, z.unknown()]));
 const NODE_WIRE = z.object({
   kind: z.literal('node'), id: z.string(), adds: z.array(z.string()), tombs: z.array(z.string()),
   birth: EVENT_WIRE, clear: EVENT_WIRE, props: PROPS_WIRE, out: z.number(), in: z.number(),
+  conc: CONCURRENCY_WIRE.optional(),
 });
 const EDGE_WIRE = z.object({
   kind: z.literal('edge'), key: z.string(), adds: z.array(z.string()), tombs: z.array(z.string()),
-  birth: EVENT_WIRE, remove: EVENT_WIRE, props: PROPS_WIRE,
+  birth: EVENT_WIRE, remove: EVENT_WIRE, props: PROPS_WIRE, conc: CONCURRENCY_WIRE.optional(),
 });
 const DOT_WIRE = z.object({
   kind: z.literal('dot'), set: z.enum(['node', 'edge']), writer: z.string(), page: z.number(),
@@ -93,13 +95,14 @@ function encodeRecord(record: ConeRecord): object {
     return {
       kind: 'node', id: record.nodeId, adds: sorted(record.addDots), tombs: sorted(record.tombstones),
       birth: encodeEvent(record.birth), clear: encodeEvent(record.clear), props: encodeProps(record.props),
-      out: record.outDegree, in: record.inDegree,
+      out: record.outDegree, in: record.inDegree, ...encodeConcurrency(record.concurrency),
     };
   }
   if (record instanceof ConeEdgeRecord) {
     return {
       kind: 'edge', key: record.edgeKey, adds: sorted(record.addDots), tombs: sorted(record.tombstones),
       birth: encodeEvent(record.birth), remove: encodeEvent(record.remove), props: encodeProps(record.props),
+      ...encodeConcurrency(record.concurrency),
     };
   }
   return encodePage(record);
@@ -130,7 +133,7 @@ function decodeNode(raw: unknown): ConeNodeRecord | null {
   return new ConeNodeRecord({
     nodeId: wire.id, addDots: new Set(wire.adds), tombstones: new Set(wire.tombs),
     birth: decodeEvent(wire.birth), clear: decodeEvent(wire.clear), props: decodeProps(wire.props),
-    outDegree: wire.out, inDegree: wire.in,
+    outDegree: wire.out, inDegree: wire.in, concurrency: decodeConcurrency(wire.conc),
   });
 }
 
@@ -143,6 +146,7 @@ function decodeEdge(raw: unknown): ConeEdgeRecord | null {
   return new ConeEdgeRecord({
     edgeKey: wire.key, addDots: new Set(wire.adds), tombstones: new Set(wire.tombs),
     birth: decodeEvent(wire.birth), remove: decodeEvent(wire.remove), props: decodeProps(wire.props),
+    concurrency: decodeConcurrency(wire.conc),
   });
 }
 

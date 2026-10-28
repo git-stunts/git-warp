@@ -37,9 +37,11 @@ const RECORDS_ENTRY = 'records';
  * The trie layout this adapter reads and writes, stored in every basis head.
  * Layout 1 (slice 1, unmarked) used two fixed 256-way levels; layout 2 had
  * the same trie but no entity admission index, so its bases cannot answer an
- * inventory and are refused rather than read as empty.
+ * inventory and are refused rather than read as empty; layout 3 records kept
+ * no concurrent register writes or lifecycle effects, so their readings would
+ * hide plurality.
  */
-export const CONE_TRIE_LAYOUT = 'git-warp cone record trie\nlayout 3: 16-way route digits, buckets of 32 records; entity admission index\n';
+export const CONE_TRIE_LAYOUT = 'git-warp cone record trie\nlayout 4: 16-way route digits, buckets of 32 records; entity admission index; concurrent siblings\n';
 /** Captured bases a clone keeps reachable under its retained ref, most recent first to survive. */
 export const CONE_RETAINED_BASES = 64;
 const RETAINED_DIRECTORY = 'r';
@@ -51,7 +53,7 @@ type RetainedEntry = { readonly sequence: number; readonly revision: string };
 type BasisLocation = { readonly ref: string; readonly lane: string };
 
 /**
- * Stores cone records as a Git tree trie (layout 3). The records root holds
+ * Stores cone records as a Git tree trie (layout 4). The records root holds
  * one directory per family (`n`, `e`, `d`, `a`, `i`); each is an adaptive 16-way
  * trie on the record key's BLAKE3 route (`GitConeRecordTrie`), with record
  * blobs named by their full route.

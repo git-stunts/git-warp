@@ -1,6 +1,7 @@
 import type PatchEntry from '../../artifacts/PatchEntry.ts';
 import ConeAdjacencyRegistrar from './ConeAdjacencyRegistrar.ts';
 import ConeAdmissionIndexer from './ConeAdmissionIndexer.ts';
+import ConeConcurrencyFold from './ConeConcurrencyFold.ts';
 import ConeDotLedger from './ConeDotLedger.ts';
 import type ConeEdgeRecord from './ConeEdgeRecord.ts';
 import ConeFolded from './ConeFolded.ts';
@@ -16,8 +17,10 @@ import ConeWorkspace from './ConeWorkspace.ts';
  *
  * The fold reads only the records the patch's footprint names, settles its
  * dot claims, applies the patch through the reducer over a workspace of
- * those records, registers newly recorded edges with their endpoints,
- * indexes its entity admissions, and stages exactly the records that changed. Its cost is proportional to the
+ * those records, folds its register writes and lifecycle effects into the
+ * concurrency those records retain, registers newly recorded edges with
+ * their endpoints, indexes its entity admissions, and stages exactly the
+ * records that changed. Its cost is proportional to the
  * patch, never to the graph.
  */
 export default class ConeFold {
@@ -31,8 +34,10 @@ export default class ConeFold {
     }
     const workspace = ConeWorkspace.hydrate(snapshot, footprint);
     workspace.apply(entry);
-    const edges = workspace.edgeRecords();
-    const adjacency = await ConeAdjacencyRegistrar.register(session, workspace.nodeRecords(), createdEdges(snapshot, edges));
+    const concurrency = ConeConcurrencyFold.of(entry, session.implicitObservation(entry.patch.writer));
+    const edges = workspace.edgeRecords().map((edge) => concurrency.edge(edge));
+    const nodes = workspace.nodeRecords().map((node) => concurrency.node(node));
+    const adjacency = await ConeAdjacencyRegistrar.register(session, nodes, createdEdges(snapshot, edges));
     const changed = [
       ...changedNodes(snapshot, adjacency.nodes),
       ...changedEdges(snapshot, edges),

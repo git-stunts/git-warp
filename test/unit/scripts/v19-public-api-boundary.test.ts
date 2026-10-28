@@ -8,6 +8,12 @@ const ROOT_VALUE_EXPORTS = ['Runtime'] as const;
 
 const ROOT_TYPE_EXPORTS = [
   'AdmissionOutcome',
+  'ConcurrentValue',
+  'LifecycleElement',
+  'LifecyclePlurality',
+  'Plurality',
+  'PluralityCausality',
+  'RegisterPlurality',
   'ContentInput',
   'ContentMetadataInput',
   'CoordinateReference',

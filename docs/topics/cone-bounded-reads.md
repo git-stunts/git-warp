@@ -10,10 +10,11 @@ intended usage.
 > [design record](../plans/cone-bounded-runtime.md)). Every client-facing path
 > now runs on cone records: `lane.write`, every Observation and Reading,
 > content Observations, `captureCoordinate`, `Runtime.fork`, strand Lanes,
-> `previewSettlement` and `settle`. None of them creates, verifies or loads a
-> checkpoint, materializes the graph or walks writer history. Conflict
-> visibility (plural readings) is still open. The [witness](#measure-it)
-> records what the current build does.
+> `previewSettlement`, `settle` and the entity admission inventory. None of
+> them creates, verifies or loads a checkpoint, materializes the graph or walks
+> writer history. Records also keep concurrent edits, so Readings report
+> [plurality](#concurrent-edits). The [witness](#measure-it) records what the
+> current build does.
 
 ## The usage in one line
 
@@ -96,6 +97,34 @@ They never fall back to a checkpoint or a materialization.
 
 `git warp repair --action materialization` remains a maintenance tool for
 global, whole-state work. An application read path should never need it.
+
+## Concurrent edits
+
+Each Lane patch records the writer heads it observed. A record keeps, beside
+each property's last-writer-wins register, the writes to that register that no
+other write to it observed, and the same for its lifecycle: removes against
+adds and edits. That set is the register's maximal antichain under
+happens-before, so two clones with the same patches keep the same set
+whatever order they folded them in. A write that observed every member retires
+them all.
+
+- A **Reading** keeps its LWW value and reports the hidden siblings in
+  `plurality` (see [querying](querying.md#see-concurrent-edits)). A delete that
+  raced an edit is reported too.
+- A **write** that only sets properties records the basis this clone held when
+  it began. If the records then hold a value or remove it never observed, it is
+  admitted `plural` with a `PluralityWitness` naming its own publication and
+  the raced patches, and its receipt lists the values. Both values stay
+  visible as siblings; nothing is silently replaced.
+- **Bounds.** At most one member per writer chain is concurrent, and each set
+  keeps at most 16 with their values. More are evicted to a per-chain clock and
+  reported as `overflow`, never dropped silently. A member whose patch recorded
+  no observed frontier (older or facade writes) makes the plurality
+  `underdetermined`. A strand patch counts as having observed its strand's
+  pinned base.
+
+Retaining the sets costs a few more bytes per record written; the fold reads
+no extra record for them.
 
 ## Forks, strands and settlement
 

@@ -15,6 +15,8 @@ import type { PatchOp } from '../../src/domain/types/ops/unions.ts';
 import EntityAdmissionBoundary from '../../src/domain/types/EntityAdmissionBoundary.ts';
 import EntityAdmissionOrigin from '../../src/domain/types/EntityAdmissionOrigin.ts';
 import Patch from '../../src/domain/types/Patch.ts';
+import ObservedWriteFrontier from '../../src/domain/types/ObservedWriteFrontier.ts';
+import ObservedWriterHead from '../../src/domain/types/ObservedWriterHead.ts';
 import { createRng } from './seededRng.ts';
 
 type Rng = ReturnType<typeof createRng>;
@@ -27,6 +29,8 @@ export type ConeHistoryShape = {
   readonly maxOps: number;
   /** Probability that a writer first observes another writer's chain. */
   readonly syncChance: number;
+  /** The graph the recorded observed frontiers name; `oracle` when omitted. */
+  readonly graph?: string;
 };
 
 /** A generated history: each writer's chain in order, plus the element universe. */
@@ -43,6 +47,8 @@ type Writer = {
   readonly view: WarpState;
   readonly seen: Set<string>;
   readonly chain: PatchEntry[];
+  /** Per writer chain, how many of its patches this writer has observed (its own included). */
+  readonly observed: Map<string, number>;
   clock: number;
   counter: number;
 };
@@ -67,6 +73,7 @@ export default class ConeHistoryGenerator {
   readonly #seed: number;
   readonly #nodeIds: readonly string[];
   readonly #opCounts = new Map<string, number>();
+  #writers: readonly Writer[] = [];
   #shas = 0;
 
   constructor(seed: number, shape: ConeHistoryShape) {
@@ -78,8 +85,9 @@ export default class ConeHistoryGenerator {
 
   generate(): ConeHistory {
     const writers = Array.from({ length: this.#shape.writers }, (_unused, index): Writer => ({
-      id: `w${index}`, view: WarpState.empty(), seen: new Set(), chain: [], clock: 0, counter: 0,
+      id: `w${index}`, view: WarpState.empty(), seen: new Set(), chain: [], observed: new Map(), clock: 0, counter: 0,
     }));
+    this.#writers = writers;
     for (let index = 0; index < this.#shape.patches; index += 1) {
       const writer = this.#rng.pick(writers);
       if (this.#rng.next() < this.#shape.syncChance) {
@@ -97,14 +105,33 @@ export default class ConeHistoryGenerator {
     };
   }
 
+  /**
+   * Fetches what `other` has observed, the way a clone fetches every writer
+   * ref of a lane: each chain up to the patch `other` saw last.
+   */
   #sync(writer: Writer, other: Writer): void {
-    for (const entry of other.chain) {
-      if (!writer.seen.has(entry.sha)) {
-        writer.seen.add(entry.sha);
-        applyFast(writer.view, entry.patch, entry.sha);
-        writer.clock = Math.max(writer.clock, entry.patch.lamport);
+    for (const chainWriter of this.#writers) {
+      const count = Math.max(writer.observed.get(chainWriter.id) ?? 0, other.observed.get(chainWriter.id) ?? 0);
+      for (const entry of chainWriter.chain.slice(0, count)) {
+        if (!writer.seen.has(entry.sha)) {
+          writer.seen.add(entry.sha);
+          applyFast(writer.view, entry.patch, entry.sha);
+          writer.clock = Math.max(writer.clock, entry.patch.lamport);
+        }
+      }
+      if (count > 0) {
+        writer.observed.set(chainWriter.id, count);
       }
     }
+  }
+
+  /** The heads `writer` has observed, as a Lane patch records them. */
+  #frontier(writer: Writer): ObservedWriteFrontier {
+    const heads = this.#writers.flatMap((chainWriter) => {
+      const head = chainWriter.chain[(writer.observed.get(chainWriter.id) ?? 0) - 1];
+      return head === undefined ? [] : [new ObservedWriterHead(chainWriter.id, head.sha, head.patch.lamport)];
+    });
+    return new ObservedWriteFrontier(this.#shape.graph ?? 'oracle', heads);
   }
 
   #commit(writer: Writer): void {
@@ -114,9 +141,11 @@ export default class ConeHistoryGenerator {
     writer.clock += 1;
     this.#shas += 1;
     const sha = (this.#seed >>> 0).toString(16).padStart(8, '0') + this.#shas.toString(16).padStart(32, '0');
-    const patch = new Patch({ writer: writer.id, lamport: writer.clock, context: {}, ops, entityAdmissions });
+    const observedFrontier = this.#frontier(writer);
+    const patch = new Patch({ writer: writer.id, lamport: writer.clock, context: {}, ops, entityAdmissions, observedFrontier });
     const entry = new PatchEntry({ patch, sha });
     writer.chain.push(entry);
+    writer.observed.set(writer.id, writer.chain.length);
     writer.seen.add(sha);
     applyFast(writer.view, entry.patch, sha);
   }

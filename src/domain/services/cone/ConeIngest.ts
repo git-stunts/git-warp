@@ -90,12 +90,12 @@ export default class ConeIngest {
     if (folded !== parentSha) {
       return await this.advance();
     }
-    const session = new ConeFoldSession({ store: this.#store, root: basis.root });
+    const session = new ConeFoldSession({ store: this.#store, root: basis.root, from: basis.frontier });
     const result = await this.#foldEntries(session, { frontier: basis.frontier, folded: 0 }, [entry]);
     if (result instanceof ConeObstruction) {
       return new ConeIngestObstructed(result);
     }
-    const published = await this.#publish({ session, stored, progress: result });
+    const published = await this.#publish({ session, stored, progress: result, from: basis });
     return published ?? await this.advance();
   }
 
@@ -119,7 +119,7 @@ export default class ConeIngest {
     if (behind.length === 0) {
       return new ConeIngestCurrent(stored, basis);
     }
-    const session = new ConeFoldSession({ store: this.#store, root: basis.root });
+    const session = new ConeFoldSession({ store: this.#store, root: basis.root, from: basis.frontier });
     let progress: Progress = { frontier: basis.frontier, folded: 0 };
     for (const [writerId, tipSha] of behind) {
       const next = await this.#foldWriter(session, progress, { writerId, tipSha });
@@ -128,7 +128,7 @@ export default class ConeIngest {
       }
       progress = next;
     }
-    return await this.#publish({ session, stored, progress });
+    return await this.#publish({ session, stored, progress, from: basis });
   }
 
   async #foldWriter(
@@ -165,10 +165,11 @@ export default class ConeIngest {
     readonly session: ConeFoldSession;
     readonly stored: StoredConeBasis | null;
     readonly progress: Progress;
+    readonly from: ConeBasis;
   }): Promise<ConeIngestAdvanced | null> {
     const basis = new ConeBasis(await run.session.commit(), run.progress.frontier);
     const published = await this.#store.publishBasis(this.#scope.head, basis, run.stored);
-    return published === null ? null : new ConeIngestAdvanced(published, run.progress.folded);
+    return published === null ? null : new ConeIngestAdvanced(published, run.progress.folded, run.from);
   }
 }
 
