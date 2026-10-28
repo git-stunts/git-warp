@@ -123,8 +123,9 @@ its own fold is applied immediately. `edge.remove` therefore admits through a bo
 ### Conflict visibility (follow-on in the same goalpost)
 
 Each Lane patch already records `observedFrontier`. A register record can retain concurrent siblings (writes not
-dominated by each other's observed frontier) at bounded cost, so a Reading can report `plural` and a write that
-replaces a register it did not observe can report `conflict`. This is scheduled after the bounded path lands.
+dominated by each other's observed frontier) at bounded cost, so a Reading can report plurality and a write that
+replaces a register it did not observe is classified by admission. Implemented in slice 6 (see its record), with the
+write classified `plural` rather than `conflict`.
 
 ## Enforcement
 
@@ -401,6 +402,70 @@ Known limits: a cursor is resumable only while its basis is current or among the
 default limit truncates an inventory larger than 10,000 admissions into pages where one Observation used to
 stream everything.
 
+## Slice 6 implementation record: conflict visibility
+
+Concurrent replacements of one register used to converge silently: writes were `derived`, Readings returned one
+winner, and the losing value was unrecoverable. Records now keep what raced.
+
+- **Causal order.** Each Lane patch records the writer heads it observed (`observedFrontier`). A chain's events are
+  ordered by Lamport clock, so patch P observed an event of chain `w` at clock `l` exactly when P recorded `w` at
+  `l` or later, or P is a later patch of `w` (`ConeObservation`). A patch without a recorded frontier (written
+  before #957, or by a deprecated facade) observed only its own chain as far as anyone can prove and is marked
+  uncausal. A strand patch records none; it counts as having observed the strand's pinned base, whose lane
+  chains are the lane chains of the strand basis the fold started from (`ConeFoldSession.implicitObservation`).
+- **Sets.** `ConeConcurrentSet` is the maximal antichain of one register's writes, or of one element's
+  lifecycle effects (removes that observed a dot, against adds and property edits): folding an event drops the
+  members it observed and keeps it unless an already-folded event observed it, which a per-chain `observed`
+  clock summary answers without keeping retired events. The members are a function of the patch set, not of
+  fold order. One chain contributes at most one member; past 16 members the oldest are evicted to a per-chain
+  `evicted` clock, so a later observing event still retires them, and they are reported as `overflow`.
+  `ConeConcurrencyFold` takes each patch's last write per register and last lifecycle effect per element, at
+  the reducer's own event ids, so the LWW winner is always a member. Node and edge records carry the sets
+  (`ConeConcurrency`); records without any encode no extra field. A record with some stores a hint (register keys
+  that can hold a race, whether its lifecycle can) beside the sets, nested as one CBOR byte string, so a Reading of a
+  register nothing raced decodes only the hint. The trie marker becomes layout 4.
+- **Readings.** `ConePluralityReader` turns a record into `RegisterPlurality` (the visible register's LWW
+  winner, the members it hides that the node's latest clear has not made stale, the overflow) and
+  `LifecyclePlurality` (writers that removed against writers that added or edited). Property Readings report
+  both for their node, existence Readings the node lifecycle, and the first page of a neighborhood Reading the
+  lifecycle of the incident edges in its direction and labels. They reach `Reading.plurality`,
+  `ReadReceipt.plurality`, the advanced optic results and the CLI Reading lines.
+- **Writes.** The task allowed a declared read basis on `Lane.write` where the API has a place for one; it has
+  none, so a write uses the writer's cone basis at write time: `PatchBuilder.prepareConeWriteBasis` advances
+  the lane (`ConeLaneBasis.advanceObserved`) and keeps the basis the lane held before, which is what this
+  clone's Observations read. A write that only sets properties (`property.set`, supplied-subject `entity.add`)
+  records that basis as observed; its clock still passes every advanced tip, so the LWW winner is the one the
+  write would have won before. A write that removes or attaches content reads the records it lowers from and
+  records the advanced basis, as before. After lowering, `ConeWriteRaces` checks the written registers'
+  records: a member or evicted clock the write did not observe, or an unobserved remove of the node, is a race.
+- **Outcome words.** A racing write is `plural`, not `conflict`. The vocabulary defines `plural` as concurrent
+  histories both admitted with their coordinates retained, and `conflict` as honest claims over an exclusive
+  footprint that stay unsettled (a conflict publishes nothing). The graph-intent law treats a register as
+  last-writer-wins with retained siblings, not as exclusive, and the write is published with both values kept:
+  that is `plural`. Its `PluralityWitness` names the publication (local), the raced patches (incoming; an
+  evicted one by chain clock), a footprint digest, a concurrency digest and the law
+  `git-warp:admission-law/lww-register-retains-siblings/v1`; `WriteReceipt.plurality` lists the values.
+- **Evidence.** The equivalence oracle generates a recorded frontier for every patch (with syncs that fetch what
+  the other writer observed, as a clone fetches every writer ref) and compares every register's and every
+  element lifecycle's members, for each fold interleaving, with a reference computed from the histories'
+  transitive causal order; the existing comparison keeps every LWW winner equal to a full reduction. Through
+  the public Runtime, clones exchanging chains with a hub by the sync.md refspecs: two disconnected
+  replacements of one comment body read the same winner and sibling on both clones until an observing write
+  clears them; a write over a fetched value it never read is `plural` with a two-coordinate witness, on the
+  receipt and in the CLI envelope; an edit racing a delete reads as a lifecycle plurality on both clones.
+- **Cost.** The 2,000-thread witness at `b23968ee3` (`benchmarks/cone-showcase/results/conflicts-b23968ee3/`, with the
+  integrated baseline and the admission index rerun the same day): saves 48.3 ms p50 and 28 Git processes (baseline
+  47.9 ms, 30), margins reads 43.0 ms p50 and 8 processes (baseline 38.6 ms, 8), every save derived. The margins
+  read is about 4 ms slower at p50 for its larger records; its process count is unchanged.
+
+Known limits: a race is judged by direct observation of register events, so an event observed only
+transitively through a patch that never wrote the register can be reported as concurrent (a false plurality,
+never a hidden value); content attachments and node or edge adds are not checked at write time; lifecycle
+evictions keep no role, so a write does not report evicted removes; a write's observed basis is the clone's last
+folded basis, so a write after another write that advanced the basis (a remove, a content attach) counts the
+values that advance folded as observed; strand writes are never `plural`; no write classifies as `conflict`; the
+package payload grows to 1,119 entries (1,050 budget, see the slice 4 limits), so the payload BATS cases stay red.
+
 ## Slices
 
 1. Cone records, workspace, record trie adapter, basis ref and ingest, with the equivalence oracle.
@@ -412,4 +477,4 @@ stream everything.
    witness on the integrated branch is retained in `benchmarks/cone-showcase/results/integrated-0504d5d64/`
    (saves 30 Git processes and margins reads 8 at 200, 2,000 and 20,000 threads; 2,000-thread p50 save
    46 ms, margins 36 ms; 20,000-thread p50 save 168 ms, slowed by pack count, #1041).
-6. Conflict visibility.
+6. Conflict visibility (done; see the slice 6 record).

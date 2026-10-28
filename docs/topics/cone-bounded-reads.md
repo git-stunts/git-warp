@@ -231,7 +231,9 @@ results are in
 [benchmarks/cone-showcase/results](../../benchmarks/cone-showcase/results/):
 the baseline taken before public reads moved onto cone records
 (`before-17084f178`), the slice 2 and 3 build before the storage work
-(`after-e36380add`), and the integrated build.
+(`after-e36380add`), the integrated build, and the build with the admission
+index and conflict visibility (`conflicts-b23968ee3`, 2,000 threads, beside
+same-day reruns of the integrated build).
 
 To run only the example:
 
