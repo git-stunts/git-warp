@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Runtime, type ContentAttachment, type Intent, type Lane, type ReadingValue } from '../../../index.ts';
 import {
   captureCoordinate,
@@ -12,6 +12,7 @@ import {
 } from '../../../advanced.ts';
 import ContentAddressableStore from '@git-stunts/git-cas';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
+import ConeLaneBasis from '../../../src/domain/services/cone/ConeLaneBasis.ts';
 import NodeAdd from '../../../src/domain/types/ops/NodeAdd.ts';
 import NodeRemove from '../../../src/domain/types/ops/NodeRemove.ts';
 import Patch from '../../../src/domain/types/Patch.ts';
@@ -21,9 +22,9 @@ import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { createTestRepo } from '../api/helpers/setup.ts';
 
 /**
- * Public Lane reads run on the lane's cone records (#1039): no checkpoint,
- * no repair step and no whole-state materialization, across clones that
- * exchange writer chains with plain Git fetches.
+ * Public Lane reads and writes run on the lane's cone records (#1039): no
+ * checkpoint, no repair step and no whole-state materialization, across
+ * clones that exchange writer chains with plain Git fetches.
  */
 
 const LANE = 'events';
@@ -79,7 +80,7 @@ async function text(content: ContentAttachment | null): Promise<string> {
   return result + decoder.decode();
 }
 
-describe('Runtime cone-bounded public reads', () => {
+describe('Runtime cone-bounded public reads and writes', () => {
   let a: Clone;
   let b: Clone;
   beforeEach(async () => {
@@ -118,6 +119,62 @@ describe('Runtime cone-bounded public reads', () => {
     await withLane(a, 'alice', async (lane) => {
       expect(await observeOne(lane, reading.property({ subject: 'doc', key: 'title' }))).toEqual({ value: 'Final', status: 'completed' });
     });
+  });
+
+  it('pages a neighbourhood whose edges changed after the last read (#961)', async () => {
+    await withLane(a, 'alice', async (lane) => {
+      await write(lane, [intent.node.add({ subject: 'hub' }), ...['n1', 'n2', 'n3'].flatMap((id) => [
+        intent.node.add({ subject: id }), intent.edge.add({ from: 'hub', to: id, label: 'has' }),
+      ])]);
+      expect(await neighbours(lane, 'hub')).toMatchObject({ edges: [{ neighborId: 'n1' }, { neighborId: 'n2' }, { neighborId: 'n3' }] });
+      await write(lane, [intent.edge.remove({ from: 'hub', to: 'n2', label: 'has' }), intent.node.add({ subject: 'n4' }),
+        intent.edge.add({ from: 'hub', to: 'n4', label: 'has' }), intent.node.remove({ subject: 'n3' })]);
+      const first = await observeOne(lane, reading.neighborhood({ subject: 'hub', limit: 1 }));
+      expect(first.value).toMatchObject({ edges: [{ neighborId: 'n1' }], completeness: 'truncated' });
+      const cursor = (first.value as { cursor: string }).cursor;
+      expect(await observeOne(lane, reading.neighborhood({ subject: 'hub', limit: 5, cursor }))).toMatchObject({
+        value: { edges: [{ neighborId: 'n4' }], completeness: 'complete' }, status: 'completed',
+      });
+    });
+  });
+
+  it('admits edge.remove, and the edge disappears on every clone that fetches it (#1037)', async () => {
+    await withLane(a, 'alice', async (lane) => {
+      await write(lane, [intent.node.add({ subject: 'x' }), intent.node.add({ subject: 'y' }), intent.edge.add({ from: 'x', to: 'y', label: 'rel' })]);
+    });
+    fetchWriters(b, a);
+    await withLane(b, 'bob', async (lane) => {
+      const receipt = await lane.write(intent.edge.remove({ from: 'x', to: 'y', label: 'rel' }));
+      expect(receipt.outcome.kind).toBe('derived');
+      expect(await neighbours(lane, 'x')).toMatchObject({ edges: [] });
+    });
+    fetchWriters(a, b);
+    await withLane(a, 'alice', async (lane) => {
+      expect(await neighbours(lane, 'x')).toMatchObject({ edges: [] });
+      expect(await neighbours(lane, 'y', 'in')).toMatchObject({ edges: [] });
+    });
+  });
+
+  it('removes a node on a long multi-writer history, observing exactly its live dots', async () => {
+    for (let round = 0; round < 12; round += 1) {
+      await withLane(a, 'alice', async (lane) => {
+        await write(lane, [intent.node.add({ subject: `a${round}` }), intent.property.set({ subject: 'shared', key: 'round', value: round })]);
+      });
+      fetchWriters(b, a);
+      await withLane(b, 'bob', async (lane) => {
+        await write(lane, intent.node.add({ subject: round === 0 ? 'shared' : `b${round}` }));
+      });
+      fetchWriters(a, b);
+    }
+    await withLane(a, 'carol', async (lane) => {
+      await write(lane, intent.node.remove({ subject: 'shared' }));
+      expect(await observeOne(lane, reading.node.exists({ subject: 'shared' }))).toEqual({ value: false, status: 'completed' });
+      expect(await observeOne(lane, reading.property({ subject: 'shared', key: 'round' }))).toEqual({ value: null, status: 'completed' });
+      expect(await observeOne(lane, reading.node.exists({ subject: 'a11' }))).toEqual({ value: true, status: 'completed' });
+    });
+    const graph = await a.openGraph(LANE, 'reader');
+    const removal = await graph.getWriterPatches('carol');
+    expect(removal[0]?.patch.ops).toMatchObject([{ type: 'NodeRemove', node: 'shared', observedDots: ['bob:1'] }]);
   });
 
   it('attaches content to a node born in the same write and reads it back from cone records', async () => {
@@ -163,7 +220,17 @@ describe('Runtime cone-bounded public reads', () => {
     });
   });
 
-  it('reports a shared-dot history as obstructed Observations with a repair hint, never a throw or a materialization', async () => {
+  it('keeps a durable write when folding it fails; the next read folds it from the chain', async () => {
+    await withLane(a, 'alice', async (lane) => {
+      const fold = vi.spyOn(ConeLaneBasis.prototype, 'foldCommitted').mockRejectedValueOnce(new Error('disk full'));
+      await write(lane, [intent.node.add({ subject: 'kept' }), intent.property.set({ subject: 'kept', key: 'k', value: 'v' })]);
+      expect(fold).toHaveBeenCalledTimes(1);
+      fold.mockRestore();
+      expect(await observeOne(lane, reading.property({ subject: 'kept', key: 'k' }))).toEqual({ value: 'v', status: 'completed' });
+    });
+  });
+
+  it('reports a shared-dot history as obstructed receipts with a repair hint, never a throw or a materialization', async () => {
     await withLane(a, 'alice', async (lane) => { await write(lane, intent.node.add({ subject: 'seed' })); });
     await appendRaw(a, 'mallory', [new Patch({ writer: 'mallory', lamport: 1, context: {}, ops: [
       new NodeAdd('x', new Dot('mallory', 1)), new NodeAdd('y', new Dot('mallory', 1)),
@@ -179,6 +246,11 @@ describe('Runtime cone-bounded public reads', () => {
       expect(await lane.observe(createNodeContentObserver({ subject: 'seed' })).receipt).toMatchObject({
         status: 'obstructed', reason: 'cone_shared_dot',
       });
+      const removal = await lane.write(intent.node.remove({ subject: 'seed' }));
+      expect(removal.outcome.kind).toBe('obstruction');
+      expect(removal.reason).toBe('git-warp.write.cone_shared_dot');
+      expect(removal.repairHints).toMatchObject([{ code: 'repair_duplicate_dot' }]);
+      expect((await lane.write(intent.node.add({ subject: 'blind' }))).outcome.kind).toBe('derived');
       await expect(captureCoordinate(lane)).rejects.toMatchObject({ code: 'E_OPTIC_CONE_OBSTRUCTED' });
     });
   });

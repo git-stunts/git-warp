@@ -178,6 +178,48 @@ after `applyDotRepair`, because the repair appends patches and the old remove re
 Git processes each (probe and blob), which a batched object reader would reduce; a writer whose tip is a
 non-patch commit is re-listed on every advance.
 
+## Slice 2 and 3 implementation record
+
+Public worldline reads and read-before-writes now run on the cone engine.
+
+- **Composition.** `RuntimeStorageServices` carries `coneRecords` and `conePatches` (Git adapters built by
+  `GitCasRepositoryAdapter`, sharing the runtime's patch journal). `RuntimeHost` holds them, and each
+  `WarpWorldline` owns one `ConeLaneBasis` (ingest plus reader) for its lane. Storage without cone services keeps
+  the checkpoint-tail path.
+- **Reads.** `OpticWitnessLocator` is the abstract locator both implementations extend. `ConeWitnessLocator`
+  answers the four optic reads from a `ConeReadBasisSource`: `PinnedConeReadBasis` for a captured coordinate, or
+  `LiveConeReadBasis`, which advances on each read. `WarpWorldline.captureReadCoordinate()` advances the lane
+  once and returns a cone `WarpWorldlineCoordinate` (`checkpointSha: null`, `coneRoot`); every Observation, every
+  `Timeline.tick()` and `captureCoordinate()` go through it, so all Readings of one Observation share one basis.
+  Neighbourhoods read the node, its adjacency pages, incident edges and neighbour records, then page the visible
+  edges canonically (`ConeNeighborhoodPage`, `ConeNeighborhoodCursor`). Witnesses are `ConeReadIdentity`
+  (`kind: 'cone-read'`, root, frontier, record keys) under the new `cone-basis` posture. Content Observations
+  read the owner's records through `ConeContentRead`.
+- **Obstructions.** A fold obstruction becomes `ConeObstructedError` inside the runtime and an obstructed or
+  underdetermined Receipt with a repair hint at the public surface (`ConeObstructionFailure`); it never falls
+  back to a checkpoint or a materialization.
+- **Writes.** `WriteRuntime` collects `ConeWriteTargets` (node and edge targets of removes and content intents) and
+  calls `PatchBuilder.prepareConeWriteBasis`, which advances the cone only when there are targets, pins the
+  write's observed frontier to the cone frontier, and captures a `ConeWriteBasis` from the targets' records:
+  live dots and attached data for removals, liveness for content owners, live dots for `edge.remove`. A
+  published write is folded with `foldCommitted`; a failed fold is left to the next advance.
+- **Evidence.** Through the public Runtime on real repositories: reads right after writes with no checkpoint,
+  across fetched clones; neighbourhoods after edge removes and endpoint removes; `edge.remove` admitted; a
+  multi-writer `node.remove` observing exactly the live dots; content attach and read; shared-dot obstruction
+  receipts. A trap test drives every intent kind, every Reading kind, both content observers and
+  captured-coordinate optic reads with traps on `RuntimeHost` materialization, checkpoint creation and
+  verification, the checkpoint-tail locator, `BoundedNodeRemovalBasis`, `ContentReadProjection` and history
+  walks beyond one head; none fires. Git processes per Observation (24), `node.remove` (84), `edge.remove` (88)
+  and blind write (69) are equal at 20 and 200 patches of history.
+
+Known limits after slices 2 and 3: fork and strand Lanes (reads, writes, content) still use checkpoint-tail
+bases and `Runtime.fork` still verifies or materializes a checkpoint; the first fold of a lane folds its whole
+history and holds each writer range in memory; every write now pays its own fold (a blind write measured 69 Git
+processes, constant in history; the fold's share was not measured separately); a neighbourhood read loads all of a node's incident edges; `node.remove` under the
+default `warn` policy reads only the node record, so its warning does not count incident edges; `edge.remove` of
+an edge added in the same atomic write still finds no dot to observe; a pinned coordinate keeps an old root only
+in memory, so a `git gc --prune=now` can remove it; the entity admission inventory still scans history by design.
+
 ## Slices
 
 1. Cone records, workspace, record trie adapter, basis ref and ingest, with the equivalence oracle.

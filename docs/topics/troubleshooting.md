@@ -22,9 +22,11 @@ Receipt records that distinction.
 
 ## A read or write is obstructed by the cone basis
 
-Worldline Lane reads answer from the Lane's cone basis, which folds each
-writer patch once. When a fold cannot proceed, the Observation Receipt reports
-it with a repair hint instead of reading around it:
+Worldline Lane reads and read-before-write intents (`node.remove`,
+`edge.remove`, content attach and clear) answer from the Lane's cone basis,
+which folds each writer patch once. When a fold cannot proceed, the Observation
+Receipt or Write Receipt reports it with a repair hint instead of reading
+around it:
 
 | Reason | Status | Meaning and next step |
 | --- | --- | --- |
@@ -32,7 +34,9 @@ it with a repair hint instead of reading around it:
 | `cone_writer_diverged` | `obstructed` | A writer chain no longer extends the patches this clone folded. Delete this clone's `refs/warp/<lane>/cone/head` so it refolds from the writer chains, then retry. |
 | `cone_contended` | `underdetermined` | Other folds kept moving the cone head. Retry. |
 
-`captureCoordinate()` rejects with `E_OPTIC_CONE_OBSTRUCTED`.
+Write Receipts carry the same reasons under `git-warp.write.<reason>`. Blind
+writes (`node.add`, `edge.add`, `property.set`, `entity.add`) need no read and
+are not affected. `captureCoordinate()` rejects with `E_OPTIC_CONE_OBSTRUCTED`.
 
 ## A strand basis is unavailable
 

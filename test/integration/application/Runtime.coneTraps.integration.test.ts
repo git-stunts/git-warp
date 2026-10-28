@@ -22,8 +22,8 @@ import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { createTestRepo } from '../api/helpers/setup.ts';
 
 /**
- * Architecture trap (#1039): every public Lane observation, content
- * Observations and captured-coordinate optic reads must stay off
+ * Architecture trap (#1039): every public Lane write and Lane observation,
+ * content Observations and captured-coordinate optic reads, must stay off
  * whole-state materialization, whole-state checkpoints, history replay and
  * the checkpoint-tail locator. A trap that fires fails the test with the
  * entry point that reached it.
@@ -93,7 +93,7 @@ async function observed(lane: Lane, plan: ReturnType<typeof reading.property>): 
   return (await observation.receipt).status;
 }
 
-it('drives blind writes and every public read without reaching a whole-state trap', async () => {
+it('drives every public write intent and every public read without reaching a whole-state trap', async () => {
   const runtime = await Runtime.open({ at: repository.tempDir, writer: 'alice' });
   try {
     const lane = await runtime.lane('events');
@@ -101,11 +101,18 @@ it('drives blind writes and every public read without reaching a whole-state tra
       await lane.write(intent.node.add({ subject: `history${index}` }));
     }
     installTraps();
+    const content = await lane.stageContent('bytes', { mime: 'text/plain' });
     const outcomes = [
       await written(lane, [intent.node.add({ subject: 'doc' }), intent.node.add({ subject: 'tag' }), intent.edge.add(EDGE)]),
       await written(lane, intent.property.set({ subject: 'doc', key: 'title', value: 'T' })),
       await written(lane, intent.entity.add({ subject: 'entity', properties: { kind: 'card' } })),
       await written(lane, intent.entity.addAuto({ namespace: 'cards', properties: { kind: 'card' } })),
+      await written(lane, intent.node.attachContent({ subject: 'doc', content })),
+      await written(lane, intent.edge.attachContent({ ...EDGE, content })),
+      await written(lane, intent.edge.clearContent(EDGE)),
+      await written(lane, intent.node.clearContent({ subject: 'doc' })),
+      await written(lane, intent.edge.remove(EDGE)),
+      await written(lane, intent.node.remove({ subject: 'history3' })),
     ];
     expect(outcomes).toEqual(Array.from({ length: outcomes.length }, () => 'derived'));
     const statuses = [
@@ -119,7 +126,7 @@ it('drives blind writes and every public read without reaching a whole-state tra
     const optic = (await captureCoordinate(lane)).optic();
     expect((await optic.node('doc').read()).alive).toBe(true);
     expect((await optic.node('doc').prop('title').read()).value).toBe('T');
-    expect((await optic.neighborhood('doc').read()).edges).toEqual([{ direction: 'out', neighborId: 'tag', label: 'tagged' }]);
+    expect((await optic.neighborhood('doc').read()).edges).toEqual([]);
     expect((await optic.traversal('doc').read({ maxDepth: 1, maxNodes: 2, maxEdges: 2 })).completeness).toBe('complete');
   } finally {
     await runtime.close();

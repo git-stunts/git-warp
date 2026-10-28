@@ -1,6 +1,11 @@
 import { isContentIntentDescriptor, type default as Intent } from './Intent.ts';
 import type { default as WarpWorldline, WarpWorldlinePatchBuild } from '../WarpWorldline.ts';
 import WarpError from '../errors/WarpError.ts';
+import ConeObstructedError from '../errors/ConeObstructedError.ts';
+import PatchEntry from '../artifacts/PatchEntry.ts';
+import type ConeLaneBasis from '../services/cone/ConeLaneBasis.ts';
+import ConeWriteTargets, { type ConeWriteEdgeTarget } from '../services/cone/ConeWriteTargets.ts';
+import { coneObstructionFailure } from './ConeObstructionFailure.ts';
 import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';
 import MessageCodecError from '../errors/MessageCodecError.ts';
@@ -131,9 +136,12 @@ async function publishIntentWrite(
   fields: IntentWriteFields,
   attempt: WriteAttempt
 ): Promise<PatchCommitResult> {
-  return await fields.commit(async (patch) => {
+  const cone = fields.runtime.coneBasis();
+  const publication = await fields.commit(async (patch) => {
     try {
-      await patch.prepareWriteBasis(fields.sequence.intents.flatMap(writeOwnerTargets));
+      await (cone === null
+        ? patch.prepareWriteBasis(fields.sequence.intents.flatMap(writeOwnerTargets))
+        : patch.prepareConeWriteBasis(coneWriteTargets(fields.sequence), cone));
     } finally {
       attempt.basis = readPatchBuilderCausalBasis(patch);
       attempt.evaluation = await prepareWriteAdmission({ ...fields, basis: attempt.basis });
@@ -141,6 +149,29 @@ async function publishIntentWrite(
     applyIntentSequenceToPatch(fields.sequence, patch, fields.context.content);
     attempt.publishedEntities = inspectPublishedIntentSequence(fields.sequence, patch.build());
   });
+  await foldPublishedWrite(cone, publication, attempt.basis?.expectedParentSha ?? null);
+  return publication;
+}
+
+/**
+ * Folds the write this clone just published into the lane's cone basis, so
+ * the next read or write costs only what it touches (#1039). The patch is
+ * already durable and the basis is derived, so a fold that cannot finish
+ * here is left to the next advance, which folds it from the writer chain.
+ */
+async function foldPublishedWrite(
+  cone: ConeLaneBasis | null,
+  publication: PatchCommitResult,
+  parentSha: string | null,
+): Promise<void> {
+  if (cone === null) {
+    return;
+  }
+  try {
+    await cone.foldCommitted(new PatchEntry({ patch: publication.patch, sha: publication.sha }), parentSha);
+  } catch {
+    // The basis is derived: the next advance folds this patch from the writer chain.
+  }
 }
 
 async function obstructedWriteReceipt(
@@ -269,6 +300,10 @@ async function committedWriteEvidence(fields: PublishedWriteFields): Promise<Evi
 }
 
 function operationalWriteFailure(error: WarpError): OperationalWriteFailure | null {
+  return error instanceof ConeObstructedError ? coneWriteFailure(error) : lawfulWriteFailure(error);
+}
+
+function lawfulWriteFailure(error: WarpError): OperationalWriteFailure | null {
   if (error.code === 'E_PATCH_NO_STATE' || invalidObservationMetadata(error)) {
     return missingWriteBasisFailure();
   }
@@ -288,6 +323,17 @@ function missingWriteBasisFailure(): OperationalWriteFailure {
     condition: 'missing-bounded-write-basis',
     requiredEvidence: 'bounded-write-basis',
     repairHints: MATERIALIZE_HINT,
+  };
+}
+
+function coneWriteFailure(error: ConeObstructedError): OperationalWriteFailure {
+  const failure = coneObstructionFailure(error.obstruction);
+  return {
+    reason: AdmissionObstructionReason.unsupportedEvidence(`git-warp.write.${failure.reason}`),
+    retry: AdmissionRetryDisposition.afterChange(),
+    condition: 'cone-basis-obstructed',
+    requiredEvidence: 'bounded-write-basis',
+    repairHints: failure.repairHints,
   };
 }
 
@@ -333,6 +379,23 @@ function writeOwnerTargets(intent: Intent): readonly string[] {
   if (descriptor.kind === 'node.remove') { return [descriptor.subject]; }
   if (!isContentIntentDescriptor(descriptor)) { return []; }
   return 'subject' in descriptor ? [descriptor.subject] : [descriptor.from, descriptor.to];
+}
+
+/** The entities a write must observe before lowering, read from cone records (#1039). */
+function coneWriteTargets(sequence: IntentSequence): ConeWriteTargets {
+  const targets = sequence.intents.map(coneWriteTarget);
+  return new ConeWriteTargets({
+    nodes: targets.flatMap((target) => (typeof target === 'string' ? [target] : [])),
+    edges: targets.flatMap((target) => (target === null || typeof target === 'string' ? [] : [target])),
+  });
+}
+
+/** The node or edge one intent must observe, or null for a blind intent. */
+function coneWriteTarget({ descriptor }: Intent): string | ConeWriteEdgeTarget | null {
+  if (descriptor.kind === 'node.remove') { return descriptor.subject; }
+  if (descriptor.kind === 'edge.remove') { return descriptor; }
+  if (!isContentIntentDescriptor(descriptor)) { return null; }
+  return 'subject' in descriptor ? descriptor.subject : descriptor;
 }
 
 function isMissingOwner(error: WarpError): boolean {
