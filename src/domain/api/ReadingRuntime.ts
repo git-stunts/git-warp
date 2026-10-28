@@ -1,6 +1,8 @@
 import type WarpWorldline from '../WarpWorldline.ts';
+import ConeObstructedError from '../errors/ConeObstructedError.ts';
 import WarpError from '../errors/WarpError.ts';
-import type ReadIdentity from '../services/optic/ReadIdentity.ts';
+import { coneObstructionFailure } from './ConeObstructionFailure.ts';
+import type { OpticReadIdentity } from '../services/optic/OpticReadIdentity.ts';
 import type { NeighborhoodOpticReadOptions } from '../services/optic/NeighborhoodOptic.ts';
 import type NeighborhoodOpticReadResult from '../services/optic/NeighborhoodOpticReadResult.ts';
 import type WorldlineOptic from '../services/optic/WorldlineOptic.ts';
@@ -13,11 +15,13 @@ import type { ReadingDescriptor, ReadingKind } from './Reading.ts';
 import ReadReceipt, { type ReadReceiptOutcome } from './ReadReceipt.ts';
 import type { RepairHint } from './ReceiptSupport.ts';
 import ReadingResult from './ReadingResult.ts';
+import type { Plurality } from './Plurality.ts';
 import type Tick from './Tick.ts';
 
 type BoundedReading = {
-  readonly evidence: ReadIdentity;
+  readonly evidence: OpticReadIdentity;
   readonly value: SnapshotPropValue;
+  readonly plurality: readonly Plurality[];
 };
 
 type ReadingExecutor = (
@@ -51,14 +55,6 @@ type OperationalReadFailure = {
   readonly reason: string;
   readonly repairHints: readonly RepairHint[];
 };
-
-const REPAIR_BOUNDED_BASIS = Object.freeze([
-  Object.freeze({
-    code: 'repair_bounded_basis',
-    message:
-      'Create the timeline checkpoint, or repair its state-cache retention, before retrying.',
-  }),
-]);
 
 const readers: ReadonlyMap<ReadingKind, ReadingExecutor> = new Map([
   ['property.get', readProperty],
@@ -111,6 +107,7 @@ async function readProperty(
   return {
     value: result.value === undefined ? null : createSnapshotPropValue(result.value),
     evidence: result.readIdentity,
+    plurality: result.plurality,
   };
 }
 
@@ -122,7 +119,7 @@ async function readNodeExists(
     throw new WarpError('Reading executor received a mismatched descriptor', 'E_READING_KIND');
   }
   const result = await optic.node(descriptor.subject).read();
-  return { value: result.alive, evidence: result.readIdentity };
+  return { value: result.alive, evidence: result.readIdentity, plurality: result.plurality };
 }
 
 async function readNeighborhood(
@@ -133,7 +130,7 @@ async function readNeighborhood(
     throw new WarpError('Reading executor received a mismatched descriptor', 'E_READING_KIND');
   }
   const result = await optic.neighborhood(descriptor.subject).read(neighborhoodOptions(descriptor));
-  return { evidence: result.readIdentity, value: neighborhoodValue(result) };
+  return { evidence: result.readIdentity, value: neighborhoodValue(result), plurality: result.plurality };
 }
 
 function neighborhoodOptions(
@@ -185,6 +182,7 @@ async function readingResult(fields: AcceptedReadingFields): Promise<ReadingResu
     reading,
     outcome: 'accepted',
     evidence: await createReadEvidence(context, result.evidence, basis?.tick),
+    plurality: result.plurality,
   });
   context.bindReceipt(receipt, { operation: 'read', identity: result.evidence });
   return new ReadingResult({
@@ -208,20 +206,7 @@ function unresolvedReadingResult(fields: UnresolvedReadingFields): ReadingResult
   });
 }
 
+/** A Reading's basis was obstructed (#1039); every other failure is a fault and escapes. */
 function operationalReadFailure(error: WarpError): OperationalReadFailure | null {
-  if (error.code === 'E_OPTIC_NO_BOUNDED_BASIS') {
-    return {
-      outcome: 'obstructed',
-      reason: 'missing_bounded_basis',
-      repairHints: REPAIR_BOUNDED_BASIS,
-    };
-  }
-  if (error.code === 'E_OPTIC_TAIL_BUDGET_EXCEEDED') {
-    return {
-      outcome: 'underdetermined',
-      reason: 'tail_budget_exceeded',
-      repairHints: REPAIR_BOUNDED_BASIS,
-    };
-  }
-  return null;
+  return error instanceof ConeObstructedError ? coneObstructionFailure(error.obstruction) : null;
 }

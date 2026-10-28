@@ -2,6 +2,8 @@ import { expect, it } from 'vitest';
 import { openRuntimeHost } from '../../../../../src/domain/RuntimeHost.ts';
 import PatchController from '../../../../../src/domain/services/controllers/PatchController.ts';
 import WarpState from '../../../../../src/domain/services/state/WarpState.ts';
+import ConeLaneBasis from '../../../../../src/domain/services/cone/ConeLaneBasis.ts';
+import ConeWriteTargets from '../../../../../src/domain/services/cone/ConeWriteTargets.ts';
 import { readPatchBuilderCausalBasis } from '../../../../../src/domain/services/admission/PatchBuilderCausalBasis.ts';
 import { EventId } from '../../../../../src/domain/utils/EventId.ts';
 import { encodeEdgePropKey, encodePropKey } from '../../../../../src/domain/services/KeyCodec.ts';
@@ -23,14 +25,19 @@ async function fixture() {
   return { history, host, controller: new PatchController(host) };
 }
 
-it('pairs materialized membership with its retained frontier when creating a builder', async () => {
+function laneCone(host: Awaited<ReturnType<typeof fixture>>['host']): ConeLaneBasis {
+  if (host._coneRecords === null || host._conePatches === null) { throw new Error('memory storage keeps cone records'); }
+  return ConeLaneBasis.ofLane({ store: host._coneRecords, feed: host._conePatches, lane: 'events' });
+}
+
+it('observes a removal target and its frontier from the cone basis when creating a builder', async () => {
   const { host, controller } = await fixture();
   try {
     const sha = await controller.patch(patch => { patch.addNode('n'); });
     await host.materialize();
     const builder = await controller.createPatch();
     expect(readPatchBuilderCausalBasis(builder).evaluationCoordinateRef).toContain(sha);
-    await builder.prepareWriteBasis(['n']);
+    await builder.prepareConeWriteBasis(new ConeWriteTargets({ nodes: ['n'], edges: [] }), laneCone(host));
     builder.removeNode('n');
     expect(builder.build().observedFrontier?.frontier()).toEqual(new Map([['alice', sha]]));
     expect(await controller._loadPatchChainFromSha(sha)).toHaveLength(1);
@@ -76,7 +83,7 @@ it('refuses absent membership from a fresh uncached frontier without materializi
   const { host, controller } = await fixture();
   try {
     const builder = await controller.createPatch();
-    await builder.prepareWriteBasis(['missing']);
+    await builder.prepareConeWriteBasis(new ConeWriteTargets({ nodes: ['missing'], edges: [] }), laneCone(host));
     expect(() => builder.removeNode('missing')).toThrow(expect.objectContaining({ code: 'E_PATCH_ENTITY_NOT_FOUND' }));
     expect(host._cachedState).toBeNull();
   } finally { await host.close(); }

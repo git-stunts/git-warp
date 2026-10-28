@@ -8,6 +8,12 @@ const ROOT_VALUE_EXPORTS = ['Runtime'] as const;
 
 const ROOT_TYPE_EXPORTS = [
   'AdmissionOutcome',
+  'ConcurrentValue',
+  'LifecycleElement',
+  'LifecyclePlurality',
+  'Plurality',
+  'PluralityCausality',
+  'RegisterPlurality',
   'ContentInput',
   'ContentMetadataInput',
   'CoordinateReference',
@@ -222,6 +228,7 @@ describe('v19 public API boundary', () => {
         'createEdgeContentObserver',
         'createManyObserver',
         'createObserver',
+        'findEntityAdmissionInventoryContinuation',
         'intent',
         'reading',
         'requireEntityAdmissionInventoryCertificate',
@@ -229,6 +236,7 @@ describe('v19 public API boundary', () => {
     );
     expect(surface.typeExports).toEqual(
       sorted([
+        'EntityAdmissionInventoryObserverOptions',
         'NeighborhoodOpticCompleteness',
         'NeighborhoodOpticEdge',
         'NeighborhoodOpticReadDirection',

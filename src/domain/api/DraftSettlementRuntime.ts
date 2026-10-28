@@ -1,6 +1,7 @@
-import type { WarpStrandOpticBasis } from '../WarpStrandOpticBasis.ts';
-import type WarpWorldlineCoordinate from '../WarpWorldlineCoordinate.ts';
-import WarpError from '../errors/WarpError.ts';
+import { coordinateConeBasis } from '../WarpWorldlineConeOptics.ts';
+import ConeObstructedError from '../errors/ConeObstructedError.ts';
+import ConeBasis from '../services/cone/ConeBasis.ts';
+import type ConeLaneBasis from '../services/cone/ConeLaneBasis.ts';
 import type DraftTimeline from './DraftTimeline.ts';
 import {
   joinDraftTimeline,
@@ -11,89 +12,95 @@ import type {
   SettlementPromotion,
   SettlementSourceSnapshot,
   SettlementSourceStatus,
+  SettlementTargetBasis,
 } from './LaneSettlementRuntime.ts';
 import {
   createSettlementDigest,
   createSettlementFrontierRef,
   createSettlementSourceFrontierRef,
+  type SettlementFrontierEntry,
 } from './SettlementIdentityRuntime.ts';
 
-type SettlementSnapshotOptions = Readonly<{
-  readonly basis: WarpStrandOpticBasis;
-  readonly coordinate: WarpWorldlineCoordinate;
-  readonly draft: DraftTimeline;
-  readonly state: DraftTimelineState;
-  readonly targetCoordinate: WarpWorldlineCoordinate;
-}>;
-
+/**
+ * Captures what a settlement preview and its settle compare (#1039). Identity
+ * binds frontiers only: the strand's base frontier, the strand's own frontier
+ * and the target's current frontier. The cone roots behind them are evidence.
+ * When the target moved since the fork, the strand still settles if every
+ * node and edge its patches name has the same record at the target's current
+ * basis as at the strand's base; only those records are read.
+ */
 export async function captureDraftSettlementSnapshot(
   draft: DraftTimeline,
 ): Promise<SettlementSourceSnapshot> {
   const state = requireDraftStateForReading(draft);
-  const coordinate = requireSettlementCoordinate(state);
-  const basis = await state.runtime.prepareStrandOptic(
-    draft.name,
-    coordinate.checkpointSha,
-  );
-  await state.runtime.prepareOpticBasis();
-  const targetCoordinate = await state.runtime.coordinate();
-  return await createDraftSettlementSnapshot({
-    basis,
-    coordinate,
-    draft,
-    state,
-    targetCoordinate,
-  });
-}
-
-async function createDraftSettlementSnapshot(
-  options: SettlementSnapshotOptions,
-): Promise<SettlementSourceSnapshot> {
-  const { basis, coordinate, draft, state, targetCoordinate } = options;
-  const [
-    baseTargetFrontierRef,
-    frontierRef,
-    proposalDigest,
-    targetFrontierRef,
-  ] = await Promise.all([
-    settlementTargetFrontierRef(state, coordinate),
-    settlementSourceFrontierRef(state, draft, basis),
+  const base = coordinateConeBasis(state.forkedAt);
+  const source = await advancedBasis(state.strand.strand);
+  const target = await advancedBasis(state.runtime.coneBasis());
+  const [baseTargetFrontierRef, frontierRef, proposalDigest, targetFrontierRef, basisEvidenceRefs] = await Promise.all([
+    settlementTargetFrontierRef(state, frontierEntries(base)),
+    createSettlementSourceFrontierRef({
+      context: state.context,
+      entries: frontierEntries(source),
+      strandName: draft.name,
+      worldlineName: state.runtime.worldlineName,
+    }),
     settlementProposalDigest(state, draft),
-    settlementTargetFrontierRef(state, targetCoordinate),
+    settlementTargetFrontierRef(state, frontierEntries(target)),
+    coneEvidenceRefs(state, [base, source, target]),
   ]);
   return Object.freeze({
     baseTargetFrontierRef,
+    basisEvidenceRefs,
     frontierRef,
     proposalDigest,
     status: settlementSourceStatus(state),
+    targetBasis: await settlementTargetBasis(state, { base, target }),
     targetFrontierRef,
   });
+}
+
+async function advancedBasis(cone: ConeLaneBasis): Promise<ConeBasis> {
+  const basis = await cone.advance();
+  if (!(basis instanceof ConeBasis)) {
+    throw new ConeObstructedError(cone.lane, basis);
+  }
+  return basis;
+}
+
+/** How the target's current basis relates to the strand's base, judged on the strand's footprint. */
+async function settlementTargetBasis(
+  state: DraftTimelineState,
+  bases: { readonly base: ConeBasis; readonly target: ConeBasis },
+): Promise<SettlementTargetBasis> {
+  if (bases.base.frontier.equals(bases.target.frontier)) {
+    return 'base';
+  }
+  const unchanged = await state.footprint.unchangedBetween(state.runtime.coneBasis().reader, {
+    base: bases.base.root, target: bases.target.root,
+  });
+  return unchanged ? 'footprint-unchanged' : 'footprint-advanced';
+}
+
+function frontierEntries(basis: ConeBasis): readonly SettlementFrontierEntry[] {
+  return [...basis.writerHeads()].map(([writerId, patchSha]) => Object.freeze({ writerId, patchSha }));
 }
 
 async function settlementTargetFrontierRef(
   state: DraftTimelineState,
-  coordinate: WarpWorldlineCoordinate,
+  entries: readonly SettlementFrontierEntry[],
 ): Promise<string> {
   return await createSettlementFrontierRef({
-    checkpointSha: coordinate.checkpointSha,
     context: state.context,
-    entries: coordinate.frontierEntries,
+    entries,
     worldlineName: state.runtime.worldlineName,
   });
 }
 
-async function settlementSourceFrontierRef(
-  state: DraftTimelineState,
-  draft: DraftTimeline,
-  basis: WarpStrandOpticBasis,
-): Promise<string> {
-  return await createSettlementSourceFrontierRef({
-    checkpointSha: basis.checkpointSha,
-    context: state.context,
-    entries: basis.frontierEntries,
-    strandName: draft.name,
-    worldlineName: state.runtime.worldlineName,
-  });
+/** Evidence handles for the cone roots the snapshot compared: base, strand and target. */
+async function coneEvidenceRefs(state: DraftTimelineState, bases: readonly ConeBasis[]): Promise<readonly string[]> {
+  return Object.freeze(await Promise.all(bases.map(async (basis) =>
+    await state.context.createOpaqueId('evidence', ['settlement-cone-root', state.runtime.worldlineName, basis.root.toString()])
+  )));
 }
 
 async function settlementProposalDigest(
@@ -127,18 +134,6 @@ export async function promoteDraftSettlement(
     evidence: receipt.evidence,
     reason: receipt.reason,
   });
-}
-
-function requireSettlementCoordinate(
-  state: DraftTimelineState,
-): WarpWorldlineCoordinate {
-  if (state.forkedAt === null) {
-    throw new WarpError(
-      'DraftTimeline was not forked from a captured Runtime coordinate',
-      'E_DRAFT_SETTLEMENT_BASIS_UNAVAILABLE',
-    );
-  }
-  return state.forkedAt;
 }
 
 function settlementSourceStatus(

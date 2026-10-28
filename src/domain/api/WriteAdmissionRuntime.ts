@@ -6,6 +6,9 @@ import DerivationWitness from '../admission/DerivationWitness.ts';
 import type DerivedAdmission from '../admission/DerivedAdmission.ts';
 import type ObstructedAdmission from '../admission/ObstructedAdmission.ts';
 import ObstructionWitness from '../admission/ObstructionWitness.ts';
+import type PluralAdmission from '../admission/PluralAdmission.ts';
+import PluralityWitness from '../admission/PluralityWitness.ts';
+import type ConeWriteRaces from '../services/cone/ConeWriteRaces.ts';
 import type WarpWorldline from '../WarpWorldline.ts';
 import WarpError from '../errors/WarpError.ts';
 import type { PatchBuilderCausalBasis } from '../services/admission/PatchBuilderCausalBasis.ts';
@@ -21,6 +24,8 @@ const classifier = new AdmissionClassifier();
 const GRAPH_INTENT_ADMISSION_LAW = 'git-warp:admission-law/graph-intent/v1';
 const ATOMIC_INTENT_ADMISSION_LAW = 'git-warp:admission-law/atomic-intent-sequence/v1';
 const TIMELINE_WRITE_ADMISSION_PROFILE = 'git-warp:admission-profile/timeline-write/v1';
+/** The law under which concurrent register writes are both admitted: the register keeps them as siblings. */
+const LWW_SIBLING_RETENTION_LAW = 'git-warp:admission-law/lww-register-retains-siblings/v1';
 const BASIS_INDEPENDENT_INTENT_KINDS: ReadonlySet<IntentKind> = new Set(['node.add', 'edge.add']);
 
 type WriteAdmissionFields = {
@@ -60,6 +65,36 @@ export function createDerivedWriteAdmission(
       resultingFrontierRef: patchJournalFrontierRef(fields.basis, fields.publication.sha),
       authorityEvidenceRef: runtimeWriterBindingRef(fields.runtime.writerId),
       directExtensionEvidenceRef: publicationRef,
+    })
+  );
+}
+
+/**
+ * A published write that left concurrent values it never observed standing
+ * beside its own (#1039): both coordinates are retained as plural. The local
+ * coordinate is the publication; the incoming ones are the raced patches.
+ */
+export async function createPluralWriteAdmission(
+  fields: PreparedWriteAdmissionFields & { readonly publication: PatchCommitResult; readonly races: ConeWriteRaces }
+): Promise<PluralAdmission> {
+  assertPublishedWriter(fields);
+  assertEvaluationMatchesBasis(fields);
+  const localRef = patchPublicationRef(fields.basis, fields.publication.sha);
+  const incomingRefs = fields.races.patches.map((patch) => racedPublicationRef(fields.basis, patch));
+  const [footprintComparisonRef, concurrencyEvidenceRef] = await Promise.all([
+    fields.context.createOpaqueId('admission', ['plural-footprint', canonicalStringify(fields.sequence.descriptor)]),
+    fields.context.createOpaqueId('admission', ['plural-concurrency', localRef, ...incomingRefs]),
+  ]);
+  return classifier.classify(
+    new PluralityWitness({
+      evaluation: fields.evaluation,
+      localCoordinateRef: localRef,
+      incomingCoordinateRef: incomingRefs[0] ?? localRef,
+      retainedCoordinateRefs: [localRef, ...incomingRefs],
+      derivationEvidenceRef: patchJournalFrontierRef(fields.basis, fields.publication.sha),
+      footprintComparisonRef,
+      concurrencyEvidenceRef,
+      nonInterferenceEvidenceRef: LWW_SIBLING_RETENTION_LAW,
     })
   );
 }
@@ -210,6 +245,12 @@ function patchJournalFrontierRef(basis: PatchBuilderCausalBasis, commitId: strin
 
 function patchPublicationRef(basis: PatchBuilderCausalBasis, commitId: string): string {
   return `${patchJournalRuntimeRef(basis)}/publication/${encodeURIComponent(commitId)}`;
+}
+
+/** The publication of a raced patch in its own writer's journal, by patch or by chain clock. */
+function racedPublicationRef(basis: PatchBuilderCausalBasis, patch: Readonly<{ writer: string; coordinate: string }>): string {
+  const path = [basis.graphName, patch.writer].map((value) => encodeURIComponent(value)).join('/');
+  return `warp:patch-journal/${path}/publication/${encodeURIComponent(patch.coordinate)}`;
 }
 
 function patchJournalIdentityPath(basis: PatchBuilderCausalBasis): string {

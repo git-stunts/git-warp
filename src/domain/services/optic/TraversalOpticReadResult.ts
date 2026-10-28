@@ -1,5 +1,5 @@
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
-import type ReadIdentity from './ReadIdentity.ts';
+import type { OpticReadIdentity } from './OpticReadIdentity.ts';
 
 export type TraversalOpticStrategy = 'breadth-first';
 export type TraversalOpticCompleteness =
@@ -49,7 +49,7 @@ export default class TraversalOpticReadResult {
   readonly frontier: readonly TraversalOpticFrontierEntry[];
   readonly completeness: TraversalOpticCompleteness;
   readonly cursor: TraversalOpticCursor | null;
-  readonly readIdentities: readonly ReadIdentity[];
+  readonly readIdentities: readonly OpticReadIdentity[];
 
   constructor(options: {
     readonly startNodeId: string;
@@ -64,7 +64,7 @@ export default class TraversalOpticReadResult {
     readonly frontier: readonly TraversalOpticFrontierEntry[];
     readonly completeness: TraversalOpticCompleteness;
     readonly cursor: TraversalOpticCursor | null;
-    readonly readIdentities: readonly ReadIdentity[];
+    readonly readIdentities: readonly OpticReadIdentity[];
   }) {
     this.startNodeId = options.startNodeId;
     this.strategy = options.strategy;

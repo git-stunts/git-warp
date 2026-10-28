@@ -10,7 +10,7 @@ import QueryBuilder from './query/QueryBuilder.ts';
 import QueryError from '../errors/QueryError.ts';
 import CoordinateCheckpointTailOpticSource from './optic/CoordinateCheckpointTailOpticSource.ts';
 import OpticCoordinatePosture from './optic/OpticCoordinatePosture.ts';
-import WorldlineOptic from './optic/WorldlineOptic.ts';
+import CheckpointTailOptic from './optic/CheckpointTailOptic.ts';
 import type CheckpointTailOpticSource from './optic/CheckpointTailOpticSource.ts';
 import type {
   QueryReadModel,
@@ -120,7 +120,7 @@ export default class ProjectionHandle {
     );
   }
 
-  optic(): WorldlineOptic {
+  optic(): CheckpointTailOptic {
     if (this._opticSource === null) {
       throw new QueryError('worldline optic requires a checkpoint-tail bounded basis source', {
         code: 'E_OPTIC_NO_BOUNDED_BASIS',
@@ -128,7 +128,7 @@ export default class ProjectionHandle {
       });
     }
     if (this._source instanceof LiveSelector) {
-      return new WorldlineOptic({ source: this._opticSource });
+      return new CheckpointTailOptic({ source: this._opticSource });
     }
     if (this._source instanceof CoordinateSelector) {
       return this._coordinateOptic(this._opticSource);
@@ -139,7 +139,7 @@ export default class ProjectionHandle {
     });
   }
 
-  private _coordinateOptic(source: CheckpointTailOpticSource): WorldlineOptic {
+  private _coordinateOptic(source: CheckpointTailOpticSource): CheckpointTailOptic {
     const coordinate = this._source;
     if (!(coordinate instanceof CoordinateSelector) || coordinate.checkpointSha === null) {
       throw new QueryError('coordinate optic requires a checkpoint-tail bounded basis source', {
@@ -198,7 +198,7 @@ export default class ProjectionHandle {
       : new CheckpointTailExactIdQueryReadModel({ nodeId, optic });
   }
 
-  private async _exactReadOptic(): Promise<WorldlineOptic | null> {
+  private async _exactReadOptic(): Promise<CheckpointTailOptic | null> {
     const source = this._opticSource;
     if (source === null) {
       return null;
@@ -212,14 +212,14 @@ export default class ProjectionHandle {
     return null;
   }
 
-  private async _liveExactReadOptic(source: CheckpointTailOpticSource): Promise<WorldlineOptic | null> {
+  private async _liveExactReadOptic(source: CheckpointTailOpticSource): Promise<CheckpointTailOptic | null> {
     if (await source._readCheckpointSha() === null) {
       return null;
     }
-    return new WorldlineOptic({ source });
+    return new CheckpointTailOptic({ source });
   }
 
-  private _coordinateExactReadOptic(source: CheckpointTailOpticSource): WorldlineOptic | null {
+  private _coordinateExactReadOptic(source: CheckpointTailOpticSource): CheckpointTailOptic | null {
     const coordinate = this._source;
     if (!(coordinate instanceof CoordinateSelector) || coordinate.checkpointSha === null) {
       return null;
@@ -231,8 +231,8 @@ export default class ProjectionHandle {
     source: CheckpointTailOpticSource,
     coordinate: CoordinateSelector,
     checkpointSha: string,
-  ): WorldlineOptic {
-    return new WorldlineOptic({
+  ): CheckpointTailOptic {
+    return new CheckpointTailOptic({
       source: new CoordinateCheckpointTailOpticSource({
         source,
         checkpointSha,

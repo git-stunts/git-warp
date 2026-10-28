@@ -172,6 +172,18 @@ describe('MCP command protocol', () => {
     });
   });
 
+  it('advances the cone basis through the repair tool', async () => {
+    await seedSettlement(repository);
+
+    expect(await callTool(1, 'warp_repair', { lane: 'users', action: 'basis' })).toMatchObject({
+      jsonrpc: '2.0',
+      id: 1,
+      result: {
+        structuredContent: { type: 'Repair', action: 'basis', lane: 'users', status: 'completed', foldedPatches: 0 },
+      },
+    });
+  });
+
   it('re-previews and applies a retained plan across Runtime calls', async () => {
     await seedSettlement(repository);
 

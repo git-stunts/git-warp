@@ -354,6 +354,16 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     return sorted;
   }
 
+  /** Every ref under `prefix` with its target, as one listing (the cone feed reads tips this way). */
+  async readRefTargets(prefix: string): Promise<ReadonlyMap<string, string>> {
+    validateRef(prefix);
+    const targets = new Map<string, string>();
+    for (const ref of this._filterRefsByPrefix(prefix)) {
+      targets.set(ref, this._refs.get(ref) ?? '');
+    }
+    return targets;
+  }
+
   // -- ConfigPort -----------------------------------------------------------
 
   async configGet(key: string): Promise<string | null> {

@@ -17,7 +17,6 @@ import { requireTickCoordinate } from '../../../src/domain/api/TickRuntime.ts';
 import Warp from '../../../src/domain/api/Warp.ts';
 import { MAX_WRITER_ID_LENGTH } from '../../../src/domain/utils/RefLayout.ts';
 import MemoryStorage from '../../helpers/MemoryStorage.ts';
-import { createBoundedReadBasis } from '../../helpers/BoundedReadBasis.ts';
 
 const FORBIDDEN_ROOT_SUBSTRATE_EXPORTS = Object.freeze([
   'openWarpGraph',
@@ -407,7 +406,6 @@ describe('v19 Warp facade', () => {
         label: 'memberOf',
       })
     );
-    await createBoundedReadBasis(storage, timeline.name);
 
     const propertyResult = await timeline.read(
       reading.property({
@@ -455,8 +453,7 @@ describe('v19 Warp facade', () => {
       evidence: { basis: { id: expect.stringMatching(/^evidence:/) } },
     });
     const timelineRuntime = requireTimelineRuntime(timeline);
-    await timelineRuntime.prepareOpticBasis();
-    const coordinate = await timelineRuntime.coordinate();
+    const coordinate = await timelineRuntime.captureCoordinate();
     const coordinateRole = await coordinate.optic().node('user:alice').prop('role').read();
     expect(coordinateRole.value).toBe('admin');
     await expect(
@@ -472,7 +469,7 @@ describe('v19 Warp facade', () => {
     const tickCoordinate = requireTickCoordinate(requireTimelineRuntime(timeline), tick);
     const serializedTick = JSON.stringify(tick);
     expect(tick.id).toMatch(/^tick:/);
-    expect(serializedTick).not.toContain(tickCoordinate.checkpointSha);
+    expect(serializedTick).not.toContain(tickCoordinate.coneRoot);
     for (const entry of tickCoordinate.frontierEntries) {
       expect(serializedTick).not.toContain(entry.patchSha);
     }
@@ -506,23 +503,33 @@ describe('v19 Warp facade', () => {
     expect(historicalResult.receipt.evidence?.tick).toBe(tick);
   });
 
-  it('returns an obstructed receipt instead of materializing a missing read basis', async () => {
-    const warp = await openWarp({
-      storage: MemoryStorage.create(),
-      writer: 'agent-1',
-    });
+  it('reads an empty lane from the empty cone basis without preparing anything', async () => {
+    const warp = await openWarp({ storage: MemoryStorage.create(), writer: 'agent-1' });
     const timeline = await warp.timeline('events');
+
+    const result = await timeline.read(reading.node.exists({ subject: 'user:alice' }));
+
+    expect(result.value).toBe(false);
+    expect(result.receipt.outcome).toBe('accepted');
+  });
+
+  it('returns an obstructed receipt instead of materializing when the cone basis cannot advance', async () => {
+    const storage = MemoryStorage.create();
+    const warp = await openWarp({ storage, writer: 'agent-1' });
+    const timeline = await warp.timeline('events');
+    await timeline.write(intent.node.add({ subject: 'user:alice' }));
+    storage.divergeLaneBasis('events', 'agent-1');
 
     const result = await timeline.read(reading.node.exists({ subject: 'user:alice' }));
 
     expect(result.value).toBeNull();
     expect(result.receipt).toMatchObject({
       outcome: 'obstructed',
-      reason: 'missing_bounded_basis',
+      reason: 'cone_writer_diverged',
     });
     expect(result.receipt.evidence).toBeUndefined();
     expect(result.receipt.repairHints).toEqual([
-      expect.objectContaining({ code: 'repair_bounded_basis' }),
+      expect.objectContaining({ code: 'rebuild_cone_basis' }),
     ]);
     await expect(
       timeline.readValue(reading.node.exists({ subject: 'user:alice' }))
@@ -538,7 +545,6 @@ describe('v19 Warp facade', () => {
     const timeline = await warp.timeline('events');
 
     await timeline.write(intent.node.add({ subject: 'user:alice' }));
-    await createBoundedReadBasis(storage, timeline.name);
     const draft = await timeline.draft('try-admin-role');
 
     const draftWrite = await draft.write(

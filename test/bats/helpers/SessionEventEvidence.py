@@ -5,8 +5,8 @@ from pathlib import Path
 import sys
 
 
-# Three writes, two forks, two previews/applies each, four repairs, thirteen reads.
-EXPECTED_PUBLIC_CALLS = 26
+# Five writes, two forks, two previews/applies each, four repairs, thirteen reads.
+EXPECTED_PUBLIC_CALLS = 28
 
 
 class ProofFailure(RuntimeError):
@@ -96,7 +96,8 @@ def settlement_plan(data, name):
         require(frame["evidence"]["basis"] == plan["targetFrontier"], "settlement-basis-bound")
         support = [handle(item, "settlement-support-handle") for item in frame["evidence"]["support"]]
         require(set(bound).issubset(support), "complete-settlement-support")
-    require(len(preview["evidence"]["support"]) == 5, "complete-preview-support")
+    # The five bound inputs, plus the base, strand and target cone roots the preview compared (#1039).
+    require(len(preview["evidence"]["support"]) == 8, "complete-preview-support")
     require(applied["type"] == "Receipt" and applied["operation"] == "settle", "apply-receipt")
     require(applied["outcome"] == preview["outcome"], "exact-preview-apply-classification")
     return preview["outcome"]
@@ -114,7 +115,8 @@ def alpha_derived(data):
         handle(evaluation[key], "complete-derived-evaluation")
     require(evaluation["destinationRuntime"] == "worldline:events" and
             evaluation["sourceParticipant"] == "strand:alpha", "derived-authority")
-    require(data["alphaApply"]["reason"] is None and len(data["alphaApply"]["evidence"]["support"]) == 7,
+    # The preview's eight handles, the promotion basis and one handle per replayed Alpha patch.
+    require(data["alphaApply"]["reason"] is None and len(data["alphaApply"]["evidence"]["support"]) == 11,
             "complete-promotion-evidence")
 
 

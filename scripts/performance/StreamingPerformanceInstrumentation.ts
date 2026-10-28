@@ -2,6 +2,8 @@ import { clearInterval, setInterval } from 'node:timers';
 import RuntimeHost from '../../src/domain/RuntimeHost.ts';
 import { CborIndexStoreAdapter }
   from '../../src/infrastructure/adapters/CborIndexStoreAdapter.ts';
+import GitConeRecordStoreAdapter
+  from '../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
 
 export type MemorySampler = Readonly<{
   sample: () => void;
@@ -28,6 +30,7 @@ export function installPathEvidence(): PathEvidence {
   const originalMaterialize = RuntimeHost.prototype.materialize;
   const originalDecodeShardAt = CborIndexStoreAdapter.prototype.decodeShardAt;
   const originalScanShards = CborIndexStoreAdapter.prototype.scanShards;
+  const originalReadRecords = GitConeRecordStoreAdapter.prototype.readRecords;
   RuntimeHost.prototype.materialize = (async function () {
     materializeCalls += 1;
     await Promise.resolve();
@@ -44,6 +47,20 @@ export function installPathEvidence(): PathEvidence {
     }
     return await originalDecodeShardAt.call(this, indexHandle, path, decodeOptions);
   }) as typeof originalDecodeShardAt;
+  // Public Lane reads answer properties from per-node cone records (#1039):
+  // each node record a Reading opens is the retained page it decodes.
+  GitConeRecordStoreAdapter.prototype.readRecords = (async function (
+    this: GitConeRecordStoreAdapter,
+    root,
+    keys,
+  ) {
+    for (const key of keys) {
+      if (key.family === 'node' && !root.isEmpty()) {
+        propertyPages.add(`cone:${root.toString()}:${key.toString()}`);
+      }
+    }
+    return await originalReadRecords.call(this, root, keys);
+  }) as typeof originalReadRecords;
   CborIndexStoreAdapter.prototype.scanShards = (function () {
     wholeIndexScans += 1;
     throw new Error('Streaming proof prohibited whole-index shard scanning');
@@ -53,6 +70,7 @@ export function installPathEvidence(): PathEvidence {
       RuntimeHost.prototype.materialize = originalMaterialize;
       CborIndexStoreAdapter.prototype.decodeShardAt = originalDecodeShardAt;
       CborIndexStoreAdapter.prototype.scanShards = originalScanShards;
+      GitConeRecordStoreAdapter.prototype.readRecords = originalReadRecords;
     },
     snapshot: () => Object.freeze({
       materializeCalls,

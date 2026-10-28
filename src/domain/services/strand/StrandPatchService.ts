@@ -5,6 +5,10 @@ import { PatchBuilder } from '../PatchBuilder.ts';
 import SharedDotRemovalGuard from '../SharedDotRemovalGuard.ts';
 import type DotRepairStorePort from '../../../ports/DotRepairStorePort.ts';
 import { dotMintAfterPatches } from '../openDotMint.ts';
+import captureObservedWriteBasis from '../captureObservedWriteBasis.ts';
+import MintId from '../../crdt/MintId.ts';
+import StrandConeTips from './StrandConeTips.ts';
+import type StrandDescriptorStore from './StrandDescriptorStore.ts';
 import {
   maxPatchLamport,
   normalizeStringArray,
@@ -17,13 +21,20 @@ import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
-import type VersionVector from '../../crdt/VersionVector.ts';
+import VersionVector from '../../crdt/VersionVector.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
-import { strandPatchCoordinateRef } from '../admission/GraphCoordinateRef.ts';
+import { strandFrontierCoordinateRef, strandPatchCoordinateRef } from '../admission/GraphCoordinateRef.ts';
 
 export type CommittedPatchResult = { patch: Patch; sha: string };
 export type PatchCommitSuccessHandler = (result: CommittedPatchResult) => Promise<void>;
+
+function requireJournal(journal: PatchJournalPort | null | undefined): PatchJournalPort {
+  if (journal === null || journal === undefined) {
+    throw new PersistenceError('patchJournal is required for strand writes', 'E_MISSING_JOURNAL');
+  }
+  return journal;
+}
 
 function readBuilderContentHandles(builder: PatchBuilder): readonly string[] {
   return builder.contentAssets.map((handle) => handle.toString());
@@ -71,6 +82,7 @@ type WarpRuntime = {
 
 type ServiceOptions = {
   graph: WarpRuntime;
+  descriptors: StrandDescriptorStore;
   loadStrandOrThrow: (strandId: string) => Promise<StrandDescriptor>;
   materializeDescriptor: (
     descriptor: StrandDescriptor,
@@ -86,6 +98,7 @@ type ServiceOptions = {
 
 export default class StrandPatchService {
   private readonly _graph: WarpRuntime;
+  private readonly _descriptors: StrandDescriptorStore;
   private readonly _loadStrandOrThrow: (strandId: string) => Promise<StrandDescriptor>;
   private readonly _materializeDescriptor: ServiceOptions['materializeDescriptor'];
   private readonly _buildOverlayRef: (strandId: string) => string;
@@ -96,12 +109,14 @@ export default class StrandPatchService {
    */
   constructor({
     graph,
+    descriptors,
     loadStrandOrThrow,
     materializeDescriptor,
     buildOverlayRef,
     buildIntentId,
   }: ServiceOptions) {
     this._graph = graph;
+    this._descriptors = descriptors;
     this._loadStrandOrThrow = loadStrandOrThrow;
     this._materializeDescriptor = materializeDescriptor;
     this._buildOverlayRef = buildOverlayRef;
@@ -117,6 +132,24 @@ export default class StrandPatchService {
   }
 
   /**
+   * Builds and commits one public strand Lane write (#1039) within the
+   * reentrancy guard. The builder's clock and context come from one head
+   * patch per strand tip; nothing is materialized and no chain is walked.
+   * Removals and content checks observe the strand's cone records, which the
+   * build callback prepares with `prepareConeWriteBasis`.
+   */
+  async patchOnConeWithEvidence(
+    strandId: string,
+    build: (p: PatchBuilder) => void | Promise<void>,
+  ): Promise<PatchCommitResult> {
+    return await this._guarded(async () => {
+      const builder = await this._createConePatchBuilder(strandId);
+      await build(builder);
+      return await builder.commitWithEvidence();
+    });
+  }
+
+  /**
    * Build and commit a patch within a reentrancy guard.
    */
   async patch(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): Promise<string> {
@@ -127,6 +160,14 @@ export default class StrandPatchService {
     strandId: string,
     build: (p: PatchBuilder) => void | Promise<void>,
   ): Promise<PatchCommitResult> {
+    return await this._guarded(async () => {
+      const builder = await this.createPatchBuilder(strandId);
+      await build(builder);
+      return await builder.commitWithEvidence();
+    });
+  }
+
+  private async _guarded<T>(operation: () => Promise<T>): Promise<T> {
     if (this._graph._patchInProgress) {
       throw new StrandError(
         'graph.patchStrand() is not reentrant. Use createStrandPatch() for nested or concurrent patches.',
@@ -135,12 +176,60 @@ export default class StrandPatchService {
     }
     this._graph._patchInProgress = true;
     try {
-      const builder = await this.createPatchBuilder(strandId);
-      await build(builder);
-      return await builder.commitWithEvidence();
+      return await operation();
     } finally {
       this._graph._patchInProgress = false;
     }
+  }
+
+  private async _createConePatchBuilder(strandId: string): Promise<PatchBuilder> {
+    const descriptor = await this._descriptors.readUnhydratedDescriptor(strandId);
+    if (descriptor === null) {
+      throw new StrandError(`Strand '${strandId}' not found`, { code: 'E_STRAND_NOT_FOUND', context: { strandId } });
+    }
+    this._assertWritableDescriptor(descriptor);
+    const overlayId = MintId.strand(this._graph._writerId, strandId).encode();
+    const overlayRef = this._buildOverlayRef(strandId);
+    const headSha = await this._graph._persistence.readRef(overlayRef) ?? null;
+    const tips = await new StrandConeTips(this._descriptors, strandId).tips();
+    const observed = await captureObservedWriteBasis({
+      refs: this._graph._persistence, journal: requireJournal(this._graph._patchJournal), graphName: this._graph._graphName,
+      writerId: overlayId, expectedParentSha: headSha, ownCandidate: 1, context: VersionVector.empty(), selectedFrontier: tips,
+    });
+    return new PatchBuilder(this._coneOptions({ descriptor, overlayId, overlayRef, headSha, tips, observed: {
+      lamport: observed.lamport, context: observed.context(),
+    }, removalGuard: await this._removalGuard(descriptor) }));
+  }
+
+  private _coneOptions(write: {
+    readonly descriptor: StrandDescriptor;
+    readonly overlayId: string;
+    readonly overlayRef: string;
+    readonly headSha: string | null;
+    readonly tips: ReadonlyMap<string, string>;
+    readonly observed: { readonly lamport: number; readonly context: VersionVector };
+    readonly removalGuard: SharedDotRemovalGuard;
+  }): PatchBuilderCtorOptions {
+    const options: MutablePatchBuilderCtorOptions = {
+      persistence: this._graph._persistence,
+      graphName: this._graph._graphName,
+      writerId: write.overlayId,
+      admissionParticipantId: this._graph._writerId,
+      lamport: write.observed.lamport,
+      versionVector: write.observed.context,
+      // The head's context carries every dot the chain issued; queued intents hold minted dots too.
+      dotMint: dotMintAfterPatches(write.overlayId, write.descriptor.intentQueue.intents),
+      getCurrentState: () => null,
+      evaluationCoordinateRef: strandFrontierCoordinateRef(this._graph._graphName, write.descriptor.strandId, write.tips),
+      expectedParentSha: write.headSha,
+      targetRefPath: write.overlayRef,
+      onDeleteWithData: this._graph._onDeleteWithData,
+      commitMessageCodec: this._graph._commitMessageCodec,
+      removalGuard: write.removalGuard,
+      onCommitSuccess: async (result: CommittedPatchResult) => { await this.syncOverlayDescriptor(write.descriptor, result); },
+    };
+    this._attachOptionalPatchBuilderDeps(options);
+    return options;
   }
 
   /**

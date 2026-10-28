@@ -25,8 +25,131 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `E_SUBSTRATE_MIGRATION_REQUIRED` until the v20-to-v21 migration
   ([#1015](https://github.com/git-stunts/git-warp/issues/1015)) has run
   ([#1014](https://github.com/git-stunts/git-warp/issues/1014)).
+- Reserve `refs/warp/<graph>/cone/head` for the clone-local cone basis of the
+  cone-bounded Runtime: graph names may no longer contain a `cone` segment.
+  The internal cone engine behind it folds each patch into per-entity records
+  (node, edge, dot-claim and adjacency pages in a route-keyed Git tree trie)
+  through the existing reducer, refuses a patch whose removed dot two elements
+  share, and advances by one bulk log per changed writer
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- Answer every worldline Lane read and every read-before-write from the
+  Lane's cone records instead of a checkpoint plus its tail. A Lane is
+  readable right after its writes with no checkpoint and no
+  `git warp repair --action materialization` step; each Observation and each
+  captured coordinate advances the cone basis once and all its Readings share
+  it. Property and existence Readings open one record, neighborhood Readings
+  are degree-bounded, and content Observations read the owner's records
+  instead of replaying every writer's history. Neighborhood edges now come in
+  a canonical order (direction, then neighbor id, then label) with cone
+  cursors. A cone `Coordinate` has `checkpointSha: null` and a `coneRoot`;
+  the advanced `Witness` type also covers the new `kind: 'cone-read'`
+  identity, and the `cone-basis` optic basis posture is new. A fold
+  obstruction (shared dot, diverged writer, contention) settles the
+  Observation or write as obstructed or underdetermined with a repair hint
+  (reasons `cone_shared_dot`, `cone_writer_diverged`, `cone_contended`;
+  `git-warp.write.<reason>` for writes), never a throw or a whole-state
+  fallback ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- Run `Runtime.fork`, strand Lanes and settlement on cone bases. A fork pins
+  the lane cone basis it captured (`refs/warp/<lane>/cone/strands/<id>/base`)
+  and never verifies, creates or materializes a checkpoint; the strand's
+  descriptor keeps its base frontier and no checkpoint. Strand writes,
+  Observations, content Observations and coordinates read the strand basis:
+  that base with the strand's own patches folded on top
+  (`cone/strands/<id>/head`), sharing every untouched record with the base.
+  `captureCoordinate()` now works on strand Lanes. Settlement identity binds
+  frontiers only (cone roots become evidence), so a basis rebuild or a global
+  checkpoint no longer obstructs a preview; and the settlement policy becomes
+  `git-warp:settlement-policy/footprint-records/v1`: a preview stays
+  `derived` when the target moved without changing any node or edge the
+  strand's patches name, and `settle()` replays the strand's intents through
+  the target's cone basis. Preview evidence now cites the three compared cone
+  roots ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- `Coordinate` (advanced) is cone-only: `checkpointSha`,
+  `requireCheckpointSha()` and `source()` are removed, and `Optic` is
+  constructed only over a cone basis. Checkpoint-tail optics remain only on
+  the deprecated graph facades as the internal `CheckpointTailOptic`
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- `git warp repair --action basis` is the public repair: it advances the
+  Lane's cone basis (`--strand` for a strand Lane) and reports the patches it
+  folded, or the cone obstruction with its repair hint and exit code 3.
+  `--action materialization` remains as explicitly global maintenance that
+  writes a whole-state checkpoint no public read needs. The MCP `warp_repair`
+  tool takes both actions. `git warp doctor` replaces the wall-clock
+  `checkpoint-fresh` check with `cone-basis-lag` (unfolded patches per writer,
+  warning above `coneBasisLagWarnPatches` = 10,000, failure for a diverged
+  writer chain); the `CHECKPOINT_*` finding codes are replaced by
+  `CONE_BASIS_*`, and an absent coverage anchor is no longer a warning
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+
+- Answer the entity admission inventory (`createEntityAdmissionInventoryObserver`)
+  from a cone admission index instead of a scan of every writer's history:
+  each folded patch appends its `entity.add` admissions to its writer chain's
+  index, and an inventory pages that index downwards, reading at most 256
+  index records per writer chain at a time. Readings, order, digest and the
+  certificate are unchanged, but the certificate is now issued against the
+  Lane's cone basis frontier. An unmarked v19.1 entity-shaped patch is indexed
+  as a refusal, so the inventory still obstructs with
+  `E_ENTITY_ADMISSION_INVENTORY_LEGACY_AMBIGUOUS` where the scan did. The cone
+  trie layout marker becomes layout 3: a basis head written by an earlier build
+  is refused with `E_CONE_LAYOUT_UNSUPPORTED` until its ref is deleted and the
+  basis is folded again. The internal `PatchJournalEntityAdmissionInventory`
+  and `EntityAdmissionInventoryPort` are removed
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- One entity admission inventory Observation now emits at most a declared
+  `limit` of admissions (default 10,000, at most 1,000,000):
+  `createEntityAdmissionInventoryObserver(id, { limit, cursor })`. A page that
+  stops with admissions left settles `completed` without a certificate and
+  carries a continuation cursor (`findEntityAdmissionInventoryContinuation`,
+  advanced; `inventoryContinuation` in the CLI receipt); an Observer created
+  with that `cursor` resumes the same basis, and the last page certifies the
+  whole inventory with the same count and digest a single Observation would
+  have. The CLI reading accepts `limit` and `cursor`
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+
+- A worldline `Lane.write` that only sets properties (`property.set`, or
+  `entity.add` with a supplied subject) now records as observed the cone basis
+  this clone held when the write began, which is what its Observations had
+  read, instead of every writer head present at write time; its clock still
+  passes every fetched head, so the LWW winner is unchanged. When the Lane's
+  records hold a write to one of its registers, or a remove of its node, that
+  it never observed, the write is admitted `plural` (a `PluralityWitness`
+  naming its publication and the raced patches) rather than `derived`, and
+  `WriteReceipt.plurality` lists the concurrent values with their writers.
+  Writes that remove or attach content record the advanced basis as before.
+  The cone trie layout marker becomes layout 4; a layout 3 head is refused
+  with `E_CONE_LAYOUT_UNSUPPORTED` until its ref is deleted
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 
 ### Added
+
+- Report concurrent edits instead of converging silently. Cone records keep,
+  beside each property's LWW register, the writes to it that no other write
+  observed (by each patch's recorded `observedFrontier`), and the removes and
+  edits of each node and edge that raced. Property and existence Readings
+  report them as `reading.plurality` (also on `ReadReceipt` and in CLI Reading
+  lines): a `register` plurality keeps the LWW `winner` as the value and lists
+  the hidden `siblings` with their writers; a `lifecycle` plurality reports a
+  delete that raced an edit (`removedBy`, `editedBy`); the first page of a
+  neighborhood Reading reports raced incident edges. A write that observed
+  every sibling resolves the race. Each set keeps at most 16 values and
+  reports `overflow` beyond that; a race involving a patch without a recorded
+  frontier is `underdetermined`. New root types: `Plurality`,
+  `RegisterPlurality`, `LifecyclePlurality`, `ConcurrentValue`,
+  `PluralityCausality`, `LifecycleElement`
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- Keep saved Coordinates readable through `git gc`: `captureCoordinate()`
+  retains its basis under the clone-local `refs/warp/<lane>/cone/retained`,
+  which keeps the last 64 captured bases reachable. Dropping a strand releases
+  its cone refs ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+
+- Add the annotations example (`examples/annotations/`), a multi-writer
+  margin-notes store built only on `Runtime` and a Wesley-generated domain SDK.
+  It opens a thread, replies, edits, resolves, deletes a comment, syncs two
+  clones with the sync.md refspecs, and keeps every receipt. Add the cone
+  showcase cost witness (`npm run witness:cone-showcase`) and the topic page
+  [Cone-bounded reads and writes](docs/topics/cone-bounded-reads.md). The
+  baseline taken before public reads moved onto cone records is retained in
+  `benchmarks/cone-showcase/results/before-17084f178/`.
 
 - Repair duplicate dots explicitly. `previewDotRepair()` lists each collision
   the v21 migration recorded, which members are visible, and what each policy
@@ -58,6 +181,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `edge.remove` and `node.remove` of an element added earlier in the same
+  atomic write now observe the in-write add dot instead of finding nothing to
+  remove ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- Keep the npm artifact within its entry ceiling: the public `Optic`
+  constructor and `Witness` declarations no longer name internal cone
+  classes, so the internal cone engine ships as JavaScript only and the
+  published declaration closure falls to 94 files
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- Admit `edge.remove` on a Lane: it takes the edge's live dots from its cone
+  record instead of requiring materialized state
+  ([#1037](https://github.com/git-stunts/git-warp/issues/1037)). Neighborhood
+  Readings whose edges changed after the last checkpoint no longer obstruct
+  ([#961](https://github.com/git-stunts/git-warp/issues/961)). `node.remove`
+  and content attach/clear take liveness and observed dots from the target's
+  cone record instead of replaying every writer's history, so they no longer
+  slow down or obstruct as history grows
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 - Make the quarantine graduate-check fail closed. A branch whose merge-base
   with the target cannot be resolved now fails the gate (exit 2) instead of
   skipping it, CI checks out full history and no longer swallows a failed base

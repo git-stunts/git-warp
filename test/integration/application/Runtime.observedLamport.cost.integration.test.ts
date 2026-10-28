@@ -92,7 +92,9 @@ async function publish(directory: string) {
     const start = performance.now();
     const receipt = await lane.write(intent.property.set({ subject: 'n', key: 'value', value: 'FINAL' }));
     const milliseconds = performance.now() - start;
-    expect(receipt.outcome.kind).toBe('derived');
+    // The fresh writer never read the seeded values, which record no causal context: its write races them (#1039).
+    expect(receipt.outcome.kind).toBe('plural');
+    expect(receipt.plurality[0]).toMatchObject({ kind: 'register', subject: 'n', key: 'value', causality: 'underdetermined' });
     expect(materialization).not.toHaveBeenCalled();
     return milliseconds;
   } finally { materialization.mockRestore(); await runtime.close(); }

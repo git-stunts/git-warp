@@ -102,19 +102,25 @@ first, then uses git-warp's canonical `EventId` linearization for a deterministi
 list. Do not parse the allocated subject or occurrence id. Do not use a payload
 timestamp for uniqueness or causal order.
 
-## Prepare and observe a Lane
+## Observe a Lane
 
-Bounded observations require a prepared materialization basis. The explicit
-repair command prepares it:
+Observations read the Lane's clone-local cone basis, which every read and
+write folds forward on its own: a Lane is readable right after its writes, with
+no prepare step. After a large fetch, `repair --action basis` does the folding
+up front and reports how many patches it folded:
 
 ```bash
 git warp repair \
   --lane users \
   --writer local \
-  --action materialization
+  --action basis
 ```
 
-Then run a bounded Observer:
+`--strand <name>` advances a strand Lane's basis instead. The payload reports
+`status: "completed"` with `foldedPatches` and `writers`, or
+`status: "obstructed"` with the cone reason and repair hint and exit code 3.
+
+Run a bounded Observer:
 
 ```bash
 git warp observe \
@@ -166,7 +172,10 @@ git warp settle apply \
 
 The saved artifact is presentation, not executable authority. `apply` reopens
 the selected Lanes, derives a fresh Runtime-owned plan, compares every plan
-identity field, and fails closed if either Lane moved.
+identity field, and fails closed if either Lane moved. A fork pins the cone
+basis it was taken at; the strand reads that base plus its own patches, and a
+preview stays derived while every node and edge the strand names is unchanged
+in the target (see [Strands](strands.md)).
 
 ## Receipts and diagnostics
 
@@ -181,12 +190,26 @@ The remaining diagnostic commands are explicit and bounded:
 
 ```bash
 git warp doctor --lane users
-git warp repair --lane users --action materialization
+git warp repair --lane users --action basis
 git warp audit --lane users
 ```
 
 They may report substrate evidence, but substrate nouns are not application
-commands.
+commands. `doctor` reports `cone-basis-lag`: per writer, the patches the Lane's
+cone basis has not folded yet (warning above 10,000), and a writer chain that no
+longer extends what the basis folded (failure; the fix rebuilds the clone-local
+`refs/warp/<lane>/cone/head`).
+
+### Global maintenance: whole-state checkpoint
+
+```bash
+git warp repair --lane users --action materialization
+```
+
+This is **global maintenance**, not a read prerequisite. It reduces the whole
+Lane state in one process and writes a whole-state checkpoint and coverage
+anchor; its cost and memory grow with the whole graph. No Observation, write,
+fork or settlement uses it. Keep it for migration, export and inspection.
 
 ## MCP
 

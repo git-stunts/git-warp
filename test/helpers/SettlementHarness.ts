@@ -103,9 +103,11 @@ export function boundSettlementOutcomeHarness(outcome: AdmissionOutcome) {
 function freezeSnapshot(change: Partial<SettlementSourceSnapshot> = {}): SettlementSourceSnapshot {
   return Object.freeze({
     baseTargetFrontierRef: 'admission:target',
+    basisEvidenceRefs: Object.freeze(['evidence:cone-root']),
     frontierRef: 'admission:source',
     proposalDigest: 'admission:proposal',
     status: 'ready',
+    targetBasis: 'base',
     targetFrontierRef: 'admission:target',
     ...change,
   });
@@ -115,6 +117,7 @@ function bindTargetLane(owner: object): Lane {
   const lane = createLane({ kind: 'worldline', name: 'events' });
   bindLaneRuntime(lane, {
     captureCoordinate: unavailableCoordinate,
+    refreshBasis: unavailableCoordinate,
     fork: null,
     openStrand: null,
     owner,
@@ -142,6 +145,7 @@ function bindSourceLane(
   });
   bindLaneRuntime(lane, {
     captureCoordinate: unavailableCoordinate,
+    refreshBasis: unavailableCoordinate,
     fork: null,
     openStrand: null,
     owner: options.owner,
@@ -176,6 +180,7 @@ function settlementPlan(): SettlementPlan {
   });
 }
 
+/** Coordinate capture and basis refresh are not exercised by settlement tests. */
 function unavailableCoordinate(): Promise<never> {
   return Promise.reject(new Error('not exercised'));
 }

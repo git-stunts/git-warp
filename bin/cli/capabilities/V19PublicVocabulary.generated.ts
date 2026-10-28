@@ -192,7 +192,7 @@ export const V19_PUBLIC_VOCABULARY = {
     {
       "command": "repair",
       "summary": "Apply one explicit Runtime repair.",
-      "usage": "git warp repair --lane <name> --action materialization"
+      "usage": "git warp repair --lane <name> --action basis"
     },
     {
       "command": "audit",

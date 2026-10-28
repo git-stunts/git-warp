@@ -9,6 +9,7 @@ import StrandMaterializer from './StrandMaterializer.ts';
 import StrandPatchService from './StrandPatchService.ts';
 import StrandIntentService from './StrandIntentService.ts';
 import StrandCoordinator from './StrandCoordinator.ts';
+import StrandConeBases from './StrandConeBases.ts';
 import { reserveAllocation } from '../openDotMint.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { frontierRecordsEqual } from './StrandDescriptorValidation.ts';
@@ -27,6 +28,8 @@ import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type ConePatchFeedPort from '../../../ports/ConePatchFeedPort.ts';
+import type ConeRecordStorePort from '../../../ports/ConeRecordStorePort.ts';
 import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
 
 type BaseObservation = {
@@ -89,6 +92,8 @@ export type StrandCoordinatorGraphRuntime = {
   _logger: LoggerPort | null | undefined;
   _codec: { encode(v: HashablePayload): Uint8Array };
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
+  _coneRecords: ConeRecordStorePort | null;
+  _conePatches: ConePatchFeedPort | null;
 };
 
 function wireDescriptors(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: StrandCoordinator | null }): StrandDescriptorStore {
@@ -107,6 +112,7 @@ type SubServices = {
 function wirePatches(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: StrandCoordinator | null }, subs: SubServices): StrandPatchService {
   return new StrandPatchService({
     graph,
+    descriptors: subs.descriptors,
     loadStrandOrThrow: async (strandId: string) => await ref.coordinator!.getOrThrow(strandId),
     materializeDescriptor: async (descriptor: StrandDescriptor, options: { collectReceipts: boolean; ceiling: number | null }) =>
       await subs.materializer.materializeDescriptor(descriptor, options),
@@ -130,6 +136,18 @@ function wireIntents(graph: StrandCoordinatorGraphRuntime, ref: { coordinator: S
   });
 }
 
+/** Reserves one strand creation occurrence from the runtime writer's lane mint (#1021). */
+async function reserveCreation(graph: StrandCoordinatorGraphRuntime): Promise<number> {
+  return await reserveAllocation({
+    writerId: graph._writerId,
+    commits: graph._persistence,
+    codec: graph._commitMessageCodec,
+    journal: graph._patchJournal,
+    headSha: await graph._persistence.readRef(buildWriterRef(graph._graphName, graph._writerId)),
+    floors: graph._allocationFloors,
+  });
+}
+
 /** Creates a StrandCoordinator wired to the given graph runtime. */
 export default function createStrandCoordinator(graph: StrandCoordinatorGraphRuntime): StrandCoordinator {
   const ref: { coordinator: StrandCoordinator | null } = { coordinator: null };
@@ -141,14 +159,7 @@ export default function createStrandCoordinator(graph: StrandCoordinatorGraphRun
   ref.coordinator = new StrandCoordinator({
     graphName: graph._graphName,
     writerId: graph._writerId,
-    reserveCreation: async () => await reserveAllocation({
-      writerId: graph._writerId,
-      commits: graph._persistence,
-      codec: graph._commitMessageCodec,
-      journal: graph._patchJournal,
-      headSha: await graph._persistence.readRef(buildWriterRef(graph._graphName, graph._writerId)),
-      floors: graph._allocationFloors,
-    }),
+    reserveCreation: async () => await reserveCreation(graph),
     maxObservedLamport: () => graph._maxObservedLamport,
     crypto: graph._crypto,
     persistence: graph._persistence,
@@ -156,6 +167,7 @@ export default function createStrandCoordinator(graph: StrandCoordinatorGraphRun
     materializer,
     patches,
     intents,
+    cones: new StrandConeBases({ runtime: graph, descriptors }),
     graph,
   });
 

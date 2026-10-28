@@ -7,7 +7,7 @@ import {
   previewDraftJoin,
 } from './DraftTimelineRuntime.ts';
 import { executeReading } from './ReadingRuntime.ts';
-import { createTick, createTickFromCoordinate } from './TickRuntime.ts';
+import { createTick } from './TickRuntime.ts';
 import type Tick from './Tick.ts';
 import Timeline from './Timeline.ts';
 import { createTimelineView } from './TimelineViewRuntime.ts';
@@ -42,6 +42,7 @@ export function createTimeline(runtime: WarpWorldline, context: ApiRuntimeContex
         context,
         intent,
         commit: runtime.commitWithEvidence.bind(runtime),
+        cone: runtime.coneBasis(),
       }),
   });
   timelineRuntimes.set(timeline, Object.freeze({ context, runtime }));
@@ -56,15 +57,12 @@ export function requireTimelineContext(timeline: Timeline): ApiRuntimeContext {
   return requireTimelineBinding(timeline).context;
 }
 
-export async function capturePreparedTimelineTick(
+/** Captures the read coordinate of one Observation as a Tick: one basis for all its Readings. */
+export async function captureObservationTick(
   timeline: Timeline,
 ): Promise<Tick> {
   const binding = requireTimelineBinding(timeline);
-  return await createTickFromCoordinate(
-    binding.runtime,
-    binding.context,
-    await binding.runtime.coordinate(),
-  );
+  return await createTick(binding.runtime, binding.context);
 }
 
 function requireTimelineBinding(timeline: Timeline): TimelineRuntimeBinding {

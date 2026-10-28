@@ -308,17 +308,34 @@ export default class StrandDescriptorStore {
 
   /** Every writer chain on the strand that has at least one patch, by writer id. */
   async listWriterChains(strandId: string): Promise<StrandWriterChain[]> {
-    const prefix = this._strandRef(strandId, buildStrandWritersPrefix);
-    const refs = (await this._graph._persistence.listRefs(prefix)).filter((ref) => ref.startsWith(prefix)).sort();
     const chains: StrandWriterChain[] = [];
-    for (const ref of refs) {
-      const writerId = ref.slice(prefix.length);
-      const { headPatchSha, patchCount } = await this._readChain(ref);
-      if (headPatchSha !== null) {
-        chains.push({ writerId, overlayId: MintId.strand(writerId, strandId).encode(), headPatchSha, patchCount });
-      }
+    for (const [writerId, headPatchSha] of await this.listWriterHeads(strandId)) {
+      const patchCount = (await this._graph._loadPatchChainFromSha(headPatchSha)).length;
+      chains.push({ writerId, overlayId: MintId.strand(writerId, strandId).encode(), headPatchSha, patchCount });
     }
     return chains;
+  }
+
+  /** The head of every writer chain on the strand, by writer id, without walking any chain. */
+  async listWriterHeads(strandId: string): Promise<Map<string, string>> {
+    const prefix = this._strandRef(strandId, buildStrandWritersPrefix);
+    const refs = (await this._graph._persistence.listRefs(prefix)).filter((ref) => ref.startsWith(prefix)).sort();
+    const heads = new Map<string, string>();
+    for (const ref of refs) {
+      const head = await this._graph._persistence.readRef(ref);
+      if (head !== null && head !== undefined) { heads.set(ref.slice(prefix.length), head); }
+    }
+    return heads;
+  }
+
+  /**
+   * The normalized descriptor of one strand id without hydrating it: its
+   * chain heads and lengths are not read, so `writers` is empty and
+   * `overlay` keeps the stored values. Null when absent.
+   */
+  async readUnhydratedDescriptor(strandId: string): Promise<StrandDescriptor | null> {
+    const stored = await this._readById(strandId);
+    return stored === null ? null : this._buildNormalizedDescriptor(stored, normalizeReadOverlays(stored.braid?.readOverlays));
   }
 
   private async _readChain(ref: string): Promise<{ headPatchSha: string | null; patchCount: number }> {

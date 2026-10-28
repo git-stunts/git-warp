@@ -3,6 +3,7 @@ import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type PatchEntry from '../artifacts/PatchEntry.ts';
 import VersionVector from '../crdt/VersionVector.ts';
 import InvalidWriteObservationError from '../errors/InvalidWriteObservationError.ts';
+import PatchError from '../errors/PatchError.ts';
 import EdgeAdd from '../types/ops/EdgeAdd.ts';
 import NodeAdd from '../types/ops/NodeAdd.ts';
 import ObservedWriteFrontier from '../types/ObservedWriteFrontier.ts';
@@ -50,6 +51,18 @@ async function readHead(journal: PatchJournalPort, writer: string, sha: string):
     if (head.done === true) { throw new InvalidWriteObservationError('Captured writer head is unavailable'); }
     return head.value;
   } finally { await history.return?.(); }
+}
+
+/** The causal context recorded by one writer's patch at `sha`. */
+export async function readWriterHeadContext(journal: PatchJournalPort, writer: string, sha: string): Promise<VersionVector> {
+  const history = journal.scanPatchHistory(writer, sha)[Symbol.asyncIterator]();
+  try {
+    const head = await history.next();
+    if (head.done === true) { throw new PatchError('Writer parent is unavailable', { code: 'E_PATCH_NO_STATE' }); }
+    return VersionVector.from(head.value.patch.context);
+  } finally {
+    await history.return?.();
+  }
 }
 
 function observedMembership(entry: PatchEntry): VersionVector {

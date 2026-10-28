@@ -9,9 +9,13 @@ import {
 } from '../../../index.ts';
 import {
   createEntityAdmissionInventoryObserver,
+  findEntityAdmissionInventoryContinuation,
   intent,
   requireEntityAdmissionInventoryCertificate,
+  type EntityAdmissionInventoryObserverOptions,
 } from '../../../advanced.ts';
+import { vi } from 'vitest';
+import ConeReader from '../../../src/domain/services/cone/ConeReader.ts';
 import handleObserve from '../../../bin/cli/commands/observe.ts';
 import type { McpJsonValue } from '../../../bin/cli/commands/mcp/McpJsonValue.ts';
 import type { CliOptions } from '../../../bin/cli/types.ts';
@@ -253,6 +257,90 @@ describe('Runtime entity admission inventory', () => {
     }
   });
 
+  it('pages a declared limit through continuation cursors to the same certified inventory', async () => {
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
+    try {
+      const lane = await runtime.lane(LANE);
+      for (let index = 0; index < 7; index += 1) {
+        await lane.write(entity(`capture:${index}`));
+      }
+      const whole = await consumeInventory(lane);
+      const pages: (readonly EntityAdmission[])[] = [];
+      let cursor: string | undefined;
+      let last: ObservationReceipt | null = null;
+      do {
+        const page = await observePage(lane, { limit: 3, ...(cursor === undefined ? {} : { cursor }) });
+        pages.push(page.admissions);
+        last = page.receipt;
+        cursor = findEntityAdmissionInventoryContinuation(page.receipt) ?? undefined;
+        if (cursor !== undefined) {
+          expect(() => requireEntityAdmissionInventoryCertificate(page.receipt)).toThrow();
+          await lane.write(entity(`capture:later-${pages.length}`));
+        }
+      } while (cursor !== undefined);
+      expect(pages.map((page) => page.length)).toEqual([3, 3, 1]);
+      expect(pages.flat()).toEqual(whole.admissions);
+      const certificate = requireEntityAdmissionInventoryCertificate(last);
+      expect(certificate.admissionCount).toBe(7);
+      expect(certificate.streamDigest).toBe(whole.certificate.streamDigest);
+      expect(certificate.basis).toEqual(whole.certificate.basis);
+      expect((await consumeInventory(lane)).certificate.admissionCount).toBe(9);
+      const exact = await observePage(lane, { limit: 9 });
+      expect(findEntityAdmissionInventoryContinuation(exact.receipt)).toBeNull();
+      expect(requireEntityAdmissionInventoryCertificate(exact.receipt).admissionCount).toBe(9);
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it('refuses a damaged cursor or one whose basis is no longer retained', async () => {
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
+    try {
+      const lane = await runtime.lane(LANE);
+      await lane.write(entity('capture:1'));
+      await lane.write(entity('capture:2'));
+      const first = await observePage(lane, { limit: 1 });
+      const cursor = findEntityAdmissionInventoryContinuation(first.receipt) ?? '';
+      const damaged = cursor.replace('|1|', '|0|');
+      expect((await observePage(lane, { cursor: damaged })).receipt).toMatchObject({
+        status: 'obstructed', reason: 'E_ENTITY_ADMISSION_INVENTORY_CURSOR',
+      });
+      const other = await runtime.lane('other-captures');
+      expect((await observePage(other, { cursor })).receipt).toMatchObject({ reason: 'E_ENTITY_ADMISSION_INVENTORY_CURSOR' });
+      await lane.write(entity('capture:3'));
+      const resumed = await observePage(lane, { cursor });
+      expect(resumed.admissions.map(({ representation }) => representation.subject)).toEqual(['capture:1']);
+      expect(requireEntityAdmissionInventoryCertificate(resumed.receipt).admissionCount).toBe(2);
+      await repository.plumbing.execute({ args: ['update-ref', '-d', `refs/warp/${LANE}/cone/retained`] });
+      await lane.write(entity('capture:4'));
+      expect((await observePage(lane, { cursor })).receipt).toMatchObject({
+        status: 'obstructed', reason: 'E_ENTITY_ADMISSION_INVENTORY_CURSOR_BASIS',
+      });
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it('reads one page of a long inventory at a cost set by the page, not by the history', async () => {
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
+    try {
+      const lane = await runtime.lane(LANE);
+      for (let index = 0; index < 40; index += 1) {
+        await lane.write(index % 4 === 0 ? entity(`capture:${index}`) : intent.node.add({ subject: `plain:${index}` }));
+      }
+      await consumeInventory(lane);
+      const reads = vi.spyOn(ConeReader.prototype, 'records');
+      const page = await observePage(lane, { limit: 2 });
+      const keysRead = reads.mock.calls.reduce((total, [, keys]) => total + keys.length, 0);
+      vi.restoreAllMocks();
+      expect(page.admissions).toHaveLength(2);
+      // One tally per writer, then one batch of the chain's (ten) admissions; no patch is read.
+      expect(keysRead).toBeLessThanOrEqual(11);
+    } finally {
+      await runtime.close();
+    }
+  });
+
   it('exposes the same streamed records and certificate through the CLI', async () => {
     const writer = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
     try {
@@ -295,11 +383,38 @@ describe('Runtime entity admission inventory', () => {
         completeness: 'complete',
       },
     });
+
+    const again = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
+    try {
+      await (await again.lane(LANE)).write(entity('capture:cli-2'));
+    } finally {
+      await again.close();
+    }
+    const first = await cliLines(repository.tempDir, '{"kind":"entity-admissions","limit":1}');
+    const receipt = first[1];
+    const continuation = typeof receipt === 'object' && receipt !== null && !Array.isArray(receipt)
+      ? receipt['inventoryContinuation'] : undefined;
+    expect(typeof continuation).toBe('string');
+    expect(first[1]).not.toHaveProperty('inventoryCertificate');
+    const rest = await cliLines(repository.tempDir, JSON.stringify({ kind: 'entity-admissions', cursor: continuation }));
+    expect(rest[1]).toMatchObject({ inventoryCertificate: { admissionCount: 2 } });
   });
 });
 
 function entity(subject: string) {
   return intent.entity.add({ subject, properties: { body: subject } });
+}
+
+async function cliLines(repo: string, readingJson: string): Promise<McpJsonValue[]> {
+  const result = await handleObserve({
+    options: cliOptions(repo),
+    args: ['--observer', 'cli-entity-admissions', '--reading', readingJson],
+  });
+  const lines: McpJsonValue[] = [];
+  for await (const line of result.lines) {
+    lines.push(line);
+  }
+  return lines;
 }
 
 function cliOptions(repo: string): CliOptions {
@@ -334,6 +449,18 @@ async function consumeInventory(lane: Awaited<ReturnType<Runtime['lane']>>): Pro
     certificate: requireEntityAdmissionInventoryCertificate(receipt),
     receipt,
   };
+}
+
+async function observePage(
+  lane: Awaited<ReturnType<Runtime['lane']>>,
+  options: EntityAdmissionInventoryObserverOptions,
+): Promise<{ readonly admissions: readonly EntityAdmission[]; readonly receipt: ObservationReceipt }> {
+  const observation = lane.observe(createEntityAdmissionInventoryObserver('paged-entity-admissions', options));
+  const admissions: EntityAdmission[] = [];
+  for await (const reading of observation) {
+    admissions.push(reading.value);
+  }
+  return { admissions, receipt: await observation.receipt };
 }
 
 async function drainValues(

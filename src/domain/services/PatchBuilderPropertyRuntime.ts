@@ -1,4 +1,4 @@
-import type BoundedNodeRemovalBasis from './BoundedNodeRemovalBasis.ts';
+import type ConeWriteBasis from './cone/ConeWriteBasis.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import ContentAttachmentWriteIntent, { type ContentAttachmentEdgeWriteTarget } from '../graph/ContentAttachmentWriteIntent.ts';
 import type ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
@@ -31,7 +31,7 @@ type PatchBuilderPropertyRuntimeOptions = {
   readonly edgesRemoved: ReadonlySet<string>;
   readonly nodesRemoved: ReadonlySet<string>;
   readonly getSnapshotState: () => WarpState | null;
-  readonly getWriteBasis: () => BoundedNodeRemovalBasis | null;
+  readonly getWriteBasis: () => ConeWriteBasis | null;
   readonly graphName: string;
   readonly nodesAdded: ReadonlySet<string>;
   readonly observedOperands: Set<string>;
@@ -230,17 +230,22 @@ export default class PatchBuilderPropertyRuntime {
   #nodeExists(nodeId: string): boolean {
     if (this.#options.nodesAdded.has(nodeId)) { return true; }
     if (this.#options.nodesRemoved.has(nodeId)) { return false; }
-    const state = this.#options.getSnapshotState();
-    return state === null ? this.#options.getWriteBasis()?.containsNode(nodeId) === true
-      : state.nodeAlive.contains(nodeId);
+    return this.#observedNodeExists(nodeId);
+  }
+
+  /** The prepared write basis decides first; process-resident state only when none was prepared. */
+  #observedNodeExists(nodeId: string): boolean {
+    const basis = this.#options.getWriteBasis();
+    const state = basis === null ? this.#options.getSnapshotState() : null;
+    return state === null ? basis?.containsNode(nodeId) === true : state.nodeAlive.contains(nodeId);
   }
 
   #edgeExists(from: string, to: string, label: string): boolean {
     const key = encodeEdgeKey(from, to, label);
     if (this.#options.edgesRemoved.has(key)) { return false; }
-    const state = this.#options.getSnapshotState();
-    return state === null ? this.#options.getWriteBasis()?.containsEdge(from, to, label) === true
-      : state.edgeAlive.contains(key);
+    const basis = this.#options.getWriteBasis();
+    const state = basis === null ? this.#options.getSnapshotState() : null;
+    return state === null ? basis?.containsEdge(from, to, label) === true : state.edgeAlive.contains(key);
   }
 
   #assertEdgeExists(from: string, to: string, label: string): string {

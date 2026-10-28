@@ -46,3 +46,15 @@ export function strandPatchCoordinateRef(
     patchShas,
   })}`;
 }
+
+/** Stable coordinate for a strand write observed at one strand frontier (#1039). */
+export function strandFrontierCoordinateRef(
+  worldline: string,
+  strandId: string,
+  frontier: ReadonlyMap<string, string>,
+): string {
+  const entries = [...frontier]
+    .sort(([left], [right]) => compareStrings(left, right))
+    .map(([writerId, patchSha]) => ({ writerId, patchSha }));
+  return `warp:strand-coordinate:${canonicalStringify({ worldline, strandId, frontier: entries })}`;
+}

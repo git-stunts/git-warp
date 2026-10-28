@@ -1,67 +1,46 @@
-import CheckpointTailWitnessLocator from './CheckpointTailWitnessLocator.ts';
 import ContinuumEvidencePosture from '../../continuum/ContinuumEvidencePosture.ts';
-import NeighborhoodOptic from './NeighborhoodOptic.ts';
-import NodeOptic from './NodeOptic.ts';
-import Optic, { type OpticPostureFields } from './Optic.ts';
+import QueryError from '../../errors/QueryError.ts';
+import ConeWitnessLocator from './ConeWitnessLocator.ts';
+import LocatedOptic from './LocatedOptic.ts';
 import OpticAperturePosture from './OpticAperturePosture.ts';
 import OpticBasisPosture from './OpticBasisPosture.ts';
-import OpticCoordinatePosture, {
-  type OpticCoordinatePostureValue,
-} from './OpticCoordinatePosture.ts';
-import OpticSupportRule from './OpticSupportRule.ts';
-import TraversalOptic from './TraversalOptic.ts';
-import type CheckpointTailOpticSource from './CheckpointTailOpticSource.ts';
+import type OpticCoordinatePosture from './OpticCoordinatePosture.ts';
+import type OpticWitnessLocator from './OpticWitnessLocator.ts';
 
+/**
+ * An optic over a Lane's cone records (#1039): live, or pinned to a captured
+ * coordinate. The locator is typed by its public base so the published
+ * declaration of this public class names no internal cone type; the
+ * constructor still admits only a cone witness locator.
+ */
 type WorldlineOpticOptions = {
-  readonly source: CheckpointTailOpticSource;
-  readonly coordinatePosture?: OpticCoordinatePosture | OpticCoordinatePostureValue;
+  readonly locator: OpticWitnessLocator;
+  readonly coordinatePosture: OpticCoordinatePosture;
 };
 
-export default class WorldlineOptic {
-  private readonly _locator: CheckpointTailWitnessLocator;
-  private readonly _posture: OpticPostureFields;
-
+/**
+ * The public optic (`Optic` in the advanced API): reads one Lane through its
+ * cone basis, live or pinned to a captured coordinate. It never reads a
+ * checkpoint.
+ */
+export default class WorldlineOptic extends LocatedOptic {
   constructor(options: WorldlineOpticOptions) {
-    const coordinatePosture = options.coordinatePosture instanceof OpticCoordinatePosture
-      ? options.coordinatePosture
-      : new OpticCoordinatePosture(
-        options.coordinatePosture ?? OpticCoordinatePosture.liveOneOff().value,
-      );
-    this._locator = new CheckpointTailWitnessLocator({
-      source: options.source,
-      cacheBasis: coordinatePosture.isCapturedCoordinate(),
-    });
-    this._posture = Object.freeze({
-      coordinatePosture,
+    super(requireConeLocator(options.locator), {
+      coordinatePosture: options.coordinatePosture,
       aperturePosture: OpticAperturePosture.defaultFullRead(),
-      basisPosture: OpticBasisPosture.checkpointTailBasisVerified(),
+      basisPosture: OpticBasisPosture.coneBasis(),
       evidencePosture: ContinuumEvidencePosture.translatedGitWarpEvidence(),
     });
     Object.freeze(this);
   }
+}
 
-  node(nodeId: string): NodeOptic {
-    return new NodeOptic({
-      optic: Optic.node({ ...this._posture, nodeId }),
-      locator: this._locator,
+function requireConeLocator(locator: OpticWitnessLocator): ConeWitnessLocator {
+  if (!(locator instanceof ConeWitnessLocator)) {
+    throw new QueryError('A worldline optic reads only through a cone witness locator.', {
+      code: 'E_WORLDLINE_OPTIC',
+      context: { field: 'locator' },
     });
   }
-
-  neighborhood(nodeId: string): NeighborhoodOptic {
-    return new NeighborhoodOptic({
-      optic: Optic.neighborhood({ ...this._posture, nodeId }),
-      locator: this._locator,
-    });
-  }
-
-  traversal(startNodeId: string): TraversalOptic {
-    return new TraversalOptic({
-      optic: Optic.traversal({
-        ...this._posture,
-        startNodeId,
-        supportRule: OpticSupportRule.globalDiscoveryRefused(),
-      }),
-      locator: this._locator,
-    });
-  }
+  return locator;
 }

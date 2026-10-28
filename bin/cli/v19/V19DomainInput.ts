@@ -5,6 +5,7 @@ import {
   createObserver,
   intent,
   reading,
+  type EntityAdmissionInventoryObserverOptions,
 } from '../../../advanced.ts';
 import type Intent from '../../../src/domain/api/Intent.ts';
 import type Observer from '../../../src/domain/api/Observer.ts';
@@ -81,6 +82,8 @@ const READING_SCHEMA = z.discriminatedUnion('kind', [
   z
     .object({
       kind: z.literal('entity-admissions'),
+      limit: z.number().int().positive().optional(),
+      cursor: z.string().min(1).optional(),
     })
     .strict(),
   z
@@ -181,7 +184,7 @@ export function observerFromText(observerId: string, text: string): Observer<Rea
 export function observerFromValue(observerId: string, value: McpJsonValue): Observer<ReadingValue> {
   const descriptor = parseReadingDescriptor(value);
   if (descriptor.kind === 'entity-admissions') {
-    return createEntityAdmissionInventoryObserver(observerId);
+    return createEntityAdmissionInventoryObserver(observerId, inventoryPaging(descriptor));
   }
   if (descriptor.kind === 'property.get') {
     return propertyObserver(observerId, descriptor);
@@ -190,6 +193,15 @@ export function observerFromValue(observerId: string, value: McpJsonValue): Obse
     return nodeObserver(observerId, descriptor);
   }
   return neighborhoodObserver(observerId, descriptor);
+}
+
+function inventoryPaging(
+  descriptor: Extract<z.infer<typeof READING_SCHEMA>, { kind: 'entity-admissions' }>,
+): EntityAdmissionInventoryObserverOptions {
+  return {
+    ...(descriptor.limit === undefined ? {} : { limit: descriptor.limit }),
+    ...(descriptor.cursor === undefined ? {} : { cursor: descriptor.cursor }),
+  };
 }
 
 function parseReadingDescriptor(value: McpJsonValue): z.infer<typeof READING_SCHEMA> {

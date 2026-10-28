@@ -75,6 +75,37 @@ describe('post-v17 blocked witness: graph query bounded read-model provider', ()
     expect(missing.stateHash).toContain('checkpoint-tail-query:');
   });
 
+  it('answers exact id-only worldline queries from the checkpoint-tail optic, live and at a coordinate', async () => {
+    const graph = await openRuntimeHostProduct({
+      persistence: new InMemoryGraphAdapter(),
+      graphName: 'bounded-worldline-query',
+      writerId: 'writer-1',
+    });
+    await graph.patch((patch) => {
+      patch.addNode(BASE_NODE_ID);
+    });
+    const unanchored = await graph.worldline().query().match(BASE_NODE_ID).select(['id']).run();
+    expect(unanchored.stateHash).not.toContain('checkpoint-tail-query:');
+    await graph.materialize();
+    const checkpointSha = await graph.createCheckpoint();
+    const frontier = Object.fromEntries(await graph.getFrontier());
+    await graph.patch((patch) => {
+      patch.addNode(TAIL_NODE_ID);
+    });
+    graph._ensureFreshState = async () => {
+      throw new Error('full materialization trap');
+    };
+
+    const live = await graph.worldline().query().match(TAIL_NODE_ID).select(['id']).run();
+    const pinned = graph.worldline({ source: { kind: 'coordinate', frontier, ceiling: null, checkpointSha } });
+    const atCheckpoint = await pinned.query().match(TAIL_NODE_ID).select(['id']).run();
+
+    expect(live).toMatchObject({ nodes: [{ id: TAIL_NODE_ID }] });
+    expect(live.stateHash).toContain('checkpoint-tail-query:');
+    expect(atCheckpoint).toMatchObject({ nodes: [] });
+    expect(atCheckpoint.stateHash).toContain('checkpoint-tail-query:');
+  });
+
   it('evaluates intent guards through checkpoint-tail property optics', async () => {
     const persistence = new InMemoryGraphAdapter();
     const graph = await openRuntimeHostProduct({

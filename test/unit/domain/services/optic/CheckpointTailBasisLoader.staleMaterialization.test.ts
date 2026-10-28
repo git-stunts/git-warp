@@ -8,7 +8,6 @@ import { describe, expect, it } from 'vitest';
 
 import PersistenceError from '../../../../../src/domain/errors/PersistenceError.ts';
 import CheckpointTailBasisLoader from '../../../../../src/domain/services/optic/CheckpointTailBasisLoader.ts';
-import CheckpointTailBasisVerifier from '../../../../../src/domain/services/optic/CheckpointTailBasisVerifier.ts';
 import CheckpointTailOpticSource, {
   type CheckpointTailCheckpointFrontier,
   type CheckpointTailPatchEntry,
@@ -73,11 +72,5 @@ describe('checkpoint-tail basis over a checkpoint from an older descriptor schem
     const loader = new CheckpointTailBasisLoader({ source: new StaleCheckpointSource() });
 
     await expect(loader.load()).rejects.toMatchObject(NO_BOUNDED_BASIS);
-  });
-
-  it('reports no bounded basis from the verifier', async () => {
-    const verifier = new CheckpointTailBasisVerifier({ source: new StaleCheckpointSource() });
-
-    await expect(verifier.verify()).rejects.toMatchObject(NO_BOUNDED_BASIS);
   });
 });

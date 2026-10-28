@@ -1,36 +1,42 @@
 import WarpError from './errors/WarpError.ts';
 import type WorldlineOptic from './services/optic/WorldlineOptic.ts';
-import type ProjectionHandle from './services/ProjectionHandle.ts';
-import type { WorldlineOptions, WorldlineSource } from './capabilities/QueryCapability.ts';
 
 export type WarpWorldlineCoordinateFrontierEntry = {
   readonly writerId: string;
   readonly patchSha: string;
 };
 
+/** A coordinate pinned to one cone basis of a Lane (#1039): every Reading through it shares that basis. */
 export type WarpWorldlineCoordinateOptions = {
   readonly worldlineName: string;
-  readonly checkpointSha: string;
+  /** The cone record trie root the coordinate pins (its text form). */
+  readonly coneRoot: string;
   readonly frontier: Map<string, string>;
-  readonly createWorldline: (options?: WorldlineOptions) => ProjectionHandle;
+  readonly createOptic: () => WorldlineOptic;
 };
 
+/**
+ * A captured read coordinate: one cone basis of a worldline or strand Lane
+ * (#1039), named by its record trie root and the writer frontier it folds.
+ * Its optic reads that basis and nothing newer.
+ */
 export default class WarpWorldlineCoordinate {
   readonly kind: 'worldline-coordinate' = 'worldline-coordinate';
   readonly worldlineName: string;
-  readonly checkpointSha: string;
+  /** The cone record trie root this coordinate pins. */
+  readonly coneRoot: string;
   readonly frontierEntries: readonly WarpWorldlineCoordinateFrontierEntry[];
-  private readonly _createWorldline: (options?: WorldlineOptions) => ProjectionHandle;
+  private readonly _createOptic: () => WorldlineOptic;
 
   constructor(options: WarpWorldlineCoordinateOptions) {
     assertFrontier(options.frontier);
-    assertWorldlineFactory(options.createWorldline);
     assertNonEmpty(options.worldlineName, 'worldlineName');
-    assertNonEmpty(options.checkpointSha, 'checkpointSha');
+    assertNonEmpty(options.coneRoot, 'coneRoot');
+    assertOpticFactory(options.createOptic);
     this.worldlineName = options.worldlineName;
-    this.checkpointSha = options.checkpointSha;
+    this.coneRoot = options.coneRoot;
     this.frontierEntries = freezeFrontier(options.frontier);
-    this._createWorldline = options.createWorldline;
+    this._createOptic = options.createOptic;
     Object.freeze(this);
   }
 
@@ -38,16 +44,23 @@ export default class WarpWorldlineCoordinate {
     return new Map(this.frontierEntries.map((entry) => [entry.writerId, entry.patchSha]));
   }
 
-  source(): WorldlineSource {
-    return {
-      kind: 'coordinate',
-      frontier: this.frontier(),
-      checkpointSha: this.checkpointSha,
-    };
+  /** The parts that identify this coordinate's basis. */
+  basisIdentity(): readonly string[] {
+    return ['cone', this.coneRoot];
   }
 
   optic(): WorldlineOptic {
-    return this._createWorldline({ source: this.source() }).optic();
+    return this._createOptic();
+  }
+}
+
+function assertOpticFactory(createOptic: () => WorldlineOptic): void {
+  if (typeof createOptic !== 'function') {
+    throw new WarpError(
+      'WarpWorldline coordinate requires an optic factory',
+      'E_WARP_WORLDLINE_COORDINATE',
+      { context: { field: 'createOptic' } }
+    );
   }
 }
 
@@ -71,16 +84,6 @@ function assertFrontier(frontier: Map<string, string>): void {
       'WarpWorldline coordinate requires a frontier Map',
       'E_WARP_WORLDLINE_COORDINATE',
       { context: { field: 'frontier' } }
-    );
-  }
-}
-
-function assertWorldlineFactory(createWorldline: (options?: WorldlineOptions) => ProjectionHandle): void {
-  if (typeof createWorldline !== 'function') {
-    throw new WarpError(
-      'WarpWorldline coordinate requires a worldline factory',
-      'E_WARP_WORLDLINE_COORDINATE',
-      { context: { field: 'createWorldline' } }
     );
   }
 }

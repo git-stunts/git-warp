@@ -33,6 +33,7 @@ const REMOVED_COMMANDS = [
 ] as const;
 
 const COMMAND_SOURCE_FILES = [
+  'ConeBasisRepair.ts',
   'MaterializationRepair.ts',
   'audit.ts',
   'doctor-v19.ts',

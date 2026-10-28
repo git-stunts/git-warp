@@ -22,7 +22,7 @@ import type { CliStorageBinding } from '../../shared.ts';
 const DEFAULT_POLICY: DoctorPolicy = {
   strict: false,
   clockSkewMs: 300_000,
-  checkpointMaxAgeHours: 168,
+  coneBasisLagWarnPatches: 10_000,
   globalDeadlineMs: 10_000,
   checkTimeouts: {},
 };

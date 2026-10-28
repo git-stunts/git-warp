@@ -7,6 +7,7 @@ import { freezeEvidence } from './EvidenceRuntime.ts';
 import type { ReadingValue } from './ReadingValue.ts';
 import { isReadingValue, snapshotReadingValue } from './ReadingValueRuntime.ts';
 import Tick from './LaneTick.ts';
+import { freezePlurality, type Plurality } from './PluralityRuntime.ts';
 
 export type { ReadingValue } from './ReadingValue.ts';
 export type WitnessReference = Readonly<{
@@ -29,6 +30,7 @@ type ReadingOptions<TValue extends ReadingValue> = {
   readonly lane: string;
   readonly value: TValue;
   readonly witnessRefs?: readonly WitnessReference[];
+  readonly plurality?: readonly Plurality[];
 };
 
 /** One bounded semantic value emitted by an Observation. */
@@ -36,6 +38,13 @@ export default class Reading<TValue extends ReadingValue = ReadingValue> {
   /** Immutable reducer interpretation, independent of the history coordinate. */
   readonly reducerVersion = NODE_PROPERTY_CLEAR_SEMANTICS;
   readonly coordinate: ReadingCoordinate;
+  /**
+   * Concurrency behind this value (#1039): the register's LWW value raced
+   * other writes (`register`, with the hidden sibling values and their
+   * writers), or the entity's delete raced an edit (`lifecycle`). Empty when
+   * nothing raced.
+   */
+  readonly plurality: readonly Plurality[];
   readonly support: SupportReport;
   readonly value: TValue;
   readonly witnessRefs: readonly WitnessReference[];
@@ -55,6 +64,7 @@ export default class Reading<TValue extends ReadingValue = ReadingValue> {
     this.coordinate = createReadingCoordinate(evidence, options.lane);
     this.support = Object.freeze({ evidence: support, status: 'supported' });
     this.witnessRefs = freezeWitnessReferences(options.witnessRefs);
+    this.plurality = freezePlurality(options.plurality ?? []);
     Object.freeze(this);
   }
 }

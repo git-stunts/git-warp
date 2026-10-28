@@ -90,11 +90,12 @@ none of the array. A staged value from another Runtime is refused, even if it us
 the same repository. Staging that becomes unavailable before publication also fails
 without advancing the graph's publication ref.
 
-Worldline owner checks use a captured, bounded journal observation, not an implicit
-full graph materialization. They share its refusal limits with node removal:
-1,024 writers, 10,000 patches, 50,000 operations and membership/text bounds.
-Long histories or high incident-edge fanout can exceed that profile; an obstruction
-is not evidence that the requested owner is absent. The packed-consumer witness exercises both owner types through the installed artifact.
+Owner checks, on worldline and strand Lanes, read the owner's record from the
+Lane's cone basis (#1039): one node record, or an edge record and its two
+endpoints. They never replay history or materialize the graph, and an owner
+added earlier in the same atomic write counts as present. A cone obstruction is
+reported on the Write Receipt with its repair hint; it is not evidence that the
+requested owner is absent. The packed-consumer witness exercises both owner types through the installed artifact.
 
 ## Stream observations
 
@@ -102,13 +103,13 @@ Use `createNodeContentObserver({ subject })` or `createEdgeContentObserver({ fro
 
 A reading contains a frozen owner, opaque content identity, `mime` and `size`. The metadata fields may be `null`: absent or legacy metadata without the winning content's causal lineage is not combined with that asset. A missing attachment association emits a `null` reading value. A captured reading opens its original bytes after later replacement, clearing or owner removal. It requires the originating Runtime to remain open and the retained history/storage to remain available.
 
-Content observations capture writer heads once and replay those immutable histories,
-retaining only the selected owner's membership and content registers. This is a
-bounded full-history scan, not an indexed checkpoint-tail lookup. Its refusal profile
-is 1,024 writers, 10,000 patches, 50,000 operations, 50,000 retained text entries and
-8 Mi UTF-16 text units; artifact decoding also has the existing 64 MiB bound.
-An exceeded profile or unavailable history yields an obstructed observation,
-not a claim of absent content. Strands use their pinned parent and overlay heads.
+Content observations advance the Lane's cone basis once and read the owner's
+attachment registers and liveness from its records: one node record, or an edge
+record and its two endpoints. Their cost follows the owner, not the history;
+artifact decoding keeps the existing 64 MiB bound. A cone obstruction yields an
+obstructed observation with its repair hint, not a claim of absent content. A
+strand Lane reads the owner from the strand's basis: its pinned base plus the
+strand's own patches.
 
 An unused reading or unused `open()` iterable holds no activity lease. Consumption
 acquires a lease; Runtime close waits for active consumption to finish. Breaking
@@ -144,7 +145,7 @@ The COPY-only gate builds and installs the actual npm tarball into a fresh consu
 | Generated 64 MiB streaming, producer failure, early termination, close refusal and retained reopen | [Packed public lifecycle fixture](../../test/fixtures/packed-content.mjs) |
 | Concurrent writers converge with matching winning MIME/size, foreign/copied values and missing owners refuse without partial writes, size/cancellation failures preserve refs, missing bytes fail, retained snapshot survives reopen | [Packed consumer fixture](../../test/fixtures/packed-content-consumer.mjs) |
 | Observation obstruction and unexpected failure propagation; active-stream lease cleanup and cancellation | [Runtime content observation tests](../../test/unit/application/RuntimeContentObservation.test.ts), [reading tests](../../test/unit/application/RuntimeContentReading.test.ts) |
-| Bounded projection, causal metadata compatibility and node/edge removal parity | [Projection tests](../../test/unit/domain/services/ContentReadProjection.test.ts), [removal parity tests](../../test/unit/domain/services/ContentReadRemovalParity.test.ts) |
+| Content reads from the owner's cone records: metadata after replacement and clearing, concurrent winners, removed owners, strand pins | [Cone content read integration tests](../../test/integration/application/Runtime.contentRead.integration.test.ts), [cone-bounded Runtime tests](../../test/integration/application/Runtime.coneBounded.integration.test.ts) |
 
 The 64 MiB generated payload is a streaming witness, not an attachment-size ceiling. The eager artifact decoding limits below govern different inputs.
 

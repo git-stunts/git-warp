@@ -1,18 +1,18 @@
 import type WarpWorldline from '../WarpWorldline.ts';
 import type { WarpDraftPatchEntry } from '../WarpWorldline.ts';
-import type { WarpStrandOpticBasis } from '../WarpStrandOpticBasis.ts';
 import type WarpWorldlineCoordinate from '../WarpWorldlineCoordinate.ts';
+import { captureConeCoordinate, captureRetainedConeCoordinate } from '../WarpWorldlineConeOptics.ts';
 import WarpError from '../errors/WarpError.ts';
+import type ConeIngestOutcome from '../services/cone/ConeIngestOutcome.ts';
+import ConeSettlementFootprint from '../services/cone/ConeSettlementFootprint.ts';
+import type StrandConeBasis from '../services/strand/StrandConeBasis.ts';
 import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
 import type { DraftReadingTarget } from './DraftReadingTarget.ts';
 import DraftTimeline from './DraftTimeline.ts';
 import type Evidence from './Evidence.ts';
 import { createJoinEvidence, createJoinRecoveryEvidence } from './EvidenceRuntime.ts';
 import type { WriteIntentInput } from './IntentSequence.ts';
-import {
-  applyIntentSequenceToPatch,
-  intentSequenceFromPatch,
-} from './IntentSequenceRuntime.ts';
+import { intentSequenceFromPatch } from './IntentSequenceRuntime.ts';
 import type IntentSequence from './IntentSequence.ts';
 import JoinReceipt from './JoinReceipt.ts';
 import JoinResult from './JoinResult.ts';
@@ -21,16 +21,21 @@ import { executeReading } from './ReadingRuntime.ts';
 import Tick from './Tick.ts';
 import type { JoinOptions } from './Timeline.ts';
 import type WriteReceipt from './WriteReceipt.ts';
-import { executeIntentWrite } from './WriteRuntime.ts';
+import { commitSequenceOnCone, executeIntentWrite } from './WriteRuntime.ts';
 
 export type { DraftReadingTarget } from './DraftReadingTarget.ts';
 
 export type DraftTimelineState = {
   readonly context: ApiRuntimeContext;
   readonly runtime: WarpWorldline;
+  /** The strand's pinned base and its own cone basis (#1039). */
+  readonly strand: StrandConeBasis;
   readonly draftPatchShas: string[];
   readonly sequences: IntentSequence[];
-  readonly forkedAt: WarpWorldlineCoordinate | null;
+  /** The nodes and edges the strand's patches name, for settlement previews. */
+  footprint: ConeSettlementFootprint;
+  /** The coordinate the strand was forked at: its base frontier and pinned base basis. */
+  readonly forkedAt: WarpWorldlineCoordinate;
   readonly joinPatchShas: string[];
   joinRecoveryEvidence: Evidence | undefined;
   joinFailed: boolean;
@@ -40,7 +45,6 @@ export type DraftTimelineState = {
 
 type DraftWriteFields = {
   readonly runtime: WarpWorldline;
-  readonly draftName: string;
   readonly state: DraftTimelineState;
   readonly intent: WriteIntentInput;
 };
@@ -55,9 +59,10 @@ type CreateDraftTimelineFields = {
 
 type DraftStateFields = Readonly<{
   readonly context: ApiRuntimeContext;
-  readonly forkedAt: WarpWorldlineCoordinate | null;
+  readonly forkedAt: WarpWorldlineCoordinate;
   readonly persisted: readonly WarpDraftPatchEntry[];
   readonly runtime: WarpWorldline;
+  readonly strand: StrandConeBasis;
 }>;
 
 type JoinResultFieldsBase = {
@@ -104,49 +109,42 @@ type JoinCompletionFields = {
 
 const draftStates = new WeakMap<DraftTimeline, DraftTimelineState>();
 
+/**
+ * Creates a strand forked at `forkedAt` (#1039), or at a coordinate captured
+ * now, and opens it. Forking pins the lane cone basis of that coordinate as
+ * the strand's base; it never materializes or checkpoints.
+ */
 export async function createDraftTimeline(
   fields: CreateDraftTimelineFields
 ): Promise<DraftTimeline> {
-  await fields.runtime.createDraft(fields.draftName, fields.forkedAt);
-  return await openDraftTimeline(fields);
+  const forkedAt = fields.forkedAt ?? await fields.runtime.captureReadCoordinate();
+  await fields.runtime.createDraft(fields.draftName, forkedAt);
+  return await openDraftTimeline({ ...fields, forkedAt });
 }
 
+/** Opens a strand Lane over its cone bases; a reopened strand's coordinate is its pinned base. */
 export async function openDraftTimeline(fields: CreateDraftTimelineFields): Promise<DraftTimeline> {
   const { runtime, context, timelineName, draftName } = fields;
-  const persisted = await runtime.loadDraftPatchEntries(draftName);
-  const state = createDraftState({
-    runtime,
-    context,
-    forkedAt: fields.forkedAt ?? null,
-    persisted,
-  });
+  const strand = await runtime.openDraft(draftName);
+  const forkedAt = fields.forkedAt ?? await captureConeCoordinate(runtime.worldlineName, strand.base);
+  const persisted = await runtime.loadDraftPatchEntries(strand.strandId);
+  const state = createDraftState({ runtime, context, forkedAt, persisted, strand });
   const draft = new DraftTimeline({
     name: draftName,
     timeline: timelineName,
     writer: runtime.writerId,
-    writeDraft: async (intent) =>
-      await writeDraftIntent({
-        runtime,
-        draftName,
-        state,
-        intent,
-      }),
+    writeDraft: async (intent) => await writeDraftIntent({ runtime, state, intent }),
   });
   draftStates.set(draft, state);
   return draft;
 }
 
+/** The Readings of one strand Observation: one coordinate over the strand's cone basis. */
 export async function createDraftReadingTarget(draft: DraftTimeline): Promise<DraftReadingTarget> {
   const state = requireDraftStateForReading(draft);
-  const coordinate = state.forkedAt;
-  if (coordinate === null) {
-    throw new WarpError(
-      'DraftTimeline was not forked from a captured Runtime coordinate',
-      'E_DRAFT_TIMELINE_BOUNDED_BASIS_UNAVAILABLE'
-    );
-  }
-  const basis = await state.runtime.prepareStrandOptic(draft.name, coordinate.checkpointSha);
-  const tick = await createDraftReadingTick(draft, state, basis);
+  const coordinate = await captureConeCoordinate(state.runtime.worldlineName, state.strand.strand);
+  const tick = await createDraftReadingTick(draft, state, coordinate);
+  const optic = coordinate.optic();
   return Object.freeze({
     tick,
     read: async (reading: Reading) =>
@@ -154,23 +152,39 @@ export async function createDraftReadingTarget(draft: DraftTimeline): Promise<Dr
         runtime: state.runtime,
         context: state.context,
         reading,
-        basis: { optic: basis.optic, tick },
+        basis: { optic, tick },
       }),
   });
+}
+
+/** Advances a strand's cone basis and answers what the advance did (#1039). */
+export async function refreshDraftBasis(draft: DraftTimeline): Promise<ConeIngestOutcome> {
+  return await requireDraftStateForReading(draft).strand.strand.refresh();
+}
+
+/** The coordinate a strand was forked at: its base frontier over its pinned base basis. */
+export function draftForkCoordinate(draft: DraftTimeline): WarpWorldlineCoordinate {
+  return requireDraftStateForReading(draft).forkedAt;
+}
+
+/** A coordinate over a strand's cone basis that an application may keep (#1039). */
+export async function captureDraftCoordinate(draft: DraftTimeline): Promise<WarpWorldlineCoordinate> {
+  const state = requireDraftStateForReading(draft);
+  return await captureRetainedConeCoordinate(state.runtime.worldlineName, state.strand.strand);
 }
 
 async function createDraftReadingTick(
   draft: DraftTimeline,
   state: DraftTimelineState,
-  basis: WarpStrandOpticBasis
+  coordinate: WarpWorldlineCoordinate,
 ): Promise<Tick> {
-  const frontier = basis.frontierEntries.flatMap(({ writerId, patchSha }) => [writerId, patchSha]);
+  const frontier = coordinate.frontierEntries.flatMap(({ writerId, patchSha }) => [writerId, patchSha]);
   return new Tick({
     timeline: draft.name,
     id: await state.context.createOpaqueId('tick', [
       state.runtime.worldlineName,
       draft.name,
-      basis.checkpointSha,
+      ...coordinate.basisIdentity(),
       ...frontier,
     ]),
   });
@@ -290,11 +304,13 @@ async function acceptedJoin(fields: JoinCompletionFields): Promise<JoinResult> {
 }
 
 function createDraftState(fields: DraftStateFields): DraftTimelineState {
-  const { context, forkedAt, persisted, runtime } = fields;
+  const { context, forkedAt, persisted, runtime, strand } = fields;
   return {
     context,
     runtime,
+    strand,
     draftPatchShas: persisted.map(({ sha }) => sha),
+    footprint: persisted.reduce((footprint, { patch }) => footprint.including(patch), ConeSettlementFootprint.empty()),
     forkedAt,
     sequences: persisted.map(({ patch }) => intentSequenceFromPatch(patch)),
     joinPatchShas: [],
@@ -320,12 +336,14 @@ async function writeDraftIntent(
   fields: DraftWriteFields,
 ): Promise<WriteReceipt<WriteIntentInput>> {
   let draftPatch: WarpDraftPatchEntry | undefined;
+  const { strand } = fields.state;
   const receipt = await executeIntentWrite({
     runtime: fields.runtime,
     context: fields.state.context,
     intent: fields.intent,
+    cone: strand.strand,
     commit: async (build) => {
-      const publication = await fields.runtime.patchDraftWithEvidence(fields.draftName, build);
+      const publication = await fields.runtime.patchDraftWithEvidence(strand.strandId, build);
       draftPatch = publication;
       return publication;
     },
@@ -338,6 +356,7 @@ async function writeDraftIntent(
   }
   fields.state.draftPatchShas.push(draftPatch.sha);
   fields.state.sequences.push(intentSequenceFromPatch(draftPatch.patch));
+  fields.state.footprint = fields.state.footprint.including(draftPatch.patch);
   return receipt;
 }
 
@@ -359,8 +378,10 @@ async function commitDraftSequences(
 ): Promise<readonly string[]> {
   for (const sequence of state.sequences) {
     try {
-      const patchSha = await runtime.commit((patch) => {
-        applyIntentSequenceToPatch(sequence, patch);
+      const patchSha = await commitSequenceOnCone({
+        commit: runtime.commitWithEvidence.bind(runtime),
+        cone: runtime.coneBasis(),
+        sequence,
       });
       state.joinPatchShas.push(patchSha);
     } catch {

@@ -6,6 +6,11 @@ import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../../ports/IndexStorePort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
+import type ConePatchFeedPort from '../../ports/ConePatchFeedPort.ts';
+import type ConeRecordStorePort from '../../ports/ConeRecordStorePort.ts';
+import type { PatchBuilder } from '../services/PatchBuilder.ts';
+import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
+import type StrandConeBasis from '../services/strand/StrandConeBasis.ts';
 import type { NeighborEdge } from '../../ports/NeighborProviderPort.ts';
 import type QueryCapability from '../capabilities/QueryCapability.ts';
 import type PatchCapability from '../capabilities/PatchCapability.ts';
@@ -153,6 +158,8 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   readonly _viewService: MaterializedViewService;
   readonly _syncController: SyncController;
   readonly _patchJournal: PatchJournalPort;
+  readonly _coneRecords: ConeRecordStorePort | null;
+  readonly _conePatches: ConePatchFeedPort | null;
   readonly provenanceIndex: ProvenanceIndex | null;
   readonly temporal: TemporalQuery;
   readonly fork: (_request: RuntimeForkRequest) => Promise<RuntimeHostProduct>;
@@ -191,6 +198,13 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   _loadPatchChainFromSha(tipSha: string, stopAtSha?: string | null): Promise<RuntimeHostPatchEntry[]>;
   _loadWriterPatches(writerId: string, stopAtSha?: string | null): Promise<RuntimeHostPatchEntry[]>;
   getStrandOverlayPatches(strandId: string): Promise<RuntimeHostPatchEntry[]>;
+  /** One public strand Lane write over cone records (#1039). */
+  patchStrandOnConeWithEvidence(
+    strandId: string,
+    build: (patch: PatchBuilder) => void | Promise<void>,
+  ): Promise<PatchCommitResult>;
+  /** A strand's pinned base and its own cone basis (#1039). */
+  openStrandCone(strandRef: string): Promise<StrandConeBasis>;
   _ensureFreshState(): Promise<void>;
   _maybeRunGC(state: WarpState): void;
   _isAncestor(ancestorSha: string, descendantSha: string): Promise<boolean>;

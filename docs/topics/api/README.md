@@ -238,9 +238,10 @@ const events = await runtime.lane('events');
 const draft = await runtime.strand(events, { name: 'try-admin-role' });
 ```
 
-Runtime-created strand descriptors retain the bounded checkpoint and frontier
-needed to reconstruct the original fork coordinate. A generic strand without
-that coordinate is not silently promoted into a Runtime Lane.
+Runtime-created strand descriptors retain the base frontier of the original
+fork coordinate, and the clone pins the cone basis it forked at; the strand
+reads that base plus its own patches and never needs a checkpoint
+([Strands](../strands.md#reads-writes-and-saved-coordinates)).
 
 ## Intents And Generated SDKs
 
@@ -507,8 +508,14 @@ obstruction
 ```
 
 Implementation checkpoint: `Lane.write()` returns this closed
-`AdmissionOutcome` union. `ObservationReceipt.status` remains an independent
-operation status; it is not an admission classification or root outcome alias.
+`AdmissionOutcome` union. A worldline write is `plural` when it sets a property
+whose records hold a concurrent write or remove it never observed: both are
+admitted and retained as siblings (see
+[concurrent edits](../cone-bounded-reads.md#concurrent-edits)). No Lane write
+classifies as `conflict` yet: the graph-intent law treats a register as
+last-writer-wins with retained siblings, not as an exclusive footprint.
+`ObservationReceipt.status` remains an independent operation status; it is not
+an admission classification or root outcome alias.
 
 These variants are disjoint causal relations, not success and failure labels:
 
@@ -644,6 +651,12 @@ immutable, runtime-backed `SettlementPlan` bound to source and target Lane IDs,
 their exact frontiers, proposal digest, law digest, settlement-policy digest,
 and its own plan digest. `Runtime.settle()` accepts only a validated
 SettlementPlan, never an arbitrary object that resembles preview output.
+
+A preview is `derived` when the target has not moved since the fork, or moved
+without changing any node or edge the strand's patches name; otherwise it is a
+`git-warp.settlement-common-basis-required` obstruction. Frontiers are the
+plan's identity; the cone roots compared are evidence only. See
+[Strands](../strands.md#settlement).
 
 Settlement revalidates the plan against the current source and target
 frontiers and law. A preview does not reserve, admit, publish, linearize, or

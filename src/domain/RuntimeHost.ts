@@ -66,6 +66,8 @@ import type PatchJournalPort from '../ports/PatchJournalPort.ts';
 import type AllocationFloorStorePort from '../ports/AllocationFloorStorePort.ts';
 import type AllocationProvenancePort from '../ports/AllocationProvenancePort.ts';
 import type DotRepairStorePort from '../ports/DotRepairStorePort.ts';
+import type ConePatchFeedPort from '../ports/ConePatchFeedPort.ts';
+import type ConeRecordStorePort from '../ports/ConeRecordStorePort.ts';
 import type DotRepairRecord from './repair/DotRepairRecord.ts';
 import DotRepairService, { type DotRepairPlan, type DotRepairPreview } from './services/repair/DotRepairService.ts';
 import AllocationProvenance from './migrations/AllocationProvenance.ts';
@@ -269,6 +271,8 @@ export default class RuntimeHost {
   _allocationFloors: AllocationFloorStorePort | null;
   _allocationProvenance: AllocationProvenancePort | null;
   _dotRepairs: DotRepairStorePort | null;
+  _coneRecords: ConeRecordStorePort | null;
+  _conePatches: ConePatchFeedPort | null;
   _strandStore: StrandStorePort;
   _checkpointStore: CheckpointStorePort;
   _indexStore: IndexStorePort;
@@ -310,6 +314,8 @@ export default class RuntimeHost {
       allocationFloors,
       allocationProvenance,
       dotRepairs,
+      coneRecords,
+      conePatches,
       strandStore,
       checkpointStore,
       indexStore,
@@ -451,6 +457,8 @@ export default class RuntimeHost {
     this._allocationFloors = allocationFloors ?? null;
     this._allocationProvenance = allocationProvenance ?? null;
     this._dotRepairs = dotRepairs ?? null;
+    this._coneRecords = coneRecords ?? null;
+    this._conePatches = conePatches ?? null;
     this._strandStore = strandStore;
     this._checkpointStore = checkpointStore;
     this._indexStore = indexStore;
@@ -742,6 +750,9 @@ export default class RuntimeHost {
   patchStrand: StrandController['patchStrand'] = (...args) => this._strandController.patchStrand(...args);
   patchStrandWithEvidence: StrandController['patchStrandWithEvidence'] = (...args) =>
     this._strandController.patchStrandWithEvidence(...args);
+  patchStrandOnConeWithEvidence: StrandController['patchStrandOnConeWithEvidence'] = (...args) =>
+    this._strandController.patchStrandOnConeWithEvidence(...args);
+  openStrandCone: StrandController['openStrandCone'] = (...args) => this._strandController.openStrandCone(...args);
   queueStrandIntent: StrandController['queueStrandIntent'] = (...args) => this._strandController.queueStrandIntent(...args);
   async listStrandIntents(strandId: string) {
     return [...await this._strandController.listStrandIntents(strandId)];

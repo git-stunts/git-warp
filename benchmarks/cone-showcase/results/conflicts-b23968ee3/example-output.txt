@@ -1,0 +1,30 @@
+margins of essay, as alice reads them:
+  [resolved by alice] "causal cones" @10-22
+    alice: Is this read bounded by the cone? (edited)
+    bob: Yes: only the entities it names. (re c1)
+  [open] "receipts" @40-48
+    bob: Keep these.
+margins of essay, as bob reads them:
+  [resolved by alice] "causal cones" @10-22
+    alice: Is this read bounded by the cone? (edited)
+    bob: Yes: only the entities it names. (re c1)
+  [open] "receipts" @40-48
+    bob: Keep these.
+receipts kept by alice:
+  write openThread t1: derived
+  write reply c3: derived
+  write editComment c1: derived
+  write deleteComment c3: derived
+  write resolveThread t1: derived
+  observe documentThreads: completed
+  observe threadFields: completed
+  observe threadComments: completed
+  observe commentFields: completed
+receipts kept by bob:
+  write reply c2: derived
+  write openThread t2: derived
+  observe documentThreads: completed
+  observe threadFields: completed
+  observe threadComments: completed
+  observe commentFields: completed
+annotations example settled: both clones read the expected margins

@@ -22,7 +22,6 @@ const SOURCE_OVER_BUDGET_PATHS = Object.freeze([
 ]);
 
 const TOOLING_OVER_BUDGET_PATHS = Object.freeze([
-  'bin/cli/commands/doctor/checks.ts',
   'scripts/check-dts-surface.ts',
   'scripts/contamination-map.ts',
   'scripts/dead-export-report.ts',

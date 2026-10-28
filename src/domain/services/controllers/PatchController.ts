@@ -162,7 +162,6 @@ export default class PatchController {
         writerId: h._writerId, commits: h._persistence, codec: h._commitMessageCodec, journal: h._patchJournal, headSha: parentSha, floors: h._allocationFloors,
       }),
       getCurrentState: () => h._cachedState,
-      getSnapshotFrontier: () => h._cachedFrontier ?? null,
       removalGuard: await SharedDotRemovalGuard.load(h._dotRepairs, 'lane'),
       expectedParentSha: parentSha,
       onDeleteWithData: h._onDeleteWithData,

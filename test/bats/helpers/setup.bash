@@ -49,6 +49,6 @@ prepare_user_reading() {
     --lane users \
     --writer bats \
     --json \
-    --action materialization
+    --action basis
   assert_success
 }

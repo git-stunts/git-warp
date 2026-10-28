@@ -6,6 +6,7 @@
  */
 
 import StrandError from '../../errors/StrandError.ts';
+import type ConeBasis from '../cone/ConeBasis.ts';
 import { validateWriterId } from '../../utils/RefLayout.ts';
 import { generateWriterId } from '../../utils/WriterId.ts';
 import { normalizeOptionalString, compareStrings } from './strandShared.ts';
@@ -95,7 +96,6 @@ export type NormalizedCreateOptions = {
   owner: string | null;
   scope: string | null;
   leaseExpiresAt: string | null;
-  baseCheckpointSha: string | null;
 };
 
 /** Normalize raw create options into validated form. */
@@ -105,7 +105,6 @@ export function normalizeCreateOptions(options: {
   owner?: string | null;
   scope?: string | null;
   leaseExpiresAt?: string | null;
-  baseCheckpointSha?: string;
 }): NormalizedCreateOptions {
   return {
     strandId: resolveStrandId(options.strandId),
@@ -113,11 +112,29 @@ export function normalizeCreateOptions(options: {
     owner: normalizeOptionalString(options.owner, 'owner'),
     scope: normalizeOptionalString(options.scope, 'scope'),
     leaseExpiresAt: normalizeLeaseExpiresAt(options.leaseExpiresAt),
-    baseCheckpointSha: normalizeOptionalString(
-      options.baseCheckpointSha,
-      'baseCheckpointSha',
-    ),
   };
+}
+
+/**
+ * A pinned base cone basis (#1039) must fold exactly the captured base
+ * frontier, so the strand reads its base at that frontier and nothing else.
+ */
+export function requireBaseBasisAtFrontier(
+  basis: ConeBasis | undefined,
+  frontier: ReadonlyMap<string, string> | null,
+): void {
+  if (basis === undefined) {
+    return;
+  }
+  const heads = basis.writerHeads();
+  const matches = frontier !== null && heads.size === frontier.size
+    && [...frontier].every(([writerId, patchSha]) => heads.get(writerId) === patchSha);
+  if (!matches) {
+    throw new StrandError('baseBasis must fold exactly the captured baseFrontier', {
+      code: 'E_STRAND_INVALID_ARGS',
+      context: { fields: ['baseBasis', 'baseFrontier'] },
+    });
+  }
 }
 
 /** Copy and validate an explicitly captured parent frontier. */

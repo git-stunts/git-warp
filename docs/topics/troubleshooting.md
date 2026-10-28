@@ -20,27 +20,51 @@ git warp observe \
 An empty accepted Observation is different from an obstructed Observation. The
 Receipt records that distinction.
 
-## A bounded basis is unavailable
+## A read or write is obstructed by the cone basis
 
-`E_OPTIC_NO_BOUNDED_BASIS` means the Runtime could not prove the bounded basis
-needed by the Observer. It is not a missing-value result.
+Lane reads and read-before-write intents (`node.remove`, `edge.remove`, content
+attach and clear), on worldline and strand Lanes alike, answer from the Lane's
+cone basis, which folds each writer patch once. When a fold cannot proceed, the
+Observation Receipt or Write Receipt reports it with a repair hint instead of
+reading around it:
 
-Prepare the local materialization basis explicitly:
+| Reason | Status | Meaning and next step |
+| --- | --- | --- |
+| `cone_shared_dot` | `obstructed` | A patch reuses a dot another element also claims (#1022). Repair the duplicate dot, then retry. |
+| `cone_writer_diverged` | `obstructed` | A writer chain no longer extends the patches this clone folded. Delete this clone's `refs/warp/<lane>/cone/head` so it refolds from the writer chains, then retry. |
+| `cone_contended` | `underdetermined` | Other folds kept moving the cone head. Retry. |
+
+Write Receipts carry the same reasons under `git-warp.write.<reason>`. Blind
+writes (`node.add`, `edge.add`, `property.set`, `entity.add`) need no read and
+are not affected. `captureCoordinate()` and a settlement preview reject with
+`E_OPTIC_CONE_OBSTRUCTED`. For a strand Lane, `cone_writer_diverged` names the
+strand's refs instead: delete `refs/warp/<lane>/cone/strands/<strand-id>/head`
+(and `base`) and the strand refolds from its base frontier.
+
+`git warp repair --lane <lane> --action basis` reports the same reason and hint
+without reading anything, and `git warp doctor` reports a diverged writer as a
+`cone-basis-lag` failure.
+
+## The first read after a large fetch is slow
+
+The first read or write after receiving many patches folds each of them once
+into the cone basis. Fold them explicitly, and see how many there were:
 
 ```bash
-git warp repair \
-  --repo ./team-repo \
-  --lane users \
-  --action materialization
+git warp doctor --repo ./team-repo --lane users
+git warp repair --repo ./team-repo --lane users --action basis
 ```
 
-Then retry the Observation. Use `git warp doctor --lane users` if repair fails.
+`doctor` reports `cone-basis-lag` with the unfolded patches per writer; the
+repair reports `foldedPatches`. Neither needs a checkpoint. The
+`--action materialization` repair is global maintenance and does not speed up
+public reads.
 
 ## Fetched changes are missing
 
 Normal branch fetches do not always include WARP refs. Receive other writers'
 chains with the no-prune, unforced recipe in [Sync WARP refs](sync.md#receive-other-writers),
-then reopen the Runtime and check the Lane:
+then check the Lane; the next read folds the received patches:
 
 ```bash
 git warp doctor --repo ./team-repo --lane users
@@ -84,10 +108,21 @@ Do not rewrite authoritative writer refs as a diagnostic shortcut.
 
 ## A strand cannot reopen
 
-`E_WARP_WORLDLINE_STRAND_COORDINATE_UNAVAILABLE` means the retained strand does
-not contain the checkpoint needed to reconstruct its parent coordinate. Run the
-one-shot v18-to-v19 migration for legacy repositories. Do not invent a
+`E_STRAND_NOT_FOUND` means no strand of that name exists in
+this clone; strands are clone-local. A strand reopens from its base frontier,
+and refolds its pinned base when the clone-local
+`refs/warp/<lane>/cone/strands/<strand-id>/base` ref is missing.
+`E_STRAND_CONE_CEILING` means the strand was created below a Lamport ceiling,
+an internal option no Runtime API sets; it has no cone basis. Do not invent a
 coordinate from current live state.
+
+## A settlement preview is obstructed
+
+`git-warp.settlement-common-basis-required` means the target changed a node or
+edge the strand's patches name since the fork. Writes to other elements of the
+target do not obstruct. Fork again from the current target, or settle the
+conflicting change first. Rebuilding a cone basis or running the global
+checkpoint maintenance never changes a preview.
 
 ## A Settlement artifact is stale
 

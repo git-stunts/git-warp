@@ -47,9 +47,9 @@ def capture(cli_path):
         def repair(name=None):
             selector = [] if name is None else ["--strand", name]
             result = call("repair." + (name or "target"), "repair", "--lane", "events", *selector,
-                          "--action", "materialization")
+                          "--action", "basis")
             if result.get("status") != "completed":
-                raise RuntimeError("materialization did not complete")
+                raise RuntimeError("cone basis advance did not complete")
 
         def reading(name, key=None, strand=None):
             subject = evidence["events"][name]["receipt"]["occurrence"]["subject"]
@@ -69,6 +69,11 @@ def capture(cli_path):
                              for name in ("alpha", "beta")}
         event("alpha")
         event("beta")
+        # Both strands also name the direct event, so Alpha's settlement moves an element Beta's footprint holds.
+        direct_subject = evidence["events"]["direct"]["receipt"]["occurrence"]["subject"]
+        for name in ("alpha", "beta"):
+            call(name + ".touch", "write", "--lane", "events", "--strand", name, "--intent", json.dumps(
+                {"kind": "property.set", "subject": direct_subject, "key": "lastStrand", "value": name}))
         alpha_plan = str(Path(repo) / "alpha-plan.json")
         evidence["alphaPreview"] = call("alpha.preview", "settle", "preview", "--source", "events",
                                         "--strand", "alpha", "--target", "events", "--out", alpha_plan)

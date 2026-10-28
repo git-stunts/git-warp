@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # Size: medium; public CLI subprocesses and temporary Git storage, no network.
-# Oracle: #869 receipt identity, exact-frontier settlement, retained source reads.
+# Oracle: #869 receipt identity, footprint-record settlement (#1039), retained source reads.
 
 load helpers/docker.bash
 

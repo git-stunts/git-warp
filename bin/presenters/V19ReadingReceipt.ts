@@ -17,10 +17,14 @@ import type {
 } from '../cli/commands/mcp/McpJsonValue.ts';
 import { settlementPlanFields } from '../cli/v19/V19SettlementReview.ts';
 import { stableStringify } from './json.ts';
+import { pluralityEnvelope } from './V19PluralityEnvelope.ts';
 import { defineMcpJsonProperty, toMcpJson } from './V19Json.ts';
 import WarpError from '../../src/domain/errors/WarpError.ts';
 import type EntityAdmissionInventoryCertificate from '../../src/domain/api/EntityAdmissionInventoryCertificate.ts';
-import { findEntityAdmissionInventoryCertificate } from '../../src/domain/api/EntityAdmissionInventoryCertificateRuntime.ts';
+import {
+  findEntityAdmissionInventoryCertificate,
+  findEntityAdmissionInventoryContinuation,
+} from '../../src/domain/api/EntityAdmissionInventoryCertificateRuntime.ts';
 
 export type V19Receipt =
   | WriteReceipt<WriteIntentInput>
@@ -35,6 +39,7 @@ export function readingEnvelope(reading: ObservedReading): McpJsonValue {
     coordinate: readingCoordinateEnvelope(reading.coordinate),
     support: toMcpJson(reading.support),
     witnessRefs: toMcpJson([...reading.witnessRefs]),
+    ...(reading.plurality.length === 0 ? {} : { plurality: pluralityEnvelope(reading.plurality, readingValueToJson) }),
   });
 }
 
@@ -73,6 +78,7 @@ function writeReceiptEnvelope(receipt: WriteReceipt<WriteIntentInput>): McpJsonV
         }),
     evidence: evidenceEnvelope(receipt.evidence),
     repairHints: toMcpJson([...receipt.repairHints]),
+    ...(receipt.plurality.length === 0 ? {} : { plurality: pluralityEnvelope(receipt.plurality, readingValueToJson) }),
   });
 }
 
@@ -92,6 +98,7 @@ function isIntentArray(input: WriteIntentInput): input is readonly Intent[] {
 
 function observationReceiptEnvelope(receipt: ObservationReceipt): McpJsonValue {
   const inventory = findEntityAdmissionInventoryCertificate(receipt);
+  const continuation = findEntityAdmissionInventoryContinuation(receipt);
   return Object.freeze({
     type: 'Receipt',
     reducerVersion: receipt.reducerVersion,
@@ -109,6 +116,7 @@ function observationReceiptEnvelope(receipt: ObservationReceipt): McpJsonValue {
     ...(inventory === null
       ? {}
       : { inventoryCertificate: inventoryCertificateEnvelope(inventory) }),
+    ...(continuation === null ? {} : { inventoryContinuation: continuation }),
   });
 }
 

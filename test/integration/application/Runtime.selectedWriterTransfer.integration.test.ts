@@ -19,6 +19,7 @@ const PRUNE_MODES = ['none', 'local fetch.prune', 'global fetch.prune', 'remote 
 type PruneMode = typeof PRUNE_MODES[number];
 const writerRef = (writer: string): string => `refs/warp/${LANE}/writers/${writer}`;
 const CHECKPOINT_REF = `refs/warp/${LANE}/checkpoints/head`;
+const CONE_HEAD_REF = `refs/warp/${LANE}/cone/head`;
 const MARKER_REF = `refs/warp/${LANE}/substrate-version`;
 type Clone = Awaited<ReturnType<typeof createTestRepo>>;
 
@@ -136,7 +137,8 @@ describe.each(PRUNE_MODES)('documented selected-writer transfer (%s)', (mode) =>
     expect(refs(bob.tempDir).get(writerRef('bob'))).toBe(bobUnpublished);
     expect(refs(bob.tempDir).get(writerRef('alice'))).toBe(refs(hubPath).get(writerRef('alice')));
     expect(await nodes(bob)).toEqual(['from-alice', 'from-bob']);
-    expect(refs(bob.tempDir).has(CHECKPOINT_REF)).toBe(true);
+    expect(refs(bob.tempDir).has(CONE_HEAD_REF)).toBe(true);
+    expect(refs(bob.tempDir).has(CHECKPOINT_REF)).toBe(false);
 
     expect(run(bob, recipes.publish, 'bob')).toMatchObject({ status: 0 });
     await write(alice, 'alice', 'alice-unpublished');
@@ -216,11 +218,13 @@ describe('documented selected-writer transfer refusals', () => {
 
     expect(received, received.output).toMatchObject({ status: 0 });
     expect(refs(bob.tempDir).get(CHECKPOINT_REF)).not.toBe(refs(hubPath).get(CHECKPOINT_REF));
+    // The basis repair folds the received chain into the cone basis and leaves the checkpoint alone.
+    expect(refs(bob.tempDir).get(CHECKPOINT_REF)).toBe(bobCheckpoint);
+    expect(refs(bob.tempDir).has(CONE_HEAD_REF)).toBe(true);
     expect(await nodes(bob)).toEqual(['a', 'b']);
-    expect(refs(bob.tempDir).get(CHECKPOINT_REF)).not.toBe(bobCheckpoint);
   }, CASE_TIMEOUT_MS);
 
-  it('gives a fresh receiver the marker, chains, and a local checkpoint', async () => {
+  it('gives a fresh receiver the marker, chains, and a local cone basis', async () => {
     const recipes = await documentedRecipes();
     const hubPath = await hub();
     const alice = await clone('fresh-alice', hubPath, 'global fetch.prune');
@@ -232,7 +236,8 @@ describe('documented selected-writer transfer refusals', () => {
 
     expect(received, received.output).toMatchObject({ status: 0 });
     expect(refs(fresh.tempDir).get(MARKER_REF)).toBe(refs(hubPath).get(MARKER_REF));
-    expect(refs(fresh.tempDir).has(CHECKPOINT_REF)).toBe(true);
+    expect(refs(fresh.tempDir).has(CONE_HEAD_REF)).toBe(true);
+    expect(refs(fresh.tempDir).has(CHECKPOINT_REF)).toBe(false);
     expect(await nodes(fresh)).toEqual(['a']);
   }, CASE_TIMEOUT_MS);
 

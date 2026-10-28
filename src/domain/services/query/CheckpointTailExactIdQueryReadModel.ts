@@ -1,7 +1,7 @@
 import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
-import type ReadIdentity from '../optic/ReadIdentity.ts';
-import type WorldlineOptic from '../optic/WorldlineOptic.ts';
+import type { OpticReadIdentity } from '../optic/OpticReadIdentity.ts';
+import type CheckpointTailOptic from '../optic/CheckpointTailOptic.ts';
 import type {
   QueryNeighborEntry,
   QueryNeighborOptions,
@@ -16,7 +16,7 @@ const PENDING_IDENTITY = 'checkpoint-tail-query:pending';
 
 type CheckpointTailExactIdQueryReadModelOptions = {
   readonly nodeId: string;
-  readonly optic: WorldlineOptic;
+  readonly optic: CheckpointTailOptic;
 };
 
 type ExactIdOnlyRequest = QueryReadModelOpenRequest & {
@@ -55,7 +55,7 @@ function isIdOnlySelect(select: readonly string[] | null): select is readonly ['
 
 export default class CheckpointTailExactIdQueryReadModel implements QueryReadModel {
   private readonly _nodeId: string;
-  private readonly _optic: WorldlineOptic;
+  private readonly _optic: CheckpointTailOptic;
   private _readIdentity: string;
 
   constructor(options: CheckpointTailExactIdQueryReadModelOptions) {
@@ -105,6 +105,6 @@ function emptyProps(): Readonly<{ [key: string]: SnapshotPropValue }> {
   return Object.freeze({});
 }
 
-function readIdentityStateHash(readIdentity: ReadIdentity): string {
+function readIdentityStateHash(readIdentity: OpticReadIdentity): string {
   return `checkpoint-tail-query:${canonicalStringify(readIdentity)}`;
 }

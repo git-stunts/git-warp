@@ -1,4 +1,4 @@
-import type CheckpointTailWitnessLocator from './CheckpointTailWitnessLocator.ts';
+import type OpticWitnessLocator from './OpticWitnessLocator.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type NodePropertyOpticReadResult from './NodePropertyOpticReadResult.ts';
 import Optic from './Optic.ts';
@@ -7,11 +7,11 @@ const NODE_PROPERTY_OPTIC_KIND = 'node-property';
 
 export default class NodePropertyOptic {
   private readonly _optic: Optic;
-  private readonly _locator: CheckpointTailWitnessLocator;
+  private readonly _locator: OpticWitnessLocator;
 
   constructor(options: {
     readonly optic: Optic;
-    readonly locator: CheckpointTailWitnessLocator;
+    readonly locator: OpticWitnessLocator;
   }) {
     this._optic = validateNodePropertyOptic(options.optic);
     this._locator = options.locator;

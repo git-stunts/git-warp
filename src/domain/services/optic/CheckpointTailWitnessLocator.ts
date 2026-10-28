@@ -20,6 +20,12 @@ import CheckpointTailWitnessScan, { type TailWitnessScan } from './CheckpointTai
 import NeighborhoodOpticReadResult from './NeighborhoodOpticReadResult.ts';
 import type { NeighborhoodOpticReadOptions } from './NeighborhoodOptic.ts';
 import Optic from './Optic.ts';
+import OpticWitnessLocator from './OpticWitnessLocator.ts';
+import {
+  normalizeDirection,
+  normalizeLabels,
+  requireExecutableTraversalSupport,
+} from './OpticReadPreconditions.ts';
 import type { OpticKindValue } from './OpticReadTarget.ts';
 import type TraversalOpticReadResult from './TraversalOpticReadResult.ts';
 import type { TraversalOpticReadOptions } from './TraversalOptic.ts';
@@ -61,7 +67,7 @@ const EMPTY_TAIL_WITNESS_SCAN: TailWitnessScan = Object.freeze({
   witnesses: Object.freeze([]),
 });
 
-export default class CheckpointTailWitnessLocator {
+export default class CheckpointTailWitnessLocator extends OpticWitnessLocator {
   private readonly _graphName: string;
   private readonly _basisLoader: CheckpointTailBasisLoader;
   private readonly _shardReader: CheckpointShardFactReader;
@@ -74,6 +80,7 @@ export default class CheckpointTailWitnessLocator {
     readonly cacheBasis?: boolean;
     readonly maxTailPatches?: number;
   }) {
+    super();
     this._graphName = options.source.graphName;
     this._basisLoader = new CheckpointTailBasisLoader({
       source: options.source,
@@ -91,7 +98,7 @@ export default class CheckpointTailWitnessLocator {
     Object.freeze(this);
   }
 
-  async readNode(optic: Optic): Promise<NodeOpticReadResult> {
+  override async readNode(optic: Optic): Promise<NodeOpticReadResult> {
     requireOpticKind(optic, 'node');
     const nodeId = optic.nodeId();
     try {
@@ -108,7 +115,7 @@ export default class CheckpointTailWitnessLocator {
     }
   }
 
-  async readNodeProperty(
+  override async readNodeProperty(
     optic: Optic,
   ): Promise<NodePropertyOpticReadResult> {
     requireOpticKind(optic, 'node-property');
@@ -129,7 +136,7 @@ export default class CheckpointTailWitnessLocator {
     }
   }
 
-  async readNeighborhood(
+  override async readNeighborhood(
     optic: Optic,
     options: NeighborhoodOpticReadOptions,
   ): Promise<NeighborhoodOpticReadResult> {
@@ -149,7 +156,7 @@ export default class CheckpointTailWitnessLocator {
     }
   }
 
-  async readTraversal(
+  override async readTraversal(
     optic: Optic,
     options: TraversalOpticReadOptions,
   ): Promise<TraversalOpticReadResult> {
@@ -397,19 +404,6 @@ function tailWitnessAlignmentError(entryIndex: number): QueryError {
   });
 }
 
-function normalizeDirection(direction: Direction | undefined): Direction {
-  if (direction === undefined) {
-    return 'out';
-  }
-  if (direction === 'in' || direction === 'out' || direction === 'both') {
-    return direction;
-  }
-  throw new QueryError('Neighborhood optic requires a valid direction.', {
-    code: 'E_OPTIC_NEIGHBORHOOD_OPTIONS',
-    context: { field: 'direction' },
-  });
-}
-
 function requireOpticKind(optic: Optic, opticKind: OpticKindValue): void {
   if (!(optic instanceof Optic) || optic.target.opticKind !== opticKind) {
     throw new QueryError('Checkpoint-tail read requires a matching Optic.', {
@@ -417,43 +411,6 @@ function requireOpticKind(optic: Optic, opticKind: OpticKindValue): void {
       context: { expectedOpticKind: opticKind },
     });
   }
-}
-
-function requireExecutableTraversalSupport(
-  optic: Optic,
-  options: TraversalOpticReadOptions,
-): void {
-  if (optic.supportRule.isTraversalWindow()) {
-    return;
-  }
-
-  if (hasTraversalWindowOptions(options)) {
-    throw new QueryError('Traversal optic support rule refuses bounded traversal execution.', {
-      code: 'E_OPTIC_SCHEMA',
-      context: {
-        field: 'supportRule',
-        supportRule: optic.supportRule.toString(),
-        reason: 'requires-global-scan',
-      },
-    });
-  }
-
-  throw new QueryError('Traversal optic requires explicit bounded traversal limits.', {
-    code: 'E_OPTIC_TRAVERSAL_UNBOUNDED',
-    context: { field: 'supportRule', reason: 'requires-global-scan' },
-  });
-}
-
-function hasTraversalWindowOptions(options: TraversalOpticReadOptions): boolean {
-  return (
-    options.maxDepth !== undefined
-    && options.maxNodes !== undefined
-    && options.maxEdges !== undefined
-  );
-}
-
-function normalizeLabels(labels: readonly string[]): readonly string[] {
-  return Object.freeze([...new Set(labels)].sort());
 }
 
 function witnessedNeighborhoodPage(options: {

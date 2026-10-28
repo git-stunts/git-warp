@@ -211,6 +211,7 @@ export const V19_MCP_CAPABILITIES = [
         "action": {
           "type": "string",
           "enum": [
+            "basis",
             "materialization"
           ]
         }

@@ -95,17 +95,11 @@ remain distinct.
 
 ## Observe bounded values
 
-Prepare a missing local basis explicitly:
-
-```bash
-git warp repair \
-  --repo ./application-repo \
-  --lane users \
-  --writer local \
-  --action materialization
-```
-
-Then run a generated Observer:
+No preparation step is needed: a Lane is readable immediately after its
+writes, with or without a checkpoint. Each Observation first folds the
+patches that are new since this clone last looked into the lane's per-entity
+cone records (`refs/warp/<lane>/cone/head`, clone-local), then answers every
+Reading from the records it names. Run a generated Observer:
 
 ```typescript
 const runtime = await Runtime.open({

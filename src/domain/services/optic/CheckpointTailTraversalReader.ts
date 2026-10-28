@@ -1,6 +1,6 @@
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 import QueryError from '../../errors/QueryError.ts';
-import type ReadIdentity from './ReadIdentity.ts';
+import type { OpticReadIdentity } from './OpticReadIdentity.ts';
 import type { NeighborhoodOpticReadOptions } from './NeighborhoodOptic.ts';
 import type NeighborhoodOpticReadResult from './NeighborhoodOpticReadResult.ts';
 import type { NeighborhoodOpticEdge } from './NeighborhoodOpticReadResult.ts';
@@ -41,7 +41,7 @@ type TraversalRunState = {
   readonly visited: Set<string>;
   readonly frontier: TraversalOpticFrontierEntry[];
   readonly resultEdges: TraversalOpticEdge[];
-  readonly readIdentities: ReadIdentity[];
+  readonly readIdentities: OpticReadIdentity[];
 };
 
 type TraversalResultOptions = {
@@ -50,7 +50,7 @@ type TraversalResultOptions = {
   readonly visited: Set<string>;
   readonly frontier: readonly TraversalOpticFrontierEntry[];
   readonly completeness: TraversalOpticCompleteness;
-  readonly readIdentities: readonly ReadIdentity[];
+  readonly readIdentities: readonly OpticReadIdentity[];
 };
 
 export default class CheckpointTailTraversalReader {

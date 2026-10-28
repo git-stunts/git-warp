@@ -1,6 +1,11 @@
 import { isContentIntentDescriptor, type default as Intent } from './Intent.ts';
 import type { default as WarpWorldline, WarpWorldlinePatchBuild } from '../WarpWorldline.ts';
 import WarpError from '../errors/WarpError.ts';
+import ConeObstructedError from '../errors/ConeObstructedError.ts';
+import PatchEntry from '../artifacts/PatchEntry.ts';
+import type ConeLaneBasis from '../services/cone/ConeLaneBasis.ts';
+import ConeWriteTargets, { type ConeWriteEdgeTarget } from '../services/cone/ConeWriteTargets.ts';
+import { coneObstructionFailure } from './ConeObstructionFailure.ts';
 import WriterError from '../errors/WriterError.ts';
 import PatchError from '../errors/PatchError.ts';
 import MessageCodecError from '../errors/MessageCodecError.ts';
@@ -29,9 +34,13 @@ import type AdmissionEvaluation from '../admission/AdmissionEvaluation.ts';
 import type EntityOccurrence from './EntityOccurrence.ts';
 import { createEntityOccurrence } from './EntityOccurrenceRuntime.ts';
 import { EventId } from '../utils/EventId.ts';
+import type DerivedAdmission from '../admission/DerivedAdmission.ts';
+import type PluralAdmission from '../admission/PluralAdmission.ts';
+import ConeWriteRaces from '../services/cone/ConeWriteRaces.ts';
 import {
   createDerivedWriteAdmission,
   createObstructedWriteAdmission,
+  createPluralWriteAdmission,
   prepareWriteAdmission,
   type WriteObstruction,
 } from './WriteAdmissionRuntime.ts';
@@ -43,13 +52,15 @@ type IntentWriteRequestFields = {
   readonly context: ApiRuntimeContext;
   readonly intent: WriteIntentInput;
   readonly commit: IntentCommit;
+  /** The cone basis of the Lane the write publishes to: its read-before-write and its fold (#1039). */
+  readonly cone: ConeLaneBasis;
 };
 
 type IntentWriteFields = Omit<IntentWriteRequestFields, 'intent'> & {
   readonly sequence: IntentSequence;
 };
 
-type PublishedWriteFields = Omit<IntentWriteFields, 'commit'> & {
+type PublishedWriteFields = Omit<IntentWriteFields, 'commit' | 'cone'> & {
   readonly publication: PatchCommitResult;
   readonly recoveryEvidence: Evidence;
 };
@@ -62,6 +73,7 @@ type WriteAttempt = {
   basis?: PatchBuilderCausalBasis;
   evaluation?: AdmissionEvaluation;
   publishedEntities?: readonly PublishedEntityCoordinate[];
+  races?: ConeWriteRaces;
 };
 
 type PreparedWriteAttempt = Readonly<{
@@ -71,6 +83,7 @@ type PreparedWriteAttempt = Readonly<{
 
 type PublishedWriteAttempt = PreparedWriteAttempt & Readonly<{
   readonly publishedEntities: readonly PublishedEntityCoordinate[];
+  readonly races: ConeWriteRaces;
 }>;
 
 type FailedWriteFields = {
@@ -123,6 +136,7 @@ function normalizeIntentWrite(request: IntentWriteRequestFields): IntentWriteFie
     runtime: request.runtime,
     context: request.context,
     commit: request.commit,
+    cone: request.cone,
     sequence: IntentSequence.from(request.intent),
   });
 }
@@ -131,16 +145,59 @@ async function publishIntentWrite(
   fields: IntentWriteFields,
   attempt: WriteAttempt
 ): Promise<PatchCommitResult> {
-  return await fields.commit(async (patch) => {
+  const { cone } = fields;
+  const publication = await fields.commit(async (patch) => {
     try {
-      await patch.prepareWriteBasis(fields.sequence.intents.flatMap(writeOwnerTargets));
+      await patch.prepareConeWriteBasis(coneWriteTargets(fields.sequence), cone);
     } finally {
       attempt.basis = readPatchBuilderCausalBasis(patch);
       attempt.evaluation = await prepareWriteAdmission({ ...fields, basis: attempt.basis });
     }
     applyIntentSequenceToPatch(fields.sequence, patch, fields.context.content);
     attempt.publishedEntities = inspectPublishedIntentSequence(fields.sequence, patch.build());
+    attempt.races = patch.coneWriteRaces();
   });
+  await foldPublishedWrite(cone, publication, attempt.basis?.expectedParentSha ?? null);
+  return publication;
+}
+
+/**
+ * Commits one already-admitted sequence onto a Lane through its cone basis
+ * (#1039): the sequence's targets are observed from cone records before it
+ * lowers, and the published patch is folded. Settlement uses this to
+ * replay a strand's sequences onto its target.
+ */
+export async function commitSequenceOnCone(fields: {
+  readonly commit: IntentCommit;
+  readonly cone: ConeLaneBasis;
+  readonly sequence: IntentSequence;
+}): Promise<string> {
+  let parentSha: string | null = null;
+  const publication = await fields.commit(async (patch) => {
+    await patch.prepareConeWriteBasis(coneWriteTargets(fields.sequence), fields.cone);
+    parentSha = readPatchBuilderCausalBasis(patch).expectedParentSha;
+    applyIntentSequenceToPatch(fields.sequence, patch);
+  });
+  await foldPublishedWrite(fields.cone, publication, parentSha);
+  return publication.sha;
+}
+
+/**
+ * Folds the write this clone just published into the lane's cone basis, so
+ * the next read or write costs only what it touches (#1039). The patch is
+ * already durable and the basis is derived, so a fold that cannot finish
+ * here is left to the next advance, which folds it from the writer chain.
+ */
+async function foldPublishedWrite(
+  cone: ConeLaneBasis,
+  publication: PatchCommitResult,
+  parentSha: string | null,
+): Promise<void> {
+  try {
+    await cone.foldCommitted(new PatchEntry({ patch: publication.patch, sha: publication.sha }), parentSha);
+  } catch {
+    // The basis is derived: the next advance folds this patch from the writer chain.
+  }
 }
 
 async function obstructedWriteReceipt(
@@ -208,7 +265,7 @@ function requirePublishedWriteAttempt(
   if (attempt.publishedEntities === undefined) {
     throw error;
   }
-  return { ...prepared, publishedEntities: attempt.publishedEntities };
+  return { ...prepared, publishedEntities: attempt.publishedEntities, races: attempt.races ?? ConeWriteRaces.none() };
 }
 
 function missingPublishedBasisError(): WarpError {
@@ -225,12 +282,20 @@ async function derivedWriteReceipt(
     lane: runtime.worldlineName,
     writer: runtime.writerId,
     intent: sequence.input,
-    outcome: projectAdmissionOutcome(createDerivedWriteAdmission(fields), evidence.basis),
+    outcome: projectAdmissionOutcome(await admittedWrite(fields), evidence.basis),
     evidence,
     ...(occurrences.length === 0 ? {} : { occurrences }),
+    ...(fields.races.isEmpty() ? {} : { plurality: fields.races.plurality }),
   });
   context.bindReceipt(receipt, { operation: 'write', patchSha: publication.sha });
   return receipt;
+}
+
+/** A published write is plural when it left concurrent values it never observed standing beside its own (#1039). */
+async function admittedWrite(
+  fields: PublishedWriteFields & PublishedWriteAttempt,
+): Promise<DerivedAdmission | PluralAdmission> {
+  return fields.races.isEmpty() ? createDerivedWriteAdmission(fields) : await createPluralWriteAdmission(fields);
 }
 
 function publishedEntityOccurrences(
@@ -269,6 +334,10 @@ async function committedWriteEvidence(fields: PublishedWriteFields): Promise<Evi
 }
 
 function operationalWriteFailure(error: WarpError): OperationalWriteFailure | null {
+  return error instanceof ConeObstructedError ? coneWriteFailure(error) : lawfulWriteFailure(error);
+}
+
+function lawfulWriteFailure(error: WarpError): OperationalWriteFailure | null {
   if (error.code === 'E_PATCH_NO_STATE' || invalidObservationMetadata(error)) {
     return missingWriteBasisFailure();
   }
@@ -288,6 +357,17 @@ function missingWriteBasisFailure(): OperationalWriteFailure {
     condition: 'missing-bounded-write-basis',
     requiredEvidence: 'bounded-write-basis',
     repairHints: MATERIALIZE_HINT,
+  };
+}
+
+function coneWriteFailure(error: ConeObstructedError): OperationalWriteFailure {
+  const failure = coneObstructionFailure(error.obstruction);
+  return {
+    reason: AdmissionObstructionReason.unsupportedEvidence(`git-warp.write.${failure.reason}`),
+    retry: AdmissionRetryDisposition.afterChange(),
+    condition: 'cone-basis-obstructed',
+    requiredEvidence: 'bounded-write-basis',
+    repairHints: failure.repairHints,
   };
 }
 
@@ -328,11 +408,28 @@ function writerCasFailure(error: WarpError): OperationalWriteFailure | null {
   };
 }
 
-function writeOwnerTargets(intent: Intent): readonly string[] {
-  const { descriptor } = intent;
-  if (descriptor.kind === 'node.remove') { return [descriptor.subject]; }
-  if (!isContentIntentDescriptor(descriptor)) { return []; }
-  return 'subject' in descriptor ? [descriptor.subject] : [descriptor.from, descriptor.to];
+/** The entities a write must observe before lowering, read from cone records (#1039). */
+function coneWriteTargets(sequence: IntentSequence): ConeWriteTargets {
+  const targets = sequence.intents.map(coneWriteTarget);
+  return new ConeWriteTargets({
+    nodes: targets.flatMap((target) => (typeof target === 'string' ? [target] : [])),
+    edges: targets.flatMap((target) => (target === null || typeof target === 'string' ? [] : [target])),
+    registerNodes: sequence.intents.flatMap((intent) => registerTarget(intent) ?? []),
+  });
+}
+
+/** The node whose registers one intent sets by name: a property set, or an entity admission with a supplied subject. */
+function registerTarget({ descriptor }: Intent): string | null {
+  if (descriptor.kind === 'property.set') { return descriptor.subject; }
+  return descriptor.kind === 'entity.add' && 'subject' in descriptor ? descriptor.subject : null;
+}
+
+/** The node or edge one intent must observe, or null for a blind intent. */
+function coneWriteTarget({ descriptor }: Intent): string | ConeWriteEdgeTarget | null {
+  if (descriptor.kind === 'node.remove') { return descriptor.subject; }
+  if (descriptor.kind === 'edge.remove') { return descriptor; }
+  if (!isContentIntentDescriptor(descriptor)) { return null; }
+  return 'subject' in descriptor ? descriptor.subject : descriptor;
 }
 
 function isMissingOwner(error: WarpError): boolean {

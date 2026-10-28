@@ -22,6 +22,8 @@ import InMemoryAllocationFloorStore from './InMemoryAllocationFloorStore.ts';
 import type AllocationFloorStorePort from '../../src/ports/AllocationFloorStorePort.ts';
 import InMemoryGraphAdapter from './InMemoryGraphAdapter.ts';
 import InMemorySyncReplayProtection from './InMemorySyncReplayProtection.ts';
+import InMemoryConeRecordStore from './InMemoryConeRecordStore.ts';
+import GitConePatchFeedAdapter from '../../src/infrastructure/adapters/GitConePatchFeedAdapter.ts';
 
 export type MemoryRuntimeStorageAdapterOptions = {
   readonly history: InMemoryGraphAdapter;
@@ -39,6 +41,8 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
   readonly #modelsRefs: boolean;
   readonly #memoryFloors = new Map<string, InMemoryAllocationFloorStore>();
   readonly #syncReplayProtection = new Map<string, InMemorySyncReplayProtection>();
+  /** One cone record trie for every lane of this storage; heads are keyed by lane ref (#1039). */
+  readonly coneRecords = new InMemoryConeRecordStore();
   readonly backing: InMemoryBlobStorageAdapter;
 
   constructor(options: MemoryRuntimeStorageAdapterOptions) {
@@ -74,7 +78,17 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
   }
 
   createRuntimeStorageServices(request: RuntimeStorageRequest): Promise<RuntimeStorageServices> {
+    const patchJournal = new CborPatchJournalAdapter({
+      assetStorage: this.#content,
+      cas: this.#cas,
+      codec: request.codec,
+      commitReader: this.#history,
+      commitMessageCodec: request.commitMessageCodec,
+      encrypted: this.#encrypted,
+      graph: request.timelineName,
+    });
     return Promise.resolve(Object.freeze({
+      ...this.#coneServices(request, patchJournal),
       content: this.#content,
       auditLog: new GitCasAuditLogAdapter({
         history: this.#history,
@@ -95,15 +109,7 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
       allocationFloors: this.#allocationFloors(request.timelineName),
       allocationProvenance: new GitMigrationProvenanceAdapter({ history: this.#history, graphName: request.timelineName }),
       ...(this.#modelsRefs ? { dotRepairs: new GitDotRepairStoreAdapter({ history: this.#history, graphName: request.timelineName }) } : {}),
-      patchJournal: new CborPatchJournalAdapter({
-        assetStorage: this.#content,
-        cas: this.#cas,
-        codec: request.codec,
-        commitReader: this.#history,
-        commitMessageCodec: request.commitMessageCodec,
-        encrypted: this.#encrypted,
-        graph: request.timelineName,
-      }),
+      patchJournal,
       checkpoints: new CborCheckpointStoreAdapter({
         codec: request.codec,
         crypto: request.crypto,
@@ -124,6 +130,26 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
       }),
       syncReplayProtection: this.#replayProtection(request.timelineName),
     }));
+  }
+
+  /**
+   * Cone services over the in-memory history (#1039). Hand-rolled persistence
+   * mocks model no refs or logs, so they get none and keep only the
+   * compatibility paths that never read a cone basis.
+   */
+  #coneServices(
+    request: RuntimeStorageRequest,
+    patchJournal: CborPatchJournalAdapter,
+  ): Pick<RuntimeStorageServices, 'coneRecords' | 'conePatches'> {
+    if (!this.#modelsRefs) {
+      return {};
+    }
+    return {
+      coneRecords: this.coneRecords,
+      conePatches: new GitConePatchFeedAdapter({
+        history: this.#history, journal: patchJournal, commitMessageCodec: request.commitMessageCodec,
+      }),
+    };
   }
 
   #replayProtection(timelineName: string): InMemorySyncReplayProtection {

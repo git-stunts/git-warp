@@ -7,15 +7,14 @@
  * @module cli/commands/doctor/checks
  */
 
-import type { WarpStateSnapshotRecord } from '../../../../src/ports/WarpStateCachePort.ts';
 import {
-  buildCheckpointRef,
   buildCoverageRef,
   buildAuditPrefix,
 } from '../../../../src/domain/utils/RefLayout.ts';
 import { CODES } from './codes.ts';
 import { checkClockSkew, checkHooksInstalled } from './checksAux.ts';
-export { checkClockSkew, checkHooksInstalled };
+import { checkConeBasisLag } from './checksConeBasis.ts';
+export { checkClockSkew, checkConeBasisLag, checkHooksInstalled };
 import type { DoctorFinding, DoctorContext } from './types.ts';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -150,9 +149,9 @@ export async function checkCoverageComplete(ctx: DoctorContext): Promise<DoctorF
 /** Build a finding when the coverage ref does not exist. */
 function buildCoverageNoRef(): DoctorFinding {
   return {
-    id: 'coverage-complete', status: 'warn', code: CODES.COVERAGE_NO_REF,
-    impact: 'operability', message: 'No coverage ref found',
-    fix: 'Run `git warp repair --lane <name> --action materialization` to create a bounded basis',
+    id: 'coverage-complete', status: 'ok', code: CODES.COVERAGE_NO_REF,
+    impact: 'operability',
+    message: 'No coverage anchor; only the global checkpoint maintenance writes one, and public reads do not need it',
   };
 }
 
@@ -163,104 +162,13 @@ function buildCoverageFinding(missing: string[]): DoctorFinding {
       id: 'coverage-complete', status: 'warn', code: CODES.COVERAGE_MISSING_WRITERS,
       impact: 'operability',
       message: `Coverage anchor is missing ${missing.length} writer(s): ${missing.join(', ')}`,
-      fix: 'Run `git warp repair --lane <name> --action materialization` to update the bounded basis',
+      fix: 'Run `git warp repair --lane <name> --action materialization` (global maintenance) to refresh the coverage anchor of the whole-state checkpoint',
       evidence: { missingWriters: missing },
     };
   }
   return {
     id: 'coverage-complete', status: 'ok', code: CODES.COVERAGE_OK,
     impact: 'operability', message: 'Coverage anchor includes all writers',
-  };
-}
-
-// ── checkpoint-fresh ────────────────────────────────────────────────────────
-
-/** Read the commit date of a checkpoint and compute its age in hours. */
-async function getCheckpointAge(persistence: DoctorContext['persistence'], checkpointSha: string): Promise<{ date: string | null; ageHours: number | null }> {
-  const info = await persistence.getNodeInfo(checkpointSha);
-  const date = typeof info.date === 'string' && info.date.length > 0 ? info.date : null;
-  return parseCheckpointDate(date);
-}
-
-/** Parse a date string into an age-in-hours value, returning nulls for missing or unparseable dates. */
-function parseCheckpointDate(date: string | null): { date: string | null; ageHours: number | null } {
-  if (date === null) {
-    return { date: null, ageHours: null };
-  }
-  const parsed = Date.parse(date);
-  if (Number.isNaN(parsed)) {
-    return { date, ageHours: null };
-  }
-  return { date, ageHours: (Date.now() - parsed) / (1000 * 60 * 60) };
-}
-
-async function resolveCheckpointSha(ctx: DoctorContext): Promise<{ sha: string | null; cacheRecord: WarpStateSnapshotRecord | null }> {
-  if (ctx.stateCache !== null) {
-    const cacheRecord = await ctx.stateCache.resolveCheckpointHead(ctx.graphName);
-    if (cacheRecord !== null) {
-      return { sha: cacheRecord.snapshotId, cacheRecord };
-    }
-  }
-  const ref = buildCheckpointRef(ctx.graphName);
-  const sha = await ctx.persistence.readRef(ref);
-  return { sha, cacheRecord: null };
-}
-
-async function resolveCheckpointDate(ctx: DoctorContext, sha: string, cacheRecord: WarpStateSnapshotRecord | null): Promise<{ date: string | null; ageHours: number | null }> {
-  if (cacheRecord !== null) {
-    let date: string | null = null;
-    if (typeof cacheRecord.createdAt === 'number') {
-      date = new Date(cacheRecord.createdAt).toISOString();
-    } else if (typeof cacheRecord.createdAt === 'string' && cacheRecord.createdAt !== 'checkpoint-create') {
-      date = cacheRecord.createdAt;
-    }
-    return parseCheckpointDate(date);
-  }
-  return await getCheckpointAge(ctx.persistence, sha);
-}
-
-/** Verify the checkpoint exists and is not stale. */
-export async function checkCheckpointFresh(ctx: DoctorContext): Promise<DoctorFinding> {
-  try {
-    const { sha, cacheRecord } = await resolveCheckpointSha(ctx);
-
-    if (typeof sha !== 'string' || sha.length === 0) {
-      return {
-        id: 'checkpoint-fresh', status: 'warn', code: CODES.CHECKPOINT_MISSING,
-        impact: 'operability', message: 'No checkpoint found',
-        fix: 'Run `git warp repair --lane <name> --action materialization` to create a bounded basis',
-      };
-    }
-
-    const { date, ageHours } = await resolveCheckpointDate(ctx, sha, cacheRecord);
-    return buildCheckpointFinding({ sha, date, ageHours, maxAge: ctx.policy.checkpointMaxAgeHours });
-  } catch (err) {
-    return internalError('checkpoint-fresh', err);
-  }
-}
-
-/** Build a finding from checkpoint age analysis. */
-function buildCheckpointFinding({ sha, date, ageHours, maxAge }: { sha: string; date: string | null; ageHours: number | null; maxAge: number }): DoctorFinding {
-  if (ageHours === null) {
-    return {
-      id: 'checkpoint-fresh', status: 'ok', code: CODES.CHECKPOINT_OK,
-      impact: 'operability', message: 'Checkpoint exists (age unknown)',
-      evidence: { sha, date },
-    };
-  }
-  if (ageHours > maxAge) {
-    return {
-      id: 'checkpoint-fresh', status: 'warn', code: CODES.CHECKPOINT_STALE,
-      impact: 'operability',
-      message: `Checkpoint is ${Math.round(ageHours)} hours old (threshold: ${maxAge}h)`,
-      fix: 'Run `git warp repair --lane <name> --action materialization` to refresh the bounded basis',
-      evidence: { sha, date, ageHours: Math.round(ageHours) },
-    };
-  }
-  return {
-    id: 'checkpoint-fresh', status: 'ok', code: CODES.CHECKPOINT_OK,
-    impact: 'operability', message: 'Checkpoint is fresh',
-    evidence: { sha, date, ageHours: Math.round(ageHours) },
   };
 }
 
@@ -357,7 +265,7 @@ export const ALL_CHECKS: Array<{ id: string; fn: (ctx: DoctorContext) => Promise
   { id: 'repo-accessible', fn: checkRepoAccessible },
   { id: 'refs-consistent', fn: checkRefsConsistent },
   { id: 'coverage-complete', fn: checkCoverageComplete },
-  { id: 'checkpoint-fresh', fn: checkCheckpointFresh },
+  { id: 'cone-basis-lag', fn: checkConeBasisLag },
   { id: 'audit-consistent', fn: checkAuditConsistent },
   { id: 'clock-skew', fn: checkClockSkew },
   { id: 'hooks-installed', fn: checkHooksInstalled },

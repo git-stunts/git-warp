@@ -1,6 +1,7 @@
 import type DraftTimeline from '../domain/api/DraftTimeline.ts';
 import {
   createDraftTimeline,
+  draftForkCoordinate,
   openDraftTimeline,
 } from '../domain/api/DraftTimelineRuntime.ts';
 import type Lane from '../domain/api/Lane.ts';
@@ -10,7 +11,7 @@ import {
   requireTimelineRuntime,
 } from '../domain/api/TimelineRuntime.ts';
 import {
-  createForkTick,
+  createTick,
   createTickFromCoordinate,
   requireTickCoordinate,
 } from '../domain/api/TickRuntime.ts';
@@ -60,7 +61,7 @@ export async function forkWorldlineLane(
     await options.mutations.run(async () => {
       const runtime = requireTimelineRuntime(options.timeline);
       const context = requireTimelineContext(options.timeline);
-      const tick = await createForkTick(runtime, context);
+      const tick = await createTick(runtime, context);
       const draft = await createDraftTimeline({
         runtime,
         context,
@@ -81,15 +82,13 @@ export async function openWorldlineStrandLane(
   return await options.activity.run(async () => {
     const runtime = requireTimelineRuntime(options.timeline);
     const context = requireTimelineContext(options.timeline);
-    const coordinate = await runtime.openDraftCoordinate(name);
-    const tick = await createTickFromCoordinate(runtime, context, coordinate);
     const draft = await openDraftTimeline({
       runtime,
       context,
       timelineName: options.timeline.name,
       draftName: name,
-      forkedAt: coordinate,
     });
+    const tick = await createTickFromCoordinate(runtime, context, draftForkCoordinate(draft));
     return createLane(strandOptions(options, draft, tick.id));
   });
 }

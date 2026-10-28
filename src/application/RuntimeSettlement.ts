@@ -27,7 +27,11 @@ import type { RuntimeSettlementOptions } from './RuntimeSettlementOptions.ts';
 export type { RuntimeSettlementOptions } from './RuntimeSettlementOptions.ts';
 
 const SETTLEMENT_LAW = 'git-warp:settlement-law/strand-promotion/v1';
-const SETTLEMENT_POLICY = 'git-warp:settlement-policy/exact-frontier/v1';
+/**
+ * A strand settles when the target has not moved since its fork, or has moved
+ * without changing any node or edge the strand's patches name (#1039).
+ */
+const SETTLEMENT_POLICY = 'git-warp:settlement-policy/footprint-records/v1';
 
 type PreparedSettlement = Readonly<{
   readonly fields: SettlementOutcomeFields;
@@ -64,7 +68,7 @@ export async function previewRuntimeSettlement(
   const prepared = await prepareSettlement(options, owner);
   const plan = createSettlementPlan(prepared.fields);
   const outcome = previewOutcome(prepared);
-  const evidence = planEvidence(plan);
+  const evidence = planEvidence(plan, prepared.sourceSnapshot.basisEvidenceRefs);
   bindSettlementPlan(plan, {
     evidence,
     outcome,
@@ -220,8 +224,7 @@ async function createSettlementPlanDigest(options: Readonly<{
 function settlementOutcomeKind(
   snapshot: SettlementSourceSnapshot,
 ): 'derived' | 'obstruction' {
-  return snapshot.status === 'ready'
-      && snapshot.baseTargetFrontierRef === snapshot.targetFrontierRef
+  return snapshot.status === 'ready' && snapshot.targetBasis !== 'footprint-advanced'
     ? 'derived'
     : 'obstruction';
 }
@@ -235,10 +238,7 @@ function previewOutcome(prepared: PreparedSettlement) {
       requiredEvidenceRefs: [prepared.sourceSnapshot.proposalDigest],
     });
   }
-  if (
-    prepared.sourceSnapshot.baseTargetFrontierRef
-    !== prepared.sourceSnapshot.targetFrontierRef
-  ) {
+  if (prepared.sourceSnapshot.targetBasis === 'footprint-advanced') {
     return createSettlementObstruction(prepared.fields, {
       family: 'unsupported-contract',
       code: 'git-warp.settlement-common-basis-required',

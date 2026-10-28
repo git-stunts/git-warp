@@ -3,7 +3,8 @@
  *
  * Capture a `Coordinate` from a public `Lane` with `captureCoordinate()`,
  * then lower reads through its executable `Optic`. A successful read carries
- * a type-only `Witness` through the root receipt evidence contract.
+ * a type-only `Witness` (a cone read or a checkpoint-tail read) through the
+ * root receipt evidence contract.
  */
 
 export { default as captureCoordinate } from './src/domain/api/captureCoordinate.ts';
@@ -16,7 +17,11 @@ export {
   createObserver,
 } from './src/domain/api/ObserverRuntime.ts';
 export { createEntityAdmissionInventoryObserver } from './src/domain/api/EntityAdmissionInventoryObserverRuntime.ts';
-export { requireEntityAdmissionInventoryCertificate } from './src/domain/api/EntityAdmissionInventoryCertificateRuntime.ts';
+export type { EntityAdmissionInventoryObserverOptions } from './src/domain/api/EntityAdmissionInventoryObserverRuntime.ts';
+export {
+  findEntityAdmissionInventoryContinuation,
+  requireEntityAdmissionInventoryCertificate,
+} from './src/domain/api/EntityAdmissionInventoryCertificateRuntime.ts';
 export type { WarpWorldlineCoordinateFrontierEntry } from './src/domain/WarpWorldlineCoordinate.ts';
 export type { NeighborhoodOpticReadOptions } from './src/domain/services/optic/NeighborhoodOptic.ts';
 export type {
@@ -24,8 +29,8 @@ export type {
   NeighborhoodOpticEdge,
   NeighborhoodOpticReadDirection,
 } from './src/domain/services/optic/NeighborhoodOpticReadResult.ts';
+export type { OpticReadIdentity as Witness } from './src/domain/services/optic/OpticReadIdentity.ts';
 export type {
-  default as Witness,
   ReadIdentityFrontierEntry,
   ReadIdentityIndexShard,
   ReadIdentityOptions,

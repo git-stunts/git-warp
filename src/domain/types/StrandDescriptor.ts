@@ -6,6 +6,7 @@
  */
 
 import type Patch from './Patch.ts';
+import type ConeBasis from '../services/cone/ConeBasis.ts';
 
 export type StrandReadOverlayDescriptor = {
   strandId: string;
@@ -128,11 +129,11 @@ export type StrandCreateOptions = {
    */
   baseFrontier?: ReadonlyMap<string, string>;
   /**
-   * Internal composition seam paired with `baseFrontier`. Runtime-created
-   * strands persist the bounded checkpoint so a later Runtime can reopen the
-   * same coordinate without recapturing live state.
+   * Internal composition seam paired with `baseFrontier` (#1039): the lane
+   * cone basis captured at exactly that frontier. Runtime-created strands pin
+   * it clone-locally, so the strand reads its base without materializing.
    */
-  baseCheckpointSha?: string;
+  baseBasis?: ConeBasis;
 };
 
 export type StrandBraidOptions = {

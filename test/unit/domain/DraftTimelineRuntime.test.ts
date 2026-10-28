@@ -21,6 +21,8 @@ import type { PatchCommitResult } from '../../../src/domain/types/PatchCommitRes
 import { testDerivedIntentAdmissionReceipt } from '../../helpers/intentAdmission.ts';
 import { testRetentionWitness } from '../../helpers/storageRetention.ts';
 import { createPatchBuilder } from './services/PatchBuilderTestHarness.ts';
+import StrandConeBasis from '../../../src/domain/services/strand/StrandConeBasis.ts';
+import { coneLane } from '../../helpers/coneLane.ts';
 
 type RuntimeOptions = {
   readonly commitPatch?: (build: WarpWorldlinePatchBuild) => Promise<string>;
@@ -94,13 +96,15 @@ function createRuntime(options: RuntimeOptions = {}): WarpWorldline {
     commitPatch: async (build) => (await commitLive(build)).sha,
     commitPatchWithEvidence: commitLive,
     createDraft: async () => undefined,
-    loadDraftPatchEntries: async (name) =>
-      (draftEntries.get(name) ?? []).map(({ patch, sha }) => ({ patch, sha })),
+    // Each draft's strand id is its name here; both cone bases stay empty for these blind writes.
+    openDraft: async (name) => new StrandConeBasis({ strandId: name, base: coneLane().cone, strand: coneLane().cone }),
+    loadDraftPatchEntries: async (strandId) =>
+      (draftEntries.get(strandId) ?? []).map(({ patch, sha }) => ({ patch, sha })),
     createWorldline: () => {
       throw new Error('ProjectionHandle is not used by DraftTimelineRuntime tests');
     },
-    patchDraft: async (name, build) => (await commitDraft(name, build)).sha,
     patchDraftWithEvidence: commitDraft,
+    cone: coneLane().cone,
     previewDraftJoin: options.previewDraftJoin ?? (async (name) => [`${name}-preview-patch`]),
     admitIntent: async (descriptor) => testDerivedIntentAdmissionReceipt(descriptor.intentId),
   });
@@ -128,7 +132,7 @@ function testPatchPublication(sha: string, patch: Patch): PatchCommitResult {
 describe('DraftTimelineRuntime', () => {
   it('hydrates immutable validated draft patch entries', async () => {
     const worldline = createRuntime();
-    await worldline.patchDraft('review', (patch) => {
+    await worldline.patchDraftWithEvidence('review', (patch) => {
       patch.addNode('user:alice');
     });
 

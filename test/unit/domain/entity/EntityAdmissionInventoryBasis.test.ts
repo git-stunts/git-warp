@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import EntityAdmissionInventoryBasis from '../../../../src/domain/entity/EntityAdmissionInventoryBasis.ts';
+import ConeRoot from '../../../../src/domain/services/cone/ConeRoot.ts';
 
 describe('EntityAdmissionInventoryBasis', () => {
   it('orders frontier writers by locale-independent code units', () => {
     const basis = new EntityAdmissionInventoryBasis({
+      root: ConeRoot.empty(),
       frontier: new Map([
         ['a', 'patch-a'],
         ['Z', 'patch-z'],
@@ -22,6 +24,7 @@ describe('EntityAdmissionInventoryBasis', () => {
     expect(
       () =>
         new EntityAdmissionInventoryBasis({
+          root: ConeRoot.empty(),
           frontier: new Map(),
           worldlineName: '',
         })
@@ -44,6 +47,7 @@ describe('EntityAdmissionInventoryBasis', () => {
     expect(
       () =>
         new EntityAdmissionInventoryBasis({
+          root: ConeRoot.empty(),
           // @ts-expect-error Exercise the JavaScript boundary with a forged Map shape.
           frontier: forgedFrontier,
           worldlineName: 'captures',
@@ -68,6 +72,7 @@ describe('EntityAdmissionInventoryBasis', () => {
     expect(
       () =>
         new EntityAdmissionInventoryBasis({
+          root: ConeRoot.empty(),
           frontier: new OverriddenFrontier([['writer-a', 'patch-a']]),
           worldlineName: 'captures',
         }),
@@ -92,6 +97,7 @@ describe('EntityAdmissionInventoryBasis', () => {
     expect(
       () =>
         new EntityAdmissionInventoryBasis({
+          root: ConeRoot.empty(),
           frontier,
           worldlineName: 'captures',
         }),
@@ -110,6 +116,7 @@ describe('EntityAdmissionInventoryBasis', () => {
     expect(
       () =>
         new EntityAdmissionInventoryBasis({
+          root: ConeRoot.empty(),
           frontier: new Map([[writerId, patchSha]]),
           worldlineName: 'captures',
         })
@@ -118,5 +125,14 @@ describe('EntityAdmissionInventoryBasis', () => {
         code: 'E_ENTITY_ADMISSION_INVENTORY_BASIS',
       })
     );
+  });
+
+  it('requires the cone records root its admission index is read from', () => {
+    expect(() => new EntityAdmissionInventoryBasis({
+      // @ts-expect-error Exercise the JavaScript boundary without a cone root.
+      root: null,
+      frontier: new Map(),
+      worldlineName: 'captures',
+    })).toThrowError(expect.objectContaining({ code: 'E_ENTITY_ADMISSION_INVENTORY_BASIS' }));
   });
 });

@@ -16,7 +16,7 @@ import {
 import {
   normalizeBaseFrontier, normalizeCreateOptions, normalizeLamportCeiling,
   normalizeWritable, normalizeBraidedStrandIds, patchTouchesEntity, requireSameCreation,
-  frontierToRecord,
+  frontierToRecord, requireBaseBasisAtFrontier,
   type NormalizedCreateOptions,
 } from './StrandDescriptorValidation.ts';
 import {
@@ -26,12 +26,13 @@ import {
   STRAND_GENESIS_KIND,
   normalizeOptionalString,
 } from './strandShared.ts';
-import { buildStrandsPrefix } from '../../utils/RefLayout.ts';
 import { computeChecksum } from '../../utils/checksumUtils.ts';
 import type StrandDescriptorStore from './StrandDescriptorStore.ts';
 import type StrandMaterializer from './StrandMaterializer.ts';
 import type StrandPatchService from './StrandPatchService.ts';
 import type StrandIntentService from './StrandIntentService.ts';
+import type StrandConeBases from './StrandConeBases.ts';
+import type StrandConeBasis from './StrandConeBasis.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
 import type { StrandDescriptor as ParsedStrandDescriptor } from '../../utils/parseStrandBlob.ts';
@@ -53,7 +54,7 @@ export { STRAND_SCHEMA_VERSION, STRAND_COORDINATE_VERSION, STRAND_OVERLAY_KIND }
  * the sub-services.
  */
 export type StrandCoordinatorGraph = {
-  getFrontier?: () => Promise<Map<string, string>>;
+  getFrontier: () => Promise<Map<string, string>>;
 };
 
 /** Dependencies for StrandCoordinator. */
@@ -70,8 +71,10 @@ export type StrandCoordinatorDeps = {
   materializer: StrandMaterializer;
   patches: StrandPatchService;
   intents: StrandIntentService;
-  /** The full graph runtime, stored for test-seam access and forward compatibility. */
-  graph?: StrandCoordinatorGraph;
+  /** Pinned bases and strand bases over cone records (#1039). */
+  cones: StrandConeBases;
+  /** The runtime whose live frontier an uncaptured strand starts from. */
+  graph: StrandCoordinatorGraph;
 };
 
 /**
@@ -131,7 +134,7 @@ function buildStrandDescriptor({
       frontier: frontierRecord,
       frontierDigest,
       lamportCeiling: normalized.lamportCeiling,
-      checkpointSha: normalized.baseCheckpointSha,
+      checkpointSha: null,
     },
     overlay: {
       overlayId: MintId.strand(writerId, strandId).encode(),
@@ -166,7 +169,7 @@ export default class StrandCoordinator {
   }
 
   // ── Test seam accessors (private-by-convention) ─────────────────
-  get _graph(): StrandCoordinatorGraph | undefined { return this._deps.graph; }
+  get _graph(): StrandCoordinatorGraph { return this._deps.graph; }
   get _descriptorStore(): StrandDescriptorStore { return this._deps.descriptors; }
   get _materializer(): StrandMaterializer { return this._deps.materializer; }
   get _patchService(): StrandPatchService { return this._deps.patches; }
@@ -208,10 +211,7 @@ export default class StrandCoordinator {
     const name = options.name ?? options.strandId;
     const normalized = normalizeCreateOptions(name === undefined ? options : { ...options, strandId: name });
     const baseFrontier = normalizeBaseFrontier(options.baseFrontier);
-    assertCapturedCoordinatePair(
-      normalized.baseCheckpointSha,
-      baseFrontier,
-    );
+    requireBaseBasisAtFrontier(options.baseBasis, baseFrontier);
     if (options.creationToken !== undefined) {
       const existing = await this._findCreation(options.creationToken);
       if (existing !== null) { return requireSameCreation(existing, normalized.strandId); }
@@ -240,7 +240,15 @@ export default class StrandCoordinator {
     });
 
     await this._deps.descriptors.writeDescriptor(descriptor);
+    if (options.baseBasis !== undefined) { await this._deps.cones.pinBase(descriptor.strandId, options.baseBasis); }
     return descriptor;
+  }
+
+  /** Opens a strand's pinned base and its own cone basis over it (#1039); no chain is walked. */
+  async openCone(strandRef: string): Promise<StrandConeBasis> {
+    const strandId = await this._deps.descriptors.resolveStrandId(strandRef);
+    if (strandId === null) { throw notFound(this._deps.graphName, strandRef); }
+    return await this._deps.cones.open(strandId);
   }
 
   /** Renames a strand. Its id and its mints never change. */
@@ -309,17 +317,13 @@ export default class StrandCoordinator {
       await this._deps.persistence.deleteRef(ref);
     }
     await this._deps.descriptors.deleteDescriptor(strandId);
+    await this._deps.cones.release(strandId);
     return true;
   }
 
   async getOrThrow(strandId: string): Promise<StrandDescriptor> {
     const descriptor = await this.get(strandId);
-    if (!descriptor) {
-      throw new StrandError(`Strand '${strandId}' not found`, {
-        code: 'E_STRAND_NOT_FOUND',
-        context: { graphName: this._deps.graphName, strandId },
-      });
-    }
+    if (!descriptor) { throw notFound(this._deps.graphName, strandId); }
     return descriptor;
   }
 
@@ -384,6 +388,11 @@ export default class StrandCoordinator {
     build: (p: PatchBuilder) => void | Promise<void>,
   ): ReturnType<StrandPatchService['patchWithEvidence']> {
     return this._deps.patches.patchWithEvidence(strandId, build);
+  }
+
+  /** One public strand Lane write over cone records, by strand id (#1039); see `StrandPatchService`. */
+  patchOnConeWithEvidence(strandId: string, build: (p: PatchBuilder) => void | Promise<void>): ReturnType<StrandPatchService['patchOnConeWithEvidence']> {
+    return this._deps.patches.patchOnConeWithEvidence(strandId, build);
   }
 
   async getPatchEntries(strandId: string, options: { ceiling?: number | null } = {}): Promise<StrandPatchEntry[]> {
@@ -463,33 +472,13 @@ export default class StrandCoordinator {
   }
 
   private async _getFrontier(): Promise<Map<string, string>> {
-    // Fetch the current frontier via persistence refs
-    const prefix = buildStrandsPrefix(this._deps.graphName);
-    // Use the graph's getFrontier if available (test seam)
-    const { graph } = this._deps;
-    if (graph !== undefined && typeof graph.getFrontier === 'function') {
-      return await graph.getFrontier();
-    }
-    // Fallback: return empty frontier
-    void prefix;
-    return new Map();
+    return await this._deps.graph.getFrontier();
   }
 }
 
-function assertCapturedCoordinatePair(
-  checkpointSha: string | null,
-  frontier: ReadonlyMap<string, string> | null,
-): void {
-  if ((checkpointSha === null) === (frontier === null)) {
-    return;
-  }
-  throw new StrandError(
-    'baseCheckpointSha and baseFrontier must be provided together',
-    {
-      code: 'E_STRAND_INVALID_ARGS',
-      context: {
-        fields: ['baseCheckpointSha', 'baseFrontier'],
-      },
-    },
-  );
+function notFound(graphName: string, strandId: string): StrandError {
+  return new StrandError(`Strand '${strandId}' not found`, {
+    code: 'E_STRAND_NOT_FOUND',
+    context: { graphName, strandId },
+  });
 }

@@ -66,7 +66,60 @@ produce one.
 
 Its public schema is `warp/entity-admission-inventory@1`. The storage-neutral
 token deliberately omits Git, ref, patch, and CAS vocabulary even though the
-current runtime implementation reads retained Git WARP patch history.
+current runtime implementation reads a Git-stored admission index.
+
+### Pages and continuation
+
+One Observation emits at most a declared `limit` of admissions. The default is
+10,000 and the largest accepted limit is 1,000,000. A page that stops with
+admissions left still settles `completed`, but it carries a continuation
+cursor instead of a certificate. An Observer created with that cursor resumes
+the same basis, and the last page certifies the whole inventory:
+
+```typescript
+import {
+  createEntityAdmissionInventoryObserver,
+  findEntityAdmissionInventoryContinuation,
+  requireEntityAdmissionInventoryCertificate,
+} from '@git-stunts/git-warp/advanced';
+
+let cursor: string | undefined;
+for (;;) {
+  const observation = lane.observe(createEntityAdmissionInventoryObserver(
+    'all-captures',
+    cursor === undefined ? { limit: 500 } : { limit: 500, cursor },
+  ));
+  for await (const reading of observation) {
+    console.log(reading.value.representation.subject);
+  }
+  const receipt = await observation.receipt;
+  const next = findEntityAdmissionInventoryContinuation(receipt);
+  if (next === null) {
+    console.log(requireEntityAdmissionInventoryCertificate(receipt).admissionCount);
+    break;
+  }
+  cursor = next;
+}
+```
+
+The certificate of the last page has the same basis, count, and stream digest
+that one Observation of the whole inventory would have. A cursor names only
+the Lane, writer ids, counts, and opaque digests, plus a check digest that
+refuses a damaged cursor (`E_ENTITY_ADMISSION_INVENTORY_CURSOR`). It is a
+resumption handle, not an authority.
+
+The first page that leaves a continuation retains its basis beside the
+Lane's captured Coordinates (the last 64 are kept reachable). A cursor whose
+basis is neither current nor retained is refused with
+`E_ENTITY_ADMISSION_INVENTORY_CURSOR_BASIS`; start the inventory again.
+
+The CLI reading takes the same fields, and its final Receipt line carries
+`inventoryContinuation` when a page stopped early:
+
+```bash
+git warp observe --lane captures --observer all-captures \
+  --reading '{"kind":"entity-admissions","limit":500}' --jsonl
+```
 
 The CLI uses the same Observer rather than introducing an unrelated scan
 command:
@@ -179,8 +232,10 @@ explicit migration or classification step. Atomic arrays and their classified bo
 
 ## Basis and ordering
 
-One Observation captures one opaque Tick before reading any retained patch.
-Every writer frontier used by the inventory comes from that Tick. A write that
+One Observation captures one opaque Tick before reading any admission: it
+advances the Lane's cone basis and inventories exactly the writer frontier
+that basis folded. Every writer frontier used by the inventory comes from that
+Tick. A write that
 lands after basis F is absent from the complete F inventory and appears only
 at a later basis.
 
@@ -191,16 +246,25 @@ Application chronology must come from application law, not inventory order.
 
 ## Streaming and completeness
 
-The implementation scans retained writer histories behind a semantic patch
-journal port. It performs a bounded k-way merge over writer streams and emits
-one Reading at a time. It does not materialize the graph, consult a projection,
-or collect the full result set before delivery.
+The inventory never scans writer history. When the Lane's cone basis folds a
+patch ([cone-bounded reads](cone-bounded-reads.md)), it also appends each of
+the patch's `entity.add` admissions to its writer chain's admission index:
+one record per admission, at its ordinal in the chain, plus a per-chain
+tally. An unmarked entity-shaped patch is indexed as a refusal at its
+position, so the inventory obstructs exactly where a scan would have.
+
+An inventory reads each chain's tally once, then pages each chain downwards
+in batches of at most 256 index records, and performs a bounded k-way merge
+over the chains, emitting one Reading at a time in the same order a scan of
+every history produced. Reading `n` admissions costs `O(n + writers × 256)`
+index records, whatever the history length. It does not materialize the
+graph, read a patch, consult a projection, or collect the full result set
+before delivery.
 
 The stream digest is a rolling canonical digest. Its working memory is bounded
-by one record plus one frontier entry per writer. Each record carries opaque
-support for its retained patch; the certificate binds the final aggregate
-support and exact basis without leaking patch identifiers, refs, vectors, or
-storage paths.
+by one batch per writer chain. Each record carries opaque support for its
+retained patch; the certificate binds the final aggregate support and exact
+basis without leaking patch identifiers, refs, vectors, or storage paths.
 
 Completeness is terminal. A consumer that calls the async iterator's `return()`
 receives an obstructed Observation Receipt with `consumer_cancelled`; the
@@ -214,7 +278,7 @@ still incomplete and cannot be mistaken for authoritative absence.
 | Public Runtime API | Observer, streamed Readings, terminal certificate |
 | Application adapter | Pin one Tick and issue opaque references/evidence |
 | Domain | Validate entity boundaries and reconstruct retained admissions |
-| Patch-journal port | Stream exact retained patch ranges |
+| Cone admission index | Record each folded patch's admissions per writer chain; page them at one basis |
 | Storage adapter | Resolve Git/git-cas retention without exposing it publicly |
 | Consumer | Validate application schema, identity, chronology, and meaning |
 

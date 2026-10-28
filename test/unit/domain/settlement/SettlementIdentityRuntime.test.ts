@@ -4,7 +4,7 @@ import type { ApiRuntimeContext } from '../../../../src/domain/api/ApiRuntimeCon
 import { createSettlementFrontierRef } from '../../../../src/domain/api/SettlementIdentityRuntime.ts';
 
 describe('SettlementIdentityRuntime', () => {
-  it('orders frontier writer ids by stable codepoint order', async () => {
+  it('binds only the frontier, in stable codepoint order of writer ids', async () => {
     const createOpaqueId = vi.fn(
       async (namespace: 'tick' | 'evidence' | 'admission', parts: readonly (string | number)[]) =>
         `${namespace}:${parts.join(':')}`
@@ -20,7 +20,6 @@ describe('SettlementIdentityRuntime', () => {
     ]);
 
     await createSettlementFrontierRef({
-      checkpointSha: 'checkpoint:1',
       context,
       entries,
       worldlineName: 'events',
@@ -29,7 +28,6 @@ describe('SettlementIdentityRuntime', () => {
     expect(createOpaqueId).toHaveBeenCalledWith('admission', [
       'settlement-frontier',
       'events',
-      'checkpoint:1',
       'A',
       'patch:upper',
       'a',

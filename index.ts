@@ -43,6 +43,11 @@ export type {
   WitnessReference,
 } from './src/domain/api/ObservedReading.ts';
 export type { default as Tick } from './src/domain/api/LaneTick.ts';
+export type { Plurality } from './src/domain/api/Plurality.ts';
+export type { PluralityCausality } from './src/domain/api/PluralityCausality.ts';
+export type { default as RegisterPlurality } from './src/domain/api/RegisterPlurality.ts';
+export type { default as LifecyclePlurality, LifecycleElement } from './src/domain/api/LifecyclePlurality.ts';
+export type { default as ConcurrentValue } from './src/domain/api/ConcurrentValue.ts';
 export type { default as SettlementPreview } from './src/domain/api/SettlementPreview.ts';
 export type { default as SettlementReceipt } from './src/domain/api/SettlementReceipt.ts';
 export type { default as SettlementPlan } from './src/domain/settlement/SettlementPlan.ts';

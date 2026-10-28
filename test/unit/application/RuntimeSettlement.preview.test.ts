@@ -28,6 +28,20 @@ describe('Runtime settlement coordination', () => {
     });
   });
 
+  it('derives a plan whose target moved without changing the footprint, citing the compared cone roots', async () => {
+    const harness = settlementHarness({
+      snapshot: { targetFrontierRef: 'admission:target:moved', targetBasis: 'footprint-unchanged' },
+    });
+
+    const preview = await previewRuntimeSettlement(harness.options, harness.owner);
+    const receipt = await settleRuntimePlan(preview.plan, harness.owner);
+
+    expect(preview.outcome.kind).toBe('derived');
+    expect(preview.evidence.support).toContainEqual({ id: 'evidence:cone-root' });
+    expect(receipt.outcome.kind).toBe('derived');
+    expect(harness.promote).toHaveBeenCalledOnce();
+  });
+
   it('returns a stale-basis receipt without promotion after recapture changes', async () => {
     const harness = settlementHarness();
     const preview = await previewRuntimeSettlement(harness.options, harness.owner);
@@ -78,8 +92,8 @@ describe('Runtime settlement coordination', () => {
       'git-warp.settlement-source-empty',
     ],
     [
-      'divergent target',
-      { targetFrontierRef: 'admission:target:diverged' },
+      'advanced footprint',
+      { targetFrontierRef: 'admission:target:diverged', targetBasis: 'footprint-advanced' as const },
       'git-warp.settlement-common-basis-required',
     ],
   ])('keeps an %s obstruction non-executable', async (

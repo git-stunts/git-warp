@@ -69,10 +69,7 @@ const UNIT_SHARDS: readonly Shard[] = [
     name: 'unit-infrastructure',
     paths: listRecursiveTestFiles('test/unit/infrastructure'),
   },
-  {
-    name: 'unit-scripts',
-    paths: listRecursiveTestFiles('test/unit/scripts'),
-  },
+  { name: 'unit-scripts', paths: listRecursiveTestFiles('test/unit/scripts') },
   {
     name: 'unit-domain-core',
     paths: [
@@ -104,6 +101,7 @@ const UNIT_SHARDS: readonly Shard[] = [
   {
     name: 'unit-domain-services-subdirs',
     paths: [
+      ...listRecursiveTestFiles('test/unit/domain/services/cone'),
       ...listRecursiveTestFiles('test/unit/domain/services/controllers'),
       ...listRecursiveTestFiles('test/unit/domain/services/optic'),
       ...listRecursiveTestFiles('test/unit/domain/services/query'),

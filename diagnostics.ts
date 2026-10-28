@@ -4,8 +4,13 @@
 
 import { resolveReceiptProvenance } from './src/application/ReceiptProvenanceRegistry.ts';
 import WarpError from './src/domain/errors/WarpError.ts';
-import type ReadIdentity from './src/domain/services/optic/ReadIdentity.ts';
+import ConeRoot from './src/domain/services/cone/ConeRoot.ts';
+import ConeReadIdentity from './src/domain/services/optic/ConeReadIdentity.ts';
+import type { OpticReadIdentity } from './src/domain/services/optic/OpticReadIdentity.ts';
 import type { Receipt } from './src/domain/api/Receipt.ts';
+
+/** The text form of a cone basis that has folded nothing yet. */
+const EMPTY_CONE_ROOT = ConeRoot.empty().toString();
 
 export type ReceiptSubstrateInspection =
   | {
@@ -14,7 +19,7 @@ export type ReceiptSubstrateInspection =
     }
   | {
       readonly operation: 'read';
-      readonly identity: ReadIdentity | undefined;
+      readonly identity: OpticReadIdentity | undefined;
     }
   | {
       readonly operation: 'join';
@@ -59,15 +64,20 @@ function receiptObjectIds(provenance: ReceiptSubstrateInspection): string[] {
   if (provenance.operation === 'join') {
     return [...provenance.patchShas];
   }
-  if (provenance.identity === undefined) {
-    return [];
+  return provenance.identity === undefined ? [] : readObjectIds(provenance.identity);
+}
+
+function readObjectIds(identity: OpticReadIdentity): string[] {
+  if (identity instanceof ConeReadIdentity) {
+    const root = identity.coneRoot === EMPTY_CONE_ROOT ? [] : [identity.coneRoot];
+    return [...new Set([...root, ...identity.coneFrontier.map((entry) => entry.patchSha)])];
   }
   return [
     ...new Set([
-      provenance.identity.checkpointSha,
-      ...provenance.identity.checkpointFrontier.map((entry) => entry.patchSha),
-      ...provenance.identity.checkpointIndexShards.map((shard) => shard.oid),
-      ...provenance.identity.tailWitnesses.map((witness) => witness.sha),
+      identity.checkpointSha,
+      ...identity.checkpointFrontier.map((entry) => entry.patchSha),
+      ...identity.checkpointIndexShards.map((shard) => shard.oid),
+      ...identity.tailWitnesses.map((witness) => witness.sha),
     ]),
   ];
 }

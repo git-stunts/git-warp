@@ -1,18 +1,18 @@
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
 import Patch from '../../../../src/domain/types/Patch.ts';
 import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import DotMint from '../../../../src/domain/crdt/DotMint.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
-import ObservedWriterHead from '../../../../src/domain/types/ObservedWriterHead.ts';
-import ObservedWriteFrontier from '../../../../src/domain/types/ObservedWriteFrontier.ts';
 import { PatchBuilder } from '../../../../src/domain/services/PatchBuilder.ts';
-import BoundedNodeRemovalBasis, { MAX_REMOVAL_BASIS_WRITERS } from '../../../../src/domain/services/BoundedNodeRemovalBasis.ts';
+import ConeLaneBasis from '../../../../src/domain/services/cone/ConeLaneBasis.ts';
+import ConeWriteTargets from '../../../../src/domain/services/cone/ConeWriteTargets.ts';
 import WarpState from '../../../../src/domain/services/state/WarpState.ts';
-import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import ObservationJournal from '../../../helpers/ObservationJournal.ts';
-import { createPatchBuilderMockPersistence, RecordingPatchJournal } from './PatchBuilderTestHarness.ts';
+import InMemoryConeRecordStore from '../../../helpers/InMemoryConeRecordStore.ts';
+import MemoryConeFeed from '../../../helpers/MemoryConeFeed.ts';
+import { createPatchBuilderMockPersistence } from './PatchBuilderTestHarness.ts';
 
 const PARENT = 'a'.repeat(40);
 function retainedHead(): PatchEntry {
@@ -32,9 +32,15 @@ function fixture(overrides: Partial<ConstructorParameters<typeof PatchBuilder>[0
   return { persistence, journal, builder };
 }
 
+/** A cone basis no write below advances: blind targets never read records. */
+function idleCone(): ConeLaneBasis {
+  return ConeLaneBasis.ofLane({ store: new InMemoryConeRecordStore(), feed: new MemoryConeFeed('events'), lane: 'events' });
+}
+const BLIND = new ConeWriteTargets({ nodes: [], edges: [] });
+
 it('restores persisted counters for an explicit strand without observing unrelated live refs', async () => {
   const { persistence, journal, builder } = fixture({ targetRefPath: 'refs/warp/events/strands/work' });
-  await builder.prepareWriteBasis([]);
+  await builder.prepareConeWriteBasis(BLIND, idleCone());
   builder.addNode('next');
   expect(builder.build().ops).toMatchObject([{ dot: { writerId: 'alice', counter: 8 } }]);
   expect(builder.build().observedFrontier).toBeUndefined();
@@ -42,59 +48,24 @@ it('restores persisted counters for an explicit strand without observing unrelat
   expect(journal.closed).toBe(1);
 });
 
-it('keeps legacy cached membership when its caller supplies no paired frontier', async () => {
+it('removes from cached membership without preparing a basis', () => {
   const state = WarpState.empty();
   state.nodeAlive.add('n', new Dot('alice', 1));
-  const { persistence, journal, builder } = fixture({ getCurrentState: () => state });
-  await builder.prepareWriteBasis(['n']);
+  const { persistence, builder } = fixture({ getCurrentState: () => state });
   builder.removeNode('n');
   expect(builder.build().ops).toMatchObject([{ observedDots: ['alice:1'] }]);
-  expect(VersionVector.from(builder.build().context).get('alice')).toBe(7);
   expect(builder.build().observedFrontier).toBeUndefined();
   expect(persistence.listRefs).not.toHaveBeenCalled();
-  expect(journal.closed).toBe(1);
 });
 
 it('refuses an unavailable persisted strand predecessor and closes its history', async () => {
   const { persistence } = fixture();
   const journal = new ObservationJournal(new Map());
   const { builder } = fixture({ persistence, patchJournal: journal, targetRefPath: 'refs/warp/events/strands/work' });
-  await expect(builder.prepareWriteBasis([])).rejects.toMatchObject({ code: 'E_PATCH_NO_STATE' });
+  await expect(builder.prepareConeWriteBasis(BLIND, idleCone())).rejects.toMatchObject({ code: 'E_PATCH_NO_STATE' });
   expect(builder.ops).toHaveLength(0);
   expect(persistence.compareAndSwapRef).not.toHaveBeenCalled();
   expect(journal.closed).toBe(1);
-});
-
-it('refuses mutation during membership replay after immutable head capture', async () => {
-  const persistence = createPatchBuilderMockPersistence();
-  let mutate = (): void => {};
-  let scans = 0;
-  const journal = new RecordingPatchJournal(persistence);
-  vi.spyOn(journal, 'scanPatchHistory').mockImplementation(() => {
-    if (++scans === 2) { mutate(); }
-    return WarpStream.from([retainedHead()]);
-  });
-  const builder = new PatchBuilder({
-    persistence, patchJournal: journal, graphName: 'events', writerId: 'alice',
-    lamport: 4, versionVector: VersionVector.empty(), dotMint: DotMint.after('alice', 0), expectedParentSha: PARENT,
-    getCurrentState: () => null,
-  });
-  mutate = () => { builder.addNode('racing'); };
-  await expect(builder.prepareWriteBasis(['n'])).rejects.toMatchObject({ code: 'E_PATCH_NO_STATE' });
-  expect(persistence.compareAndSwapRef).not.toHaveBeenCalled();
-  expect(scans).toBe(2);
-  expect(journal.requests).toHaveLength(0);
-});
-
-it('retains the writer cap for both enumerated and supplied removal frontiers', async () => {
-  const { persistence, journal } = fixture();
-  const fields = { refs: persistence, journal, graphName: 'events', writerId: 'bob',
-    expectedParentSha: null, targets: new Set(['n']) };
-  persistence.listRefs.mockResolvedValue(Array.from({ length: MAX_REMOVAL_BASIS_WRITERS + 1 }, (_, i) => `refs/warp/events/writers/w${i}`));
-  await expect(BoundedNodeRemovalBasis.capture(fields)).rejects.toMatchObject({ code: 'E_PATCH_NO_STATE' });
-  const observation = new ObservedWriteFrontier('events', Array.from({ length: MAX_REMOVAL_BASIS_WRITERS + 1 }, (_, i) => new ObservedWriterHead(`w${i}`, PARENT, 3)));
-  await expect(BoundedNodeRemovalBasis.capture({ ...fields, observation })).rejects.toMatchObject({ code: 'E_PATCH_NO_STATE' });
-  expect(journal.scans).toHaveLength(0);
 });
 
 it('isolates the legacy Map context from subsequent caller changes', () => {

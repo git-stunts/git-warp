@@ -17,9 +17,11 @@ import PatchEntry from '../../../src/domain/artifacts/PatchEntry.ts';
 import Patch from '../../../src/domain/types/Patch.ts';
 import ObservationJournal from '../../helpers/ObservationJournal.ts';
 import { vi } from 'vitest';
-import { encodeEdgeKey } from '../../../src/domain/services/KeyCodec.ts';
 import type { PatchBuilder } from '../../../src/domain/services/PatchBuilder.ts';
-import WarpState from '../../../src/domain/services/state/WarpState.ts';
+import type ConeLaneBasis from '../../../src/domain/services/cone/ConeLaneBasis.ts';
+import NodeAdd from '../../../src/domain/types/ops/NodeAdd.ts';
+import EdgeAdd from '../../../src/domain/types/ops/EdgeAdd.ts';
+import { coneLane } from '../../helpers/coneLane.ts';
 import WarpWorldline from '../../../src/domain/WarpWorldline.ts';
 import { testDerivedIntentAdmissionReceipt } from '../../helpers/intentAdmission.ts';
 import {
@@ -33,6 +35,7 @@ describe('WriteRuntime admission classification', () => {
     const { context, provenance } = createContext();
     const receipt = await executeIntentWrite({
       runtime: createRuntime(),
+      cone: coneLane().cone,
       context,
       intent: intent.entity.addAuto({
         namespace: 'entry',
@@ -64,6 +67,7 @@ describe('WriteRuntime admission classification', () => {
     await expect(
       executeIntentWrite({
         runtime: createRuntime(),
+        cone: coneLane().cone,
         context: createContext().context,
         intent: intent.node.add({ subject: 'entry:requested' }),
         commit: async (build) => {
@@ -82,6 +86,7 @@ describe('WriteRuntime admission classification', () => {
     const { context, provenance } = createContext();
     const receipt = await executeIntentWrite({
       runtime: createRuntime(),
+      cone: coneLane().cone,
       context,
       intent: intent.node.add({ subject: 'user:alice' }),
       commit: async (build) => {
@@ -114,18 +119,13 @@ describe('WriteRuntime admission classification', () => {
   });
 
   it('classifies an attached-data deletion as a law obstruction, not conflict', async () => {
-    const state = stateWithAttachedEdge();
     const receipt = await executeIntentWrite({
       runtime: createRuntime(),
+      cone: coneWithAttachedEdge(),
       context: createContext().context,
       intent: intent.node.remove({ subject: 'user:alice' }),
       commit: async (build) => {
-        await build(
-          builder({
-            getCurrentState: () => state,
-            onDeleteWithData: 'reject',
-          })
-        );
+        await build(builder({ onDeleteWithData: 'reject' }));
         throw new Error('unreachable publication');
       },
     });
@@ -144,10 +144,11 @@ describe('WriteRuntime admission classification', () => {
   it('classifies a missing write target as a law obstruction, not rejection', async () => {
     const receipt = await executeIntentWrite({
       runtime: createRuntime(),
+      cone: coneLane().cone,
       context: createContext().context,
       intent: intent.node.remove({ subject: 'user:alice' }),
       commit: async (build) => {
-        await build(builder({ getCurrentState: () => WarpState.empty() }));
+        await build(builder());
         throw new Error('unreachable publication');
       },
     });
@@ -166,6 +167,7 @@ describe('WriteRuntime admission classification', () => {
     await expect(
       executeIntentWrite({
         runtime: createRuntime(),
+        cone: coneLane().cone,
         context: createContext().context,
         intent: intent.node.add({ subject: 'user:alice' }),
         commit: async (build) => {
@@ -180,6 +182,7 @@ describe('WriteRuntime admission classification', () => {
     await expect(
       executeIntentWrite({
         runtime: createRuntime(),
+        cone: coneLane().cone,
         context: createContext().context,
         intent: intent.node.add({ subject: 'user:alice' }),
         commit: async (build) => {
@@ -207,15 +210,13 @@ function committableBuilder(): PatchBuilder {
   return builder({ persistence, patchJournal: createPatchJournal(persistence) });
 }
 
-function stateWithAttachedEdge(): WarpState {
-  const state = WarpState.empty();
-  state.nodeAlive.add('user:alice', Dot.create('agent-1', 1));
-  state.nodeAlive.add('team:ops', Dot.create('agent-1', 2));
-  state.edgeAlive.add(
-    encodeEdgeKey('user:alice', 'team:ops', 'memberOf'),
-    Dot.create('agent-1', 3)
-  );
-  return state;
+/** A lane where agent-1 added user:alice, team:ops and alice's membership edge. */
+function coneWithAttachedEdge(): ConeLaneBasis {
+  return coneLane('events', [['agent-1', [
+    new NodeAdd('user:alice', Dot.create('agent-1', 1)),
+    new NodeAdd('team:ops', Dot.create('agent-1', 2)),
+    new EdgeAdd({ from: 'user:alice', to: 'team:ops', label: 'memberOf', dot: Dot.create('agent-1', 3) }),
+  ]]]).cone;
 }
 
 function createRuntime(): WarpWorldline {
@@ -261,7 +262,8 @@ it.each([
     yield await Promise.reject<PatchEntry>(error);
   })()));
   const receipt = await executeIntentWrite({
-    runtime: createRuntime(), context: createContext().context, intent: intent.node.add({ subject: 'new' }),
+    runtime: createRuntime(),
+    cone: coneLane().cone, context: createContext().context, intent: intent.node.add({ subject: 'new' }),
     commit: async build => {
       const patch = builder({ persistence, patchJournal: journal });
       await build(patch);
@@ -282,7 +284,8 @@ it('refuses an unsafe observed clock with no ref change', async () => {
       context: {}, ops: [] }),
   })]]));
   const receipt = await executeIntentWrite({
-    runtime: createRuntime(), context: createContext().context, intent: intent.node.add({ subject: 'new' }),
+    runtime: createRuntime(),
+    cone: coneLane().cone, context: createContext().context, intent: intent.node.add({ subject: 'new' }),
     commit: async build => {
       const patch = builder({ persistence, patchJournal: journal });
       await build(patch);
@@ -303,7 +306,8 @@ it('refuses clock exhaustion before journal publication with a typed outcome', a
       context: {}, ops: [] }),
   })]));
   const receipt = await executeIntentWrite({
-    runtime: createRuntime(), context: createContext().context, intent: intent.node.add({ subject: 'new' }),
+    runtime: createRuntime(),
+    cone: coneLane().cone, context: createContext().context, intent: intent.node.add({ subject: 'new' }),
     commit: async build => {
       const patch = builder({ persistence, patchJournal: journal });
       await build(patch);

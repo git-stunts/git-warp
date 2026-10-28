@@ -22,13 +22,42 @@ const role = await coordinate
   .read();
 ```
 
-`captureCoordinate()` verifies an existing checkpoint-tail basis. It does not
-create one by materializing the whole graph. If the runtime cannot prove a
-bounded basis, the read fails closed with `E_OPTIC_NO_BOUNDED_BASIS`.
+`captureCoordinate()` advances the Lane's cone basis once and pins it. The cone
+basis is a clone-local trie of per-entity records (`refs/warp/<lane>/cone/head`)
+that folds each writer patch exactly once; advancing it reads only the patches
+that are new since this clone last looked. No checkpoint or repair step is
+needed, and nothing materializes the whole graph. If folding the new patches is
+obstructed (see [Troubleshooting](troubleshooting.md#a-read-or-write-is-obstructed-by-the-cone-basis)),
+`captureCoordinate()` rejects with `E_OPTIC_CONE_OBSTRUCTED`.
 
 Use a captured coordinate when multiple reads must answer from the same causal
-position. Later writes can advance the live worldline; the coordinate keeps the
-read pinned to the captured basis.
+position. Later writes can advance the live worldline; the coordinate keeps
+every read pinned to the captured cone root and frontier
+(`coordinate.coneRoot`, `coordinate.frontierEntries`). A strand Lane's
+coordinate pins the strand's basis: its forked base plus its own patches
+([Strands](strands.md#reads-writes-and-saved-coordinates)).
+
+`captureCoordinate()` also retains the captured basis clone-locally under
+`refs/warp/<lane>/cone/retained`, which keeps the last 64 captured bases
+reachable, so a saved Coordinate keeps reading after the Lane moves on and
+`git gc --prune=now` runs. An Observation's own coordinate lives only as long as
+the Observation and is not retained.
+
+Each read answers from the records it names:
+
+- a node or property read opens that node's one record;
+- a neighborhood read opens the node, its adjacency pages, its incident edge
+  records and the other endpoint of each edge (for liveness), then pages the
+  visible edges in a canonical order (direction, neighbor id, label). Its cost
+  follows the node's degree, never the graph size or history length;
+- a traversal pins one basis and reads one neighborhood per hop under its
+  explicit `maxDepth`, `maxNodes` and `maxEdges`; without them it is refused as
+  global discovery.
+
+The witness of a cone read (`readIdentity`) has `kind: 'cone-read'`, the cone
+root and frontier it read at, and the keys of the records it opened. A
+neighborhood cursor names a position in the canonical edge order, not a basis,
+so it resumes correctly at a later basis of the same Lane.
 
 ## Cost posture
 
@@ -36,8 +65,9 @@ These labels describe current provider cost, not aspirational architecture.
 
 | Surface | Current posture | What to rely on |
 | --- | --- | --- |
-| Exact id-only query reads | Bounded | Checkpoint-tail exact reads can answer without graph-wide materialization. |
-| Coordinate optic reads | Transitional | They verify checkpoint-tail evidence and fail closed when the basis is absent. |
+| Lane Observations and coordinate optic reads | Bounded | Cone records: one record per node or property read, degree-bounded neighborhoods, per-hop traversal. Folding costs only new patches. |
+| Strand Lane Observations, content reads and coordinate optic reads | Bounded | Cone records of the strand's basis: its pinned base plus the strand's own patches. |
+| Exact id-only compatibility query reads | Bounded | Checkpoint-tail exact reads, for the deprecated graph facades only (`CheckpointTailOptic`); no Runtime or Lane entry point uses them. |
 | Broad wildcard and traversal queries | Transitional | They may fall back to observer/delegate read models. |
 | Whole-state materialization | Diagnostic | Use for inspection, repair, migration, or evidence collection. |
 | Legacy query arrays | Legacy | Compatibility only. Do not make this the first-use model. |
@@ -70,9 +100,12 @@ Ordinary absence is data:
 - a missing property reads with `exists: false`;
 - blank node ids and blank property keys are invalid optic targets.
 
-Evidence failures are different. `E_OPTIC_NO_BOUNDED_BASIS`,
-`E_OPTIC_TAIL_BUDGET_EXCEEDED`, and `E_OPTIC_READ_IDENTITY` mean the runtime
-could not lawfully establish or preserve the read's evidence boundary.
+Evidence failures are different. `E_OPTIC_CONE_OBSTRUCTED` and
+`E_OPTIC_READ_IDENTITY` mean the runtime could not lawfully establish or
+preserve the read's evidence boundary. Lane Observations report a cone
+obstruction as an obstructed or underdetermined Receipt with a repair hint, not
+as a thrown error. (`E_OPTIC_NO_BOUNDED_BASIS` and `E_OPTIC_TAIL_BUDGET_EXCEEDED`
+remain on the maintenance-only checkpoint-tail optic.)
 
 ## Categorical reading
 

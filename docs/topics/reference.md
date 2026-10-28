@@ -37,24 +37,25 @@ Runtime @ index.ts#L13
 
 ### Type exports
 
-Source: `index.ts`. Count: 45.
+Source: `index.ts`. Count: 51.
 
 ```text
-AdmissionOutcome @ index.ts#L63
-ContentAttachment @ index.ts#L67
+AdmissionOutcome @ index.ts#L68
+ConcurrentValue @ index.ts#L50
+ContentAttachment @ index.ts#L72
 ContentInput @ index.ts#L24
 ContentMetadataInput @ index.ts#L25
-ContentOwnerDescriptor @ index.ts#L68
+ContentOwnerDescriptor @ index.ts#L73
 CoordinateReference @ index.ts#L28
-EntityAdmission @ index.ts#L55
-EntityAdmissionInitialProperties @ index.ts#L56
-EntityAdmissionInventoryCertificate @ index.ts#L62
-EntityAdmissionOccurrenceReference @ index.ts#L57
-EntityAdmissionOrdering @ index.ts#L58
-EntityAdmissionOriginReading @ index.ts#L59
-EntityAdmissionRepresentationReference @ index.ts#L60
-EntityCausalRelation @ index.ts#L52
-EntityOccurrence @ index.ts#L51
+EntityAdmission @ index.ts#L60
+EntityAdmissionInitialProperties @ index.ts#L61
+EntityAdmissionInventoryCertificate @ index.ts#L67
+EntityAdmissionOccurrenceReference @ index.ts#L62
+EntityAdmissionOrdering @ index.ts#L63
+EntityAdmissionOriginReading @ index.ts#L64
+EntityAdmissionRepresentationReference @ index.ts#L65
+EntityCausalRelation @ index.ts#L57
+EntityOccurrence @ index.ts#L56
 Evidence @ index.ts#L20
 EvidenceHandle @ index.ts#L20
 Intent @ index.ts#L21
@@ -62,29 +63,34 @@ Lane @ index.ts#L23
 LaneDescriptor @ index.ts#L29
 LaneKind @ index.ts#L30
 LaneReference @ index.ts#L31
+LifecycleElement @ index.ts#L49
+LifecyclePlurality @ index.ts#L49
 Observation @ index.ts#L33
 ObservationReceipt @ index.ts#L34
 ObservationStatus @ index.ts#L35
 Observer @ index.ts#L36
 ObserverCardinality @ index.ts#L37
+Plurality @ index.ts#L46
+PluralityCausality @ index.ts#L47
 Reading @ index.ts#L38
 ReadingCoordinate @ index.ts#L40
 ReadingValue @ index.ts#L41
-Receipt @ index.ts#L64
-RepairHint @ index.ts#L65
+Receipt @ index.ts#L69
+RegisterPlurality @ index.ts#L48
+RepairHint @ index.ts#L70
 RuntimeForkOptions @ index.ts#L15
 RuntimeOpenOptions @ index.ts#L16
 RuntimeSettlementOptions @ index.ts#L17
 RuntimeStrandOptions @ index.ts#L18
-SettlementPlan @ index.ts#L48
-SettlementPreview @ index.ts#L46
-SettlementReceipt @ index.ts#L47
+SettlementPlan @ index.ts#L53
+SettlementPreview @ index.ts#L51
+SettlementReceipt @ index.ts#L52
 StagedContent @ index.ts#L26
 SupportReport @ index.ts#L42
 Tick @ index.ts#L45
 WitnessReference @ index.ts#L43
 WriteIntentInput @ index.ts#L22
-WriteReceipt @ index.ts#L49
+WriteReceipt @ index.ts#L54
 ```
 
 ## Advanced export surface
@@ -93,37 +99,39 @@ Bounded formal reads and runtime-backed construction for generated SDK infrastru
 
 ### Value exports
 
-Source: `advanced.ts`. Count: 11.
+Source: `advanced.ts`. Count: 12.
 
 ```text
-captureCoordinate @ advanced.ts#L9
-Coordinate @ advanced.ts#L10
-createEdgeContentObserver @ advanced.ts#L35
-createEntityAdmissionInventoryObserver @ advanced.ts#L18
-createManyObserver @ advanced.ts#L15
-createNodeContentObserver @ advanced.ts#L35
-createObserver @ advanced.ts#L16
-intent @ advanced.ts#L12
-Optic @ advanced.ts#L11
-reading @ advanced.ts#L13
-requireEntityAdmissionInventoryCertificate @ advanced.ts#L19
+captureCoordinate @ advanced.ts#L10
+Coordinate @ advanced.ts#L11
+createEdgeContentObserver @ advanced.ts#L40
+createEntityAdmissionInventoryObserver @ advanced.ts#L19
+createManyObserver @ advanced.ts#L16
+createNodeContentObserver @ advanced.ts#L40
+createObserver @ advanced.ts#L17
+findEntityAdmissionInventoryContinuation @ advanced.ts#L22
+intent @ advanced.ts#L13
+Optic @ advanced.ts#L12
+reading @ advanced.ts#L14
+requireEntityAdmissionInventoryCertificate @ advanced.ts#L23
 ```
 
 ### Type exports
 
-Source: `advanced.ts`. Count: 10.
+Source: `advanced.ts`. Count: 11.
 
 ```text
-NeighborhoodOpticCompleteness @ advanced.ts#L23
-NeighborhoodOpticEdge @ advanced.ts#L24
-NeighborhoodOpticReadDirection @ advanced.ts#L25
-NeighborhoodOpticReadOptions @ advanced.ts#L21
-ReadIdentityFrontierEntry @ advanced.ts#L29
-ReadIdentityIndexShard @ advanced.ts#L30
-ReadIdentityOptions @ advanced.ts#L31
-ReadIdentityTailWitness @ advanced.ts#L32
-WarpWorldlineCoordinateFrontierEntry @ advanced.ts#L20
-Witness @ advanced.ts#L28
+EntityAdmissionInventoryObserverOptions @ advanced.ts#L20
+NeighborhoodOpticCompleteness @ advanced.ts#L28
+NeighborhoodOpticEdge @ advanced.ts#L29
+NeighborhoodOpticReadDirection @ advanced.ts#L30
+NeighborhoodOpticReadOptions @ advanced.ts#L26
+ReadIdentityFrontierEntry @ advanced.ts#L34
+ReadIdentityIndexShard @ advanced.ts#L35
+ReadIdentityOptions @ advanced.ts#L36
+ReadIdentityTailWitness @ advanced.ts#L37
+WarpWorldlineCoordinateFrontierEntry @ advanced.ts#L25
+Witness @ advanced.ts#L32
 ```
 
 ## Diagnostics export surface
@@ -135,7 +143,7 @@ Operator inspection helpers that consume public receipt handles.
 Source: `diagnostics.ts`. Count: 1.
 
 ```text
-inspectReceipt @ diagnostics.ts#L35
+inspectReceipt @ diagnostics.ts#L40
 ```
 
 ### Type exports
@@ -143,8 +151,8 @@ inspectReceipt @ diagnostics.ts#L35
 Source: `diagnostics.ts`. Count: 2.
 
 ```text
-ReceiptInspection @ diagnostics.ts#L24
-ReceiptSubstrateInspection @ diagnostics.ts#L10
+ReceiptInspection @ diagnostics.ts#L29
+ReceiptSubstrateInspection @ diagnostics.ts#L15
 ```
 
 ## Charts export surface

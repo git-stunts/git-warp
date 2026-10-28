@@ -4,6 +4,7 @@ import { openWarp } from '../../../src/application/openWarp.ts';
 import RuntimeActivity from '../../../src/application/RuntimeActivity.ts';
 import { createWorldlineLane } from '../../../src/application/RuntimeLaneAdapter.ts';
 import Intent from '../../../src/domain/api/Intent.ts';
+import { createTimeline } from '../../../src/domain/api/TimelineRuntime.ts';
 import { requireLaneRuntime } from '../../../src/domain/api/LaneRuntime.ts';
 import {
   createManyObserver,
@@ -12,7 +13,6 @@ import {
 import LegacyReading from '../../../src/domain/api/Reading.ts';
 import captureCoordinate from '../../../src/domain/api/captureCoordinate.ts';
 import WarpWorldline from '../../../src/domain/WarpWorldline.ts';
-import { createBoundedReadBasis } from '../../helpers/BoundedReadBasis.ts';
 import MemoryStorage from '../../helpers/MemoryStorage.ts';
 
 describe('Runtime Lane adapter', () => {
@@ -28,7 +28,6 @@ describe('Runtime Lane adapter', () => {
         key: 'role',
         value: 'admin',
       }));
-      await createBoundedReadBasis(storage, 'events');
       const observer = createObserver<string>(
         'users.role-of',
         LegacyReading.property({ subject: 'user:alice', key: 'role' }),
@@ -40,15 +39,15 @@ describe('Runtime Lane adapter', () => {
         },
       );
 
-      const prepareOpticBasis = vi.spyOn(
+      const captureReadCoordinate = vi.spyOn(
         WarpWorldline.prototype,
-        'prepareOpticBasis',
+        'captureReadCoordinate',
       );
       const observation = lane.observe(observer);
       const reading = await observation.one();
       const receipt = await observation.receipt;
 
-      expect(prepareOpticBasis).toHaveBeenCalledTimes(1);
+      expect(captureReadCoordinate).toHaveBeenCalledTimes(1);
       expect(reading.value).toBe('admin');
       expect(reading.coordinate.lane).toBe('events');
       expect(reading.coordinate.basis.id).toMatch(/^evidence:/u);
@@ -78,7 +77,6 @@ describe('Runtime Lane adapter', () => {
         key: 'role',
         value: 'member',
       }));
-      await createBoundedReadBasis(storage, 'events');
 
       const fork = requireLaneRuntime(lane).fork;
       if (fork === null) {
@@ -133,9 +131,12 @@ describe('Runtime Lane adapter', () => {
         value: 'owner',
         coordinate: { lane: 'events' },
       });
-      await expect(captureCoordinate(strand)).rejects.toMatchObject({
-        code: 'E_LANE_COORDINATE_KIND',
-      });
+      const strandCoordinate = await captureCoordinate(strand);
+      expect(strandCoordinate.frontierEntries.map(({ writerId }) => writerId)).toEqual([
+        expect.stringMatching(/^@w\.agent-1@s\.[0-9a-f]{64}$/u), 'agent-1',
+      ]);
+      await expect(strandCoordinate.optic().node('user:alice').prop('role').read())
+        .resolves.toMatchObject({ value: 'admin' });
     } finally {
       await storage.close();
     }
@@ -208,7 +209,6 @@ describe('Runtime Lane adapter', () => {
           value: 1,
         }));
       }
-      await createBoundedReadBasis(storage, 'events');
       const fork = requireLaneRuntime(lane).fork;
       if (fork === null) {
         throw new Error('worldline Lane is missing its fork port');
@@ -257,7 +257,7 @@ describe('Runtime Lane adapter', () => {
     }
   });
 
-  it('records a missing bounded basis as obstruction rather than runtime failure', async () => {
+  it('answers an empty lane from the empty cone basis without a prepared basis', async () => {
     const storage = MemoryStorage.create();
     try {
       const warp = await openWarp({ storage, writer: 'agent-1' });
@@ -274,10 +274,10 @@ describe('Runtime Lane adapter', () => {
         },
       );
 
+      await expect(lane.observe(observer).one()).resolves.toMatchObject({ value: false });
       await expect(lane.observe(observer).receipt).resolves.toMatchObject({
         operation: 'observe',
-        reason: 'missing_bounded_basis',
-        status: 'obstructed',
+        status: 'completed',
       });
     } finally {
       await storage.close();
@@ -299,7 +299,6 @@ describe('Runtime Lane adapter', () => {
           value: index + 1,
         }));
       }
-      await createBoundedReadBasis(storage, 'events');
       let planned = 0;
       const observer = createManyObserver<number>(
         'users.ranks',
@@ -354,7 +353,6 @@ describe('Runtime Lane adapter', () => {
       for (const subject of subjects) {
         await lane.write(Intent.addNode({ subject }));
       }
-      await createBoundedReadBasis(storage, 'events');
       let planned = 0;
       let decoded = 0;
       const observer = createManyObserver<boolean>(
@@ -393,7 +391,6 @@ describe('Runtime Lane adapter', () => {
       const timeline = await warp.timeline('events');
       const lane = createWorldlineLane(timeline, new RuntimeActivity());
       await lane.write(Intent.addNode({ subject: 'user:alice' }));
-      await createBoundedReadBasis(storage, 'events');
       const observer = createManyObserver<boolean>(
         'users.empty',
         () => [],
@@ -417,12 +414,14 @@ describe('Runtime Lane adapter', () => {
     }
   });
 
-  it('obstructs an empty many Observer when no bounded basis exists', async () => {
+  it('obstructs an empty many Observer when the cone basis cannot advance', async () => {
     const storage = MemoryStorage.create();
     try {
       const warp = await openWarp({ storage, writer: 'agent-1' });
       const timeline = await warp.timeline('events');
       const lane = createWorldlineLane(timeline, new RuntimeActivity());
+      await lane.write(Intent.addNode({ subject: 'user:alice' }));
+      storage.divergeLaneBasis('events', 'agent-1');
       const observer = createManyObserver<boolean>(
         'users.empty',
         () => [],
@@ -431,7 +430,8 @@ describe('Runtime Lane adapter', () => {
 
       await expect(lane.observe(observer).receipt).resolves.toMatchObject({
         operation: 'observe',
-        reason: 'missing_bounded_basis',
+        reason: 'cone_writer_diverged',
+        repairHints: [expect.objectContaining({ code: 'rebuild_cone_basis' })],
         status: 'obstructed',
       });
     } finally {
@@ -447,7 +447,6 @@ describe('Runtime Lane adapter', () => {
       const activity = new RuntimeActivity();
       const lane = createWorldlineLane(timeline, activity);
       await lane.write(Intent.addNode({ subject: 'user:alice' }));
-      await createBoundedReadBasis(storage, 'events');
       const observer = createManyObserver<boolean>(
         'users.exist',
         function* () {
@@ -480,6 +479,48 @@ describe('Runtime Lane adapter', () => {
     }
   });
 
+  it('cancels an Observation whose basis was obstructed at capture without inventing tick evidence', async () => {
+    const storage = MemoryStorage.create();
+    try {
+      const warp = await openWarp({ storage, writer: 'agent-1' });
+      const timeline = await warp.timeline('events');
+      const lane = createWorldlineLane(timeline, new RuntimeActivity());
+      await lane.write(Intent.addNode({ subject: 'user:alice' }));
+      storage.divergeLaneBasis('events', 'agent-1');
+      const observer = createManyObserver<boolean>(
+        'users.exist',
+        async function* () {
+          // The obstruction clears before the first Reading: each live read refolds the lane.
+          await storage.clearLaneBasis('events');
+          yield LegacyReading.nodeExists({ subject: 'user:alice' });
+          yield LegacyReading.nodeExists({ subject: 'user:bob' });
+        },
+        (value) => Boolean(value),
+      );
+      const observation = lane.observe(observer);
+      const iterator = observation[Symbol.asyncIterator]();
+      await expect(iterator.next()).resolves.toMatchObject({ value: { value: true } });
+      await iterator.return?.();
+      const receipt = await observation.receipt;
+      expect(receipt).toMatchObject({ reason: 'consumer_cancelled', status: 'obstructed' });
+      expect(receipt.evidence).toBeUndefined();
+    } finally {
+      await storage.close();
+    }
+  });
+
+  it('lets a runtime that keeps no cone records fail the Observation instead of obstructing it', async () => {
+    const runtime = new WarpWorldline({
+      worldlineName: 'events', writerId: 'agent-1', commitPatch: async () => 'unused',
+      createWorldline: () => { throw new Error('unused compatibility projection'); },
+      admitIntent: async () => { throw new Error('unused admission'); },
+    });
+    const context = { createOpaqueId: async () => 'evidence:test', reserveRecoveryNonce: () => 'nonce', bindReceipt: () => undefined };
+    const lane = createWorldlineLane(createTimeline(runtime, context), new RuntimeActivity());
+    const observer = createObserver<boolean>('users.exists', LegacyReading.nodeExists({ subject: 'user:alice' }), (value) => Boolean(value));
+    await expect(lane.observe(observer).receipt).rejects.toMatchObject({ code: 'E_WARP_WORLDLINE_CONE_UNAVAILABLE' });
+  });
+
   it('rejects incompatible generated values as runtime failures', async () => {
     const storage = MemoryStorage.create();
     try {
@@ -492,7 +533,6 @@ describe('Runtime Lane adapter', () => {
         key: 'role',
         value: 42,
       }));
-      await createBoundedReadBasis(storage, 'events');
       const observer = createObserver<string>(
         'users.role-of',
         LegacyReading.property({ subject: 'user:alice', key: 'role' }),

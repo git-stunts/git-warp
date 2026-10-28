@@ -1,0 +1,190 @@
+{
+  "threads": 2000,
+  "writers": 3,
+  "startedAt": "2026-10-28T14:49:29.811Z",
+  "shape": {
+    "documents": 200,
+    "threadsPerDocument": 10,
+    "repliesPerThread": 2
+  },
+  "bulkLoadProgress": {
+    "patches": 100,
+    "elapsedMs": 11090
+  },
+  "status": "complete",
+  "elapsedMs": 19678,
+  "maxRssMiB": 344,
+  "bulkLoad": {
+    "label": "batched: 50 actions per patch, not a save measurement",
+    "patches": 123,
+    "totalMs": 13815,
+    "perPatch": {
+      "samples": 123,
+      "ms": {
+        "n": 123,
+        "p50": 114.26,
+        "p95": 129.51,
+        "max": 137.38
+      },
+      "gitProcesses": {
+        "n": 123,
+        "p50": 28,
+        "p95": 28,
+        "max": 30
+      },
+      "results": {
+        "derived": 123
+      },
+      "reasons": {}
+    },
+    "repoBytes": 49594368
+  },
+  "saves": {
+    "label": "one user action per patch",
+    "samples": 60,
+    "ms": {
+      "n": 60,
+      "p50": 48.28,
+      "p95": 54.03,
+      "max": 61.9
+    },
+    "gitProcesses": {
+      "n": 60,
+      "p50": 28,
+      "p95": 28,
+      "max": 30
+    },
+    "results": {
+      "derived": 60
+    },
+    "reasons": {},
+    "deadlineReached": false
+  },
+  "margins": {
+    "label": "one document's threads and comments, four generated Observers",
+    "samples": 30,
+    "ms": {
+      "n": 30,
+      "p50": 42.98,
+      "p95": 50.25,
+      "max": 59.56
+    },
+    "gitProcesses": {
+      "n": 30,
+      "p50": 8,
+      "p95": 8,
+      "max": 8
+    },
+    "results": {
+      "completed": 30
+    },
+    "reasons": {},
+    "mismatches": 0,
+    "deadlineReached": false,
+    "rssAfterReadsMiB": 344
+  },
+  "coldOpen": {
+    "label": "fresh process: Runtime.open to first margins, module loading included",
+    "firstMarginsMs": {
+      "n": 5,
+      "p50": 294,
+      "p95": 305,
+      "max": 305
+    },
+    "gitProcesses": {
+      "n": 5,
+      "p50": 20,
+      "p95": 20,
+      "max": 20
+    },
+    "maxRssMiB": {
+      "n": 5,
+      "p50": 142,
+      "p95": 143,
+      "max": 143
+    },
+    "runs": [
+      {
+        "firstMarginsMs": 299,
+        "openMs": 29,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 141
+      },
+      {
+        "firstMarginsMs": 294,
+        "openMs": 26,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 11,
+        "maxRssMiB": 141
+      },
+      {
+        "firstMarginsMs": 292,
+        "openMs": 27,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 143
+      },
+      {
+        "firstMarginsMs": 291,
+        "openMs": 27,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 143
+      },
+      {
+        "firstMarginsMs": 305,
+        "openMs": 37,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 142
+      }
+    ]
+  },
+  "repoBytesAtEnd": 58961920
+}

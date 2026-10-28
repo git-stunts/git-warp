@@ -7,7 +7,8 @@ import WriterError from '../../../src/domain/errors/WriterError.ts';
 import WarpWorldline from '../../../src/domain/WarpWorldline.ts';
 import WarpState from '../../../src/domain/services/state/WarpState.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
-import VersionVector from '../../../src/domain/crdt/VersionVector.ts';
+import NodeAdd from '../../../src/domain/types/ops/NodeAdd.ts';
+import { coneLane } from '../../helpers/coneLane.ts';
 import { createPatchBuilder, createPatchBuilderMockPersistence, createPatchJournal } from './services/PatchBuilderTestHarness.ts';
 import { testDerivedIntentAdmissionReceipt } from '../../helpers/intentAdmission.ts';
 
@@ -40,7 +41,7 @@ it('preserves a typed operational failure before any callback basis exists', asy
   const failure = new PatchError('publication capability unavailable', { code: 'E_PATCH_NO_STATE' });
   const { journal } = fixture();
   await expect(executeIntentWrite({
-    runtime: runtime(), context: context(), intent: intent.node.add({ subject: 'new' }),
+    runtime: runtime(), cone: coneLane().cone, context: context(), intent: intent.node.add({ subject: 'new' }),
     commit: async () => { throw failure; },
   })).rejects.toBe(failure);
   expect(journal.requests).toHaveLength(0);
@@ -50,7 +51,7 @@ it('preserves evaluation capability failure rather than inventing admission evid
   const failure = new PatchError('evaluation identity unavailable', { code: 'E_PATCH_NO_STATE' });
   const { journal, patch } = fixture();
   await expect(executeIntentWrite({
-    runtime: runtime(), intent: intent.node.add({ subject: 'new' }),
+    runtime: runtime(), cone: coneLane().cone, intent: intent.node.add({ subject: 'new' }),
     context: context({ createOpaqueId: async (namespace, parts) => {
       if (namespace === 'admission') { throw failure; }
       return `${namespace}:${parts.join(':')}`;
@@ -65,7 +66,7 @@ it('refuses a receipt when a faulty commit capability suppresses callback eviden
   const { journal, patch } = fixture();
   vi.spyOn(patch, 'build').mockImplementationOnce(() => { throw failure; });
   await expect(executeIntentWrite({
-    runtime: runtime(), context: context(), intent: intent.node.add({ subject: 'new' }),
+    runtime: runtime(), cone: coneLane().cone, context: context(), intent: intent.node.add({ subject: 'new' }),
     commit: async build => {
       try { await build(patch); } catch (error) { if (error !== failure) { throw error; } }
       return await patch.commitWithEvidence();
@@ -78,7 +79,7 @@ it('refuses a receipt when a faulty commit capability suppresses callback eviden
 it('preserves acknowledged publication with recovery evidence when correlation fails', async () => {
   const { journal, patch } = fixture();
   const receipt = await executeIntentWrite({
-    runtime: runtime(), intent: intent.node.add({ subject: 'new' }),
+    runtime: runtime(), cone: coneLane().cone, intent: intent.node.add({ subject: 'new' }),
     context: context({ createOpaqueId: async (namespace, parts) => {
       if (parts[0] === 'write') { throw new Error('correlation capability unavailable'); }
       return `${namespace}:${parts.join(':')}`;
@@ -95,7 +96,7 @@ it('does not invent a stale frontier when a writer conflict omits its actual hea
   const failure = new WriterError('writer conflict without a witness', { code: 'WRITER_CAS_CONFLICT' });
   const { journal, patch } = fixture();
   await expect(executeIntentWrite({
-    runtime: runtime(), context: context(), intent: intent.node.add({ subject: 'new' }),
+    runtime: runtime(), cone: coneLane().cone, context: context(), intent: intent.node.add({ subject: 'new' }),
     commit: async build => { await build(patch); throw failure; },
   })).rejects.toBe(failure);
   expect(journal.requests).toHaveLength(0);
@@ -104,28 +105,26 @@ it('does not invent a stale frontier when a writer conflict omits its actual hea
 it('classifies missing edge content owners without publication', async () => {
   const { journal, patch } = fixture(() => WarpState.empty());
   const receipt = await executeIntentWrite({
-    runtime: runtime(), context: context(), intent: intent.edge.clearContent({ from: 'a', to: 'b', label: 'link' }),
+    runtime: runtime(), cone: coneLane().cone, context: context(), intent: intent.edge.clearContent({ from: 'a', to: 'b', label: 'link' }),
     commit: async build => { await build(patch); return await patch.commitWithEvidence(); },
   });
   expect(receipt.outcome.kind).toBe('obstruction');
   expect(journal.requests).toHaveLength(0);
 });
 
-it('clears node content using its selected legacy membership without inventing a frontier', async () => {
-  const state = WarpState.empty();
-  state.nodeAlive.add('n', new Dot('foreign', 1));
+it('clears node content using its cone-record membership', async () => {
   const persistence = createPatchBuilderMockPersistence();
   const journal = createPatchJournal(persistence);
   const patch = createPatchBuilder({
     graphName: 'events', writerId: 'agent-1', evaluationCoordinateRef: 'warp:test-coordinate:events',
-    persistence, patchJournal: journal, getCurrentState: () => state,
-    versionVector: VersionVector.from({ foreign: 1 }),
+    persistence, patchJournal: journal, getCurrentState: () => null,
   });
+  const { cone } = coneLane('events', [['agent-1', [new NodeAdd('n', new Dot('agent-1', 1))]]]);
   const receipt = await executeIntentWrite({
-    runtime: runtime(), context: context(), intent: intent.node.clearContent({ subject: 'n' }),
+    runtime: runtime(), cone, context: context(), intent: intent.node.clearContent({ subject: 'n' }),
     commit: async build => { await build(patch); return await patch.commitWithEvidence(); },
   });
   expect(receipt.outcome.kind).toBe('derived');
   expect(journal.requests).toHaveLength(1);
-  expect(journal.requests[0]?.patch.observedFrontier).toBeUndefined();
+  expect(journal.requests[0]?.patch.observedFrontier?.heads).toEqual([]);
 });
