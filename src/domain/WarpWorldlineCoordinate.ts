@@ -15,22 +15,43 @@ export type WarpWorldlineCoordinateOptions = {
   readonly createWorldline: (options?: WorldlineOptions) => ProjectionHandle;
 };
 
+/** A coordinate pinned to a lane's cone basis (#1039): every Reading shares its one basis. */
+export type WarpWorldlineConeCoordinateOptions = {
+  readonly worldlineName: string;
+  /** The cone record trie root the coordinate pins (its text form). */
+  readonly coneRoot: string;
+  readonly frontier: Map<string, string>;
+  readonly createOptic: () => WorldlineOptic;
+};
+
 export default class WarpWorldlineCoordinate {
   readonly kind: 'worldline-coordinate' = 'worldline-coordinate';
   readonly worldlineName: string;
-  readonly checkpointSha: string;
+  /** The checkpoint a checkpoint-tail coordinate reads from; null for a cone coordinate. */
+  readonly checkpointSha: string | null;
+  /** The cone root a cone coordinate pins; null for a checkpoint-tail coordinate. */
+  readonly coneRoot: string | null;
   readonly frontierEntries: readonly WarpWorldlineCoordinateFrontierEntry[];
-  private readonly _createWorldline: (options?: WorldlineOptions) => ProjectionHandle;
+  private readonly _createOptic: () => WorldlineOptic;
 
-  constructor(options: WarpWorldlineCoordinateOptions) {
+  constructor(options: WarpWorldlineCoordinateOptions | WarpWorldlineConeCoordinateOptions) {
     assertFrontier(options.frontier);
-    assertWorldlineFactory(options.createWorldline);
     assertNonEmpty(options.worldlineName, 'worldlineName');
-    assertNonEmpty(options.checkpointSha, 'checkpointSha');
     this.worldlineName = options.worldlineName;
-    this.checkpointSha = options.checkpointSha;
     this.frontierEntries = freezeFrontier(options.frontier);
-    this._createWorldline = options.createWorldline;
+    if ('coneRoot' in options) {
+      assertNonEmpty(options.coneRoot, 'coneRoot');
+      assertOpticFactory(options.createOptic);
+      this.checkpointSha = null;
+      this.coneRoot = options.coneRoot;
+      this._createOptic = options.createOptic;
+    } else {
+      assertWorldlineFactory(options.createWorldline);
+      assertNonEmpty(options.checkpointSha, 'checkpointSha');
+      this.checkpointSha = options.checkpointSha;
+      this.coneRoot = null;
+      this._createOptic = () => options.createWorldline({ source: checkpointSource(options) }).optic();
+    }
     Object.freeze(this);
   }
 
@@ -38,16 +59,47 @@ export default class WarpWorldlineCoordinate {
     return new Map(this.frontierEntries.map((entry) => [entry.writerId, entry.patchSha]));
   }
 
+  /** The checkpoint of a checkpoint-tail coordinate, as fork and strand lanes require. */
+  requireCheckpointSha(): string {
+    if (this.checkpointSha === null) {
+      throw new WarpError(
+        'WarpWorldline coordinate is pinned to a cone basis, not a checkpoint',
+        'E_WARP_WORLDLINE_COORDINATE',
+        { context: { field: 'checkpointSha' } }
+      );
+    }
+    return this.checkpointSha;
+  }
+
+  /** The parts that identify this coordinate's basis: its checkpoint, or its cone root. */
+  basisIdentity(): readonly string[] {
+    return this.coneRoot === null ? [this.requireCheckpointSha()] : ['cone', this.coneRoot];
+  }
+
   source(): WorldlineSource {
     return {
       kind: 'coordinate',
       frontier: this.frontier(),
-      checkpointSha: this.checkpointSha,
+      checkpointSha: this.requireCheckpointSha(),
     };
   }
 
   optic(): WorldlineOptic {
-    return this._createWorldline({ source: this.source() }).optic();
+    return this._createOptic();
+  }
+}
+
+function checkpointSource(options: WarpWorldlineCoordinateOptions): WorldlineSource {
+  return { kind: 'coordinate', frontier: new Map(options.frontier), checkpointSha: options.checkpointSha };
+}
+
+function assertOpticFactory(createOptic: () => WorldlineOptic): void {
+  if (typeof createOptic !== 'function') {
+    throw new WarpError(
+      'WarpWorldline cone coordinate requires an optic factory',
+      'E_WARP_WORLDLINE_COORDINATE',
+      { context: { field: 'createOptic' } }
+    );
   }
 }
 

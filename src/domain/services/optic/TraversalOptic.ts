@@ -1,6 +1,6 @@
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 import QueryError from '../../errors/QueryError.ts';
-import CheckpointTailWitnessLocator from './CheckpointTailWitnessLocator.ts';
+import OpticWitnessLocator from './OpticWitnessLocator.ts';
 import Optic from './Optic.ts';
 import OpticSupportRule from './OpticSupportRule.ts';
 import {
@@ -8,7 +8,7 @@ import {
   TraversalOpticCursor,
 } from './TraversalOpticReadResult.ts';
 
-type TraversalOpticReadPromise = ReturnType<CheckpointTailWitnessLocator['readTraversal']>;
+type TraversalOpticReadPromise = ReturnType<OpticWitnessLocator['readTraversal']>;
 
 export type TraversalOpticReadOptions = {
   readonly strategy?: TraversalOpticStrategy;
@@ -23,11 +23,11 @@ export type TraversalOpticReadOptions = {
 
 export default class TraversalOptic {
   private readonly _optic: Optic;
-  private readonly _locator: CheckpointTailWitnessLocator;
+  private readonly _locator: OpticWitnessLocator;
 
   constructor(options: {
     readonly optic: Optic;
-    readonly locator: CheckpointTailWitnessLocator;
+    readonly locator: OpticWitnessLocator;
   }) {
     this._optic = validateTraversalOptic(options.optic);
     this._locator = validateLocator(options.locator);
@@ -52,8 +52,8 @@ function validateTraversalOptic(optic: Optic): Optic {
   return optic;
 }
 
-function validateLocator(locator: CheckpointTailWitnessLocator): CheckpointTailWitnessLocator {
-  if (!(locator instanceof CheckpointTailWitnessLocator)) {
+function validateLocator(locator: OpticWitnessLocator): OpticWitnessLocator {
+  if (!(locator instanceof OpticWitnessLocator)) {
     throwTraversalOpticError('locator', 'invalid-locator');
   }
   return locator;

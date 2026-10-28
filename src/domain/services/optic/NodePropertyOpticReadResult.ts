@@ -1,18 +1,18 @@
 import type { PropValue } from '../../types/PropValue.ts';
-import type ReadIdentity from './ReadIdentity.ts';
+import type { OpticReadIdentity } from './OpticReadIdentity.ts';
 
 export default class NodePropertyOpticReadResult {
   readonly nodeId: string;
   readonly key: string;
   readonly exists: boolean;
   readonly value: PropValue | undefined;
-  readonly readIdentity: ReadIdentity;
+  readonly readIdentity: OpticReadIdentity;
 
   constructor(options: {
     readonly nodeId: string;
     readonly key: string;
     readonly value: PropValue | undefined;
-    readonly readIdentity: ReadIdentity;
+    readonly readIdentity: OpticReadIdentity;
   }) {
     this.nodeId = options.nodeId;
     this.key = options.key;

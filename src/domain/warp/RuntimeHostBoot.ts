@@ -32,6 +32,8 @@ import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
 import type AllocationFloorStorePort from '../../ports/AllocationFloorStorePort.ts';
 import type AllocationProvenancePort from '../../ports/AllocationProvenancePort.ts';
 import type DotRepairStorePort from '../../ports/DotRepairStorePort.ts';
+import type ConePatchFeedPort from '../../ports/ConePatchFeedPort.ts';
+import type ConeRecordStorePort from '../../ports/ConeRecordStorePort.ts';
 import type StrandStorePort from '../../ports/StrandStorePort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
@@ -76,6 +78,8 @@ export type RuntimeHostConstructionOptions = {
   allocationFloors?: AllocationFloorStorePort;
   allocationProvenance?: AllocationProvenancePort;
   dotRepairs?: DotRepairStorePort;
+  coneRecords?: ConeRecordStorePort;
+  conePatches?: ConePatchFeedPort;
   strandStore: StrandStorePort;
   checkpointStore: CheckpointStorePort;
   indexStore: IndexStorePort;
@@ -407,6 +411,8 @@ export async function resolveRuntimeHostConstructionOptions(
       ...(storageServices.allocationFloors === undefined ? {} : { allocationFloors: storageServices.allocationFloors }),
       ...(storageServices.allocationProvenance === undefined ? {} : { allocationProvenance: storageServices.allocationProvenance }),
       ...(storageServices.dotRepairs === undefined ? {} : { dotRepairs: storageServices.dotRepairs }),
+      ...(storageServices.coneRecords === undefined ? {} : { coneRecords: storageServices.coneRecords }),
+      ...(storageServices.conePatches === undefined ? {} : { conePatches: storageServices.conePatches }),
       strandStore: storageServices.strands,
       checkpointStore: storageServices.checkpoints,
       indexStore: resolvedIndexStore,

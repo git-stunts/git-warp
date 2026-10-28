@@ -139,6 +139,23 @@ probe.
 An operational obstruction never falls back to broad materialization. The
 receipt carries the defined terminal status and any repair hints.
 
+## How Readings Are Answered
+
+A Lane needs no preparation step: it is readable immediately after its writes,
+with or without a checkpoint. Each Observation advances the Lane's clone-local
+cone basis once, folding only the writer patches that are new since this clone
+last looked into per-entity records, and every Reading of that Observation
+answers from that one basis. A property or existence Reading opens one node
+record; a neighborhood Reading opens the node's incident edges and their other
+endpoints. The cost of an Observation therefore follows what it reads, not the
+size of the graph or the length of its history. Content Observations read the
+owner's attachment registers and liveness from the same records.
+
+When folding the new patches is obstructed, the Observation settles with
+status `obstructed` (reason `cone_shared_dot` or `cone_writer_diverged`) or
+`underdetermined` (reason `cone_contended`) and a repair hint; see
+[Troubleshooting](troubleshooting.md#a-read-or-write-is-obstructed-by-the-cone-basis).
+
 ## Unsupported Root Queries
 
 The root does not provide wildcard matching, arbitrary traversal, aggregation,

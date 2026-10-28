@@ -145,7 +145,7 @@ export async function createDraftReadingTarget(draft: DraftTimeline): Promise<Dr
       'E_DRAFT_TIMELINE_BOUNDED_BASIS_UNAVAILABLE'
     );
   }
-  const basis = await state.runtime.prepareStrandOptic(draft.name, coordinate.checkpointSha);
+  const basis = await state.runtime.prepareStrandOptic(draft.name, coordinate.requireCheckpointSha());
   const tick = await createDraftReadingTick(draft, state, basis);
   return Object.freeze({
     tick,

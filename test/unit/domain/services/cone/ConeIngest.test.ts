@@ -16,45 +16,14 @@ import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
 import NodeRemove from '../../../../../src/domain/types/ops/NodeRemove.ts';
 import type { PatchOp } from '../../../../../src/domain/types/ops/unions.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
-import ConePatchFeedPort from '../../../../../src/ports/ConePatchFeedPort.ts';
 import InMemoryConeRecordStore from '../../../../helpers/InMemoryConeRecordStore.ts';
+import MemoryConeFeed from '../../../../helpers/MemoryConeFeed.ts';
 
 const LANE = 'events';
 
-/** Writer chains held in memory; ranges are served from the chain after `fromSha`. */
-class MemoryFeed extends ConePatchFeedPort {
-  readonly chains = new Map<string, PatchEntry[]>();
-  readonly ranges: Array<{ writerId: string; fromSha: string | null; toSha: string }> = [];
-  diverged = new Set<string>();
-  #shas = 0;
-
-  append(writer: string, ops: PatchOp[]): PatchEntry {
-    const chain = this.chains.get(writer) ?? [];
-    this.#shas += 1;
-    const sha = `${writer.charCodeAt(1).toString(16)}${this.#shas.toString(16).padStart(38, '0')}`;
-    const patchEntry = new PatchEntry({ patch: new Patch({ writer, lamport: chain.length + 1, context: {}, ops }), sha });
-    chain.push(patchEntry);
-    this.chains.set(writer, chain);
-    return patchEntry;
-  }
-
-  override async writerTips(lane: string): Promise<ReadonlyMap<string, string>> {
-    expect(lane).toBe(LANE);
-    return new Map([...this.chains].map(([writer, chain]) => [writer, chain[chain.length - 1]?.sha ?? '']));
-  }
-
-  override async patchesAfter(
-    _lane: string,
-    writerId: string,
-    range: { readonly fromSha: string | null; readonly toSha: string },
-  ): Promise<ConeWriterPatches | ConeWriterDivergedObstruction> {
-    this.ranges.push({ writerId, ...range });
-    if (this.diverged.has(writerId)) {
-      return new ConeWriterDivergedObstruction({ writerId, foldedSha: range.fromSha, tipSha: range.toSha });
-    }
-    const chain = this.chains.get(writerId) ?? [];
-    const start = range.fromSha === null ? 0 : chain.findIndex((patchEntry) => patchEntry.sha === range.fromSha) + 1;
-    return new ConeWriterPatches(writerId, chain.slice(start));
+class MemoryFeed extends MemoryConeFeed {
+  constructor() {
+    super(LANE);
   }
 }
 

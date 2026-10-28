@@ -1,5 +1,5 @@
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
-import type CheckpointTailWitnessLocator from './CheckpointTailWitnessLocator.ts';
+import type OpticWitnessLocator from './OpticWitnessLocator.ts';
 import QueryError from '../../errors/QueryError.ts';
 import type NeighborhoodOpticReadResult from './NeighborhoodOpticReadResult.ts';
 import Optic from './Optic.ts';
@@ -15,11 +15,11 @@ export type NeighborhoodOpticReadOptions = {
 
 export default class NeighborhoodOptic {
   private readonly _optic: Optic;
-  private readonly _locator: CheckpointTailWitnessLocator;
+  private readonly _locator: OpticWitnessLocator;
 
   constructor(options: {
     readonly optic: Optic;
-    readonly locator: CheckpointTailWitnessLocator;
+    readonly locator: OpticWitnessLocator;
   }) {
     this._optic = validateNeighborhoodOptic(options.optic);
     this._locator = options.locator;

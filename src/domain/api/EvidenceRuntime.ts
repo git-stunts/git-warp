@@ -1,5 +1,7 @@
 import type WarpWorldline from '../WarpWorldline.ts';
 import WarpError from '../errors/WarpError.ts';
+import ConeReadIdentity from '../services/optic/ConeReadIdentity.ts';
+import type { OpticReadIdentity } from '../services/optic/OpticReadIdentity.ts';
 import type ReadIdentity from '../services/optic/ReadIdentity.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import type { ApiRuntimeContext, OpaqueIdPart } from './ApiRuntimeContext.ts';
@@ -33,6 +35,7 @@ const JOIN_EVIDENCE = 'join';
 const READ_EVIDENCE = 'read';
 const PATCH_SUPPORT = 'patch';
 const INDEX_SUPPORT = 'index';
+const CONE_RECORD_SUPPORT = 'cone-record';
 const RECOVERY_EVIDENCE = 'recovery';
 const RETENTION_SUPPORT = 'retention';
 const ENTITY_ADMISSION_INVENTORY = 'entity-admission-inventory';
@@ -95,11 +98,9 @@ export async function createJoinRecoveryEvidence(
 
 export async function createReadEvidence(
   context: ApiRuntimeContext,
-  identity: ReadIdentity,
+  identity: OpticReadIdentity,
   tick?: Tick
 ): Promise<Evidence> {
-  const support = await createReadSupport(context, identity);
-  const frontier = identity.checkpointFrontier.flatMap((entry) => [entry.writerId, entry.patchSha]);
   const evidence = {
     basis: await createHandle(context, [
       READ_EVIDENCE,
@@ -107,14 +108,29 @@ export async function createReadEvidence(
       identity.basis,
       identity.worldline,
       identity.entityAspect,
-      identity.checkpointSha,
-      identity.reducerVersion,
-      identity.projectionVersion,
-      ...frontier,
+      ...readBasisParts(identity),
     ]),
-    support,
+    support: await createReadSupport(context, identity),
   };
   return freezeCreatedEvidence(tick === undefined ? evidence : { ...evidence, tick });
+}
+
+/** The basis a read answered from: its checkpoint and frontier, or its cone root and frontier. */
+function readBasisParts(identity: OpticReadIdentity): readonly OpaqueIdPart[] {
+  if (identity instanceof ConeReadIdentity) {
+    return [
+      identity.coneRoot,
+      identity.reducerVersion,
+      identity.projectionVersion,
+      ...identity.coneFrontier.flatMap((entry) => [entry.writerId, entry.patchSha]),
+    ];
+  }
+  return [
+    identity.checkpointSha,
+    identity.reducerVersion,
+    identity.projectionVersion,
+    ...identity.checkpointFrontier.flatMap((entry) => [entry.writerId, entry.patchSha]),
+  ];
 }
 
 /** Exact-basis evidence for one retained entity admission Reading. */
@@ -171,6 +187,18 @@ export function freezeOptionalEvidence(
 }
 
 async function createReadSupport(
+  context: ApiRuntimeContext,
+  identity: OpticReadIdentity
+): Promise<readonly EvidenceHandle[]> {
+  if (identity instanceof ConeReadIdentity) {
+    return await Promise.all(identity.coneRecords.map(
+      async (record) => await createHandle(context, [CONE_RECORD_SUPPORT, identity.coneRoot, record])
+    ));
+  }
+  return await createCheckpointReadSupport(context, identity);
+}
+
+async function createCheckpointReadSupport(
   context: ApiRuntimeContext,
   identity: ReadIdentity
 ): Promise<readonly EvidenceHandle[]> {

@@ -1,6 +1,6 @@
 import type { SnapshotPropValue } from '../snapshot/SnapshotPropValue.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
-import type ReadIdentity from '../optic/ReadIdentity.ts';
+import type { OpticReadIdentity } from '../optic/OpticReadIdentity.ts';
 import type WorldlineOptic from '../optic/WorldlineOptic.ts';
 import type {
   QueryNeighborEntry,
@@ -105,6 +105,6 @@ function emptyProps(): Readonly<{ [key: string]: SnapshotPropValue }> {
   return Object.freeze({});
 }
 
-function readIdentityStateHash(readIdentity: ReadIdentity): string {
+function readIdentityStateHash(readIdentity: OpticReadIdentity): string {
   return `checkpoint-tail-query:${canonicalStringify(readIdentity)}`;
 }

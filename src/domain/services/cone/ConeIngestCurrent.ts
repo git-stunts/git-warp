@@ -14,4 +14,8 @@ export default class ConeIngestCurrent extends ConeIngestOutcome {
     this.basis = basis;
     Object.freeze(this);
   }
+
+  override settled(): ConeBasis {
+    return this.basis;
+  }
 }

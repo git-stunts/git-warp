@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { checkpointReadIdentity } from '../../../../helpers/checkpointReadIdentity.ts';
 import { Dot, encodeDot } from '../../../../../src/domain/crdt/Dot.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
 import NodeRemove from '../../../../../src/domain/types/ops/NodeRemove.ts';
@@ -30,7 +31,7 @@ describe('checkpoint-tail node liveness with floating removed dots (#894)', () =
 
   it('includes the tombstone receipt in read identity', async () => {
     const read = await tailNodeRead(removedScenario);
-    expect(read.readIdentity.checkpointIndexShards.map((shard) => shard.path)).toContain(NODE_LIFECYCLE_RECEIPT_PATH);
+    expect(checkpointReadIdentity(read.readIdentity).checkpointIndexShards.map((shard) => shard.path)).toContain(NODE_LIFECYCLE_RECEIPT_PATH);
   });
 
   it('reads unchanged checkpoint membership without legacy lifecycle records', async () => {

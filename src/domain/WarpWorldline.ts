@@ -17,9 +17,11 @@ import type { Aperture } from './types/Aperture.ts';
 import type { PatchBuilder } from './services/PatchBuilder.ts';
 import type ProjectionHandle from './services/ProjectionHandle.ts';
 import type Observer from './services/query/Observer.ts';
-import WorldlineOptic from './services/optic/WorldlineOptic.ts';
+import type WorldlineOptic from './services/optic/WorldlineOptic.ts';
 import CheckpointTailBasisVerifier from './services/optic/CheckpointTailBasisVerifier.ts';
-import CoordinateCheckpointTailOpticSource from './services/optic/CoordinateCheckpointTailOpticSource.ts';
+import prepareStrandOpticBasis from './WarpWorldlineStrandOptic.ts';
+import { captureConeCoordinate, liveConeOptic } from './WarpWorldlineConeOptics.ts';
+import ConeLaneBasis from './services/cone/ConeLaneBasis.ts';
 import createBoundedMemoryCapabilityReport from './memory/createBoundedMemoryCapabilityReport.ts';
 import type { IntentAdmissionReceipt } from './admission/IntentAdmissionReceipt.ts';
 import type { WarpIntentDescriptor } from './types/WarpIntentDescriptor.ts';
@@ -104,6 +106,7 @@ type WarpWorldlineConstructionOptions = {
   readonly readOpticBasis?: ReadOpticBasis;
   readonly readCapabilities?: ReadCapabilities;
   readonly admitIntent: AdmitIntent;
+  readonly cone?: ConeLaneBasis | null;
 };
 
 export default class WarpWorldline {
@@ -126,6 +129,7 @@ export default class WarpWorldline {
   private readonly _readOpticBasis: ReadOpticBasis | null;
   private readonly _readCapabilities: ReadCapabilities;
   private readonly _admitIntent: AdmitIntent;
+  private readonly _cone: ConeLaneBasis | null;
 
   constructor(options: WarpWorldlineConstructionOptions) {
     this.assetStorage = options.assetStorage ?? null;
@@ -149,6 +153,7 @@ export default class WarpWorldline {
     this._readOpticBasis = optionalPort(options.readOpticBasis);
     this._readCapabilities = options.readCapabilities ?? createBoundedMemoryCapabilityReport;
     this._admitIntent = options.admitIntent;
+    this._cone = options.cone ?? null;
     Object.freeze(this);
   }
 
@@ -274,8 +279,27 @@ export default class WarpWorldline {
     return await worldline.observer(nameOrConfig);
   }
 
+  /** A live public optic: over the lane's cone basis when its storage keeps one (#1039). */
   optic(): WorldlineOptic {
-    return this.live().optic();
+    return this._cone === null ? this.live().optic() : liveConeOptic(this.worldlineName, this._cone);
+  }
+
+  /** The lane's cone basis, or null when its storage keeps none. */
+  coneBasis(): ConeLaneBasis | null {
+    return this._cone;
+  }
+
+  /**
+   * Captures one coordinate for public reads: the lane's cone basis advanced
+   * once (#1039), or the prepared checkpoint-tail basis when storage keeps no
+   * cone basis.
+   */
+  async captureReadCoordinate(): Promise<WarpWorldlineCoordinate> {
+    if (this._cone !== null) {
+      return await captureConeCoordinate(this.worldlineName, this._cone);
+    }
+    await this.prepareOpticBasis();
+    return await this.coordinate();
   }
 
   capabilities(): ReturnType<ReadCapabilities> {
@@ -373,13 +397,25 @@ function createWarpWorldline(worldlineName: string, graph: RuntimeGraph): WarpWo
     getFrontier: async () => await graph.getFrontier(),
     readOpticBasis: () => preparedOpticBasis,
     admitIntent: async (descriptor) => await graph.admitIntent(descriptor),
+    cone: coneLaneBasis(worldlineName, graph),
   });
+  bindWorldlineReadRuntimes(worldline, graph);
+  return worldline;
+}
+
+function bindWorldlineReadRuntimes(worldline: WarpWorldline, graph: RuntimeGraph): void {
   bindEntityAdmissionInventoryRuntime(worldline, {
     getFrontier: async () => await graph.getFrontier(),
     inventory: new PatchJournalEntityAdmissionInventory({ journal: graph._patchJournal }),
   });
   bindContentReadRuntime(worldline, { refs: graph._persistence, journal: graph._patchJournal });
-  return worldline;
+}
+
+function coneLaneBasis(worldlineName: string, graph: RuntimeGraph): ConeLaneBasis | null {
+  if (graph._coneRecords === null || graph._conePatches === null) {
+    return null;
+  }
+  return new ConeLaneBasis({ store: graph._coneRecords, feed: graph._conePatches, lane: worldlineName });
 }
 
 async function prepareForkOpticBasis(
@@ -424,66 +460,6 @@ async function previewDraftJoin(
 ): Promise<readonly string[]> {
   await graph.materializeStrand(name, { receipts: true });
   return (await graph.getStrandPatches(name)).map((entry) => entry.sha);
-}
-
-async function prepareStrandOpticBasis(
-  graph: RuntimeGraph,
-  name: string,
-  checkpointSha: string,
-): Promise<WarpStrandOpticBasis> {
-  const descriptor = await graph.getStrand(name);
-  if (descriptor === null) {
-    throw new WarpError(
-      `Strand '${name}' is unavailable`,
-      'E_WARP_WORLDLINE_STRAND_UNAVAILABLE',
-      { context: { name } },
-    );
-  }
-  // A strand overlay already has its own writer identity. Adding its pinned
-  // head to the captured parent frontier lets the checkpoint-tail optic scan
-  // it as one more bounded writer tail, without materializing the graph.
-  const frontier = strandFrontier(descriptor);
-  return Object.freeze({
-    checkpointSha,
-    frontierEntries: freezeFrontierEntries(frontier),
-    optic: new WorldlineOptic({
-      source: new CoordinateCheckpointTailOpticSource({
-        source: graph,
-        checkpointSha,
-        frontier,
-      }),
-    }),
-  });
-}
-
-function strandFrontier(
-  descriptor: NonNullable<Awaited<ReturnType<RuntimeGraph['getStrand']>>>,
-): Map<string, string> {
-  const frontier = new Map(Object.entries(descriptor.baseObservation.frontier));
-  for (const chain of descriptor.writers) {
-    addOverlayHead(frontier, chain);
-  }
-  for (const overlay of descriptor.braid.readOverlays) {
-    addOverlayHead(frontier, overlay);
-  }
-  return frontier;
-}
-
-function addOverlayHead(
-  frontier: Map<string, string>,
-  overlay: { readonly overlayId: string; readonly headPatchSha: string | null },
-): void {
-  if (overlay.headPatchSha !== null) {
-    frontier.set(overlay.overlayId, overlay.headPatchSha);
-  }
-}
-
-function freezeFrontierEntries(frontier: Map<string, string>) {
-  return Object.freeze(
-    [...frontier.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([writerId, patchSha]) => Object.freeze({ writerId, patchSha })),
-  );
 }
 
 function assertNonEmpty(value: string | null | undefined, field: string): void {

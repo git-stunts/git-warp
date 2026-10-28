@@ -30,8 +30,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The internal cone engine behind it folds each patch into per-entity records
   (node, edge, dot-claim and adjacency pages in a route-keyed Git tree trie)
   through the existing reducer, refuses a patch whose removed dot two elements
-  share, and advances by one bulk log per changed writer. Public reads and
-  writes do not use it yet
+  share, and advances by one bulk log per changed writer
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- Answer every worldline Lane read from the Lane's cone records instead of a
+  checkpoint plus its tail. A Lane is
+  readable right after its writes with no checkpoint and no
+  `git warp repair --action materialization` step; each Observation and each
+  captured coordinate advances the cone basis once and all its Readings share
+  it. Property and existence Readings open one record, neighborhood Readings
+  are degree-bounded, and content Observations read the owner's records
+  instead of replaying every writer's history. Neighborhood edges now come in
+  a canonical order (direction, then neighbor id, then label) with cone
+  cursors. A cone `Coordinate` has `checkpointSha: null` and a `coneRoot`;
+  the advanced `Witness` type also covers the new `kind: 'cone-read'`
+  identity, and the `cone-basis` optic basis posture is new. A fold
+  obstruction (shared dot, diverged writer, contention) settles the
+  Observation as obstructed or underdetermined with a repair hint
+  (reasons `cone_shared_dot`, `cone_writer_diverged`, `cone_contended`),
+  never a throw or a whole-state fallback. Fork and strand Lanes still use checkpoint-tail bases
   ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 
 ### Added

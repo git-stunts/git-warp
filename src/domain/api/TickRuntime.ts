@@ -21,9 +21,7 @@ export async function createTick(
   runtime: WarpWorldline,
   context: ApiRuntimeContext
 ): Promise<Tick> {
-  await runtime.prepareOpticBasis();
-  const coordinate = await runtime.coordinate();
-  return await createTickFromCoordinate(runtime, context, coordinate);
+  return await createTickFromCoordinate(runtime, context, await runtime.captureReadCoordinate());
 }
 
 export async function createForkTick(
@@ -98,7 +96,7 @@ async function tickId(
   const frontier = coordinate.frontierEntries.flatMap((entry) => [entry.writerId, entry.patchSha]);
   return await context.createOpaqueId('tick', [
     coordinate.worldlineName,
-    coordinate.checkpointSha,
+    ...coordinate.basisIdentity(),
     ...frontier,
   ]);
 }

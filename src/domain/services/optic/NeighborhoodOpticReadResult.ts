@@ -1,5 +1,5 @@
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
-import type ReadIdentity from './ReadIdentity.ts';
+import type { OpticReadIdentity } from './OpticReadIdentity.ts';
 
 export type NeighborhoodOpticReadDirection = Exclude<Direction, 'both'>;
 export type NeighborhoodOpticCompleteness = 'complete' | 'truncated';
@@ -16,7 +16,7 @@ export default class NeighborhoodOpticReadResult {
   readonly edges: readonly NeighborhoodOpticEdge[];
   readonly completeness: NeighborhoodOpticCompleteness;
   readonly cursor: string | null;
-  readonly readIdentity: ReadIdentity;
+  readonly readIdentity: OpticReadIdentity;
 
   constructor(options: {
     readonly nodeId: string;
@@ -24,7 +24,7 @@ export default class NeighborhoodOpticReadResult {
     readonly edges: readonly NeighborhoodOpticEdge[];
     readonly completeness: NeighborhoodOpticCompleteness;
     readonly cursor: string | null;
-    readonly readIdentity: ReadIdentity;
+    readonly readIdentity: OpticReadIdentity;
   }) {
     this.nodeId = options.nodeId;
     this.direction = options.direction;

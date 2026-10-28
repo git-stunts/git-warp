@@ -25,6 +25,8 @@ import type CasContentEncryptionPolicy from './CasContentEncryptionPolicy.ts';
 import { CborCheckpointStoreAdapter } from './CborCheckpointStoreAdapter.ts';
 import { CborIndexStoreAdapter } from './CborIndexStoreAdapter.ts';
 import { CborPatchJournalAdapter } from './CborPatchJournalAdapter.ts';
+import GitConePatchFeedAdapter from './GitConePatchFeedAdapter.ts';
+import GitConeRecordStoreAdapter from './GitConeRecordStoreAdapter.ts';
 import GitCasTrieStoreAdapter from './GitCasTrieStoreAdapter.ts';
 import GitTrustChainAdapter from './GitTrustChainAdapter.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
@@ -140,12 +142,13 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
     const content = this._createContentStorage();
     const materializations = this._createMaterializationStore(request);
     this._materializations.add(materializations);
-    return Object.freeze({
+    const patchJournal = this._createPatchJournal(request, content);
+    return Object.freeze({ ...this._createConeServices(request, patchJournal),
       content,
       auditLog: this._createAuditLog(content),
       strands: this._createStrandStore(content),
       intents: this._createIntentStore(request, content),
-      patchJournal: this._createPatchJournal(request, content),
+      patchJournal,
       allocationFloors: new GitAllocationFloorStoreAdapter({ history: this._history, graphName: request.timelineName }),
       allocationProvenance: new GitMigrationProvenanceAdapter({ history: this._history, graphName: request.timelineName }),
       dotRepairs: new GitDotRepairStoreAdapter({ history: this._history, graphName: request.timelineName }),
@@ -164,6 +167,19 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       }),
       trie: new GitCasTrieStoreAdapter({ cas: this._cas }),
     });
+  }
+
+  /** The cone record trie and the writer-range feed that folds into it (#1039). */
+  private _createConeServices(
+    request: RuntimeStorageRequest,
+    patchJournal: CborPatchJournalAdapter,
+  ): Pick<RuntimeStorageServices, 'coneRecords' | 'conePatches'> {
+    return {
+      coneRecords: new GitConeRecordStoreAdapter({ history: this._history, codec: request.codec }),
+      conePatches: new GitConePatchFeedAdapter({
+        history: this._history, journal: patchJournal, commitMessageCodec: request.commitMessageCodec,
+      }),
+    };
   }
 
   async createSeekCursorStore(timelineName: string): Promise<SeekCursorStorePort> {

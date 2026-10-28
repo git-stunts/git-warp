@@ -1,5 +1,5 @@
 import type ContentStagingAuthority from '../services/ContentStagingAuthority.ts';
-import type ReadIdentity from '../services/optic/ReadIdentity.ts';
+import type { OpticReadIdentity } from '../services/optic/OpticReadIdentity.ts';
 import type { Receipt } from './Receipt.ts';
 
 export type ReceiptProvenance =
@@ -9,7 +9,7 @@ export type ReceiptProvenance =
     }
   | {
       readonly operation: 'read';
-      readonly identity: ReadIdentity | undefined;
+      readonly identity: OpticReadIdentity | undefined;
     }
   | {
       readonly operation: 'join';

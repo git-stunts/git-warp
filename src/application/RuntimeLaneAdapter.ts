@@ -7,9 +7,10 @@ import type { DraftReadingTarget } from '../domain/api/DraftReadingTarget.ts';
 import type Timeline from '../domain/api/Timeline.ts';
 import type TimelineView from '../domain/api/TimelineView.ts';
 import {
-  capturePreparedTimelineTick,
+  captureObservationTick,
   requireTimelineRuntime,
 } from '../domain/api/TimelineRuntime.ts';
+import ConeObstructedError from '../domain/errors/ConeObstructedError.ts';
 import Lane from '../domain/api/Lane.ts';
 import { bindLaneRuntime } from '../domain/api/LaneRuntime.ts';
 import type { ObservationExecution } from '../domain/api/Observation.ts';
@@ -138,11 +139,7 @@ async function captureWorldlineCoordinate(
   timeline: Timeline,
   activity: RuntimeActivity,
 ) {
-  return await activity.run(async () => {
-    const runtime = requireTimelineRuntime(timeline);
-    await runtime.prepareOpticBasis();
-    return await runtime.coordinate();
-  });
+  return await activity.run(async () => await requireTimelineRuntime(timeline).captureReadCoordinate());
 }
 
 function createStrandLane(options: StrandLaneOptions): Lane {
@@ -192,10 +189,7 @@ async function startBoundedObserver<TValue extends ReadingValue>(
 ): Promise<ObservationExecution<TValue>> {
   const lease = activity.acquire();
   try {
-    const hasBoundedBasis = await prepareBoundedBasis(timeline);
-    const tick = hasBoundedBasis
-      ? await capturePreparedTimelineTick(timeline)
-      : null;
+    const tick = await observationTick(timeline);
     const settlement = createReceiptSettlement();
     return Object.freeze({
       readings: WarpStream.from(streamReadings({
@@ -245,16 +239,21 @@ async function startStrandObserver<TValue extends ReadingValue>(
   }
 }
 
-async function prepareBoundedBasis(timeline: Timeline): Promise<boolean> {
+/**
+ * The one basis every Reading of an Observation shares, or null when none can
+ * be captured; the bounded reader then turns the condition into its Receipt.
+ */
+async function observationTick(timeline: Timeline): Promise<Tick | null> {
   try {
-    await requireTimelineRuntime(timeline).prepareOpticBasis();
-    return true;
+    return await captureObservationTick(timeline);
   } catch (error) {
+    if (error instanceof ConeObstructedError) {
+      return null;
+    }
     if (!(error instanceof WarpError) || error.code !== 'E_OPTIC_NO_BOUNDED_BASIS') {
       throw error;
     }
-    // The bounded reader converts this operational condition into its Receipt.
-    return false;
+    return null;
   }
 }
 

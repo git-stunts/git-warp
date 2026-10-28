@@ -25,6 +25,11 @@ export default class ConeBasis {
     return new ConeBasis(ConeRoot.empty(), ConeFrontier.empty());
   }
 
+  /** The patch each writer's chain is folded up to, by writer id. */
+  writerHeads(): ReadonlyMap<string, string> {
+    return new Map(this.frontier.entries().map(([writerId, position]) => [writerId, position.sha]));
+  }
+
   equals(other: ConeBasis): boolean {
     return other.root.equals(this.root) && other.frontier.equals(this.frontier);
   }

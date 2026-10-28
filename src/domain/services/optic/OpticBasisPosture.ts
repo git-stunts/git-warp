@@ -1,18 +1,21 @@
 import QueryError from '../../errors/QueryError.ts';
 
 const CHECKPOINT_TAIL_BASIS_VERIFIED_POSTURE = 'checkpoint-tail-basis-verified';
+const CONE_BASIS_POSTURE = 'cone-basis';
 const ABSENT_BASIS_POSTURE = 'absent';
 const UNSUPPORTED_BASIS_POSTURE = 'unsupported';
 const RESIDUAL_BASIS_POSTURE = 'residual';
 
 export type OpticBasisPostureValue =
   | typeof CHECKPOINT_TAIL_BASIS_VERIFIED_POSTURE
+  | typeof CONE_BASIS_POSTURE
   | typeof ABSENT_BASIS_POSTURE
   | typeof UNSUPPORTED_BASIS_POSTURE
   | typeof RESIDUAL_BASIS_POSTURE;
 
 export const OPTIC_BASIS_POSTURES: readonly OpticBasisPostureValue[] = Object.freeze([
   CHECKPOINT_TAIL_BASIS_VERIFIED_POSTURE,
+  CONE_BASIS_POSTURE,
   ABSENT_BASIS_POSTURE,
   UNSUPPORTED_BASIS_POSTURE,
   RESIDUAL_BASIS_POSTURE,
@@ -30,6 +33,11 @@ export default class OpticBasisPosture {
     return new OpticBasisPosture(CHECKPOINT_TAIL_BASIS_VERIFIED_POSTURE);
   }
 
+  /** Answered from the lane's cone records at a cone basis root and frontier (#1039). */
+  static coneBasis(): OpticBasisPosture {
+    return new OpticBasisPosture(CONE_BASIS_POSTURE);
+  }
+
   static absent(): OpticBasisPosture {
     return new OpticBasisPosture(ABSENT_BASIS_POSTURE);
   }
@@ -44,6 +52,10 @@ export default class OpticBasisPosture {
 
   isCheckpointTailBasisVerified(): boolean {
     return this.value === CHECKPOINT_TAIL_BASIS_VERIFIED_POSTURE;
+  }
+
+  isConeBasis(): boolean {
+    return this.value === CONE_BASIS_POSTURE;
   }
 
   equals(other: OpticBasisPosture): boolean {
