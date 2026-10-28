@@ -3,6 +3,7 @@ import type { WarpDraftPatchEntry } from '../WarpWorldline.ts';
 import type WarpWorldlineCoordinate from '../WarpWorldlineCoordinate.ts';
 import { captureConeCoordinate, captureRetainedConeCoordinate } from '../WarpWorldlineConeOptics.ts';
 import WarpError from '../errors/WarpError.ts';
+import type ConeIngestOutcome from '../services/cone/ConeIngestOutcome.ts';
 import ConeSettlementFootprint from '../services/cone/ConeSettlementFootprint.ts';
 import type StrandConeBasis from '../services/strand/StrandConeBasis.ts';
 import type { ApiRuntimeContext } from './ApiRuntimeContext.ts';
@@ -154,6 +155,11 @@ export async function createDraftReadingTarget(draft: DraftTimeline): Promise<Dr
         basis: { optic, tick },
       }),
   });
+}
+
+/** Advances a strand's cone basis and answers what the advance did (#1039). */
+export async function refreshDraftBasis(draft: DraftTimeline): Promise<ConeIngestOutcome> {
+  return await requireDraftStateForReading(draft).strand.strand.refresh();
 }
 
 /** The coordinate a strand was forked at: its base frontier over its pinned base basis. */

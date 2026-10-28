@@ -73,7 +73,16 @@ export default class ConeLaneBasis {
 
   /** Advances to the writers' tips and answers the resulting basis. */
   async advance(): Promise<ConeBasis | ConeObstruction> {
-    return (await this.#ingest.advance()).settled();
+    return (await this.refresh()).settled();
+  }
+
+  /**
+   * Advances to the writers' tips and answers what the advance did: the
+   * patches it folded, that the basis was already current, or the
+   * obstruction that stopped it. The bounded basis repair reports it.
+   */
+  async refresh(): Promise<ConeIngestOutcome> {
+    return await this.#ingest.advance();
   }
 
   /**
@@ -82,7 +91,7 @@ export default class ConeLaneBasis {
    * prunes unreachable objects.
    */
   async capture(): Promise<ConeBasis | ConeObstruction> {
-    const outcome = await this.#ingest.advance();
+    const outcome = await this.refresh();
     const stored = publishedBasis(outcome);
     if (stored !== null) {
       await this.#store.retainBasis(this.lane, stored);

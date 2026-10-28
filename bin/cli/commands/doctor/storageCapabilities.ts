@@ -3,6 +3,7 @@ import { buildWritersPrefix } from '../../../../src/domain/utils/RefLayout.ts';
 import type WarpStateCachePort from '../../../../src/ports/WarpStateCachePort.ts';
 import type MaterializationCacheDiagnosticsPort
   from '../../../../src/ports/MaterializationCacheDiagnosticsPort.ts';
+import type ConeRecordStorePort from '../../../../src/ports/ConeRecordStorePort.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
@@ -21,6 +22,7 @@ import type {
 export type DoctorStorageCapabilities = Readonly<{
   stateCache: WarpStateCachePort | null;
   materializationCacheDiagnostics: MaterializationCacheDiagnosticsPort | null;
+  coneRecords: ConeRecordStorePort | null;
 }>;
 
 export async function createDoctorContext(
@@ -36,6 +38,7 @@ export async function createDoctorContext(
     persistence,
     stateCache: storage.stateCache,
     materializationCacheDiagnostics: storage.materializationCacheDiagnostics,
+    coneRecords: storage.coneRecords,
     graphName,
     writerHeads: await collectWriterHeads(persistence, graphName),
     policy,
@@ -57,6 +60,7 @@ export async function resolveStorageCapabilities(
   return Object.freeze({
     stateCache: services.stateSnapshots ?? null,
     materializationCacheDiagnostics: services.materializationCacheDiagnostics ?? null,
+    coneRecords: services.coneRecords ?? null,
   });
 }
 

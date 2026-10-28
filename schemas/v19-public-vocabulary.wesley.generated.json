@@ -408,6 +408,7 @@
               "directives": {
                 "allowedValues": {
                   "values": [
+                    "basis",
                     "materialization"
                   ]
                 }
@@ -419,7 +420,7 @@
               "cliOrder": 7,
               "cliCommand": "repair",
               "cliSummary": "Apply one explicit Runtime repair.",
-              "cliUsage": "git warp repair --lane <name> --action materialization",
+              "cliUsage": "git warp repair --lane <name> --action basis",
               "mcpOrder": 10,
               "mcpName": "warp_repair",
               "mcpDescription": "Apply one explicit local Runtime repair."

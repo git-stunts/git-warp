@@ -20,12 +20,15 @@ import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 import GitCasAssetStorageAdapter from '../../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
 import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { createTestRepo } from '../api/helpers/setup.ts';
+import handleRepair from '../../../bin/cli/commands/repair.ts';
+import { closeCliStorages } from '../../../bin/cli/shared.ts';
 
 /**
  * Architecture trap (#1039): every client-facing entry point (Lane writes
  * and Observations on worldline and strand Lanes, content Observations,
- * captured-coordinate optic reads on both, Runtime.fork, previewSettlement
- * and settle) stays off whole-state materialization, whole-state
+ * captured-coordinate optic reads on both, Runtime.fork, previewSettlement,
+ * settle and the `repair --action basis` CLI path) stays off whole-state
+ * materialization, whole-state
  * checkpoints, the checkpoint-tail basis and locator, strand
  * materialization and history replay. A trap that fires fails the test with
  * the entry point that reached it.
@@ -161,6 +164,12 @@ it('drives every public entry point, worldline and strand, without reaching a wh
     expect((await runtime.settle(preview.plan)).outcome.kind).toBe('derived');
   } finally {
     await runtime.close();
+  }
+  const options = { repo: repository.tempDir, lane: 'events', strand: null, writer: 'alice', writerExplicit: true, json: true, jsonl: false, help: false };
+  try {
+    expect((await handleRepair({ options, args: ['--action', 'basis'] })).payload).toMatchObject({ status: 'completed' });
+  } finally {
+    await closeCliStorages();
   }
   expect(hits).toEqual([]);
 });

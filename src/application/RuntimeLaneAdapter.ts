@@ -6,10 +6,7 @@ import { createDraftReadingTarget } from '../domain/api/DraftTimelineRuntime.ts'
 import type { DraftReadingTarget } from '../domain/api/DraftReadingTarget.ts';
 import type Timeline from '../domain/api/Timeline.ts';
 import type TimelineView from '../domain/api/TimelineView.ts';
-import {
-  captureObservationTick,
-  requireTimelineRuntime,
-} from '../domain/api/TimelineRuntime.ts';
+import { captureObservationTick, requireTimelineRuntime } from '../domain/api/TimelineRuntime.ts';
 import ConeObstructedError from '../domain/errors/ConeObstructedError.ts';
 import { coneObstructionFailure } from '../domain/api/ConeObstructionFailure.ts';
 import Lane from '../domain/api/Lane.ts';
@@ -129,6 +126,8 @@ function bindWorldlineLaneRuntime(options: {
   bindLaneRuntime(options.lane, {
     captureCoordinate: async () =>
       await captureWorldlineCoordinate(source.timeline, source.activity),
+    refreshBasis: async () =>
+      await source.activity.run(async () => await requireTimelineRuntime(source.timeline).coneBasis().refresh()),
     fork: async (name) =>
       await forkWorldlineLane(source, name, createStrandLane),
     openStrand: async (name) =>

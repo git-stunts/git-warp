@@ -9,6 +9,7 @@ import type WarpStateCachePort from '../../../../src/ports/WarpStateCachePort.ts
 import type HookPathPort from '../../../../src/ports/HookPathPort.ts';
 import type MaterializationCacheDiagnosticsPort
   from '../../../../src/ports/MaterializationCacheDiagnosticsPort.ts';
+import type ConeRecordStorePort from '../../../../src/ports/ConeRecordStorePort.ts';
 
 // ── JSON-safe recursive value type ──────────────────────────────────────────
 
@@ -35,7 +36,8 @@ export interface DoctorFinding {
 export interface DoctorPolicy {
   strict: boolean;
   clockSkewMs: number;
-  checkpointMaxAgeHours: number;
+  /** Unfolded patches above which the cone basis lag is reported as a warning. */
+  coneBasisLagWarnPatches: number;
   globalDeadlineMs: number;
   checkTimeouts: { [checkId: string]: number };
 }
@@ -69,6 +71,8 @@ export interface DoctorContext {
   persistence: Persistence;
   stateCache: WarpStateCachePort | null;
   materializationCacheDiagnostics: MaterializationCacheDiagnosticsPort | null;
+  /** The lane's cone record store, or null when the storage keeps none (#1039). */
+  coneRecords: ConeRecordStorePort | null;
   graphName: string;
   writerHeads: Array<{ writerId: string; sha: string | null; ref: string }>;
   policy: DoctorPolicy;

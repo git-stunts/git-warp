@@ -5,7 +5,7 @@ import {
   promoteDraftSettlement,
 } from '../domain/api/DraftSettlementRuntime.ts';
 import type Lane from '../domain/api/Lane.ts';
-import { captureDraftCoordinate } from '../domain/api/DraftTimelineRuntime.ts';
+import { captureDraftCoordinate, refreshDraftBasis } from '../domain/api/DraftTimelineRuntime.ts';
 import { bindLaneRuntime } from '../domain/api/LaneRuntime.ts';
 import type RuntimeActivity from './RuntimeActivity.ts';
 import type RuntimeMutationGate from './RuntimeMutationGate.ts';
@@ -30,6 +30,7 @@ export function bindStrandLaneRuntime(
   });
   bindLaneRuntime(lane, {
     captureCoordinate: async () => await activity.run(async () => await captureDraftCoordinate(draft)),
+    refreshBasis: async () => await activity.run(async () => await refreshDraftBasis(draft)),
     fork: null,
     openStrand: null,
     owner,

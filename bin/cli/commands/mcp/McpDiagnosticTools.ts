@@ -4,6 +4,7 @@ import type Runtime from '../../../../src/application/Runtime.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import { toMcpJson } from '../../../presenters/V19Json.ts';
 import { closeCliStorages } from '../../shared.ts';
+import advanceConeBasis from '../ConeBasisRepair.ts';
 import prepareMaterialization from '../MaterializationRepair.ts';
 import handleSubstrateDoctor from '../doctor/index.ts';
 import handleSubstrateAudit from '../verify-audit.ts';
@@ -18,7 +19,7 @@ const LANE_SCHEMA = z.object({
 
 const REPAIR_SCHEMA = z.object({
   lane: z.string().min(1),
-  action: z.literal('materialization'),
+  action: z.enum(['basis', 'materialization']),
 }).strict();
 
 const AUDIT_SCHEMA = z.object({
@@ -53,8 +54,11 @@ async function repair(
   session: McpRuntimeSession,
   args: McpJsonObject,
 ): Promise<McpJsonValue> {
-  const { lane } = parseMcpToolInput(REPAIR_SCHEMA, args);
-  await runtime.lane(lane);
+  const { lane, action } = parseMcpToolInput(REPAIR_SCHEMA, args);
+  const opened = await runtime.lane(lane);
+  if (action === 'basis') {
+    return toMcpJson(await advanceConeBasis(opened));
+  }
   return await runSubstrateDiagnostic(async () =>
     toMcpJson(await prepareMaterialization(session.cliOptions(lane), lane)),
   );

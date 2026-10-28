@@ -9,6 +9,17 @@ import {
 import type { MaterializationCacheInspection }
   from '../../../src/ports/MaterializationCacheDiagnosticsPort.ts';
 import type { CliOptions } from '../../../bin/cli/types.ts';
+import ConeBasis from '../../../src/domain/services/cone/ConeBasis.ts';
+import ConeFrontier from '../../../src/domain/services/cone/ConeFrontier.ts';
+import ConeRoot from '../../../src/domain/services/cone/ConeRoot.ts';
+import ConeWriterPosition from '../../../src/domain/services/cone/ConeWriterPosition.ts';
+import StoredConeBasis from '../../../src/domain/services/cone/StoredConeBasis.ts';
+
+/** A cone basis that has folded alice's tip: the healthy graph's basis is current. */
+const CURRENT_CONE_BASIS = new StoredConeBasis(new ConeBasis(
+  ConeRoot.empty(),
+  ConeFrontier.empty().advanced('alice', new ConeWriterPosition('aaaa000000000000000000000000000000000000', 1)),
+), 'abcd');
 
 // Mock shared.js to avoid real git operations
 vi.mock('../../../bin/cli/shared.ts', () => ({
@@ -103,7 +114,9 @@ describe('doctor command', () => {
     vi.clearAllMocks();
     mockPersistence = buildMockPersistence();
     mockRuntimeStorage = {
-      createRuntimeStorageServices: vi.fn().mockResolvedValue({}),
+      createRuntimeStorageServices: vi.fn().mockResolvedValue({
+        coneRecords: { readBasis: vi.fn().mockResolvedValue(CURRENT_CONE_BASIS) },
+      }),
     };
 
     createPersistence.mockResolvedValue({
@@ -145,7 +158,7 @@ describe('doctor command', () => {
     // Policy echo
     expect(payload.policy.strict).toBe(false);
     expect(payload.policy.clockSkewMs).toBe(300_000);
-    expect(payload.policy.checkpointMaxAgeHours).toBe(168);
+    expect(payload.policy.coneBasisLagWarnPatches).toBe(10_000);
     expect(payload.policy.globalDeadlineMs).toBe(10_000);
 
     // Summary
@@ -169,23 +182,15 @@ describe('doctor command', () => {
     expect(codes).toContain(CODES.REPO_OK);
     expect(codes).toContain(CODES.REFS_OK);
     expect(codes).toContain(CODES.COVERAGE_OK);
-    expect(codes).toContain(CODES.CHECKPOINT_OK);
+    expect(codes).toContain(CODES.CONE_BASIS_CURRENT);
     expect(codes).toContain(CODES.HOOKS_OK);
     expect(codes).toContain(CODES.CLOCK_SYNCED);
     expect(codes).toContain(CODES.AUDIT_OK);
   });
 
   it('returns exit 3 when warnings are present', async () => {
-    // Remove checkpoint to trigger warning
-    mockPersistence.readRef.mockImplementation((/** @type {string} */ ref) => {
-      if (ref.includes('writers/alice')) {
-        return Promise.resolve('aaaa000000000000000000000000000000000000');
-      }
-      if (ref.includes('coverage/head')) {
-        return Promise.resolve('cccc000000000000000000000000000000000000');
-      }
-      return Promise.resolve(null);
-    });
+    // Storage without cone records cannot serve public reads: a warning.
+    mockRuntimeStorage.createRuntimeStorageServices.mockResolvedValue({});
 
     const result = await handleDoctor({ options: CLI_OPTIONS });
 
@@ -193,11 +198,11 @@ describe('doctor command', () => {
     expect(result.payload.health).toBe('degraded');
     expect(result.payload.summary.warn).toBeGreaterThan(0);
 
-    const checkpointFinding = result.payload.findings.find(
-      (/** @type {*} */ f) => f.code === CODES.CHECKPOINT_MISSING
+    const coneFinding = result.payload.findings.find(
+      (/** @type {*} */ f) => f.code === CODES.CONE_BASIS_UNAVAILABLE
     );
-    expect(checkpointFinding).toBeDefined();
-    expect(checkpointFinding.status).toBe('warn');
+    expect(coneFinding).toBeDefined();
+    expect(coneFinding.status).toBe('warn');
   });
 
   it('sorts findings by status > impact > id', async () => {
@@ -208,16 +213,8 @@ describe('doctor command', () => {
       Promise.resolve(sha !== 'aaaa000000000000000000000000000000000000')
     );
 
-    // Also remove checkpoint to add a warn finding, giving us all three statuses.
-    mockPersistence.readRef.mockImplementation((/** @type {string} */ ref) => {
-      if (ref.includes('writers/alice')) {
-        return Promise.resolve('aaaa000000000000000000000000000000000000');
-      }
-      if (ref.includes('coverage/head')) {
-        return Promise.resolve('cccc000000000000000000000000000000000000');
-      }
-      return Promise.resolve(null);
-    });
+    // Also drop the cone records to add a warn finding, giving us all three statuses.
+    mockRuntimeStorage.createRuntimeStorageServices.mockResolvedValue({});
 
     const result = await handleDoctor({ options: CLI_OPTIONS });
     const findings = result.payload.findings;

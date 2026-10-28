@@ -254,6 +254,9 @@ function createBoundLane(options: {
     captureCoordinate: async () => {
       throw new Error('not exercised');
     },
+    refreshBasis: async () => {
+      throw new Error('not exercised');
+    },
     fork: options.fork,
     openStrand: options.openStrand ?? null,
     owner: options.owner,

@@ -1,10 +1,13 @@
 import WarpError from '../errors/WarpError.ts';
 import type WarpWorldlineCoordinate from '../WarpWorldlineCoordinate.ts';
+import type ConeIngestOutcome from '../services/cone/ConeIngestOutcome.ts';
 import type Lane from './Lane.ts';
 import type { LaneSettlementRuntime } from './LaneSettlementRuntime.ts';
 
 export type LaneRuntime = Readonly<{
   readonly captureCoordinate: () => Promise<WarpWorldlineCoordinate>;
+  /** Advances the Lane's cone basis and answers what the advance did (#1039). */
+  readonly refreshBasis: () => Promise<ConeIngestOutcome>;
   readonly fork: ((name: string) => Promise<Lane>) | null;
   readonly openStrand: ((name: string) => Promise<Lane>) | null;
   readonly owner: object;
@@ -19,6 +22,7 @@ export function bindLaneRuntime(lane: Lane, runtime: LaneRuntime): void {
   }
   LANE_RUNTIMES.set(lane, Object.freeze({
     captureCoordinate: runtime.captureCoordinate,
+    refreshBasis: runtime.refreshBasis,
     fork: runtime.fork,
     openStrand: runtime.openStrand,
     owner: runtime.owner,

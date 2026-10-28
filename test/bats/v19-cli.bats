@@ -50,7 +50,7 @@ assert receipt["outcome"]["kind"] == "derived"
 PY
 }
 
-@test "repair prepares a bounded basis and observe emits Reading.value" {
+@test "repair advances the cone basis and observe emits Reading.value" {
   prepare_user_reading
 
   run "${CLI[@]}" observe \
