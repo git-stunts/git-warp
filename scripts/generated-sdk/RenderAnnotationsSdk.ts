@@ -42,11 +42,15 @@ class AnnotationsSdkContractError extends Error {
 const MAX_NEIGHBOR_LIMIT = 1000;
 const OPERATIONS: readonly OperationMetadata[] = Object.values(wesley);
 
-function list<TValue>(value: TValue | readonly TValue[] | undefined): readonly TValue[] {
+function isList<TValue extends object>(value: TValue | readonly TValue[]): value is readonly TValue[] {
+  return Array.isArray(value);
+}
+
+function list<TValue extends object>(value: TValue | readonly TValue[] | undefined): readonly TValue[] {
   if (value === undefined) {
     return [];
   }
-  return Array.isArray(value) ? value : [value];
+  return isList(value) ? value : [value];
 }
 
 function pascal(name: string): string {
