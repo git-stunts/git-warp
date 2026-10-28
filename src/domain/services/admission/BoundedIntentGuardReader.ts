@@ -1,6 +1,6 @@
 import type ProjectionHandle from '../ProjectionHandle.ts';
 import type WorldlineOptic from '../optic/WorldlineOptic.ts';
-import type ReadIdentity from '../optic/ReadIdentity.ts';
+import type { OpticReadIdentity } from '../optic/OpticReadIdentity.ts';
 import type { PrecommitGuard } from '../../types/WarpIntentDescriptor.ts';
 import type { PropValue } from '../../types/PropValue.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
@@ -13,7 +13,7 @@ import {
 
 export type BoundedIntentGuardReading = Readonly<{
   value: PropValue | undefined;
-  readIdentity: ReadIdentity;
+  readIdentity: OpticReadIdentity;
 }>;
 
 export type BoundedIntentGuardSource = {
@@ -83,6 +83,6 @@ function guardPropertyKey(guard: PrecommitGuard): string {
   );
 }
 
-export function boundedIntentGuardEvidenceRef(identity: ReadIdentity): string {
+export function boundedIntentGuardEvidenceRef(identity: OpticReadIdentity): string {
   return `warp:read-identity:${canonicalStringify(identity)}`;
 }

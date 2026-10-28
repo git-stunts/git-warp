@@ -3,7 +3,8 @@
  *
  * Capture a `Coordinate` from a public `Lane` with `captureCoordinate()`,
  * then lower reads through its executable `Optic`. A successful read carries
- * a type-only `Witness` through the root receipt evidence contract.
+ * a type-only `Witness` (a cone read or a checkpoint-tail read) through the
+ * root receipt evidence contract.
  */
 
 export { default as captureCoordinate } from './src/domain/api/captureCoordinate.ts';
@@ -24,8 +25,8 @@ export type {
   NeighborhoodOpticEdge,
   NeighborhoodOpticReadDirection,
 } from './src/domain/services/optic/NeighborhoodOpticReadResult.ts';
+export type { OpticReadIdentity as Witness } from './src/domain/services/optic/OpticReadIdentity.ts';
 export type {
-  default as Witness,
   ReadIdentityFrontierEntry,
   ReadIdentityIndexShard,
   ReadIdentityOptions,

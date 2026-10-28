@@ -7,9 +7,12 @@ import {
   createObserver,
 } from '../../../src/domain/api/ObserverRuntime.ts';
 import type { ReadingValue } from '../../../src/domain/api/ObservedReading.ts';
-import CheckpointTailFactReducer
-  from '../../../src/domain/services/optic/CheckpointTailFactReducer.ts';
-import type BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
+import type ConeRecordKey from '../../../src/domain/services/cone/ConeRecordKey.ts';
+import type ConeRoot from '../../../src/domain/services/cone/ConeRoot.ts';
+import { CborPatchJournalAdapter }
+  from '../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
+import GitConeRecordStoreAdapter
+  from '../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
 import { CborIndexStoreAdapter }
   from '../../../src/infrastructure/adapters/CborIndexStoreAdapter.ts';
 import { createTestRepo }
@@ -20,9 +23,9 @@ const WRITER_ID = 'agent-1';
 const HUB_NODE_ID = 'node:hub';
 const NEIGHBOR_NODE_ID = 'node:neighbor';
 
-type ShardPathSpy = Readonly<{
+type ReadRecordsSpy = Readonly<{
   mock: Readonly<{
-    calls: readonly (readonly [BundleHandle, string, ...unknown[]])[];
+    calls: readonly (readonly [ConeRoot, readonly ConeRecordKey[]])[];
   }>;
 }>;
 
@@ -38,7 +41,7 @@ describe('Runtime Observer warm reopen', () => {
     await repository.cleanup();
   });
 
-  it('reuses the same bounded checkpoint pages without reducing covered patches', async () => {
+  it('reuses the folded cone basis on warm reopen and never opens checkpoint pages (#1039)', async () => {
     const seed = await repository.openGraph(LANE_NAME, WRITER_ID);
     await seed.patch((patch) => {
       patch
@@ -54,21 +57,15 @@ describe('Runtime Observer warm reopen', () => {
     const decodeShardAt = vi.spyOn(CborIndexStoreAdapter.prototype, 'decodeShardAt');
     const openShardAt = vi.spyOn(CborIndexStoreAdapter.prototype, 'openShardAt');
     const scanShards = vi.spyOn(CborIndexStoreAdapter.prototype, 'scanShards');
-    const reduceProperty = vi.spyOn(CheckpointTailFactReducer.prototype, 'reduceProperty');
-    const assertNeighborhoodTailStable = vi.spyOn(
-      CheckpointTailFactReducer.prototype,
-      'assertNeighborhoodTailStable',
-    );
+    const readPatch = vi.spyOn(CborPatchJournalAdapter.prototype, 'readPatch');
+    const readRecords = vi.spyOn(GitConeRecordStoreAdapter.prototype, 'readRecords');
 
     const first = await observeFromFreshRuntime(repository.tempDir);
-    const firstPropertyPages = shardReadsFor(decodeShardAt, 'props_');
-    const firstNeighborhoodPages = openedShardPaths(openShardAt);
-
-    decodeShardAt.mockClear();
-    openShardAt.mockClear();
+    const firstDecodes = readPatch.mock.calls.length;
+    const firstRecords = recordReads(readRecords);
+    readPatch.mockClear();
+    readRecords.mockClear();
     const second = await observeFromFreshRuntime(repository.tempDir);
-    const secondPropertyPages = shardReadsFor(decodeShardAt, 'props_');
-    const secondNeighborhoodPages = openedShardPaths(openShardAt);
 
     expect(first).toEqual({
       property: 'ready',
@@ -87,22 +84,23 @@ describe('Runtime Observer warm reopen', () => {
       neighborhoodReceiptStatus: 'completed',
     });
     expect(second).toEqual(first);
-    expect(secondPropertyPages).toEqual(firstPropertyPages);
-    expect(secondNeighborhoodPages).toEqual(firstNeighborhoodPages);
-    expect(firstPropertyPages).toHaveLength(1);
-    expect(firstNeighborhoodPages.length).toBeGreaterThan(0);
-    expect(firstNeighborhoodPages.length).toBeLessThanOrEqual(6);
+    // The first Observation folds the one uncovered patch; the warm reopen folds nothing.
+    expect(firstDecodes).toBe(1);
+    expect(readPatch).not.toHaveBeenCalled();
+    expect(recordReads(readRecords)).toEqual(firstRecords.filter((read) => read.startsWith('read:')));
+    expect(decodeShardAt).not.toHaveBeenCalled();
+    expect(openShardAt).not.toHaveBeenCalled();
     expect(scanShards).not.toHaveBeenCalled();
     expect(materialize).not.toHaveBeenCalled();
-    expect(reduceProperty).toHaveBeenCalledTimes(2);
-    expect(reduceProperty.mock.calls.every(([options]) => options.tailEntries.length === 0))
-      .toBe(true);
-    expect(assertNeighborhoodTailStable).toHaveBeenCalledTimes(2);
-    expect(
-      assertNeighborhoodTailStable.mock.calls.every(([tailEntries]) => tailEntries.length === 0),
-    ).toBe(true);
   });
 });
+
+/** Record reads under published roots, in order; fold-session reads are marked apart. */
+function recordReads(spy: ReadRecordsSpy): readonly string[] {
+  return Object.freeze(spy.mock.calls.map(([root, keys]) => (
+    `${root.isEmpty() ? 'fold' : 'read'}:${keys.map((key) => key.toString()).join(',')}`
+  )));
+}
 
 async function observeFromFreshRuntime(at: string) {
   const runtime = await Runtime.open({ at, writer: WRITER_ID });
@@ -148,25 +146,5 @@ function neighborhoodObserver() {
       limit: 10,
     }),
     (value) => value,
-  );
-}
-
-function shardReadsFor(
-  spy: ShardPathSpy,
-  prefix: string,
-): readonly string[] {
-  return Object.freeze(
-    spy.mock.calls
-      .filter(([, path]) => path.startsWith(prefix))
-      .map(([handle, path]) => `${handle.toString()}:${path}`)
-  );
-}
-
-function openedShardPaths(
-  spy: ShardPathSpy,
-): readonly string[] {
-  return Object.freeze(
-    spy.mock.calls
-      .map(([handle, path]) => `${handle.toString()}:${path}`),
   );
 }

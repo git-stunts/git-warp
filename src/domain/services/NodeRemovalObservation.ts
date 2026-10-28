@@ -32,6 +32,11 @@ export default class NodeRemovalObservation {
     );
   }
 
+  /** True when the target node had at least one live add dot when observed. */
+  isObservedAlive(): boolean {
+    return this.#node.observedDots.length > 0;
+  }
+
   operations(policy: 'reject' | 'cascade' | 'warn', logger: LoggerPort): readonly (NodeRemove | EdgeRemove)[] {
     assertObservedDotsForRemove(this.#node.observedDots, 'node', { nodeId: this.#node.node });
     const edgeCount = this.#edges.length;

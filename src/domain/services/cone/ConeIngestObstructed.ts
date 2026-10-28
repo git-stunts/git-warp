@@ -10,4 +10,8 @@ export default class ConeIngestObstructed extends ConeIngestOutcome {
     this.obstruction = obstruction;
     Object.freeze(this);
   }
+
+  override settled(): ConeObstruction {
+    return this.obstruction;
+  }
 }

@@ -96,17 +96,17 @@ Bounded formal reads and runtime-backed construction for generated SDK infrastru
 Source: `advanced.ts`. Count: 11.
 
 ```text
-captureCoordinate @ advanced.ts#L9
-Coordinate @ advanced.ts#L10
-createEdgeContentObserver @ advanced.ts#L35
-createEntityAdmissionInventoryObserver @ advanced.ts#L18
-createManyObserver @ advanced.ts#L15
-createNodeContentObserver @ advanced.ts#L35
-createObserver @ advanced.ts#L16
-intent @ advanced.ts#L12
-Optic @ advanced.ts#L11
-reading @ advanced.ts#L13
-requireEntityAdmissionInventoryCertificate @ advanced.ts#L19
+captureCoordinate @ advanced.ts#L10
+Coordinate @ advanced.ts#L11
+createEdgeContentObserver @ advanced.ts#L36
+createEntityAdmissionInventoryObserver @ advanced.ts#L19
+createManyObserver @ advanced.ts#L16
+createNodeContentObserver @ advanced.ts#L36
+createObserver @ advanced.ts#L17
+intent @ advanced.ts#L13
+Optic @ advanced.ts#L12
+reading @ advanced.ts#L14
+requireEntityAdmissionInventoryCertificate @ advanced.ts#L20
 ```
 
 ### Type exports
@@ -114,15 +114,15 @@ requireEntityAdmissionInventoryCertificate @ advanced.ts#L19
 Source: `advanced.ts`. Count: 10.
 
 ```text
-NeighborhoodOpticCompleteness @ advanced.ts#L23
-NeighborhoodOpticEdge @ advanced.ts#L24
-NeighborhoodOpticReadDirection @ advanced.ts#L25
-NeighborhoodOpticReadOptions @ advanced.ts#L21
-ReadIdentityFrontierEntry @ advanced.ts#L29
-ReadIdentityIndexShard @ advanced.ts#L30
-ReadIdentityOptions @ advanced.ts#L31
-ReadIdentityTailWitness @ advanced.ts#L32
-WarpWorldlineCoordinateFrontierEntry @ advanced.ts#L20
+NeighborhoodOpticCompleteness @ advanced.ts#L24
+NeighborhoodOpticEdge @ advanced.ts#L25
+NeighborhoodOpticReadDirection @ advanced.ts#L26
+NeighborhoodOpticReadOptions @ advanced.ts#L22
+ReadIdentityFrontierEntry @ advanced.ts#L30
+ReadIdentityIndexShard @ advanced.ts#L31
+ReadIdentityOptions @ advanced.ts#L32
+ReadIdentityTailWitness @ advanced.ts#L33
+WarpWorldlineCoordinateFrontierEntry @ advanced.ts#L21
 Witness @ advanced.ts#L28
 ```
 
@@ -135,7 +135,7 @@ Operator inspection helpers that consume public receipt handles.
 Source: `diagnostics.ts`. Count: 1.
 
 ```text
-inspectReceipt @ diagnostics.ts#L35
+inspectReceipt @ diagnostics.ts#L40
 ```
 
 ### Type exports
@@ -143,8 +143,8 @@ inspectReceipt @ diagnostics.ts#L35
 Source: `diagnostics.ts`. Count: 2.
 
 ```text
-ReceiptInspection @ diagnostics.ts#L24
-ReceiptSubstrateInspection @ diagnostics.ts#L10
+ReceiptInspection @ diagnostics.ts#L29
+ReceiptSubstrateInspection @ diagnostics.ts#L15
 ```
 
 ## Charts export surface

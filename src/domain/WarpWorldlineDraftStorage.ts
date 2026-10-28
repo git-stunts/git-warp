@@ -18,7 +18,7 @@ export async function createWorldlineDraft(
     ...(coordinate === undefined
       ? {}
       : {
-          baseCheckpointSha: coordinate.checkpointSha,
+          baseCheckpointSha: coordinate.requireCheckpointSha(),
           baseFrontier: coordinate.frontier(),
         }),
   });

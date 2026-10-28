@@ -7,6 +7,8 @@ import type AuditLogPort from './AuditLogPort.ts';
 import type CheckpointStorePort from './CheckpointStorePort.ts';
 import type CodecPort from './CodecPort.ts';
 import type CommitMessageCodecPort from './CommitMessageCodecPort.ts';
+import type ConePatchFeedPort from './ConePatchFeedPort.ts';
+import type ConeRecordStorePort from './ConeRecordStorePort.ts';
 import type CryptoPort from './CryptoPort.ts';
 import type IndexStorePort from './IndexStorePort.ts';
 import type IntentStorePort from './IntentStorePort.ts';
@@ -43,6 +45,10 @@ export type RuntimeStorageServices = {
   readonly syncReplayProtection?: SyncReplayProtectionPort;
   readonly stateSnapshots?: WarpStateCachePort;
   readonly trie?: TrieStorePort;
+  /** Cone record trie and basis head for bounded public reads and writes (#1039). */
+  readonly coneRecords?: ConeRecordStorePort;
+  /** Unfolded writer ranges for cone ingest (#1039). */
+  readonly conePatches?: ConePatchFeedPort;
 };
 
 /** Supplies one coherent set of semantic storage services to a runtime. */

@@ -20,10 +20,28 @@ git warp observe \
 An empty accepted Observation is different from an obstructed Observation. The
 Receipt records that distinction.
 
-## A bounded basis is unavailable
+## A read or write is obstructed by the cone basis
 
-`E_OPTIC_NO_BOUNDED_BASIS` means the Runtime could not prove the bounded basis
-needed by the Observer. It is not a missing-value result.
+Worldline Lane reads and read-before-write intents (`node.remove`,
+`edge.remove`, content attach and clear) answer from the Lane's cone basis,
+which folds each writer patch once. When a fold cannot proceed, the Observation
+Receipt or Write Receipt reports it with a repair hint instead of reading
+around it:
+
+| Reason | Status | Meaning and next step |
+| --- | --- | --- |
+| `cone_shared_dot` | `obstructed` | A patch reuses a dot another element also claims (#1022). Repair the duplicate dot, then retry. |
+| `cone_writer_diverged` | `obstructed` | A writer chain no longer extends the patches this clone folded. Delete this clone's `refs/warp/<lane>/cone/head` so it refolds from the writer chains, then retry. |
+| `cone_contended` | `underdetermined` | Other folds kept moving the cone head. Retry. |
+
+Write Receipts carry the same reasons under `git-warp.write.<reason>`. Blind
+writes (`node.add`, `edge.add`, `property.set`, `entity.add`) need no read and
+are not affected. `captureCoordinate()` rejects with `E_OPTIC_CONE_OBSTRUCTED`.
+
+## A strand basis is unavailable
+
+`E_OPTIC_NO_BOUNDED_BASIS` means a strand Lane could not prove the
+checkpoint-tail basis its reads need. It is not a missing-value result.
 
 Prepare the local materialization basis explicitly:
 

@@ -6,6 +6,8 @@ import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type CheckpointStorePort from '../../ports/CheckpointStorePort.ts';
 import type IndexStorePort from '../../ports/IndexStorePort.ts';
 import type PatchJournalPort from '../../ports/PatchJournalPort.ts';
+import type ConePatchFeedPort from '../../ports/ConePatchFeedPort.ts';
+import type ConeRecordStorePort from '../../ports/ConeRecordStorePort.ts';
 import type { NeighborEdge } from '../../ports/NeighborProviderPort.ts';
 import type QueryCapability from '../capabilities/QueryCapability.ts';
 import type PatchCapability from '../capabilities/PatchCapability.ts';
@@ -153,6 +155,8 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   readonly _viewService: MaterializedViewService;
   readonly _syncController: SyncController;
   readonly _patchJournal: PatchJournalPort;
+  readonly _coneRecords: ConeRecordStorePort | null;
+  readonly _conePatches: ConePatchFeedPort | null;
   readonly provenanceIndex: ProvenanceIndex | null;
   readonly temporal: TemporalQuery;
   readonly fork: (_request: RuntimeForkRequest) => Promise<RuntimeHostProduct>;

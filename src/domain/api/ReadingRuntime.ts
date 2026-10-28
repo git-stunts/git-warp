@@ -1,6 +1,8 @@
 import type WarpWorldline from '../WarpWorldline.ts';
+import ConeObstructedError from '../errors/ConeObstructedError.ts';
 import WarpError from '../errors/WarpError.ts';
-import type ReadIdentity from '../services/optic/ReadIdentity.ts';
+import { coneObstructionFailure } from './ConeObstructionFailure.ts';
+import type { OpticReadIdentity } from '../services/optic/OpticReadIdentity.ts';
 import type { NeighborhoodOpticReadOptions } from '../services/optic/NeighborhoodOptic.ts';
 import type NeighborhoodOpticReadResult from '../services/optic/NeighborhoodOpticReadResult.ts';
 import type WorldlineOptic from '../services/optic/WorldlineOptic.ts';
@@ -16,7 +18,7 @@ import ReadingResult from './ReadingResult.ts';
 import type Tick from './Tick.ts';
 
 type BoundedReading = {
-  readonly evidence: ReadIdentity;
+  readonly evidence: OpticReadIdentity;
   readonly value: SnapshotPropValue;
 };
 
@@ -209,6 +211,9 @@ function unresolvedReadingResult(fields: UnresolvedReadingFields): ReadingResult
 }
 
 function operationalReadFailure(error: WarpError): OperationalReadFailure | null {
+  if (error instanceof ConeObstructedError) {
+    return coneObstructionFailure(error.obstruction);
+  }
   if (error.code === 'E_OPTIC_NO_BOUNDED_BASIS') {
     return {
       outcome: 'obstructed',

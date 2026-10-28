@@ -33,7 +33,7 @@ export async function captureDraftSettlementSnapshot(
   const coordinate = requireSettlementCoordinate(state);
   const basis = await state.runtime.prepareStrandOptic(
     draft.name,
-    coordinate.checkpointSha,
+    coordinate.requireCheckpointSha(),
   );
   await state.runtime.prepareOpticBasis();
   const targetCoordinate = await state.runtime.coordinate();
@@ -75,7 +75,7 @@ async function settlementTargetFrontierRef(
   coordinate: WarpWorldlineCoordinate,
 ): Promise<string> {
   return await createSettlementFrontierRef({
-    checkpointSha: coordinate.checkpointSha,
+    checkpointSha: coordinate.requireCheckpointSha(),
     context: state.context,
     entries: coordinate.frontierEntries,
     worldlineName: state.runtime.worldlineName,

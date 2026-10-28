@@ -5,6 +5,7 @@ import {
   openMemoryWarpWorldline as openWarpWorldline,
 } from '../helpers/MemoryRuntimeHost.ts';
 import type { PatchBuilder } from '../../src/domain/services/PatchBuilder.ts';
+import { checkpointReadIdentity } from '../helpers/checkpointReadIdentity.ts';
 
 const NODE_ID = 'event-1';
 const PROPERTY_KEY = 'status';
@@ -99,7 +100,7 @@ describe('v18 coordinate optic public path', () => {
       exists: true,
       value: 'review',
     });
-    expect(status.readIdentity.tailWitnesses).toHaveLength(1);
+    expect(checkpointReadIdentity(status.readIdentity).tailWitnesses).toHaveLength(1);
   });
 
   it('keeps reads from one coordinate stable when the live worldline advances', async () => {
@@ -138,9 +139,9 @@ describe('v18 coordinate optic public path', () => {
       exists: true,
       value: 'closed',
     });
-    expect(beforeNode.readIdentity.checkpointSha).toBe(before.checkpointSha);
-    expect(beforeStatus.readIdentity.checkpointSha).toBe(before.checkpointSha);
-    expect(afterStatus.readIdentity.checkpointSha).toBe(after.checkpointSha);
+    expect(checkpointReadIdentity(beforeNode.readIdentity).checkpointSha).toBe(before.checkpointSha);
+    expect(checkpointReadIdentity(beforeStatus.readIdentity).checkpointSha).toBe(before.checkpointSha);
+    expect(checkpointReadIdentity(afterStatus.readIdentity).checkpointSha).toBe(after.checkpointSha);
   });
 
   it('reports absence for missing nodes and missing properties', async () => {

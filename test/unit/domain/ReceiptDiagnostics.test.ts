@@ -9,6 +9,7 @@ import { reading } from '../../../src/domain/api/ReadingBuilders.ts';
 import WriteReceipt from '../../../src/domain/api/WriteReceipt.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import MemoryStorage from '../../helpers/MemoryStorage.ts';
+import { checkpointReadIdentity } from '../../helpers/checkpointReadIdentity.ts';
 import { createBoundedReadBasis } from '../../helpers/BoundedReadBasis.ts';
 import { testObstructedIntentAdmissionReceipt } from '../../helpers/intentAdmission.ts';
 
@@ -104,8 +105,9 @@ describe('receipt diagnostics', () => {
     if (inspection.substrate.operation !== 'read') {
       throw new Error('read receipt diagnostics must expose read provenance');
     }
-    expect(inspection.substrate.identity?.checkpointSha).toBeTruthy();
-    expect(inspection.objectIds).toContain(inspection.substrate.identity?.checkpointSha);
+    const identity = checkpointReadIdentity(inspection.substrate.identity);
+    expect(identity.checkpointSha).toBeTruthy();
+    expect(inspection.objectIds).toContain(identity.checkpointSha);
   });
 
   it('recovers join object identities behind correlated support handles', async () => {

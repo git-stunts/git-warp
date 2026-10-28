@@ -30,8 +30,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The internal cone engine behind it folds each patch into per-entity records
   (node, edge, dot-claim and adjacency pages in a route-keyed Git tree trie)
   through the existing reducer, refuses a patch whose removed dot two elements
-  share, and advances by one bulk log per changed writer. Public reads and
-  writes do not use it yet
+  share, and advances by one bulk log per changed writer
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
+- Answer every worldline Lane read and every read-before-write from the
+  Lane's cone records instead of a checkpoint plus its tail. A Lane is
+  readable right after its writes with no checkpoint and no
+  `git warp repair --action materialization` step; each Observation and each
+  captured coordinate advances the cone basis once and all its Readings share
+  it. Property and existence Readings open one record, neighborhood Readings
+  are degree-bounded, and content Observations read the owner's records
+  instead of replaying every writer's history. Neighborhood edges now come in
+  a canonical order (direction, then neighbor id, then label) with cone
+  cursors. A cone `Coordinate` has `checkpointSha: null` and a `coneRoot`;
+  the advanced `Witness` type also covers the new `kind: 'cone-read'`
+  identity, and the `cone-basis` optic basis posture is new. A fold
+  obstruction (shared dot, diverged writer, contention) settles the
+  Observation or write as obstructed or underdetermined with a repair hint
+  (reasons `cone_shared_dot`, `cone_writer_diverged`, `cone_contended`;
+  `git-warp.write.<reason>` for writes), never a throw or a whole-state
+  fallback. Fork and strand Lanes still use checkpoint-tail bases
   ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 
 ### Added
@@ -75,6 +92,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Admit `edge.remove` on a Lane: it takes the edge's live dots from its cone
+  record instead of requiring materialized state
+  ([#1037](https://github.com/git-stunts/git-warp/issues/1037)). Neighborhood
+  Readings whose edges changed after the last checkpoint no longer obstruct
+  ([#961](https://github.com/git-stunts/git-warp/issues/961)). `node.remove`
+  and content attach/clear take liveness and observed dots from the target's
+  cone record instead of replaying every writer's history, so they no longer
+  slow down or obstruct as history grows
+  ([#1039](https://github.com/git-stunts/git-warp/issues/1039)).
 - Make the quarantine graduate-check fail closed. A branch whose merge-base
   with the target cannot be resolved now fails the gate (exit 2) instead of
   skipping it, CI checks out full history and no longer swallows a failed base

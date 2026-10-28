@@ -6,7 +6,7 @@ import type ConeEdgeRecord from './ConeEdgeRecord.ts';
 import type ConeNodeRecord from './ConeNodeRecord.ts';
 import ConeRecordKey, { type ConeDirection } from './ConeRecordKey.ts';
 import type ConeRoot from './ConeRoot.ts';
-import { hydrateConeState } from './ConeStateHydration.ts';
+import ConeNeighbourhood from './ConeNeighbourhood.ts';
 
 const DIRECTIONS: readonly ConeDirection[] = ['out', 'in'];
 
@@ -46,25 +46,36 @@ export default class ConeReader {
    * other entity are outside its cone.
    */
   async neighbourhood(root: ConeRoot, nodeId: string): Promise<VisibleStateReader> {
+    return createStateReader((await this.neighbourhoodRecords(root, nodeId)).state());
+  }
+
+  /** The node's record, its incident edge records and its neighbours' records. */
+  async neighbourhoodRecords(root: ConeRoot, nodeId: string): Promise<ConeNeighbourhood> {
     const node = await this.node(root, nodeId);
-    const edgeKeys = await this.#incidentEdgeKeys(root, node);
+    const keys = DIRECTIONS.flatMap((direction) => pageKeys(node, direction));
+    const edgeKeys = await this.#incidentEdgeKeys(root, node, keys);
     const edges = await this.#store.readRecords(root, edgeKeys.map((edgeKey) => ConeRecordKey.forEdge(edgeKey)));
     const edgeRecords = edgeKeys.map((edgeKey) => edges.edge(edgeKey));
     const neighbourIds = [...new Set(edgeRecords.flatMap((edge) => [edge.from, edge.to]))].filter((id) => id !== nodeId);
     const neighbours = await this.#store.readRecords(root, neighbourIds.map((id) => ConeRecordKey.forNode(id)));
-    const nodes = [node, ...neighbourIds.map((id) => neighbours.node(id))];
-    return createStateReader(hydrateConeState(nodes, edgeRecords));
+    return new ConeNeighbourhood({
+      node,
+      edges: edgeRecords,
+      neighbours: neighbourIds.map((id) => neighbours.node(id)),
+      adjacencyKeys: keys.map((page) => page.key),
+    });
   }
 
-  async #incidentEdgeKeys(root: ConeRoot, node: ConeNodeRecord): Promise<string[]> {
-    const keys = DIRECTIONS.flatMap((direction) => pageKeys(node, direction));
+  async #incidentEdgeKeys(root: ConeRoot, node: ConeNodeRecord, keys: readonly PageKey[]): Promise<string[]> {
     const pages = await this.#store.readRecords(root, keys.map((page) => page.key));
     const edgeKeys = keys.flatMap((page) => pages.adjacencyPage(node.nodeId, page.direction, page.index).edgeKeys);
     return [...new Set(edgeKeys)];
   }
 }
 
-function pageKeys(node: ConeNodeRecord, direction: ConeDirection): Array<{ readonly key: ConeRecordKey; readonly direction: ConeDirection; readonly index: number }> {
+type PageKey = { readonly key: ConeRecordKey; readonly direction: ConeDirection; readonly index: number };
+
+function pageKeys(node: ConeNodeRecord, direction: ConeDirection): PageKey[] {
   const count = Math.ceil(node.degree(direction) / CONE_ADJACENCY_PAGE_SIZE);
   return Array.from({ length: count }, (_unused, index) => ({
     key: ConeRecordKey.forAdjacencyPage(node.nodeId, direction, index), direction, index,
