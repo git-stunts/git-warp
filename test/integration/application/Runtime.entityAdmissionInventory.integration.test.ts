@@ -285,6 +285,9 @@ describe('Runtime entity admission inventory', () => {
       expect(certificate.streamDigest).toBe(whole.certificate.streamDigest);
       expect(certificate.basis).toEqual(whole.certificate.basis);
       expect((await consumeInventory(lane)).certificate.admissionCount).toBe(9);
+      const exact = await observePage(lane, { limit: 9 });
+      expect(findEntityAdmissionInventoryContinuation(exact.receipt)).toBeNull();
+      expect(requireEntityAdmissionInventoryCertificate(exact.receipt).admissionCount).toBe(9);
     } finally {
       await runtime.close();
     }
@@ -308,6 +311,11 @@ describe('Runtime entity admission inventory', () => {
       const resumed = await observePage(lane, { cursor });
       expect(resumed.admissions.map(({ representation }) => representation.subject)).toEqual(['capture:1']);
       expect(requireEntityAdmissionInventoryCertificate(resumed.receipt).admissionCount).toBe(2);
+      await repository.plumbing.execute({ args: ['update-ref', '-d', `refs/warp/${LANE}/cone/retained`] });
+      await lane.write(entity('capture:4'));
+      expect((await observePage(lane, { cursor })).receipt).toMatchObject({
+        status: 'obstructed', reason: 'E_ENTITY_ADMISSION_INVENTORY_CURSOR_BASIS',
+      });
     } finally {
       await runtime.close();
     }
