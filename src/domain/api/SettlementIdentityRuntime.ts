@@ -6,8 +6,8 @@ export type SettlementFrontierEntry = Readonly<{
   readonly writerId: string;
 }>;
 
+/** Settlement identity binds frontiers, never a derived checkpoint or cone root (#1039). */
 type SettlementFrontierOptions = Readonly<{
-  readonly checkpointSha: string;
   readonly context: ApiRuntimeContext;
   readonly entries: readonly SettlementFrontierEntry[];
   readonly worldlineName: string;
@@ -23,7 +23,6 @@ export async function createSettlementFrontierRef(
   return await options.context.createOpaqueId('admission', [
     'settlement-frontier',
     options.worldlineName,
-    options.checkpointSha,
     ...flattenFrontier(options.entries),
   ]);
 }
@@ -35,7 +34,6 @@ export async function createSettlementSourceFrontierRef(
     'settlement-source-frontier',
     options.worldlineName,
     options.strandName,
-    options.checkpointSha,
     ...flattenFrontier(options.entries),
   ]);
 }

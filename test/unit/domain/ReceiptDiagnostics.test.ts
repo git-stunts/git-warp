@@ -9,8 +9,7 @@ import { reading } from '../../../src/domain/api/ReadingBuilders.ts';
 import WriteReceipt from '../../../src/domain/api/WriteReceipt.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import MemoryStorage from '../../helpers/MemoryStorage.ts';
-import { checkpointReadIdentity } from '../../helpers/checkpointReadIdentity.ts';
-import { createBoundedReadBasis } from '../../helpers/BoundedReadBasis.ts';
+import ConeReadIdentity from '../../../src/domain/services/optic/ConeReadIdentity.ts';
 import { testObstructedIntentAdmissionReceipt } from '../../helpers/intentAdmission.ts';
 
 const RECOVERY_EVIDENCE = Object.freeze({
@@ -90,7 +89,6 @@ describe('receipt diagnostics', () => {
     const warp = await openWarp({ storage, writer: 'agent-1' });
     const timeline = await warp.timeline('events');
     await timeline.write(intent.node.add({ subject: 'user:alice' }));
-    await createBoundedReadBasis(storage, timeline.name);
     const propertyWrite = await timeline.write(
       intent.property.set({ subject: 'user:alice', key: 'role', value: 'admin' })
     );
@@ -98,16 +96,19 @@ describe('receipt diagnostics', () => {
 
     const inspection = inspectReceipt(result.receipt);
 
+    expect(propertyWrite.outcome.kind).toBe('derived');
     expect(result.receipt.outcome).toBe('accepted');
-    expect(result.receipt.evidence).not.toHaveProperty('checkpointSha');
-    expect(result.receipt.evidence?.support).toContainEqual(propertyWrite.evidence?.support[0]);
+    expect(result.receipt.evidence).not.toHaveProperty('coneRoot');
+    expect(result.receipt.evidence?.support.length).toBeGreaterThan(0);
     expect(inspection.substrate.operation).toBe('read');
     if (inspection.substrate.operation !== 'read') {
       throw new Error('read receipt diagnostics must expose read provenance');
     }
-    const identity = checkpointReadIdentity(inspection.substrate.identity);
-    expect(identity.checkpointSha).toBeTruthy();
-    expect(inspection.objectIds).toContain(identity.checkpointSha);
+    const identity = inspection.substrate.identity;
+    if (!(identity instanceof ConeReadIdentity)) {
+      throw new Error('a public read answers from a cone basis');
+    }
+    expect(inspection.objectIds).toContain(identity.coneRoot);
   });
 
   it('recovers join object identities behind correlated support handles', async () => {

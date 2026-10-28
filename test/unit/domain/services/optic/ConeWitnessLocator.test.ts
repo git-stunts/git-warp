@@ -48,7 +48,7 @@ async function graph() {
     new NodeRemove('gone', ['w1:6']),
   ]);
   feed.append('w1', [new NodeAdd('gone', new Dot('w1', 20))]);
-  const cone = new ConeLaneBasis({ store, feed, lane: LANE });
+  const cone = ConeLaneBasis.ofLane({ store, feed, lane: LANE });
   return { cone, feed, optic: new WorldlineOptic({ worldline: LANE, cone: new LiveConeReadBasis(cone), coordinatePosture: OpticCoordinatePosture.liveOneOff() }) };
 }
 

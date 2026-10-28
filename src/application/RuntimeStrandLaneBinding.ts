@@ -5,8 +5,8 @@ import {
   promoteDraftSettlement,
 } from '../domain/api/DraftSettlementRuntime.ts';
 import type Lane from '../domain/api/Lane.ts';
+import { captureDraftCoordinate } from '../domain/api/DraftTimelineRuntime.ts';
 import { bindLaneRuntime } from '../domain/api/LaneRuntime.ts';
-import WarpError from '../domain/errors/WarpError.ts';
 import type RuntimeActivity from './RuntimeActivity.ts';
 import type RuntimeMutationGate from './RuntimeMutationGate.ts';
 
@@ -29,7 +29,7 @@ export function bindStrandLaneRuntime(
     promote: async () => await promoteDraftSettlement(draft),
   });
   bindLaneRuntime(lane, {
-    captureCoordinate: strandCoordinateUnavailable,
+    captureCoordinate: async () => await activity.run(async () => await captureDraftCoordinate(draft)),
     fork: null,
     openStrand: null,
     owner,
@@ -45,14 +45,4 @@ export function bindStrandLaneRuntime(
         ),
     }),
   });
-}
-
-function strandCoordinateUnavailable(): Promise<never> {
-  return Promise.reject(
-    new WarpError(
-      'Strand Lane coordinates are not supported by captureCoordinate',
-      'E_LANE_COORDINATE_KIND',
-      { context: { kind: 'strand' } },
-    ),
-  );
 }

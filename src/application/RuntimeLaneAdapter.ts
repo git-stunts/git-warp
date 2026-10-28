@@ -11,6 +11,7 @@ import {
   requireTimelineRuntime,
 } from '../domain/api/TimelineRuntime.ts';
 import ConeObstructedError from '../domain/errors/ConeObstructedError.ts';
+import { coneObstructionFailure } from '../domain/api/ConeObstructionFailure.ts';
 import Lane from '../domain/api/Lane.ts';
 import { bindLaneRuntime } from '../domain/api/LaneRuntime.ts';
 import type { ObservationExecution } from '../domain/api/Observation.ts';
@@ -23,7 +24,7 @@ import { isEntityAdmissionInventoryObserver } from '../domain/api/EntityAdmissio
 import ObservationReceipt, { type ObservationReceiptOptions } from '../domain/api/ObservationReceipt.ts';
 import Reading, { type ReadingValue } from '../domain/api/ObservedReading.ts';
 import type ReadReceipt from '../domain/api/ReadReceipt.ts';
-import type Tick from '../domain/api/Tick.ts';
+import Tick from '../domain/api/Tick.ts';
 import WarpError from '../domain/errors/WarpError.ts';
 import WarpStream from '../domain/stream/WarpStream.ts';
 import type RuntimeActivity from './RuntimeActivity.ts';
@@ -53,6 +54,8 @@ type ObservationLane = Readonly<{
   readonly name: string;
   readonly writer: string;
 }>;
+/** An Observation's shared basis: its Tick, or the cone obstruction that kept one from being captured (#1039). */
+type ObservationBasis = Tick | ConeObstructedError;
 type ReadingStreamOutcome =
   | Readonly<{ kind: 'completed'; receipt: ReadReceipt | null }>
   | Readonly<{ kind: 'settled' }>;
@@ -139,7 +142,7 @@ async function captureWorldlineCoordinate(
   timeline: Timeline,
   activity: RuntimeActivity,
 ) {
-  return await activity.run(async () => await requireTimelineRuntime(timeline).captureReadCoordinate());
+  return await activity.run(async () => await requireTimelineRuntime(timeline).captureCoordinate());
 }
 
 function createStrandLane(options: StrandLaneOptions): Lane {
@@ -198,7 +201,7 @@ async function startBoundedObserver<TValue extends ReadingValue>(
         settlement,
         tick,
         timeline,
-        target: tick === null ? timeline : timeline.at(tick),
+        target: tick instanceof Tick ? timeline.at(tick) : timeline,
       })),
       receipt: settlement.promise,
     });
@@ -240,20 +243,18 @@ async function startStrandObserver<TValue extends ReadingValue>(
 }
 
 /**
- * The one basis every Reading of an Observation shares, or null when none can
- * be captured; the bounded reader then turns the condition into its Receipt.
+ * The one basis every Reading of an Observation shares, or the obstruction
+ * that stopped the lane's cone basis; each Reading and the Receipt then
+ * report that obstruction.
  */
-async function observationTick(timeline: Timeline): Promise<Tick | null> {
+async function observationTick(timeline: Timeline): Promise<ObservationBasis> {
   try {
     return await captureObservationTick(timeline);
   } catch (error) {
     if (error instanceof ConeObstructedError) {
-      return null;
+      return error;
     }
-    if (!(error instanceof WarpError) || error.code !== 'E_OPTIC_NO_BOUNDED_BASIS') {
-      throw error;
-    }
-    return null;
+    throw error;
   }
 }
 
@@ -262,7 +263,7 @@ async function* streamReadings<TValue extends ReadingValue>(options: {
   readonly observer: Observer<TValue>;
   readonly settlement: ReceiptSettlement;
   readonly target: ReadTarget;
-  readonly tick: Tick | null;
+  readonly tick: ObservationBasis;
   readonly timeline: ObservationLane;
 }): AsyncIterable<Reading<TValue>> {
   let completed = false;
@@ -306,7 +307,7 @@ function completeReadingStream<TValue extends ReadingValue>(
   options: {
     readonly observer: Observer<TValue>;
     readonly settlement: ReceiptSettlement;
-    readonly tick: Tick | null;
+    readonly tick: ObservationBasis;
     readonly timeline: ObservationLane;
   },
   outcome: ReadingStreamOutcome,
@@ -323,7 +324,7 @@ function finishReadingStream<TValue extends ReadingValue>(
   options: {
     readonly observer: Observer<TValue>;
     readonly settlement: ReceiptSettlement;
-    readonly tick: Tick | null;
+    readonly tick: ObservationBasis;
     readonly timeline: ObservationLane;
   },
   completed: boolean,
@@ -368,10 +369,10 @@ function readingFrom<TValue extends ReadingValue>(
 function emptyObservationReceipt(
   timeline: ObservationLane,
   observer: Observer,
-  tick: Tick | null,
+  tick: ObservationBasis,
 ): ObservationReceipt {
-  if (tick === null) {
-    return missingBasisObservationReceipt(timeline, observer);
+  if (tick instanceof ConeObstructedError) {
+    return obstructedBasisObservationReceipt(timeline, observer, tick);
   }
   return new ObservationReceipt({
     evidence: tickEvidence(tick),
@@ -385,7 +386,7 @@ function emptyObservationReceipt(
 function cancelledObservationReceipt(
   timeline: ObservationLane,
   observer: Observer,
-  tick: Tick | null,
+  tick: ObservationBasis,
 ): ObservationReceipt {
   const fields: ObservationReceiptOptions = {
     lane: timeline.name,
@@ -395,19 +396,22 @@ function cancelledObservationReceipt(
     writer: timeline.writer,
   };
   return new ObservationReceipt(
-    tick === null ? fields : { ...fields, evidence: tickEvidence(tick) },
+    tick instanceof Tick ? { ...fields, evidence: tickEvidence(tick) } : fields,
   );
 }
 
-function missingBasisObservationReceipt(
+function obstructedBasisObservationReceipt(
   timeline: ObservationLane,
   observer: Observer,
+  error: ConeObstructedError,
 ): ObservationReceipt {
+  const failure = coneObstructionFailure(error.obstruction);
   return new ObservationReceipt({
     lane: timeline.name,
     observer,
-    reason: 'missing_bounded_basis',
-    status: 'obstructed',
+    reason: failure.reason,
+    repairHints: failure.repairHints,
+    status: failure.outcome,
     writer: timeline.writer,
   });
 }

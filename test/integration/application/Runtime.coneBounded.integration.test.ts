@@ -207,8 +207,7 @@ describe('Runtime cone-bounded public reads and writes', () => {
       expect(ticks.size).toBe(1);
       expect(ticks.has(undefined)).toBe(false);
       const coordinate = await captureCoordinate(lane);
-      expect(coordinate.checkpointSha).toBeNull();
-      expect(coordinate.coneRoot).not.toBeNull();
+      expect(coordinate.coneRoot).toMatch(/^[0-9a-f]{40}$/u);
       await write(lane, intent.property.set({ subject: 'p', key: 'k', value: 2 }));
       const pinned = await coordinate.optic().node('p').prop('k').read();
       expect(pinned.value).toBe(1);

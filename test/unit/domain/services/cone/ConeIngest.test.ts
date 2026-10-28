@@ -18,8 +18,11 @@ import type { PatchOp } from '../../../../../src/domain/types/ops/unions.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import InMemoryConeRecordStore from '../../../../helpers/InMemoryConeRecordStore.ts';
 import MemoryConeFeed from '../../../../helpers/MemoryConeFeed.ts';
+import ConeBasisHead from '../../../../../src/domain/services/cone/ConeBasisHead.ts';
+import LaneConeScope from '../../../../../src/domain/services/cone/LaneConeScope.ts';
 
 const LANE = 'events';
+const HEAD_OF_LANE = ConeBasisHead.forLane(LANE);
 
 class MemoryFeed extends MemoryConeFeed {
   constructor() {
@@ -30,7 +33,7 @@ class MemoryFeed extends MemoryConeFeed {
 function fixture(): { store: InMemoryConeRecordStore; feed: MemoryFeed; ingest: ConeIngest } {
   const store = new InMemoryConeRecordStore();
   const feed = new MemoryFeed();
-  return { store, feed, ingest: new ConeIngest({ store, feed, lane: LANE }) };
+  return { store, feed, ingest: new ConeIngest({ store, feed, scope: new LaneConeScope(LANE) }) };
 }
 
 describe('ConeIngest.advance', () => {
@@ -41,7 +44,7 @@ describe('ConeIngest.advance', () => {
     const advanced = await ingest.advance();
     expect(advanced).toBeInstanceOf(ConeIngestAdvanced);
     expect(advanced instanceof ConeIngestAdvanced ? advanced.foldedPatches : 0).toBe(2);
-    const stored = await store.readBasis(LANE);
+    const stored = await store.readBasis(HEAD_OF_LANE);
     expect(stored?.basis.frontier.position('w2')?.lamport).toBe(1);
     const reader = new ConeReader(store);
     expect((await reader.node(stored?.basis.root ?? ConeBasis.empty().root, 'b')).isAlive()).toBe(true);
@@ -74,24 +77,24 @@ describe('ConeIngest.advance', () => {
     diverged.feed.diverged.add('w1');
     const blocked = await diverged.ingest.advance();
     expect(blocked instanceof ConeIngestObstructed ? blocked.obstruction : null).toBeInstanceOf(ConeWriterDivergedObstruction);
-    expect(await diverged.store.readBasis(LANE)).toBeNull();
+    expect(await diverged.store.readBasis(HEAD_OF_LANE)).toBeNull();
 
     const shared = fixture();
     shared.feed.append('w1', [new NodeAdd('a', new Dot('w1', 1)), new NodeAdd('b', new Dot('w1', 1))]);
     shared.feed.append('w1', [new NodeRemove('a', ['w1:1'])]);
     const refused = await shared.ingest.advance();
     expect(refused instanceof ConeIngestObstructed ? refused.obstruction : null).toBeInstanceOf(ConeSharedDotObstruction);
-    expect(await shared.store.readBasis(LANE)).toBeNull();
+    expect(await shared.store.readBasis(HEAD_OF_LANE)).toBeNull();
   });
 
   it('retries after losing the head race and reports contention when it never wins', async () => {
     const { store, feed, ingest } = fixture();
     feed.append('w1', [new NodeAdd('a', new Dot('w1', 1))]);
     let races = 1;
-    store.beforePublish = async (lane) => {
+    store.beforePublish = async (head) => {
       if (races > 0) {
         races -= 1;
-        store.forceHead(lane);
+        store.forceHead(head);
       }
     };
     expect(await ingest.advance()).toBeInstanceOf(ConeIngestAdvanced);
@@ -99,15 +102,15 @@ describe('ConeIngest.advance', () => {
 
     const contended = fixture();
     contended.feed.append('w1', [new NodeAdd('a', new Dot('w1', 1))]);
-    contended.store.beforePublish = async (lane) => { contended.store.forceHead(lane); };
-    const ingest2 = new ConeIngest({ store: contended.store, feed: contended.feed, lane: LANE, attempts: 2 });
+    contended.store.beforePublish = async (head) => { contended.store.forceHead(head); };
+    const ingest2 = new ConeIngest({ store: contended.store, feed: contended.feed, scope: new LaneConeScope(LANE), attempts: 2 });
     const outcome = await ingest2.advance();
     expect(outcome instanceof ConeIngestObstructed ? outcome.obstruction : null).toBeInstanceOf(ConeContendedObstruction);
   });
 
   it('needs at least one attempt', () => {
     const { store, feed } = fixture();
-    expect(() => new ConeIngest({ store, feed, lane: LANE, attempts: 0 })).toThrow('at least one attempt');
+    expect(() => new ConeIngest({ store, feed, scope: new LaneConeScope(LANE), attempts: 0 })).toThrow('at least one attempt');
   });
 });
 
@@ -121,7 +124,7 @@ describe('ConeIngest.foldCommitted', () => {
     const outcome = await ingest.foldCommitted(second, first.sha);
     expect(outcome instanceof ConeIngestAdvanced ? outcome.foldedPatches : 0).toBe(1);
     expect(feed.ranges).toEqual([]);
-    expect((await store.readBasis(LANE))?.basis.frontier.position('w1')?.sha).toBe(second.sha);
+    expect((await store.readBasis(HEAD_OF_LANE))?.basis.frontier.position('w1')?.sha).toBe(second.sha);
     expect(await ingest.foldCommitted(second, first.sha)).toBeInstanceOf(ConeIngestCurrent);
   });
 
@@ -134,11 +137,11 @@ describe('ConeIngest.foldCommitted', () => {
 
     const third = feed.append('w1', [new NodePropSet('a', 'k', 2)]);
     let races = 1;
-    store.beforePublish = async (lane) => {
+    store.beforePublish = async (head) => {
       if (races > 0) {
         races -= 1;
-        const current = await store.readBasis(lane);
-        store.forceHead(lane, current?.basis);
+        const current = await store.readBasis(head);
+        store.forceHead(head, current?.basis);
       }
     };
     const raced = await ingest.foldCommitted(third, second.sha);

@@ -2,102 +2,41 @@ import { describe, expect, it } from 'vitest';
 
 import WarpError from '../../../src/domain/errors/WarpError.ts';
 import WarpWorldlineCoordinate from '../../../src/domain/WarpWorldlineCoordinate.ts';
-import type ProjectionHandle from '../../../src/domain/services/ProjectionHandle.ts';
+import type WorldlineOptic from '../../../src/domain/services/optic/WorldlineOptic.ts';
 
-function unusedWorldlineFactory(): ProjectionHandle {
-  throw new WarpError('unused worldline factory', 'E_TEST_UNUSED_WORLDLINE_FACTORY');
+function unusedOptic(): WorldlineOptic {
+  throw new WarpError('unused optic factory', 'E_TEST_UNUSED_OPTIC_FACTORY');
 }
 
-describe('WarpWorldlineCoordinate', () => {
-  it('rejects malformed frontier input before copying entries', () => {
-    expect(
-      () =>
-        new WarpWorldlineCoordinate({
-          worldlineName: 'events',
-          checkpointSha: 'checkpoint-sha',
-          // @ts-expect-error exercising runtime validation for JavaScript callers
-          frontier: 'not-a-frontier',
-          createWorldline: unusedWorldlineFactory,
-        })
-    ).toThrow(WarpError);
-
-    expect(
-      () =>
-        new WarpWorldlineCoordinate({
-          worldlineName: 'events',
-          checkpointSha: 'checkpoint-sha',
-          // @ts-expect-error exercising runtime validation for JavaScript callers
-          frontier: 'not-a-frontier',
-          createWorldline: unusedWorldlineFactory,
-        })
-    ).toThrow('WarpWorldline coordinate requires a frontier Map');
-  });
-
-  it('rejects blank identity fields', () => {
-    expect(
-      () =>
-        new WarpWorldlineCoordinate({
-          worldlineName: '   ',
-          checkpointSha: 'checkpoint-sha',
-          frontier: new Map([['writer-1', 'patch-sha']]),
-          createWorldline: unusedWorldlineFactory,
-        })
-    ).toThrow('WarpWorldline coordinate requires non-empty identity fields');
-
-    expect(
-      () =>
-        new WarpWorldlineCoordinate({
-          worldlineName: 'events',
-          checkpointSha: 'checkpoint-sha',
-          frontier: new Map([['writer-1', '   ']]),
-          createWorldline: unusedWorldlineFactory,
-        })
-    ).toThrow('WarpWorldline coordinate requires non-empty identity fields');
-  });
-
-  it('rejects malformed worldline factory input', () => {
-    expect(
-      () =>
-        new WarpWorldlineCoordinate({
-          worldlineName: 'events',
-          checkpointSha: 'checkpoint-sha',
-          frontier: new Map([['writer-1', 'patch-sha']]),
-          // @ts-expect-error exercising runtime validation for JavaScript callers
-          createWorldline: 'not-a-factory',
-        })
-    ).toThrow('WarpWorldline coordinate requires a worldline factory');
-  });
-});
-
 describe('WarpWorldlineCoordinate over a cone basis (#1039)', () => {
-  const optic = () => {
-    throw new WarpError('unused optic factory', 'E_TEST_UNUSED_OPTIC_FACTORY');
-  };
-
-  it('pins a cone root instead of a checkpoint', () => {
+  it('pins a cone root and its frontier, and builds its optic on demand', () => {
     const coordinate = new WarpWorldlineCoordinate({
-      worldlineName: 'events', coneRoot: 'abcd', frontier: new Map([['w', 'sha']]), createOptic: optic,
+      worldlineName: 'events', coneRoot: 'abcd', frontier: new Map([['w2', 'sha2'], ['w1', 'sha1']]), createOptic: unusedOptic,
     });
-    expect(coordinate.checkpointSha).toBeNull();
     expect(coordinate.coneRoot).toBe('abcd');
     expect(coordinate.basisIdentity()).toEqual(['cone', 'abcd']);
-    expect(() => coordinate.requireCheckpointSha()).toThrow('pinned to a cone basis');
-    expect(() => coordinate.source()).toThrow('pinned to a cone basis');
+    expect(coordinate.frontierEntries).toEqual([{ writerId: 'w1', patchSha: 'sha1' }, { writerId: 'w2', patchSha: 'sha2' }]);
+    expect(coordinate.frontier()).toEqual(new Map([['w1', 'sha1'], ['w2', 'sha2']]));
+    expect(Object.isFrozen(coordinate)).toBe(true);
     expect(() => coordinate.optic()).toThrow('unused optic factory');
   });
 
-  it('identifies a checkpoint coordinate by its checkpoint', () => {
-    const coordinate = new WarpWorldlineCoordinate({
-      worldlineName: 'events', checkpointSha: 'checkpoint-sha', frontier: new Map(), createWorldline: unusedWorldlineFactory,
-    });
-    expect(coordinate.coneRoot).toBeNull();
-    expect(coordinate.basisIdentity()).toEqual(['checkpoint-sha']);
-    expect(coordinate.requireCheckpointSha()).toBe('checkpoint-sha');
+  it('rejects malformed frontier input before copying entries', () => {
+    expect(() => new WarpWorldlineCoordinate({
+      worldlineName: 'events', coneRoot: 'abcd', createOptic: unusedOptic,
+      // @ts-expect-error exercising runtime validation for JavaScript callers
+      frontier: 'not-a-frontier',
+    })).toThrow('WarpWorldline coordinate requires a frontier Map');
   });
 
-  it('rejects a blank cone root or a missing optic factory', () => {
-    expect(() => new WarpWorldlineCoordinate({ worldlineName: 'events', coneRoot: ' ', frontier: new Map(), createOptic: optic }))
+  it('rejects blank identity fields and a missing optic factory', () => {
+    expect(() => new WarpWorldlineCoordinate({ worldlineName: '   ', coneRoot: 'abcd', frontier: new Map(), createOptic: unusedOptic }))
       .toThrow('non-empty identity fields');
+    expect(() => new WarpWorldlineCoordinate({ worldlineName: 'events', coneRoot: ' ', frontier: new Map(), createOptic: unusedOptic }))
+      .toThrow('non-empty identity fields');
+    expect(() => new WarpWorldlineCoordinate({
+      worldlineName: 'events', coneRoot: 'abcd', frontier: new Map([['writer-1', '   ']]), createOptic: unusedOptic,
+    })).toThrow('non-empty identity fields');
     expect(() => new WarpWorldlineCoordinate({
       worldlineName: 'events', coneRoot: 'abcd', frontier: new Map(),
       // @ts-expect-error exercising runtime validation for JavaScript callers

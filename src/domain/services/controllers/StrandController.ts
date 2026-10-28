@@ -20,6 +20,7 @@ import type { PatchBuilder } from '../PatchBuilder.ts';
 import type Patch from '../../types/Patch.ts';
 import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
 import type { StrandCreateOptions } from '../../types/StrandDescriptor.ts';
+import type StrandConeBasis from '../strand/StrandConeBasis.ts';
 
 export type StrandHost = StrandCoordinatorGraphRuntime & {
   _loadWriterPatches(writerId: string): Promise<Array<{ patch: Patch; sha: string }>>;
@@ -101,6 +102,19 @@ export default class StrandController {
     build: (p: PatchBuilder) => void | Promise<void>,
   ): Promise<PatchCommitResult> {
     return await this._strandService.patchWithEvidence(strandId, build);
+  }
+
+  /** One public strand Lane write over cone records (#1039). */
+  async patchStrandOnConeWithEvidence(
+    strandId: string,
+    build: (p: PatchBuilder) => void | Promise<void>,
+  ): Promise<PatchCommitResult> {
+    return await this._strandService.patchOnConeWithEvidence(strandId, build);
+  }
+
+  /** Opens a strand's pinned base and its own cone basis (#1039). */
+  async openStrandCone(strandRef: string): Promise<StrandConeBasis> {
+    return await this._strandService.openCone(strandRef);
   }
 
   // ── Speculative intents ─────────────────────────────────────────────────

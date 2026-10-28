@@ -84,6 +84,9 @@ class FirstUseOpticsTrapStorage implements RuntimeStorageProviderPort {
       ),
       intents: trapService(services.intents, 'intents', ['publish'], trap),
       materializations: services.materializations,
+      // The cone basis is the bounded first-use basis (#1039): folding new patches into it is the read path.
+      ...(services.coneRecords === undefined ? {} : { coneRecords: services.coneRecords }),
+      ...(services.conePatches === undefined ? {} : { conePatches: services.conePatches }),
       ...(services.stateSnapshots === undefined
         ? {}
         : {
@@ -133,21 +136,14 @@ function readRepoFile(path: string): string {
   return readFileSync(`${REPO_ROOT}${path}`, 'utf8');
 }
 
-function prepareOpticBasisImplementation(): string {
-  const source = readRepoFile('src/domain/WarpWorldline.ts');
-  const implementationEnd = '\n  };';
-  const start = source.indexOf(
-    'const prepareOpticBasis = async (): Promise<WarpWorldlineOpticBasis> => {',
-  );
-  const end = source.indexOf(implementationEnd, start);
-  if (start < 0 || end < 0) {
-    throw new Error('WarpWorldline prepareOpticBasis implementation not found');
-  }
-  return source.slice(start, end + implementationEnd.length);
+function coneCoordinateImplementation(): string {
+  return ['src/domain/WarpWorldlineConeOptics.ts', 'src/domain/services/cone/ConeLaneBasis.ts', 'src/domain/services/cone/ConeIngest.ts']
+    .map((path) => readRepoFile(path))
+    .join('\n');
 }
 
 describe('v18 first-use optics honesty gate', () => {
-  it('reads an existing checkpoint-tail basis without full residency or writes', async () => {
+  it('reads through the cone basis without full residency or graph writes, ignoring an existing checkpoint', async () => {
     const history = new InMemoryGraphAdapter();
     const runtimeStorage = new FirstUseOpticsTrapStorage(
       new MemoryRuntimeStorageAdapter({ history }),
@@ -180,12 +176,10 @@ describe('v18 first-use optics honesty gate', () => {
       reading.property({ subject: NODE_ID, key: PROPERTY_KEY }),
     );
     const inspection = inspectReceipt(property.receipt);
-    const basis = await events.prepareOpticBasis();
-    const coordinate = await events.coordinate();
+    const coordinate = await events.captureCoordinate();
     const node = await coordinate.optic().node(NODE_ID).read();
 
-    expect(basis.checkpointSha).toBe(checkpointSha);
-    expect(coordinate.checkpointSha).toBe(checkpointSha);
+    expect(checkpointSha).toMatch(/^[0-9a-f]{40}$/u);
     expect(node).toMatchObject({ nodeId: NODE_ID, alive: true });
     expect(property.value).toBe('open');
     expect(property.receipt).toMatchObject({
@@ -198,18 +192,15 @@ describe('v18 first-use optics honesty gate', () => {
     expect(property.receipt.evidence).not.toHaveProperty('checkpointSha');
     expect(inspection.substrate).toMatchObject({
       operation: 'read',
-      identity: { checkpointSha },
+      identity: { kind: 'cone-read', coneRoot: coordinate.coneRoot },
     });
     expect(runtimeStorage.forbiddenOperations()).toEqual([]);
   });
 
-  it('keeps basis preparation source on semantic bounded-read ports', () => {
-    const implementation = prepareOpticBasisImplementation();
-    const verifier = readRepoFile('src/domain/services/optic/CheckpointTailBasisVerifier.ts');
-    const checkedSources = `${implementation}\n${verifier}`;
+  it('keeps coordinate capture source on semantic bounded-read ports', () => {
+    const checkedSources = coneCoordinateImplementation();
 
-    expect(implementation).toContain('new CheckpointTailBasisVerifier');
-    expect(verifier).toContain('_checkpointStore.loadBasis');
+    expect(checkedSources).toContain('advance()');
     expect(checkedSources).not.toMatch(/\bmaterialize\s*\(/u);
     expect(checkedSources).not.toContain('_materializeGraph');
     expect(checkedSources).not.toContain('_setMaterializedState');

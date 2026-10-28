@@ -24,7 +24,7 @@ async function capture(policy: ConeRemovalPolicy, targets: ConeWriteTargets): Pr
   ]);
   feed.append('w2', [new EdgeAdd({ ...EDGE, dot: new Dot('w2', 1) }), new EdgeAdd({ from: 'b', to: 'a', label: 'gone', dot: new Dot('w2', 2) })]);
   feed.append('w2', [new EdgeRemove({ from: 'b', to: 'a', label: 'gone', observedDots: ['w2:2'] })]);
-  const cone = new ConeLaneBasis({ store, feed, lane: LANE });
+  const cone = ConeLaneBasis.ofLane({ store, feed, lane: LANE });
   const basis = await cone.advance();
   if (!(basis instanceof ConeBasis)) { throw new Error('expected a basis'); }
   return await ConeWriteBasis.capture({ reader: cone.reader, basis, targets, policy });

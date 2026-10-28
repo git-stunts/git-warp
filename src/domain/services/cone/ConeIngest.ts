@@ -4,6 +4,7 @@ import { compareStrings } from '../../utils/StringComparison.ts';
 import type ConePatchFeedPort from '../../../ports/ConePatchFeedPort.ts';
 import type ConeRecordStorePort from '../../../ports/ConeRecordStorePort.ts';
 import ConeBasis from './ConeBasis.ts';
+import type ConeBasisScope from './ConeBasisScope.ts';
 import ConeContendedObstruction from './ConeContendedObstruction.ts';
 import ConeFold from './ConeFold.ts';
 import ConeFoldSession from './ConeFoldSession.ts';
@@ -24,7 +25,9 @@ export const CONE_INGEST_ATTEMPTS = 4;
 type Progress = { readonly frontier: ConeFrontier; readonly folded: number };
 
 /**
- * Advances a lane's cone basis to its writers' tips.
+ * Advances one cone basis to its writers' tips (#1039). The scope names the
+ * basis: the lane's own, a strand's pinned base, or a strand's base plus its
+ * own patches; it supplies the tips and the basis to start from.
  *
  * For each writer whose tip differs from the folded frontier, the feed lists
  * the new range once and decodes each patch once; patches fold in writer
@@ -36,18 +39,18 @@ type Progress = { readonly frontier: ConeFrontier; readonly folded: number };
 export default class ConeIngest {
   readonly #store: ConeRecordStorePort;
   readonly #feed: ConePatchFeedPort;
-  readonly #lane: string;
+  readonly #scope: ConeBasisScope;
   readonly #attempts: number;
 
   constructor(options: {
     readonly store: ConeRecordStorePort;
     readonly feed: ConePatchFeedPort;
-    readonly lane: string;
+    readonly scope: ConeBasisScope;
     readonly attempts?: number;
   }) {
     this.#store = options.store;
     this.#feed = options.feed;
-    this.#lane = options.lane;
+    this.#scope = options.scope;
     this.#attempts = options.attempts ?? CONE_INGEST_ATTEMPTS;
     if (!Number.isSafeInteger(this.#attempts) || this.#attempts < 1) {
       throw new ConeRecordError('Cone ingest needs at least one attempt');
@@ -63,7 +66,7 @@ export default class ConeIngest {
         return outcome;
       }
     }
-    return new ConeIngestObstructed(new ConeContendedObstruction(this.#lane, this.#attempts));
+    return new ConeIngestObstructed(new ConeContendedObstruction(this.#scope.head.lane, this.#attempts));
   }
 
   /**
@@ -72,7 +75,14 @@ export default class ConeIngest {
    * falls back to a full advance, which also folds the patch.
    */
   async foldCommitted(entry: PatchEntry, parentSha: string | null): Promise<ConeIngestOutcome> {
-    const { stored, basis } = await this.#readBasis();
+    const read = await this.#readBasis();
+    return read instanceof ConeObstruction ? new ConeIngestObstructed(read) : await this.#foldOnto(read, { entry, parentSha });
+  }
+
+  async #foldOnto(
+    { stored, basis }: { readonly stored: StoredConeBasis | null; readonly basis: ConeBasis },
+    { entry, parentSha }: { readonly entry: PatchEntry; readonly parentSha: string | null },
+  ): Promise<ConeIngestOutcome> {
     const folded = foldedSha(basis.frontier, entry.patch.writer);
     if (folded === entry.sha) {
       return new ConeIngestCurrent(stored, basis);
@@ -89,14 +99,23 @@ export default class ConeIngest {
     return published ?? await this.advance();
   }
 
-  async #readBasis(): Promise<{ readonly stored: StoredConeBasis | null; readonly basis: ConeBasis }> {
-    const stored = await this.#store.readBasis(this.#lane);
-    return { stored, basis: stored === null ? ConeBasis.empty() : stored.basis };
+  /** The published basis, or the scope's seed while nothing is published under its head. */
+  async #readBasis(): Promise<{ readonly stored: StoredConeBasis | null; readonly basis: ConeBasis } | ConeObstruction> {
+    const stored = await this.#store.readBasis(this.#scope.head);
+    if (stored !== null) {
+      return { stored, basis: stored.basis };
+    }
+    const seed = await this.#scope.seed();
+    return seed instanceof ConeObstruction ? seed : { stored: null, basis: seed };
   }
 
   async #attemptAdvance(): Promise<ConeIngestOutcome | null> {
-    const { stored, basis } = await this.#readBasis();
-    const behind = writersBehind(basis.frontier, await this.#feed.writerTips(this.#lane));
+    const read = await this.#readBasis();
+    if (read instanceof ConeObstruction) {
+      return new ConeIngestObstructed(read);
+    }
+    const { stored, basis } = read;
+    const behind = writersBehind(basis.frontier, await this.#scope.tips(this.#feed));
     if (behind.length === 0) {
       return new ConeIngestCurrent(stored, basis);
     }
@@ -118,7 +137,7 @@ export default class ConeIngest {
     writer: { readonly writerId: string; readonly tipSha: string },
   ): Promise<Progress | ConeObstruction> {
     const fromSha = foldedSha(progress.frontier, writer.writerId);
-    const range = await this.#feed.patchesAfter(this.#lane, writer.writerId, { fromSha, toSha: writer.tipSha });
+    const range = await this.#feed.patchesAfter(this.#scope.head.lane, writer.writerId, { fromSha, toSha: writer.tipSha });
     if (range instanceof ConeWriterDivergedObstruction) {
       return range;
     }
@@ -148,7 +167,7 @@ export default class ConeIngest {
     readonly progress: Progress;
   }): Promise<ConeIngestAdvanced | null> {
     const basis = new ConeBasis(await run.session.commit(), run.progress.frontier);
-    const published = await this.#store.publishBasis(this.#lane, basis, run.stored);
+    const published = await this.#store.publishBasis(this.#scope.head, basis, run.stored);
     return published === null ? null : new ConeIngestAdvanced(published, run.progress.folded);
   }
 }

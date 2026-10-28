@@ -750,6 +750,9 @@ export default class RuntimeHost {
   patchStrand: StrandController['patchStrand'] = (...args) => this._strandController.patchStrand(...args);
   patchStrandWithEvidence: StrandController['patchStrandWithEvidence'] = (...args) =>
     this._strandController.patchStrandWithEvidence(...args);
+  patchStrandOnConeWithEvidence: StrandController['patchStrandOnConeWithEvidence'] = (...args) =>
+    this._strandController.patchStrandOnConeWithEvidence(...args);
+  openStrandCone: StrandController['openStrandCone'] = (...args) => this._strandController.openStrandCone(...args);
   queueStrandIntent: StrandController['queueStrandIntent'] = (...args) => this._strandController.queueStrandIntent(...args);
   async listStrandIntents(strandId: string) {
     return [...await this._strandController.listStrandIntents(strandId)];

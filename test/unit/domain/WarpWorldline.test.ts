@@ -192,7 +192,7 @@ describe('WarpWorldline', () => {
     await expect(users.hasNode('internal:secret')).resolves.toBe(false);
   });
 
-  it('exposes the bounded optic handle while preserving current basis limits', async () => {
+  it('exposes a live optic over the lane cone basis that reads without preparation', async () => {
     const handle = await openWarpWorldline({
       persistence: new InMemoryGraphAdapter(),
       worldlineName: 'events',
@@ -201,9 +201,9 @@ describe('WarpWorldline', () => {
 
     const optic = handle.optic();
 
-    expect(optic.node('user:alice')).toBeDefined();
-    await expect(optic.node('user:alice').read()).rejects.toMatchObject({
-      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+    await expect(optic.node('user:alice').read()).resolves.toMatchObject({
+      alive: false,
+      readIdentity: { kind: 'cone-read', worldline: 'events' },
     });
   });
 
@@ -326,11 +326,9 @@ describe('WarpWorldline', () => {
     });
   });
 
-  it('preserves bounded optic failure semantics from the live worldline', () => {
+  it('refuses public optics on a handle whose storage keeps no cone records', () => {
     const handle = createHandle();
 
-    expect(() => handle.optic()).toThrow(
-      'worldline optic requires a checkpoint-tail bounded basis source'
-    );
+    expect(() => handle.optic()).toThrow(expect.objectContaining({ code: 'E_WARP_WORLDLINE_CONE_UNAVAILABLE' }));
   });
 });

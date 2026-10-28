@@ -28,6 +28,10 @@ import {
   buildStrandWriterRef,
 } from '../../../../../src/domain/utils/RefLayout.ts';
 import { testRetentionWitness } from '../../../../helpers/storageRetention.ts';
+import ConeBasis from '../../../../../src/domain/services/cone/ConeBasis.ts';
+import ConeFrontier from '../../../../../src/domain/services/cone/ConeFrontier.ts';
+import ConeRoot from '../../../../../src/domain/services/cone/ConeRoot.ts';
+import ConeWriterPosition from '../../../../../src/domain/services/cone/ConeWriterPosition.ts';
 
 /** @typedef {import('../../../../../src/domain/utils/parseStrandBlob.ts').StrandDescriptor} ParsedStrandBlob */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').StrandQueuedIntent} StrandQueuedIntent */
@@ -466,6 +470,8 @@ function createMockGraph() {
     _strandStore: strandStore,
     _patchJournal: patchJournal,
     _allocationFloors: new InMemoryAllocationFloorStore(),
+    _coneRecords: null,
+    _conePatches: null,
     _logger: /** @type {{ info: ReturnType<typeof vi.fn>, warn: ReturnType<typeof vi.fn>, error: ReturnType<typeof vi.fn> }|null} */ (null),
     _assetStorage: new InMemoryBlobStorageAdapter(),
     _commitMessageCodec: {
@@ -755,7 +761,6 @@ describe('StrandService', () => {
 
       const descriptor = await service.create({
         strandId: 'captured',
-        baseCheckpointSha: 'checkpoint-captured',
         baseFrontier,
       });
       baseFrontier.set('writer-c', 'too-late');
@@ -764,20 +769,28 @@ describe('StrandService', () => {
         'writer-a': 'captured-a',
         'writer-b': 'captured-b',
       });
-      expect(descriptor.baseObservation.checkpointSha)
-        .toBe('checkpoint-captured');
+      expect(descriptor.baseObservation.checkpointSha).toBeNull();
     });
 
-    it('rejects partial captured coordinates before persistence', async () => {
+    it('rejects a pinned base basis that does not fold exactly the captured frontier', async () => {
+      const basis = new ConeBasis(ConeRoot.empty(), ConeFrontier.empty().advanced('writer-a', new ConeWriterPosition('a'.repeat(40), 1)));
       await expect(service.create({
-        strandId: 'checkpoint-only',
-        baseCheckpointSha: 'checkpoint-captured',
+        strandId: 'basis-only',
+        baseBasis: basis,
       })).rejects.toMatchObject({
         code: 'E_STRAND_INVALID_ARGS',
       });
       await expect(service.create({
-        strandId: 'frontier-only',
-        baseFrontier: new Map([['writer-a', 'captured-a']]),
+        strandId: 'other-frontier',
+        baseFrontier: new Map([['writer-a', 'b'.repeat(40)]]),
+        baseBasis: basis,
+      })).rejects.toMatchObject({
+        code: 'E_STRAND_INVALID_ARGS',
+      });
+      await expect(service.create({
+        strandId: 'wider-frontier',
+        baseFrontier: new Map([['writer-a', 'a'.repeat(40)], ['writer-b', 'b'.repeat(40)]]),
+        baseBasis: basis,
       })).rejects.toMatchObject({
         code: 'E_STRAND_INVALID_ARGS',
       });

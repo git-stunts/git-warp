@@ -14,8 +14,10 @@ import { encodeEdgeKey } from '../../../../src/domain/services/KeyCodec.ts';
 import GitConeRecordStoreAdapter, { recordPath } from '../../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import ConeBasisHead from '../../../../src/domain/services/cone/ConeBasisHead.ts';
 
 const LANE = 'events';
+const HEAD_OF_LANE = ConeBasisHead.forLane(LANE);
 const HEAD = `refs/warp/${LANE}/cone/head`;
 const directories: string[] = [];
 
@@ -97,30 +99,30 @@ describe('GitConeRecordStoreAdapter', () => {
 
   it('publishes the basis head by compare-and-swap and reports a lost race', async () => {
     const { history, store } = await fixture();
-    expect(await store.readBasis(LANE)).toBeNull();
+    expect(await store.readBasis(HEAD_OF_LANE)).toBeNull();
     const frontier = ConeFrontier.empty().advanced('w1', new ConeWriterPosition('a'.repeat(40), 1));
-    const emptyRoot = await store.publishBasis(LANE, new ConeBasis(ConeRoot.empty(), frontier), null);
+    const emptyRoot = await store.publishBasis(HEAD_OF_LANE, new ConeBasis(ConeRoot.empty(), frontier), null);
     expect(emptyRoot).not.toBeNull();
-    const reread = await store.readBasis(LANE);
+    const reread = await store.readBasis(HEAD_OF_LANE);
     expect(reread?.basis.equals(new ConeBasis(ConeRoot.empty(), frontier))).toBe(true);
     expect(reread?.revision).toBe(await history.readRef(HEAD));
     const root = await store.writeRecords(ConeRoot.empty(), [node('a')]);
-    const advanced = await store.publishBasis(LANE, new ConeBasis(root, frontier), reread ?? null);
+    const advanced = await store.publishBasis(HEAD_OF_LANE, new ConeBasis(root, frontier), reread ?? null);
     expect(advanced?.basis.root.equals(root)).toBe(true);
-    expect((await store.readBasis(LANE))?.basis.root.equals(root)).toBe(true);
-    expect(await store.publishBasis(LANE, new ConeBasis(ConeRoot.empty(), ConeFrontier.empty()), reread ?? null)).toBeNull();
-    const same = await store.publishBasis(LANE, new ConeBasis(root, frontier), advanced);
+    expect((await store.readBasis(HEAD_OF_LANE))?.basis.root.equals(root)).toBe(true);
+    expect(await store.publishBasis(HEAD_OF_LANE, new ConeBasis(ConeRoot.empty(), ConeFrontier.empty()), reread ?? null)).toBeNull();
+    const same = await store.publishBasis(HEAD_OF_LANE, new ConeBasis(root, frontier), advanced);
     expect(same?.revision).toBe(advanced?.revision);
   });
 
   it('surfaces ref failures that are not a lost race and refuses a head without a frontier', async () => {
     const { history, store } = await fixture();
     const failure = vi.spyOn(history, 'compareAndSwapRef').mockRejectedValueOnce(new Error('disk full'));
-    await expect(store.publishBasis(LANE, ConeBasis.empty(), null)).rejects.toThrow('disk full');
+    await expect(store.publishBasis(HEAD_OF_LANE, ConeBasis.empty(), null)).rejects.toThrow('disk full');
     failure.mockRestore();
     const bare = await history.writeTree([]);
     await history.updateRef(HEAD, bare);
-    await expect(store.readBasis(LANE)).rejects.toMatchObject({ code: 'E_CONE_RECORD_CORRUPT' });
+    await expect(store.readBasis(HEAD_OF_LANE)).rejects.toMatchObject({ code: 'E_CONE_RECORD_CORRUPT' });
   });
 });
 

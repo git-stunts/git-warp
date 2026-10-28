@@ -19,7 +19,7 @@ const LANE = 'events';
 function fixture() {
   const store = new InMemoryConeRecordStore();
   const feed = new MemoryConeFeed(LANE);
-  return { store, feed, cone: new ConeLaneBasis({ store, feed, lane: LANE }) };
+  return { store, feed, cone: ConeLaneBasis.ofLane({ store, feed, lane: LANE }) };
 }
 
 function requireBasis(value: ConeBasis | object): ConeBasis {

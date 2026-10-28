@@ -12,6 +12,9 @@ import WarpError from '../errors/WarpError.ts';
  * - refs/warp/<graph>/checkpoints/head
  * - refs/warp/<graph>/coverage/head
  * - refs/warp/<graph>/cone/head
+ * - refs/warp/<graph>/cone/retained
+ * - refs/warp/<graph>/cone/strands/<id>/base
+ * - refs/warp/<graph>/cone/strands/<id>/head
  * - refs/warp/<graph>/strands/<id>
  * - refs/warp/<graph>/strand-overlays/<id>
  * - refs/warp/<graph>/strand-braids/<id>/<support_id>
@@ -229,19 +232,6 @@ export function buildCheckpointRef(graphName: string): string {
 export function buildCoverageRef(graphName: string): string {
   validateGraphName(graphName);
   return `${REF_PREFIX}/${graphName}/coverage/head`;
-}
-
-/**
- * Builds the cone basis head ref path for the given graph (#1039). Like the
- * checkpoint head it is derived, clone-local and never transferred.
- *
- * @example
- * buildConeHeadRef('events');
- * // => 'refs/warp/events/cone/head'
- */
-export function buildConeHeadRef(graphName: string): string {
-  validateGraphName(graphName);
-  return `${REF_PREFIX}/${graphName}/cone/head`;
 }
 
 /**

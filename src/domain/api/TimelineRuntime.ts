@@ -42,6 +42,7 @@ export function createTimeline(runtime: WarpWorldline, context: ApiRuntimeContex
         context,
         intent,
         commit: runtime.commitWithEvidence.bind(runtime),
+        cone: runtime.coneBasis(),
       }),
   });
   timelineRuntimes.set(timeline, Object.freeze({ context, runtime }));

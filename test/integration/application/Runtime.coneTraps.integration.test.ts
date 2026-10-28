@@ -9,11 +9,11 @@ import {
   reading,
 } from '../../../advanced.ts';
 import RuntimeHost from '../../../src/domain/RuntimeHost.ts';
-import BoundedNodeRemovalBasis from '../../../src/domain/services/BoundedNodeRemovalBasis.ts';
-import ContentReadProjection from '../../../src/domain/services/ContentReadProjection.ts';
 import CheckpointController from '../../../src/domain/services/controllers/CheckpointController.ts';
-import CheckpointTailBasisVerifier from '../../../src/domain/services/optic/CheckpointTailBasisVerifier.ts';
+import { PatchDiscovery } from '../../../src/domain/services/controllers/PatchDiscovery.ts';
+import CheckpointTailBasisLoader from '../../../src/domain/services/optic/CheckpointTailBasisLoader.ts';
 import CheckpointTailWitnessLocator from '../../../src/domain/services/optic/CheckpointTailWitnessLocator.ts';
+import StrandMaterializer from '../../../src/domain/services/strand/StrandMaterializer.ts';
 import { CborPatchJournalAdapter } from '../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
 import ContentAddressableStore from '@git-stunts/git-cas';
 import WarpStream from '../../../src/domain/stream/WarpStream.ts';
@@ -22,14 +22,19 @@ import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { createTestRepo } from '../api/helpers/setup.ts';
 
 /**
- * Architecture trap (#1039): every public Lane write and Lane observation,
- * content Observations and captured-coordinate optic reads, must stay off
- * whole-state materialization, whole-state checkpoints, history replay and
- * the checkpoint-tail locator. A trap that fires fails the test with the
- * entry point that reached it.
+ * Architecture trap (#1039): every client-facing entry point (Lane writes
+ * and Observations on worldline and strand Lanes, content Observations,
+ * captured-coordinate optic reads on both, Runtime.fork, previewSettlement
+ * and settle) stays off whole-state materialization, whole-state
+ * checkpoints, the checkpoint-tail basis and locator, strand
+ * materialization and history replay. A trap that fires fails the test with
+ * the entry point that reached it.
  */
 
-const EDGE = Object.freeze({ from: 'doc', to: 'tag', label: 'tagged' });
+type TestEdge = Readonly<{ from: string; to: string; label: string }>;
+
+const EDGE: TestEdge = Object.freeze({ from: 'doc', to: 'tag', label: 'tagged' });
+const STRAND_EDGE: TestEdge = Object.freeze({ from: 'card', to: 'history1', label: 'about' });
 const hits: string[] = [];
 
 function trap(name: string): () => never {
@@ -39,7 +44,7 @@ function trap(name: string): () => never {
   };
 }
 
-/** One head read is bounded; a scan that walks past the first patch replays history. */
+/** One head read is bounded; a scan past the first patch or a whole-chain load replays history. */
 function trapHistoryWalks(): void {
   const scan = CborPatchJournalAdapter.prototype.scanPatchHistory;
   vi.spyOn(CborPatchJournalAdapter.prototype, 'scanPatchHistory').mockImplementation(function guarded(this: CborPatchJournalAdapter, writer, sha) {
@@ -57,19 +62,22 @@ function trapHistoryWalks(): void {
       },
     });
   });
+  vi.spyOn(PatchDiscovery.prototype, 'loadPatchChainFromSha').mockImplementation(trap('PatchDiscovery.loadPatchChainFromSha'));
 }
 
 function installTraps(): void {
   vi.spyOn(RuntimeHost.prototype, '_materializeGraph').mockImplementation(trap('RuntimeHost._materializeGraph'));
   vi.spyOn(RuntimeHost.prototype, 'materialize').mockImplementation(trap('RuntimeHost.materialize'));
   vi.spyOn(RuntimeHost.prototype, 'materializeCoordinate').mockImplementation(trap('RuntimeHost.materializeCoordinate'));
+  vi.spyOn(RuntimeHost.prototype, 'materializeStrand').mockImplementation(trap('RuntimeHost.materializeStrand'));
+  vi.spyOn(RuntimeHost.prototype, '_materializeStrandGraph').mockImplementation(trap('RuntimeHost._materializeStrandGraph'));
   vi.spyOn(CheckpointController.prototype, 'createCheckpoint').mockImplementation(trap('CheckpointController.createCheckpoint'));
-  vi.spyOn(CheckpointTailBasisVerifier.prototype, 'verify').mockImplementation(trap('CheckpointTailBasisVerifier.verify'));
+  vi.spyOn(CheckpointTailBasisLoader.prototype, 'load').mockImplementation(trap('CheckpointTailBasisLoader.load'));
   for (const method of ['readNode', 'readNodeProperty', 'readNeighborhood', 'readTraversal'] as const) {
     vi.spyOn(CheckpointTailWitnessLocator.prototype, method).mockImplementation(trap(`CheckpointTailWitnessLocator.${method}`));
   }
-  vi.spyOn(BoundedNodeRemovalBasis, 'capture').mockImplementation(trap('BoundedNodeRemovalBasis.capture'));
-  vi.spyOn(ContentReadProjection.prototype, 'read').mockImplementation(trap('ContentReadProjection.read'));
+  vi.spyOn(StrandMaterializer.prototype, 'materializeDescriptor').mockImplementation(trap('StrandMaterializer.materializeDescriptor'));
+  vi.spyOn(StrandMaterializer.prototype, 'collectPatchEntries').mockImplementation(trap('StrandMaterializer.collectPatchEntries'));
   trapHistoryWalks();
 }
 
@@ -93,7 +101,47 @@ async function observed(lane: Lane, plan: ReturnType<typeof reading.property>): 
   return (await observation.receipt).status;
 }
 
-it('drives every public write intent and every public read without reaching a whole-state trap', async () => {
+/** Every public write intent kind, in an order that makes each one admissible. */
+async function writeEveryIntentKind(lane: Lane, edge: TestEdge, removable: string): Promise<readonly string[]> {
+  const content = await lane.stageContent('bytes', { mime: 'text/plain' });
+  return [
+    await written(lane, [intent.node.add({ subject: edge.from }), intent.node.add({ subject: edge.to }), intent.edge.add(edge)]),
+    await written(lane, intent.property.set({ subject: edge.from, key: 'title', value: 'T' })),
+    await written(lane, intent.entity.add({ subject: `${edge.from}:entity`, properties: { kind: 'card' } })),
+    await written(lane, intent.entity.addAuto({ namespace: 'cards', properties: { kind: 'card' } })),
+    await written(lane, intent.node.attachContent({ subject: edge.from, content })),
+    await written(lane, intent.edge.attachContent({ ...edge, content })),
+    await written(lane, intent.edge.clearContent(edge)),
+    await written(lane, intent.node.clearContent({ subject: edge.from })),
+    await written(lane, intent.edge.remove(edge)),
+    await written(lane, intent.node.remove({ subject: removable })),
+  ];
+}
+
+/** Every Reading kind, both content observers and captured-coordinate optic reads. */
+async function readEveryKind(lane: Lane, edge: TestEdge, removed: string): Promise<readonly unknown[]> {
+  const subject = edge.from;
+  const statuses = [
+    await observed(lane, reading.property({ subject, key: 'title' })),
+    await observed(lane, reading.node.exists({ subject: removed })),
+    await observed(lane, reading.neighborhood({ subject, direction: 'both' })),
+    (await lane.observe(createNodeContentObserver({ subject })).receipt).status,
+    (await lane.observe(createEdgeContentObserver(edge)).receipt).status,
+  ];
+  const optic = (await captureCoordinate(lane)).optic();
+  return [
+    ...statuses,
+    (await optic.node(subject).read()).alive,
+    (await optic.node(subject).prop('title').read()).value,
+    (await optic.neighborhood(subject).read()).edges,
+    (await optic.traversal(subject).read({ maxDepth: 1, maxNodes: 2, maxEdges: 2 })).completeness,
+  ];
+}
+
+const READ_EVERY_KIND = ['completed', 'completed', 'completed', 'completed', 'completed', true, 'T', [], 'complete'];
+const DERIVED = Array.from({ length: 10 }, () => 'derived');
+
+it('drives every public entry point, worldline and strand, without reaching a whole-state trap', async () => {
   const runtime = await Runtime.open({ at: repository.tempDir, writer: 'alice' });
   try {
     const lane = await runtime.lane('events');
@@ -101,51 +149,35 @@ it('drives every public write intent and every public read without reaching a wh
       await lane.write(intent.node.add({ subject: `history${index}` }));
     }
     installTraps();
-    const content = await lane.stageContent('bytes', { mime: 'text/plain' });
-    const outcomes = [
-      await written(lane, [intent.node.add({ subject: 'doc' }), intent.node.add({ subject: 'tag' }), intent.edge.add(EDGE)]),
-      await written(lane, intent.property.set({ subject: 'doc', key: 'title', value: 'T' })),
-      await written(lane, intent.entity.add({ subject: 'entity', properties: { kind: 'card' } })),
-      await written(lane, intent.entity.addAuto({ namespace: 'cards', properties: { kind: 'card' } })),
-      await written(lane, intent.node.attachContent({ subject: 'doc', content })),
-      await written(lane, intent.edge.attachContent({ ...EDGE, content })),
-      await written(lane, intent.edge.clearContent(EDGE)),
-      await written(lane, intent.node.clearContent({ subject: 'doc' })),
-      await written(lane, intent.edge.remove(EDGE)),
-      await written(lane, intent.node.remove({ subject: 'history3' })),
-    ];
-    expect(outcomes).toEqual(Array.from({ length: outcomes.length }, () => 'derived'));
-    const statuses = [
-      await observed(lane, reading.property({ subject: 'doc', key: 'title' })),
-      await observed(lane, reading.node.exists({ subject: 'history3' })),
-      await observed(lane, reading.neighborhood({ subject: 'doc', direction: 'both' })),
-    ];
-    expect(statuses).toEqual(['completed', 'completed', 'completed']);
-    expect((await lane.observe(createNodeContentObserver({ subject: 'doc' })).receipt).status).toBe('completed');
-    expect((await lane.observe(createEdgeContentObserver(EDGE)).receipt).status).toBe('completed');
-    const optic = (await captureCoordinate(lane)).optic();
-    expect((await optic.node('doc').read()).alive).toBe(true);
-    expect((await optic.node('doc').prop('title').read()).value).toBe('T');
-    expect((await optic.neighborhood('doc').read()).edges).toEqual([]);
-    expect((await optic.traversal('doc').read({ maxDepth: 1, maxNodes: 2, maxEdges: 2 })).completeness).toBe('complete');
+    expect(await writeEveryIntentKind(lane, EDGE, 'history3')).toEqual(DERIVED);
+    expect(await readEveryKind(lane, EDGE, 'history3')).toEqual(READ_EVERY_KIND);
+
+    const strand = await runtime.fork(lane, { name: 'draft' });
+    expect(await writeEveryIntentKind(strand, STRAND_EDGE, 'history5')).toEqual(DERIVED);
+    expect(await readEveryKind(strand, STRAND_EDGE, 'history5')).toEqual(READ_EVERY_KIND);
+
+    const preview = await runtime.previewSettlement({ source: strand, target: lane });
+    expect(preview.outcome.kind).toBe('derived');
+    expect((await runtime.settle(preview.plan)).outcome.kind).toBe('derived');
   } finally {
     await runtime.close();
   }
   expect(hits).toEqual([]);
 });
 
-it('arms traps that a remaining whole-state public path still reaches (Runtime.fork, slice 4)', async () => {
+it('arms traps that a whole-state path still reaches: the global checkpoint and a history walk', async () => {
   const runtime = await Runtime.open({ at: repository.tempDir, writer: 'alice' });
   try {
     const lane = await runtime.lane('events');
     await lane.write(intent.node.add({ subject: 'a' }));
     await lane.write(intent.node.add({ subject: 'b' }));
-    installTraps();
-    await expect(runtime.fork(lane, { name: 'draft' })).rejects.toThrow('trap: public path reached');
-    expect(hits).toContain('CheckpointTailBasisVerifier.verify');
   } finally {
     await runtime.close();
   }
+  installTraps();
+  const host = await repository.openGraph('events', 'alice');
+  await expect(async () => await host.materialize()).rejects.toThrow('trap: public path reached');
+  expect(hits).toContain('RuntimeHost.materialize');
   const cas = ContentAddressableStore.createCbor({ plumbing: repository.plumbing, applicationRefPrefixes: ['refs/warp/'] });
   const journal = new CborPatchJournalAdapter({
     assetStorage: new GitCasAssetStorageAdapter({ cas }), cas, codec, commitReader: repository.persistence, graph: 'events',

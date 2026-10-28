@@ -5,6 +5,7 @@ import { CONE_ADJACENCY_PAGE_SIZE, type default as ConeAdjacencyPage } from './C
 import type ConeEdgeRecord from './ConeEdgeRecord.ts';
 import type ConeNodeRecord from './ConeNodeRecord.ts';
 import ConeRecordKey, { type ConeDirection } from './ConeRecordKey.ts';
+import type ConeRecordSnapshot from './ConeRecordSnapshot.ts';
 import type ConeRoot from './ConeRoot.ts';
 import ConeNeighbourhood from './ConeNeighbourhood.ts';
 
@@ -24,6 +25,11 @@ export default class ConeReader {
 
   constructor(store: ConeRecordStorePort) {
     this.#store = store;
+  }
+
+  /** The records stored at `keys` under `root`, read in one batch. */
+  async records(root: ConeRoot, keys: readonly ConeRecordKey[]): Promise<ConeRecordSnapshot> {
+    return await this.#store.readRecords(root, keys);
   }
 
   async node(root: ConeRoot, nodeId: string): Promise<ConeNodeRecord> {

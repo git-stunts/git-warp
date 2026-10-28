@@ -54,14 +54,6 @@ type OperationalReadFailure = {
   readonly repairHints: readonly RepairHint[];
 };
 
-const REPAIR_BOUNDED_BASIS = Object.freeze([
-  Object.freeze({
-    code: 'repair_bounded_basis',
-    message:
-      'Create the timeline checkpoint, or repair its state-cache retention, before retrying.',
-  }),
-]);
-
 const readers: ReadonlyMap<ReadingKind, ReadingExecutor> = new Map([
   ['property.get', readProperty],
   ['node.exists', readNodeExists],
@@ -210,23 +202,7 @@ function unresolvedReadingResult(fields: UnresolvedReadingFields): ReadingResult
   });
 }
 
+/** A Reading's basis was obstructed (#1039); every other failure is a fault and escapes. */
 function operationalReadFailure(error: WarpError): OperationalReadFailure | null {
-  if (error instanceof ConeObstructedError) {
-    return coneObstructionFailure(error.obstruction);
-  }
-  if (error.code === 'E_OPTIC_NO_BOUNDED_BASIS') {
-    return {
-      outcome: 'obstructed',
-      reason: 'missing_bounded_basis',
-      repairHints: REPAIR_BOUNDED_BASIS,
-    };
-  }
-  if (error.code === 'E_OPTIC_TAIL_BUDGET_EXCEEDED') {
-    return {
-      outcome: 'underdetermined',
-      reason: 'tail_budget_exceeded',
-      repairHints: REPAIR_BOUNDED_BASIS,
-    };
-  }
-  return null;
+  return error instanceof ConeObstructedError ? coneObstructionFailure(error.obstruction) : null;
 }

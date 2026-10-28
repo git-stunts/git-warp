@@ -103,9 +103,11 @@ export function boundSettlementOutcomeHarness(outcome: AdmissionOutcome) {
 function freezeSnapshot(change: Partial<SettlementSourceSnapshot> = {}): SettlementSourceSnapshot {
   return Object.freeze({
     baseTargetFrontierRef: 'admission:target',
+    basisEvidenceRefs: Object.freeze(['evidence:cone-root']),
     frontierRef: 'admission:source',
     proposalDigest: 'admission:proposal',
     status: 'ready',
+    targetBasis: 'base',
     targetFrontierRef: 'admission:target',
     ...change,
   });

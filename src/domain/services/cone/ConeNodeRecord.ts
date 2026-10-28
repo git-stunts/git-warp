@@ -102,8 +102,18 @@ export default class ConeNodeRecord {
   }
 
   equals(other: ConeNodeRecord): boolean {
+    return this.sameElementState(other) && this.sameAdjacency(other);
+  }
+
+  /**
+   * True when both records hold the same join state for the node itself:
+   * membership, lifecycle and property registers. Edge registrations are
+   * not compared, because an edge another writer added to this node does not
+   * change what an operation on the node observes.
+   */
+  sameElementState(other: ConeNodeRecord): boolean {
     return other.nodeId === this.nodeId && this.sameMembership(other) && this.sameLifecycle(other)
-      && sameRegisters(other.props, this.props) && this.sameAdjacency(other);
+      && sameRegisters(other.props, this.props);
   }
 
   /** The constructor fields of this record, for derived copies. */

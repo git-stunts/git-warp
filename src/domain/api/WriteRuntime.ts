@@ -48,13 +48,15 @@ type IntentWriteRequestFields = {
   readonly context: ApiRuntimeContext;
   readonly intent: WriteIntentInput;
   readonly commit: IntentCommit;
+  /** The cone basis of the Lane the write publishes to: its read-before-write and its fold (#1039). */
+  readonly cone: ConeLaneBasis;
 };
 
 type IntentWriteFields = Omit<IntentWriteRequestFields, 'intent'> & {
   readonly sequence: IntentSequence;
 };
 
-type PublishedWriteFields = Omit<IntentWriteFields, 'commit'> & {
+type PublishedWriteFields = Omit<IntentWriteFields, 'commit' | 'cone'> & {
   readonly publication: PatchCommitResult;
   readonly recoveryEvidence: Evidence;
 };
@@ -128,6 +130,7 @@ function normalizeIntentWrite(request: IntentWriteRequestFields): IntentWriteFie
     runtime: request.runtime,
     context: request.context,
     commit: request.commit,
+    cone: request.cone,
     sequence: IntentSequence.from(request.intent),
   });
 }
@@ -136,12 +139,10 @@ async function publishIntentWrite(
   fields: IntentWriteFields,
   attempt: WriteAttempt
 ): Promise<PatchCommitResult> {
-  const cone = fields.runtime.coneBasis();
+  const { cone } = fields;
   const publication = await fields.commit(async (patch) => {
     try {
-      await (cone === null
-        ? patch.prepareWriteBasis(fields.sequence.intents.flatMap(writeOwnerTargets))
-        : patch.prepareConeWriteBasis(coneWriteTargets(fields.sequence), cone));
+      await patch.prepareConeWriteBasis(coneWriteTargets(fields.sequence), cone);
     } finally {
       attempt.basis = readPatchBuilderCausalBasis(patch);
       attempt.evaluation = await prepareWriteAdmission({ ...fields, basis: attempt.basis });
@@ -154,19 +155,37 @@ async function publishIntentWrite(
 }
 
 /**
+ * Commits one already-admitted sequence onto a Lane through its cone basis
+ * (#1039): the sequence's targets are observed from cone records before it
+ * lowers, and the published patch is folded. Settlement uses this to
+ * replay a strand's sequences onto its target.
+ */
+export async function commitSequenceOnCone(fields: {
+  readonly commit: IntentCommit;
+  readonly cone: ConeLaneBasis;
+  readonly sequence: IntentSequence;
+}): Promise<string> {
+  let parentSha: string | null = null;
+  const publication = await fields.commit(async (patch) => {
+    await patch.prepareConeWriteBasis(coneWriteTargets(fields.sequence), fields.cone);
+    parentSha = readPatchBuilderCausalBasis(patch).expectedParentSha;
+    applyIntentSequenceToPatch(fields.sequence, patch);
+  });
+  await foldPublishedWrite(fields.cone, publication, parentSha);
+  return publication.sha;
+}
+
+/**
  * Folds the write this clone just published into the lane's cone basis, so
  * the next read or write costs only what it touches (#1039). The patch is
  * already durable and the basis is derived, so a fold that cannot finish
  * here is left to the next advance, which folds it from the writer chain.
  */
 async function foldPublishedWrite(
-  cone: ConeLaneBasis | null,
+  cone: ConeLaneBasis,
   publication: PatchCommitResult,
   parentSha: string | null,
 ): Promise<void> {
-  if (cone === null) {
-    return;
-  }
   try {
     await cone.foldCommitted(new PatchEntry({ patch: publication.patch, sha: publication.sha }), parentSha);
   } catch {
@@ -372,13 +391,6 @@ function writerCasFailure(error: WarpError): OperationalWriteFailure | null {
     destinationHeadSha: error.actualSha,
     repairHints: MATERIALIZE_HINT,
   };
-}
-
-function writeOwnerTargets(intent: Intent): readonly string[] {
-  const { descriptor } = intent;
-  if (descriptor.kind === 'node.remove') { return [descriptor.subject]; }
-  if (!isContentIntentDescriptor(descriptor)) { return []; }
-  return 'subject' in descriptor ? [descriptor.subject] : [descriptor.from, descriptor.to];
 }
 
 /** The entities a write must observe before lowering, read from cone records (#1039). */

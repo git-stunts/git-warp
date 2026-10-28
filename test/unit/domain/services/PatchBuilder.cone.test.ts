@@ -25,7 +25,7 @@ function fixture(state: WarpState | null = null) {
   const head = feed.append('alice', [
     new NodeAdd('n', new Dot('alice', 1)), new NodeAdd('m', new Dot('alice', 2)), new EdgeAdd({ ...EDGE, dot: new Dot('alice', 3) }),
   ]);
-  const cone = new ConeLaneBasis({ store: new InMemoryConeRecordStore(), feed, lane: LANE });
+  const cone = ConeLaneBasis.ofLane({ store: new InMemoryConeRecordStore(), feed, lane: LANE });
   const refs = createPatchBuilderMockPersistence();
   refs.listRefs.mockResolvedValue(['refs/warp/events/writers/alice']);
   refs.readRef.mockResolvedValue(head.sha);

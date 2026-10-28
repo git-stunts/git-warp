@@ -1,5 +1,6 @@
 import ConeRecordError from '../../domain/errors/ConeRecordError.ts';
 import ConeBasis from '../../domain/services/cone/ConeBasis.ts';
+import type ConeBasisHead from '../../domain/services/cone/ConeBasisHead.ts';
 import type { ConeRecord } from '../../domain/services/cone/ConeRecord.ts';
 import type ConeRecordKey from '../../domain/services/cone/ConeRecordKey.ts';
 import ConeRecordSnapshot from '../../domain/services/cone/ConeRecordSnapshot.ts';
@@ -10,7 +11,7 @@ import TreeEntryLimit from '../../domain/tree/TreeEntryLimit.ts';
 import TreeEntryPath from '../../domain/tree/TreeEntryPath.ts';
 import type TreeEntryPrefixBatch from '../../domain/tree/TreeEntryPrefixBatch.ts';
 import type { TreeEntryProbeResult } from '../../domain/tree/TreeEntryProbeResult.ts';
-import { buildConeHeadRef } from '../../domain/utils/RefLayout.ts';
+import { buildConeRetainedRef } from '../../domain/utils/ConeRefLayout.ts';
 import { compareStrings } from '../../domain/utils/StringComparison.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import ConeRecordStorePort from '../../ports/ConeRecordStorePort.ts';
@@ -26,6 +27,7 @@ export type ConeTrieHistory = {
   readTreeEntryPrefix(treeOid: string, prefix: TreeEntryPath, limit: TreeEntryLimit): Promise<TreeEntryPrefixBatch>;
   readRef(ref: string): Promise<string | null>;
   compareAndSwapRef(ref: string, newOid: string, expectedOid: string | null): Promise<void>;
+  deleteRef(ref: string): Promise<void>;
 };
 
 type DirectoryEdit = { readonly blobs: Map<string, string>; readonly dirs: Map<string, DirectoryEdit> };
@@ -37,6 +39,13 @@ const RECORD_DIRECTORY_DEPTH = 3;
 const LIST_LIMIT = new TreeEntryLimit(Number.MAX_SAFE_INTEGER);
 const FRONTIER_ENTRY = 'frontier';
 const RECORDS_ENTRY = 'records';
+/** Captured bases a clone keeps reachable under its retained ref, most recent first to survive. */
+export const CONE_RETAINED_BASES = 64;
+const RETAINED_DIRECTORY = 'r';
+const RETAINED_SEQUENCE_DIGITS = 12;
+const RETAIN_ATTEMPTS = 4;
+
+type RetainedEntry = { readonly sequence: number; readonly revision: string };
 
 /**
  * Stores cone records as a Git tree trie: `<family>/<r0r1>/<r2r3>/<route>`,
@@ -44,9 +53,13 @@ const RECORDS_ENTRY = 'records';
  * 256 keep every directory small, and writing records rewrites only the
  * blobs and directories on their paths; every other subtree is shared.
  *
- * The basis head `refs/warp/<lane>/cone/head` points at a tree holding the
- * `frontier` blob and, once anything is folded, the `records` trie. It is
- * clone-local derived state and never transferred.
+ * A basis head (`refs/warp/<lane>/cone/head`, or a strand's
+ * `cone/strands/<id>/base` and `cone/strands/<id>/head`) points at a tree
+ * holding the `frontier` blob and, once anything is folded, the `records`
+ * trie. `refs/warp/<lane>/cone/retained` points at a tree whose `r/`
+ * directory names the last {@link CONE_RETAINED_BASES} captured basis trees,
+ * keeping them reachable through `git gc`. All of them are clone-local
+ * derived state and never transferred.
  */
 export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
   readonly #history: ConeTrieHistory;
@@ -85,14 +98,14 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
     return ConeRoot.at(await this.#writeDirectory(root, { path: '', depth: 0, edit }));
   }
 
-  override async readBasis(lane: string): Promise<StoredConeBasis | null> {
-    const revision = await this.#history.readRef(buildConeHeadRef(lane));
+  override async readBasis(head: ConeBasisHead): Promise<StoredConeBasis | null> {
+    const revision = await this.#history.readRef(head.ref());
     if (revision === null) {
       return null;
     }
     const frontier = await this.#history.readTreeEntryOid(revision, new TreeEntryPath(FRONTIER_ENTRY));
     if (!(frontier instanceof TreeEntryFound)) {
-      throw new ConeRecordError('Cone basis head has no frontier', { code: 'E_CONE_RECORD_CORRUPT', context: { lane } });
+      throw new ConeRecordError('Cone basis head has no frontier', { code: 'E_CONE_RECORD_CORRUPT', context: { ref: head.ref() } });
     }
     const records = await this.#history.readTreeEntryOid(revision, new TreeEntryPath(RECORDS_ENTRY));
     const root = records instanceof TreeEntryFound ? ConeRoot.at(records.oid) : ConeRoot.empty();
@@ -101,7 +114,7 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
   }
 
   override async publishBasis(
-    lane: string,
+    head: ConeBasisHead,
     basis: ConeBasis,
     expected: StoredConeBasis | null,
   ): Promise<StoredConeBasis | null> {
@@ -110,16 +123,64 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
     if (revision === expectedRevision) {
       return new StoredConeBasis(basis, revision);
     }
-    const ref = buildConeHeadRef(lane);
+    return await this.#swapRef(head.ref(), revision, expectedRevision) ? new StoredConeBasis(basis, revision) : null;
+  }
+
+  override async retainBasis(lane: string, stored: StoredConeBasis): Promise<void> {
+    const ref = buildConeRetainedRef(lane);
+    for (let attempt = 0; attempt < RETAIN_ATTEMPTS; attempt += 1) {
+      if (await this.#retainOnce(ref, stored.revision)) {
+        return;
+      }
+    }
+    throw new ConeRecordError('Retaining a captured cone basis kept losing to concurrent captures', {
+      code: 'E_CONE_RETAIN_CONTENDED', context: { lane, attempts: RETAIN_ATTEMPTS },
+    });
+  }
+
+  override async dropBasis(head: ConeBasisHead): Promise<void> {
+    if (await this.#history.readRef(head.ref()) !== null) {
+      await this.#history.deleteRef(head.ref());
+    }
+  }
+
+  /** Adds `revision` to the retained bases unless it is there; false when another capture moved the ref first. */
+  async #retainOnce(ref: string, revision: string): Promise<boolean> {
+    const current = await this.#history.readRef(ref);
+    const entries = current === null ? [] : await this.#retainedEntries(current);
+    if (entries.some((entry) => entry.revision === revision)) {
+      return true;
+    }
+    const sequence = (entries[entries.length - 1]?.sequence ?? 0) + 1;
+    const next = [...entries, { sequence, revision }].slice(-CONE_RETAINED_BASES);
+    return await this.#swapRef(ref, await this.#writeRetainedTree(next), current);
+  }
+
+  /** The retained bases under a retained-ref tree, oldest first. */
+  async #retainedEntries(treeOid: string): Promise<RetainedEntry[]> {
+    const batch = await this.#history.readTreeEntryPrefix(treeOid, new TreeEntryPath(RETAINED_DIRECTORY), LIST_LIMIT);
+    return batch.entries
+      .map((entry) => retainedEntry(entry.path.value.slice(RETAINED_DIRECTORY.length + 1), entry.oid))
+      .sort((left, right) => left.sequence - right.sequence);
+  }
+
+  async #writeRetainedTree(entries: readonly RetainedEntry[]): Promise<string> {
+    const lines = entries.map((entry) => `040000 tree ${entry.revision}\t${retainedName(entry.sequence, entry.revision)}`);
+    const directory = await this.#history.writeTree(lines.sort());
+    return await this.#history.writeTree([`040000 tree ${directory}\t${RETAINED_DIRECTORY}`]);
+  }
+
+  /** Compare-and-swaps `ref`; false when another writer moved it first. */
+  async #swapRef(ref: string, newOid: string, expectedOid: string | null): Promise<boolean> {
     try {
-      await this.#history.compareAndSwapRef(ref, revision, expectedRevision);
+      await this.#history.compareAndSwapRef(ref, newOid, expectedOid);
+      return true;
     } catch (error) {
-      if (await this.#history.readRef(ref) !== expectedRevision) {
-        return null;
+      if (await this.#history.readRef(ref) !== expectedOid) {
+        return false;
       }
       throw error;
     }
-    return new StoredConeBasis(basis, revision);
   }
 
   async #readRecord(rootRevision: string, key: ConeRecordKey): Promise<ConeRecord | null> {
@@ -196,6 +257,19 @@ export function recordPath(key: ConeRecordKey): string {
 
 function recordDirectories(key: ConeRecordKey): readonly string[] {
   return [FAMILY_DIRECTORIES[key.family], key.route.slice(0, 2), key.route.slice(2, 4)];
+}
+
+function retainedName(sequence: number, revision: string): string {
+  return `${String(sequence).padStart(RETAINED_SEQUENCE_DIGITS, '0')}-${revision}`;
+}
+
+function retainedEntry(name: string, oid: string): RetainedEntry {
+  const separator = name.indexOf('-');
+  const sequence = Number(name.slice(0, separator));
+  if (separator !== RETAINED_SEQUENCE_DIGITS || !Number.isSafeInteger(sequence) || name.slice(separator + 1) !== oid) {
+    throw new ConeRecordError('Retained cone basis entry is malformed', { code: 'E_CONE_RECORD_CORRUPT', context: { name } });
+  }
+  return { sequence, revision: oid };
 }
 
 function uniqueKeys(keys: readonly ConeRecordKey[]): ConeRecordKey[] {

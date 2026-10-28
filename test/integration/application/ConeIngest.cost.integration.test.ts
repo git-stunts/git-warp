@@ -23,8 +23,11 @@ import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapte
 import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import ConeHistoryGenerator, { type ConeHistory } from '../../helpers/ConeHistoryGenerator.ts';
 import { assertConeEquivalent } from '../../helpers/coneEquivalence.ts';
+import ConeBasisHead from '../../../src/domain/services/cone/ConeBasisHead.ts';
+import LaneConeScope from '../../../src/domain/services/cone/LaneConeScope.ts';
 
 const LANE = 'L';
+const HEAD_OF_LANE = ConeBasisHead.forLane(LANE);
 const CASE_TIMEOUT_MS = 300_000;
 /** Patches appended after the first ingest; the second ingest must cost only these. */
 const NEW_PATCHES = 3;
@@ -42,7 +45,7 @@ async function repository() {
   const journal = new CborPatchJournalAdapter({ assetStorage: new GitCasAssetStorageAdapter({ cas }), cas, codec, commitReader: history, graph: LANE });
   const store = new GitConeRecordStoreAdapter({ history, codec });
   const feed = new GitConePatchFeedAdapter({ history, journal, commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC });
-  return { directory, plumbing, history, journal, store, feed, ingest: new ConeIngest({ store, feed, lane: LANE }) };
+  return { directory, plumbing, history, journal, store, feed, ingest: new ConeIngest({ store, feed, scope: new LaneConeScope(LANE) }) };
 }
 
 async function append(repo: Repository, patch: Patch): Promise<string> {
@@ -114,7 +117,7 @@ async function scenario(seedPatches: number): Promise<{ first: Awaited<ReturnTyp
       await append(repo, tail(index));
     }
     const second = await measuredIngest(repo);
-    const stored = await repo.store.readBasis(LANE);
+    const stored = await repo.store.readBasis(HEAD_OF_LANE);
     if (stored === null) {
       throw new Error('ingest published no cone basis');
     }
