@@ -357,8 +357,9 @@ after pruning is not separately tested), and an Observation's own coordinate is 
 obstruction while previewing settlement rejects the call instead of returning an obstruction outcome; the
 footprint check treats any change to a footprint node's membership, lifecycle or properties as a conflict, even a
 property the strand never read; a strand created below a Lamport ceiling (an internal option) is refused with
-`E_STRAND_CONE_CEILING`; the package payload is over its 1,050-entry budget since slices 1-3 (1,089 entries), so the
-`cli-failures` and `cli-launcher` BATS cases fail until the budget is decided; the entity admission inventory still
+`E_STRAND_CONE_CEILING`; the package payload is over its 1,050-entry budget since slices 1-3 (1,089 entries; 1,081 after
+integrating storage layout 2 and the showcase), so the `cli-failures` and `cli-launcher` BATS cases fail until
+the budget is decided; the entity admission inventory still
 scans history by design.
 
 ## Slices
@@ -368,5 +369,8 @@ scans history by design.
 3. Public writes through cone records (`node.remove`, `edge.remove`, content owner checks) and own-patch folding.
 4. Lifecycle: open without repair, bounded basis CLI, fork/strand/settlement on cone bases, materialization traps
    (done; see the slice 4 record).
-5. Showcase: example application and cost witness.
+5. Showcase: example application and cost witness. Integrated with slices 1-4 and storage layout 2; the
+   witness on the integrated branch is retained in `benchmarks/cone-showcase/results/integrated-0504d5d64/`
+   (saves 30 Git processes and margins reads 8 at 200, 2,000 and 20,000 threads; 2,000-thread p50 save
+   46 ms, margins 36 ms; 20,000-thread p50 save 168 ms, slowed by pack count, #1041).
 6. Conflict visibility.

@@ -1,0 +1,190 @@
+{
+  "threads": 2000,
+  "writers": 3,
+  "startedAt": "2026-10-28T13:01:27.281Z",
+  "shape": {
+    "documents": 200,
+    "threadsPerDocument": 10,
+    "repliesPerThread": 2
+  },
+  "bulkLoadProgress": {
+    "patches": 100,
+    "elapsedMs": 10353
+  },
+  "status": "complete",
+  "elapsedMs": 18348,
+  "maxRssMiB": 331,
+  "bulkLoad": {
+    "label": "batched: 50 actions per patch, not a save measurement",
+    "patches": 123,
+    "totalMs": 12915,
+    "perPatch": {
+      "samples": 123,
+      "ms": {
+        "n": 123,
+        "p50": 108.08,
+        "p95": 126.08,
+        "max": 144.34
+      },
+      "gitProcesses": {
+        "n": 123,
+        "p50": 30,
+        "p95": 30,
+        "max": 32
+      },
+      "results": {
+        "derived": 123
+      },
+      "reasons": {}
+    },
+    "repoBytes": 48566272
+  },
+  "saves": {
+    "label": "one user action per patch",
+    "samples": 60,
+    "ms": {
+      "n": 60,
+      "p50": 45.95,
+      "p95": 52.45,
+      "max": 67.47
+    },
+    "gitProcesses": {
+      "n": 60,
+      "p50": 30,
+      "p95": 30,
+      "max": 32
+    },
+    "results": {
+      "derived": 60
+    },
+    "reasons": {},
+    "deadlineReached": false
+  },
+  "margins": {
+    "label": "one document's threads and comments, four generated Observers",
+    "samples": 30,
+    "ms": {
+      "n": 30,
+      "p50": 36.29,
+      "p95": 45.65,
+      "max": 51.24
+    },
+    "gitProcesses": {
+      "n": 30,
+      "p50": 8,
+      "p95": 8,
+      "max": 8
+    },
+    "results": {
+      "completed": 30
+    },
+    "reasons": {},
+    "mismatches": 0,
+    "deadlineReached": false,
+    "rssAfterReadsMiB": 331
+  },
+  "coldOpen": {
+    "label": "fresh process: Runtime.open to first margins, module loading included",
+    "firstMarginsMs": {
+      "n": 5,
+      "p50": 282,
+      "p95": 293,
+      "max": 293
+    },
+    "gitProcesses": {
+      "n": 5,
+      "p50": 20,
+      "p95": 20,
+      "max": 20
+    },
+    "maxRssMiB": {
+      "n": 5,
+      "p50": 142,
+      "p95": 143,
+      "max": 143
+    },
+    "runs": [
+      {
+        "firstMarginsMs": 293,
+        "openMs": 29,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 142
+      },
+      {
+        "firstMarginsMs": 293,
+        "openMs": 31,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 11,
+        "maxRssMiB": 142
+      },
+      {
+        "firstMarginsMs": 282,
+        "openMs": 26,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 143
+      },
+      {
+        "firstMarginsMs": 274,
+        "openMs": 27,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 143
+      },
+      {
+        "firstMarginsMs": 270,
+        "openMs": 25,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 141
+      }
+    ]
+  },
+  "repoBytesAtEnd": 57933824
+}

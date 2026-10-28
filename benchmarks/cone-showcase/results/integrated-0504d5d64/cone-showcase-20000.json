@@ -1,0 +1,190 @@
+{
+  "threads": 20000,
+  "writers": 3,
+  "startedAt": "2026-10-28T13:02:10.035Z",
+  "shape": {
+    "documents": 2000,
+    "threadsPerDocument": 10,
+    "repliesPerThread": 2
+  },
+  "bulkLoadProgress": {
+    "patches": 1200,
+    "elapsedMs": 244858
+  },
+  "status": "complete",
+  "elapsedMs": 259351,
+  "maxRssMiB": 407,
+  "bulkLoad": {
+    "label": "batched: 50 actions per patch, not a save measurement",
+    "patches": 1203,
+    "totalMs": 245085,
+    "perPatch": {
+      "samples": 1203,
+      "ms": {
+        "n": 1203,
+        "p50": 199.04,
+        "p95": 284.46,
+        "max": 324.72
+      },
+      "gitProcesses": {
+        "n": 1203,
+        "p50": 30,
+        "p95": 30,
+        "max": 32
+      },
+      "results": {
+        "derived": 1203
+      },
+      "reasons": {}
+    },
+    "repoBytes": 602796032
+  },
+  "saves": {
+    "label": "one user action per patch",
+    "samples": 60,
+    "ms": {
+      "n": 60,
+      "p50": 168.26,
+      "p95": 183.63,
+      "max": 189.59
+    },
+    "gitProcesses": {
+      "n": 60,
+      "p50": 30,
+      "p95": 30,
+      "max": 32
+    },
+    "results": {
+      "derived": 60
+    },
+    "reasons": {},
+    "deadlineReached": false
+  },
+  "margins": {
+    "label": "one document's threads and comments, four generated Observers",
+    "samples": 30,
+    "ms": {
+      "n": 30,
+      "p50": 65.42,
+      "p95": 77.52,
+      "max": 80.29
+    },
+    "gitProcesses": {
+      "n": 30,
+      "p50": 8,
+      "p95": 8,
+      "max": 8
+    },
+    "results": {
+      "completed": 30
+    },
+    "reasons": {},
+    "mismatches": 0,
+    "deadlineReached": false,
+    "rssAfterReadsMiB": 406
+  },
+  "coldOpen": {
+    "label": "fresh process: Runtime.open to first margins, module loading included",
+    "firstMarginsMs": {
+      "n": 5,
+      "p50": 314,
+      "p95": 335,
+      "max": 335
+    },
+    "gitProcesses": {
+      "n": 5,
+      "p50": 20,
+      "p95": 20,
+      "max": 20
+    },
+    "maxRssMiB": {
+      "n": 5,
+      "p50": 143,
+      "p95": 143,
+      "max": 143
+    },
+    "runs": [
+      {
+        "firstMarginsMs": 335,
+        "openMs": 55,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 143
+      },
+      {
+        "firstMarginsMs": 314,
+        "openMs": 56,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 143
+      },
+      {
+        "firstMarginsMs": 310,
+        "openMs": 53,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 143
+      },
+      {
+        "firstMarginsMs": 322,
+        "openMs": 56,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 143
+      },
+      {
+        "firstMarginsMs": 313,
+        "openMs": 52,
+        "gitProcesses": 20,
+        "byCommand": {
+          "rev-parse": 10,
+          "cat-file": 1,
+          "session:cat-file": 1,
+          "for-each-ref": 5,
+          "show": 3
+        },
+        "result": "completed",
+        "reason": null,
+        "threads": 10,
+        "maxRssMiB": 143
+      }
+    ]
+  },
+  "repoBytesAtEnd": 611856384
+}
