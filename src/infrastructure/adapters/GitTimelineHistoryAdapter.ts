@@ -68,11 +68,6 @@ function toGitCasBlobContent(content: Uint8Array | string): Uint8Array {
   return content;
 }
 
-/**
- * Parsed trees the object session keeps; git-cas still bounds them by bytes.
- * Cone record tries (#1039) read a few hundred small trees per Observation.
- */
-const TREE_CACHE_ENTRIES = 4096;
 function buildListRefsArgs(prefix: string, limit: number | null | undefined): string[] {
   const args = ['for-each-ref', '--format=%(refname)'];
   if (limit !== null && limit !== undefined && limit !== 0) {
@@ -107,7 +102,6 @@ export default class GitTimelineHistoryAdapter extends GraphPersistencePort {
     this._gitCasPersistence = new GitPersistenceAdapter({
       plumbing,
       policy: createGitCasRetryPolicy(this._policy, this._retryOptions),
-      treeCacheEntries: TREE_CACHE_ENTRIES,
     });
     this._recursiveTreeOidReader = new GitRecursiveTreeOidReaderAdapter({
       plumbing,
