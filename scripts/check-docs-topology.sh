@@ -23,7 +23,6 @@ CURRENT_MIGRATION_DOCS=(
 RETIRED_PATHS=(
   "docs/archive"
   "docs/audits"
-  "docs/design"
   "docs/images"
   "docs/invariants"
   "docs/method"
