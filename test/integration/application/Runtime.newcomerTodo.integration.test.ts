@@ -6,6 +6,9 @@
  * receipt, with its target behaviour and owning issue beside it. When a fix lands,
  * the pin fails; the fixing PR replaces the pin with the target assertion.
  *
+ * The public surface is moving to optic-only (#1048); #1055 migrates this witness onto
+ * `Warp.open` / `as(writer).execute` / `Optic` once #1051 and #1052 land.
+ *
  * Rules: import only `index.ts` and `advanced.ts`. No CLI repair, no internal hooks,
  * and no `Runtime.fork` before a read (fork creates a read basis as a side effect).
  */
@@ -113,14 +116,14 @@ describe('newcomer todo app: paths that work today', () => {
 });
 
 describe('newcomer todo app: known gaps, pinned to today', () => {
-  it('a new repository cannot read a todo it just wrote (target: completed with the title; owner #1044 slice 6)', async () => {
+  it('a new repository cannot read a todo it just wrote (target: completed with the title; owners #1039 engine, #1052 Optic)', async () => {
     const at = await freshRepository();
     const read = await asWriter(at, 'alice', async (_runtime, lane) => await readTitle(lane, await addTodo(lane, 'buy milk')));
 
     expect(read).toEqual({ status: 'obstructed', reason: 'missing_bounded_basis', values: [] });
   });
 
-  it('64 more writes still give no read basis through Runtime (target: completed; owner #1044)', async () => {
+  it('64 more writes still give no read basis through Runtime (target: completed; owners #1039 engine, #1052 Optic)', async () => {
     const at = await freshRepository();
     const read = await asWriter(at, 'alice', async (_runtime, lane) => {
       const first = await addTodo(lane, 'todo 0');
@@ -133,14 +136,14 @@ describe('newcomer todo app: known gaps, pinned to today', () => {
     expect(read).toEqual({ status: 'obstructed', reason: 'missing_bounded_basis', values: [] });
   });
 
-  it('observing an empty lane is refused (target: completed with zero readings; owner #1044)', async () => {
+  it('observing an empty lane is refused (target: completed with zero readings; owners #1039 engine, #1052 Optic)', async () => {
     const at = await freshRepository();
     const read = await asWriter(at, 'alice', async (_runtime, lane) => await readTitle(lane, 'todo:nothing-here'));
 
     expect(read).toEqual({ status: 'obstructed', reason: 'missing_bounded_basis', values: [] });
   });
 
-  it('edge.remove after edge.add is refused (target: derived; owner #1037)', async () => {
+  it('edge.remove after edge.add is refused (target: derived; owners #1037 via #1039, #1051 write boundary)', async () => {
     const at = await freshRepository();
     const receipt = await asWriter(at, 'alice', async (_runtime, lane) => {
       const list = await addTodo(lane, 'inbox');
@@ -153,7 +156,7 @@ describe('newcomer todo app: known gaps, pinned to today', () => {
     expect(receipt.reason).toBe('git-warp.write.missing-bounded-basis');
   });
 
-  it('a strand cannot list its own todos (target: completed with the drafted todo; owner: strand inventory)', async () => {
+  it('a strand cannot list its own todos (target: completed with the drafted todo; owner #1052)', async () => {
     const at = await freshRepository();
     const listed = await asWriter(at, 'alice', async (runtime, lane) => {
       await addTodo(lane, 'on the lane');
