@@ -38,6 +38,10 @@ echo "$1" >> "$TRACE"
 case "$1" in
   compose)
     for arg in "$@"; do case "$arg" in --rm|--mount|--volume|-v) exit 91;; esac; done
+    if [[ "$*" == *" run "* ]]; then
+      (cd "$GIT_WARP_DOCKER_CONTEXT" && find . -type f | sort) > "$TRACE.context"
+      cp "$GIT_WARP_DOCKER_CONTEXT/tracked.ts" "$TRACE.tracked" 2>/dev/null || true
+    fi
     if [[ "$*" == *" down "* ]]; then
       [[ "$*" == *"--rmi local"* ]]
     fi
@@ -108,6 +112,24 @@ describe('Docker artifact exports', () => {
     expect(readFileSync(join(input.root, '.ratchet/input/report.txt'), 'utf8')).toBe('selected input\n');
     expect(existsSync(join(input.copied, 'removed'))).toBe(true);
   });
+  it('builds the image only from git ls-files paths with their working-tree content', () => {
+    const input = fixture();
+    writeFileSync(join(input.root, 'tracked.ts'), 'unstaged edit\n');
+    writeFileSync(join(input.root, 'staged.ts'), 'staged new file\n');
+    git(input.root, 'add', 'staged.ts');
+    writeFileSync(join(input.root, 'untracked.ts'), 'stray\n');
+    mkdirSync(join(input.root, '.graft/logs'), { recursive: true });
+    writeFileSync(join(input.root, '.graft/logs/runtime.ndjson'), 'local log\n');
+    writeFileSync(join(input.root, '.git/info/exclude'), '.graft/\n');
+    rmSync(join(input.root, '.gitignore'));
+    const result = run(input, [], 0);
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(readFileSync(join(input.directory, 'trace.context'), 'utf8').trim().split('\n'))
+      .toEqual(['./staged.ts', './tracked.ts', './vitest.config.ts']);
+    expect(readFileSync(join(input.directory, 'trace.tracked'), 'utf8')).toBe('unstaged edit\n');
+  });
+
   it.each([0, 7])('exports reports before removal and preserves command status %i', (status) => {
     const input = fixture();
     const result = run(input, ['directory:coverage'], status);
