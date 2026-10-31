@@ -39,9 +39,9 @@ type EdgeBirthWire = z.infer<typeof EDGE_BIRTH_WIRE>;
 const FULL_STATE_ENVELOPE = z.object({
   version: z.string().optional(),
   nodeAlive: OR_SET_WIRE.optional(), edgeAlive: OR_SET_WIRE.optional(),
-  prop: z.unknown(),
+  prop: z.unknown().optional(),
   observedFrontier: z.record(z.string(), z.number()).optional(),
-  edgeBirthEvent: z.unknown(), edgeBirthLamport: z.unknown(),
+  edgeBirthEvent: z.unknown().optional(), edgeBirthLamport: z.unknown().optional(),
 });
 type DecodedFullState = z.infer<typeof FULL_STATE_ENVELOPE>;
 const PROPERTY_ENTRY = z.tuple([z.string(), z.unknown()]);

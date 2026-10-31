@@ -26,6 +26,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#1015](https://github.com/git-stunts/git-warp/issues/1015)) has run
   ([#1014](https://github.com/git-stunts/git-warp/issues/1014)).
 
+### Changed
+
+- Upgrade `zod` from 3 to 4 (`^4.6.7`) to clear GHSA-mrhx-c7xc-m3w5, an
+  out-of-memory risk when validating oversized constrained collections
+  ([#1042](https://github.com/git-stunts/git-warp/issues/1042)). Where a schema
+  sets no custom message, CLI and sync validation errors now use zod 4 wording,
+  for example `Invalid input: expected string, received number`. Checkpoint
+  envelopes keep accepting absent optional fields. The audit gate stays red
+  until `@git-stunts/plumbing` and `@git-stunts/git-cas` release their zod 4
+  upgrades.
+
 ### Added
 
 - Repair duplicate dots explicitly. `previewDotRepair()` lists each collision

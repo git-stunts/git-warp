@@ -16,11 +16,11 @@ const DECLARATION_README_HEADINGS: readonly string[] = [
 ];
 
 const PACKAGE_FILE_SCHEMA = z.object({
-  dependencies: z.record(z.string()),
+  dependencies: z.record(z.string(), z.string()),
 });
 
 const DENO_IMPORT_MAP_SCHEMA = z.object({
-  imports: z.record(z.string()),
+  imports: z.record(z.string(), z.string()),
 });
 
 const SHARED_RUNTIME_DEPENDENCIES: readonly string[] = [
@@ -46,7 +46,7 @@ describe('dependency hygiene', () => {
 
     const manifest = new PackedArtifactBoundaryAdapter().read(
       fileURLToPath(repoPath('package.json')),
-      z.object({ overrides: z.record(z.union([z.string(), z.record(z.string())])) })
+      z.object({ overrides: z.record(z.string(), z.union([z.string(), z.record(z.string(), z.string())])) })
     );
     // Exact allowlist: each out-of-range security fix needs caller evidence and review.
     expect(manifest.overrides).toEqual({
@@ -54,7 +54,7 @@ describe('dependency hygiene', () => {
       katex: '0.18.2',
     });
     expect(packageJson).not.toContain('"tar": "7.5.16"');
-    expect(packageJson).toContain('"zod": "^3.24.1"');
+    expect(packageJson).toContain('"zod": "^4.6.7"');
     expect(packageJson).not.toContain('"patch-package"');
     expect(packageJson).toContain('./scripts/TrailerCodecDeclarationInstaller.ts');
     expect(packageJson).toContain('&& node scripts/setup-hooks.ts');
