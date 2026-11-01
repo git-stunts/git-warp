@@ -26,4 +26,4 @@ Source-map-js 1.2.2 is an ordinary lock update within the existing ^1.2.1 caller
 
 Remove a security override when the upstream caller admits a compatible patched version and a clean installation, complete audit, and the corresponding compatibility witnesses pass without it. Do not remove a pin solely because a newer caller version exists; verify its dependency range. Preserve platform-specific optional-package constraints during lock generation.
 
-The lock correction changes no production dependency version, Git interpretation, or public runtime API. PR and source-specific results belong in their retained evidence and issue, rather than being inferred from this guide.
+The developer-tool overrides do not change production dependency versions or Git interpretation. The Zod migration separately consumes published `@git-stunts/plumbing` 3.3.3 and `@git-stunts/git-cas` 7.0.0, whose declared dependency ranges admit Zod 4.6.7 without a schema-library override. PR and source-specific results belong in their retained evidence and issue, rather than being inferred from this guide.

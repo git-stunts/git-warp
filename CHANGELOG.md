@@ -33,9 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#1042](https://github.com/git-stunts/git-warp/issues/1042)). Where a schema
   sets no custom message, CLI and sync validation errors now use zod 4 wording,
   for example `Invalid input: expected string, received number`. Checkpoint
-  envelopes keep accepting absent optional fields. Transitive Zod
-  advisories still block the full audit gate;
-  `@git-stunts/plumbing` and `@git-stunts/git-cas` need their own Zod 4 releases.
+  envelopes keep accepting absent optional fields. Adopt published
+  `@git-stunts/plumbing` 3.3.3 and `@git-stunts/git-cas` 7.0.0 to remove
+  the remaining Zod 3 copies; the locked graph resolves Zod 4.6.7.
 - Update Vitest and its V8 coverage provider to 4.1.12, Puppeteer to 25.16.0
   with its matching browser manager 3.2.6, and the locked DOMPurify to 3.4.17.
   This resolves the mock-registration and redirect advisories, removes
