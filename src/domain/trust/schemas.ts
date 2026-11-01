@@ -85,8 +85,8 @@ const TrustRecordSchema = z.object({
   issuerKeyId: KeyIdSchema,
   issuedAt: z.string().datetime({ offset: false }),
   prev: RecordIdSchema.nullable(),
-  subject: z.record(z.unknown()), // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  meta: z.record(z.unknown()).optional().default({}), // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  subject: z.record(z.string(), z.unknown()), // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  meta: z.record(z.string(), z.unknown()).optional().default({}), // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   signature: TrustSignatureSchema,
 }).transform((record, ctx) => {
   const subject = parseSubject(record.recordType, record.subject, ctx);

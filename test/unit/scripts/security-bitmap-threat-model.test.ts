@@ -17,7 +17,7 @@ it('documents bitmap input provenance and expired risk acceptance honestly', () 
 
 it('keeps the dependency risk inventory aligned with direct production dependencies', () => {
   const { dependencies } = new PackedArtifactBoundaryAdapter().read(
-    'package.json', z.object({ dependencies: z.record(z.string()) })
+    'package.json', z.object({ dependencies: z.record(z.string(), z.string()) })
   );
   const document = readFileSync('.github/SECURITY.md', 'utf8');
   const table = document.split('## Dependency Risk Assessment')[1]?.split('## Accepted Risks')[0] ?? '';
