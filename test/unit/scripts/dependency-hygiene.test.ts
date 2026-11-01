@@ -50,7 +50,11 @@ describe('dependency hygiene', () => {
     );
     // Exact allowlist: each out-of-range security fix needs caller evidence and review.
     expect(manifest.overrides).toEqual({
-      'markdownlint-cli': { 'js-yaml': '5.4.2', 'smol-toml': '1.9.0' },
+      eslint: { minimatch: '11.0.3' },
+      '@eslint/config-array': { minimatch: '11.0.3' },
+      '@typescript-eslint/typescript-estree': { minimatch: '11.0.3' },
+      '@vercel/nft': { glob: '14.0.3' },
+      'markdownlint-cli': { minimatch: '11.0.3', 'js-yaml': '5.4.2', 'smol-toml': '1.9.0' },
       katex: '0.18.2',
     });
     expect(packageJson).not.toContain('"tar": "7.5.16"');
