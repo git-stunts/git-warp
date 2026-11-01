@@ -2,6 +2,16 @@
 
 Run `npm run audit:locked` against a clean installation of the committed lock. The gate audits the complete graph at severity low, including developer tools. A runtime-only audit or an advisory allowlist does not satisfy this gate.
 
+## Lock regeneration
+
+The declared installer remains npm 10. Its optional-peer resolver can fail with `Cannot read properties of null (reading 'edgesOut')` while resolving Vite's development tools. If that occurs, generate the lock with an isolated npm 11.21.1 invocation inside the existing COPY-based Docker worker:
+
+```sh
+npm exec --yes --package=npm@11.21.1 -- npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+```
+
+This command only generates dependency metadata. Follow it with a clean `npm ci` using the declared npm 10 toolchain, with lifecycle scripts enabled, then the relevant validation and full audit. Do not change the global npm installation, disable peer resolution, or treat successful lock generation as a successful installation. Preserve the optional platform packages in the resulting lock.
+
 ## Reviewed developer-tool overrides
 
 The exact override set is checked by `test/unit/scripts/dependency-hygiene.test.ts`. Unexpected keys or versions fail that check. A newly reviewed security fix must retain caller compatibility evidence and the full audit; the allowlist records resolutions, not ignored advisories.
