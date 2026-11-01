@@ -39,3 +39,9 @@ Validate that each active issue has exactly one release/category/workstream, eve
 The [streaming/indexed/recursive design record](./streaming-indexed-recursive-warp.md) retains its historical incident evidence. Its old v20 target and release sequencing are superseded by [v21.0.0](./v21.0.0/README.md); its source anchors are not a fresh implementation audit.
 
 The [worldline dot mints design record](./worldline-dot-mints.md) defines the v21.0.0 dot identity, minting authority, strand ref layout and migration contract tracked by [#1012](https://github.com/git-stunts/git-warp/issues/1012).
+
+The [optic-only public API contract](./optic-only-public-api.md), tracked by
+[#1049](https://github.com/git-stunts/git-warp/issues/1049), proposes the observer,
+purpose, budget, receipt-derived Coordinate, and migration boundary for
+[#1048](https://github.com/git-stunts/git-warp/issues/1048). It is an implementation
+contract awaiting review, not a claim that the target API has shipped.
