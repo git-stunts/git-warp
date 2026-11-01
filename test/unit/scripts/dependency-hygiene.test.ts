@@ -26,6 +26,7 @@ const DENO_IMPORT_MAP_SCHEMA = z.object({
 const SHARED_RUNTIME_DEPENDENCIES: readonly string[] = [
   '@git-stunts/git-cas',
   '@git-stunts/plumbing',
+  'zod',
 ];
 
 function repoPath(relativePath: string): URL {
@@ -77,7 +78,7 @@ describe('dependency hygiene', () => {
     }
   });
 
-  it('keeps Deno on the same git storage ranges as the package manifest', async () => {
+  it('keeps Deno on the same schema and git storage ranges as the package manifest', async () => {
     const reader = new PackedArtifactBoundaryAdapter();
     const packageFile = reader.read(fileURLToPath(repoPath('package.json')), PACKAGE_FILE_SCHEMA);
     const denoImportMap = reader.read(
