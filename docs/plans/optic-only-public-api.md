@@ -47,7 +47,7 @@ representations; schema generation belongs at transport boundaries.
 | `Optic` | `Optic(observedWarpOrStrand)` returns an immutable query builder | An unscoped Warp cannot execute a question |
 | `Intent` | Existing validated builders or generated SDK constructors | Preserve actual intent/reducer semantics; no arbitrary callback execution |
 | `Observer` | Existing validated/generated query-plan constructors | This names a question plan, not a principal; requires stable identity and version |
-| `Observation` | Returned by a query's `read()` | One execution, one reading consumer, terminal receipt, cancellation |
+| `Observation` | Resolved by a query's asynchronous `read()` | One execution, one reading consumer, terminal receipt, cancellation |
 | `Reading` | Emitted only by an Observation | Validated value plus scoped evidence; never a whole-state object |
 | `Receipt` variants | Returned by writes, observations, forks, replay, and settlement; `CompletedObservationReceipt` carries a durable Coordinate | Describe the actual operation and its outcome; no caller-created success evidence |
 | `Coordinate` | Obtained from a retained receipt; `parse(text)` and `toString()` | Parsing validates syntax only; resolution and authority checks occur at use |
@@ -89,7 +89,7 @@ const warp = await Warp.open(
 );
 const view = warp.forObserver(reader);
 const written = await warp.as(writer).execute(editTodo);
-const observation = Optic(view)
+const observation = await Optic(view)
   .forPurpose(todoDisplay)
   .node('todo:one')
   .prop('title')
@@ -117,7 +117,7 @@ history or retention roots supporting previously returned durable Coordinates.
 On reopen, `Optic(view).replay(Coordinate.parse(saved))` verifies and returns the
 original operation receipt, or a typed refusal. `Optic(view).at(coordinate)`
 starts a new question at the retained observation's basis. A live Optic without
-`at` captures the replica's admitted basis on first execution demand. Building
+`at` captures the replica's admitted basis when `read()` starts execution. Building
 the query does not silently freeze a moving history.
 
 Reads never append writer patches. They may retain observation evidence through
@@ -142,11 +142,19 @@ observer's default. Neither method can silently widen access.
 | Entity inventory | `entities()` | Stream admitted occurrences at one fixed observation basis |
 | Generated structural observer | `witness(observer)` | Use the plan's declared cardinality, purpose, support requirements, and version |
 
-Every builder ends in `read()`, which returns a dormant `Observation`.
-Iteration or demanding its receipt starts exactly one execution. Receipt-only
-demand drains without accumulating values. A second independent consumer is a
-typed misuse, not a second query. Breaking iteration or explicit `cancel()`
-stops owned work and produces a cancelled terminal execution result.
+Every builder ends in `read(): Promise<Observation>`. Calling it starts one
+execution, checks authority, and establishes the observation basis before any
+Reading can be emitted. Expected refusals resolve to an Observation with a typed
+terminal result; they do not manufacture a successful basis or Coordinate.
+Iteration and receipt consumption share that execution. Receipt-only demand
+drains without accumulating values. A second independent consumer is a typed
+misuse, not a second query. Breaking iteration or explicit `cancel()` stops owned
+work and produces a cancelled terminal execution result.
+
+This deliberately changes v20's synchronous, dormant `Lane.observe` construction:
+awaiting the new `read()` initiates the bounded operation. Merely constructing an
+Optic remains pure. Slow consumers apply backpressure; the executor must not
+eagerly buffer the result while waiting for iteration to start.
 
 A missing node/property is not represented by a missing Reading: the exactly-one
 result carries absence only when its support is sufficient. A complete empty
