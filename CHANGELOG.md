@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Guard executable package exports and reachable declaration capabilities against
+  the accepted Optic boundary. Exact legacy allowances must shrink, with a
+  built-package witness and merge-base history check; existing public APIs remain
+  available until their replacements land
+  ([#1050](https://github.com/git-stunts/git-warp/issues/1050)).
 - Define the v21 observer-bound Optic implementation contract, including write
   premises, cancellation, page continuation, memo identity, durable Coordinate
   retention, and independently mergeable delivery responsibilities. This is a

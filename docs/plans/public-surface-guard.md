@@ -2,7 +2,8 @@
 
 Implementation plan for [#1050](https://github.com/git-stunts/git-warp/issues/1050).
 The [accepted Optic contract](./optic-only-public-api.md), sections 2 and 9,
-defines the capability boundary. This plan does not claim the guard is implemented.
+defines the capability boundary. The implementation and operating limits are
+documented in [Public capability guard](../operations/public-surface.md).
 
 ## Outcome
 
@@ -25,7 +26,8 @@ types: class instances and statics, inherited public members, callable and
 constructor parameters/results, unions/intersections, generic arguments,
 constraints, index values, and declared conditional/mapped type branches.
 Private/protected members and implementation bodies are not public reachability.
-Cycle detection and a named analysis bound prevent an unbounded graph walk;
+An iterative worklist and canonical generic declarations terminate recursive
+types while their concrete arguments remain traversed. Named analysis bounds prevent an unbounded graph walk;
 exceeding the bound is a failed analysis, never an empty successful result.
 
 Executable JavaScript targets must have the corresponding generated declaration
@@ -51,8 +53,8 @@ The Docker unit suite checks the current built package against that inventory.
 A separate CI comparison rejects allowance additions against the PR merge base,
 using the existing full-history static lane. Missing comparison history fails
 closed. Initial introduction is explicit: the baseline and guard must both be
-absent from the comparison base. Later disappearance of the baseline cannot
-reset the ratchet.
+absent throughout the comparison base's reachable history. Later disappearance
+of the baseline, including deletion of the guard with it, cannot reset the ratchet.
 
 The existing root vocabulary check remains in place. This slice does not remove
 legacy exports, implement the target Warp/Optic API, change package versions,
