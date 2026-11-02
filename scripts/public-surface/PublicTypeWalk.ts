@@ -5,7 +5,7 @@ import SurfaceFinding from './SurfaceFinding.ts';
 import SurfaceRefusal from './SurfaceRefusal.ts';
 import PublicTypeVisit from './PublicTypeVisit.ts';
 import CoordinateOperation from './CoordinateOperation.ts';
-import { declaredNames, declaredTypes, firstDeclaration, originalSymbol, publicMembers, publicSignature, runtimeExport, typeArguments, typeReference } from './CompilerPublicSymbols.ts';
+import { declaredNames, declaredTypes, firstDeclaration, originalSymbol, privateSignature, publicMembers, publicSignature, runtimeExport, typeArguments, typeReference } from './CompilerPublicSymbols.ts';
 
 const MAX_REACHABLE_TYPES = 50_000;
 const MAX_TYPE_VISITS = 100_000;
@@ -160,8 +160,10 @@ export default class PublicTypeWalk {
 
   private checkCoordinate(value: ts.Type, symbol: ts.Symbol): void {
     const declaration = firstDeclaration(symbol);
-    for (const signature of value.getConstructSignatures()) {
-      if (publicSignature(signature)) this.record('Coordinate', 'public-construction', declaration);
+    if (declaration === undefined) return;
+    const constructor = this.checker.getTypeOfSymbolAtLocation(symbol, declaration);
+    for (const signature of constructor.getConstructSignatures()) {
+      if (!privateSignature(signature)) this.record('Coordinate', 'public-construction', declaration);
     }
     this.coordinateMembers(value, symbol);
   }

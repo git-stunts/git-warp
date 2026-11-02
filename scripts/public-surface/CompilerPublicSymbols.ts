@@ -17,6 +17,13 @@ export function publicSignature(signature: ts.Signature): boolean {
   return declaration === undefined || publicDeclaration(declaration);
 }
 
+/** Protected construction is still available to consumer-defined subclasses. */
+export function privateSignature(signature: ts.Signature): boolean {
+  const declaration = signatureDeclaration(signature);
+  if (declaration === undefined || !ts.canHaveModifiers(declaration)) return false;
+  return ts.getModifiers(declaration)?.some((modifier) => modifier.kind === ts.SyntaxKind.PrivateKeyword) ?? false;
+}
+
 /** The compiler returns undefined for implicit constructors despite its declared return type. */
 function signatureDeclaration(signature: ts.Signature): ts.SignatureDeclaration | undefined {
   return signature.getDeclaration();

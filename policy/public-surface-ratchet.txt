@@ -632,6 +632,7 @@
 1054	.%2Fadvanced captureCoordinate captureCoordinate%3Adeclared%3Adeclared%3C2%3E uninspectable-type
 1054	.%2Fadvanced captureCoordinate captureCoordinate%3Adeclared%3Atype lane
 1054	.%2Fadvanced captureCoordinate captureCoordinate%3Atype capture-coordinate
+1054	.%2Fadvanced captureCoordinate Coordinate public-construction
 1054	.%2Fadvanced captureCoordinate Coordinate.instance.checkpointSha coordinate-member
 1054	.%2Fadvanced captureCoordinate Coordinate.instance.frontier coordinate-member
 1054	.%2Fadvanced captureCoordinate Coordinate.instance.frontierEntries coordinate-member

@@ -35,6 +35,9 @@ with hidden construction. Every overload must preserve that signature; data
 members, extra inputs, generic operations, explicit receivers and structured
 results are not exempt merely because they use an allowed name. The exception
 follows aliases and does not permit additional public members.
+Coordinate constructor signatures must be private, including when only an
+instance is reached through a receipt or a subclass. Protected construction is
+not hidden: a consumer-defined subclass can make it publicly callable.
 
 This is a static capability guard. It does not prove arbitrary JavaScript
 behavior or replace runtime and installed-consumer tests.
