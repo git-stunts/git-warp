@@ -9,8 +9,7 @@ import PropSet from '../../types/ops/PropSet.ts';
 import type { PatchOp } from '../../types/ops/unions.ts';
 import { EventId } from '../../utils/EventId.ts';
 import { decodeLegacyEdgePropNode, encodeEdgeKey, isLegacyEdgePropNode } from '../KeyCodec.ts';
-import type ConeConcurrency from './ConeConcurrency.ts';
-import ConeElementEffects, { type ConeElementEffect } from './ConeElementEffects.ts';
+import ConeElementEffects from './ConeElementEffects.ts';
 import type ConeEdgeRecord from './ConeEdgeRecord.ts';
 import type ConeNodeRecord from './ConeNodeRecord.ts';
 import ConeObservation from './ConeObservation.ts';
@@ -31,8 +30,8 @@ export default class ConeConcurrencyFold {
 
   private constructor(entry: PatchEntry, implicit: ReadonlyMap<string, number>) {
     this.#observation = ConeObservation.ofPatch(entry, implicit);
-    this.#nodes = new ConeElementEffects(this.#observation.causal);
-    this.#edges = new ConeElementEffects(this.#observation.causal);
+    this.#nodes = new ConeElementEffects(this.#observation);
+    this.#edges = new ConeElementEffects(this.#observation);
     entry.patch.ops.forEach((op, index) => {
       const event = new EventId(entry.patch.lamport, entry.patch.writer, entry.sha, index);
       if (!this.#collectNode(op, event)) {
@@ -48,20 +47,12 @@ export default class ConeConcurrencyFold {
 
   node(record: ConeNodeRecord): ConeNodeRecord {
     const effect = this.#nodes.of(record.nodeId);
-    return effect === null ? record : record.withConcurrency(this.#applied(record.concurrency, effect));
+    return effect === null ? record : record.withConcurrency(effect.appliedTo(record.concurrency, this.#observation));
   }
 
   edge(record: ConeEdgeRecord): ConeEdgeRecord {
     const effect = this.#edges.of(record.edgeKey);
-    return effect === null ? record : record.withConcurrency(this.#applied(record.concurrency, effect));
-  }
-
-  #applied(concurrency: ConeConcurrency, effect: ConeElementEffect): ConeConcurrency {
-    let next = concurrency;
-    for (const [key, write] of effect.writes) {
-      next = next.withRegisterWrite(key, write, this.#observation);
-    }
-    return effect.lifecycle === null ? next : next.withLifecycleEvent(effect.lifecycle, this.#observation);
+    return effect === null ? record : record.withConcurrency(effect.appliedTo(record.concurrency, this.#observation));
   }
 
   #collectNode(op: PatchOp, event: EventId): boolean {

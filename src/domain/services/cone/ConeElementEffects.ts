@@ -1,16 +1,13 @@
 import type EdgePropSet from '../../types/ops/EdgePropSet.ts';
 import type NodePropSet from '../../types/ops/NodePropSet.ts';
 import type PropSet from '../../types/ops/PropSet.ts';
+import ConeRecordError from '../../errors/ConeRecordError.ts';
 import { isPropValue } from '../../types/PropValue.ts';
 import type { EventId } from '../../utils/EventId.ts';
 import ConeConcurrentValue from './ConeConcurrentValue.ts';
+import ConeElementEffect from './ConeElementEffect.ts';
 import ConeLifecycleEvent, { type ConeLifecycleRole } from './ConeLifecycleEvent.ts';
-
-/** One patch's last effect on one element: its register writes by key and its lifecycle effect. */
-export type ConeElementEffect = {
-  readonly writes: Map<string, ConeConcurrentValue>;
-  lifecycle: ConeLifecycleEvent | null;
-};
+import ConeObservation from './ConeObservation.ts';
 
 /**
  * The effects one patch has on the elements of one family (nodes or edges),
@@ -18,11 +15,15 @@ export type ConeElementEffect = {
  * register and its last lifecycle effect (#1039).
  */
 export default class ConeElementEffects {
-  readonly #causal: boolean;
+  readonly #observation: ConeObservation;
   readonly #effects = new Map<string, ConeElementEffect>();
 
-  constructor(causal: boolean) {
-    this.#causal = causal;
+  constructor(observation: ConeObservation) {
+    if (!(observation instanceof ConeObservation)) {
+      throw new ConeRecordError('Cone element effects need a causal observation');
+    }
+    this.#observation = observation;
+    Object.freeze(this);
   }
 
   /** The element's effect, or null when the patch has none on it. */
@@ -31,7 +32,7 @@ export default class ConeElementEffects {
   }
 
   lifecycle(element: string, effect: { readonly event: EventId; readonly role: ConeLifecycleRole }): void {
-    this.#effect(element).lifecycle = new ConeLifecycleEvent({ ...effect, causal: this.#causal });
+    this.#effects.set(element, this.#effect(element, effect));
   }
 
   /** A remove; one that observed no dot removed nothing and is not recorded. */
@@ -44,19 +45,16 @@ export default class ConeElementEffects {
   /** A property write: the register's newest write in this patch, and an edit of the element. */
   write(element: string, effect: { readonly op: NodePropSet | EdgePropSet | PropSet; readonly event: EventId }): void {
     const { value, key } = effect.op;
-    if (isPropValue(value)) {
-      this.#effect(element).writes.set(key, new ConeConcurrentValue({ event: effect.event, value, causal: this.#causal }));
-    }
-    this.lifecycle(element, { event: effect.event, role: 'edit' });
+    const edited = this.#effect(element, { event: effect.event, role: 'edit' });
+    const next = isPropValue(value)
+      ? edited.withWrite(key, new ConeConcurrentValue({ event: effect.event, value, causal: this.#observation.causal }))
+      : edited;
+    this.#effects.set(element, next);
   }
 
-  #effect(element: string): ConeElementEffect {
+  #effect(element: string, effect: { readonly event: EventId; readonly role: ConeLifecycleRole }): ConeElementEffect {
+    const lifecycle = new ConeLifecycleEvent({ ...effect, causal: this.#observation.causal });
     const existing = this.#effects.get(element);
-    if (existing !== undefined) {
-      return existing;
-    }
-    const created: ConeElementEffect = { writes: new Map(), lifecycle: null };
-    this.#effects.set(element, created);
-    return created;
+    return existing === undefined ? new ConeElementEffect(lifecycle) : existing.withLifecycle(lifecycle);
   }
 }

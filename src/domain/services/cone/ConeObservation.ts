@@ -21,9 +21,9 @@ export default class ConeObservation {
   /** Whether the patch carried causal evidence of what it observed. */
   readonly causal: boolean;
 
-  private constructor(observed: ReadonlyMap<string, number>, causal: boolean) {
-    this.#observed = observed;
-    this.causal = causal;
+  private constructor(fields: { readonly observed: ReadonlyMap<string, number>; readonly causal: boolean }) {
+    this.#observed = fields.observed;
+    this.causal = fields.causal;
     Object.freeze(this);
   }
 
@@ -39,7 +39,7 @@ export default class ConeObservation {
     for (const head of observedFrontier?.heads ?? []) {
       ConeObservation.#merge(observed, head.writerId, head.lamport);
     }
-    return new ConeObservation(observed, observedFrontier !== undefined || implicit.size > 0);
+    return new ConeObservation({ observed, causal: observedFrontier !== undefined || implicit.size > 0 });
   }
 
   /** What a write recording `frontier` observes, written by `writer` at clock `lamport`. */
@@ -49,7 +49,7 @@ export default class ConeObservation {
     for (const head of frontier.heads) {
       ConeObservation.#merge(observed, head.writerId, head.lamport);
     }
-    return new ConeObservation(observed, true);
+    return new ConeObservation({ observed, causal: true });
   }
 
   /** Whether the patch observed `event`. */
