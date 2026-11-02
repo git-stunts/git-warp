@@ -165,11 +165,11 @@ misuse, not a second query. Breaking iteration invokes the same cancellation
 transition as `cancel()`; neither silently drains the remaining question.
 
 `ObservationReceipt` denotes the validated terminal receipt variants, including
-completed, cancelled, refused, and failed execution. `cancel()` is idempotent:
+completed, cancelled, refused, failed, and budget-exhausted execution. `cancel()` is idempotent:
 it requests cancellation immediately and resolves to the same terminal receipt
 as `receipt`, after owned work and streams have stopped. One serialized terminal
-transition wins. If completion, failure, or refusal already won, cancellation
-returns that unchanged receipt. Otherwise cancellation wins, prevents later
+transition wins. If any terminal variant already won, including budget exhaustion,
+cancellation returns that unchanged receipt. Otherwise cancellation wins, prevents later
 completion, and yields a cancelled receipt with honestly partial coverage.
 It cannot claim completed observation support or a completed Coordinate.
 
@@ -218,7 +218,8 @@ already-consumed refusal. It is a live handle, not a serializable Coordinate:
 closing its Warp ends the session, and later resume returns a typed closed
 session refusal. A new question at a retained Coordinate is a separate observation.
 Cancellation, denial, failure, or budget exhaustion yields an incomplete terminal
-result without continuation, even if some readings were delivered. Defaults and
+result without continuation, even if some readings were delivered. Each is a
+terminal winner preserved unchanged by later cancellation and receipt demand. Defaults and
 aggregate accounting are executable obligations, not unlimited optional hints.
 Charge logical work consistently for the represented question, including work
 represented by a reused memo. Actual I/O, memory pressure, and elapsed time belong
