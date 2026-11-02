@@ -93,6 +93,14 @@ describe('RetainedEntityAdmission', () => {
     expect(retained.compare(validRetainedAdmission())).toBe(0);
   });
 
+  it('refuses a structural impostor in place of a runtime entity intent', () => {
+    expectRetainedFailure(() => new RetainedEntityAdmission({
+      context: CONTEXT, dot: DOT, eventId: EVENT, origin: ORIGIN, subject: 'capture:1',
+      // @ts-expect-error Exercise a JavaScript caller bypassing the Intent constructor.
+      intent: { descriptor: { kind: 'entity.add', subject: 'capture:1', properties: {} } },
+    }));
+  });
+
   it('freezes an isolated causal-context snapshot', () => {
     const source = VersionVector.empty();
     source.set('observed', 1);
