@@ -56,42 +56,51 @@ function decodeSets(wire: unknown): ConeConcurrencySets {
   const fields = requireRecord(wire);
   const registers = new Map(requireArray(fields['r']).map((entry) => {
     const [key, set] = requireTuple(entry, 2);
-    return [requireString(key), decodeSet(set, (payload) => requireValue(payload), valueMember)];
+    return [requireString(key), decodeSet(set, valueMember, valueEviction)];
   }));
-  return { registers, lifecycle: decodeSet(fields['l'], requireRole, lifecycleMember) };
+  return { registers, lifecycle: decodeSet(fields['l'], lifecycleMember, lifecycleMember) };
 }
 
-function valueMember(event: EventId, causal: boolean, value: ConeConcurrentValue['value']): ConeConcurrentValue {
-  return new ConeConcurrentValue({ event, value, causal });
+function valueMember(event: EventId, causal: boolean, value: unknown): ConeConcurrentValue {
+  return new ConeConcurrentValue({ event, value: requireValue(value), causal });
 }
 
-function lifecycleMember(event: EventId, causal: boolean, role: ConeLifecycleEvent['role']): ConeLifecycleEvent {
-  return new ConeLifecycleEvent({ event, role, causal });
+function lifecycleMember(event: EventId, causal: boolean, role: unknown): ConeLifecycleEvent {
+  return new ConeLifecycleEvent({ event, role: requireRole(role), causal });
 }
 
-function decodeSet<T extends ConeConcurrentMember, P>(
+function valueEviction(event: EventId, causal: boolean, role: unknown): ConeEvictedValue {
+  if (role !== null) {
+    throw corrupt();
+  }
+  return new ConeEvictedValue({ event, causal });
+}
+
+function decodeSet<T extends ConeConcurrentMember>(
   wire: unknown,
-  payload: (raw: unknown) => P,
-  member: (event: EventId, causal: boolean, payload: P) => T,
+  member: (event: EventId, causal: boolean, payload: unknown) => T,
+  eviction: (event: EventId, causal: boolean, role: unknown) => ConeEvictedMember,
 ): ConeConcurrentSet<T> {
   const fields = requireRecord(wire);
   return new ConeConcurrentSet<T>({
     members: requireArray(fields['m']).map((entry) => {
       const [event, causal, raw] = requireTuple(entry, 3);
-      return member(decodeEvent(event), requireBoolean(causal), payload(raw));
+      return member(decodeEvent(event), requireBoolean(causal), raw);
     }),
     observed: decodeClocks(fields['o']),
-    evicted: decodeEvictions(fields['x']),
+    evicted: decodeEvictions(fields['x'], eviction),
   });
 }
 
-function decodeEvictions(wire: unknown): Map<string, ConeEvictedMember> {
+function decodeEvictions(
+  wire: unknown,
+  eviction: (event: EventId, causal: boolean, role: unknown) => ConeEvictedMember,
+): Map<string, ConeEvictedMember> {
   return new Map(requireArray(wire).map((entry) => {
     const [rawEvent, rawCausal, role] = requireTuple(entry, 3);
     const event = decodeEvent(rawEvent);
     const causal = requireBoolean(rawCausal);
-    const evidence = role === null ? new ConeEvictedValue({ event, causal })
-      : new ConeLifecycleEvent({ event, causal, role: requireRole(role) });
+    const evidence = eviction(event, causal, role);
     return [event.writerId, evidence];
   }));
 }

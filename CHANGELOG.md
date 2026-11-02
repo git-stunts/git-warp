@@ -112,6 +112,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Refuse register/lifecycle member-family mismatches at cone ownership and
+  write boundaries, including evicted evidence and deferred record loads.
+  Stored eviction evidence from the wrong family is reported as corrupt
+  ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
+
 - Preserve evicted cone events' identity, causal qualification, and lifecycle
   role. Reads and writes now report evicted removes and uncertain register
   races; stored overflow retains that evidence without retaining discarded

@@ -1,8 +1,9 @@
 import ConeRecordError from '../../errors/ConeRecordError.ts';
 import { compareStrings } from '../../utils/StringComparison.ts';
-import type ConeConcurrentValue from './ConeConcurrentValue.ts';
+import ConeConcurrentValue from './ConeConcurrentValue.ts';
 import ConeConcurrentSet from './ConeConcurrentSet.ts';
-import type ConeLifecycleEvent from './ConeLifecycleEvent.ts';
+import ConeEvictedValue from './ConeEvictedValue.ts';
+import ConeLifecycleEvent from './ConeLifecycleEvent.ts';
 import type ConeObservation from './ConeObservation.ts';
 import { requireIdentity } from './ConeRecordValidation.ts';
 
@@ -77,6 +78,9 @@ export default class ConeConcurrency {
 
   /** This concurrency after folding one register write observed as `observation`. */
   withRegisterWrite(key: string, write: ConeConcurrentValue, observation: ConeObservation): ConeConcurrency {
+    if (!(write instanceof ConeConcurrentValue)) {
+      throw new ConeRecordError('Cone register writes must be concurrent values');
+    }
     const registers = new Map(this.#loaded().registers);
     registers.set(key, this.register(key).with(write, observation));
     return new ConeConcurrency({ registers, lifecycle: this.lifecycle });
@@ -84,6 +88,9 @@ export default class ConeConcurrency {
 
   /** This concurrency after folding one lifecycle effect observed as `observation`. */
   withLifecycleEvent(event: ConeLifecycleEvent, observation: ConeObservation): ConeConcurrency {
+    if (!(event instanceof ConeLifecycleEvent)) {
+      throw new ConeRecordError('Cone lifecycle writes must be lifecycle events');
+    }
     return new ConeConcurrency({ registers: this.#loaded().registers, lifecycle: this.lifecycle.with(event, observation) });
   }
 
@@ -116,23 +123,39 @@ function hintOf(sets: ConeConcurrencySets): ConeConcurrencyHint {
 }
 
 function requireSets(fields: ConeConcurrencySets): ConeConcurrencySets {
-  if (!(fields.lifecycle instanceof ConeConcurrentSet)) {
+  requireLifecycleSet(fields.lifecycle);
+  return Object.freeze({ registers: requireRegisterSets(fields.registers), lifecycle: fields.lifecycle });
+}
+
+function requireLifecycleSet(set: ConeConcurrentSet<ConeLifecycleEvent>): void {
+  if (!(set instanceof ConeConcurrentSet)) {
     throw new ConeRecordError('Cone concurrency lifecycle must be a concurrent set');
   }
-  return Object.freeze({ registers: requireRegisterSets(fields.registers), lifecycle: fields.lifecycle });
+  if (!set.members.every((member) => member instanceof ConeLifecycleEvent)
+    || ![...set.evicted.values()].every((member) => member instanceof ConeLifecycleEvent)) {
+    throw new ConeRecordError('Cone lifecycle sets must contain only lifecycle events');
+  }
 }
 
 function requireRegisterSets(
   registers: ReadonlyMap<string, ConeConcurrentSet<ConeConcurrentValue>>,
 ): ReadonlyMap<string, ConeConcurrentSet<ConeConcurrentValue>> {
-  if (!(registers instanceof Map)) {
-    throw new ConeRecordError('Cone concurrency registers must be a Map');
-  }
+  requireRegisterMap(registers);
   for (const [key, set] of registers) {
     requireIdentity(key, 'register key');
     if (!(set instanceof ConeConcurrentSet)) {
       throw new ConeRecordError('Cone concurrency registers must hold concurrent sets', { context: { key } });
     }
+    if (!set.members.every((member) => member instanceof ConeConcurrentValue)
+      || ![...set.evicted.values()].every((member) => member instanceof ConeEvictedValue)) {
+      throw new ConeRecordError('Cone register sets must contain only concurrent values and evicted values', { context: { key } });
+    }
   }
   return new Map([...registers].sort(([left], [right]) => compareStrings(left, right)));
+}
+
+function requireRegisterMap(registers: ReadonlyMap<string, ConeConcurrentSet<ConeConcurrentValue>>): void {
+  if (!(registers instanceof Map)) {
+    throw new ConeRecordError('Cone concurrency registers must be a Map');
+  }
 }
