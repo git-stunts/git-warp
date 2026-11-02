@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Define the v21 observer-bound Optic implementation contract, including write
+  premises, cancellation, page continuation, memo identity, durable Coordinate
+  retention, and independently mergeable delivery responsibilities. This is a
+  design record; the target API and its acceptance witnesses remain unimplemented
+  ([#1049](https://github.com/git-stunts/git-warp/issues/1049)).
 - Repair duplicate dots explicitly. `previewDotRepair()` lists each collision
   the v21 migration recorded, which members are visible, and what each policy
   would do, including that a remove an offline replica already holds stops
