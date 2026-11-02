@@ -70,7 +70,9 @@ so growth hidden in an earlier branch commit still fails. Removed rows are
 permitted; changed removal owners are additions. Missing/shallow/ambiguous
 history refuses the check. The first introduction is allowed only when neither
 guard nor baseline exists anywhere in the comparison base's history. Deleting
-them cannot reset this condition.
+them cannot reset this condition. The bootstrap check uses `git log --full-history`
+so a merge that retains an unguarded parent's tree cannot hide the other parent's
+earlier guard.
 
 The existing root declaration vocabulary gate remains independent. This guard
 does not change package versions, remove public APIs or certify the planned

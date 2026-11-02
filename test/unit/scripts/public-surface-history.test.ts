@@ -82,4 +82,20 @@ describe('public surface history gate', () => {
     item.write(PUBLIC_SURFACE_RATCHET_PATH, '1054\tnew\n');
     expect(new SurfaceRatchetHistory(item.root).check('main')).toBeInstanceOf(SurfaceRefusal);
   });
+
+  it('refuses a reset when a merge deletes the guard relative to only one parent', () => {
+    const item = fixture(null);
+    git(item, 'commit', '--allow-empty', '-m', 'unrelated unguarded branch');
+    git(item, 'switch', 'main');
+    item.write(PUBLIC_SURFACE_RATCHET_PATH, '1054\tlegacy\n');
+    item.write('scripts/public-surface/guard.ts', 'export {};');
+    git(item, 'add', '--', PUBLIC_SURFACE_RATCHET_PATH, 'scripts/public-surface/guard.ts');
+    git(item, 'commit', '-m', 'introduce guard');
+    git(item, 'merge', '--no-commit', '--no-ff', 'candidate');
+    git(item, 'rm', '-r', '--', PUBLIC_SURFACE_RATCHET_PATH, 'scripts/public-surface');
+    git(item, 'commit', '-m', 'merge without guard');
+    git(item, 'switch', '-c', 'later');
+    item.write(PUBLIC_SURFACE_RATCHET_PATH, '1054\tnew\n');
+    expect(new SurfaceRatchetHistory(item.root).check('main')).toBeInstanceOf(SurfaceRefusal);
+  });
 });

@@ -54,7 +54,7 @@ export default class SurfaceRatchetHistory {
   }
 
   private initialIntroduction(commit: string): SurfaceRefusal | null {
-    const history = this.git('log', '-1', '--format=%H', commit, '--', PUBLIC_SURFACE_RATCHET_PATH, GUARD_DIRECTORY);
+    const history = this.git('log', '--full-history', '-1', '--format=%H', commit, '--', PUBLIC_SURFACE_RATCHET_PATH, GUARD_DIRECTORY);
     if (history instanceof SurfaceRefusal) return history;
     return history.trim() === '' ? null : new SurfaceRefusal('An earlier guard or inventory prevents ratchet reset');
   }

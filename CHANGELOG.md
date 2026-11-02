@@ -61,6 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   signatures, including aliases; an allowed method name cannot expose parts.
   Constructor checks also reject protected construction through inheritance,
   type-only exports and receipt-returned instances.
+  Bootstrap history includes every merge parent so a deletion merge cannot
+  reset the shrinking inventory.
 - Define the v21 observer-bound Optic implementation contract, including write
   premises, cancellation, page continuation, memo identity, durable Coordinate
   retention, and independently mergeable delivery responsibilities. This is a
