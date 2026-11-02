@@ -70,7 +70,7 @@ function frontierSchema(maxWriters: number): z.ZodType<Record<string, string>> {
     z.string(),
   ).refine(
     (obj) => Object.keys(obj).length <= maxWriters,
-    (obj) => ({ message: `Frontier exceeds max writers: ${Object.keys(obj).length} > ${maxWriters}` }),
+    { error: (issue) => `Frontier exceeds max writers: ${Object.keys(issue.input ?? {}).length} > ${maxWriters}` },
   );
 }
 

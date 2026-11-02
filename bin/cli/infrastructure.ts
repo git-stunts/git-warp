@@ -4,7 +4,7 @@ import {
   parseArgs as nodeParseArgs,
   type ParseArgsConfig,
 } from 'node:util';
-import type { ZodType, ZodTypeDef } from 'zod';
+import type { ZodType } from 'zod';
 
 import { V19_CAPABILITY_CONTRACT } from './capabilities/V19CapabilityContract.generated.ts';
 import type { CliOptions } from './types.ts';
@@ -231,7 +231,7 @@ export function parseCommandArgs<T>(
       readonly multiple?: boolean;
     }
   >,
-  schema: ZodType<T, ZodTypeDef, unknown>,
+  schema: ZodType<T>,
   {
     allowPositionals = false,
   }: { readonly allowPositionals?: boolean } = {},
