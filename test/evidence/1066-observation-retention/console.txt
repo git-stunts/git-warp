@@ -1,0 +1,17 @@
+v22.23.3
+10.9.9
+
+ RUN  v4.1.12 /app/project
+
+ ✓ test/integration/infrastructure/adapters/ObservationRetentionCapabilities.integration.test.ts (6 tests) 1012ms
+     ✓ retains 129 history heads and original evidence through CAS publications, restart and GC  447ms
+     ✓ retains 129 history heads and original evidence through CAS publications, restart and GC  419ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  10:37:25
+   Duration  1.19s (transform 61ms, setup 130ms, import 6ms, tests 1.01s, environment 0ms)
+
+
+> @git-stunts/git-warp@20.0.0 typecheck:test
+> tsc --noEmit -p tsconfig.test.json
