@@ -103,6 +103,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Compare historical release verification receipts independently of per-run
+  elapsed measurements in the regression suite, while retaining raw timing
+  evidence and rejecting changes to identity or verification outcomes
+  ([#1020](https://github.com/git-stunts/git-warp/issues/1020)).
+
 - Build the COPY-based test runner's context from existing indexed paths and
   their working-tree bytes, excluding untracked and locally ignored files.
   Failed Git inventories and symlinked parent directories stop the run before

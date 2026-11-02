@@ -56,6 +56,19 @@ assert_failed() {
   }
 }
 
+assert_same_release_identity() {
+  local receipt
+  for receipt in "$1" "$2"; do
+    jq -e '(.visibility.registries | length)==2 and
+      all(.visibility.registries[];
+        (.elapsedSeconds | type)=="number" and .elapsedSeconds>=0 and
+        (.elapsedSeconds | floor)==.elapsedSeconds)' "$receipt" >/dev/null || return 1
+  done
+  jq -S 'del(.visibility.registries[].elapsedSeconds)' "$1" > "$CLOSURE_FIXTURE_DIR/identity-left.json" || return 1
+  jq -S 'del(.visibility.registries[].elapsedSeconds)' "$2" > "$CLOSURE_FIXTURE_DIR/identity-right.json" || return 1
+  cmp "$CLOSURE_FIXTURE_DIR/identity-left.json" "$CLOSURE_FIXTURE_DIR/identity-right.json"
+}
+
 @test "release closure proves public identity and an independent consumer" {
   verify_release --require-dist-tag
   [ "$status" -eq 0 ]
@@ -254,7 +267,35 @@ assert_failed() {
   cp "$RECEIPT" "$CLOSURE_FIXTURE_DIR/first.json"
   verify_release
   [ "$status" -eq 0 ]
-  cmp "$RECEIPT" "$CLOSURE_FIXTURE_DIR/first.json"
+  assert_same_release_identity "$RECEIPT" "$CLOSURE_FIXTURE_DIR/first.json"
+}
+
+@test "historical receipt comparison ignores only valid elapsed measurements" {
+  verify_release
+  [ "$status" -eq 0 ]
+  local changed="$CLOSURE_FIXTURE_DIR/changed.json"
+  jq '.visibility.registries |= map(.elapsedSeconds += 7)' "$RECEIPT" > "$changed"
+  run assert_same_release_identity "$RECEIPT" "$changed"
+  [ "$status" -eq 0 ]
+
+  local mutation
+  for mutation in \
+    '.sourceCommit = "different"' \
+    '.npm.integrity = "different"' \
+    '.distTag.observedVersion = "different"' \
+    '.consumer.rootImport = "failed"' \
+    '.visibility.registries[0].attempts += 1' \
+    '.visibility.registries[0].elapsedSeconds = -1' \
+    '.visibility.registries[0].elapsedSeconds = 1.5' \
+    '.visibility.registries[0].elapsedSeconds = "invalid"' \
+    'del(.visibility.registries[0].elapsedSeconds)'; do
+    jq "$mutation" "$RECEIPT" > "$changed"
+    run assert_same_release_identity "$RECEIPT" "$changed"
+    [ "$status" -ne 0 ] || {
+      echo "assertion: receipt comparison admitted $mutation" >&2
+      return 1
+    }
+  done
 }
 
 @test "direct consumer refuses forged Docker and CI flags before package operations" {
