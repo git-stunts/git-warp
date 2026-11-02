@@ -1,6 +1,7 @@
 # Optic-only public API contract
 
-Status: **Proposed implementation contract; not a shipped API.**
+Status: **Implementation contract, effective on integration of
+[#1059](https://github.com/git-stunts/git-warp/pull/1059); not a shipped API.**
 
 Tracks [#1049](https://github.com/git-stunts/git-warp/issues/1049), under
 [#1048](https://github.com/git-stunts/git-warp/issues/1048) for v21.0.0.
@@ -448,10 +449,13 @@ Acceptance evidence must cover:
 1. Public-entrypoint read-own-writes and complete empty reads without repair.
 2. Whole-state traps on every public read/write path, with a positive trap control.
 3. Observer/purpose denial before evaluation; no cross-observer memo disclosure.
-4. One observation execution, bounded streaming, cancellation, and honest limits.
+4. One observation execution; cancel/receipt/close races; page continuation at a
+   fixed basis with aggregate limits, single consumption, and honest completeness.
 5. Stable receipt bytes across cold/warm paths under identical bindings.
-6. Coordinate round trip, restart/GC replay, denial after revocation, and missing
-   evidence refusal; no historical write or external effect is redelivered.
+6. Coordinate round trip, restart/GC replay, denial after revocation, retention
+   capacity refusal preserving old tokens, and missing evidence refusal; no
+   historical write or external effect is redelivered. Write tests advance the
+   target between premise capture and publication and require stale refusal.
 7. Re-asking inherits basis, observer, and purpose; changing historical identity
    or purpose requires checked strict coarsening. A separately authorized live
    observation cannot claim to reuse that standpoint.
