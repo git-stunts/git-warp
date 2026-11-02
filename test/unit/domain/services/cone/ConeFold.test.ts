@@ -7,6 +7,7 @@ import ConeFold from '../../../../../src/domain/services/cone/ConeFold.ts';
 import ConeFolded from '../../../../../src/domain/services/cone/ConeFolded.ts';
 import ConeFoldSession from '../../../../../src/domain/services/cone/ConeFoldSession.ts';
 import ConeNodeRecord from '../../../../../src/domain/services/cone/ConeNodeRecord.ts';
+import type ConeObstruction from '../../../../../src/domain/services/cone/ConeObstruction.ts';
 import ConeReader from '../../../../../src/domain/services/cone/ConeReader.ts';
 import ConeRecordKey from '../../../../../src/domain/services/cone/ConeRecordKey.ts';
 import ConeRoot from '../../../../../src/domain/services/cone/ConeRoot.ts';
@@ -29,9 +30,9 @@ function entry(writer: string, lamport: number, ops: PatchOp[]): PatchEntry {
   return new PatchEntry({ patch: new Patch({ writer, lamport, context: {}, ops }), sha: shas.toString(16).padStart(40, '0') });
 }
 
-async function foldAll(store: InMemoryConeRecordStore, entries: PatchEntry[], root = ConeRoot.empty()): Promise<{ root: ConeRoot; outcomes: Array<ConeFolded | ConeSharedDotObstruction> }> {
+async function foldAll(store: InMemoryConeRecordStore, entries: PatchEntry[], root = ConeRoot.empty()): Promise<{ root: ConeRoot; outcomes: Array<ConeFolded | ConeObstruction> }> {
   const session = new ConeFoldSession({ store, root });
-  const outcomes: Array<ConeFolded | ConeSharedDotObstruction> = [];
+  const outcomes: Array<ConeFolded | ConeObstruction> = [];
   for (const patchEntry of entries) {
     outcomes.push(await ConeFold.fold(session, patchEntry));
   }
@@ -55,7 +56,8 @@ describe('ConeFold', () => {
       new BlobValue('a', 'f'.repeat(40)),
       new EdgeRemove({ from: 'a', to: 'b', label: 'l', observedDots: [] }),
     ])]);
-    expect(outcomes[0]).toEqual(new ConeFolded(outcomes[0]?.patchSha ?? '', 0));
+    expect(outcomes[0]).toBeInstanceOf(ConeFolded);
+    expect(outcomes[0]).toMatchObject({ changedRecords: 0 });
     expect(root.isEmpty()).toBe(true);
   });
 

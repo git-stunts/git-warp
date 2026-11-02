@@ -33,8 +33,9 @@ type SetFields<T extends ConeConcurrentMember> = {
  * keeps each event's identity and causal evidence, and its lifecycle role
  * when applicable. Observing an evicted event retires it; readers can report
  * conflict evidence without retaining discarded property payloads.
- * Partial retirement does not yet promote evicted values back into the
- * member cache; arrival-order convergence remains a blocker in #1062.
+ * Partial retirement can leave the member cache underfilled. Before staging,
+ * ConeConcurrencyRecovery restores the newest maximal members from this
+ * evidence and directly addressed source patches, or returns an obstruction.
  */
 export default class ConeConcurrentSet<T extends ConeConcurrentMember> {
   /** Maximal events, newest first. */

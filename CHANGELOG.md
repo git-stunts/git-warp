@@ -112,6 +112,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Restore the private cone engine's bounded concurrent payloads after partial
+  retirement, making node and edge record bytes converge across arrival orders
+  and persisted reloads. Recovery validates exact source events with at most
+  sixteen direct patch reads per affected register; missing or inconsistent
+  evidence prevents basis publication. Lifecycle roles recover without I/O
+  ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
+
 - Refuse register/lifecycle member-family mismatches at cone ownership and
   write boundaries, including evicted evidence and deferred record loads.
   Stored eviction evidence from the wrong family is reported as corrupt
@@ -120,8 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserve evicted cone events' identity, causal qualification, and lifecycle
   role. Reads and writes now report evicted removes and uncertain register
   races; stored overflow retains that evidence without retaining discarded
-  property payloads. This private-engine repair does not resolve payload-cache
-  convergence after partial retirement
+  property payloads
   ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
 
 - Protect retained cone clocks, membership, property registers, dot claims,

@@ -27,6 +27,11 @@ export default class ConeElementEffect {
     return new ConeElementEffect(this.lifecycle, new Map([...this.#writes, [key, value]]));
   }
 
+  /** This patch's last admitted write to one register, for source identity validation. */
+  value(key: string): ConeConcurrentValue | null {
+    return this.#writes.get(key) ?? null;
+  }
+
   /** Applies the completed effect under its patch's causal observation. */
   appliedTo(concurrency: ConeConcurrency, observation: ConeObservation): ConeConcurrency {
     let next = concurrency;

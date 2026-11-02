@@ -11,7 +11,8 @@ import { EventId } from '../../utils/EventId.ts';
 import { decodeLegacyEdgePropNode, encodeEdgeKey, isLegacyEdgePropNode } from '../KeyCodec.ts';
 import ConeElementEffects from './ConeElementEffects.ts';
 import type ConeEdgeRecord from './ConeEdgeRecord.ts';
-import type ConeNodeRecord from './ConeNodeRecord.ts';
+import ConeNodeRecord from './ConeNodeRecord.ts';
+import type ConeConcurrentValue from './ConeConcurrentValue.ts';
 import ConeObservation from './ConeObservation.ts';
 
 /**
@@ -53,6 +54,12 @@ export default class ConeConcurrencyFold {
   edge(record: ConeEdgeRecord): ConeEdgeRecord {
     const effect = this.#edges.of(record.edgeKey);
     return effect === null ? record : record.withConcurrency(effect.appliedTo(record.concurrency, this.#observation));
+  }
+
+  /** The source patch's last admitted value for this exact owner and property key. */
+  value(record: ConeNodeRecord | ConeEdgeRecord, key: string): ConeConcurrentValue | null {
+    const effect = record instanceof ConeNodeRecord ? this.#nodes.of(record.nodeId) : this.#edges.of(record.edgeKey);
+    return effect?.value(key) ?? null;
   }
 
   #collectNode(op: PatchOp, event: EventId): boolean {

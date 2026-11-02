@@ -14,7 +14,6 @@ import ConeIngestCurrent from './ConeIngestCurrent.ts';
 import ConeIngestObstructed from './ConeIngestObstructed.ts';
 import type ConeIngestOutcome from './ConeIngestOutcome.ts';
 import ConeObstruction from './ConeObstruction.ts';
-import ConeSharedDotObstruction from './ConeSharedDotObstruction.ts';
 import ConeWriterDivergedObstruction from './ConeWriterDivergedObstruction.ts';
 import ConeWriterPosition from './ConeWriterPosition.ts';
 import type StoredConeBasis from './StoredConeBasis.ts';
@@ -31,8 +30,9 @@ type Progress = { readonly frontier: ConeFrontier; readonly folded: number };
  *
  * For each writer whose tip differs from the folded frontier, the feed lists
  * the new range once and decodes each patch once; patches fold in writer
- * chain order, writers in id order (any interleaving is equivalent because
- * every per-element join is commutative and idempotent). The new root and
+ * chain order, writers in id order. Bounded register caches recover selected
+ * evicted values by direct patch reads when partial retirement frees slots;
+ * this does not replay writer history. The new root and
  * frontier publish with compare-and-swap; a lost race re-reads the head and
  * retries. Nothing is published when any patch is obstructed.
  */
@@ -90,7 +90,7 @@ export default class ConeIngest {
     if (folded !== parentSha) {
       return await this.advance();
     }
-    const session = new ConeFoldSession({ store: this.#store, root: basis.root, from: basis.frontier });
+    const session = this.#session(basis);
     const result = await this.#foldEntries(session, { frontier: basis.frontier, folded: 0 }, [entry]);
     if (result instanceof ConeObstruction) {
       return new ConeIngestObstructed(result);
@@ -119,7 +119,7 @@ export default class ConeIngest {
     if (behind.length === 0) {
       return new ConeIngestCurrent(stored, basis);
     }
-    const session = new ConeFoldSession({ store: this.#store, root: basis.root, from: basis.frontier });
+    const session = this.#session(basis);
     let progress: Progress = { frontier: basis.frontier, folded: 0 };
     for (const [writerId, tipSha] of behind) {
       const next = await this.#foldWriter(session, progress, { writerId, tipSha });
@@ -152,13 +152,18 @@ export default class ConeIngest {
     let progress = start;
     for (const entry of entries) {
       const result = await ConeFold.fold(session, entry);
-      if (result instanceof ConeSharedDotObstruction) {
+      if (result instanceof ConeObstruction) {
         return result;
       }
       const position = new ConeWriterPosition(entry.sha, entry.patch.lamport);
       progress = { frontier: progress.frontier.advanced(entry.patch.writer, position), folded: progress.folded + 1 };
     }
     return progress;
+  }
+
+  #session(basis: ConeBasis): ConeFoldSession {
+    return new ConeFoldSession({ store: this.#store, root: basis.root, from: basis.frontier,
+      source: { feed: this.#feed, lane: this.#scope.head.lane } });
   }
 
   async #publish(run: {

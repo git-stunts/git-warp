@@ -3,13 +3,15 @@ import type GraphNode from '../../domain/entities/GraphNode.ts';
 import SyncError from '../../domain/errors/SyncError.ts';
 import ConeWriterDivergedObstruction from '../../domain/services/cone/ConeWriterDivergedObstruction.ts';
 import ConeWriterPatches from '../../domain/services/cone/ConeWriterPatches.ts';
+import ConeRecoveryObstruction from '../../domain/services/cone/ConeRecoveryObstruction.ts';
+import type { EventId } from '../../domain/utils/EventId.ts';
 import GitLogParser from '../../domain/services/GitLogParser.ts';
 import type WarpStream from '../../domain/stream/WarpStream.ts';
 import type Patch from '../../domain/types/Patch.ts';
 import { buildWritersPrefix, parseWriterIdFromRef } from '../../domain/utils/RefLayout.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
 import type { PatchCommitMessage } from '../../ports/CommitMessageCodecPort.ts';
-import type { CommitLogChunk, LogNodesOptions } from '../../ports/CommitPort.ts';
+import type { CommitLogChunk, LogNodesOptions, NodeInfo } from '../../ports/CommitPort.ts';
 import ConePatchFeedPort from '../../ports/ConePatchFeedPort.ts';
 
 /** Log format matching GitLogParser's record contract: sha, author, date, parents, message. */
@@ -17,6 +19,7 @@ const CHAIN_LOG_FORMAT = '%H%n%an <%ae>%n%aI%n%P%n%B';
 
 /** The history surface the feed reads: every writer tip in one listing and one bulk log per range. */
 export type ConeFeedHistory = {
+  getNodeInfo(sha: string): Promise<NodeInfo>;
   readRefTargets(prefix: string): Promise<ReadonlyMap<string, string>>;
   logNodesStream(options: LogNodesOptions): Promise<WarpStream<CommitLogChunk>>;
 };
@@ -36,7 +39,8 @@ type PendingPatch = { readonly sha: string; readonly message: PatchCommitMessage
  * for all of its commit metadata, then one payload read per patch; history
  * at or below `fromSha` is neither listed nor decoded. When `toSha` does not
  * descend from `fromSha` the walk reaches the chain root instead, which is
- * reported as a divergence.
+ * reported as a divergence. Recovery reads one identified commit and its
+ * payload, validating lane and event identity without walking ancestors.
  */
 export default class GitConePatchFeedAdapter extends ConePatchFeedPort {
   readonly #history: ConeFeedHistory;
@@ -63,6 +67,31 @@ export default class GitConePatchFeedAdapter extends ConePatchFeedPort {
       }
     }
     return tips;
+  }
+
+  override async patchAt(lane: string, event: EventId): Promise<PatchEntry | ConeRecoveryObstruction> {
+    try {
+      const message = await this.#messageAt(lane, event);
+      if (message instanceof ConeRecoveryObstruction) {
+        return message;
+      }
+      const patch = await this.#journal.readPatch(message);
+      if (patch.writer !== event.writerId || patch.lamport !== event.lamport) {
+        return new ConeRecoveryObstruction(event, 'inconsistent');
+      }
+      return new PatchEntry({ patch, sha: event.patchSha });
+    } catch {
+      return new ConeRecoveryObstruction(event, 'unavailable');
+    }
+  }
+
+  async #messageAt(lane: string, event: EventId): Promise<PatchCommitMessage | ConeRecoveryObstruction> {
+    const node = await this.#history.getNodeInfo(event.patchSha);
+    if (!matchesNode(node, event, this.#messages)) {
+      return new ConeRecoveryObstruction(event, 'inconsistent');
+    }
+    const message = this.#messages.decodePatch(node.message);
+    return matchesMessage(message, lane, event) ? message : new ConeRecoveryObstruction(event, 'inconsistent');
   }
 
   override async patchesAfter(
@@ -135,6 +164,14 @@ export default class GitConePatchFeedAdapter extends ConePatchFeedPort {
     }
     return patch;
   }
+}
+
+function matchesNode(node: NodeInfo, event: EventId, messages: CommitMessageCodecPort): boolean {
+  return node.sha === event.patchSha && node.parents.length <= 1 && messages.detectKind(node.message) === 'patch';
+}
+
+function matchesMessage(message: PatchCommitMessage, lane: string, event: EventId): boolean {
+  return message.graph === lane && message.writer === event.writerId && message.lamport === event.lamport;
 }
 
 function historyError(message: string, context: { readonly writerId: string }): SyncError {

@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import ConeWriterDivergedObstruction from '../../../../src/domain/services/cone/ConeWriterDivergedObstruction.ts';
 import ConeWriterPatches from '../../../../src/domain/services/cone/ConeWriterPatches.ts';
+import PatchEntry from '../../../../src/domain/artifacts/PatchEntry.ts';
+import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import Patch from '../../../../src/domain/types/Patch.ts';
 import { CborPatchJournalAdapter } from '../../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
@@ -108,5 +110,59 @@ describe('GitConePatchFeedAdapter', () => {
     };
     const feed = new GitConePatchFeedAdapter({ history, journal: lying, commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC });
     await expect(feed.patchesAfter(LANE, 'w1', { fromSha: null, toSha: first })).rejects.toMatchObject({ code: 'E_SYNC_PATCH_HISTORY' });
+  });
+});
+
+describe('GitConePatchFeedAdapter direct recovery', () => {
+  it('reads exactly one commit and payload without walking ancestors', async () => {
+    const { history, journal, feed, append } = fixture();
+    const first = await append('w1', 1, null);
+    const second = await append('w1', 2, first);
+    const nodes = vi.spyOn(history, 'getNodeInfo');
+    const reads = vi.spyOn(journal, 'readPatch');
+    const logs = vi.spyOn(history, 'logNodesStream');
+    const result = await feed.patchAt(LANE, new EventId(2, 'w1', second, 0));
+    expect(result).toBeInstanceOf(PatchEntry);
+    expect(result).toMatchObject({ sha: second, patch: { writer: 'w1', lamport: 2 } });
+    expect(nodes.mock.calls).toEqual([[second]]);
+    expect(reads).toHaveBeenCalledTimes(1);
+    expect(logs).not.toHaveBeenCalled();
+  });
+
+  it.each([{ sha: 'f'.repeat(40) }, { parents: ['a'.repeat(40), 'b'.repeat(40)] }, { message: 'plain commit' }])('refuses inconsistent commit %s before reading its payload', async (change) => {
+    const { history, journal, feed, append } = fixture();
+    const first = await append('w1', 1, null);
+    const node = await history.getNodeInfo(first);
+    vi.spyOn(history, 'getNodeInfo').mockResolvedValueOnce({ ...node, ...change });
+    const reads = vi.spyOn(journal, 'readPatch');
+    expect(await feed.patchAt(LANE, new EventId(1, 'w1', first, 0))).toMatchObject({ code: 'E_CONE_RECOVERY', reason: 'inconsistent' });
+    expect(reads).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { lane: 'other', writer: 'w1', clock: 1 },
+    { lane: LANE, writer: 'other', clock: 1 },
+    { lane: LANE, writer: 'w1', clock: 2 },
+  ])('refuses a trailer outside the requested lane and event: %s', async ({ lane, writer, clock }) => {
+    const { journal, feed, append } = fixture();
+    const first = await append('w1', 1, null);
+    const reads = vi.spyOn(journal, 'readPatch');
+    expect(await feed.patchAt(lane, new EventId(clock, writer, first, 0))).toMatchObject({ reason: 'inconsistent' });
+    expect(reads).not.toHaveBeenCalled();
+  });
+
+  it.each([{ writer: 'other', lamport: 1 }, { writer: 'w1', lamport: 2 }])('refuses a contradictory payload: %s', async (identity) => {
+    const { journal, feed, append } = fixture();
+    const first = await append('w1', 1, null);
+    vi.spyOn(journal, 'readPatch').mockResolvedValueOnce(new Patch({ ...identity, context: {}, ops: [] }));
+    expect(await feed.patchAt(LANE, new EventId(1, 'w1', first, 0))).toMatchObject({ reason: 'inconsistent' });
+  });
+
+  it.each(['commit', 'payload'])('refuses an unreadable %s', async (source) => {
+    const { history, journal, feed, append } = fixture();
+    const first = await append('w1', 1, null);
+    if (source === 'commit') vi.spyOn(history, 'getNodeInfo').mockRejectedValueOnce(new Error('Missing commit'));
+    else vi.spyOn(journal, 'readPatch').mockRejectedValueOnce(new Error('Missing payload'));
+    expect(await feed.patchAt(LANE, new EventId(1, 'w1', first, 0))).toMatchObject({ reason: 'unavailable' });
   });
 });

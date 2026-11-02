@@ -25,6 +25,17 @@ import ConeHistoryGenerator, { type ConeHistory } from '../../helpers/ConeHistor
 import { assertConeEquivalent } from '../../helpers/coneEquivalence.ts';
 import ConeBasisHead from '../../../src/domain/services/cone/ConeBasisHead.ts';
 import LaneConeScope from '../../../src/domain/services/cone/LaneConeScope.ts';
+import PatchEntry from '../../../src/domain/artifacts/PatchEntry.ts';
+import ConeReader from '../../../src/domain/services/cone/ConeReader.ts';
+import ConeFold from '../../../src/domain/services/cone/ConeFold.ts';
+import ConeFolded from '../../../src/domain/services/cone/ConeFolded.ts';
+import ConeFoldSession from '../../../src/domain/services/cone/ConeFoldSession.ts';
+import ConeRoot from '../../../src/domain/services/cone/ConeRoot.ts';
+import ObservedWriteFrontier from '../../../src/domain/types/ObservedWriteFrontier.ts';
+import ObservedWriterHead from '../../../src/domain/types/ObservedWriterHead.ts';
+import EdgePropSet from '../../../src/domain/types/ops/EdgePropSet.ts';
+import { encodeEdgeKey } from '../../../src/domain/services/KeyCodec.ts';
+import ConeRecordCborCodec from '../../../src/infrastructure/adapters/ConeRecordCborCodec.ts';
 
 const LANE = 'L';
 const HEAD_OF_LANE = ConeBasisHead.forLane(LANE);
@@ -157,4 +168,68 @@ it('ingest touches only the new patches, independent of history size', async () 
   // processes per record read and several per record written.
   expect(large.first.processes).toBeLessThanOrEqual(FIRST_INGEST_PROCESS_CEILING);
   expect(large.second.processes).toBeLessThanOrEqual(SECOND_INGEST_PROCESS_CEILING);
+}, CASE_TIMEOUT_MS);
+
+async function recorded(repo: Repository, patch: Patch): Promise<PatchEntry> {
+  return new PatchEntry({ sha: await append(repo, patch), patch });
+}
+
+function observed(entries: readonly PatchEntry[]): ObservedWriteFrontier {
+  return new ObservedWriteFrontier(LANE, entries.map(({ sha, patch }) => new ObservedWriterHead(patch.writer, sha, patch.lamport)));
+}
+
+function propertyOps(value: string): PatchOp[] {
+  return [new NodePropSet('n', 'title', value), new EdgePropSet({ from: 'n', to: 'm', label: 'rel', key: 'weight', value })];
+}
+
+async function recoveryHistory(repo: Repository) {
+  const base = await recorded(repo, new Patch({ writer: 'base', lamport: 1, context: {},
+    ops: [new NodeAdd('n', new Dot('base', 1)), new NodeAdd('m', new Dot('base', 2)),
+      new EdgeAdd({ from: 'n', to: 'm', label: 'rel', dot: new Dot('base', 3) })], observedFrontier: observed([]) }));
+  const writes: PatchEntry[] = [];
+  for (let i = 0; i < 17; i += 1) {
+    writes.push(await recorded(repo, new Patch({ writer: `w${i}`, lamport: i + 2, context: {}, ops: propertyOps(`v${i}`), observedFrontier: observed([base]) })));
+  }
+  const first = writes[0];
+  if (first === undefined) throw new Error('Missing first recovery fixture');
+  expect(await repo.ingest.advance()).toBeInstanceOf(ConeIngestAdvanced);
+  const partial = await recorded(repo, new Patch({ writer: 'later', lamport: 99, context: {}, ops: propertyOps('later'), observedFrontier: observed([base, ...writes.slice(1)]) }));
+  return { base, writes, first, partial };
+}
+
+async function measuredRecovery(repo: Repository, partial: PatchEntry): Promise<void> {
+  const nodes = vi.spyOn(repo.history, 'getNodeInfo');
+  const payloads = vi.spyOn(repo.journal, 'readPatch');
+  const logs = vi.spyOn(repo.history, 'logNodesStream');
+  try {
+    expect(await repo.ingest.foldCommitted(partial, null)).toBeInstanceOf(ConeIngestAdvanced);
+    expect(nodes).toHaveBeenCalledTimes(2);
+    expect(payloads).toHaveBeenCalledTimes(2);
+    expect(logs).not.toHaveBeenCalled();
+  } finally {
+    nodes.mockRestore(); payloads.mockRestore(); logs.mockRestore();
+  }
+}
+
+it('recovers evicted values through real Git with two direct reads and convergent record bytes', async () => {
+  const repo = await repository();
+  try {
+    const { base, writes, first, partial } = await recoveryHistory(repo);
+    await measuredRecovery(repo, partial);
+    const published = await repo.store.readBasis(HEAD_OF_LANE);
+    if (published === null) throw new Error('Missing recovered basis');
+    const session = new ConeFoldSession({ store: repo.store, root: ConeRoot.empty(), source: { feed: repo.feed, lane: LANE } });
+    for (const entry of [base, ...writes.slice(1), partial, first]) expect(await ConeFold.fold(session, entry)).toBeInstanceOf(ConeFolded);
+    const lateRoot = await session.commit();
+    const reader = new ConeReader(repo.store);
+    const node = await reader.node(published.basis.root, 'n');
+    const edge = await reader.edge(published.basis.root, encodeEdgeKey('n', 'm', 'rel'));
+    expect(node.concurrency.register('title').members.map((member) => member.value)).toEqual(['later', 'v0']);
+    expect(edge.concurrency.register('weight').members.map((member) => member.value)).toEqual(['later', 'v0']);
+    const records = new ConeRecordCborCodec(codec);
+    expect(records.encode(node)).toEqual(records.encode(await reader.node(lateRoot, 'n')));
+    expect(records.encode(edge)).toEqual(records.encode(await reader.edge(lateRoot, encodeEdgeKey('n', 'm', 'rel'))));
+  } finally {
+    try { await repo.history.close(); } finally { await rm(repo.directory, { recursive: true, force: true }); }
+  }
 }, CASE_TIMEOUT_MS);

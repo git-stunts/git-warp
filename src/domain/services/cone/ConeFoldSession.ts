@@ -1,10 +1,14 @@
 import type ConeRecordStorePort from '../../../ports/ConeRecordStorePort.ts';
+import type ConePatchFeedPort from '../../../ports/ConePatchFeedPort.ts';
+import type PatchEntry from '../../artifacts/PatchEntry.ts';
+import type { EventId } from '../../utils/EventId.ts';
 import MintId from '../../crdt/MintId.ts';
 import type ConeFrontier from './ConeFrontier.ts';
 import type { ConeRecord } from './ConeRecord.ts';
 import type ConeRecordKey from './ConeRecordKey.ts';
 import ConeRecordSnapshot from './ConeRecordSnapshot.ts';
 import type ConeRoot from './ConeRoot.ts';
+import ConeRecoveryObstruction from './ConeRecoveryObstruction.ts';
 
 /** Staged records a session holds before writing them through to the trie. */
 export const CONE_SESSION_FLUSH_RECORDS = 4096;
@@ -24,6 +28,7 @@ export default class ConeFoldSession {
   readonly #known = new Map<string, ConeRecord | null>();
   readonly #staged = new Map<string, ConeRecord>();
   readonly #laneClocks: ReadonlyMap<string, number>;
+  readonly #source: { readonly feed: ConePatchFeedPort; readonly lane: string } | null;
   #root: ConeRoot;
 
   constructor(options: {
@@ -32,13 +37,22 @@ export default class ConeFoldSession {
     readonly flushRecords?: number;
     /** The frontier the folded basis started from; its lane chains are what strand patches were written on. */
     readonly from?: ConeFrontier;
+    /** Absent for source-free folds; a needed recovery then returns an obstruction. */
+    readonly source?: { readonly feed: ConePatchFeedPort; readonly lane: string };
   }) {
     this.#store = options.store;
     this.#root = options.root;
+    this.#source = options.source === undefined ? null : Object.freeze({ ...options.source });
     this.#flushRecords = options.flushRecords ?? CONE_SESSION_FLUSH_RECORDS;
     this.#laneClocks = new Map((options.from?.entries() ?? [])
       .filter(([writerId]) => MintId.decode(writerId).strandId === null)
       .map(([writerId, position]) => [writerId, position.lamport]));
+  }
+
+  /** Reads only the identified patch, or refuses when this session has no recovery capability. */
+  async patchAt(event: EventId): Promise<PatchEntry | ConeRecoveryObstruction> {
+    return this.#source === null ? new ConeRecoveryObstruction(event, 'source-required')
+      : await this.#source.feed.patchAt(this.#source.lane, event);
   }
 
   /**

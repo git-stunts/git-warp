@@ -2,6 +2,8 @@ import { expect } from 'vitest';
 import PatchEntry from '../../src/domain/artifacts/PatchEntry.ts';
 import ConeWriterDivergedObstruction from '../../src/domain/services/cone/ConeWriterDivergedObstruction.ts';
 import ConeWriterPatches from '../../src/domain/services/cone/ConeWriterPatches.ts';
+import ConeRecoveryObstruction from '../../src/domain/services/cone/ConeRecoveryObstruction.ts';
+import type { EventId } from '../../src/domain/utils/EventId.ts';
 import type { PatchOp } from '../../src/domain/types/ops/unions.ts';
 import Patch from '../../src/domain/types/Patch.ts';
 import ConePatchFeedPort from '../../src/ports/ConePatchFeedPort.ts';
@@ -32,6 +34,12 @@ export default class MemoryConeFeed extends ConePatchFeedPort {
   override async writerTips(lane: string): Promise<ReadonlyMap<string, string>> {
     expect(lane).toBe(this.#lane);
     return new Map([...this.chains].map(([writer, chain]) => [writer, chain[chain.length - 1]?.sha ?? '']));
+  }
+
+  override async patchAt(lane: string, event: EventId): Promise<PatchEntry | ConeRecoveryObstruction> {
+    expect(lane).toBe(this.#lane);
+    return this.chains.get(event.writerId)?.find((entry) => entry.sha === event.patchSha)
+      ?? new ConeRecoveryObstruction(event, 'unavailable');
   }
 
   override async patchesAfter(
