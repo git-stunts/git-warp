@@ -66,6 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Type-declaration and constructor-variable aliases resolve the underlying
   Coordinate class before applying its restrictions; non-class identities refuse
   analysis.
+  Intermediate import/export alias names retain Coordinate identity across
+  re-export chains, including type-only exports.
 - Define the v21 observer-bound Optic implementation contract, including write
   premises, cancellation, page continuation, memo identity, durable Coordinate
   retention, and independently mergeable delivery responsibilities. This is a

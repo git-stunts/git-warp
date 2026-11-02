@@ -34,6 +34,14 @@ export default class CoordinateIdentityIndex {
     if (identity instanceof SurfaceRefusal) return identity;
     if (identity !== null) coordinates.add(identity);
     for (const reference of this.references(target)) pending.add(reference);
+    return this.queueAlias(symbol, pending);
+  }
+
+  private queueAlias(symbol: ts.Symbol, pending: Set<ts.Symbol>): SurfaceRefusal | null {
+    if ((symbol.flags & ts.SymbolFlags.Alias) === 0) return null;
+    const target = this.checker.getImmediateAliasedSymbol(symbol);
+    if (target === undefined) return new SurfaceRefusal('Public declaration alias could not be resolved');
+    pending.add(target);
     return null;
   }
 

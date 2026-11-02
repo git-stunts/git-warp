@@ -41,6 +41,8 @@ Coordinate representation refuses analysis instead of silently receiving the
 opaque exception or branding an unrelated standard-library type as Coordinate.
 This identity pass follows public declaration references, including chains of
 renamed wrappers, and refuses more than 50,000 reachable symbols per package.
+It inspects each immediate import/export alias hop before the compiler resolves
+the final declaration, so intermediate Coordinate names retain their contract.
 An unrelated, unreachable alias does not establish public Coordinate identity.
 Coordinate constructor signatures must be private, including when only an
 instance is reached through a receipt or a subclass. Protected construction is
