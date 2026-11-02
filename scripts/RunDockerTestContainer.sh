@@ -132,9 +132,10 @@ fi
 # and untracked local files never enter the image, whatever .dockerignore or a local exclude says.
 context="$scratch/context"
 mkdir "$context"
+git -C "$ROOT" ls-files -z --cached > "$scratch/tracked-paths"
 while IFS= read -r -d '' path; do
   if [[ -e "$ROOT/$path" || -L "$ROOT/$path" ]]; then printf '%s\0' "$path"; fi
-done < <(git -C "$ROOT" ls-files -z --cached) | tar -C "$ROOT" --null --no-recursion -T - -cf - | tar -C "$context" -xf -
+done < "$scratch/tracked-paths" | tar -C "$ROOT" --null --no-recursion -T - -cf - | tar -C "$context" -xf -
 export GIT_WARP_DOCKER_CONTEXT="$context"
 
 orchestration_started=1

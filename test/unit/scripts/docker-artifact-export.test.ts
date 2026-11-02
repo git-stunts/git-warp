@@ -130,6 +130,22 @@ describe('Docker artifact exports', () => {
     expect(readFileSync(join(input.directory, 'trace.tracked'), 'utf8')).toBe('unstaged edit\n');
   });
 
+  it('refuses a partial Git inventory before starting Docker', () => {
+    const input = fixture();
+    const failingGit = join(input.commands, 'git');
+    writeFileSync(failingGit, `#!${shell}
+printf 'tracked.ts\\0'
+echo 'fixture: inventory read failed' >&2
+exit 73
+`);
+    chmodSync(failingGit, 0o755);
+    const result = run(input, []);
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(73);
+    expect(result.stderr).toContain('fixture: inventory read failed');
+    expect(existsSync(join(input.directory, 'trace'))).toBe(false);
+  });
+
   it.each([0, 7])('exports reports before removal and preserves command status %i', (status) => {
     const input = fixture();
     const result = run(input, ['directory:coverage'], status);
