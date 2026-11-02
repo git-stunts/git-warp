@@ -230,9 +230,14 @@ Without that proof, refuse or obtain a separately authorized observation.
 Coarsening never transfers the original principal's credentials.
 
 Memo reuse has the same boundary. Equality of query text or causal basis is
-insufficient. Observer, purpose, effective revelation, law/reducer versions,
-dependencies, and relevant budget semantics must match, or an explicit checked
-coarsening must establish lawful reuse. A memo hit cannot upgrade an obstruction,
+insufficient. The exact admitted observation basis must match. A memo built before
+an admitted write cannot answer a later live question by matching only query text
+or a subset of dependency keys. Question/version, page position where applicable,
+observer, purpose, effective revelation, law/reducer versions, dependencies, and
+relevant budget semantics must also match. An explicit checked coarsening may
+authorize narrower disclosure at that same basis; it cannot waive basis identity
+or present the source receipt as the new observation's receipt.
+A memo hit cannot upgrade an obstruction,
 conceal revocation, or turn partial coverage into completeness. Under identical
 bindings and completed execution, cold and warm paths yield identical canonical
 receipt cores; cache timing and physical I/O counters are not part of that core.
