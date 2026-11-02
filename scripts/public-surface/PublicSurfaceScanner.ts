@@ -5,6 +5,7 @@ import type PublicExportTarget from './PublicExportTarget.ts';
 import PublicDeclarationSurface from './PublicDeclarationSurface.ts';
 import SurfaceFinding from './SurfaceFinding.ts';
 import SurfaceRefusal from './SurfaceRefusal.ts';
+import CoordinateIdentityIndex from './CoordinateIdentityIndex.ts';
 import { declaredNames, originalSymbol, runtimeExport } from './CompilerPublicSymbols.ts';
 import forbiddenPublicNouns from './ForbiddenPublicNoun.ts';
 
@@ -30,6 +31,7 @@ export default class PublicSurfaceScanner {
   private scanEntries(program: ts.Program, entries: readonly PublicExportTarget[]): readonly SurfaceFinding[] | SurfaceRefusal {
     const findings = new Map<string, SurfaceFinding>();
     const coordinates = coordinateSymbols(program, entries.map((entry) => resolve(this.root, entry.declaration())));
+    if (coordinates instanceof SurfaceRefusal) return coordinates;
     for (const entry of entries) {
       const results = this.scanEntry(program, entry, coordinates);
       if (results instanceof SurfaceRefusal) return results;
@@ -74,16 +76,14 @@ export default class PublicSurfaceScanner {
   }
 }
 
-function coordinateSymbols(program: ts.Program, files: readonly string[]): ReadonlySet<ts.Symbol> {
-  const coordinates = new Set<ts.Symbol>();
+function coordinateSymbols(program: ts.Program, files: readonly string[]): ReadonlySet<ts.Symbol> | SurfaceRefusal {
+  const exports: ts.Symbol[] = [];
   for (const file of files) {
     const symbols = moduleExports(program, file);
-    if (symbols instanceof SurfaceRefusal) continue;
-    for (const exported of symbols) {
-      if (exported.getName() === 'Coordinate') coordinates.add(originalSymbol(program.getTypeChecker(), exported));
-    }
+    if (symbols instanceof SurfaceRefusal) return symbols;
+    exports.push(...symbols);
   }
-  return coordinates;
+  return new CoordinateIdentityIndex(program).collect(exports);
 }
 
 function moduleExports(program: ts.Program, file: string): readonly ts.Symbol[] | SurfaceRefusal {

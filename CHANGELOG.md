@@ -63,6 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   type-only exports and receipt-returned instances.
   Bootstrap history includes every merge parent so a deletion merge cannot
   reset the shrinking inventory.
+  Type-declaration and constructor-variable aliases resolve the underlying
+  Coordinate class before applying its restrictions; non-class identities refuse
+  analysis.
 - Define the v21 observer-bound Optic implementation contract, including write
   premises, cancellation, page continuation, memo identity, durable Coordinate
   retention, and independently mergeable delivery responsibilities. This is a

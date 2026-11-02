@@ -35,6 +35,13 @@ with hidden construction. Every overload must preserve that signature; data
 members, extra inputs, generic operations, explicit receivers and structured
 results are not exempt merely because they use an allowed name. The exception
 follows aliases and does not permit additional public members.
+Export renames, type declarations and constructor variables resolve to the same
+underlying Coordinate class identity before any export is walked. A non-class
+Coordinate representation refuses analysis instead of silently receiving the
+opaque exception or branding an unrelated standard-library type as Coordinate.
+This identity pass follows public declaration references, including chains of
+renamed wrappers, and refuses more than 50,000 reachable symbols per package.
+An unrelated, unreachable alias does not establish public Coordinate identity.
 Coordinate constructor signatures must be private, including when only an
 instance is reached through a receipt or a subclass. Protected construction is
 not hidden: a consumer-defined subclass can make it publicly callable.
