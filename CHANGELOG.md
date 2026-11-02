@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- Reserve `cone` as a graph-name segment for clone-local cone basis refs
+  ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
 - Give every strand an immutable id and every strand writer its own dots.
   A strand id is now the sha256 of a genesis record naming a creation
   occurrence reserved from the creating writer's lane counter, so two strands
@@ -52,6 +54,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the private causal-cone engine foundation: validated records, incremental
+  folding and ingest, admission indexes, concurrency/plurality, scoped bases,
+  and a Git record trie with object-session reads and fast-import writes.
+  This prepares the final Warp/Optic cutover; it does not expose that API or
+  establish repository-lifetime Coordinate retention. The existing capability
+  inventory stays unchanged
+  ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
 - Guard executable package exports and reachable declaration capabilities against
   the accepted Optic boundary. Exact legacy allowances must shrink, with a
   built-package witness and merge-base history check; existing public APIs remain

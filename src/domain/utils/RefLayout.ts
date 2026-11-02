@@ -11,6 +11,10 @@ import WarpError from '../errors/WarpError.ts';
  * - refs/warp/<graph>/writers/<writer_id>
  * - refs/warp/<graph>/checkpoints/head
  * - refs/warp/<graph>/coverage/head
+ * - refs/warp/<graph>/cone/head
+ * - refs/warp/<graph>/cone/retained
+ * - refs/warp/<graph>/cone/strands/<id>/base
+ * - refs/warp/<graph>/cone/strands/<id>/head
  * - refs/warp/<graph>/strands/<id>
  * - refs/warp/<graph>/strand-overlays/<id>
  * - refs/warp/<graph>/strand-braids/<id>/<support_id>
@@ -48,6 +52,7 @@ export const RESERVED_GRAPH_NAME_SEGMENTS: Set<string> = new Set([
   'writers',
   'checkpoints',
   'coverage',
+  'cone',
   'cursor',
   'strands',
   'audit',
