@@ -40,7 +40,7 @@ representations; schema generation belongs at transport boundaries.
 | `WarpAddress` | `of(storage, name)` validates the storage/name pair | Reject malformed or reserved names; contains no writer or observer |
 | `Warp` | `open(address, access)` opens resources; `forObserver(identity)`, `as(writer)`, `close()` | `access` is an injected `WarpAccessPort`; opening does not grant data access |
 | `ObservedWarp` | Returned only by `forObserver`; accepted by `Optic`; `fork(coordinate)` | Binds an observer identity; current rights are checked on execution |
-| `AuthoredWarp` | Returned only by `as`; `execute(intent)`, `settle(plan)` | Selects authorship; the access port must authorize that writer and operation |
+| `AuthoredWarp` | Returned only by `as`; `execute(intent)`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation as specified in section 7 |
 | `ObserverIdentity` | `of(namespace, subject)` validates a principal name | A name is not an authentication credential or a grant |
 | `Purpose` | `of(namespace, name, version)` validates a registered purpose identifier | Unknown or undeclared purposes are refused by policy |
 | `ReadBudget` | `of(limits)` validates named finite limits for records, emitted bytes, and work | Invalid limits fail construction; execution accounts for aggregate work |
@@ -248,6 +248,25 @@ A write's Coordinate binds the observation that justified that intent, including
 its actual read-before-write basis. The resulting write receipt separately binds
 the admission outcome. A later capture is not a substitute. Even an intent with
 no data reads has explicit authority/law premises and an empty data question.
+
+`AuthoredWarp.execute(intent)` obtains that observation internally. The registered
+intent's admission plan declares the versioned premise question; the writer is
+the observer, the registered write purpose is the purpose, and the access port
+supplies the approved budget and rights. Before evaluating any premise, execution
+fixes one admitted basis. Every premise read, including authority/law evidence,
+is bound into that attempt's retained observation. Missing support, undeclared
+purpose, or exhausted budget refuses admission before publication. A prior
+application read is not implicitly reused: any required application condition
+must be expressed by a supported validated intent, or refused as unsupported.
+
+Publication checks the expected target basis through the engine's admission
+boundary. If it advanced after premise capture, the attempt returns a typed stale
+observation obstruction without publishing the intent; it cannot substitute a
+newer basis or automatically retry. A caller may execute again, producing a new
+attempt and new evidence. A successful publication and its receipt bind the same
+premise observation and admitted intent. Concurrent history arriving after that
+publication does not rewrite either. Apply this rule to authored Strands as well;
+it is local admission discipline, not a distributed lock or consensus claim.
 
 Before returning a durable Coordinate, retain its record, receipt, necessary
 history, and replay dependencies through git-cas-owned roots/publications.
