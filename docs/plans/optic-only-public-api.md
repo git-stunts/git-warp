@@ -47,7 +47,7 @@ representations; schema generation belongs at transport boundaries.
 | `Optic` | `Optic(observedWarpOrStrand)` returns an immutable query builder | An unscoped Warp cannot execute a question |
 | `Intent` | Existing validated builders or generated SDK constructors | Preserve actual intent/reducer semantics; no arbitrary callback execution |
 | `Observer` | Existing validated/generated query-plan constructors | This names a question plan, not a principal; requires stable identity and version |
-| `Observation` | Resolved by a query's asynchronous `read()` | One execution, one reading consumer, terminal receipt, cancellation |
+| `Observation` | Resolved by `read()`; async iteration, `receipt: Promise<ObservationReceipt>`, `cancel(): Promise<ObservationReceipt>` | One execution and consumer; cancellation and receipt demand settle to the same terminal receipt |
 | `Reading` | Emitted only by an Observation | Validated value plus scoped evidence; never a whole-state object |
 | `Receipt` variants | Returned by writes, observations, forks, replay, and settlement; `CompletedObservationReceipt` carries a durable Coordinate | Describe the actual operation and its outcome; no caller-created success evidence |
 | `Coordinate` | Obtained from a retained receipt; `parse(text)` and `toString()` | Parsing validates syntax only; resolution and authority checks occur at use |
@@ -148,8 +148,28 @@ Reading can be emitted. Expected refusals resolve to an Observation with a typed
 terminal result; they do not manufacture a successful basis or Coordinate.
 Iteration and receipt consumption share that execution. Receipt-only demand
 drains without accumulating values. A second independent consumer is a typed
-misuse, not a second query. Breaking iteration or explicit `cancel()` stops owned
-work and produces a cancelled terminal execution result.
+misuse, not a second query. Breaking iteration invokes the same cancellation
+transition as `cancel()`; neither silently drains the remaining question.
+
+`ObservationReceipt` denotes the validated terminal receipt variants, including
+completed, cancelled, refused, and failed execution. `cancel()` is idempotent:
+it requests cancellation immediately and resolves to the same terminal receipt
+as `receipt`, after owned work and streams have stopped. One serialized terminal
+transition wins. If completion, failure, or refusal already won, cancellation
+returns that unchanged receipt. Otherwise cancellation wins, prevents later
+completion, and yields a cancelled receipt with honestly partial coverage.
+It cannot claim completed observation support or a completed Coordinate.
+
+A pending `next()` may deliver a Reading only if its delivery precedes the
+cancellation transition; remaining pending and subsequent iterator requests end
+without new readings. Receipt-only draining obeys the same stop transition.
+Cancellation does not wait for a paused consumer to request another value.
+`Warp.close(): Promise<void>` stops admitting new operations, requests this same
+cancellation for every unfinished observation (including a pending `read()`),
+and waits for owned work to quiesce. A pending `read()` still resolves to its
+Observation and terminal receipt. Already terminal receipts remain unchanged;
+closing does not delete their retained evidence. The implementation witness must
+exercise cancel versus iteration, receipt-only demand, completion, and close.
 
 This deliberately changes v20's synchronous, dormant `Lane.observe` construction:
 awaiting the new `read()` initiates the bounded operation. Merely constructing an
