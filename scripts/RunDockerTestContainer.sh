@@ -134,6 +134,14 @@ context="$scratch/context"
 mkdir "$context"
 git -C "$ROOT" ls-files -z --cached > "$scratch/tracked-paths"
 while IFS= read -r -d '' path; do
+  parent=$path
+  while [[ "$parent" == */* ]]; do
+    parent=${parent%/*}
+    if [[ -L "$ROOT/$parent" ]]; then
+      echo 'Refusing symlink ancestor in Docker context' >&2
+      exit 1
+    fi
+  done
   if [[ -e "$ROOT/$path" || -L "$ROOT/$path" ]]; then printf '%s\0' "$path"; fi
 done < "$scratch/tracked-paths" | tar -C "$ROOT" --null --no-recursion -T - -cf - | tar -C "$context" -xf -
 export GIT_WARP_DOCKER_CONTEXT="$context"

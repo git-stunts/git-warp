@@ -41,6 +41,9 @@ case "$1" in
     if [[ "$*" == *" run "* ]]; then
       (cd "$GIT_WARP_DOCKER_CONTEXT" && find . -type f | sort) > "$TRACE.context"
       cp "$GIT_WARP_DOCKER_CONTEXT/tracked.ts" "$TRACE.tracked" 2>/dev/null || true
+      if [[ -L "$GIT_WARP_DOCKER_CONTEXT/source-link.ts" ]]; then
+        readlink "$GIT_WARP_DOCKER_CONTEXT/source-link.ts" > "$TRACE.link"
+      fi
     fi
     if [[ "$*" == *" down "* ]]; then
       [[ "$*" == *"--rmi local"* ]]
@@ -144,6 +147,35 @@ exit 73
     expect(result.status).toBe(73);
     expect(result.stderr).toContain('fixture: inventory read failed');
     expect(existsSync(join(input.directory, 'trace'))).toBe(false);
+  });
+
+  it.each(['source', 'source/nested'])(
+    'refuses a symlinked ancestor %s before starting Docker', (parent) => {
+      const input = fixture();
+      const directory = join(input.root, parent);
+      mkdirSync(directory, { recursive: true });
+      writeFileSync(join(directory, 'tracked.ts'), 'indexed bytes\n');
+      git(input.root, 'add', `${parent}/tracked.ts`);
+      rmSync(directory, { recursive: true });
+      const external = join(input.directory, 'outside-checkout');
+      mkdirSync(external);
+      writeFileSync(join(external, 'tracked.ts'), 'outside bytes\n');
+      symlinkSync(external, directory);
+      const result = run(input, []);
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('Refusing symlink ancestor in Docker context');
+      expect(existsSync(join(input.directory, 'trace'))).toBe(false);
+    });
+
+  it('preserves an indexed leaf symlink without dereferencing it', () => {
+    const input = fixture();
+    symlinkSync('tracked.ts', join(input.root, 'source-link.ts'));
+    git(input.root, 'add', 'source-link.ts');
+    const result = run(input, []);
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(readFileSync(join(input.directory, 'trace.link'), 'utf8')).toBe('tracked.ts\n');
   });
 
   it.each([0, 7])('exports reports before removal and preserves command status %i', (status) => {
