@@ -103,6 +103,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Discover every supported test file recursively under `test/unit/` before
+  partitioning the default unit run. New directories no longer need a runner
+  allowlist entry. The runner refuses missing, unexpected or duplicate paths
+  before starting Vitest and retains the explicit neighbor-provider contract
+  ([#1063](https://github.com/git-stunts/git-warp/issues/1063)).
+
 - Compare historical release verification receipts independently of per-run
   elapsed measurements in the regression suite, while retaining raw timing
   evidence and rejecting changes to identity or verification outcomes
