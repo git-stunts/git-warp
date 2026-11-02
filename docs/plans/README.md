@@ -45,3 +45,5 @@ The [optic-only public API contract](./optic-only-public-api.md), tracked by
 purpose, budget, receipt-derived Coordinate, and migration boundary for
 [#1048](https://github.com/git-stunts/git-warp/issues/1048). It is an implementation
 contract awaiting review, not a claim that the target API has shipped.
+
+The [Docker tracked-context design record](./docker-tracked-context.md) makes the COPY-based test runner build images from `git ls-files` paths only, tracked by [#1047](https://github.com/git-stunts/git-warp/issues/1047).

@@ -128,6 +128,24 @@ if [[ "$update_ratchet" == 1 ]]; then
   cp "$ROOT/vitest.config.ts" "$scratch/config-baseline.ts"
 fi
 
+# The build context holds only Git-tracked paths (their working-tree content), so ignored
+# and untracked local files never enter the image, whatever .dockerignore or a local exclude says.
+context="$scratch/context"
+mkdir "$context"
+git -C "$ROOT" ls-files -z --cached > "$scratch/tracked-paths"
+while IFS= read -r -d '' path; do
+  parent=$path
+  while [[ "$parent" == */* ]]; do
+    parent=${parent%/*}
+    if [[ -L "$ROOT/$parent" ]]; then
+      echo 'Refusing symlink ancestor in Docker context' >&2
+      exit 1
+    fi
+  done
+  if [[ -e "$ROOT/$path" || -L "$ROOT/$path" ]]; then printf '%s\0' "$path"; fi
+done < "$scratch/tracked-paths" | tar -C "$ROOT" --null --no-recursion -T - -cf - | tar -C "$context" -xf -
+export GIT_WARP_DOCKER_CONTEXT="$context"
+
 orchestration_started=1
 "${compose[@]}" run --build --detach --no-deps --name "$container" test sleep infinity >/dev/null
 created=1

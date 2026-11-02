@@ -26,6 +26,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#1015](https://github.com/git-stunts/git-warp/issues/1015)) has run
   ([#1014](https://github.com/git-stunts/git-warp/issues/1014)).
 
+### Changed
+
+- Upgrade `zod` from 3 to 4 (`^4.6.7`) to clear GHSA-mrhx-c7xc-m3w5, an
+  out-of-memory risk when validating oversized constrained collections
+  ([#1042](https://github.com/git-stunts/git-warp/issues/1042)). Where a schema
+  sets no custom message, CLI and sync validation errors now use zod 4 wording,
+  for example `Invalid input: expected string, received number`. Checkpoint
+  envelopes keep accepting absent optional fields. Adopt published
+  `@git-stunts/plumbing` 3.3.3 and `@git-stunts/git-cas` 7.0.0 to remove
+  the remaining Zod 3 copies; the locked graph resolves Zod 4.6.7.
+- Update Vitest and its V8 coverage provider to 4.1.12, Puppeteer to 25.16.0
+  with its matching browser manager 3.2.6, and the locked DOMPurify to 3.4.17.
+  This resolves the mock-registration and redirect advisories, removes
+  Chromium BiDi's Zod 3 dependency, and fixes the reported DOMPurify issues
+  without weakening the complete dependency audit
+  ([#1042](https://github.com/git-stunts/git-warp/issues/1042)).
+- Move development linting to ESLint 10 and its compatible TypeScript plugin,
+  retaining the current recommended-rule baseline. Scoped minimatch 11.0.3
+  and glob 14.0.3 overrides fix pattern amplification and traversal after
+  cancellation, with caller behavior covered by bounded compatibility tests.
+  Development linting now requires Node 22.13 or later on the Node 22 line;
+  the published runtime requirement is unchanged
+  ([#1042](https://github.com/git-stunts/git-warp/issues/1042)).
+
 ### Added
 
 - Repair duplicate dots explicitly. `previewDotRepair()` lists each collision
@@ -58,6 +82,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Build the COPY-based test runner's context from existing indexed paths and
+  their working-tree bytes, excluding untracked and locally ignored files.
+  Failed Git inventories and symlinked parent directories stop the run before
+  Docker starts. Stage new files before testing them
+  ([#1047](https://github.com/git-stunts/git-warp/issues/1047)).
 - Make the quarantine graduate-check fail closed. A branch whose merge-base
   with the target cannot be resolved now fails the gate (exit 2) instead of
   skipping it, CI checks out full history and no longer swallows a failed base
