@@ -4,6 +4,7 @@ import forbiddenPublicNouns from './ForbiddenPublicNoun.ts';
 import SurfaceFinding from './SurfaceFinding.ts';
 import SurfaceRefusal from './SurfaceRefusal.ts';
 import PublicTypeVisit from './PublicTypeVisit.ts';
+import CoordinateOperation from './CoordinateOperation.ts';
 import { declaredNames, declaredTypes, firstDeclaration, originalSymbol, publicMembers, publicSignature, runtimeExport, typeArguments, typeReference } from './CompilerPublicSymbols.ts';
 
 const MAX_REACHABLE_TYPES = 50_000;
@@ -162,8 +163,7 @@ export default class PublicTypeWalk {
     for (const signature of value.getConstructSignatures()) {
       if (publicSignature(signature)) this.record('Coordinate', 'public-construction', declaration);
     }
-    const staticSide = this.staticCoordinate(value, symbol);
-    this.coordinateMembers(value, staticSide ? 'static' : 'instance', staticSide ? 'parse' : 'toString');
+    this.coordinateMembers(value, symbol);
   }
 
   private staticCoordinate(value: ts.Type, symbol: ts.Symbol): boolean {
@@ -171,10 +171,16 @@ export default class PublicTypeWalk {
     return declaration !== undefined && value === this.checker.getTypeOfSymbolAtLocation(symbol, declaration);
   }
 
-  private coordinateMembers(type: ts.Type, side: string, allowed: string): void {
+  private coordinateMembers(type: ts.Type, symbol: ts.Symbol): void {
+    const staticSide = this.staticCoordinate(type, symbol);
+    const side = staticSide ? 'static' : 'instance';
+    const allowed = staticSide ? 'parse' : 'toString';
+    const coordinate = this.checker.getDeclaredTypeOfSymbol(symbol);
     for (const member of publicMembers(type)) {
-      if (member.getName() === allowed) continue;
-      this.record(`Coordinate.${side}.${member.getName()}`, 'coordinate-member', firstDeclaration(member));
+      const operation = new CoordinateOperation(this.checker, member, coordinate);
+      const rule = operation.violation(allowed);
+      if (rule === null) continue;
+      this.record(`Coordinate.${side}.${member.getName()}`, rule, firstDeclaration(member));
     }
   }
 

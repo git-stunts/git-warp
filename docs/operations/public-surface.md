@@ -30,8 +30,11 @@ when the compiler supplies no declaration node for them.
 
 Forbidden nouns include Runtime, Lane, mutable graph types, materialization,
 checkpoint, frontier, basis, cut and captureCoordinate. An opaque Coordinate
-permits static `parse` and instance `toString`, with hidden construction. The
-exception follows aliases and does not permit additional public members.
+permits static `parse(text: string): Coordinate` and instance `toString(): string`,
+with hidden construction. Every overload must preserve that signature; data
+members, extra inputs, generic operations, explicit receivers and structured
+results are not exempt merely because they use an allowed name. The exception
+follows aliases and does not permit additional public members.
 
 This is a static capability guard. It does not prove arbitrary JavaScript
 behavior or replace runtime and installed-consumer tests.

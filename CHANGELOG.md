@@ -57,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   built-package witness and merge-base history check; existing public APIs remain
   available until their replacements land
   ([#1050](https://github.com/git-stunts/git-warp/issues/1050)).
+  The Coordinate exception checks every parse/serialize overload for opaque text
+  signatures, including aliases; an allowed method name cannot expose parts.
 - Define the v21 observer-bound Optic implementation contract, including write
   premises, cancellation, page continuation, memo identity, durable Coordinate
   retention, and independently mergeable delivery responsibilities. This is a
