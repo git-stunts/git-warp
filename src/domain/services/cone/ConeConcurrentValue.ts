@@ -1,5 +1,5 @@
 import ConeRecordError from '../../errors/ConeRecordError.ts';
-import { isPropValue, type PropValue } from '../../types/PropValue.ts';
+import { copyPropValue, isPropValue, type PropValue } from '../../types/PropValue.ts';
 import { EventId } from '../../utils/EventId.ts';
 
 /**
@@ -9,7 +9,7 @@ import { EventId } from '../../utils/EventId.ts';
  */
 export default class ConeConcurrentValue {
   readonly event: EventId;
-  readonly value: PropValue;
+  readonly #value: PropValue;
   readonly causal: boolean;
 
   constructor(fields: { readonly event: EventId; readonly value: PropValue; readonly causal: boolean }) {
@@ -17,8 +17,13 @@ export default class ConeConcurrentValue {
       throw new ConeRecordError('Cone concurrent value needs an event, a property value and its causal evidence');
     }
     this.event = fields.event;
-    this.value = fields.value;
+    this.#value = copyPropValue(fields.value);
     this.causal = fields.causal;
     Object.freeze(this);
+  }
+
+  /** A detached property value; callers cannot mutate the retained write. */
+  get value(): PropValue {
+    return copyPropValue(this.#value);
   }
 }

@@ -112,6 +112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Detach retained cone concurrent property values from constructor inputs and
+  returned composites so caller mutations cannot change recorded writes.
 - Keep acquired cone element effects immutable when later operations update
   the same element; every effect now carries a validated lifecycle event (#1062).
 - Compare historical release verification receipts independently of per-run
