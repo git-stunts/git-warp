@@ -322,6 +322,30 @@ A metadata reference alone is not a Git reachability guarantee. Successful
 replay after restart and `git gc` is required evidence. If retention cannot be
 established, return a typed failure; do not advertise a durable token.
 
+The v21 lifetime policy is repository-lifetime retention: issued durable
+Coordinates have no automatic expiry, cache eviction, or application release
+method. Close, restart, access revocation, and ordinary GC cannot remove their
+roots. Revocation restricts use without rewriting or deleting historical
+evidence. Copies of a token share the same obligation; dropping one handle does
+not release it. This policy does not promise survival after explicit destruction
+of the repository or storage loss.
+
+Retained storage grows with issued observations and their necessary evidence;
+deduplication is an optimization, not a constant-storage claim. A configured
+retention capacity may refuse new durable observations but must preserve already
+issued ones. Reserve required capacity before write publication, and persist the
+necessary roots with the admitted write's evidence. If a failure occurs after
+publication, report the actual admitted or indeterminate write outcome separately
+from retention failure; never label it unapplied or retry the intent silently.
+No receipt may advertise a durable Coordinate until retention succeeds.
+
+If an issued token's evidence is missing or corrupt, replay, re-ask, and fork
+return a typed unavailable-evidence refusal with policy-safe rehydration guidance;
+they never reconstruct a newer standpoint and call it the original. Future
+expiry or explicit release requires a separately reviewed lifecycle contract,
+dependent-root handling, and distinguishable released/expired refusals. It is
+outside #1053's initial delivery, not an undocumented cache policy.
+
 ## 8. Strands and settlement
 
 Forking starts from a receipt-derived Coordinate and records the full originating
