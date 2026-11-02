@@ -118,7 +118,11 @@ history or retention roots supporting previously returned durable Coordinates.
 
 On reopen, `Optic(view).replay(Coordinate.parse(saved))` verifies and returns the
 original operation receipt, or a typed refusal. `Optic(view).at(coordinate)`
-starts a new question at the retained observation's basis. A live Optic without
+starts a new question inheriting the retained basis, observer, and purpose.
+If the bound view or requested purpose differs, execution refuses unless the
+access port proves the strict coarsening described in section 5. It never borrows
+the original principal's rights or silently changes that standpoint.
+A live Optic without
 `at` captures the replica's admitted basis when `read()` starts execution. Building
 the query does not silently freeze a moving history.
 
@@ -226,7 +230,9 @@ Question changes always create new observations. Observer or purpose changes
 cannot reuse the old standpoint. A permitted coarsening requires a checked
 policy relation proving the newly released information is no finer than the
 allowed source observation and is authorized for the new recipient/purpose.
-Without that proof, refuse or obtain a separately authorized observation.
+Without that proof, historical reuse is refused. A caller may instead start a
+separately authorized live observation without `at` or the old continuation;
+that captures its own basis and does not inherit the historical standpoint.
 Coarsening never transfers the original principal's credentials.
 
 Memo reuse has the same boundary. Equality of query text or causal basis is
@@ -446,8 +452,9 @@ Acceptance evidence must cover:
 5. Stable receipt bytes across cold/warm paths under identical bindings.
 6. Coordinate round trip, restart/GC replay, denial after revocation, and missing
    evidence refusal; no historical write or external effect is redelivered.
-7. New questions remain at the retained basis; identity/purpose changes require
-   checked coarsening or a separately authorized observation.
+7. Re-asking inherits basis, observer, and purpose; changing historical identity
+   or purpose requires checked strict coarsening. A separately authorized live
+   observation cannot claim to reuse that standpoint.
 8. Nested forks retain their originating observation; stale settlement plans fail.
 9. The export guard covers all package subpaths and public members, including
    aliases, runtime values, type-only exports, and the opaque Coordinate exception.
