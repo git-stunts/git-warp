@@ -50,8 +50,11 @@ export default class ConeFootprintCollector {
   }
 
   parts(): ConeFootprintParts {
-    return { nodes: this.#nodes, edges: this.#edges, mentions: this.#mentions,
-      nodeTombstones: this.#nodeTombstones, edgeTombstones: this.#edgeTombstones };
+    return {
+      nodes: new Set(this.#nodes), edges: new Set(this.#edges), mentions: Object.freeze([...this.#mentions]),
+      nodeTombstones: new Map([...this.#nodeTombstones].map(([id, dots]) => [id, new Set(dots)])),
+      edgeTombstones: new Map([...this.#edgeTombstones].map(([id, dots]) => [id, new Set(dots)])),
+    };
   }
 
   #collectLegacyPropSet(op: PropSet): void {

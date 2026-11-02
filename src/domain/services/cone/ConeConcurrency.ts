@@ -58,7 +58,7 @@ export default class ConeConcurrency {
   }
 
   get registers(): ReadonlyMap<string, ConeConcurrentSet<ConeConcurrentValue>> {
-    return this.#loaded().registers;
+    return new Map(this.#loaded().registers);
   }
 
   get lifecycle(): ConeConcurrentSet<ConeLifecycleEvent> {
@@ -72,28 +72,30 @@ export default class ConeConcurrency {
 
   /** The concurrent writes of one register; empty when none was folded. */
   register(key: string): ConeConcurrentSet<ConeConcurrentValue> {
-    return this.registers.get(key) ?? ConeConcurrentSet.empty();
+    return this.#loaded().registers.get(key) ?? ConeConcurrentSet.empty();
   }
 
   /** This concurrency after folding one register write observed as `observation`. */
   withRegisterWrite(key: string, write: ConeConcurrentValue, observation: ConeObservation): ConeConcurrency {
-    const registers = new Map(this.registers);
+    const registers = new Map(this.#loaded().registers);
     registers.set(key, this.register(key).with(write, observation));
     return new ConeConcurrency({ registers, lifecycle: this.lifecycle });
   }
 
   /** This concurrency after folding one lifecycle effect observed as `observation`. */
   withLifecycleEvent(event: ConeLifecycleEvent, observation: ConeObservation): ConeConcurrency {
-    return new ConeConcurrency({ registers: this.registers, lifecycle: this.lifecycle.with(event, observation) });
+    return new ConeConcurrency({ registers: this.#loaded().registers, lifecycle: this.lifecycle.with(event, observation) });
   }
 
   isEmpty(): boolean {
-    return this.registers.size === 0 && this.lifecycle.isEmpty();
+    return this.#loaded().registers.size === 0 && this.lifecycle.isEmpty();
   }
 
   equals(other: ConeConcurrency): boolean {
-    return other.lifecycle.equals(this.lifecycle) && other.registers.size === this.registers.size
-      && [...other.registers].every(([key, set]) => this.registers.get(key)?.equals(set) === true);
+    const left = this.#loaded();
+    const right = other.#loaded();
+    return right.lifecycle.equals(left.lifecycle) && right.registers.size === left.registers.size
+      && [...right.registers].every(([key, set]) => left.registers.get(key)?.equals(set) === true);
   }
 
   #loaded(): ConeConcurrencySets {
@@ -132,5 +134,5 @@ function requireRegisterSets(
       throw new ConeRecordError('Cone concurrency registers must hold concurrent sets', { context: { key } });
     }
   }
-  return Object.freeze(new Map([...registers].sort(([left], [right]) => compareStrings(left, right))));
+  return new Map([...registers].sort(([left], [right]) => compareStrings(left, right)));
 }

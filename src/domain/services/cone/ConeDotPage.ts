@@ -26,7 +26,12 @@ export default class ConeDotPage {
   readonly set: ConeDotSet;
   readonly writerId: string;
   readonly pageIndex: number;
-  readonly claims: ReadonlyMap<number, ConeDotClaim>;
+  readonly #claims: ReadonlyMap<number, ConeDotClaim>;
+
+  /** A detached copy of the retained claims. */
+  get claims(): ReadonlyMap<number, ConeDotClaim> {
+    return new Map(this.#claims);
+  }
 
   constructor(fields: ConeDotPageFields) {
     if (!DOT_SETS.has(fields.set)) {
@@ -35,7 +40,7 @@ export default class ConeDotPage {
     this.set = fields.set;
     this.writerId = requireIdentity(fields.writerId, 'writerId');
     this.pageIndex = requireCount(fields.pageIndex, 'pageIndex');
-    this.claims = requireClaims(fields.claims, this.pageIndex);
+    this.#claims = requireClaims(fields.claims, this.pageIndex);
     Object.freeze(this);
   }
 
@@ -53,19 +58,19 @@ export default class ConeDotPage {
   }
 
   claim(counter: number): ConeDotClaim {
-    return this.claims.get(counter) ?? ConeDotClaim.none();
+    return this.#claims.get(counter) ?? ConeDotClaim.none();
   }
 
   withClaim(counter: number, claim: ConeDotClaim): ConeDotPage {
-    return new ConeDotPage({ ...this, claims: new Map([...this.claims, [counter, claim]]) });
+    return new ConeDotPage({ ...this, claims: new Map([...this.#claims, [counter, claim]]) });
   }
 
   equals(other: ConeDotPage): boolean {
     if (other.set !== this.set || other.writerId !== this.writerId || other.pageIndex !== this.pageIndex) {
       return false;
     }
-    return other.claims.size === this.claims.size
-      && [...this.claims].every(([counter, claim]) => other.claim(counter).equals(claim));
+    return other.#claims.size === this.#claims.size
+      && [...this.#claims].every(([counter, claim]) => other.claim(counter).equals(claim));
   }
 }
 
@@ -78,7 +83,7 @@ function requireClaims(claims: ReadonlyMap<number, ConeDotClaim>, pageIndex: num
       throw new ConeRecordError('Cone dot page claim lies outside its page', { context: { counter, pageIndex } });
     }
   }
-  return Object.freeze(new Map(claims));
+  return new Map(claims);
 }
 
 function isClaimOnPage(counter: number, claim: ConeDotClaim, pageIndex: number): boolean {

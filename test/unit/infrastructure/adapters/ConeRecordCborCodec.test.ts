@@ -50,8 +50,10 @@ describe('ConeRecordCborCodec', () => {
       expect(decoded.constructor).toBe(record.constructor);
       expect(decoded.key().equals(record.key())).toBe(true);
     }
-    expect(codec.decode(codec.encode(edge))).toEqual(edge);
-    expect(codec.decode(codec.encode(dots))).toEqual(dots);
+    const decodedEdge = codec.decode(codec.encode(edge));
+    const decodedDots = codec.decode(codec.encode(dots));
+    expect(decodedEdge instanceof ConeEdgeRecord && decodedEdge.equals(edge)).toBe(true);
+    expect(decodedDots instanceof ConeDotPage && decodedDots.equals(dots)).toBe(true);
     expect(codec.decode(codec.encode(adjacency))).toEqual(adjacency);
   });
 

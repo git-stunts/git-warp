@@ -48,7 +48,7 @@ export default class ConeFoldSession {
    * chain's patch observed only what it recorded.
    */
   implicitObservation(writerId: string): ReadonlyMap<string, number> {
-    return MintId.decode(writerId).strandId === null ? new Map() : this.#laneClocks;
+    return MintId.decode(writerId).strandId === null ? new Map() : new Map(this.#laneClocks);
   }
 
   /** The records at `keys`, as this session currently sees them. */

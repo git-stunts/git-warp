@@ -11,7 +11,7 @@
 import { Dot } from '../../crdt/Dot.ts';
 import { LWWRegister } from '../../crdt/LWW.ts';
 import ConeRecordError from '../../errors/ConeRecordError.ts';
-import type { PropValue } from '../../types/PropValue.ts';
+import { copyPropValue, isPropValue, type PropValue } from '../../types/PropValue.ts';
 import { EventId } from '../../utils/EventId.ts';
 import type LegacyEventId from '../../utils/LegacyEventId.ts';
 
@@ -39,7 +39,7 @@ export function requireDots(dots: ReadonlySet<string>, field: string): ReadonlyS
   for (const dot of dots) {
     Dot.decode(dot);
   }
-  return Object.freeze(new Set(dots));
+  return new Set(dots);
 }
 
 /** Copies a set of identities, requiring every member to be non-empty. */
@@ -50,7 +50,7 @@ export function requireIdentities(members: ReadonlySet<string>, field: string): 
   for (const member of members) {
     requireIdentity(member, field);
   }
-  return Object.freeze(new Set(members));
+  return new Set(members);
 }
 
 /** Requires an admitted EventId or null. */
@@ -76,14 +76,25 @@ export function requireAdmittedEvent(event: EventId | LegacyEventId | undefined,
 export function requireRegisters(
   registers: ReadonlyMap<string, LWWRegister<PropValue>>,
 ): ReadonlyMap<string, LWWRegister<PropValue>> {
-  if (!(registers instanceof Map)) {
-    throw new ConeRecordError('Cone record props must be a Map of registers');
-  }
-  for (const [key, register] of registers) {
+  requireRegisterMap(registers);
+  const entries = Array.from(registers);
+  for (const [key, register] of entries) {
     requireIdentity(key, 'property key');
     if (!(register instanceof LWWRegister) || !(register.eventId instanceof EventId)) {
       throw new ConeRecordError('Cone record property registers must carry an EventId', { context: { key } });
     }
   }
-  return Object.freeze(new Map(registers));
+  return new Map(entries.map(([key, register]) => {
+    if (!isPropValue(register.value)) {
+      throw new ConeRecordError('Cone record property registers must carry a property value', { context: { key } });
+    }
+    return [key, new LWWRegister(register.eventId, copyPropValue(register.value))];
+  }));
+}
+
+/** Check native collection identity without widening its validated entry types. */
+function requireRegisterMap(registers: ReadonlyMap<string, LWWRegister<PropValue>>): void {
+  if (!(registers instanceof Map)) {
+    throw new ConeRecordError('Cone record props must be a Map of registers');
+  }
 }

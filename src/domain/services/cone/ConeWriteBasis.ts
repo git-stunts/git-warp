@@ -23,7 +23,12 @@ export default class ConeWriteBasis {
   readonly #removals: ReadonlyMap<string, NodeRemovalObservation>;
   readonly #edges: ReadonlyMap<string, ConeEdgeRecord>;
   /** Records of the nodes whose registers the write sets, for its race check. */
-  readonly registerOwners: ReadonlyMap<string, ConeNodeRecord>;
+  readonly #registerOwners: ReadonlyMap<string, ConeNodeRecord>;
+
+  /** A detached index of the captured register owners. */
+  get registerOwners(): ReadonlyMap<string, ConeNodeRecord> {
+    return new Map(this.#registerOwners);
+  }
 
   private constructor(
     removals: ReadonlyMap<string, NodeRemovalObservation>,
@@ -32,7 +37,7 @@ export default class ConeWriteBasis {
   ) {
     this.#removals = removals;
     this.#edges = edges;
-    this.registerOwners = registerOwners;
+    this.#registerOwners = registerOwners;
     Object.freeze(this);
   }
 

@@ -4,8 +4,6 @@ import type ConeDotMention from './ConeDotMention.ts';
 import ConeFootprintCollector from './ConeFootprintCollector.ts';
 import ConeRecordKey, { type ConeDotSet } from './ConeRecordKey.ts';
 
-const NO_DOTS: ReadonlySet<string> = Object.freeze(new Set<string>());
-
 /** One writer's dot page an operation of the patch claims a dot on. */
 export type ConeDotPageAddress = {
   readonly set: ConeDotSet;
@@ -24,16 +22,26 @@ export type ConeDotPageAddress = {
  * can refuse the one case per-element tombstones cannot represent.
  */
 export default class ConeFootprint {
-  readonly nodes: ReadonlySet<string>;
-  readonly edges: ReadonlySet<string>;
+  readonly #nodes: ReadonlySet<string>;
+  readonly #edges: ReadonlySet<string>;
   readonly mentions: readonly ConeDotMention[];
   readonly #nodeTombstones: ReadonlyMap<string, ReadonlySet<string>>;
   readonly #edgeTombstones: ReadonlyMap<string, ReadonlySet<string>>;
 
+  /** A detached copy of the retained nodes. */
+  get nodes(): ReadonlySet<string> {
+    return new Set(this.#nodes);
+  }
+
+  /** A detached copy of the retained edges. */
+  get edges(): ReadonlySet<string> {
+    return new Set(this.#edges);
+  }
+
   private constructor(collector: ConeFootprintCollector) {
     const parts = collector.parts();
-    this.nodes = Object.freeze(new Set(parts.nodes));
-    this.edges = Object.freeze(new Set(parts.edges));
+    this.#nodes = new Set(parts.nodes);
+    this.#edges = new Set(parts.edges);
     this.mentions = Object.freeze([...parts.mentions]);
     this.#nodeTombstones = parts.nodeTombstones;
     this.#edgeTombstones = parts.edgeTombstones;
@@ -51,12 +59,12 @@ export default class ConeFootprint {
 
   /** Dots this patch's removes of `nodeId` name. */
   nodeTombstones(nodeId: string): ReadonlySet<string> {
-    return this.#nodeTombstones.get(nodeId) ?? NO_DOTS;
+    return new Set(this.#nodeTombstones.get(nodeId));
   }
 
   /** Dots this patch's removes of the edge name. */
   edgeTombstones(edgeKey: string): ReadonlySet<string> {
-    return this.#edgeTombstones.get(edgeKey) ?? NO_DOTS;
+    return new Set(this.#edgeTombstones.get(edgeKey));
   }
 
   /** The dot pages this patch claims dots on, without duplicates. */
@@ -74,8 +82,8 @@ export default class ConeFootprint {
   /** Every record a fold of this patch must read before applying it. */
   recordKeys(): readonly ConeRecordKey[] {
     return Object.freeze([
-      ...[...this.nodes].map((nodeId) => ConeRecordKey.forNode(nodeId)),
-      ...[...this.edges].map((edgeKey) => ConeRecordKey.forEdge(edgeKey)),
+      ...[...this.#nodes].map((nodeId) => ConeRecordKey.forNode(nodeId)),
+      ...[...this.#edges].map((edgeKey) => ConeRecordKey.forEdge(edgeKey)),
       ...this.dotPages().map((page) => ConeRecordKey.forDotPage(page.set, page.writerId, page.pageIndex)),
     ]);
   }

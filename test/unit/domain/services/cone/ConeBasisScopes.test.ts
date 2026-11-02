@@ -75,6 +75,10 @@ describe('cone basis scopes', () => {
     const scope = new StrandBaseConeScope({ lane: LANE, strandId: STRAND, frontier });
     frontier.set('bob', 'b'.repeat(40));
     expect(await scope.tips()).toEqual(new Map([['alice', 'a'.repeat(40)]]));
+    const returned = await scope.tips();
+    if (!(returned instanceof Map)) throw new Error('Expected native Map');
+    returned.clear();
+    expect(await scope.tips()).toEqual(new Map([['alice', 'a'.repeat(40)]]));
     expect((await scope.seed()).equals(ConeBasis.empty())).toBe(true);
     expect(scope.head.ref()).toContain('/base');
   });

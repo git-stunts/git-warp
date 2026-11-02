@@ -35,13 +35,23 @@ type SetFields<T extends ConeConcurrentMember> = {
 export default class ConeConcurrentSet<T extends ConeConcurrentMember> {
   /** Maximal events, newest first. */
   readonly members: readonly T[];
-  readonly observed: ReadonlyMap<string, number>;
-  readonly evicted: ReadonlyMap<string, number>;
+  readonly #observed: ReadonlyMap<string, number>;
+  readonly #evicted: ReadonlyMap<string, number>;
+
+  /** A detached snapshot of the clocks observed by folded events. */
+  get observed(): ReadonlyMap<string, number> {
+    return new Map(this.#observed);
+  }
+
+  /** A detached snapshot of the clocks of evicted events. */
+  get evicted(): ReadonlyMap<string, number> {
+    return new Map(this.#evicted);
+  }
 
   constructor(fields: SetFields<T>) {
     this.members = requireMembers(fields.members);
-    this.observed = requireClocks(fields.observed, 'observed');
-    this.evicted = requireClocks(fields.evicted, 'evicted');
+    this.#observed = requireClocks(fields.observed, 'observed');
+    this.#evicted = requireClocks(fields.evicted, 'evicted');
     Object.freeze(this);
   }
 
@@ -51,19 +61,19 @@ export default class ConeConcurrentSet<T extends ConeConcurrentMember> {
 
   /** How many maximal events were evicted past the cap and are only counted. */
   get overflow(): number {
-    return this.evicted.size;
+    return this.#evicted.size;
   }
 
   /** This set after folding `member`, whose patch observed `observation`. */
   with(member: T, observation: ConeObservation): ConeConcurrentSet<T> {
     const kept = this.members.filter((existing) => !observation.observes(existing.event));
-    const evicted = new Map([...this.evicted].filter(([writerId, lamport]) => !observation.observesClock(writerId, lamport)));
-    const known = (this.observed.get(member.event.writerId) ?? -1) >= member.event.lamport;
+    const evicted = new Map([...this.#evicted].filter(([writerId, lamport]) => !observation.observesClock(writerId, lamport)));
+    const known = (this.#observed.get(member.event.writerId) ?? -1) >= member.event.lamport;
     const members = (known ? kept : [...kept, member]).sort((left, right) => compareEventIds(right.event, left.event));
     for (const spilled of members.splice(CONE_CONCURRENT_SET_CAP)) {
       evicted.set(spilled.event.writerId, Math.max(evicted.get(spilled.event.writerId) ?? 0, spilled.event.lamport));
     }
-    return new ConeConcurrentSet<T>({ members, observed: observation.joined(this.observed), evicted });
+    return new ConeConcurrentSet<T>({ members, observed: observation.joined(this.#observed), evicted });
   }
 
   /** The members `observation` did not observe: the events a write recording it would race. */
@@ -73,7 +83,7 @@ export default class ConeConcurrentSet<T extends ConeConcurrentMember> {
 
   /** The evicted events `observation` did not observe, as chain and clock: races a write recording it has, uncounted by value. */
   unobservedEvictions(observation: ConeObservation): ReadonlyArray<readonly [string, number]> {
-    return [...this.evicted].filter(([writerId, lamport]) => !observation.observesClock(writerId, lamport));
+    return [...this.#evicted].filter(([writerId, lamport]) => !observation.observesClock(writerId, lamport));
   }
 
   /** Whether some member or evicted event came from a patch without causal evidence. */
@@ -82,11 +92,11 @@ export default class ConeConcurrentSet<T extends ConeConcurrentMember> {
   }
 
   isEmpty(): boolean {
-    return this.members.length === 0 && this.observed.size === 0 && this.evicted.size === 0;
+    return this.members.length === 0 && this.#observed.size === 0 && this.#evicted.size === 0;
   }
 
   equals(other: ConeConcurrentSet<T>): boolean {
-    return sameClocks(other.observed, this.observed) && sameClocks(other.evicted, this.evicted)
+    return sameClocks(other.#observed, this.#observed) && sameClocks(other.#evicted, this.#evicted)
       && other.members.length === this.members.length
       && other.members.every((member, index) => sameMember(member, this.members[index]));
   }
@@ -131,5 +141,5 @@ function requireClocks(clocks: ReadonlyMap<string, number>, field: string): Read
     requireIdentity(writerId, field);
     requireCount(lamport, field);
   }
-  return Object.freeze(new Map(clocks));
+  return new Map(clocks);
 }

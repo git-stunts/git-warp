@@ -142,7 +142,7 @@ describe('cone concurrency: observations and concurrent sets (#1039)', () => {
     // @ts-expect-error Exercise the JavaScript boundary with foreign record concurrency.
     expect(() => new ConeNodeRecord({ ...ConeNodeRecord.empty('n').fields(), concurrency: {} })).toThrow('ConeConcurrency');
     // @ts-expect-error Exercise the JavaScript boundary with foreign record concurrency.
-    expect(() => new ConeEdgeRecord({ ...ConeEdgeRecord.empty(encodeEdgeKey('a', 'b', 'l')), concurrency: {} })).toThrow('ConeConcurrency');
+    expect(() => ConeEdgeRecord.empty(encodeEdgeKey('a', 'b', 'l')).withConcurrency({})).toThrow('ConeConcurrency');
   });
 });
 
@@ -173,8 +173,10 @@ describe('cone concurrency fold (#1039)', () => {
     expect(edge.concurrency.register('w').members.map((member) => member.value).sort()).toEqual([1, 2]);
     expect(edge.concurrency.lifecycle.members.map((member) => member.role).sort()).toEqual(['edit', 'remove']);
     const codec = new ConeRecordCborCodec(new CborCodec());
-    expect(codec.decode(codec.encode(node))).toEqual(node);
-    expect(codec.decode(codec.encode(edge))).toEqual(edge);
+    const decodedNode = codec.decode(codec.encode(node));
+    const decodedEdge = codec.decode(codec.encode(edge));
+    expect(decodedNode instanceof ConeNodeRecord && decodedNode.equals(node)).toBe(true);
+    expect(decodedEdge instanceof ConeEdgeRecord && decodedEdge.equals(edge)).toBe(true);
   });
 
   it('treats a strand patch as having observed its strand base lane chains, and nothing else', async () => {

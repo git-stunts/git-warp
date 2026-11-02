@@ -12,12 +12,22 @@ import type ConeRoot from './ConeRoot.ts';
  * elements' records under both roots and nothing else.
  */
 export default class ConeSettlementFootprint {
-  readonly nodes: ReadonlySet<string>;
-  readonly edges: ReadonlySet<string>;
+  readonly #nodes: ReadonlySet<string>;
+  readonly #edges: ReadonlySet<string>;
+
+  /** A detached copy of the retained nodes. */
+  get nodes(): ReadonlySet<string> {
+    return new Set(this.#nodes);
+  }
+
+  /** A detached copy of the retained edges. */
+  get edges(): ReadonlySet<string> {
+    return new Set(this.#edges);
+  }
 
   private constructor(nodes: ReadonlySet<string>, edges: ReadonlySet<string>) {
-    this.nodes = Object.freeze(new Set(nodes));
-    this.edges = Object.freeze(new Set(edges));
+    this.#nodes = new Set(nodes);
+    this.#edges = new Set(edges);
     Object.freeze(this);
   }
 
@@ -28,17 +38,17 @@ export default class ConeSettlementFootprint {
   /** This footprint with the elements `patch` names. */
   including(patch: Patch): ConeSettlementFootprint {
     const footprint = ConeFootprint.of(patch);
-    return new ConeSettlementFootprint(new Set([...this.nodes, ...footprint.nodes]), new Set([...this.edges, ...footprint.edges]));
+    return new ConeSettlementFootprint(new Set([...this.#nodes, ...footprint.nodes]), new Set([...this.#edges, ...footprint.edges]));
   }
 
   /** True when every element of the footprint has the same join state under `base` and `target`. */
   async unchangedBetween(reader: ConeReader, roots: { readonly base: ConeRoot; readonly target: ConeRoot }): Promise<boolean> {
     const keys = [
-      ...[...this.nodes].map((nodeId) => ConeRecordKey.forNode(nodeId)),
-      ...[...this.edges].map((edgeKey) => ConeRecordKey.forEdge(edgeKey)),
+      ...[...this.#nodes].map((nodeId) => ConeRecordKey.forNode(nodeId)),
+      ...[...this.#edges].map((edgeKey) => ConeRecordKey.forEdge(edgeKey)),
     ];
     const [base, target] = [await reader.records(roots.base, keys), await reader.records(roots.target, keys)];
-    return [...this.nodes].every((nodeId) => base.node(nodeId).sameElementState(target.node(nodeId)))
-      && [...this.edges].every((edgeKey) => base.edge(edgeKey).equals(target.edge(edgeKey)));
+    return [...this.#nodes].every((nodeId) => base.node(nodeId).sameElementState(target.node(nodeId)))
+      && [...this.#edges].every((edgeKey) => base.edge(edgeKey).equals(target.edge(edgeKey)));
   }
 }

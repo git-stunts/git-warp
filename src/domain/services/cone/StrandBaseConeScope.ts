@@ -19,7 +19,7 @@ export default class StrandBaseConeScope extends ConeBasisScope {
   }
 
   override tips(): Promise<ReadonlyMap<string, string>> {
-    return Promise.resolve(this.#frontier);
+    return Promise.resolve(new Map(this.#frontier));
   }
 
   override seed(): Promise<ConeBasis> {

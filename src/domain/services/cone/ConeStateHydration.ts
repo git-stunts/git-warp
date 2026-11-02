@@ -24,8 +24,8 @@ type Membership = { readonly element: string; readonly addDots: ReadonlySet<stri
 /** A state holding exactly `nodes` and `edges`. */
 export function hydrateConeState(nodes: readonly ConeNodeRecord[], edges: readonly ConeEdgeRecord[]): WarpState {
   return new WarpState({
-    nodeAlive: membership(nodes.map((node) => ({ element: node.nodeId, ...node }))),
-    edgeAlive: membership(edges.map((edge) => ({ element: edge.edgeKey, ...edge }))),
+    nodeAlive: membership(nodes.map((node) => ({ element: node.nodeId, addDots: node.addDots, tombstones: node.tombstones }))),
+    edgeAlive: membership(edges.map((edge) => ({ element: edge.edgeKey, addDots: edge.addDots, tombstones: edge.tombstones }))),
     prop: registers(nodes, edges),
     observedFrontier: VersionVector.empty(),
     nodeBirthEvent: events(nodes.map((node) => [node.nodeId, node.birth])),

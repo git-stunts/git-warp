@@ -112,6 +112,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Protect retained cone clocks, membership, property registers, dot claims,
+  footprints, and captured write/strand bases from caller mutation. Native
+  collection accessors return detached snapshots, including nested register
+  values; reducer hydration explicitly reads record accessors
+  ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
+
 - Detach retained cone concurrent property values from constructor inputs and
   returned composites so caller mutations cannot change recorded writes.
 - Keep acquired cone element effects immutable when later operations update

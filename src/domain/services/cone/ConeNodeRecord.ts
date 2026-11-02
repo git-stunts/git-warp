@@ -44,22 +44,37 @@ export type ConeNodeRecordFields = {
  */
 export default class ConeNodeRecord {
   readonly nodeId: string;
-  readonly addDots: ReadonlySet<string>;
-  readonly tombstones: ReadonlySet<string>;
+  readonly #addDots: ReadonlySet<string>;
+  readonly #tombstones: ReadonlySet<string>;
   readonly birth: EventId | null;
   readonly clear: EventId | null;
-  readonly props: ReadonlyMap<string, LWWRegister<PropValue>>;
+  readonly #props: ReadonlyMap<string, LWWRegister<PropValue>>;
   readonly outDegree: number;
   readonly inDegree: number;
   readonly concurrency: ConeConcurrency;
 
+  /** A detached snapshot of every add dot. */
+  get addDots(): ReadonlySet<string> {
+    return new Set(this.#addDots);
+  }
+
+  /** A detached copy of the retained tombstones. */
+  get tombstones(): ReadonlySet<string> {
+    return new Set(this.#tombstones);
+  }
+
+  /** Detached registers, including their composite property values. */
+  get props(): ReadonlyMap<string, LWWRegister<PropValue>> {
+    return requireRegisters(this.#props);
+  }
+
   constructor(fields: ConeNodeRecordFields) {
     this.nodeId = requireIdentity(fields.nodeId, 'nodeId');
-    this.addDots = requireDots(fields.addDots, 'addDots');
-    this.tombstones = requireDots(fields.tombstones, 'tombstones');
+    this.#addDots = requireDots(fields.addDots, 'addDots');
+    this.#tombstones = requireDots(fields.tombstones, 'tombstones');
     this.birth = requireEventOrNull(fields.birth, 'birth');
     this.clear = requireEventOrNull(fields.clear, 'clear');
-    this.props = requireRegisters(fields.props);
+    this.#props = requireRegisters(fields.props);
     this.outDegree = requireCount(fields.outDegree, 'outDegree');
     this.inDegree = requireCount(fields.inDegree, 'inDegree');
     this.concurrency = requireConcurrency(fields.concurrency);
@@ -80,7 +95,7 @@ export default class ConeNodeRecord {
 
   /** The add dots no remove of this node has observed. */
   liveDots(): ReadonlySet<string> {
-    return new Set([...this.addDots].filter((dot) => !this.tombstones.has(dot)));
+    return new Set([...this.#addDots].filter((dot) => !this.#tombstones.has(dot)));
   }
 
   /** OR-Set membership: at least one add dot is not tombstoned. */
@@ -124,7 +139,7 @@ export default class ConeNodeRecord {
    */
   sameElementState(other: ConeNodeRecord): boolean {
     return other.nodeId === this.nodeId && this.sameMembership(other) && this.sameLifecycle(other)
-      && sameRegisters(other.props, this.props) && other.concurrency.equals(this.concurrency);
+      && sameRegisters(other.#props, this.#props) && other.concurrency.equals(this.concurrency);
   }
 
   /** The constructor fields of this record, for derived copies. */
@@ -137,7 +152,7 @@ export default class ConeNodeRecord {
   }
 
   private sameMembership(other: ConeNodeRecord): boolean {
-    return sameMembers(other.addDots, this.addDots) && sameMembers(other.tombstones, this.tombstones);
+    return sameMembers(other.#addDots, this.#addDots) && sameMembers(other.#tombstones, this.#tombstones);
   }
 
   private sameAdjacency(other: ConeNodeRecord): boolean {
