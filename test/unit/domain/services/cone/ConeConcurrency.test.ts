@@ -94,18 +94,18 @@ describe('cone concurrency: observations and concurrent sets (#1039)', () => {
     expect(concurrent.with(value('carol', 1, 'x', false), sees([], 'carol', 1)).isUnderdetermined()).toBe(true);
   });
 
-  it('evicts past the cap into counted clocks that a later observing event still retires', () => {
+  it('evicts past the cap into event evidence that a later observing event still retires', () => {
     let set = ConeConcurrentSet.empty<ConeConcurrentValue>();
     for (let index = 0; index <= CONE_CONCURRENT_SET_CAP + 1; index += 1) {
       set = set.with(value(`w${index}`, index + 1, `v${index}`), sees([], `w${index}`, index + 1));
     }
     expect(set.members).toHaveLength(CONE_CONCURRENT_SET_CAP);
     expect(set.overflow).toBe(2);
-    expect(set.unobservedEvictions(sees([]))).toEqual([['w0', 1], ['w1', 2]]);
+    expect(set.unobservedEvictions(sees([])).map((evidence) => [evidence.event.writerId, evidence.event.lamport])).toEqual([['w0', 1], ['w1', 2]]);
     expect(set.unobservedEvictions(sees([['w0', 1], ['w1', 2]]))).toEqual([]);
     // The late write retires both evicted clocks; joining the full set it evicts the next oldest member instead.
     const retired = set.with(value('w0', 50, 'late'), sees([['w1', 2]], 'w0', 50));
-    expect([...retired.evicted]).toEqual([['w2', 3]]);
+    expect([...retired.evicted].map(([writer, evidence]) => [writer, evidence.event.lamport])).toEqual([['w2', 3]]);
     expect(() => new ConeConcurrentSet({ members: [...set.members, value('x', 1, 'x')], observed: new Map(), evicted: new Map() }))
       .toThrow('at most');
   });

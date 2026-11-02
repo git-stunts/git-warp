@@ -2,11 +2,13 @@ import ConeRecordError from '../../errors/ConeRecordError.ts';
 import { propValuesEqual } from '../../types/PropValue.ts';
 import { compareEventIds } from '../../utils/EventId.ts';
 import ConeConcurrentValue from './ConeConcurrentValue.ts';
+import type { ConeEvictedMember } from './ConeEvictedMember.ts';
+import ConeEvictedValue from './ConeEvictedValue.ts';
 import ConeLifecycleEvent from './ConeLifecycleEvent.ts';
 import type ConeObservation from './ConeObservation.ts';
 import { requireCount, requireIdentity } from './ConeRecordValidation.ts';
 
-/** Retained concurrent members one set keeps with their values; more are evicted and only counted. */
+/** Retained concurrent members one set keeps with their values; overflow keeps event evidence. */
 export const CONE_CONCURRENT_SET_CAP = 16;
 
 /** A member of a concurrent set: a register write or a lifecycle effect. */
@@ -15,7 +17,7 @@ export type ConeConcurrentMember = ConeConcurrentValue | ConeLifecycleEvent;
 type SetFields<T extends ConeConcurrentMember> = {
   readonly members: readonly T[];
   readonly observed: ReadonlyMap<string, number>;
-  readonly evicted: ReadonlyMap<string, number>;
+  readonly evicted: ReadonlyMap<string, ConeEvictedMember>;
 };
 
 /**
@@ -25,33 +27,35 @@ type SetFields<T extends ConeConcurrentMember> = {
  * Folding an event drops every member it observed and keeps it unless an
  * earlier-folded event observed it, which `observed` (per chain, the highest
  * clock any folded event observed) answers without keeping those events.
- * Every member is maximal whatever order events fold in, so two clones with
- * the same patches hold the same members. A chain's events are ordered, so
- * at most one member comes from each writer chain. Past
+ * Every retained member is maximal. A chain's events are ordered, so at most
+ * one member comes from each writer chain. Past
  * {@link CONE_CONCURRENT_SET_CAP} members the oldest are evicted: `evicted`
- * keeps each such chain's clock, so an event that later observes them still
- * retires them, and readers report how many concurrent values were not kept.
+ * keeps each event's identity and causal evidence, and its lifecycle role
+ * when applicable. Observing an evicted event retires it; readers can report
+ * conflict evidence without retaining discarded property payloads.
+ * Partial retirement does not yet promote evicted values back into the
+ * member cache; arrival-order convergence remains a blocker in #1062.
  */
 export default class ConeConcurrentSet<T extends ConeConcurrentMember> {
   /** Maximal events, newest first. */
   readonly members: readonly T[];
   readonly #observed: ReadonlyMap<string, number>;
-  readonly #evicted: ReadonlyMap<string, number>;
+  readonly #evicted: ReadonlyMap<string, ConeEvictedMember>;
 
   /** A detached snapshot of the clocks observed by folded events. */
   get observed(): ReadonlyMap<string, number> {
     return new Map(this.#observed);
   }
 
-  /** A detached snapshot of the clocks of evicted events. */
-  get evicted(): ReadonlyMap<string, number> {
+  /** A detached snapshot of evicted event evidence. */
+  get evicted(): ReadonlyMap<string, ConeEvictedMember> {
     return new Map(this.#evicted);
   }
 
   constructor(fields: SetFields<T>) {
     this.members = requireMembers(fields.members);
     this.#observed = requireClocks(fields.observed, 'observed');
-    this.#evicted = requireClocks(fields.evicted, 'evicted');
+    this.#evicted = requireEvictions(fields.evicted);
     Object.freeze(this);
   }
 
@@ -59,7 +63,7 @@ export default class ConeConcurrentSet<T extends ConeConcurrentMember> {
     return new ConeConcurrentSet<T>({ members: [], observed: new Map(), evicted: new Map() });
   }
 
-  /** How many maximal events were evicted past the cap and are only counted. */
+  /** How many maximal events were evicted past the member cap. */
   get overflow(): number {
     return this.#evicted.size;
   }
@@ -67,11 +71,11 @@ export default class ConeConcurrentSet<T extends ConeConcurrentMember> {
   /** This set after folding `member`, whose patch observed `observation`. */
   with(member: T, observation: ConeObservation): ConeConcurrentSet<T> {
     const kept = this.members.filter((existing) => !observation.observes(existing.event));
-    const evicted = new Map([...this.#evicted].filter(([writerId, lamport]) => !observation.observesClock(writerId, lamport)));
+    const evicted = new Map([...this.#evicted].filter(([, evidence]) => !observation.observes(evidence.event)));
     const known = (this.#observed.get(member.event.writerId) ?? -1) >= member.event.lamport;
     const members = (known ? kept : [...kept, member]).sort((left, right) => compareEventIds(right.event, left.event));
     for (const spilled of members.splice(CONE_CONCURRENT_SET_CAP)) {
-      evicted.set(spilled.event.writerId, Math.max(evicted.get(spilled.event.writerId) ?? 0, spilled.event.lamport));
+      evicted.set(spilled.event.writerId, spilled instanceof ConeConcurrentValue ? new ConeEvictedValue(spilled) : spilled);
     }
     return new ConeConcurrentSet<T>({ members, observed: observation.joined(this.#observed), evicted });
   }
@@ -81,14 +85,14 @@ export default class ConeConcurrentSet<T extends ConeConcurrentMember> {
     return this.members.filter((member) => !observation.observes(member.event));
   }
 
-  /** The evicted events `observation` did not observe, as chain and clock: races a write recording it has, uncounted by value. */
-  unobservedEvictions(observation: ConeObservation): ReadonlyArray<readonly [string, number]> {
-    return [...this.#evicted].filter(([writerId, lamport]) => !observation.observesClock(writerId, lamport));
+  /** Evicted events a write recording `observation` would race, without their property payloads. */
+  unobservedEvictions(observation: ConeObservation): readonly ConeEvictedMember[] {
+    return [...this.#evicted.values()].filter((evidence) => !observation.observes(evidence.event));
   }
 
   /** Whether some member or evicted event came from a patch without causal evidence. */
   isUnderdetermined(): boolean {
-    return this.members.some((member) => !member.causal);
+    return this.members.some((member) => !member.causal) || [...this.#evicted.values()].some((evidence) => !evidence.causal);
   }
 
   isEmpty(): boolean {
@@ -96,18 +100,21 @@ export default class ConeConcurrentSet<T extends ConeConcurrentMember> {
   }
 
   equals(other: ConeConcurrentSet<T>): boolean {
-    return sameClocks(other.#observed, this.#observed) && sameClocks(other.#evicted, this.#evicted)
+    return sameClocks(other.#observed, this.#observed) && sameEvictions(other.#evicted, this.#evicted)
       && other.members.length === this.members.length
       && other.members.every((member, index) => sameMember(member, this.members[index]));
   }
 }
 
-function sameMember(left: ConeConcurrentMember, right: ConeConcurrentMember | undefined): boolean {
+function sameMember(left: ConeConcurrentMember | ConeEvictedMember, right: ConeConcurrentMember | ConeEvictedMember | undefined): boolean {
   return right !== undefined && compareEventIds(left.event, right.event) === 0 && left.causal === right.causal
     && samePayload(left, right);
 }
 
-function samePayload(left: ConeConcurrentMember, right: ConeConcurrentMember): boolean {
+function samePayload(left: ConeConcurrentMember | ConeEvictedMember, right: ConeConcurrentMember | ConeEvictedMember): boolean {
+  if (left instanceof ConeEvictedValue) {
+    return right instanceof ConeEvictedValue;
+  }
   if (left instanceof ConeConcurrentValue) {
     return right instanceof ConeConcurrentValue && propValuesEqual(left.value, right.value);
   }
@@ -116,6 +123,26 @@ function samePayload(left: ConeConcurrentMember, right: ConeConcurrentMember): b
 
 function sameClocks(left: ReadonlyMap<string, number>, right: ReadonlyMap<string, number>): boolean {
   return left.size === right.size && [...left].every(([writerId, lamport]) => right.get(writerId) === lamport);
+}
+
+function sameEvictions(left: ReadonlyMap<string, ConeEvictedMember>, right: ReadonlyMap<string, ConeEvictedMember>): boolean {
+  return left.size === right.size && [...left].every(([writer, evidence]) => sameMember(evidence, right.get(writer)));
+}
+
+function requireEvictions(evicted: ReadonlyMap<string, ConeEvictedMember>): ReadonlyMap<string, ConeEvictedMember> {
+  requireEvictionMap(evicted);
+  for (const [writer, evidence] of evicted) {
+    if (!(evidence instanceof ConeEvictedValue || evidence instanceof ConeLifecycleEvent) || writer !== evidence.event.writerId) {
+      throw new ConeRecordError('Cone evictions must hold event evidence keyed by its writer');
+    }
+  }
+  return new Map(evicted);
+}
+
+function requireEvictionMap(evicted: ReadonlyMap<string, ConeEvictedMember>): void {
+  if (!(evicted instanceof Map)) {
+    throw new ConeRecordError('Cone concurrent set evicted must be a Map');
+  }
 }
 
 function requireMembers<T extends ConeConcurrentMember>(members: readonly T[]): readonly T[] {

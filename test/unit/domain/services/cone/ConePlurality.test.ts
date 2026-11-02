@@ -110,7 +110,7 @@ describe('cone plurality readings (#1039)', () => {
     expect(ConeWriteRaces.none().patches).toEqual([]);
   });
 
-  it('names an evicted raced write by its chain clock', () => {
+  it('names an evicted raced write by its actual patch identity', () => {
     let titles = ConeConcurrentSet.empty<ConeConcurrentValue>();
     for (let index = 0; index < 17; index += 1) {
       const writer = `w${String(index).padStart(2, '0')}`;
@@ -123,7 +123,7 @@ describe('cone plurality readings (#1039)', () => {
       ops: [new NodePropSet('n', 'title', 'z')],
     });
     expect(races.plurality[0]).toMatchObject({ siblings: [], overflow: 1 });
-    expect(races.patches).toEqual([{ writer: 'w00', coordinate: 'clock:1' }]);
+    expect(races.patches).toEqual([{ writer: 'w00', coordinate: SHA('w00', 1) }]);
   });
 
   it('validates plurality values', () => {

@@ -10,7 +10,7 @@ import type ConeConcurrency from './ConeConcurrency.ts';
 import type ConeConcurrentSet from './ConeConcurrentSet.ts';
 import type ConeConcurrentValue from './ConeConcurrentValue.ts';
 import type ConeEdgeRecord from './ConeEdgeRecord.ts';
-import type ConeLifecycleEvent from './ConeLifecycleEvent.ts';
+import ConeLifecycleEvent from './ConeLifecycleEvent.ts';
 import type ConeNodeRecord from './ConeNodeRecord.ts';
 import { hydrateConeState } from './ConeStateHydration.ts';
 
@@ -89,7 +89,8 @@ function lifecycle(element: LifecycleElement, concurrency: ConeConcurrency): Lif
 }
 
 function writersOf(set: ConeConcurrentSet<ConeLifecycleEvent>, role: ConeLifecycleEvent['role']): string[] {
-  return [...new Set(set.members.filter((member) => member.role === role).map((member) => member.event.writerId))]
+  const events = [...set.members, ...set.evicted.values()];
+  return [...new Set(events.filter((member) => member instanceof ConeLifecycleEvent && member.role === role).map((member) => member.event.writerId))]
     .sort(compareStrings);
 }
 

@@ -3,6 +3,7 @@ import { LWWRegister } from '../../../../../src/domain/crdt/LWW.ts';
 import ConeConcurrency from '../../../../../src/domain/services/cone/ConeConcurrency.ts';
 import ConeConcurrentSet from '../../../../../src/domain/services/cone/ConeConcurrentSet.ts';
 import ConeConcurrentValue from '../../../../../src/domain/services/cone/ConeConcurrentValue.ts';
+import ConeEvictedValue from '../../../../../src/domain/services/cone/ConeEvictedValue.ts';
 import ConeDotClaim from '../../../../../src/domain/services/cone/ConeDotClaim.ts';
 import ConeDotPage from '../../../../../src/domain/services/cone/ConeDotPage.ts';
 import ConeEdgeRecord from '../../../../../src/domain/services/cone/ConeEdgeRecord.ts';
@@ -50,13 +51,17 @@ describe('retained cone collection ownership', () => {
     expect([...session.implicitObservation(writer)]).toEqual([['alice', 1]]);
   });
 
-  it.each(['observed', 'evicted'])('protects the %s clock from constructor and returned aliases', (field) => {
+  it.each(['observed', 'evicted'])('protects %s evidence from constructor and returned aliases', (field) => {
     const clocks = new Map([['alice', 1]]);
-    const set = new ConeConcurrentSet({ members: [], observed: clocks, evicted: clocks });
+    const evidence = new ConeEvictedValue({ event, causal: true });
+    const evicted = new Map([['alice', evidence]]);
+    const set = new ConeConcurrentSet({ members: [], observed: clocks, evicted });
     clocks.clear();
-    clearMap(field === 'observed' ? set.observed : set.evicted);
+    evicted.clear();
+    if (field === 'observed') clearMap(set.observed);
+    else clearMap(set.evicted);
     expect([...set.observed]).toEqual([['alice', 1]]);
-    expect([...set.evicted]).toEqual([['alice', 1]]);
+    expect([...set.evicted]).toEqual([['alice', evidence]]);
     expect(set.overflow).toBe(1);
   });
 

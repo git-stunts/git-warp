@@ -3,6 +3,8 @@ import ConeConcurrency, { type ConeConcurrencySets } from '../../domain/services
 import type CodecPort from '../../ports/CodecPort.ts';
 import ConeConcurrentSet, { type ConeConcurrentMember } from '../../domain/services/cone/ConeConcurrentSet.ts';
 import ConeConcurrentValue from '../../domain/services/cone/ConeConcurrentValue.ts';
+import type { ConeEvictedMember } from '../../domain/services/cone/ConeEvictedMember.ts';
+import ConeEvictedValue from '../../domain/services/cone/ConeEvictedValue.ts';
 import ConeLifecycleEvent from '../../domain/services/cone/ConeLifecycleEvent.ts';
 import { isPropValue } from '../../domain/types/PropValue.ts';
 import { EventId } from '../../domain/utils/EventId.ts';
@@ -79,8 +81,19 @@ function decodeSet<T extends ConeConcurrentMember, P>(
       return member(decodeEvent(event), requireBoolean(causal), payload(raw));
     }),
     observed: decodeClocks(fields['o']),
-    evicted: decodeClocks(fields['x']),
+    evicted: decodeEvictions(fields['x']),
   });
+}
+
+function decodeEvictions(wire: unknown): Map<string, ConeEvictedMember> {
+  return new Map(requireArray(wire).map((entry) => {
+    const [rawEvent, rawCausal, role] = requireTuple(entry, 3);
+    const event = decodeEvent(rawEvent);
+    const causal = requireBoolean(rawCausal);
+    const evidence = role === null ? new ConeEvictedValue({ event, causal })
+      : new ConeLifecycleEvent({ event, causal, role: requireRole(role) });
+    return [event.writerId, evidence];
+  }));
 }
 
 function decodeClocks(wire: unknown): Map<string, number> {
@@ -153,7 +166,8 @@ function encodeSet<T extends ConeConcurrentMember>(set: ConeConcurrentSet<T>, pa
   return {
     m: set.members.map((member) => [encodeEvent(member.event), member.causal, payload(member)]),
     o: sortedClocks(set.observed),
-    x: sortedClocks(set.evicted),
+    x: [...set.evicted].sort(([left], [right]) => compareStrings(left, right))
+      .map(([, evidence]) => [encodeEvent(evidence.event), evidence.causal, evidence instanceof ConeLifecycleEvent ? evidence.role : null]),
   };
 }
 

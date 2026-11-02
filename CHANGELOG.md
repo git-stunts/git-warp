@@ -112,6 +112,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve evicted cone events' identity, causal qualification, and lifecycle
+  role. Reads and writes now report evicted removes and uncertain register
+  races; stored overflow retains that evidence without retaining discarded
+  property payloads. This private-engine repair does not resolve payload-cache
+  convergence after partial retirement
+  ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
+
 - Protect retained cone clocks, membership, property registers, dot claims,
   footprints, and captured write/strand bases from caller mutation. Native
   collection accessors return detached snapshots, including nested register

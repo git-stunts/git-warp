@@ -9,14 +9,14 @@ import { isPropValue, type PropValue } from '../../types/PropValue.ts';
 import { compareStrings } from '../../utils/StringComparison.ts';
 import type ConeConcurrentSet from './ConeConcurrentSet.ts';
 import type ConeConcurrentValue from './ConeConcurrentValue.ts';
-import type ConeLifecycleEvent from './ConeLifecycleEvent.ts';
+import type { ConeEvictedMember } from './ConeEvictedMember.ts';
+import ConeLifecycleEvent from './ConeLifecycleEvent.ts';
 import type ConeNodeRecord from './ConeNodeRecord.ts';
 import ConeObservation from './ConeObservation.ts';
 
 /**
- * A patch the write races: one retained event it did not observe, named by
- * its patch, or by its chain clock (`clock:<lamport>`) when it was evicted
- * past the concurrent-set bound and only its clock is kept.
+ * A patch the write races: a retained or evicted event it did not observe,
+ * named by its actual patch identity.
  */
 export type ConeRacedPatch = Readonly<{ writer: string; coordinate: string }>;
 
@@ -89,22 +89,33 @@ function ownerRaces(fields: {
     const unseen = set.unobservedBy(observation);
     const evicted = set.unobservedEvictions(observation);
     if (unseen.length + evicted.length > 0) {
-      races.plurality.push(registerRace({ owner, key, winner: new ConcurrentValue({ writer, value }), unseen, overflow: evicted.length }));
-      races.patches.push(...unseen.map(racedPatch), ...evicted.map(([chain, lamport]) => Object.freeze({ writer: chain, coordinate: `clock:${lamport}` })));
+      races.plurality.push(registerRace({ owner, key, winner: new ConcurrentValue({ writer, value }), unseen, evicted }));
+      races.patches.push(...unseen.map(racedPatch), ...evicted.map(racedPatch));
     }
   }
-  const removes = unobservedRemoves(owner.concurrency.lifecycle, observation);
-  if (removes.length > 0) {
-    races.plurality.push(new LifecyclePlurality({
+  const lifecycle = lifecycleRaces(owner, writer, observation);
+  races.plurality.push(...lifecycle.plurality);
+  races.patches.push(...lifecycle.patches);
+  return races;
+}
+
+function lifecycleRaces(owner: ConeNodeRecord, writer: string, observation: ConeObservation): OwnerRaces {
+  const { lifecycle } = owner.concurrency;
+  const evictedRemoves = lifecycle.unobservedEvictions(observation).filter(isRemove);
+  const removes = [...unobservedRemoves(lifecycle, observation), ...evictedRemoves];
+  if (removes.length === 0) {
+    return { plurality: [], patches: [] };
+  }
+  return {
+    plurality: [new LifecyclePlurality({
       element: { kind: 'node', subject: owner.nodeId },
       removedBy: [...new Set(removes.map((remove) => remove.event.writerId))].sort(compareStrings),
       editedBy: [writer],
-      overflow: 0,
+      overflow: evictedRemoves.length,
       causality: removes.every((remove) => remove.causal) ? 'observed' : 'underdetermined',
-    }));
-    races.patches.push(...removes.map(racedPatch));
-  }
-  return races;
+    })],
+    patches: removes.map(racedPatch),
+  };
 }
 
 function registerRace(fields: {
@@ -112,23 +123,27 @@ function registerRace(fields: {
   readonly key: string;
   readonly winner: ConcurrentValue;
   readonly unseen: readonly ConeConcurrentValue[];
-  readonly overflow: number;
+  readonly evicted: readonly ConeEvictedMember[];
 }): RegisterPlurality {
   return new RegisterPlurality({
     subject: fields.owner.nodeId,
     key: fields.key,
     winner: fields.winner,
     siblings: fields.unseen.map((member) => new ConcurrentValue({ writer: member.event.writerId, value: member.value })),
-    overflow: fields.overflow,
-    causality: fields.unseen.every((member) => member.causal) ? 'observed' : 'underdetermined',
+    overflow: fields.evicted.length,
+    causality: [...fields.unseen, ...fields.evicted].every((member) => member.causal) ? 'observed' : 'underdetermined',
   });
 }
 
 function unobservedRemoves(set: ConeConcurrentSet<ConeLifecycleEvent>, observation: ConeObservation): ConeLifecycleEvent[] {
-  return set.unobservedBy(observation).filter((member) => member.role === 'remove');
+  return set.unobservedBy(observation).filter(isRemove);
 }
 
-function racedPatch(member: ConeConcurrentValue | ConeLifecycleEvent): ConeRacedPatch {
+function isRemove(member: ConeEvictedMember): member is ConeLifecycleEvent {
+  return member instanceof ConeLifecycleEvent && member.role === 'remove';
+}
+
+function racedPatch(member: ConeConcurrentValue | ConeEvictedMember): ConeRacedPatch {
   return Object.freeze({ writer: member.event.writerId, coordinate: member.event.patchSha });
 }
 
