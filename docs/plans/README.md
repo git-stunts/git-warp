@@ -48,3 +48,8 @@ contract effective on integration of [#1059](https://github.com/git-stunts/git-w
 not a claim that the target API has shipped.
 
 The [Docker tracked-context design record](./docker-tracked-context.md) makes the COPY-based test runner build images from `git ls-files` paths only, tracked by [#1047](https://github.com/git-stunts/git-warp/issues/1047).
+
+The [public surface guard plan](./public-surface-guard.md), tracked by
+[#1050](https://github.com/git-stunts/git-warp/issues/1050), specifies an export-map
+driven capability check and shrinking legacy inventory for the accepted Optic
+contract. It does not remove existing APIs.

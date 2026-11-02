@@ -52,6 +52,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Guard executable package exports and reachable declaration capabilities against
+  the accepted Optic boundary. Exact legacy allowances must shrink, with a
+  built-package witness and merge-base history check; existing public APIs remain
+  available until their replacements land
+  ([#1050](https://github.com/git-stunts/git-warp/issues/1050)).
+  The Coordinate exception checks every parse/serialize overload for opaque text
+  signatures, including aliases; an allowed method name cannot expose parts.
+  Constructor checks also reject protected construction through inheritance,
+  type-only exports and receipt-returned instances.
+  Bootstrap history includes every merge parent so a deletion merge cannot
+  reset the shrinking inventory.
+  Type-declaration and constructor-variable aliases resolve the underlying
+  Coordinate class before applying its restrictions; non-class identities refuse
+  analysis.
+  Intermediate import/export alias names retain Coordinate identity across
+  re-export chains, including type-only exports.
 - Define the v21 observer-bound Optic implementation contract, including write
   premises, cancellation, page continuation, memo identity, durable Coordinate
   retention, and independently mergeable delivery responsibilities. This is a
