@@ -1,6 +1,6 @@
 # Docker Test Images From Tracked Files Only
 
-Status: proposed.
+Status: implemented; release and merge state live in the linked issue and PR.
 
 Version boundary: none. Developer tooling only; no package, API or storage change.
 
@@ -11,15 +11,15 @@ Parent tracker: [GitHub Issue #1047](https://github.com/git-stunts/git-warp/issu
 ## Problem
 
 Every test and benchmark runs in a COPY-based Docker container.
-`scripts/run-in-docker.sh` hands off to `scripts/RunDockerTestContainer.sh`,
-which runs `docker compose run --build` on the `test` service in
-`docker/docker-compose.yml`. That service builds with `context: ..`, and
-`docker/Dockerfile.node22-slim` ends with `COPY . .`.
+Before this change, `scripts/run-in-docker.sh` handed off to
+`scripts/RunDockerTestContainer.sh`, which ran `docker compose run --build` on
+the `test` service in `docker/docker-compose.yml` with `context: ..`.
+`docker/Dockerfile.node22-slim` copies source with `COPY . .`.
 
-So the image receives **the whole working directory**, filtered only by
-`.dockerignore`. Git's view of the checkout plays no part:
+The image received **the whole working directory**, filtered only by
+`.dockerignore`. Git's view of the checkout played no part:
 
-| Host file | In Git's view | In the test image today |
+| Host file | In Git's view | In the test image before this change |
 | --- | --- | --- |
 | Tracked file, edited but unstaged | the change under test | yes |
 | New file, staged | the change under test | yes |
@@ -45,14 +45,18 @@ a deny-list, and it can't know about files each developer's tools create.
 
 ## Decision
 
-The runner builds the test image from **exactly the paths `git ls-files`
-lists**, taking each path's working-tree content.
+The runner stages a build context from **existing paths `git ls-files`
+lists**, taking each path's working-tree content. Docker then applies the
+tracked `.dockerignore` to that context and performs the Dockerfile's build.
 
 1. Before `docker compose run --build`, `RunDockerTestContainer.sh` creates a
    context directory inside its existing per-run scratch directory. It is
    removed by the existing cleanup trap.
 2. It lists the index with `git ls-files -z --cached`: tracked files plus
-   staged new files. It skips any listed path that no longer exists in the
+   staged new files. A failed inventory stops the run before Docker starts,
+   even if Git emitted partial output. It rejects symlink ancestors, which
+   could redirect an indexed filename outside the checkout. It skips any
+   listed path that no longer exists in the
    working tree, which is a deletion under test. It copies the rest with
    `tar --null --no-recursion -T -`, which keeps modes and symlinks and never
    pulls in a whole directory.
@@ -65,6 +69,9 @@ lists**, taking each path's working-tree content.
 The rule a developer has to know is the one Git already teaches: **a new file
 must be `git add`ed to be tested.** Edits to tracked files do not need to be
 staged.
+
+This copies the working tree; it is not an atomic snapshot against concurrent
+edits. Keep the checkout stable while the runner creates its context.
 
 ### What does not change
 
@@ -97,10 +104,14 @@ staged.
 
 ## Acceptance
 
-- Inside the runner, `/app` holds exactly the `git ls-files` paths.
+- Before Docker starts, the context contains only existing indexed paths.
   - An untracked file and a file excluded only by `.git/info/exclude` are absent.
   - An unstaged edit to a tracked file and a staged new file are present.
-  - The container's `git ls-files` count matches the host's.
+  - A partial failed inventory or a symlink ancestor prevents Docker startup.
+  - Indexed leaf symlinks remain symlinks; copying does not dereference them.
+- Selected source files survive into the image subject to `.dockerignore`.
+  The final `/app` inventory also includes installed dependencies and generated
+  build output, so its file count is not required to equal the host index count.
 - A regression test in `test/unit/scripts/docker-artifact-export.test.ts`
   proves the same against a fixture repository with a fake `docker`. It
   covers untracked, locally excluded, edited, staged-new and

@@ -82,6 +82,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Build the COPY-based test runner's context from existing indexed paths and
+  their working-tree bytes, excluding untracked and locally ignored files.
+  Failed Git inventories and symlinked parent directories stop the run before
+  Docker starts. Stage new files before testing them
+  ([#1047](https://github.com/git-stunts/git-warp/issues/1047)).
 - Make the quarantine graduate-check fail closed. A branch whose merge-base
   with the target cannot be resolved now fails the gate (exit 2) instead of
   skipping it, CI checks out full history and no longer swallows a failed base
