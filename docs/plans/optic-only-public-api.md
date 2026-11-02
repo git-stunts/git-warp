@@ -127,9 +127,15 @@ A live Optic without
 `at` captures the replica's admitted basis when `read()` starts execution. Building
 the query does not silently freeze a moving history.
 
-Reads never append writer patches. They may retain observation evidence through
-a separate retention path. Its storage cost and disclosure policy are explicit;
-it cannot become an ambient writer identity merely to reuse a write API.
+Reads never append writer patches. Every successful completed observation,
+including a completed page, must retain its observation evidence through the
+separate retention path before returning `CompletedObservationReceipt` and its
+durable Coordinate. There is no non-durable completed receipt in this target API.
+Retention denial or failure yields a typed non-completed terminal receipt even
+if some readings were already delivered; streamed values alone do not prove
+durability or completion. Cancelled/refused/failed attempts need not invent a
+Coordinate. Retention's storage cost and disclosure policy are explicit; it
+cannot become an ambient writer identity merely to reuse a write API.
 
 ## 4. Questions, cardinality, and budgets
 
