@@ -56,7 +56,7 @@ describe('Docker source context', () => {
       expect(contexts).toHaveLength(buildCount);
       expect(dockerfiles).toHaveLength(buildCount);
       for (const context of contexts) {
-        expect(resolve(dirname(composePath), context)).toBe(resolve(ROOT));
+        expect(resolve(dirname(composePath), runnerContextFallback(context))).toBe(resolve(ROOT));
       }
       for (const dockerfile of dockerfiles) {
         expect(dockerfile.startsWith('git-warp/')).toBe(false);
@@ -142,6 +142,14 @@ describe('Docker source context', () => {
     },
   );
 });
+
+// The guarded runner may point a build at its tracked-files-only copy of the checkout (#1047);
+// without the runner the build still falls back to the checkout root.
+const RUNNER_CONTEXT = /^\$\{GIT_WARP_DOCKER_CONTEXT:-(?<fallback>[^}]+)\}$/u;
+
+function runnerContextFallback(context: string): string {
+  return RUNNER_CONTEXT.exec(context)?.groups?.['fallback'] ?? context;
+}
 
 function captureValues(source: string, pattern: RegExp): readonly string[] {
   return Object.freeze(
