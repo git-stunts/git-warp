@@ -397,17 +397,41 @@ slices.
 | --- | --- | --- |
 | #1049 | Entire record | No implementation prerequisite; reviewed contract, not runtime evidence |
 | #1050 | 2, 9 | Existing amended allowlist; shrinking export ratchet, no removals |
-| #1051 | 2–3, write obligations in 5–7 | #1040 and #1049; additive Warp composition, authority boundary, and cone writes |
+| #1051 | 2–3, write premise capture in 5–7 | #1040 and #1049; additive Warp composition, authority boundary, and cone writes with retained premise evidence |
 | #1052 | 3–6 | #1040, #1049, and shared Warp composition from #1051; additive bounded Optic reads |
-| #1053 | 7–8 | #1049 and #1052; durable Coordinate replay, re-ask, and forks |
-| #1054 | 9 | #1051–#1053; remove legacy public capabilities as the declared major change |
-| #1055 | 3–4, 9 | #1051–#1052; migrate the existing newcomer witness and first-use docs |
-| #1057 | 9 | Align with the available cone/optic operations; operator diagnostics remain usable |
+| #1053 | 7–8 | #1049 and #1052; finalize Coordinate-bearing receipts, replay, re-ask, forks, and the Strand preview/settlement journey |
+| #1054 | 9 | #1050–#1053 and #1055; remove legacy public capabilities with the export guard and migrated consumers in place |
+| #1055 | 3–4, 8–9 | #1051–#1053; migrate the existing example, newcomer witness, and full read/write/fork/settlement documentation |
+| #1057 | 9 | #1040, #1049, and #1052 for actual Optic probes; retention actions also require the corresponding #1044 capabilities |
 
-The #1051 → #1052 edge is a **proposed prerequisite correction**: this contract
-assigns the shared Warp composition and access boundary to #1051. The currently
-recorded #1052 prerequisites omit it. Accept the edge with this ownership choice;
-do not implement a second composition root to simulate independence.
+The following prerequisite corrections are part of accepting this ownership
+graph; they are proposals until this record is integrated and the issue scopes
+are reconciled. #1051 precedes #1052 because it owns shared Warp composition and
+access. #1053 precedes #1055 because the existing newcomer journey includes forks
+and settlement. #1050 and #1055 precede #1054 so removal is checked and existing
+documentation/examples keep working. #1052 precedes #1057 because an actual Optic
+probe cannot be replaced by a parallel readiness approximation. The #1044
+retention work remains an explicit external prerequisite for its corresponding
+operator actions, not an assertion that those capabilities already exist.
+
+#1051 owns capture and retention of the actual write premises and publication
+evidence, exposing the existing write receipt shape and opaque evidence handles
+in that additive intermediate release. #1052 similarly owns bounded execution
+and retained read evidence using the existing receipt contract. Neither claims
+the final `CompletedObservationReceipt` or durable public Coordinate before
+#1053 establishes its invariants. #1053 consumes those original records; it may
+not recapture historical premises. It owns the final Coordinate codec, durable
+receipt variants and retention checks, replay, and the section 8 public journey.
+This preserves observable writes and reads after each merge without creating a
+backward dependency from their producers to the later Coordinate consumer.
+
+#1054 owns removal and any remaining transport/import changes necessary to keep
+the package, CLI, MCP, generated SDKs, and examples working in the same merge.
+#1057 owns the separately scoped operator rewrite; it cannot remove an operator
+action while its replacement prerequisites are unavailable. Every implementing
+PR must reconcile these scopes with its issue and link the owned sections before
+claiming completion. A planning dependency is not evidence that its predecessor
+passed acceptance.
 
 The existing newcomer witness is [PR #1046](https://github.com/git-stunts/git-warp/pull/1046),
 tracking #1045. Reuse it and flip each current-behavior pin in the fixing PR.
