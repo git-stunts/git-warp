@@ -140,4 +140,34 @@ describe('cone plurality readings (#1039)', () => {
     // @ts-expect-error Exercise the JavaScript boundary with a foreign plurality.
     expect(() => freezePlurality([{ kind: 'register' }])).toThrowError(expect.objectContaining({ code: 'E_PLURALITY' }));
   });
+
+  it('copies both plurality variants so the caller cannot change receipt membership', () => {
+    const register = new RegisterPlurality({
+      subject: 'n', key: 'title', winner: new ConcurrentValue({ writer: 'a', value: 'a' }),
+      siblings: [new ConcurrentValue({ writer: 'b', value: 'b' })], overflow: 0, causality: 'observed',
+    });
+    const lifecycle = new LifecyclePlurality({
+      element: { kind: 'node', subject: 'n' }, removedBy: ['b'], editedBy: ['a'], overflow: 0, causality: 'observed',
+    });
+    const source = [register, lifecycle];
+    const retained = freezePlurality(source);
+    source.length = 0;
+    expect(retained).toEqual([register, lifecycle]);
+    expect(Object.isFrozen(retained)).toBe(true);
+  });
+
+  it('keeps register and lifecycle causal certainty separate and ignores unsupported writes', () => {
+    const owner = node({
+      members: [write('bob', 3, 'legacy', false)],
+      lifecycle: [new ConeLifecycleEvent({ event: event('bob', 4), role: 'remove', causal: true })],
+    });
+    const input = {
+      owners: new Map([['n', owner]]), observation: new ObservedWriteFrontier('lane', []), writer: 'alice', lamport: 9,
+    };
+    const races = ConeWriteRaces.of({ ...input, ops: [new NodePropSet('n', 'title', 'new')] });
+    expect(races.plurality).toMatchObject([
+      { kind: 'register', causality: 'underdetermined' }, { kind: 'lifecycle', causality: 'observed' },
+    ]);
+    expect(ConeWriteRaces.of({ ...input, ops: [new NodePropSet('n', 'title', undefined)] }).isEmpty()).toBe(true);
+  });
 });

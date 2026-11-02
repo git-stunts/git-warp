@@ -18,7 +18,7 @@ import type StoredConeBasis from './StoredConeBasis.ts';
 type ConePorts = { readonly store: ConeRecordStorePort; readonly feed: ConePatchFeedPort };
 
 /**
- * One Lane's cone basis, as the public read and write paths use it (#1039):
+ * One Lane's internal cone basis for read and write integration (#1039):
  * a worldline Lane's own basis, or a strand Lane's pinned base with the
  * strand's own patches folded on top.
  *
@@ -26,8 +26,8 @@ type ConePorts = { readonly store: ConeRecordStorePort; readonly feed: ConePatch
  * the basis that results, or the obstruction that stopped it; a basis with
  * nothing published yet starts from its scope's seed, so nothing has to be
  * prepared first. `foldCommitted()` keeps this clone's own writes folded at
- * commit time. `capture()` advances and keeps the result reachable for a
- * saved Coordinate.
+ * commit time. `capture()` advances and asks the store to retain the result
+ * under its cache policy. This is not durable Coordinate retention.
  */
 export default class ConeLaneBasis {
   readonly lane: string;
@@ -86,9 +86,9 @@ export default class ConeLaneBasis {
   }
 
   /**
-   * Advances like `advance()` and keeps the resulting basis reachable, so a
-   * Coordinate captured on it still reads after its head moves on and Git
-   * prunes unreachable objects.
+   * Advances like `advance()` and requests retention under the store's policy.
+   * The Git adapter uses a bounded basis cache; it can evict earlier captures.
+   * Repository-lifetime Coordinates require a separate durable retention path.
    */
   async capture(): Promise<ConeBasis | ConeObstruction> {
     const outcome = await this.refresh();

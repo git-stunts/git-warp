@@ -17,11 +17,6 @@ import Patch from '../../../../../src/domain/types/Patch.ts';
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
 
-function untyped<T>(json: string): T {
-  const value: T = JSON.parse(json);
-  return value;
-}
-
 describe('ConeRoot', () => {
   it('distinguishes the empty trie from a stored revision', () => {
     expect(ConeRoot.empty().isEmpty()).toBe(true);
@@ -57,12 +52,16 @@ describe('ConeWriterPosition and ConeFrontier', () => {
     expect(frontier.equals(new ConeFrontier(new Map(frontier.entries())))).toBe(true);
     expect(frontier.equals(ConeFrontier.empty())).toBe(false);
     expect(frontier.equals(frontier.advanced('w1', new ConeWriterPosition(SHA_B, 5)))).toBe(false);
+    expect(frontier.maxLamport()).toBe(2);
+    expect(ConeFrontier.empty().maxLamport()).toBe(0);
   });
 
   it('rejects malformed frontiers', () => {
-    expect(() => new ConeFrontier(untyped('{}'))).toThrow('must be a Map');
+    // @ts-expect-error Exercise the JavaScript boundary without a runtime Map.
+    expect(() => new ConeFrontier({})).toThrow('must be a Map');
     expect(() => new ConeFrontier(new Map([['bad writer', new ConeWriterPosition(SHA_A, 1)]]))).toThrow();
-    expect(() => new ConeFrontier(new Map([['w1', untyped<ConeWriterPosition>('{}')]]))).toThrow('must be writer positions');
+    // @ts-expect-error Exercise a structural impostor in place of a writer position.
+    expect(() => new ConeFrontier(new Map([['w1', {}]]))).toThrow('must be writer positions');
   });
 });
 
@@ -73,14 +72,17 @@ describe('ConeBasis and StoredConeBasis', () => {
     expect(basis.equals(ConeBasis.empty())).toBe(false);
     expect(basis.equals(new ConeBasis(ConeRoot.at(SHA_A), ConeFrontier.empty()))).toBe(false);
     expect(ConeBasis.empty().root.isEmpty()).toBe(true);
-    expect(() => new ConeBasis(untyped('{}'), ConeFrontier.empty())).toThrow('needs a root and a frontier');
-    expect(() => new ConeBasis(ConeRoot.empty(), untyped('{}'))).toThrow('needs a root and a frontier');
+    // @ts-expect-error Exercise a structural impostor in place of a root.
+    expect(() => new ConeBasis({}, ConeFrontier.empty())).toThrow('needs a root and a frontier');
+    // @ts-expect-error Exercise a structural impostor in place of a frontier.
+    expect(() => new ConeBasis(ConeRoot.empty(), {})).toThrow('needs a root and a frontier');
   });
 
   it('binds a stored basis to its head revision', () => {
     expect(new StoredConeBasis(ConeBasis.empty(), SHA_A).revision).toBe(SHA_A);
     expect(() => new StoredConeBasis(ConeBasis.empty(), 'nope')).toThrow('needs a basis and a head revision');
-    expect(() => new StoredConeBasis(untyped('{}'), SHA_A)).toThrow('needs a basis and a head revision');
+    // @ts-expect-error Exercise a structural impostor in place of a basis.
+    expect(() => new StoredConeBasis({}, SHA_A)).toThrow('needs a basis and a head revision');
   });
 });
 

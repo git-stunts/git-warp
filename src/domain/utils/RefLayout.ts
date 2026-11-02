@@ -474,10 +474,8 @@ function extractValidWriterId(parts: string[]): string | null {
   if (writersIndex < 1 || writersIndex !== parts.length - 2) {
     return null;
   }
-  const writerId = parts[parts.length - 1];
-  if (writerId === undefined) {
-    return null;
-  }
+  // The index check above proves the suffix has exactly one component.
+  const writerId = parts.slice(writersIndex + 1).join('/');
   try {
     validateWriterId(writerId);
     return writerId;

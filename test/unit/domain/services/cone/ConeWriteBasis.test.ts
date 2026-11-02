@@ -69,4 +69,12 @@ describe('ConeWriteBasis', () => {
     expect(basis.containsEdge('a', 'z', 'rel')).toBe(false);
     expect(() => basis.edgeDots('a', 'z', 'rel')).toThrow(expect.objectContaining({ code: 'E_PATCH_NO_STATE' }));
   });
+
+  it('captures only the requested register owners for a write race check', async () => {
+    const basis = await capture('warn', new ConeWriteTargets({ nodes: [], edges: [], registerNodes: ['a', 'missing'] }));
+    expect([...basis.registerOwners.keys()]).toEqual(['a', 'missing']);
+    expect(basis.registerOwners.get('a')?.props.get('k')?.value).toBe('v');
+    expect(basis.registerOwners.get('missing')?.isAlive()).toBe(false);
+    expect(basis.registerOwners.has('b')).toBe(false);
+  });
 });
