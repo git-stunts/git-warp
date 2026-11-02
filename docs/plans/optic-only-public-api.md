@@ -314,14 +314,21 @@ purpose, or exhausted budget refuses admission before publication. A prior
 application read is not implicitly reused: any required application condition
 must be expressed by a supported validated intent, or refused as unsupported.
 
-Publication checks the expected target basis through the engine's admission
-boundary. If it advanced after premise capture, the attempt returns a typed stale
-observation obstruction without publishing the intent; it cannot substitute a
-newer basis or automatically retry. A caller may execute again, producing a new
-attempt and new evidence. A successful publication and its receipt bind the same
-premise observation and admitted intent. Concurrent history arriving after that
-publication does not rewrite either. Apply this rule to authored Strands as well;
-it is local admission discipline, not a distributed lock or consensus claim.
+Publication consumes that exact premise record and checks the selected writer's
+expected predecessor and current authority through the engine's admission
+boundary. If that writer's predecessor or another required publication condition
+changed, return a typed stale/denied obstruction without publishing the intent;
+do not substitute newer premises or automatically retry. A caller may execute
+again, producing a new attempt and new evidence.
+
+Unrelated writers may advance concurrently: publication neither enumerates their
+heads again nor demands a globally unchanged frontier. The successful receipt
+binds the original observation and admitted intent, not a newly captured “now.”
+Later joined history may change derived answers without rewriting that receipt.
+Intent conditions are claims evaluated at the captured standpoint, not a promise
+of global serializable transactions. Apply the same rule to authored Strands.
+The witness must distinguish an own-writer predecessor race (stale refusal) from
+an unrelated-writer append (independent publication with unchanged premises).
 
 Before returning a durable Coordinate, retain its record, receipt, necessary
 history, and replay dependencies through git-cas-owned roots/publications.
@@ -455,7 +462,9 @@ Acceptance evidence must cover:
 6. Coordinate round trip, restart/GC replay, denial after revocation, retention
    capacity refusal preserving old tokens, and missing evidence refusal; no
    historical write or external effect is redelivered. Write tests advance the
-   target between premise capture and publication and require stale refusal.
+   selected writer's predecessor between premise capture and publication and
+   require stale refusal; an unrelated writer advance must preserve independent
+   publication and the original observation binding.
 7. Re-asking inherits basis, observer, and purpose; changing historical identity
    or purpose requires checked strict coarsening. A separately authorized live
    observation cannot claim to reuse that standpoint.
