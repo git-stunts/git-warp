@@ -49,6 +49,8 @@ representations; schema generation belongs at transport boundaries.
 | `Observer` | Existing validated/generated query-plan constructors | This names a question plan, not a principal; requires stable identity and version |
 | `Observation` | Resolved by `read()`; async iteration, `receipt: Promise<ObservationReceipt>`, `cancel(): Promise<ObservationReceipt>` | One execution and consumer; cancellation and receipt demand settle to the same terminal receipt |
 | `Reading` | Emitted only by an Observation | Validated value plus scoped evidence; never a whole-state object |
+| `PageSize` / `PageContinuation` | `PageSize.of(records)` validates a positive finite page limit; continuation is returned only by `ContinuedCoverage` | Continuation is opaque, bound to one live pagination session, and consumed by `query.resume(continuation).read()` |
+| `CompleteCoverage` / `ContinuedCoverage` | Returned in a completed observation receipt's `coverage`; only `ContinuedCoverage` has `continuation` | A completed page is not a complete answer; only `CompleteCoverage` attests exhaustion of the underlying question |
 | `Receipt` variants | Returned by writes, observations, forks, replay, and settlement; `CompletedObservationReceipt` carries a durable Coordinate | Describe the actual operation and its outcome; no caller-created success evidence |
 | `Coordinate` | Obtained from a retained receipt; `parse(text)` and `toString()` | Parsing validates syntax only; resolution and authority checks occur at use |
 | `Strand` | Returned by `observedWarp.fork(coordinate)` or `observedStrand.fork(coordinate)` | Fork authorization and retained origin are required; no fork from a raw cut |
@@ -136,8 +138,8 @@ observer's default. Neither method can silently widen access.
 | Node presence/lifecycle | `node(id)` | Exactly one bounded lifecycle result, including witnessed absence |
 | Property | `node(id).prop(key)` | Exactly one present/absent result when the question is decidable |
 | Edge presence/property | `edge(id)` / `edge(id).prop(key)` | Same bounded semantics as node questions |
-| Neighborhood | `node(id).neighbors()` | Stream bounded pages with explicit continuation and completeness |
-| Traversal | `node(id).traverse()` | Stream bounded traversal results; no implicit exhaustive expansion |
+| Neighborhood | `node(id).neighbors().page(size)` | Stream one bounded page; the receipt supplies coverage and any continuation |
+| Traversal | `node(id).traverse().page(size)` | Stream one bounded traversal page; no implicit exhaustive expansion |
 | Content | `node(id).content()` / `edge(id).content()` | Bounded metadata/readings and authorized byte streams; no whole-blob collector |
 | Entity inventory | `entities()` | Stream admitted occurrences at one fixed observation basis |
 | Generated structural observer | `witness(observer)` | Use the plan's declared cardinality, purpose, support requirements, and version |
@@ -181,11 +183,32 @@ result carries absence only when its support is sufficient. A complete empty
 inventory emits zero readings and a completed, complete receipt. Withheld or
 unavailable data must not be disguised as ordinary absence.
 
-Pagination binds continuation to the observation, question, observer, purpose,
-law, and dependency evidence. A cursor cannot be reused at a new live basis or
-under another principal. Partial pages are marked partial; exhaustion of work,
-bytes, or records cannot yield a completeness claim. Defaults and aggregate
-accounting are part of the executable contract, not unlimited optional hints.
+For pageable questions, `.page(PageSize.of(records))` sets the page boundary;
+omitting it uses a finite policy default. Inventory questions support the same
+operation. One `read()` emits one page and settles its receipt. If execution
+reaches that boundary with more results, its `CompletedObservationReceipt` has
+`ContinuedCoverage`, whose `continuation` is a `PageContinuation`. Otherwise,
+verified exhaustion yields `CompleteCoverage`. Determining whether more results
+exist is budgeted work; uncertainty cannot become a complete answer.
+
+Request the next page with `query.resume(receipt.coverage.continuation).read()`
+after narrowing coverage to `ContinuedCoverage`. Each page has its own Observation
+and receipt; the receipt binds its page position as well as the underlying
+question. All pages share the initial admitted basis, deterministic ordering,
+question/version, observer, purpose, law, and dependency evidence. Resume checks
+current authority and these bindings before retrieval. Changed bindings refuse
+resume rather than capturing a new live basis. Page receipts attest their own
+coverage; the final complete receipt links the preceding page evidence.
+
+The continuation retains the session's remaining aggregate work/byte/record
+budget. Page size cannot reset that budget. A continuation admits at most one
+successor execution; concurrent or repeated consumption returns a typed
+already-consumed refusal. It is a live handle, not a serializable Coordinate:
+closing its Warp ends the session, and later resume returns a typed closed
+session refusal. A new question at a retained Coordinate is a separate observation.
+Cancellation, denial, failure, or budget exhaustion yields an incomplete terminal
+result without continuation, even if some readings were delivered. Defaults and
+aggregate accounting are executable obligations, not unlimited optional hints.
 Charge logical work consistently for the represented question, including work
 represented by a reused memo. Actual I/O, memory pressure, and elapsed time belong
 in separately bounded execution diagnostics. A physical failure produces its own
