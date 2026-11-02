@@ -62,6 +62,13 @@ describe('public capability surface', () => {
     expect(keys(item).some((key) => key.includes('open') && key.includes('checkpoint'))).toBe(true);
   });
 
+  it.each(['declare class', 'interface'])('detects a forbidden base beneath an exported %s', (declaration) => {
+    const item = fixture();
+    item.write('engine.d.ts', 'export declare class Graph { addNode(id: string): void; }');
+    item.write('index.d.ts', `import { Graph } from './engine.js'; export ${declaration} View extends Graph {}`);
+    expect(keys(item).some((key) => key.includes('View') && key.includes('mutable-graph'))).toBe(true);
+  });
+
   it('follows public members supplied by a dependency', () => {
     const item = fixture();
     item.write('node_modules/engine/package.json', '{"name":"engine","type":"module","types":"index.d.ts"}');
