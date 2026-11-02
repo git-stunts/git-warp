@@ -41,7 +41,7 @@ representations; schema generation belongs at transport boundaries.
 | `WarpAddress` | `of(storage, name)` validates the storage/name pair | Reject malformed or reserved names; contains no writer or observer |
 | `Warp` | `open(address, access)` opens resources; `forObserver(identity)`, `as(writer)`, `close()` | `access` is an injected `WarpAccessPort`; opening does not grant data access |
 | `ObservedWarp` | Returned only by `forObserver`; accepted by `Optic`; `fork(coordinate)` | Binds an observer identity; current rights are checked on execution |
-| `AuthoredWarp` | Returned only by `as`; `execute(intent)`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation as specified in section 7 |
+| `AuthoredWarp` | Returned only by `as`; `execute(intentOrIntents): Promise<WriteReceipt>`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation and returns the write receipt variant specified in section 7 |
 | `ObserverIdentity` | `of(namespace, subject)` validates a principal name | A name is not an authentication credential or a grant |
 | `Purpose` | `of(namespace, name, version)` validates a registered purpose identifier | Unknown or undeclared purposes are refused by policy |
 | `ReadBudget` | `of(limits)` validates named finite limits for records, emitted bytes, and work | Invalid limits fail construction; execution accounts for aggregate work |
@@ -53,6 +53,7 @@ representations; schema generation belongs at transport boundaries.
 | `PageSize` / `PageContinuation` | `PageSize.of(records)` requires a positive safe integer, rejecting fractions, non-positive values, and non-finite or unsafe numbers; continuation is returned only by `ContinuedCoverage` | Continuation is opaque, bound to one live pagination session, and consumed by `query.resume(continuation).read()` |
 | `CompleteCoverage` / `ContinuedCoverage` | Returned in a completed observation receipt's `coverage`; only `ContinuedCoverage` has `continuation` | A completed page is not a complete answer; only `CompleteCoverage` attests exhaustion of the underlying question |
 | `Receipt` variants | Returned by writes, observations, forks, replay, and settlement; `CompletedObservationReceipt` carries a durable Coordinate | Describe the actual operation and its outcome; no caller-created success evidence |
+| `WriteReceipt` variants | Returned only by `execute`; `RetainedWriteReceipt`, `UnretainedWriteReceipt`, `UnpublishedWriteReceipt`, or `IndeterminateWriteReceipt` | Section 7 defines which variant establishes publication, admission, retention, and a usable `coordinate` |
 | `Coordinate` | Obtained from a retained receipt; `parse(text)` and `toString()` | Parsing validates syntax only; resolution and authority checks occur at use |
 | `Strand` | Returned by `observedWarp.fork(coordinate)` or `observedStrand.fork(coordinate)` | Fork authorization and retained origin are required; no fork from a raw cut |
 | `ObservedStrand` / `AuthoredStrand` | `strand.forObserver(identity)` provides `fork(coordinate)` and `previewSettlement(targetView)`; `strand.as(writer)` provides `execute(intent)` and `settle(plan)` | Same observation and authorship rules as Warp handles |
@@ -310,6 +311,28 @@ A write's Coordinate binds the observation that justified that intent, including
 its actual read-before-write basis. The resulting write receipt separately binds
 the admission outcome. A later capture is not a substitute. Even an intent with
 no data reads has explicit authority/law premises and an empty data question.
+
+The target `WriteReceipt` is a family of validated runtime variants. The existing
+intent-or-intent-sequence input remains supported; the premise question covers
+the whole submitted sequence under the engine's admission semantics. Its result
+is one of the following, on authored Warp and Strand handles alike:
+
+| Variant | Public evidence | Meaning |
+| --- | --- | --- |
+| `RetainedWriteReceipt` | Actual admission `outcome`, occurrence evidence where applicable, opaque exact-publication evidence, and `coordinate: Coordinate` | Publication and its required retention are established; the Coordinate binds the actual justifying observation and replays this write receipt |
+| `UnretainedWriteReceipt` | Actual admitted `outcome`, occurrence and exact-publication evidence, and a typed retention cause; no `coordinate` | The write was admitted, but durable observation retention did not complete; this is not an unapplied write |
+| `UnpublishedWriteReceipt` | Typed refusal/failure outcome, policy-safe cause and repair hints; no publication or `coordinate` field | The attempt is known not to have published, including stale-predecessor, authority, budget, or pre-publication I/O failure |
+| `IndeterminateWriteReceipt` | Opaque attempt evidence and typed reconciliation requirement; no claimed admission outcome, exact-publication handle, or `coordinate` | Publication cannot yet be established or ruled out; the receipt must not imply that retry is safe |
+
+The opaque evidence fields are references, not public frontiers or raw receipt
+storage. Callers narrow the runtime variant before reading its success fields.
+Only `RetainedWriteReceipt.coordinate` authorizes attempting receipt replay, which
+still checks current rights. Neither an unretained nor an indeterminate result
+may silently re-execute the intent; any reconciliation uses the attempt's actual
+publication evidence. A separate caller decision is required to submit a new
+attempt, and uncertain publication must be resolved before treating it as a retry
+of an unapplied operation. This is the final #1053 contract; #1051's additive
+intermediate receipt shape remains as specified in section 10.
 
 `AuthoredWarp.execute(intent)` obtains that observation internally. The registered
 intent's admission plan declares the versioned premise question; the writer is
