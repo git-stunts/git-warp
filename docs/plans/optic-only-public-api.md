@@ -326,8 +326,9 @@ is one of the following, on authored Warp and Strand handles alike:
 
 The opaque evidence fields are references, not public frontiers or raw receipt
 storage. Callers narrow the runtime variant before reading its success fields.
-Only `RetainedWriteReceipt.coordinate` authorizes attempting receipt replay, which
-still checks current rights. Neither an unretained nor an indeterminate result
+Only `RetainedWriteReceipt` exposes a write `coordinate` for receipt replay;
+the token grants no authority and replay checks current rights.
+Neither an unretained nor an indeterminate result
 may silently re-execute the intent; any reconciliation uses the attempt's actual
 publication evidence. A separate caller decision is required to submit a new
 attempt, and uncertain publication must be resolved before treating it as a retry
