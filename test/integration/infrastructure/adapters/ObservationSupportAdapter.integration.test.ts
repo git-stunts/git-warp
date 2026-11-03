@@ -300,6 +300,22 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
       expect(await empty.opened.support.verify(empty.identity, { basis: empty.basis, roots: noHeads.roots, summary: noHeads.summary })).toBeNull();
     });
 
+    it('refuses an honest chain that retains other heads than the basis names', async () => {
+      const h = await harness(format);
+      const heads = writerCommits(h.path, 2);
+      const basis = basisTree(h.path, 'named', heads);
+      const named = narrowed(await h.opened.support.retain(requestOf(h, { basis })), ObservationSupportRetained);
+      await h.opened.support.release(h.identity);
+      const sameCount = narrowed(await h.opened.support.retain(requestOf(h, { basis: basisTree(h.path, 'same', writerCommits(h.path, 2)) })), ObservationSupportRetained);
+      await h.opened.support.release(h.identity);
+      const otherCount = narrowed(await h.opened.support.retain(requestOf(h, { basis: basisTree(h.path, 'more', writerCommits(h.path, 3)) })), ObservationSupportRetained);
+      for (const chain of [sameCount, otherCount]) {
+        const roots = new ObservationCustodyRoots(named.roots.supports, chain.roots.parents);
+        expect(await h.opened.support.verify(h.identity, { basis, roots, summary: named.summary }))
+          .toEqual(new ObservationSupportFault('history-mismatch'));
+      }
+    });
+
     it('refuses declared edges custody does not hold', async () => {
       const h = await harness(format);
       const { roots, summary } = await retained(h, blob(h.path, 'kept'));
