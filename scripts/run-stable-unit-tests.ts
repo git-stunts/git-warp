@@ -105,6 +105,7 @@ const UNIT_SHARDS: readonly Shard[] = [
     paths: [
       ...listRecursiveTestFiles('test/unit/domain/services/controllers'),
       ...listRecursiveTestFiles('test/unit/domain/services/cone'),
+      ...listRecursiveTestFiles('test/unit/domain/services/custody'),
       ...listRecursiveTestFiles('test/unit/domain/services/optic'),
       ...listRecursiveTestFiles('test/unit/domain/services/query'),
       ...listRecursiveTestFiles('test/unit/domain/services/snapshot'),
