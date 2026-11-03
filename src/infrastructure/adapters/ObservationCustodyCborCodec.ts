@@ -191,8 +191,8 @@ export default class ObservationCustodyCborCodec extends ObservationCustodyCodec
     try {
       const built = value.build(wire.parse(this.#codec.decode<unknown>(bytes)));
       return bytesEqual(value.encode(built), bytes) ? built : new ObservationDecodeFailure('non-canonical encoding');
-    } catch (cause) {
-      return new ObservationDecodeFailure(cause instanceof Error ? cause.name : 'undecodable');
+    } catch {
+      return new ObservationDecodeFailure('undecodable');
     }
   }
 }

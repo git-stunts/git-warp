@@ -32,11 +32,12 @@ export default class ObservationCarrierMessage {
     if (match === null) {
       return null;
     }
+    const [binding = '', sequence, writers, history = ''] = match.slice(1);
     return new ObservationCarrierMessage({
-      binding: new ObservationDigest(match[1] ?? ''),
-      sequence: Number(match[2]),
-      writers: Number(match[3]),
-      history: new ObservationDigest(match[4] ?? ''),
+      binding: new ObservationDigest(binding),
+      sequence: Number(sequence),
+      writers: Number(writers),
+      history: new ObservationDigest(history),
     });
   }
 
