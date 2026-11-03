@@ -2,8 +2,10 @@
 
 Implementation contract for [#1067](https://github.com/git-stunts/git-warp/issues/1067),
 under the [Optic contract](./optic-only-public-api.md), especially section 7.
-This document specifies the private prerequisite. It does not claim an implemented
-service, passing witnesses, a public Coordinate or a shipped release.
+This document specifies the private prerequisite. The service, its production
+adapters and native witnesses exist in `src/domain/services/custody/` and
+`src/infrastructure/adapters/`, but nothing composes or exports them yet: #1051 and
+#1052 connect the producers. This is not a public Coordinate or a shipped release.
 
 ## Outcome and ownership
 
