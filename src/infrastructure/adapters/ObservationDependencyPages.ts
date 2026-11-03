@@ -7,6 +7,7 @@ import type { ObservationSupportRequest } from '../../domain/services/custody/Ob
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import GitFastImportTreeScript from './GitFastImportTreeScript.ts';
 import type GitFastImportTreeWriter from './GitFastImportTreeWriter.ts';
+import type { GitPlumbing } from './gitErrorClassification.ts';
 import type { GitTreeObjectEntry } from './GitTreeObjectEntry.ts';
 import type ObservationWorkMeter from './ObservationWorkMeter.ts';
 
@@ -17,6 +18,7 @@ export const OBSERVATION_DEPENDENCY_PAGES = 63;
 const ENTRY_NAME_DIGITS = 8;
 
 export type ObservationDependencyHistory = {
+  readonly plumbing: Pick<GitPlumbing, 'execute'>;
   nodeExists(oid: string): Promise<boolean>;
   readTreeObjectEntries(treeOid: string): Promise<readonly GitTreeObjectEntry[]>;
 };
@@ -99,7 +101,16 @@ export default class ObservationDependencyPages {
     if (!step.meter.spend(1)) {
       return new ObservationSupportRefused('work-limit');
     }
-    return await this.#history.nodeExists(step.dependency.oid) ? null : new ObservationSupportRefused('dependency-unavailable');
+    return await this.#typeProblem(step.dependency);
+  }
+
+  /** A refusal unless the object exists with its declared type, which a page's tree mode depends on. */
+  async #typeProblem(dependency: ObservationDependency): Promise<ObservationSupportRefused | null> {
+    if (!await this.#history.nodeExists(dependency.oid)) {
+      return new ObservationSupportRefused('dependency-unavailable');
+    }
+    const actual = await this.#history.plumbing.execute({ args: ['cat-file', '-t', dependency.oid] });
+    return actual.trim() === dependency.type ? null : new ObservationSupportRefused('dependency-mismatch');
   }
 
   async #finished(

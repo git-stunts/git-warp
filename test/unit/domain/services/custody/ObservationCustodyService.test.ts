@@ -35,6 +35,7 @@ import ObservationSupportFault from '../../../../../src/domain/services/custody/
 import ObservationSupportRefused from '../../../../../src/domain/services/custody/ObservationSupportRefused.ts';
 import ObservationSupportSummary from '../../../../../src/domain/services/custody/ObservationSupportSummary.ts';
 import ObservationUnavailable from '../../../../../src/domain/services/custody/ObservationUnavailable.ts';
+import ObservationUnretained from '../../../../../src/domain/services/custody/ObservationUnretained.ts';
 import ResolvedObservation from '../../../../../src/domain/services/custody/ResolvedObservation.ts';
 import RetainedObservation from '../../../../../src/domain/services/custody/RetainedObservation.ts';
 import NodeCryptoAdapter from '../../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -306,7 +307,7 @@ describe('ObservationCustodyService', () => {
       const write = await writeAttempt();
       for (const phase of ['reserved', 'prepared'] as const) {
         custody.inspected = inspectionAt(phase);
-        expect(await service.settle(write, { core: writeCore('w'), publication })).toEqual(new ObservationRefused('not-armed'));
+        expect(await service.settle(write, { core: writeCore('w'), publication })).toMatchObject({ cause: { code: 'E_OBSERVATION_CUSTODY_CONTRADICTED' } });
       }
       custody.inspected = inspectionAt('armed');
       storePreparation(write);
@@ -333,10 +334,39 @@ describe('ObservationCustodyService', () => {
       expect(custody.pages).toHaveLength(0);
     });
 
+    it('reports oversized evidence after a publication as unretained, not refused', async () => {
+      const write = await writeAttempt();
+      storePreparation(write);
+      custody.inspected = inspectionAt('armed');
+      const big = new ObservationReceiptCore({ family: 'write', variant: 'huge', outcome: new Uint8Array(5 * 1024 * 1024) });
+      const outcome = await service.settle(write, { core: big, publication: new ObservationPublicationEvidence('writer-1', COMMIT) });
+      expect(outcome).toBeInstanceOf(ObservationUnretained);
+      expect(outcome).toMatchObject({ reason: 'evidence-too-large' });
+      expect(custody.pages).toHaveLength(0);
+    });
+
     it('reads preparation before settling, and maps its failure', async () => {
       const attempt = await readAttempt();
       custody.evidence.preparation = new CustodyRefused('not-prepared');
       expect(await service.settle(attempt, { core: readCore('x'), publication: null })).toEqual(new ObservationRefused('not-prepared'));
+      custody.evidence.preparation = new CustodyRefused('cancelled');
+      expect(await service.settle(attempt, { core: readCore('x'), publication: null })).toBeInstanceOf(ObservationKnownUnpublished);
+      expect(custody.pages).toHaveLength(0);
+    });
+
+    it('verifies support before writing preparation, refusing what could never be issued', async () => {
+      const attempt = await readAttempt();
+      support.fault = new ObservationSupportFault('dependency-mismatch');
+      expect(await service.prepare(attempt, sources())).toEqual(new ObservationRefused('support-unverified'));
+      support.fault = new ObservationSupportFault('work-limit');
+      expect(await service.prepare(attempt, sources())).toEqual(new ObservationRefused('work-limit'));
+      expect(custody.pages).toHaveLength(0);
+      support.fault = null;
+      const verify = vi.spyOn(support, 'verify').mockRejectedValueOnce(failure);
+      expect(await service.prepare(attempt, sources())).toEqual(new ObservationIndeterminate('preparation', failure));
+      verify.mockRejectedValueOnce('text failure');
+      expect(await service.prepare(attempt, sources())).toBeInstanceOf(ObservationIndeterminate);
+      verify.mockRestore();
       expect(custody.pages).toHaveLength(0);
     });
 

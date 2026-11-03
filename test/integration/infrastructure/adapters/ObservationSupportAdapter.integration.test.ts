@@ -188,6 +188,54 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
     expect(pulled).toBe((OBSERVATION_DEPENDENCY_PAGE * OBSERVATION_DEPENDENCY_PAGES) + 1);
   }, 120_000);
 
+  it('pulls no more than one page of dependencies ahead of the pages it has written', async () => {
+    const h = await harness(format);
+    const real = await Plumbing.createDefault({ cwd: h.path });
+    let pagesWritten = 0;
+    const plumbing = {
+      execute: async (options: { args: string[]; input?: string | Buffer }): Promise<string> => {
+        if (options.args[0] === 'fast-import') {
+          pagesWritten += 1;
+        }
+        return await real.execute(options);
+      },
+      executeStream: async (options: { args: string[] }) => await real.executeStream(options),
+    };
+    const history = new GitTimelineHistoryAdapter({ plumbing: real });
+    const support = new GitCasObservationSupportAdapter({
+      publications: h.opened.store.publications,
+      assets: h.opened.store.assets,
+      history: {
+        plumbing,
+        readRef: async (ref) => await history.readRef(ref),
+        deleteRef: async (ref) => await history.deleteRef(ref),
+        nodeExists: async (oid) => await history.nodeExists(oid),
+        readBlob: async (oid) => await history.readBlob(oid),
+        readTreeObjectEntries: async (oid) => await history.readTreeObjectEntries(oid),
+      },
+      crypto: new NodeCryptoAdapter(),
+      codec,
+      graphName: FIXTURE_GRAPH,
+      limits: DEFAULT_SUPPORT_LIMITS,
+    });
+    const content = blobDependency(blob(h.path, 'streamed'));
+    const all = Array.from({ length: 2500 }, () => content);
+    let pulled = 0;
+    let furthestAhead = 0;
+    async function* watched(): AsyncGenerator<ObservationDependency> {
+      for (const dependency of all) {
+        pulled += 1;
+        furthestAhead = Math.max(furthestAhead, pulled - (pagesWritten * OBSERVATION_DEPENDENCY_PAGE));
+        yield await Promise.resolve(dependency);
+      }
+    }
+    narrowed(await support.retain({ ...requestOf(h, { claim: await claimOf(all) }), dependencies: watched() }), ObservationSupportRetained);
+    expect(pulled).toBe(all.length);
+    expect(pagesWritten).toBe(3);
+    expect(furthestAhead).toBeLessThanOrEqual(OBSERVATION_DEPENDENCY_PAGE);
+    expect(furthestAhead).toBeGreaterThan(1);
+  });
+
   it('enforces its frontier byte and work bounds while building', async () => {
     const h = await harness(format, (path) => writerCommits(path, 3));
     const small = await supportOver(h, { limits: limitsWith({ frontierBytes: 1 }) });

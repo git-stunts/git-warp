@@ -1,6 +1,12 @@
 import { chmod, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import Plumbing from '@git-stunts/plumbing';
 import { afterEach, describe, expect, it } from 'vitest';
+import ConeBasis from '../../../../src/domain/services/cone/ConeBasis.ts';
+import ConeBasisHead from '../../../../src/domain/services/cone/ConeBasisHead.ts';
+import ConeFrontier from '../../../../src/domain/services/cone/ConeFrontier.ts';
+import ConeRoot from '../../../../src/domain/services/cone/ConeRoot.ts';
+import ConeWriterPosition from '../../../../src/domain/services/cone/ConeWriterPosition.ts';
 import CustodyAcknowledged from '../../../../src/domain/services/custody/CustodyAcknowledged.ts';
 import CustodyInspection from '../../../../src/domain/services/custody/CustodyInspection.ts';
 import CustodyRefused from '../../../../src/domain/services/custody/CustodyRefused.ts';
@@ -25,6 +31,9 @@ import ObservationUnavailable from '../../../../src/domain/services/custody/Obse
 import ResolvedObservation from '../../../../src/domain/services/custody/ResolvedObservation.ts';
 import RetainedObservation from '../../../../src/domain/services/custody/RetainedObservation.ts';
 import GitCasObservationCustodyAdapter from '../../../../src/infrastructure/adapters/GitCasObservationCustodyAdapter.ts';
+import GitConeRecordStoreAdapter from '../../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
+import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
+import codec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import ObservationCustodyFixture, {
   FIXTURE_GRAPH,
   basisTree,
@@ -195,7 +204,7 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     const core = writeCore('published');
     const commit = writerCommits(path, 1)[0] ?? '';
     const publication = new ObservationPublicationEvidence('writer-1', commit);
-    expect(await opened.service.settle(attempt, { core, publication })).toEqual(new ObservationRefused('not-armed'));
+    expect(await opened.service.settle(attempt, { core, publication })).toMatchObject({ cause: { code: 'E_OBSERVATION_CUSTODY_CONTRADICTED' } });
     expect(await opened.service.authorizePublication(attempt)).toBeInstanceOf(ObservationPublicationPermission);
     expect(await opened.service.authorizePublication(attempt)).toBeInstanceOf(ObservationReconcileOnly);
     const retained = narrowed(await opened.service.settle(attempt, { core, publication }), RetainedObservation);
@@ -287,11 +296,10 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     const right = await fixture.open(path, { limit: 4 });
     const attempt = await admitted(left.service, readBindings(basisTree(path, 'race', writerCommits(path, 130))));
     const racing = await Promise.all([left.service.prepare(attempt, sources()), right.service.prepare(attempt, sources())]);
-    for (const outcome of racing) {
-      if (!(outcome instanceof ObservationPrepared)) {
-        expect(outcome).toBeInstanceOf(outcome instanceof ObservationIndeterminate ? ObservationIndeterminate : ObservationRefused);
-      }
+    for (const outcome of racing.filter((candidate) => candidate instanceof ObservationRefused)) {
+      expect(['construction-contended', 'construction-mismatch', 'contention']).toContain(outcome.reason);
     }
+    expect(racing.every((outcome) => !(outcome instanceof ObservationKnownUnpublished))).toBe(true);
     const prepared = narrowed(await right.service.prepare(attempt, sources()), ObservationPrepared);
     expect(prepared.roots.parents).toHaveLength(1);
     const retained = narrowed(await left.service.settle(attempt, { core: readCore('raced'), publication: null }), RetainedObservation);
@@ -348,6 +356,73 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     expect(await opened.service.prepare(headless, sources())).toEqual(new ObservationRefused('writer-head-unavailable'));
     const frontierless = await admitted(opened.service, readBindings(git(path, ['mktree'], '')));
     expect(await opened.service.prepare(frontierless, sources())).toEqual(new ObservationRefused('basis-corrupt'));
+  });
+
+  it('takes every accepted attempt through to resolve, refusing the rest before arm', async () => {
+    const path = await fixture.repository(format);
+    const heads = writerCommits(path, 3);
+    const content = [blobDependency(blob(path, 'budgeted'))];
+    const claim = await claimOf(content);
+    const outcomes: string[] = [];
+    for (let work = 0; work <= 16; work++) {
+      const limits = new ObservationSupportLimits({ writers: 8, dependencies: 8, frontierBytes: 1024 * 1024, work });
+      const opened = await fixture.open(path, { limit: 32, limits });
+      const attempt = await admitted(opened.service, readBindings(basisTree(path, `budget-${work}`, heads), claim));
+      const prepared = await opened.service.prepare(attempt, sources(content));
+      if (prepared instanceof ObservationPrepared) {
+        const retained = narrowed(await opened.service.settle(attempt, { core: readCore(`w${work}`), publication: null }), RetainedObservation);
+        expect(await opened.service.resolve(retained.coordinate)).toBeInstanceOf(ResolvedObservation);
+        outcomes.push('resolved');
+      } else {
+        expect(prepared).toEqual(new ObservationRefused('work-limit'));
+        outcomes.push('refused');
+      }
+      await fixture.close(opened);
+    }
+    expect(outcomes[0]).toBe('refused');
+    expect(outcomes.at(-1)).toBe('resolved');
+    expect(outcomes.lastIndexOf('refused')).toBeLessThan(outcomes.indexOf('resolved'));
+  });
+
+  it('retains a real published cone basis, with its record trie and strand writers, through GC', async () => {
+    const path = await fixture.repository(format);
+    const opened = await fixture.open(path, { limit: 4 });
+    const heads = writerCommits(path, 3);
+    const record = blob(path, 'cone record');
+    const family = git(path, ['mktree'], `100644 blob ${record}\trecord\n`);
+    const records = git(path, ['mktree'], `040000 tree ${family}\tn\n`);
+    const strand = 'ab'.repeat(32);
+    const frontier = new ConeFrontier(new Map([
+      ['alice', new ConeWriterPosition(heads[0] ?? '', 1)],
+      ['bob', new ConeWriterPosition(heads[1] ?? '', 2)],
+      [`@w.alice@s.${strand}`, new ConeWriterPosition(heads[2] ?? '', 3)],
+    ]));
+    const store = new GitConeRecordStoreAdapter({ history: new GitTimelineHistoryAdapter({ plumbing: await Plumbing.createDefault({ cwd: path }) }), codec });
+    const head = ConeBasisHead.forLane(FIXTURE_GRAPH);
+    const stored = await store.publishBasis(head, new ConeBasis(ConeRoot.at(records), frontier), null);
+    const basis = stored?.revision ?? '';
+    const retained = await retainRead(opened.service, { basis, label: 'real' });
+    await store.dropBasis(head);
+    removeFixtureRefs(path);
+    collectGarbage(path);
+    expect(await opened.service.resolve(retained.coordinate)).toBeInstanceOf(ResolvedObservation);
+    expect(git(path, ['cat-file', '-p', record])).toBe('cone record');
+    for (const commit of heads) {
+      expect(git(path, ['cat-file', '-t', commit])).toBe('commit');
+    }
+  });
+
+  it('refuses a dependency whose declared type is not its real one, and pins empty-tree behaviour', async () => {
+    const path = await fixture.repository(format);
+    const opened = await fixture.open(path, { limit: 4 });
+    const mistyped = [treeDependency(blob(path, 'really a blob'))];
+    const attempt = await admitted(opened.service, readBindings(basisTree(path, 'mistyped'), await claimOf(mistyped)));
+    expect(await opened.service.prepare(attempt, sources(mistyped))).toEqual(new ObservationRefused('dependency-mismatch'));
+
+    const empty = [treeDependency(git(path, ['mktree'], ''))];
+    const hollow = await admitted(opened.service, readBindings(basisTree(path, 'hollow'), await claimOf(empty)));
+    const outcome = await opened.service.prepare(hollow, sources(empty));
+    expect(outcome).toEqual(new ObservationRefused('support-unverified'));
   });
 
   it('retains identical and distinct dependency pages through GC', async () => {

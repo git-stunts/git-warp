@@ -13,15 +13,11 @@ import ObservationRefused from '../../../../src/domain/services/custody/Observat
 import ResolvedObservation from '../../../../src/domain/services/custody/ResolvedObservation.ts';
 import RetainedObservation from '../../../../src/domain/services/custody/RetainedObservation.ts';
 import { OBSERVATION_CARRIER_BATCH } from '../../../../src/infrastructure/adapters/GitCasObservationSupportAdapter.ts';
-import { OBSERVATION_DEPENDENCY_PAGE } from '../../../../src/infrastructure/adapters/ObservationDependencyPages.ts';
 import FaultingObservationCustody from '../../../helpers/FaultingObservationCustody.ts';
 import ObservationCustodyFixture, {
   type OpenedCustody,
   FIXTURE_ATTEMPT,
   basisTree,
-  blob,
-  blobDependency,
-  claimOf,
   narrowed,
   readBindings,
   readCore,
@@ -199,41 +195,27 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
     expect(opened.carriersPublished()).toBe(Math.ceil(200 / OBSERVATION_CARRIER_BATCH));
   });
 
-  it('pulls at most one page of dependencies ahead of what it has written', async () => {
+  it('changes nothing when a reservation never reaches the store', async () => {
     const path = await fixture.repository(format);
     const opened = await faulted(path, 2);
-    const content = blobDependency(blob(path, 'streamed'));
-    const all = Array.from({ length: 2500 }, () => content);
-    const { attempt } = narrowed(await opened.service.begin(readBindings(basisTree(path, 'streamed'), await claimOf(all))), ObservationAdmitted);
-    let pulled = 0;
-    let pagesAtPull = 0;
-    async function* watched(): AsyncGenerator<typeof content> {
-      for (const dependency of all) {
-        pulled += 1;
-        pagesAtPull = Math.max(pagesAtPull, pulled - (Math.floor((pulled - 1) / OBSERVATION_DEPENDENCY_PAGE) * OBSERVATION_DEPENDENCY_PAGE));
-        yield await Promise.resolve(dependency);
-      }
-    }
-    narrowed(await opened.service.prepare(attempt, { dependencies: watched() }), ObservationPrepared);
-    expect(pulled).toBe(all.length);
-    expect(pagesAtPull).toBeLessThanOrEqual(OBSERVATION_DEPENDENCY_PAGE);
+    const bindings = readBindings(basisTree(path, 'before-reserve'));
+    opened.faults.inject({ operation: 'reserve', when: 'before' });
+    expect(await opened.service.resume(FIXTURE_ATTEMPT, bindings)).toBeInstanceOf(ObservationIndeterminate);
+    expect(narrowed(await opened.service.resume(FIXTURE_ATTEMPT, bindings), ObservationAdmitted).phase).toBe('reserved');
   });
 
-  it.each(['reserve', 'settle', 'cancel', 'reconcile'] as const)('changes nothing when %s never reaches the store', async (operation) => {
+  it.each(['settle', 'cancel', 'reconcile'] as const)('changes nothing when %s never reaches the store', async (operation) => {
     const path = await fixture.repository(format);
     const opened = await faulted(path, 2);
-    const bindings = readBindings(basisTree(path, `before-${operation}`));
-    if (operation === 'reserve') {
-      opened.faults.inject({ operation, when: 'before' });
-      expect(await opened.service.resume(FIXTURE_ATTEMPT, bindings)).toBeInstanceOf(ObservationIndeterminate);
-      expect(narrowed(await opened.service.resume(FIXTURE_ATTEMPT, bindings), ObservationAdmitted).phase).toBe('reserved');
-      return;
-    }
-    const { attempt } = narrowed(await opened.service.begin(bindings), ObservationAdmitted);
+    const { attempt } = narrowed(await opened.service.begin(readBindings(basisTree(path, `before-${operation}`))), ObservationAdmitted);
     narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
     opened.faults.inject({ operation, when: 'before' });
     const outcome = { core: readCore('before'), publication: null };
-    const faultedStep = { settle: async () => await opened.service.settle(attempt, outcome), cancel: async () => await opened.service.cancel(attempt), reconcile: async () => await opened.service.reconcile(attempt) };
+    const faultedStep = {
+      settle: async () => await opened.service.settle(attempt, outcome),
+      cancel: async () => await opened.service.cancel(attempt),
+      reconcile: async () => await opened.service.reconcile(attempt),
+    };
     expect(await faultedStep[operation]()).toBeInstanceOf(ObservationIndeterminate);
     const retained = narrowed(await opened.service.settle(attempt, outcome), RetainedObservation);
     expect(await opened.service.resolve(retained.coordinate)).toBeInstanceOf(ResolvedObservation);

@@ -87,6 +87,7 @@ validated WARP result variants; core logic never branches on error messages.
 | Publication established, settlement not acknowledged | Retain/reconcile the exact original result | Admitted but unretained, not an unapplied write |
 | Settlement acknowledged and correspondence verified | Issue retained result and Coordinate | Original core and required roots are durable |
 | Cancellation durably wins before arm | Stop owned work; report known-unpublished | A late arm must refuse; do not infer this from a timeout |
+| Publication established, evidence too large to retain | Report the admitted outcome, unretained, with no Coordinate | The attempt keeps its slot; a charged effect is never reclaimed |
 | Evidence missing/corrupt or effect unresolved | Typed unavailable/indeterminate outcome | Never repair by recapturing, reminting or retrying the effect |
 
 Only CAS `arm()` returning the fresh `armed` status permits the external effect.
@@ -135,7 +136,8 @@ the previous carrier per commit. The final carrier is a reservation parent.
 Dependency trees use bounded pages rather than an unbounded support array. The
 iterator, each page and the overall operation have explicit work/byte/count limits.
 Crossing a bound refuses before arm; it does not silently omit history or collect
-the whole graph. Verification walks carriers, dependency pages and the basis tree's
+the whole graph. The service runs resolve's exact verification before acknowledging
+preparation, so support it accepts can always be issued later. Verification walks carriers, dependency pages and the basis tree's
 top-level entries under the same work bound. It does not walk the record trie or
 writer ancestry, which their retained Git edges keep reachable. Existence is what it
 proves for those objects: it decodes the frontier and checks digests of custody
