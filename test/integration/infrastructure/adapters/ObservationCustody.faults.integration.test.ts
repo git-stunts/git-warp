@@ -9,6 +9,7 @@ import ObservationPublicationEvidence from '../../../../src/domain/services/cust
 import ObservationPublicationPermission from '../../../../src/domain/services/custody/ObservationPublicationPermission.ts';
 import ObservationReconcileOnly from '../../../../src/domain/services/custody/ObservationReconcileOnly.ts';
 import ObservationReconciled from '../../../../src/domain/services/custody/ObservationReconciled.ts';
+import ObservationSupportLimits from '../../../../src/domain/services/custody/ObservationSupportLimits.ts';
 import ObservationRefused from '../../../../src/domain/services/custody/ObservationRefused.ts';
 import ResolvedObservation from '../../../../src/domain/services/custody/ResolvedObservation.ts';
 import RetainedObservation from '../../../../src/domain/services/custody/RetainedObservation.ts';
@@ -92,6 +93,37 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
     const recovered = narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
     expect(recovered.roots.parents).toHaveLength(1);
     const retained = narrowed(await opened.service.settle(attempt, { core: readCore('p'), publication: null }), RetainedObservation);
+    expect(await opened.service.resolve(retained.coordinate)).toBeInstanceOf(ResolvedObservation);
+  });
+
+  it('re-verifies a recovered unarmed preparation under current limits, and never arms what fails', async () => {
+    const path = await fixture.repository(format);
+    const first = await faulted(path, 2);
+    const bindings = readBindings(basisTree(path, 'lowered', writerCommits(path, 3)));
+    const { attempt } = narrowed(await first.service.begin(bindings), ObservationAdmitted);
+    first.faults.inject({ operation: 'prepare', when: 'after' });
+    expect(await first.service.prepare(attempt, sources())).toBeInstanceOf(ObservationIndeterminate);
+    await fixture.close(first);
+
+    const limits = new ObservationSupportLimits({ writers: 8, dependencies: 8, frontierBytes: 1024 * 1024, work: 2 });
+    const lowered = await fixture.open(path, { limit: 2, limits });
+    const resumed = narrowed(await lowered.service.resume(attempt.identity.attemptId, bindings), ObservationAdmitted);
+    expect(resumed.phase).toBe('prepared');
+    expect(await lowered.service.prepare(resumed.attempt, sources())).toEqual(new ObservationRefused('work-limit'));
+    await fixture.close(lowered);
+
+    const restored = await fixture.open(path, { limit: 2 });
+    narrowed(await restored.service.prepare(resumed.attempt, sources()), ObservationPrepared);
+  });
+
+  it('settles a real publication after its arm acknowledgement was lost', async () => {
+    const path = await fixture.repository(format);
+    const opened = await faulted(path, 2);
+    const attempt = await preparedWrite(opened, 'lost-ack', path);
+    opened.faults.inject({ operation: 'arm', when: 'after' });
+    expect(await opened.service.authorizePublication(attempt)).toBeInstanceOf(ObservationIndeterminate);
+    const publication = new ObservationPublicationEvidence('writer-1', writerCommits(path, 1)[0] ?? '');
+    const retained = narrowed(await opened.service.settle(attempt, { core: writeCore('lost-ack'), publication }), RetainedObservation);
     expect(await opened.service.resolve(retained.coordinate)).toBeInstanceOf(ResolvedObservation);
   });
 

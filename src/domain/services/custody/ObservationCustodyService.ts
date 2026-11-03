@@ -9,6 +9,7 @@ import CustodyAcknowledged from './CustodyAcknowledged.ts';
 import CustodyEvidence from './CustodyEvidence.ts';
 import CustodyInspection from './CustodyInspection.ts';
 import CustodyRefused from './CustodyRefused.ts';
+import type { CustodyPhase } from './CustodyVocabulary.ts';
 import type { CustodyIndeterminateOrRefused } from './observationCustodyVariants.ts';
 import { digestOf } from './observationDigestOf.ts';
 import ObservationAdmitted from './ObservationAdmitted.ts';
@@ -36,14 +37,14 @@ import ObservationRefused from './ObservationRefused.ts';
 import ObservationSettlementPage from './ObservationSettlementPage.ts';
 import ObservationSupportCancelled from './ObservationSupportCancelled.ts';
 import ObservationSupportRefused from './ObservationSupportRefused.ts';
-import type { ObservationSupportSources } from './ObservationSupportRequest.ts';
-import type ObservationSupportRetained from './ObservationSupportRetained.ts';
+import type { ObservationSupportRequest, ObservationSupportSources } from './ObservationSupportRequest.ts';
+import ObservationSupportRetained from './ObservationSupportRetained.ts';
 import ObservationUnretained from './ObservationUnretained.ts';
 import ResolvedObservation from './ResolvedObservation.ts';
 import RetainedObservation from './RetainedObservation.ts';
 
 /** An attempt's owned builder: awaited by cancellation, and told to stop between steps. */
-type OwnedBuild = { stopRequested: boolean; work: Promise<ObservationSupportOutcome> };
+type OwnedBuild = { stopRequested: boolean; work: Promise<ObservationSupportRetained | ObservationRefused | ObservationIndeterminate> };
 
 export type ObservationCustodyServiceOptions = {
   readonly custody: ObservationCustodyPort;
@@ -117,7 +118,7 @@ export default class ObservationCustodyService {
     }
     return inspected.phase === 'reserved'
       ? await this.#buildAndPrepare(attempt, sources)
-      : await this.#recoverPrepared(attempt);
+      : await this.#recoverPrepared(attempt, inspected.phase);
   }
 
   /** Competes for the one publication permission of a prepared write attempt. */
@@ -204,13 +205,25 @@ export default class ObservationCustodyService {
     if (built instanceof ObservationIndeterminate || built instanceof ObservationRefused) {
       return built;
     }
-    const unverified = await this.#unverifiedSupport(attempt, built);
-    return unverified ?? await this.#writePreparation(attempt, built);
+    return await this.#writePreparation(attempt, built);
+  }
+
+  /** Builds support, then verifies it, as one piece of work a cancellation awaits. */
+  async #verifiedBuild(
+    attempt: ObservationAttempt,
+    request: ObservationSupportRequest,
+  ): Promise<ObservationSupportRetained | ObservationRefused | ObservationIndeterminate> {
+    const built = mapSupport(await this.#support.retain(request));
+    if (built instanceof ObservationRefused) {
+      return built;
+    }
+    return await this.#unverifiedSupport(attempt, built) ?? built;
   }
 
   /**
-   * Runs the verification resolve will run, before anything can be armed. Support
-   * that passes here passes there, so an accepted attempt can always be issued.
+   * Runs the verification resolve will run, before anything can be armed. Under
+   * unchanged limits, support that passes here passes there, so an accepted attempt
+   * can be issued. Lowering limits cannot be undone for an armed attempt.
    */
   async #unverifiedSupport(
     attempt: ObservationAttempt,
@@ -255,8 +268,8 @@ export default class ObservationCustodyService {
     if (this.#builds.has(key)) {
       return new ObservationRefused('construction-contended');
     }
-    const build: OwnedBuild = { stopRequested: false, work: Promise.resolve(new ObservationSupportCancelled()) };
-    build.work = this.#support.retain({
+    const build: OwnedBuild = { stopRequested: false, work: Promise.resolve(new ObservationRefused('cancelled')) };
+    build.work = this.#verifiedBuild(attempt, {
       ...sources,
       identity: attempt.identity,
       basis: attempt.preparation.bindings.basis,
@@ -265,7 +278,7 @@ export default class ObservationCustodyService {
     });
     this.#builds.set(key, build);
     try {
-      return mapSupport(await build.work);
+      return await build.work;
     } catch (cause) {
       return new ObservationIndeterminate('preparation', cause instanceof Error ? cause : new ObservationCustodyError('Observation support failed'));
     } finally {
@@ -273,8 +286,15 @@ export default class ObservationCustodyService {
     }
   }
 
-  /** Exact recovery of a past preparation: original evidence is read, never rebuilt. */
-  async #recoverPrepared(attempt: ObservationAttempt): Promise<ObservationPrepared | ObservationRefused | ObservationIndeterminate> {
+  /**
+   * Exact recovery of a past preparation: original evidence is read, never rebuilt.
+   * While still unarmed it must also pass verification under the current limits,
+   * since arming it next would otherwise risk an effect that can never be issued.
+   */
+  async #recoverPrepared(
+    attempt: ObservationAttempt,
+    phase: CustodyPhase,
+  ): Promise<ObservationPrepared | ObservationRefused | ObservationIndeterminate> {
     const evidence = await this.#custody.readEvidence(attempt.identity, 'preparation');
     if (!(evidence instanceof CustodyEvidence)) {
       return failureOf(evidence, 'preparation');
@@ -283,8 +303,9 @@ export default class ObservationCustodyService {
     if (page instanceof ObservationDecodeFailure || !bytesEqual(page.preparation(), attempt.bytes())) {
       return new ObservationRefused('preparation-mismatch');
     }
-    await this.#releaseConstruction(attempt);
-    return new ObservationPrepared(attempt, evidence.page.roots);
+    const roots = evidence.page.roots;
+    const unverified = phase === 'prepared' ? await this.#unverifiedSupport(attempt, new ObservationSupportRetained(roots, page.summary)) : null;
+    return unverified ?? await this.#acknowledgePrepared(attempt, roots);
   }
 
   async #settlementPermitted(

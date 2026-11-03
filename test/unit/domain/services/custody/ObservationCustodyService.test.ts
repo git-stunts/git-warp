@@ -211,6 +211,41 @@ describe('ObservationCustodyService', () => {
       expect(await service.prepare(attempt, sources())).toBeInstanceOf(ObservationPrepared);
     });
 
+    it('re-verifies only a recovery that could still be armed', async () => {
+      const attempt = await readAttempt();
+      storePreparation(attempt);
+      support.fault = new ObservationSupportFault('work-limit');
+      custody.inspected = inspectionAt('prepared');
+      expect(await service.prepare(attempt, sources())).toEqual(new ObservationRefused('work-limit'));
+      custody.inspected = inspectionAt('armed');
+      expect(await service.prepare(attempt, sources())).toBeInstanceOf(ObservationPrepared);
+    });
+
+    it('awaits verification as owned work before cancelling', async () => {
+      const attempt = await readAttempt();
+      let finish: (fault: null) => void = () => undefined;
+      const verify = vi.spyOn(support, 'verify').mockImplementation(async () => await new Promise((resolve) => {
+        finish = resolve;
+      }));
+      const preparing = service.prepare(attempt, sources());
+      await new Promise((resolve) => {
+        setImmediate(resolve);
+      });
+      let cancelled = false;
+      const cancelling = service.cancel(attempt).then((outcome) => {
+        cancelled = true;
+        return outcome;
+      });
+      await new Promise((resolve) => {
+        setImmediate(resolve);
+      });
+      expect(cancelled).toBe(false);
+      finish(null);
+      expect(await cancelling).toBeInstanceOf(ObservationKnownUnpublished);
+      await preparing;
+      verify.mockRestore();
+    });
+
     it('refuses recovery from evidence of anything else', async () => {
       const attempt = await readAttempt();
       custody.inspected = inspectionAt('prepared');

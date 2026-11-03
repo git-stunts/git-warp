@@ -137,7 +137,9 @@ Dependency trees use bounded pages rather than an unbounded support array. The
 iterator, each page and the overall operation have explicit work/byte/count limits.
 Crossing a bound refuses before arm; it does not silently omit history or collect
 the whole graph. The service runs resolve's exact verification before acknowledging
-preparation, so support it accepts can always be issued later. Verification walks carriers, dependency pages and the basis tree's
+preparation, and again when recovering an unarmed preparation, so support it accepts
+can be issued later under unchanged limits. Lowering limits cannot be undone for an
+attempt already armed: it reports unverified rather than issuing a Coordinate. Verification walks carriers, dependency pages and the basis tree's
 top-level entries under the same work bound. It does not walk the record trie or
 writer ancestry, which their retained Git edges keep reachable. Existence is what it
 proves for those objects: it decodes the frontier and checks digests of custody
