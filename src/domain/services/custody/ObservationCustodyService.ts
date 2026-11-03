@@ -303,9 +303,17 @@ export default class ObservationCustodyService {
     if (page instanceof ObservationDecodeFailure || !bytesEqual(page.preparation(), attempt.bytes())) {
       return new ObservationRefused('preparation-mismatch');
     }
-    const roots = evidence.page.roots;
-    const unverified = phase === 'prepared' ? await this.#unverifiedSupport(attempt, new ObservationSupportRetained(roots, page.summary)) : null;
-    return unverified ?? await this.#acknowledgePrepared(attempt, roots);
+    const retained = new ObservationSupportRetained(evidence.page.roots, page.summary);
+    return await this.#recoveredSupport(attempt, phase, retained);
+  }
+
+  async #recoveredSupport(
+    attempt: ObservationAttempt,
+    phase: CustodyPhase,
+    retained: ObservationSupportRetained,
+  ): Promise<ObservationPrepared | ObservationRefused | ObservationIndeterminate> {
+    const unverified = phase === 'prepared' ? await this.#unverifiedSupport(attempt, retained) : null;
+    return unverified ?? await this.#acknowledgePrepared(attempt, retained.roots);
   }
 
   async #settlementPermitted(
