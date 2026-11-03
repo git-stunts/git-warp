@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { setImmediate } from 'node:timers';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ObservationCustodyError from '../../../../../src/domain/errors/ObservationCustodyError.ts';
 import CustodyAcknowledged from '../../../../../src/domain/services/custody/CustodyAcknowledged.ts';
 import CustodyEvidence from '../../../../../src/domain/services/custody/CustodyEvidence.ts';
@@ -7,12 +8,15 @@ import CustodyRefused from '../../../../../src/domain/services/custody/CustodyRe
 import type { CustodyRefusalReason } from '../../../../../src/domain/services/custody/CustodyVocabulary.ts';
 import ObservationAdmitted from '../../../../../src/domain/services/custody/ObservationAdmitted.ts';
 import type ObservationAttempt from '../../../../../src/domain/services/custody/ObservationAttempt.ts';
+import ObservationBindings from '../../../../../src/domain/services/custody/ObservationBindings.ts';
 import ObservationAttemptId from '../../../../../src/domain/services/custody/ObservationAttemptId.ts';
 import ObservationCoordinate from '../../../../../src/domain/services/custody/ObservationCoordinate.ts';
 import ObservationCustodyPage from '../../../../../src/domain/services/custody/ObservationCustodyPage.ts';
 import ObservationCustodyRoots from '../../../../../src/domain/services/custody/ObservationCustodyRoots.ts';
 import ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
+import ObservationDependencyClaim from '../../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDigest from '../../../../../src/domain/services/custody/ObservationDigest.ts';
+import ObservationEvidenceBinding from '../../../../../src/domain/services/custody/ObservationEvidenceBinding.ts';
 import ObservationIndeterminate from '../../../../../src/domain/services/custody/ObservationIndeterminate.ts';
 import ObservationKnownUnpublished from '../../../../../src/domain/services/custody/ObservationKnownUnpublished.ts';
 import ObservationPreparation from '../../../../../src/domain/services/custody/ObservationPreparation.ts';
@@ -20,6 +24,7 @@ import ObservationPrepared from '../../../../../src/domain/services/custody/Obse
 import ObservationPreparedPage from '../../../../../src/domain/services/custody/ObservationPreparedPage.ts';
 import ObservationPublicationEvidence from '../../../../../src/domain/services/custody/ObservationPublicationEvidence.ts';
 import ObservationPublicationPermission from '../../../../../src/domain/services/custody/ObservationPublicationPermission.ts';
+import ObservationReceiptCore from '../../../../../src/domain/services/custody/ObservationReceiptCore.ts';
 import ObservationReconcileOnly from '../../../../../src/domain/services/custody/ObservationReconcileOnly.ts';
 import ObservationReconciled from '../../../../../src/domain/services/custody/ObservationReconciled.ts';
 import ObservationRecord from '../../../../../src/domain/services/custody/ObservationRecord.ts';
@@ -27,8 +32,8 @@ import ObservationRefused from '../../../../../src/domain/services/custody/Obser
 import ObservationSettlementPage from '../../../../../src/domain/services/custody/ObservationSettlementPage.ts';
 import ObservationSupportCancelled from '../../../../../src/domain/services/custody/ObservationSupportCancelled.ts';
 import ObservationSupportFault from '../../../../../src/domain/services/custody/ObservationSupportFault.ts';
-import ObservationSupportLimits from '../../../../../src/domain/services/custody/ObservationSupportLimits.ts';
 import ObservationSupportRefused from '../../../../../src/domain/services/custody/ObservationSupportRefused.ts';
+import ObservationSupportSummary from '../../../../../src/domain/services/custody/ObservationSupportSummary.ts';
 import ObservationUnavailable from '../../../../../src/domain/services/custody/ObservationUnavailable.ts';
 import ResolvedObservation from '../../../../../src/domain/services/custody/ResolvedObservation.ts';
 import RetainedObservation from '../../../../../src/domain/services/custody/RetainedObservation.ts';
@@ -37,7 +42,7 @@ import ObservationCustodyCborCodec from '../../../../../src/infrastructure/adapt
 import codec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import ObservationAttemptSourcePort from '../../../../../src/ports/ObservationAttemptSourcePort.ts';
 import { narrowed, readBindings, readCore, sources, writeBindings, writeCore } from '../../../../helpers/ObservationCustodyFixture.ts';
-import { ScriptedCustody, ScriptedSupport, emptySummary, inspectionAt } from '../../../../helpers/ScriptedObservationPorts.ts';
+import { SCRIPTED_DIGEST, ScriptedCustody, ScriptedSupport, emptySummary, inspectionAt } from '../../../../helpers/ScriptedObservationPorts.ts';
 
 const BASIS = '12'.repeat(20);
 const COMMIT = '34'.repeat(20);
@@ -55,6 +60,13 @@ async function digest(bytes: Uint8Array): Promise<ObservationDigest> {
   return new ObservationDigest(await crypto.hash('sha256', bytes));
 }
 
+function fieldsOf(bindings: ObservationBindings): ConstructorParameters<typeof ObservationBindings>[0] {
+  return {
+    basis: bindings.basis, observer: bindings.observer, question: bindings.question, purpose: bindings.purpose,
+    budget: bindings.budget, evidence: bindings.evidence, dependencies: bindings.dependencies, writePremise: bindings.writePremise,
+  };
+}
+
 function page(bytes: Uint8Array, parents: readonly string[] = []): ObservationCustodyPage {
   return new ObservationCustodyPage(bytes, new ObservationCustodyRoots([], parents));
 }
@@ -69,7 +81,6 @@ describe('ObservationCustodyService', () => {
     support = new ScriptedSupport();
     service = new ObservationCustodyService({
       custody, support, codec: custodyCodec, crypto, attempts: new FixedAttempts(),
-      limits: new ObservationSupportLimits({ writers: 8, dependencies: 8 }),
     });
   });
 
@@ -87,6 +98,11 @@ describe('ObservationCustodyService', () => {
     custody.evidence.preparation = new CustodyEvidence('prepared', page(bytes));
   }
 
+  /** The digest a record must bind for the stored prepared page. */
+  async function supportOf(): Promise<ObservationDigest> {
+    return await digest(narrowed(custody.evidence.preparation ?? null, CustodyEvidence).page.record());
+  }
+
   /** Stores settlement evidence and returns the Coordinate addressing it. */
   async function storeSettlement(
     attempt: ObservationAttempt,
@@ -94,7 +110,7 @@ describe('ObservationCustodyService', () => {
   ): Promise<ObservationCoordinate> {
     const core = forged.core ?? custodyCodec.encodeCore(readCore('stored'));
     const record = forged.record ?? new ObservationRecord({
-      preparation: attempt.identity.binding, core: await digest(core), publication: null,
+      preparation: attempt.identity.binding, support: await supportOf(), core: await digest(core), publication: null,
     });
     const recordBytes = custodyCodec.encodeRecord(record);
     const bytes = custodyCodec.encodeSettlementPage(new ObservationSettlementPage(recordBytes, core));
@@ -172,7 +188,6 @@ describe('ObservationCustodyService', () => {
       support = new ScriptedSupport();
       const fresh = new ObservationCustodyService({
         custody, support, codec: custodyCodec, crypto, attempts: new FixedAttempts(),
-        limits: new ObservationSupportLimits({ writers: 8, dependencies: 8 }),
       });
       custody.prepared = new CustodyRefused('preparation-mismatch');
       expect(await fresh.prepare(attempt, sources())).toEqual(new ObservationRefused('preparation-mismatch'));
@@ -264,6 +279,7 @@ describe('ObservationCustodyService', () => {
 
     it('withholds a Coordinate when settled evidence does not resolve', async () => {
       const attempt = await readAttempt();
+      storePreparation(attempt);
       const outcome = await service.settle(attempt, { core: readCore('x'), publication: null });
       expect(outcome).toBeInstanceOf(ObservationIndeterminate);
       expect(outcome).toMatchObject({ step: 'settlement', cause: { code: 'E_OBSERVATION_CUSTODY_UNVERIFIED' } });
@@ -271,6 +287,7 @@ describe('ObservationCustodyService', () => {
 
     it('maps state failures without issuing anything', async () => {
       const read = await readAttempt();
+      storePreparation(read);
       custody.inspected = new CustodyIndeterminate(failure);
       expect(await service.settle(read, { core: readCore('x'), publication: null })).toEqual(new ObservationIndeterminate('settlement', failure));
       custody.inspected = inspectionAt('cancelled');
@@ -292,9 +309,67 @@ describe('ObservationCustodyService', () => {
         expect(await service.settle(write, { core: writeCore('w'), publication })).toEqual(new ObservationRefused('not-armed'));
       }
       custody.inspected = inspectionAt('armed');
+      storePreparation(write);
       custody.settled = new CustodyIndeterminate(failure);
       await service.settle(write, { core: writeCore('w'), publication });
       expect(custody.pages.at(-1)?.roots.parents).toEqual([COMMIT]);
+    });
+  });
+
+  describe('evidence bounds and contradictions', () => {
+    const oversized = new ObservationReceiptCore({ family: 'observation', variant: 'huge', outcome: new Uint8Array(5 * 1024 * 1024) });
+
+    it('refuses a settlement page too large to ever decode, before writing it', async () => {
+      const attempt = await readAttempt();
+      storePreparation(attempt);
+      expect(await service.settle(attempt, { core: oversized, publication: null })).toEqual(new ObservationRefused('evidence-too-large'));
+      expect(custody.pages).toHaveLength(0);
+    });
+
+    it('refuses a preparation page too large to ever decode', async () => {
+      const evidence = Array.from({ length: 80_000 }, () => new ObservationEvidenceBinding('law', new ObservationDigest('ab'.repeat(32))));
+      const huge = narrowed(await service.begin(new ObservationBindings({ ...fieldsOf(readBindings(BASIS)), evidence })), ObservationAdmitted).attempt;
+      expect(await service.prepare(huge, sources())).toEqual(new ObservationRefused('evidence-too-large'));
+      expect(custody.pages).toHaveLength(0);
+    });
+
+    it('reads preparation before settling, and maps its failure', async () => {
+      const attempt = await readAttempt();
+      custody.evidence.preparation = new CustodyRefused('not-prepared');
+      expect(await service.settle(attempt, { core: readCore('x'), publication: null })).toEqual(new ObservationRefused('not-prepared'));
+      expect(custody.pages).toHaveLength(0);
+    });
+
+    it('never reports a contradicted publication as known-unpublished', async () => {
+      const write = await writeAttempt();
+      const publication = new ObservationPublicationEvidence('writer-1', COMMIT);
+      custody.inspected = inspectionAt('cancelled');
+      expect(await service.settle(write, { core: writeCore('w'), publication })).toMatchObject({ cause: { code: 'E_OBSERVATION_CUSTODY_CONTRADICTED' } });
+      custody.inspected = inspectionAt('armed');
+      storePreparation(write);
+      custody.settled = new CustodyRefused('cancelled');
+      expect(await service.settle(write, { core: writeCore('w'), publication })).toMatchObject({ cause: { code: 'E_OBSERVATION_CUSTODY_CONTRADICTED' } });
+    });
+
+    it('refuses a second concurrent build of one attempt, and builds again afterwards', async () => {
+      const attempt = await readAttempt();
+      let finish: () => void = () => undefined;
+      const fallback = support.retention;
+      support.retention = async (request) => {
+        await new Promise<void>((resolve) => {
+          finish = resolve;
+        });
+        return await fallback(request);
+      };
+      const first = service.prepare(attempt, sources());
+      await new Promise((resolve) => {
+        setImmediate(resolve);
+      });
+      expect(await service.prepare(attempt, sources())).toEqual(new ObservationRefused('construction-contended'));
+      finish();
+      expect(await first).toBeInstanceOf(ObservationPrepared);
+      support.retention = fallback;
+      expect(await service.prepare(attempt, sources())).toBeInstanceOf(ObservationPrepared);
     });
   });
 
@@ -386,11 +461,11 @@ describe('ObservationCustodyService', () => {
       });
       expect(await service.resolve(addressed)).toEqual(new ObservationUnavailable('record-corrupt'));
 
-      const liar = new ObservationRecord({ preparation: attempt.identity.binding, core: attempt.identity.binding, publication: null });
+      const liar = new ObservationRecord({ preparation: attempt.identity.binding, support: await supportOf(), core: attempt.identity.binding, publication: null });
       expect(await service.resolve(await storeSettlement(attempt, { record: liar }))).toEqual(new ObservationUnavailable('core-corrupt'));
 
       const undecodable = Uint8Array.of(0xff);
-      const honest = new ObservationRecord({ preparation: attempt.identity.binding, core: await digest(undecodable), publication: null });
+      const honest = new ObservationRecord({ preparation: attempt.identity.binding, support: await supportOf(), core: await digest(undecodable), publication: null });
       expect(await service.resolve(await storeSettlement(attempt, { record: honest, core: undecodable })))
         .toEqual(new ObservationUnavailable('core-corrupt'));
     });
@@ -408,6 +483,7 @@ describe('ObservationCustodyService', () => {
       storePreparation(attempt);
       const unbound = new ObservationRecord({
         preparation: new ObservationDigest('00'.repeat(32)),
+        support: await supportOf(),
         core: await digest(custodyCodec.encodeCore(readCore('u'))),
         publication: null,
       });
@@ -421,12 +497,35 @@ describe('ObservationCustodyService', () => {
         attemptId: attempt.identity.attemptId, binding: await digest(notPreparation), record: attempt.identity.binding,
       });
       const core = custodyCodec.encodeCore(readCore('n'));
-      const record = new ObservationRecord({ preparation: identity.binding, core: await digest(core), publication: null });
+      const notPrepared = custodyCodec.encodePreparedPage(new ObservationPreparedPage(notPreparation, emptySummary()));
+      const record = new ObservationRecord({ preparation: identity.binding, support: await digest(notPrepared), core: await digest(core), publication: null });
       const recordBytes = custodyCodec.encodeRecord(record);
       custody.evidence.settlement = new CustodyEvidence('settled', page(custodyCodec.encodeSettlementPage(new ObservationSettlementPage(recordBytes, core))));
-      custody.evidence.preparation = new CustodyEvidence('prepared', page(custodyCodec.encodePreparedPage(new ObservationPreparedPage(notPreparation, emptySummary()))));
+      custody.evidence.preparation = new CustodyEvidence('prepared', page(notPrepared));
       const coordinate = new ObservationCoordinate({ attemptId: identity.attemptId, binding: identity.binding, record: await digest(recordBytes) });
       expect(await service.resolve(coordinate)).toEqual(new ObservationUnavailable('preparation-corrupt'));
+    });
+
+    it('reports a support summary that is not what the preparation claimed, or not what the record bound', async () => {
+      const coordinate = await storeSettlement(attempt);
+      const forged = new ObservationSupportSummary({
+        writers: 0, history: SCRIPTED_DIGEST, dependencies: 1, dependency: SCRIPTED_DIGEST, pages: [],
+      });
+      custody.evidence.preparation = new CustodyEvidence('prepared', page(custodyCodec.encodePreparedPage(new ObservationPreparedPage(attempt.bytes(), forged))));
+      expect(await service.resolve(coordinate)).toEqual(new ObservationUnavailable('preparation-corrupt'));
+      const unclaimed = new ObservationSupportSummary({
+        writers: 9, history: SCRIPTED_DIGEST, dependencies: 0, dependency: ObservationDependencyClaim.NONE.digest, pages: [],
+      });
+      const swapped = custodyCodec.encodePreparedPage(new ObservationPreparedPage(attempt.bytes(), unclaimed));
+      custody.evidence.preparation = new CustodyEvidence('prepared', page(swapped));
+      expect(await service.resolve(coordinate)).toEqual(new ObservationUnavailable('preparation-corrupt'));
+    });
+
+    it('turns a failing store read into typed unreadable evidence, never a rejection', async () => {
+      const coordinate = await storeSettlement(attempt);
+      const verify = vi.spyOn(support, 'verify').mockRejectedValue(failure);
+      expect(await service.resolve(coordinate)).toEqual(new ObservationUnavailable('evidence-unreadable'));
+      verify.mockRestore();
     });
 
     it('reports support and publication faults, including a publication custody does not retain', async () => {
@@ -437,7 +536,7 @@ describe('ObservationCustodyService', () => {
 
       const core = custodyCodec.encodeCore(writeCore('published'));
       const record = new ObservationRecord({
-        preparation: attempt.identity.binding, core: await digest(core), publication: new ObservationPublicationEvidence('w', COMMIT),
+        preparation: attempt.identity.binding, support: await supportOf(), core: await digest(core), publication: new ObservationPublicationEvidence('w', COMMIT),
       });
       const unretained = await storeSettlement(attempt, { record, core });
       expect(await service.resolve(unretained)).toEqual(new ObservationUnavailable('publication-missing'));

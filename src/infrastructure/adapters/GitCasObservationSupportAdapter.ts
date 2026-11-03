@@ -1,90 +1,101 @@
 import type { AssetCapability, AssetHandle, PublicationCapability } from '@git-stunts/git-cas';
 import ObservationCustodyRoots, { type ObservationSupportEntry } from '../../domain/services/custody/ObservationCustodyRoots.ts';
 import type ObservationCustodyIdentity from '../../domain/services/custody/ObservationCustodyIdentity.ts';
+import ObservationDependencyClaim from '../../domain/services/custody/ObservationDependencyClaim.ts';
 import type ObservationDigest from '../../domain/services/custody/ObservationDigest.ts';
 import ObservationSupportCancelled from '../../domain/services/custody/ObservationSupportCancelled.ts';
-import ObservationSupportFault from '../../domain/services/custody/ObservationSupportFault.ts';
-import ObservationSupportRefused from '../../domain/services/custody/ObservationSupportRefused.ts';
+import ObservationSupportFault, { type ObservationSupportFaultReason } from '../../domain/services/custody/ObservationSupportFault.ts';
+import type ObservationSupportLimits from '../../domain/services/custody/ObservationSupportLimits.ts';
+import ObservationSupportRefused, { type ObservationSupportRefusalReason } from '../../domain/services/custody/ObservationSupportRefused.ts';
 import type { ObservationSupportRequest } from '../../domain/services/custody/ObservationSupportRequest.ts';
 import ObservationSupportRetained from '../../domain/services/custody/ObservationSupportRetained.ts';
 import ObservationSupportSummary from '../../domain/services/custody/ObservationSupportSummary.ts';
 import { textEncode } from '../../domain/utils/bytes.ts';
 import { buildObservationConstructionRef } from '../../domain/utils/ObservationRefLayout.ts';
+import type CodecPort from '../../ports/CodecPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import ObservationSupportPort, { type ObservationSupportOutcome } from '../../ports/ObservationSupportPort.ts';
 import GitFastImportTreeWriter from './GitFastImportTreeWriter.ts';
-import type { GitPlumbing } from './gitErrorClassification.ts';
-import ObservationCarrierChain, {
-  type ObservationCarrierHistory,
-  type ObservationChainPosition,
-} from './ObservationCarrierChain.ts';
+import ObservationBasisFrontier, { type ObservationBasisHistory, type ObservationBasisProblem } from './ObservationBasisFrontier.ts';
+import ObservationCarrierChain, { type ObservationChainPosition } from './ObservationCarrierChain.ts';
 import ObservationCarrierMessage from './ObservationCarrierMessage.ts';
-import ObservationDependencyPages, {
-  type ObservationDependencyHistory,
-  type ObservationPageSet,
-} from './ObservationDependencyPages.ts';
+import ObservationDependencyPages, { type ObservationPageSet } from './ObservationDependencyPages.ts';
+import ObservationWorkMeter from './ObservationWorkMeter.ts';
 
 /** New writer heads per carrier: one of a commit's 64 parents names the previous carrier. */
 export const OBSERVATION_CARRIER_BATCH = 63;
 
-export type ObservationSupportHistory = ObservationCarrierHistory & ObservationDependencyHistory & {
-  readonly plumbing: Pick<GitPlumbing, 'execute'>;
+export type ObservationSupportHistory = ObservationBasisHistory & {
   readRef(ref: string): Promise<string | null>;
   deleteRef(ref: string): Promise<void>;
 };
 
-/** Progress over an attempt's writer heads against any chain it already published. */
+/** Progress over a basis's writer heads against any chain this attempt already published. */
 type HeadProgress = {
   readonly position: ObservationChainPosition;
   readonly consumed: number;
   readonly digest: ObservationDigest;
 };
-type CarrierTarget = { readonly request: ObservationSupportRequest; readonly root: AssetHandle };
+type CarrierTarget = { readonly request: ObservationSupportRequest; readonly root: AssetHandle; readonly meter: ObservationWorkMeter };
+type RetainedEdges = {
+  readonly basis: string;
+  readonly roots: ObservationCustodyRoots;
+  readonly summary: ObservationSupportSummary;
+};
 
 /**
  * Builds the Git edges of an observation (#1067).
  *
- * Writer history is retained by a chain of git-cas publications, each adding at
- * most 63 heads as parents plus the previous carrier. The chain tip becomes a
- * custody parent. Each carrier states its attempt, position and rolling digest,
- * so recovery can prove a construction ref retains the claimed prefix of this
- * attempt's own input rather than trusting that its head is readable.
- * Working memory holds one batch of heads, whatever the writer count.
+ * Writer heads come from the frontier stored in the original basis, never from
+ * the producer, so an incomplete list cannot pass as complete. They are retained
+ * by a chain of git-cas publications, each adding at most 63 heads as parents
+ * plus the previous carrier; the tip becomes a custody parent. Each carrier states
+ * its attempt, position and rolling digest, so recovery can prove a construction
+ * ref retains the claimed prefix rather than trusting that its head is readable.
  */
 export default class GitCasObservationSupportAdapter extends ObservationSupportPort {
   readonly #publications: Pick<PublicationCapability, 'commit'>;
   readonly #assets: Pick<AssetCapability, 'put'>;
   readonly #history: ObservationSupportHistory;
   readonly #graphName: string;
+  readonly #limits: ObservationSupportLimits;
   readonly #chain: ObservationCarrierChain;
   readonly #pages: ObservationDependencyPages;
+  readonly #basis: ObservationBasisFrontier;
 
   constructor(options: {
     readonly publications: Pick<PublicationCapability, 'commit'>;
     readonly assets: Pick<AssetCapability, 'put'>;
     readonly history: ObservationSupportHistory;
     readonly crypto: CryptoPort;
+    readonly codec: CodecPort;
     readonly graphName: string;
+    readonly limits: ObservationSupportLimits;
   }) {
     super();
     this.#publications = options.publications;
     this.#assets = options.assets;
     this.#history = options.history;
     this.#graphName = options.graphName;
+    this.#limits = options.limits;
     this.#chain = new ObservationCarrierChain(options.history, options.crypto);
     this.#pages = new ObservationDependencyPages({
       history: options.history,
       trees: new GitFastImportTreeWriter({ plumbing: options.history.plumbing }),
       crypto: options.crypto,
+      limits: options.limits,
     });
+    this.#basis = new ObservationBasisFrontier({ history: options.history, codec: options.codec, limits: options.limits });
   }
 
   override async retain(request: ObservationSupportRequest): Promise<ObservationSupportOutcome> {
-    if (!await this.#history.nodeExists(request.basis)) {
-      return new ObservationSupportRefused('basis-unavailable');
+    const meter = new ObservationWorkMeter(this.#limits.work);
+    const heads = await this.#basis.heads(request.basis, meter);
+    if (typeof heads === 'string') {
+      return new ObservationSupportRefused(basisRefusal(heads));
     }
-    const pages = await this.#pages.write(request);
-    return isStopped(pages) ? pages : await this.#retainedWith(request, pages);
+    const pages = await this.#pages.write(request, meter);
+    return isStopped(pages) ? pages : await this.#retainedWith({ request, heads, pages, meter });
   }
 
   override async release(identity: ObservationCustodyIdentity): Promise<void> {
@@ -94,26 +105,18 @@ export default class GitCasObservationSupportAdapter extends ObservationSupportP
     }
   }
 
-  override async verify(
-    identity: ObservationCustodyIdentity,
-    retained: {
-      readonly basis: string;
-      readonly roots: ObservationCustodyRoots;
-      readonly summary: ObservationSupportSummary;
-    },
-  ): Promise<ObservationSupportFault | null> {
-    const { basis, roots, summary } = retained;
-    if (!await this.#history.nodeExists(basis)) {
-      return new ObservationSupportFault('basis-missing');
+  override async verify(identity: ObservationCustodyIdentity, retained: RetainedEdges): Promise<ObservationSupportFault | null> {
+    const meter = new ObservationWorkMeter(this.#limits.work);
+    const heads = await this.#basis.heads(retained.basis, meter);
+    if (typeof heads === 'string') {
+      return new ObservationSupportFault(basisFault(heads));
     }
-    if (!isRetainedBy(roots, [basis, ...summary.pages])) {
+    if (!isRetainedBy(retained.roots, [retained.basis, ...retained.summary.pages])) {
       return new ObservationSupportFault('dependency-mismatch');
     }
-    const claim = { count: summary.dependencies, digest: summary.dependency };
-    const dependencyFault = await this.#pages.check(summary.pages, claim);
-    return dependencyFault === null
-      ? await this.#verifyHistory(identity, roots.parents[0] ?? null, summary)
-      : new ObservationSupportFault(dependencyFault);
+    const { summary } = retained;
+    const fault = await this.#pages.check(summary.pages, new ObservationDependencyClaim(summary.dependencies, summary.dependency), meter);
+    return fault === null ? await this.#verifyHistory({ identity, retained, heads, meter }) : new ObservationSupportFault(fault);
   }
 
   override async verifyPublication(commit: string): Promise<ObservationSupportFault | null> {
@@ -124,57 +127,47 @@ export default class GitCasObservationSupportAdapter extends ObservationSupportP
     return buildObservationConstructionRef(this.#graphName, identity.attemptId.value);
   }
 
-  async #retainedWith(request: ObservationSupportRequest, pages: ObservationPageSet): Promise<ObservationSupportOutcome> {
-    const chain = await this.#retainHistory(request);
-    return isStopped(chain) ? chain : retainedSupport(request.basis, pages, chain);
+  async #retainedWith(build: {
+    readonly request: ObservationSupportRequest;
+    readonly heads: readonly string[];
+    readonly pages: ObservationPageSet;
+    readonly meter: ObservationWorkMeter;
+  }): Promise<ObservationSupportOutcome> {
+    const chain = await this.#retainHistory(build);
+    return isStopped(chain) ? chain : retainedSupport(build.request.basis, build.pages, chain);
   }
 
-  async #retainHistory(
-    request: ObservationSupportRequest,
-  ): Promise<ObservationChainPosition | ObservationSupportRefused | ObservationSupportCancelled> {
-    const resumed = await this.#resumedChain(request.identity);
+  async #retainHistory(build: {
+    readonly request: ObservationSupportRequest;
+    readonly heads: readonly string[];
+    readonly meter: ObservationWorkMeter;
+  }): Promise<ObservationChainPosition | ObservationSupportRefused | ObservationSupportCancelled> {
+    const { request, heads, meter } = build;
+    const resumed = await this.#resumedChain(request.identity, meter);
     if (resumed instanceof ObservationSupportRefused) {
       return resumed;
     }
-    const target = { request, root: await this.#carrierRoot(request.identity) };
-    return await this.#consumeHeads(target, { position: resumed, consumed: 0, digest: await this.#chain.seed() });
+    const target = { request, meter, root: await this.#carrierRoot(request.identity) };
+    return await this.#consumeHeads(target, heads, { position: resumed, consumed: 0, digest: await this.#chain.seed() });
   }
 
   async #consumeHeads(
     target: CarrierTarget,
+    heads: readonly string[],
     start: HeadProgress,
   ): Promise<ObservationChainPosition | ObservationSupportRefused | ObservationSupportCancelled> {
     let progress = start;
-    let batch: string[] = [];
-    for await (const head of target.request.writerHeads) {
-      const stopped = stopOf(target.request, progress.consumed + batch.length + 1);
-      if (stopped !== null) {
-        return stopped;
+    for (let index = 0; index < heads.length; index += OBSERVATION_CARRIER_BATCH) {
+      if (target.request.isCancelled()) {
+        return new ObservationSupportCancelled();
       }
-      batch.push(head);
-      if (batch.length === OBSERVATION_CARRIER_BATCH) {
-        const advanced = await this.#advance(target, progress, batch);
-        if (advanced instanceof ObservationSupportRefused) {
-          return advanced;
-        }
-        progress = advanced;
-        batch = [];
+      const advanced = await this.#advance(target, progress, heads.slice(index, index + OBSERVATION_CARRIER_BATCH));
+      if (advanced instanceof ObservationSupportRefused) {
+        return advanced;
       }
+      progress = advanced;
     }
-    return await this.#finishHistory(target, progress, batch);
-  }
-
-  async #finishHistory(
-    target: CarrierTarget,
-    progress: HeadProgress,
-    batch: readonly string[],
-  ): Promise<ObservationChainPosition | ObservationSupportRefused> {
-    const finished = batch.length === 0 ? progress : await this.#advance(target, progress, batch);
-    if (finished instanceof ObservationSupportRefused) {
-      return finished;
-    }
-    const complete = finished.position.writers === finished.consumed && finished.digest.equals(finished.position.history);
-    return complete ? finished.position : new ObservationSupportRefused('construction-mismatch');
+    return isComplete(progress) ? progress.position : new ObservationSupportRefused('construction-mismatch');
   }
 
   /** Publishes one batch unless a verified carrier already covers it; covered batches re-derive the digest. */
@@ -201,6 +194,9 @@ export default class GitCasObservationSupportAdapter extends ObservationSupportP
     progress: HeadProgress,
     batch: readonly string[],
   ): Promise<ObservationChainPosition | ObservationSupportRefused> {
+    if (!target.meter.spend(batch.length)) {
+      return new ObservationSupportRefused('work-limit');
+    }
     return await this.#headsExist(batch)
       ? await this.#commitCarrier(target, progress, batch)
       : new ObservationSupportRefused('writer-head-unavailable');
@@ -241,25 +237,40 @@ export default class GitCasObservationSupportAdapter extends ObservationSupportP
   }
 
   /** The construction chain this attempt already published, verified link by link. */
-  async #resumedChain(identity: ObservationCustodyIdentity): Promise<ObservationChainPosition | ObservationSupportRefused> {
+  async #resumedChain(identity: ObservationCustodyIdentity, meter: ObservationWorkMeter): Promise<ObservationChainPosition | ObservationSupportRefused> {
     const tip = await this.#history.readRef(this.#constructionRef(identity));
     if (tip === null) {
       return await this.#chain.empty();
     }
-    const walked = await this.#chain.walk(identity, tip);
-    return walked instanceof ObservationSupportFault ? new ObservationSupportRefused('construction-mismatch') : walked;
+    const walked = await this.#chain.walk(identity, tip, meter);
+    return walked instanceof ObservationSupportFault ? new ObservationSupportRefused(resumeRefusal(walked)) : walked;
   }
 
-  async #verifyHistory(
-    identity: ObservationCustodyIdentity,
-    tip: string | null,
-    summary: ObservationSupportSummary,
-  ): Promise<ObservationSupportFault | null> {
-    if (tip === null) {
-      return summary.writers === 0 ? null : new ObservationSupportFault('history-missing');
+  /** The chain must retain exactly the heads the basis's own frontier names, in order. */
+  async #verifyHistory(check: {
+    readonly identity: ObservationCustodyIdentity;
+    readonly retained: RetainedEdges;
+    readonly heads: readonly string[];
+    readonly meter: ObservationWorkMeter;
+  }): Promise<ObservationSupportFault | null> {
+    const { retained, heads } = check;
+    const expected = await this.#digestOf(heads);
+    if (heads.length !== retained.summary.writers || !expected.equals(retained.summary.history)) {
+      return new ObservationSupportFault('history-mismatch');
     }
-    const walked = await this.#chain.walk(identity, tip);
-    return walked instanceof ObservationSupportFault ? walked : chainFault(walked, summary);
+    const [tip] = retained.roots.parents;
+    if (tip === undefined) {
+      return heads.length === 0 ? null : new ObservationSupportFault('history-missing');
+    }
+    return chainFault(await this.#chain.walk(check.identity, tip, check.meter), heads.length, expected);
+  }
+
+  async #digestOf(heads: readonly string[]): Promise<ObservationDigest> {
+    let digest = await this.#chain.seed();
+    for (let index = 0; index < heads.length; index += OBSERVATION_CARRIER_BATCH) {
+      digest = await this.#chain.extend(digest, heads.slice(index, index + OBSERVATION_CARRIER_BATCH));
+    }
+    return digest;
   }
 
   /** A small asset naming the attempt: a publication needs a root, and edges live in its parents. */
@@ -273,34 +284,61 @@ export default class GitCasObservationSupportAdapter extends ObservationSupportP
   }
 }
 
+function isComplete(progress: HeadProgress): boolean {
+  return progress.position.writers === progress.consumed && progress.digest.equals(progress.position.history);
+}
+
+function chainFault(
+  walked: ObservationChainPosition | ObservationSupportFault,
+  writers: number,
+  history: ObservationDigest,
+): ObservationSupportFault | null {
+  if (walked instanceof ObservationSupportFault) {
+    return walked;
+  }
+  return walked.writers === writers && walked.history.equals(history) ? null : new ObservationSupportFault('history-mismatch');
+}
+
 function isStopped<T>(outcome: T | ObservationSupportRefused | ObservationSupportCancelled): outcome is ObservationSupportRefused | ObservationSupportCancelled {
   return outcome instanceof ObservationSupportRefused || outcome instanceof ObservationSupportCancelled;
 }
 
-function chainFault(walked: ObservationChainPosition, summary: ObservationSupportSummary): ObservationSupportFault | null {
-  const matches = walked.writers === summary.writers && walked.history.equals(summary.history);
-  return matches ? null : new ObservationSupportFault('history-mismatch');
+function basisRefusal(problem: ObservationBasisProblem): ObservationSupportRefusalReason {
+  const reasons: Record<ObservationBasisProblem, ObservationSupportRefusalReason> = {
+    missing: 'basis-unavailable',
+    corrupt: 'basis-corrupt',
+    'frontier-limit': 'frontier-limit',
+    'writer-limit': 'writer-limit',
+    'work-limit': 'work-limit',
+  };
+  return reasons[problem];
 }
 
-function stopOf(request: ObservationSupportRequest, count: number): ObservationSupportRefused | ObservationSupportCancelled | null {
-  if (request.isCancelled()) {
-    return new ObservationSupportCancelled();
+function basisFault(problem: ObservationBasisProblem): ObservationSupportFaultReason {
+  if (problem === 'missing') {
+    return 'basis-missing';
   }
-  return count > request.limits.writers ? new ObservationSupportRefused('writer-limit') : null;
+  return problem === 'work-limit' ? 'work-limit' : 'basis-corrupt';
 }
 
+function resumeRefusal(fault: ObservationSupportFault): ObservationSupportRefusalReason {
+  return fault.reason === 'work-limit' ? 'work-limit' : 'construction-mismatch';
+}
+
+/**
+ * Custody supports must be unique, while identical dependency pages share one
+ * tree: the summary keeps every page in order, and the roots keep each once.
+ */
 function retainedSupport(basis: string, dependencies: ObservationPageSet, chain: ObservationChainPosition): ObservationSupportRetained {
-  const supports: ObservationSupportEntry[] = [
-    { type: 'tree', oid: basis },
-    ...dependencies.pages.map((oid): ObservationSupportEntry => ({ type: 'tree', oid })),
-  ];
+  const trees = [...new Set([basis, ...dependencies.pages])];
+  const supports = trees.map((oid): ObservationSupportEntry => ({ type: 'tree', oid }));
   return new ObservationSupportRetained(
     new ObservationCustodyRoots(supports, chain.tip === null ? [] : [chain.tip]),
     new ObservationSupportSummary({
       writers: chain.writers,
       history: chain.history,
-      dependencies: dependencies.count,
-      dependency: dependencies.digest,
+      dependencies: dependencies.claim.count,
+      dependency: dependencies.claim.digest,
       pages: dependencies.pages,
     }),
   );

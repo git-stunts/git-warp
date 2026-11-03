@@ -1,7 +1,7 @@
 import type { CustodyRefusalReason } from './CustodyVocabulary.ts';
 import type { ObservationSupportRefusalReason } from './ObservationSupportRefused.ts';
 
-export type ObservationRefusalReason = CustodyRefusalReason | ObservationSupportRefusalReason | 'not-armed';
+export type ObservationRefusalReason = CustodyRefusalReason | ObservationSupportRefusalReason | 'not-armed' | 'evidence-too-large';
 
 /** A transition was refused. Previously issued observations are untouched. */
 export default class ObservationRefused {

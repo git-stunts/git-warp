@@ -1,39 +1,42 @@
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import Plumbing from '@git-stunts/plumbing';
 import { afterEach, describe, expect, it } from 'vitest';
 import ObservationAdmitted from '../../../../src/domain/services/custody/ObservationAdmitted.ts';
 import type ObservationCustodyIdentity from '../../../../src/domain/services/custody/ObservationCustodyIdentity.ts';
 import ObservationCustodyRoots from '../../../../src/domain/services/custody/ObservationCustodyRoots.ts';
+import type ObservationDependency from '../../../../src/domain/services/custody/ObservationDependency.ts';
+import ObservationDependencyClaim from '../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDigest from '../../../../src/domain/services/custody/ObservationDigest.ts';
 import ObservationSupportCancelled from '../../../../src/domain/services/custody/ObservationSupportCancelled.ts';
 import ObservationSupportFault from '../../../../src/domain/services/custody/ObservationSupportFault.ts';
 import ObservationSupportLimits from '../../../../src/domain/services/custody/ObservationSupportLimits.ts';
 import ObservationSupportRefused from '../../../../src/domain/services/custody/ObservationSupportRefused.ts';
-import type { ObservationSupportRequest } from '../../../../src/domain/services/custody/ObservationSupportRequest.ts';
 import ObservationSupportRetained from '../../../../src/domain/services/custody/ObservationSupportRetained.ts';
 import ObservationSupportSummary from '../../../../src/domain/services/custody/ObservationSupportSummary.ts';
 import { buildObservationConstructionRef } from '../../../../src/domain/utils/ObservationRefLayout.ts';
 import GitCasObservationSupportAdapter from '../../../../src/infrastructure/adapters/GitCasObservationSupportAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
-import { OBSERVATION_DEPENDENCY_PAGE } from '../../../../src/infrastructure/adapters/ObservationDependencyPages.ts';
-import Plumbing from '@git-stunts/plumbing';
+import { OBSERVATION_DEPENDENCY_PAGE, OBSERVATION_DEPENDENCY_PAGES } from '../../../../src/infrastructure/adapters/ObservationDependencyPages.ts';
+import codec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import ObservationCustodyFixture, {
+  DEFAULT_SUPPORT_LIMITS,
   FIXTURE_GRAPH,
   type OpenedCustody,
   basisTree,
   blob,
   blobDependency,
+  claimOf,
   git,
   narrowed,
   readBindings,
-  sources,
+  removeFixtureRefs,
   stream,
   writerCommits,
 } from '../../../helpers/ObservationCustodyFixture.ts';
 
 const fixture = new ObservationCustodyFixture();
-const LIMITS = new ObservationSupportLimits({ writers: 512, dependencies: 4096 });
 
 afterEach(async () => {
   await fixture.dispose();
@@ -44,15 +47,28 @@ type Harness = {
   readonly opened: OpenedCustody;
   readonly basis: string;
   readonly identity: ObservationCustodyIdentity;
-  readonly request: Omit<ObservationSupportRequest, 'writerHeads' | 'dependencies'>;
 };
 
-async function harness(format: string): Promise<Harness> {
+async function harness(format: string, heads: (path: string) => readonly string[] = () => []): Promise<Harness> {
   const path = await fixture.repository(format);
   const opened = await fixture.open(path, { limit: 8 });
-  const basis = basisTree(path, 'support');
+  const basis = basisTree(path, 'support', heads(path));
   const { identity } = narrowed(await opened.service.begin(readBindings(basis)), ObservationAdmitted).attempt;
-  return { path, opened, basis, identity, request: { identity, basis, limits: LIMITS, isCancelled: () => false } };
+  return { path, opened, basis, identity };
+}
+
+function requestOf(h: Harness, options: {
+  readonly dependencies?: readonly ObservationDependency[];
+  readonly claim?: ObservationDependencyClaim;
+  readonly basis?: string;
+} = {}): Parameters<GitCasObservationSupportAdapter['retain']>[0] {
+  return {
+    identity: h.identity,
+    basis: options.basis ?? h.basis,
+    claim: options.claim ?? ObservationDependencyClaim.NONE,
+    dependencies: stream(options.dependencies ?? []),
+    isCancelled: () => false,
+  };
 }
 
 function constructionRef(identity: ObservationCustodyIdentity): string {
@@ -63,14 +79,19 @@ function loosePath(path: string, oid: string): string {
   return join(path, 'objects', oid.slice(0, 2), oid.slice(2));
 }
 
-/** A support adapter over `path` whose publications fail with `cause`. */
-async function failingSupport(opened: OpenedCustody, path: string, cause: Error): Promise<GitCasObservationSupportAdapter> {
+async function supportOver(h: Harness, overrides: {
+  readonly limits?: ObservationSupportLimits;
+  readonly commitFailure?: Error;
+}): Promise<GitCasObservationSupportAdapter> {
+  const { commitFailure } = overrides;
   return new GitCasObservationSupportAdapter({
-    publications: { commit: async () => await Promise.reject(cause) },
-    assets: opened.store.assets,
-    history: new GitTimelineHistoryAdapter({ plumbing: await Plumbing.createDefault({ cwd: path }) }),
+    publications: commitFailure === undefined ? h.opened.store.publications : { commit: async () => await Promise.reject(commitFailure) },
+    assets: h.opened.store.assets,
+    history: new GitTimelineHistoryAdapter({ plumbing: await Plumbing.createDefault({ cwd: h.path }) }),
     crypto: new NodeCryptoAdapter(),
+    codec,
     graphName: FIXTURE_GRAPH,
+    limits: overrides.limits ?? DEFAULT_SUPPORT_LIMITS,
   });
 }
 
@@ -78,94 +99,148 @@ function coded(code: string): Error {
   return Object.assign(new Error(code), { code });
 }
 
+function limitsWith(changes: Partial<ConstructorParameters<typeof ObservationSupportLimits>[0]>): ObservationSupportLimits {
+  return new ObservationSupportLimits({
+    writers: DEFAULT_SUPPORT_LIMITS.writers,
+    dependencies: DEFAULT_SUPPORT_LIMITS.dependencies,
+    frontierBytes: DEFAULT_SUPPORT_LIMITS.frontierBytes,
+    work: DEFAULT_SUPPORT_LIMITS.work,
+    ...changes,
+  });
+}
+
 describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (%s)', (format) => {
   it('reports a lost construction race as contention and surfaces anything else', async () => {
-    const { path, opened, request } = await harness(format);
-    const heads = sources(writerCommits(path, 2));
-    const contended = await failingSupport(opened, path, coded('PUBLICATION_CONFLICT'));
-    expect(await contended.retain({ ...request, ...heads })).toEqual(new ObservationSupportRefused('construction-contended'));
-    const broken = await failingSupport(opened, path, coded('GIT_ERROR'));
-    await expect(broken.retain({ ...request, ...sources(writerCommits(path, 2)) })).rejects.toMatchObject({ code: 'GIT_ERROR' });
+    const h = await harness(format, (path) => writerCommits(path, 2));
+    const contended = await supportOver(h, { commitFailure: coded('PUBLICATION_CONFLICT') });
+    expect(await contended.retain(requestOf(h))).toEqual(new ObservationSupportRefused('construction-contended'));
+    const broken = await supportOver(h, { commitFailure: coded('GIT_ERROR') });
+    await expect(broken.retain(requestOf(h))).rejects.toMatchObject({ code: 'GIT_ERROR' });
   });
 
   it('refuses a construction ref that points at anything but this attempt', async () => {
-    const { path, opened, request, identity } = await harness(format);
-    const [foreign] = writerCommits(path, 1);
-    git(path, ['update-ref', constructionRef(identity), foreign ?? '']);
-    expect(await opened.support.retain({ ...request, ...sources() })).toEqual(new ObservationSupportRefused('construction-mismatch'));
+    const h = await harness(format);
+    const [foreign] = writerCommits(h.path, 1);
+    git(h.path, ['update-ref', constructionRef(h.identity), foreign ?? '']);
+    expect(await h.opened.support.retain(requestOf(h))).toEqual(new ObservationSupportRefused('construction-mismatch'));
   });
 
-  it('refuses a complete construction when the input has fewer heads than it retained', async () => {
-    const { path, opened, request } = await harness(format);
-    const heads = writerCommits(path, 5);
-    narrowed(await opened.support.retain({ ...request, ...sources(heads) }), ObservationSupportRetained);
-    expect(await opened.support.retain({ ...request, ...sources(heads.slice(0, 3)) }))
+  it('refuses a complete construction of a different frontier, shorter or reordered', async () => {
+    const h = await harness(format);
+    const heads = writerCommits(h.path, 5);
+    const whole = basisTree(h.path, 'whole', heads);
+    narrowed(await h.opened.support.retain(requestOf(h, { basis: whole })), ObservationSupportRetained);
+    expect(await h.opened.support.retain(requestOf(h, { basis: basisTree(h.path, 'shorter', heads.slice(0, 3)) })))
       .toEqual(new ObservationSupportRefused('construction-mismatch'));
-    expect(await opened.support.retain({ ...request, ...sources([heads[1] ?? '', heads[0] ?? '', ...heads.slice(2)]) }))
-      .toEqual(new ObservationSupportRefused('construction-mismatch'));
-  });
-
-  it('refuses extension of a partial final carrier, since its batch boundary differs', async () => {
-    const { path, opened, request } = await harness(format);
-    const heads = writerCommits(path, 70);
-    narrowed(await opened.support.retain({ ...request, ...sources(heads.slice(0, 5)) }), ObservationSupportRetained);
-    expect(await opened.support.retain({ ...request, ...sources(heads) }))
+    expect(await h.opened.support.retain(requestOf(h, { basis: basisTree(h.path, 'reordered', [...heads].reverse()) })))
       .toEqual(new ObservationSupportRefused('construction-mismatch'));
   });
 
-  it('resumes an interrupted construction idempotently from the same input', async () => {
-    const { path, opened, request } = await harness(format);
-    const heads = writerCommits(path, 5);
-    const first = narrowed(await opened.support.retain({ ...request, ...sources(heads) }), ObservationSupportRetained);
-    const again = narrowed(await opened.support.retain({ ...request, ...sources(heads) }), ObservationSupportRetained);
+  it('refuses to extend a partial final carrier, whose batch boundary differs', async () => {
+    const h = await harness(format);
+    const heads = writerCommits(h.path, 70);
+    narrowed(await h.opened.support.retain(requestOf(h, { basis: basisTree(h.path, 'few', heads.slice(0, 5)) })), ObservationSupportRetained);
+    expect(await h.opened.support.retain(requestOf(h, { basis: basisTree(h.path, 'many', heads) })))
+      .toEqual(new ObservationSupportRefused('construction-mismatch'));
+  });
+
+  it('resumes a finished construction idempotently', async () => {
+    const h = await harness(format, (path) => writerCommits(path, 5));
+    const first = narrowed(await h.opened.support.retain(requestOf(h)), ObservationSupportRetained);
+    const again = narrowed(await h.opened.support.retain(requestOf(h)), ObservationSupportRetained);
     expect(again.roots.parents).toEqual(first.roots.parents);
     expect(again.summary).toEqual(first.summary);
+    expect(h.opened.carriersPublished()).toBe(1);
   });
 
-  it('stops dependency work when cancelled and leaves no page', async () => {
-    const { opened, request, path } = await harness(format);
-    const content = blobDependency(blob(path, 'content'));
-    const outcome = await opened.support.retain({ ...request, isCancelled: () => true, ...sources([], [content]) });
-    expect(outcome).toBeInstanceOf(ObservationSupportCancelled);
+  it('stops dependency and history work when cancelled, leaving nothing published', async () => {
+    const h = await harness(format, (path) => writerCommits(path, 2));
+    const content = [blobDependency(blob(h.path, 'content'))];
+    const claim = await claimOf(content);
+    const stoppedPages = await h.opened.support.retain({ ...requestOf(h, { dependencies: content, claim }), isCancelled: () => true });
+    expect(stoppedPages).toBeInstanceOf(ObservationSupportCancelled);
+    const stoppedChain = await h.opened.support.retain({ ...requestOf(h), isCancelled: () => true });
+    expect(stoppedChain).toBeInstanceOf(ObservationSupportCancelled);
+    expect(h.opened.carriersPublished()).toBe(0);
   });
 
-  it('refuses a full dependency page holding a missing object', async () => {
-    const { opened, request, path } = await harness(format);
-    const ghost = blobDependency((git(path, ['rev-parse', '--show-object-format']) === 'sha256' ? '7'.repeat(64) : '7'.repeat(40)));
+  it('checks a dependency exists before writing its page', async () => {
+    const h = await harness(format);
+    const ghost = blobDependency((git(h.path, ['rev-parse', '--show-object-format']) === 'sha256' ? '7' : '7').repeat(h.basis.length));
     const dependencies = Array.from({ length: OBSERVATION_DEPENDENCY_PAGE }, () => ghost);
-    expect(await opened.support.retain({ ...request, ...sources([], dependencies) }))
+    expect(await h.opened.support.retain(requestOf(h, { dependencies, claim: await claimOf(dependencies) })))
       .toEqual(new ObservationSupportRefused('dependency-unavailable'));
   });
 
   it('refuses more dependencies than bounded pages can hold, whatever the configured limit', async () => {
-    const { opened, request, path } = await harness(format);
-    const content = blobDependency(blob(path, 'content'));
-    const generous = new ObservationSupportLimits({ writers: 1, dependencies: Number.MAX_SAFE_INTEGER });
+    const h = await harness(format);
+    const content = blobDependency(blob(h.path, 'content'));
+    const generous = await supportOver(h, { limits: limitsWith({ dependencies: Number.MAX_SAFE_INTEGER, work: Number.MAX_SAFE_INTEGER }) });
     let pulled = 0;
-    async function* endless(): AsyncGenerator<typeof content> {
+    async function* endless(): AsyncGenerator<ObservationDependency> {
       for (;;) {
         pulled += 1;
         yield await Promise.resolve(content);
       }
     }
-    const outcome = await opened.support.retain({ ...request, limits: generous, writerHeads: stream([]), dependencies: endless() });
+    const outcome = await generous.retain({ ...requestOf(h), dependencies: endless() });
     expect(outcome).toEqual(new ObservationSupportRefused('dependency-limit'));
-    expect(pulled).toBe((OBSERVATION_DEPENDENCY_PAGE * 63) + 1);
+    expect(pulled).toBe((OBSERVATION_DEPENDENCY_PAGE * OBSERVATION_DEPENDENCY_PAGES) + 1);
   }, 120_000);
 
+  it('enforces its frontier byte and work bounds while building', async () => {
+    const h = await harness(format, (path) => writerCommits(path, 3));
+    const small = await supportOver(h, { limits: limitsWith({ frontierBytes: 1 }) });
+    expect(await small.retain(requestOf(h))).toEqual(new ObservationSupportRefused('frontier-limit'));
+    for (const work of [0, 1, 2, 3, 4]) {
+      const meager = await supportOver(h, { limits: limitsWith({ work }) });
+      expect(await meager.retain(requestOf(h))).toEqual(new ObservationSupportRefused('work-limit'));
+    }
+    const content = [blobDependency(blob(h.path, 'metered'))];
+    const noPages = await supportOver(h, { limits: limitsWith({ work: 4 }) });
+    expect(await noPages.retain(requestOf(h, { dependencies: content, claim: await claimOf(content) })))
+      .toEqual(new ObservationSupportRefused('work-limit'));
+  });
+
+  it('reports a work-exhausted resume as such, not as a mismatch', async () => {
+    const h = await harness(format, (path) => writerCommits(path, 3));
+    narrowed(await h.opened.support.retain(requestOf(h)), ObservationSupportRetained);
+    const meager = await supportOver(h, { limits: limitsWith({ work: 5 }) });
+    expect(await meager.retain(requestOf(h))).toEqual(new ObservationSupportRefused('work-limit'));
+  });
+
+  it('refuses a corrupt frontier and a frontier naming too many writers', async () => {
+    const h = await harness(format);
+    const junk = blob(h.path, 'not a frontier');
+    const corrupt = git(h.path, ['mktree'], `100644 blob ${junk}\tfrontier\n`);
+    expect(await h.opened.support.retain(requestOf(h, { basis: corrupt }))).toEqual(new ObservationSupportRefused('basis-corrupt'));
+    expect(await h.opened.support.retain(requestOf(h, { basis: junk }))).toEqual(new ObservationSupportRefused('basis-corrupt'));
+    const few = await supportOver(h, { limits: limitsWith({ writers: 1 }) });
+    expect(await few.retain(requestOf(h, { basis: basisTree(h.path, 'two', writerCommits(h.path, 2)) })))
+      .toEqual(new ObservationSupportRefused('writer-limit'));
+  });
+
+  it('retains one head once when two writers share it', async () => {
+    const h = await harness(format);
+    const [head = ''] = writerCommits(h.path, 1);
+    const shared = narrowed(await h.opened.support.retain(requestOf(h, { basis: basisTree(h.path, 'shared', [head, head]) })), ObservationSupportRetained);
+    expect(shared.summary.writers).toBe(1);
+  });
+
   it('releases only existing construction state', async () => {
-    const { path, opened, request, identity } = await harness(format);
-    await expect(opened.support.release(identity)).resolves.toBeUndefined();
-    narrowed(await opened.support.retain({ ...request, ...sources(writerCommits(path, 1)) }), ObservationSupportRetained);
-    expect(git(path, ['for-each-ref', constructionRef(identity)])).not.toBe('');
-    await opened.support.release(identity);
-    expect(git(path, ['for-each-ref', constructionRef(identity)])).toBe('');
+    const h = await harness(format, (path) => writerCommits(path, 1));
+    await expect(h.opened.support.release(h.identity)).resolves.toBeUndefined();
+    narrowed(await h.opened.support.retain(requestOf(h)), ObservationSupportRetained);
+    expect(git(h.path, ['for-each-ref', constructionRef(h.identity)])).not.toBe('');
+    await h.opened.support.release(h.identity);
+    expect(git(h.path, ['for-each-ref', constructionRef(h.identity)])).toBe('');
   });
 
   describe('verify', () => {
-    async function retained(h: Harness, heads: readonly string[], dependency: string): Promise<ObservationSupportRetained> {
+    async function retained(h: Harness, dependency: string): Promise<ObservationSupportRetained> {
+      const dependencies = [blobDependency(dependency)];
       return narrowed(
-        await h.opened.support.retain({ ...h.request, ...sources(heads, [blobDependency(dependency)]) }),
+        await h.opened.support.retain(requestOf(h, { dependencies, claim: await claimOf(dependencies) })),
         ObservationSupportRetained,
       );
     }
@@ -182,76 +257,117 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
     }
 
     it('accepts retained edges in any support order', async () => {
-      const h = await harness(format);
-      const { roots, summary } = await retained(h, writerCommits(h.path, 2), blob(h.path, 'kept'));
+      const h = await harness(format, (path) => writerCommits(path, 2));
+      const { roots, summary } = await retained(h, blob(h.path, 'kept'));
       const reversed = new ObservationCustodyRoots([...roots.supports].reverse(), roots.parents);
       expect(await h.opened.support.verify(h.identity, { basis: h.basis, roots: reversed, summary })).toBeNull();
     });
 
-    it('accepts no history when no writer was declared, and refuses a missing chain', async () => {
-      const h = await harness(format);
-      const { roots, summary } = await retained(h, [], blob(h.path, 'kept'));
-      expect(await h.opened.support.verify(h.identity, { basis: h.basis, roots, summary })).toBeNull();
-      expect(await h.opened.support.verify(h.identity, { basis: h.basis, roots, summary: withSummary(summary, { writers: 1 }) }))
+    it('holds retained history to what the basis frontier names', async () => {
+      const h = await harness(format, (path) => writerCommits(path, 2));
+      const { roots, summary } = await retained(h, blob(h.path, 'kept'));
+      const forged = new ObservationDigest('00'.repeat(32));
+      const verify = async (changes: Parameters<typeof withSummary>[1]): Promise<ObservationSupportFault | null> =>
+        await h.opened.support.verify(h.identity, { basis: h.basis, roots, summary: withSummary(summary, changes) });
+      expect(await verify({ writers: 9 })).toEqual(new ObservationSupportFault('history-mismatch'));
+      expect(await verify({ history: forged })).toEqual(new ObservationSupportFault('history-mismatch'));
+      expect(await verify({ dependencies: 9 })).toEqual(new ObservationSupportFault('dependency-mismatch'));
+      expect(await verify({ dependency: forged })).toEqual(new ObservationSupportFault('dependency-mismatch'));
+
+      const narrower = basisTree(h.path, 'narrower', writerCommits(h.path, 1));
+      expect(await h.opened.support.verify(h.identity, {
+        basis: narrower, roots: new ObservationCustodyRoots([...roots.supports, { type: 'tree', oid: narrower }], roots.parents), summary,
+      })).toEqual(new ObservationSupportFault('history-mismatch'));
+    });
+
+    it('refuses a chain that retains other heads than its frontier, or none at all', async () => {
+      const h = await harness(format, (path) => writerCommits(path, 2));
+      const { roots, summary } = await retained(h, blob(h.path, 'kept'));
+      const unchained = new ObservationCustodyRoots(roots.supports, []);
+      expect(await h.opened.support.verify(h.identity, { basis: h.basis, roots: unchained, summary }))
         .toEqual(new ObservationSupportFault('history-missing'));
+
+      const other = await harness(format, (path) => writerCommits(path, 2));
+      const otherEdges = await retained(other, blob(other.path, 'other'));
+      await expect(other.opened.support.verify(other.identity, {
+        basis: other.basis,
+        roots: new ObservationCustodyRoots(otherEdges.roots.supports, [other.basis]),
+        summary: otherEdges.summary,
+      })).rejects.toBeInstanceOf(Error);
+
+      const empty = await harness(format);
+      const noHeads = await retained(empty, blob(empty.path, 'none'));
+      expect(await empty.opened.support.verify(empty.identity, { basis: empty.basis, roots: noHeads.roots, summary: noHeads.summary })).toBeNull();
     });
 
     it('refuses declared edges custody does not hold', async () => {
       const h = await harness(format);
-      const { roots, summary } = await retained(h, [], blob(h.path, 'kept'));
+      const { roots, summary } = await retained(h, blob(h.path, 'kept'));
       const unheld = new ObservationCustodyRoots(roots.supports.filter((entry) => entry.oid === h.basis), roots.parents);
       expect(await h.opened.support.verify(h.identity, { basis: h.basis, roots: unheld, summary }))
         .toEqual(new ObservationSupportFault('dependency-mismatch'));
-      const otherBasis = basisTree(h.path, 'other');
-      expect(await h.opened.support.verify(h.identity, { basis: otherBasis, roots, summary }))
+      expect(await h.opened.support.verify(h.identity, { basis: basisTree(h.path, 'other'), roots, summary }))
         .toEqual(new ObservationSupportFault('dependency-mismatch'));
     });
 
-    it('refuses a summary its edges do not match', async () => {
-      const h = await harness(format);
-      const { roots, summary } = await retained(h, writerCommits(h.path, 2), blob(h.path, 'kept'));
-      const verify = async (changed: ObservationSupportSummary): Promise<ObservationSupportFault | null> =>
-        await h.opened.support.verify(h.identity, { basis: h.basis, roots, summary: changed });
-      const forged = new ObservationDigest('00'.repeat(32));
-      expect(await verify(withSummary(summary, { dependencies: 9 }))).toEqual(new ObservationSupportFault('dependency-mismatch'));
-      expect(await verify(withSummary(summary, { dependency: forged }))).toEqual(new ObservationSupportFault('dependency-mismatch'));
-      expect(await verify(withSummary(summary, { writers: 9 }))).toEqual(new ObservationSupportFault('history-mismatch'));
-      expect(await verify(withSummary(summary, { history: forged }))).toEqual(new ObservationSupportFault('history-mismatch'));
+    it('enforces its work bound at the basis, pages, entries and chain', async () => {
+      const h = await harness(format, (path) => writerCommits(path, 2));
+      const { roots, summary } = await retained(h, blob(h.path, 'kept'));
+      for (const work of [0, 1, 2, 3, 4, 5, 6, 7, 8]) {
+        const meager = await supportOver(h, { limits: limitsWith({ work }) });
+        expect(await meager.verify(h.identity, { basis: h.basis, roots, summary })).toEqual(new ObservationSupportFault('work-limit'));
+      }
+      const enough = await supportOver(h, { limits: limitsWith({ work: 9 }) });
+      expect(await enough.verify(h.identity, { basis: h.basis, roots, summary })).toBeNull();
     });
 
-    it('reports a removed page, entry, carrier and publication', async () => {
-      const h = await harness(format);
+    it('reports a removed entry, page, carrier, basis child and publication', async () => {
+      const h = await harness(format, (path) => writerCommits(path, 1));
       const content = blob(h.path, 'removable');
-      const { roots, summary } = await retained(h, writerCommits(h.path, 1), content);
-      const verify = async (): Promise<ObservationSupportFault | null> =>
-        await h.opened.support.verify(h.identity, { basis: h.basis, roots, summary });
-      expect(await verify()).toBeNull();
+      const { roots, summary } = await retained(h, content);
+      expect(await h.opened.support.verify(h.identity, { basis: h.basis, roots, summary })).toBeNull();
       await rm(loosePath(h.path, content));
-      expect(await verify()).toEqual(new ObservationSupportFault('dependency-missing'));
+      expect(await h.opened.support.verify(h.identity, { basis: h.basis, roots, summary }))
+        .toEqual(new ObservationSupportFault('dependency-missing'));
 
       const page = await harness(format);
-      const pages = await retained(page, [], blob(page.path, 'paged'));
+      const pages = await retained(page, blob(page.path, 'paged'));
       await rm(loosePath(page.path, pages.summary.pages[0] ?? ''));
       expect(await page.opened.support.verify(page.identity, { basis: page.basis, roots: pages.roots, summary: pages.summary }))
         .toEqual(new ObservationSupportFault('dependency-missing'));
 
-      const carrier = await harness(format);
-      const chained = await retained(carrier, writerCommits(carrier.path, 1), blob(carrier.path, 'carried'));
+      const carrier = await harness(format, (path) => writerCommits(path, 1));
+      const chained = await retained(carrier, blob(carrier.path, 'carried'));
       await rm(loosePath(carrier.path, chained.roots.parents[0] ?? ''));
       expect(await carrier.opened.support.verify(carrier.identity, { basis: carrier.basis, roots: chained.roots, summary: chained.summary }))
         .toEqual(new ObservationSupportFault('history-missing'));
 
-      const missingBasis = await harness(format);
-      const absent = await retained(missingBasis, [], blob(missingBasis.path, 'b'));
-      await rm(loosePath(missingBasis.path, missingBasis.basis));
-      expect(await missingBasis.opened.support.verify(missingBasis.identity, { basis: missingBasis.basis, roots: absent.roots, summary: absent.summary }))
+      const child = await harness(format);
+      const childEdges = await retained(child, blob(child.path, 'c'));
+      await rm(loosePath(child.path, git(child.path, ['rev-parse', `${child.basis}:layout`])));
+      expect(await child.opened.support.verify(child.identity, { basis: child.basis, roots: childEdges.roots, summary: childEdges.summary }))
         .toEqual(new ObservationSupportFault('basis-missing'));
 
-      const [commit] = writerCommits(h.path, 1);
-      expect(await h.opened.support.verifyPublication(commit ?? '')).toBeNull();
-      git(h.path, ['update-ref', '-d', `refs/warp/${FIXTURE_GRAPH}/writers/w0`]);
-      await rm(loosePath(h.path, commit ?? ''));
-      expect(await h.opened.support.verifyPublication(commit ?? '')).toEqual(new ObservationSupportFault('publication-missing'));
+      const corrupt = await harness(format);
+      const corruptEdges = await retained(corrupt, blob(corrupt.path, 'x'));
+      await rm(loosePath(corrupt.path, corrupt.basis));
+      expect(await corrupt.opened.support.verify(corrupt.identity, { basis: corrupt.basis, roots: corruptEdges.roots, summary: corruptEdges.summary }))
+        .toEqual(new ObservationSupportFault('basis-missing'));
+
+      const [commit = ''] = writerCommits(h.path, 1);
+      expect(await h.opened.support.verifyPublication(commit)).toBeNull();
+      removeFixtureRefs(h.path);
+      await rm(loosePath(h.path, commit));
+      expect(await h.opened.support.verifyPublication(commit)).toEqual(new ObservationSupportFault('publication-missing'));
+    });
+
+    it('reports an undecodable frontier as corrupt', async () => {
+      const h = await harness(format);
+      const { summary } = await retained(h, blob(h.path, 'kept'));
+      const junk = blob(h.path, 'junk frontier');
+      const corrupt = git(h.path, ['mktree'], `100644 blob ${junk}\tfrontier\n`);
+      expect(await h.opened.support.verify(h.identity, { basis: corrupt, roots: new ObservationCustodyRoots([], []), summary }))
+        .toEqual(new ObservationSupportFault('basis-corrupt'));
     });
   });
 });

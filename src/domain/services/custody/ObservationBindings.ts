@@ -1,5 +1,6 @@
 import ObservationCustodyError from '../../errors/ObservationCustodyError.ts';
 import ObservationBudget from './ObservationBudget.ts';
+import ObservationDependencyClaim from './ObservationDependencyClaim.ts';
 import ObservationEvidenceBinding from './ObservationEvidenceBinding.ts';
 import { isObjectId } from './ObservationObjectId.ts';
 import ObservationQuestion from './ObservationQuestion.ts';
@@ -13,6 +14,8 @@ export type ObservationBindingsFields = {
   readonly purpose: string;
   readonly budget: ObservationBudget;
   readonly evidence: readonly ObservationEvidenceBinding[];
+  /** Exactly which objects replay requires; retained support must match. */
+  readonly dependencies: ObservationDependencyClaim;
   /** Null for a read; a write also binds what it submitted. */
   readonly writePremise: ObservationWritePremise | null;
 };
@@ -28,6 +31,7 @@ export default class ObservationBindings {
   readonly purpose: string;
   readonly budget: ObservationBudget;
   readonly evidence: readonly ObservationEvidenceBinding[];
+  readonly dependencies: ObservationDependencyClaim;
   readonly writePremise: ObservationWritePremise | null;
 
   constructor(fields: ObservationBindingsFields) {
@@ -39,6 +43,7 @@ export default class ObservationBindings {
     this.purpose = fields.purpose;
     this.budget = fields.budget;
     this.evidence = Object.freeze([...fields.evidence]);
+    this.dependencies = fields.dependencies;
     this.writePremise = fields.writePremise;
     Object.freeze(this);
   }
@@ -55,10 +60,11 @@ function assertPlans(fields: ObservationBindingsFields): void {
     fields.question instanceof ObservationQuestion,
     fields.budget instanceof ObservationBudget,
     isEvidenceList(fields.evidence),
+    fields.dependencies instanceof ObservationDependencyClaim,
     fields.writePremise === null || fields.writePremise instanceof ObservationWritePremise,
   ];
   if (checks.includes(false)) {
-    throw new ObservationCustodyError('Observation bindings hold a question, a budget, evidence and a write premise');
+    throw new ObservationCustodyError('Observation bindings hold a question, a budget, evidence, dependencies and a write premise');
   }
 }
 

@@ -4,6 +4,7 @@ import ObservationSupportFault from '../../domain/services/custody/ObservationSu
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
 import ObservationCarrierMessage from './ObservationCarrierMessage.ts';
+import type ObservationWorkMeter from './ObservationWorkMeter.ts';
 
 const HISTORY_DOMAIN = 'git-warp/observation-history';
 const HASH_ALGORITHM = 'sha256';
@@ -61,20 +62,24 @@ export default class ObservationCarrierChain {
   }
 
   /** Verifies a whole chain belongs to this attempt and retains what its tip claims. */
-  async walk(identity: ObservationCustodyIdentity, tip: string): Promise<ObservationChainPosition | ObservationSupportFault> {
-    const first = await this.#read(identity, tip);
+  async walk(
+    identity: ObservationCustodyIdentity,
+    tip: string,
+    meter: ObservationWorkMeter,
+  ): Promise<ObservationChainPosition | ObservationSupportFault> {
+    const first = await this.#read(identity, tip, meter);
     if (first instanceof ObservationSupportFault) {
       return first;
     }
-    const fault = await this.#walkBack(identity, first);
+    const fault = await this.#walkBack(identity, first, meter);
     return fault ?? { tip, sequence: first.message.sequence, writers: first.message.writers, history: first.message.history };
   }
 
   /** Checks each carrier against the one before it, holding one carrier at a time. */
-  async #walkBack(identity: ObservationCustodyIdentity, tip: ReadCarrier): Promise<ObservationSupportFault | null> {
+  async #walkBack(identity: ObservationCustodyIdentity, tip: ReadCarrier, meter: ObservationWorkMeter): Promise<ObservationSupportFault | null> {
     let later = tip;
     while (later.previous !== null) {
-      const earlier = await this.#read(identity, later.previous);
+      const earlier = await this.#read(identity, later.previous, meter);
       if (earlier instanceof ObservationSupportFault) {
         return earlier;
       }
@@ -86,7 +91,10 @@ export default class ObservationCarrierChain {
     return await this.#startsHonestly(later) ? null : new ObservationSupportFault('history-mismatch');
   }
 
-  async #read(identity: ObservationCustodyIdentity, oid: string): Promise<ReadCarrier | ObservationSupportFault> {
+  async #read(identity: ObservationCustodyIdentity, oid: string, meter: ObservationWorkMeter): Promise<ReadCarrier | ObservationSupportFault> {
+    if (!meter.spend(1)) {
+      return new ObservationSupportFault('work-limit');
+    }
     if (!await this.#history.nodeExists(oid)) {
       return new ObservationSupportFault('history-missing');
     }
@@ -95,7 +103,13 @@ export default class ObservationCarrierChain {
     if (message === null || !message.binding.equals(identity.binding)) {
       return new ObservationSupportFault('history-mismatch');
     }
-    const carrier = carrierOf(message, info.parents);
+    return await this.#withHeads(carrierOf(message, info.parents), meter);
+  }
+
+  async #withHeads(carrier: ReadCarrier, meter: ObservationWorkMeter): Promise<ReadCarrier | ObservationSupportFault> {
+    if (!meter.spend(carrier.heads.length)) {
+      return new ObservationSupportFault('work-limit');
+    }
     return await this.#headsExist(carrier.heads) ? carrier : new ObservationSupportFault('history-missing');
   }
 

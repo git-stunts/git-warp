@@ -12,7 +12,8 @@ export type ObservationSupportOutcome = ObservationSupportRetained | Observation
 /**
  * Builds and checks the Git edges an observation requires (#1067). A stored
  * object id is not a reachability edge: writer history needs commit parents,
- * and content needs tree or blob edges. All work is bounded per step.
+ * and content needs tree or blob edges. Writer heads come from the frontier
+ * stored in the basis, never from the caller. All work is explicitly bounded.
  */
 export default abstract class ObservationSupportPort {
   /** Builds the attempt's edges from its original sources, resuming any verified construction. */

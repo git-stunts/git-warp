@@ -2,6 +2,7 @@ import z from 'zod';
 import ObservationAttemptId from '../../domain/services/custody/ObservationAttemptId.ts';
 import ObservationBindings from '../../domain/services/custody/ObservationBindings.ts';
 import ObservationBudget from '../../domain/services/custody/ObservationBudget.ts';
+import ObservationDependencyClaim from '../../domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDecodeFailure from '../../domain/services/custody/ObservationDecodeFailure.ts';
 import ObservationDigest from '../../domain/services/custody/ObservationDigest.ts';
 import ObservationEvidenceBinding from '../../domain/services/custody/ObservationEvidenceBinding.ts';
@@ -37,6 +38,7 @@ const PREPARATION_WIRE = z.strictObject({
   attempt: z.string(),
   basis: z.string(),
   budget: z.strictObject({ bytes: z.number(), records: z.number(), work: z.number() }),
+  dependencies: z.strictObject({ count: z.number(), digest: z.string() }),
   evidence: z.array(z.strictObject({
     digest: z.string(), kind: z.enum(['authority', 'law', 'dependency']),
   })),
@@ -56,6 +58,7 @@ const RECORD_WIRE = z.strictObject({
   core: z.string(),
   preparation: z.string(),
   publication: z.strictObject({ commit: z.string(), writerId: z.string() }).nullable(),
+  support: z.string(),
 });
 const PREPARED_PAGE_WIRE = z.strictObject({
   ...header(PREPARED_PAGE_DOMAIN),
@@ -95,6 +98,7 @@ export default class ObservationCustodyCborCodec extends ObservationCustodyCodec
       attempt: attemptId.value,
       basis: bindings.basis,
       budget: { bytes: bindings.budget.bytes, records: bindings.budget.records, work: bindings.budget.work },
+      dependencies: { count: bindings.dependencies.count, digest: bindings.dependencies.digest.hex },
       evidence: bindings.evidence.map((entry) => ({ digest: entry.digest.hex, kind: entry.kind })),
       observer: bindings.observer,
       purpose: bindings.purpose,
@@ -135,6 +139,7 @@ export default class ObservationCustodyCborCodec extends ObservationCustodyCodec
       core: record.core.hex,
       preparation: record.preparation.hex,
       publication: publication === null ? null : { commit: publication.commit, writerId: publication.writerId },
+      support: record.support.hex,
     });
   }
 
@@ -211,6 +216,7 @@ function decodedPreparation(wire: z.infer<typeof PREPARATION_WIRE>): Observation
     question: new ObservationQuestion(wire.question.name, wire.question.version),
     purpose: wire.purpose,
     budget: new ObservationBudget(wire.budget),
+    dependencies: new ObservationDependencyClaim(wire.dependencies.count, new ObservationDigest(wire.dependencies.digest)),
     evidence: wire.evidence.map((entry) => new ObservationEvidenceBinding(entry.kind, new ObservationDigest(entry.digest))),
     writePremise: decodedPremise(wire.writePremise),
   }));
@@ -228,6 +234,7 @@ function decodedPremise(wire: z.infer<typeof PREMISE_WIRE> | null): ObservationW
 function decodedRecord(wire: z.infer<typeof RECORD_WIRE>): ObservationRecord {
   return new ObservationRecord({
     preparation: new ObservationDigest(wire.preparation),
+    support: new ObservationDigest(wire.support),
     core: new ObservationDigest(wire.core),
     publication: wire.publication === null
       ? null

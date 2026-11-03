@@ -1,3 +1,4 @@
+import { clearInterval, setInterval } from 'node:timers';
 import { afterEach, describe, expect, it } from 'vitest';
 import ObservationAdmitted from '../../../../src/domain/services/custody/ObservationAdmitted.ts';
 import type ObservationAttempt from '../../../../src/domain/services/custody/ObservationAttempt.ts';
@@ -12,11 +13,15 @@ import ObservationRefused from '../../../../src/domain/services/custody/Observat
 import ResolvedObservation from '../../../../src/domain/services/custody/ResolvedObservation.ts';
 import RetainedObservation from '../../../../src/domain/services/custody/RetainedObservation.ts';
 import { OBSERVATION_CARRIER_BATCH } from '../../../../src/infrastructure/adapters/GitCasObservationSupportAdapter.ts';
+import { OBSERVATION_DEPENDENCY_PAGE } from '../../../../src/infrastructure/adapters/ObservationDependencyPages.ts';
 import FaultingObservationCustody from '../../../helpers/FaultingObservationCustody.ts';
 import ObservationCustodyFixture, {
   type OpenedCustody,
   FIXTURE_ATTEMPT,
   basisTree,
+  blob,
+  blobDependency,
+  claimOf,
   narrowed,
   readBindings,
   readCore,
@@ -85,11 +90,10 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
   it('recovers a preparation whose acknowledgement was lost, keeping its original roots', async () => {
     const path = await fixture.repository(format);
     const opened = await faulted(path, 2);
-    const heads = writerCommits(path, 70);
-    const { attempt } = narrowed(await opened.service.begin(readBindings(basisTree(path, 'prepare'))), ObservationAdmitted);
+    const { attempt } = narrowed(await opened.service.begin(readBindings(basisTree(path, 'prepare', writerCommits(path, 70)))), ObservationAdmitted);
     opened.faults.inject({ operation: 'prepare', when: 'after' });
-    expect(await opened.service.prepare(attempt, sources(heads))).toBeInstanceOf(ObservationIndeterminate);
-    const recovered = narrowed(await opened.service.prepare(attempt, sources(heads)), ObservationPrepared);
+    expect(await opened.service.prepare(attempt, sources())).toBeInstanceOf(ObservationIndeterminate);
+    const recovered = narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
     expect(recovered.roots.parents).toHaveLength(1);
     const retained = narrowed(await opened.service.settle(attempt, { core: readCore('p'), publication: null }), RetainedObservation);
     expect(await opened.service.resolve(retained.coordinate)).toBeInstanceOf(ResolvedObservation);
@@ -98,11 +102,12 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
   it('reuses the verified construction when preparation never reached the store', async () => {
     const path = await fixture.repository(format);
     const opened = await faulted(path, 2);
-    const heads = writerCommits(path, 70);
-    const { attempt } = narrowed(await opened.service.begin(readBindings(basisTree(path, 'unsent'))), ObservationAdmitted);
+    const { attempt } = narrowed(await opened.service.begin(readBindings(basisTree(path, 'unsent', writerCommits(path, 70)))), ObservationAdmitted);
     opened.faults.inject({ operation: 'prepare', when: 'before' });
-    expect(await opened.service.prepare(attempt, sources(heads))).toBeInstanceOf(ObservationIndeterminate);
-    narrowed(await opened.service.prepare(attempt, sources(heads)), ObservationPrepared);
+    expect(await opened.service.prepare(attempt, sources())).toBeInstanceOf(ObservationIndeterminate);
+    const published = opened.carriersPublished();
+    narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
+    expect(opened.carriersPublished()).toBe(published);
   });
 
   it.each(['before', 'after'] as const)('performs no effect when an arm acknowledgement is lost %s', async (when) => {
@@ -164,52 +169,95 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
   it('stops and awaits its owned builder before cancelling', async () => {
     const path = await fixture.repository(format);
     const opened = await faulted(path, 2);
-    const heads = writerCommits(path, 200);
-    const { attempt } = narrowed(await opened.service.begin(writeBindings(basisTree(path, 'owned'))), ObservationAdmitted);
-    let pulled = 0;
-    let reachedMidway: () => void = () => undefined;
-    const midway = new Promise<void>((resolve) => {
-      reachedMidway = resolve;
+    const { attempt } = narrowed(await opened.service.begin(writeBindings(basisTree(path, 'owned', writerCommits(path, 200)))), ObservationAdmitted);
+    let reachedFirstCarrier: () => void = () => undefined;
+    const firstCarrier = new Promise<void>((resolve) => {
+      reachedFirstCarrier = resolve;
     });
-    async function* slowHeads(): AsyncGenerator<string> {
-      for (const head of heads) {
-        pulled += 1;
-        if (pulled === 70) {
-          reachedMidway();
-        }
-        await Promise.resolve();
-        yield head;
+    const watching = setInterval(() => {
+      if (opened.carriersPublished() > 0) {
+        reachedFirstCarrier();
       }
-    }
-    const preparing = opened.service.prepare(attempt, { writerHeads: slowHeads(), dependencies: sources().dependencies });
-    await midway;
+    }, 1);
+    const preparing = opened.service.prepare(attempt, sources());
+    await firstCarrier;
+    clearInterval(watching);
     const cancelled = await opened.service.cancel(attempt);
-    const pulledAtCancel = pulled;
+    const carriersAtCancel = opened.carriersPublished();
     expect(cancelled).toBeInstanceOf(ObservationKnownUnpublished);
     expect(await preparing).toEqual(new ObservationRefused('cancelled'));
-    expect(pulled).toBe(pulledAtCancel);
-    expect(pulled).toBeLessThan(heads.length);
+    expect(opened.carriersPublished()).toBe(carriersAtCancel);
+    expect(carriersAtCancel).toBeLessThan(4);
     expect(await opened.service.authorizePublication(attempt)).toBeInstanceOf(ObservationKnownUnpublished);
   });
 
-  it('holds at most one batch of heads ahead of its publications', async () => {
+  it('never publishes more than one batch of heads in a carrier', async () => {
     const path = await fixture.repository(format);
-    const heads = writerCommits(path, 200);
     const opened = await faulted(path, 2);
-    const { attempt } = narrowed(await opened.service.begin(readBindings(basisTree(path, 'bounded'))), ObservationAdmitted);
+    const { attempt } = narrowed(await opened.service.begin(readBindings(basisTree(path, 'bounded', writerCommits(path, 200)))), ObservationAdmitted);
+    narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
+    expect(opened.carriersPublished()).toBe(Math.ceil(200 / OBSERVATION_CARRIER_BATCH));
+  });
+
+  it('pulls at most one page of dependencies ahead of what it has written', async () => {
+    const path = await fixture.repository(format);
+    const opened = await faulted(path, 2);
+    const content = blobDependency(blob(path, 'streamed'));
+    const all = Array.from({ length: 2500 }, () => content);
+    const { attempt } = narrowed(await opened.service.begin(readBindings(basisTree(path, 'streamed'), await claimOf(all))), ObservationAdmitted);
     let pulled = 0;
-    let furthestAhead = 0;
-    async function* watchedHeads(): AsyncGenerator<string> {
-      for (const head of heads) {
+    let pagesAtPull = 0;
+    async function* watched(): AsyncGenerator<typeof content> {
+      for (const dependency of all) {
         pulled += 1;
-        const published = opened.carriersPublished();
-        furthestAhead = Math.max(furthestAhead, pulled - published * OBSERVATION_CARRIER_BATCH);
-        yield head;
+        pagesAtPull = Math.max(pagesAtPull, pulled - (Math.floor((pulled - 1) / OBSERVATION_DEPENDENCY_PAGE) * OBSERVATION_DEPENDENCY_PAGE));
+        yield await Promise.resolve(dependency);
       }
     }
-    narrowed(await opened.service.prepare(attempt, { writerHeads: watchedHeads(), dependencies: sources().dependencies }), ObservationPrepared);
-    expect(pulled).toBe(heads.length);
-    expect(furthestAhead).toBeLessThanOrEqual(OBSERVATION_CARRIER_BATCH);
-    expect(opened.carriersPublished()).toBe(4);
+    narrowed(await opened.service.prepare(attempt, { dependencies: watched() }), ObservationPrepared);
+    expect(pulled).toBe(all.length);
+    expect(pagesAtPull).toBeLessThanOrEqual(OBSERVATION_DEPENDENCY_PAGE);
+  });
+
+  it.each(['reserve', 'settle', 'cancel', 'reconcile'] as const)('changes nothing when %s never reaches the store', async (operation) => {
+    const path = await fixture.repository(format);
+    const opened = await faulted(path, 2);
+    const bindings = readBindings(basisTree(path, `before-${operation}`));
+    if (operation === 'reserve') {
+      opened.faults.inject({ operation, when: 'before' });
+      expect(await opened.service.resume(FIXTURE_ATTEMPT, bindings)).toBeInstanceOf(ObservationIndeterminate);
+      expect(narrowed(await opened.service.resume(FIXTURE_ATTEMPT, bindings), ObservationAdmitted).phase).toBe('reserved');
+      return;
+    }
+    const { attempt } = narrowed(await opened.service.begin(bindings), ObservationAdmitted);
+    narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
+    opened.faults.inject({ operation, when: 'before' });
+    const outcome = { core: readCore('before'), publication: null };
+    const faultedStep = { settle: async () => await opened.service.settle(attempt, outcome), cancel: async () => await opened.service.cancel(attempt), reconcile: async () => await opened.service.reconcile(attempt) };
+    expect(await faultedStep[operation]()).toBeInstanceOf(ObservationIndeterminate);
+    const retained = narrowed(await opened.service.settle(attempt, outcome), RetainedObservation);
+    expect(await opened.service.resolve(retained.coordinate)).toBeInstanceOf(ResolvedObservation);
+  });
+
+  it('completes reconciliation whose acknowledgement was lost', async () => {
+    const path = await fixture.repository(format);
+    const opened = await faulted(path, 2);
+    const { attempt } = narrowed(await opened.service.begin(readBindings(basisTree(path, 'after-reconcile'))), ObservationAdmitted);
+    narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
+    opened.faults.inject({ operation: 'reconcile', when: 'after' });
+    expect(await opened.service.reconcile(attempt)).toBeInstanceOf(ObservationIndeterminate);
+    expect(narrowed(await opened.service.reconcile(attempt), ObservationReconciled).phase).toBe('prepared');
+  });
+
+  it('surfaces a publication reported against a cancellation that won', async () => {
+    const path = await fixture.repository(format);
+    const opened = await faulted(path, 2);
+    const attempt = await preparedWrite(opened, 'contradicted', path);
+    expect(await opened.service.cancel(attempt)).toBeInstanceOf(ObservationKnownUnpublished);
+    const outcome = await opened.service.settle(attempt, {
+      core: writeCore('c'), publication: new ObservationPublicationEvidence('writer-1', writerCommits(path, 1)[0] ?? ''),
+    });
+    expect(outcome).toBeInstanceOf(ObservationIndeterminate);
+    expect(outcome).toMatchObject({ cause: { code: 'E_OBSERVATION_CUSTODY_CONTRADICTED' } });
   });
 });

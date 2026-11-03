@@ -8,7 +8,10 @@ import ObservationAttemptId from '../../src/domain/services/custody/ObservationA
 import ObservationBindings from '../../src/domain/services/custody/ObservationBindings.ts';
 import ObservationBudget from '../../src/domain/services/custody/ObservationBudget.ts';
 import ObservationCustodyService from '../../src/domain/services/custody/ObservationCustodyService.ts';
+import ConeFrontier from '../../src/domain/services/cone/ConeFrontier.ts';
+import ConeWriterPosition from '../../src/domain/services/cone/ConeWriterPosition.ts';
 import ObservationDependency from '../../src/domain/services/custody/ObservationDependency.ts';
+import ObservationDependencyClaim from '../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDigest from '../../src/domain/services/custody/ObservationDigest.ts';
 import ObservationEvidenceBinding from '../../src/domain/services/custody/ObservationEvidenceBinding.ts';
 import ObservationIndeterminate from '../../src/domain/services/custody/ObservationIndeterminate.ts';
@@ -17,6 +20,7 @@ import ObservationReceiptCore from '../../src/domain/services/custody/Observatio
 import ObservationSupportLimits from '../../src/domain/services/custody/ObservationSupportLimits.ts';
 import type { ObservationSupportSources } from '../../src/domain/services/custody/ObservationSupportRequest.ts';
 import ObservationWritePremise from '../../src/domain/services/custody/ObservationWritePremise.ts';
+import ConeFrontierCborCodec from '../../src/infrastructure/adapters/ConeFrontierCborCodec.ts';
 import EntropyObservationAttemptSource from '../../src/infrastructure/adapters/EntropyObservationAttemptSource.ts';
 import GitCasObservationCustodyAdapter from '../../src/infrastructure/adapters/GitCasObservationCustodyAdapter.ts';
 import GitCasObservationSupportAdapter from '../../src/infrastructure/adapters/GitCasObservationSupportAdapter.ts';
@@ -29,7 +33,9 @@ import type ObservationCustodyPort from '../../src/ports/ObservationCustodyPort.
 export const FIXTURE_GRAPH = 'custody-fixture';
 export const FIXTURE_DIGEST = new ObservationDigest('ab'.repeat(32));
 export const FIXTURE_ATTEMPT = new ObservationAttemptId('f'.repeat(32));
-export const DEFAULT_SUPPORT_LIMITS = new ObservationSupportLimits({ writers: 512, dependencies: 4096 });
+export const DEFAULT_SUPPORT_LIMITS = new ObservationSupportLimits({
+  writers: 512, dependencies: 4096, frontierBytes: 1024 * 1024, work: 100_000,
+});
 
 /** One opened store and the production services over it. */
 export type OpenedCustody = {
@@ -99,7 +105,9 @@ export default class ObservationCustodyFixture {
       assets: store.assets,
       history: new GitTimelineHistoryAdapter({ plumbing }),
       crypto,
+      codec,
       graphName: FIXTURE_GRAPH,
+      limits: options.limits ?? DEFAULT_SUPPORT_LIMITS,
     });
     const service = new ObservationCustodyService({
       custody: options.wrap === undefined ? custody : options.wrap(custody),
@@ -107,7 +115,6 @@ export default class ObservationCustodyFixture {
       codec: new ObservationCustodyCborCodec(codec),
       crypto,
       attempts: new EntropyObservationAttemptSource(),
-      limits: options.limits ?? DEFAULT_SUPPORT_LIMITS,
     });
     return { store, custody, support, service, carriersPublished: () => carriers };
   }
@@ -124,22 +131,33 @@ export default class ObservationCustodyFixture {
   }
 }
 
-/** Writes `count` independent commits under fixture refs and returns their ids. */
+let writerSequence = 0;
+
+/**
+ * Writes `count` independent commits, each with an ancestor, under fixture refs
+ * and returns their ids. Labels are unique: identical commits made within one
+ * second would otherwise be one object.
+ */
 export function writerCommits(path: string, count: number): string[] {
   const tree = emptyTree(path);
   const commits: string[] = [];
   for (let index = 0; index < count; index++) {
-    const commit = git(path, ['commit-tree', tree, '-m', `writer ${index}`]);
-    git(path, ['update-ref', `refs/warp/${FIXTURE_GRAPH}/writers/w${index}`, commit]);
+    writerSequence += 1;
+    const ancestor = git(path, ['commit-tree', tree, '-m', `ancestor ${writerSequence}`]);
+    const commit = git(path, ['commit-tree', tree, '-p', ancestor, '-m', `writer ${writerSequence}`]);
+    git(path, ['update-ref', `refs/warp/${FIXTURE_GRAPH}/writers/w${writerSequence}`, commit]);
     commits.push(commit);
   }
   return commits;
 }
 
-/** A basis tree holding its own distinct frontier blob, unreachable except through custody. */
-export function basisTree(path: string, label: string): string {
-  const blob = git(path, ['hash-object', '-w', '--stdin'], `frontier ${label}`);
-  return git(path, ['mktree'], `100644 blob ${blob}\tfrontier\n`);
+/** A cone basis tree with a real frontier naming `heads`, a layout blob and a label of its own. */
+export function basisTree(path: string, label: string, heads: readonly string[] = []): string {
+  const positions = heads.map((head, index): [string, ConeWriterPosition] => [`w${String(index).padStart(6, '0')}`, new ConeWriterPosition(head, 1)]);
+  const encoded = new ConeFrontierCborCodec(codec).encode(new ConeFrontier(new Map(positions)));
+  const frontier = execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: path, encoding: 'utf8', input: encoded }).trim();
+  const layout = blob(path, `layout ${label}`);
+  return git(path, ['mktree'], `100644 blob ${frontier}\tfrontier\n100644 blob ${layout}\tlayout\n`);
 }
 
 export function blob(path: string, content: string): string {
@@ -150,15 +168,19 @@ export function emptyTree(path: string): string {
   return git(path, ['mktree'], '');
 }
 
-export function readBindings(basis: string): ObservationBindings {
-  return bindings(basis, null);
+export function readBindings(basis: string, dependencies: ObservationDependencyClaim = ObservationDependencyClaim.NONE): ObservationBindings {
+  return bindings(basis, { dependencies, writePremise: null });
 }
 
 export function writeBindings(basis: string, predecessor: string | null = null): ObservationBindings {
-  return bindings(basis, new ObservationWritePremise({ intents: FIXTURE_DIGEST, writerId: 'writer-1', predecessor }));
+  const writePremise = new ObservationWritePremise({ intents: FIXTURE_DIGEST, writerId: 'writer-1', predecessor });
+  return bindings(basis, { dependencies: ObservationDependencyClaim.NONE, writePremise });
 }
 
-function bindings(basis: string, writePremise: ObservationWritePremise | null): ObservationBindings {
+function bindings(
+  basis: string,
+  plan: { readonly dependencies: ObservationDependencyClaim; readonly writePremise: ObservationWritePremise | null },
+): ObservationBindings {
   return new ObservationBindings({
     basis,
     observer: 'people/alice',
@@ -166,8 +188,14 @@ function bindings(basis: string, writePremise: ObservationWritePremise | null): 
     purpose: 'todo/display',
     budget: new ObservationBudget({ records: 10, bytes: 1024, work: 100 }),
     evidence: [new ObservationEvidenceBinding('authority', FIXTURE_DIGEST)],
-    writePremise,
+    dependencies: plan.dependencies,
+    writePremise: plan.writePremise,
   });
+}
+
+/** The claim a producer binds for `dependencies`, before building support. */
+export async function claimOf(dependencies: readonly ObservationDependency[]): Promise<ObservationDependencyClaim> {
+  return await ObservationDependencyClaim.of(new NodeCryptoAdapter(), dependencies);
 }
 
 export function readCore(label: string): ObservationReceiptCore {
@@ -182,11 +210,8 @@ export function writeCore(label: string): ObservationReceiptCore {
   });
 }
 
-export function sources(
-  writerHeads: readonly string[] = [],
-  dependencies: readonly ObservationDependency[] = [],
-): ObservationSupportSources {
-  return { writerHeads: stream(writerHeads), dependencies: stream(dependencies) };
+export function sources(dependencies: readonly ObservationDependency[] = []): ObservationSupportSources {
+  return { dependencies: stream(dependencies) };
 }
 
 export async function* stream<T>(values: readonly T[]): AsyncGenerator<T> {

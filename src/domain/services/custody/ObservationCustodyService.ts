@@ -35,7 +35,6 @@ import ObservationRecord from './ObservationRecord.ts';
 import ObservationRefused from './ObservationRefused.ts';
 import ObservationSettlementPage from './ObservationSettlementPage.ts';
 import ObservationSupportCancelled from './ObservationSupportCancelled.ts';
-import type ObservationSupportLimits from './ObservationSupportLimits.ts';
 import ObservationSupportRefused from './ObservationSupportRefused.ts';
 import type { ObservationSupportSources } from './ObservationSupportRequest.ts';
 import type ObservationSupportRetained from './ObservationSupportRetained.ts';
@@ -51,8 +50,14 @@ export type ObservationCustodyServiceOptions = {
   readonly codec: ObservationCustodyCodecPort;
   readonly crypto: CryptoPort;
   readonly attempts: ObservationAttemptSourcePort;
-  readonly limits: ObservationSupportLimits;
 };
+
+/**
+ * Largest custody page this service writes. Storage accepts more, but a page
+ * must also decode again: exceeding the decoder's bound would settle evidence
+ * that could never resolve.
+ */
+const MAX_PAGE_BYTES = 4 * 1024 * 1024;
 
 /**
  * Producer-facing state transitions of shared observation custody (#1067).
@@ -68,7 +73,6 @@ export default class ObservationCustodyService {
   readonly #codec: ObservationCustodyCodecPort;
   readonly #crypto: CryptoPort;
   readonly #attempts: ObservationAttemptSourcePort;
-  readonly #limits: ObservationSupportLimits;
   readonly #resolver: ObservationCustodyResolver;
   readonly #builds = new Map<string, OwnedBuild>();
 
@@ -78,7 +82,6 @@ export default class ObservationCustodyService {
     this.#codec = options.codec;
     this.#crypto = options.crypto;
     this.#attempts = options.attempts;
-    this.#limits = options.limits;
     this.#resolver = new ObservationCustodyResolver(options);
   }
 
@@ -137,13 +140,18 @@ export default class ObservationCustodyService {
     outcome: { readonly core: ObservationReceiptCore; readonly publication: ObservationPublicationEvidence | null },
   ): Promise<RetainedObservation | ObservationKnownUnpublished | ObservationRefused | ObservationIndeterminate> {
     assertPublicationMatches(attempt, outcome.publication);
-    const armed = await this.#settlementPermitted(attempt);
-    if (armed !== null) {
-      return armed;
+    const blocked = await this.#settlementPermitted(attempt, outcome.publication);
+    if (blocked !== null) {
+      return blocked;
+    }
+    const prepared = await this.#custody.readEvidence(attempt.identity, 'preparation');
+    if (!(prepared instanceof CustodyEvidence)) {
+      return failureOf(prepared, 'settlement');
     }
     const coreBytes = this.#codec.encodeCore(outcome.core);
     const record = new ObservationRecord({
       preparation: attempt.identity.binding,
+      support: await digestOf(this.#crypto, prepared.page.record()),
       core: await digestOf(this.#crypto, coreBytes),
       publication: outcome.publication,
     });
@@ -196,8 +204,11 @@ export default class ObservationCustodyService {
       return built;
     }
     const page = new ObservationPreparedPage(attempt.bytes(), built.summary);
-    const evidence = new ObservationCustodyPage(this.#codec.encodePreparedPage(page), built.roots);
-    const prepared = await this.#custody.prepare(attempt.identity, evidence);
+    const bytes = this.#codec.encodePreparedPage(page);
+    if (bytes.length > MAX_PAGE_BYTES) {
+      return new ObservationRefused('evidence-too-large');
+    }
+    const prepared = await this.#custody.prepare(attempt.identity, new ObservationCustodyPage(bytes, built.roots));
     return prepared instanceof CustodyAcknowledged
       ? await this.#acknowledgePrepared(attempt, built.roots)
       : failureOf(prepared, 'preparation');
@@ -214,12 +225,15 @@ export default class ObservationCustodyService {
     sources: ObservationSupportSources,
   ): Promise<ObservationSupportRetained | ObservationRefused | ObservationIndeterminate> {
     const key = attempt.identity.attemptId.value;
+    if (this.#builds.has(key)) {
+      return new ObservationRefused('construction-contended');
+    }
     const build: OwnedBuild = { stopRequested: false, work: Promise.resolve(new ObservationSupportCancelled()) };
     build.work = this.#support.retain({
       ...sources,
       identity: attempt.identity,
       basis: attempt.preparation.bindings.basis,
-      limits: this.#limits,
+      claim: attempt.preparation.bindings.dependencies,
       isCancelled: () => build.stopRequested,
     });
     this.#builds.set(key, build);
@@ -249,12 +263,13 @@ export default class ObservationCustodyService {
   /** A write settles only once armed: it has no effect to report otherwise. */
   async #settlementPermitted(
     attempt: ObservationAttempt,
+    publication: ObservationPublicationEvidence | null,
   ): Promise<ObservationKnownUnpublished | ObservationRefused | ObservationIndeterminate | null> {
     const inspected = await this.#custody.inspect(attempt.identity);
     if (!(inspected instanceof CustodyInspection)) {
       return failureOf(inspected, 'settlement');
     }
-    return inspected.phase === 'cancelled' ? new ObservationKnownUnpublished(attempt) : unarmedWrite(attempt, inspected);
+    return inspected.phase === 'cancelled' ? cancelledOutcome(attempt, publication) : unarmedWrite(attempt, inspected);
   }
 
   async #settleRecord(
@@ -264,13 +279,13 @@ export default class ObservationCustodyService {
   ): Promise<RetainedObservation | ObservationKnownUnpublished | ObservationRefused | ObservationIndeterminate> {
     const recordBytes = this.#codec.encodeRecord(record);
     const page = this.#codec.encodeSettlementPage(new ObservationSettlementPage(recordBytes, coreBytes));
+    if (page.length > MAX_PAGE_BYTES) {
+      return new ObservationRefused('evidence-too-large');
+    }
     const parents = record.publication === null ? [] : [record.publication.commit];
     const settled = await this.#custody.settle(attempt.identity, new ObservationCustodyPage(page, new ObservationCustodyRoots([], parents)));
-    if (settled instanceof CustodyRefused && settled.reason === 'cancelled') {
-      return new ObservationKnownUnpublished(attempt);
-    }
     if (!(settled instanceof CustodyAcknowledged)) {
-      return failureOf(settled, 'settlement');
+      return settlementFailure(attempt, record, settled);
     }
     const coordinate = new ObservationCoordinate({
       attemptId: attempt.identity.attemptId,
@@ -308,6 +323,33 @@ export default class ObservationCustodyService {
 
 function failureOf(outcome: CustodyIndeterminateOrRefused, step: ObservationCustodyStep): ObservationRefused | ObservationIndeterminate {
   return outcome instanceof CustodyRefused ? new ObservationRefused(outcome.reason) : new ObservationIndeterminate(step, outcome.cause);
+}
+
+/**
+ * A won cancellation means no effect can occur, so a reported publication
+ * contradicts it. That must surface, never read as known-unpublished.
+ */
+function cancelledOutcome(
+  attempt: ObservationAttempt,
+  publication: ObservationPublicationEvidence | null,
+): ObservationKnownUnpublished | ObservationIndeterminate {
+  if (publication === null) {
+    return new ObservationKnownUnpublished(attempt);
+  }
+  return new ObservationIndeterminate('settlement', new ObservationCustodyError(
+    'A publication was reported for an attempt whose cancellation won',
+    { code: 'E_OBSERVATION_CUSTODY_CONTRADICTED', context: { commit: publication.commit } },
+  ));
+}
+
+function settlementFailure(
+  attempt: ObservationAttempt,
+  record: ObservationRecord,
+  outcome: CustodyIndeterminateOrRefused,
+): ObservationKnownUnpublished | ObservationRefused | ObservationIndeterminate {
+  return outcome instanceof CustodyRefused && outcome.reason === 'cancelled'
+    ? cancelledOutcome(attempt, record.publication)
+    : failureOf(outcome, 'settlement');
 }
 
 function unarmedWrite(attempt: ObservationAttempt, inspected: CustodyInspection): ObservationRefused | null {

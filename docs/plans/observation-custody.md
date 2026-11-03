@@ -24,6 +24,9 @@ The shared implementation remains private. #1051 owns the actual write transitio
 and all four final write receipts; #1052 owns observation execution, all terminal
 variants and pages; #1053 owns replay, re-ask, coarsening, forks and settlement.
 Those integrations enforce current rights before answer-affecting retrieval.
+Each producer also owns proving its publication evidence is the commit it actually
+published, including that commit's parent against the bound predecessor. Custody
+retains the commit it is given and checks only its writer and existence.
 Internal custody resolution grants no disclosure authority. #1044's broader memo,
 compaction and deletion policies remain outside this change.
 
@@ -123,13 +126,20 @@ parents; reservation evidence allows 63 explicit parents and 64 support entries,
 reserving the remaining commit parent for the original preparation. A basis with
 more writers cannot be passed as an oversized parent array.
 
-The history adapter consumes an original-basis-bound iterator. It builds a carrier
+The history adapter reads writer heads from the frontier stored in the original
+basis tree rather than accepting them from the producer, so an incomplete list cannot
+pass as complete. Dependencies stay a producer stream, checked against a count and
+digest bound into the preparation before any support is built. The adapter builds a carrier
 chain through supported CAS publications, using at most 63 new writer heads plus
 the previous carrier per commit. The final carrier is a reservation parent.
 Dependency trees use bounded pages rather than an unbounded support array. The
 iterator, each page and the overall operation have explicit work/byte/count limits.
 Crossing a bound refuses before arm; it does not silently omit history or collect
-the whole graph. The fixed 129-writer witness exercises at least three batches.
+the whole graph. Verification walks carriers, dependency pages and the basis tree's
+top-level entries under the same work bound. It does not walk the record trie or
+writer ancestry, which their retained Git edges keep reachable. Existence is what it
+proves for those objects: it decodes the frontier and checks digests of custody
+pages, but does not rehash every retained blob. That remains `git fsck`'s job. The fixed 129-writer witness exercises at least three batches.
 
 Construction refs are scoped to the admitted attempt, with compare-and-swap
 publication and original-input/progress evidence. Recovery must validate that a

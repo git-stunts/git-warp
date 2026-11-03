@@ -18,6 +18,7 @@ import GitCasObservationCustodyAdapter, {
 import ObservationCarrierChain from '../../../../src/infrastructure/adapters/ObservationCarrierChain.ts';
 import ObservationCarrierMessage from '../../../../src/infrastructure/adapters/ObservationCarrierMessage.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import ObservationWorkMeter from '../../../../src/infrastructure/adapters/ObservationWorkMeter.ts';
 import { buildObservationConstructionRef } from '../../../../src/domain/utils/ObservationRefLayout.ts';
 import { narrowed } from '../../../helpers/ObservationCustodyFixture.ts';
 
@@ -208,7 +209,7 @@ describe('ObservationCarrierChain', () => {
   it('walks an honest chain to its claimed position, reading one batch at a time', async () => {
     const history = new CarrierHistory();
     const { tip } = await history.honest(4, 63);
-    expect(await history.chain.walk(IDENTITY, tip)).toMatchObject({ tip, sequence: 4, writers: 252 });
+    expect(await history.chain.walk(IDENTITY, tip, unbounded())).toMatchObject({ tip, sequence: 4, writers: 252 });
     expect(history.peakHeadsRead).toBe(64);
   });
 
@@ -216,23 +217,23 @@ describe('ObservationCarrierChain', () => {
     const history = new CarrierHistory();
     const { tip, heads } = await history.honest(2, 3);
     history.missing.add(heads[0]?.[1] ?? '');
-    expect(await history.chain.walk(IDENTITY, tip)).toEqual(new ObservationSupportFault('history-missing'));
-    expect(await new CarrierHistory().chain.walk(IDENTITY, tip)).toEqual(new ObservationSupportFault('history-mismatch'));
+    expect(await history.chain.walk(IDENTITY, tip, unbounded())).toEqual(new ObservationSupportFault('history-missing'));
+    expect(await new CarrierHistory().chain.walk(IDENTITY, tip, unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
     const gone = new CarrierHistory();
     const chain = await gone.honest(2, 1);
     gone.missing.add(chain.tip);
-    expect(await gone.chain.walk(IDENTITY, chain.tip)).toEqual(new ObservationSupportFault('history-missing'));
+    expect(await gone.chain.walk(IDENTITY, chain.tip, unbounded())).toEqual(new ObservationSupportFault('history-missing'));
   });
 
   it('refuses another attempt\'s carrier and a foreign commit', async () => {
     const history = new CarrierHistory();
     const { tip } = await history.honest(1, 2);
     const other = new ObservationCustodyIdentity(IDENTITY.attemptId, FOREIGN);
-    expect(await history.chain.walk(other, tip)).toEqual(new ObservationSupportFault('history-mismatch'));
-    expect(await history.chain.walk(IDENTITY, history.store([], 'ordinary commit'))).toEqual(new ObservationSupportFault('history-mismatch'));
+    expect(await history.chain.walk(other, tip, unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
+    expect(await history.chain.walk(IDENTITY, history.store([], 'ordinary commit'), unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
     const earlier = history.store([], new ObservationCarrierMessage({ binding: FOREIGN, sequence: 1, writers: 0, history: BINDING }).toString());
     const later = history.store([earlier], new ObservationCarrierMessage({ binding: BINDING, sequence: 2, writers: 0, history: BINDING }).toString());
-    expect(await history.chain.walk(IDENTITY, later)).toEqual(new ObservationSupportFault('history-mismatch'));
+    expect(await history.chain.walk(IDENTITY, later, unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
   });
 
   it.each([
@@ -251,7 +252,7 @@ describe('ObservationCarrierChain', () => {
       ...lie,
     });
     const forged = history.store([tip, ...batch], claim.toString());
-    expect(await history.chain.walk(IDENTITY, forged)).toEqual(new ObservationSupportFault('history-mismatch'));
+    expect(await history.chain.walk(IDENTITY, forged, unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
   });
 
   it.each([
@@ -263,7 +264,7 @@ describe('ObservationCarrierChain', () => {
     const claim = new ObservationCarrierMessage({
       binding: BINDING, sequence: 1, writers: 2, history: await firstDigest(history, batch), ...lie,
     });
-    expect(await history.chain.walk(IDENTITY, history.store(batch, claim.toString())))
+    expect(await history.chain.walk(IDENTITY, history.store(batch, claim.toString()), unbounded()))
       .toEqual(new ObservationSupportFault('history-mismatch'));
   });
 
@@ -274,19 +275,32 @@ describe('ObservationCarrierChain', () => {
     const claim = new ObservationCarrierMessage({
       binding: BINDING, sequence: 2, writers: 3, history: await history.chain.extend(await firstDigest(history, heads[0] ?? []), batch),
     });
-    expect(await history.chain.walk(IDENTITY, history.store([tip, ...batch], claim.toString()))).toMatchObject({ sequence: 2, writers: 3 });
+    expect(await history.chain.walk(IDENTITY, history.store([tip, ...batch], claim.toString()), unbounded())).toMatchObject({ sequence: 2, writers: 3 });
   });
 
   it('reports a later carrier with no parents as a broken chain', async () => {
     const history = new CarrierHistory();
     const claim = new ObservationCarrierMessage({ binding: BINDING, sequence: 2, writers: 0, history: await history.chain.seed() });
-    expect(await history.chain.walk(IDENTITY, history.store([], claim.toString()))).toEqual(new ObservationSupportFault('history-mismatch'));
+    expect(await history.chain.walk(IDENTITY, history.store([], claim.toString()), unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
+  });
+
+  it('stops at its work bound, at a carrier or at its heads', async () => {
+    const history = new CarrierHistory();
+    const { tip } = await history.honest(2, 3);
+    expect(await history.chain.walk(IDENTITY, tip, new ObservationWorkMeter(0))).toEqual(new ObservationSupportFault('work-limit'));
+    expect(await history.chain.walk(IDENTITY, tip, new ObservationWorkMeter(2))).toEqual(new ObservationSupportFault('work-limit'));
+    expect(await history.chain.walk(IDENTITY, tip, new ObservationWorkMeter(5))).toEqual(new ObservationSupportFault('work-limit'));
+    expect(await history.chain.walk(IDENTITY, tip, new ObservationWorkMeter(8))).toMatchObject({ writers: 6 });
   });
 
   it('starts empty', async () => {
     expect(await new CarrierHistory().chain.empty()).toMatchObject({ tip: null, sequence: 0, writers: 0 });
   });
 });
+
+function unbounded(): ObservationWorkMeter {
+  return new ObservationWorkMeter(Number.MAX_SAFE_INTEGER);
+}
 
 async function firstDigest(history: CarrierHistory, heads: readonly string[]): Promise<ObservationDigest> {
   return await history.chain.extend(await history.chain.seed(), heads);

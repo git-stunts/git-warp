@@ -10,6 +10,7 @@ import type { CustodyPhase, CustodyStage } from '../../src/domain/services/custo
 import type ObservationCustodyIdentity from '../../src/domain/services/custody/ObservationCustodyIdentity.ts';
 import type ObservationCustodyPage from '../../src/domain/services/custody/ObservationCustodyPage.ts';
 import ObservationCustodyRoots from '../../src/domain/services/custody/ObservationCustodyRoots.ts';
+import ObservationDependencyClaim from '../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDigest from '../../src/domain/services/custody/ObservationDigest.ts';
 import type ObservationSupportFault from '../../src/domain/services/custody/ObservationSupportFault.ts';
 import type { ObservationSupportRequest } from '../../src/domain/services/custody/ObservationSupportRequest.ts';
@@ -103,6 +104,6 @@ export function inspectionAt(phase: CustodyPhase): CustodyInspection {
 
 export function emptySummary(): ObservationSupportSummary {
   return new ObservationSupportSummary({
-    writers: 0, history: SCRIPTED_DIGEST, dependencies: 0, dependency: SCRIPTED_DIGEST, pages: [],
+    writers: 0, history: SCRIPTED_DIGEST, dependencies: 0, dependency: ObservationDependencyClaim.NONE.digest, pages: [],
   });
 }

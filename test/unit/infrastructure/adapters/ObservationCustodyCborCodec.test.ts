@@ -3,6 +3,7 @@ import ObservationAttemptId from '../../../../src/domain/services/custody/Observ
 import ObservationBindings from '../../../../src/domain/services/custody/ObservationBindings.ts';
 import ObservationBudget from '../../../../src/domain/services/custody/ObservationBudget.ts';
 import ObservationDecodeFailure from '../../../../src/domain/services/custody/ObservationDecodeFailure.ts';
+import ObservationDependencyClaim from '../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDigest from '../../../../src/domain/services/custody/ObservationDigest.ts';
 import ObservationEvidenceBinding from '../../../../src/domain/services/custody/ObservationEvidenceBinding.ts';
 import ObservationPreparation from '../../../../src/domain/services/custody/ObservationPreparation.ts';
@@ -30,6 +31,7 @@ function bindings(overrides: Partial<ConstructorParameters<typeof ObservationBin
     purpose: 'todo/display',
     budget: new ObservationBudget({ records: 1, bytes: 2, work: 3 }),
     evidence: [new ObservationEvidenceBinding('law', new ObservationDigest(DIGEST))],
+    dependencies: ObservationDependencyClaim.NONE,
     writePremise: null,
     ...overrides,
   });
@@ -57,7 +59,7 @@ describe('ObservationCustodyCborCodec', () => {
     expect(decodedCore).toBeInstanceOf(ObservationReceiptCore);
     expect(Uint8Array.from(custody.encodeCore(decodedCore instanceof ObservationReceiptCore ? decodedCore : core))).toEqual(Uint8Array.from(coreBytes));
     for (const publication of [null, new ObservationPublicationEvidence('w', COMMIT)]) {
-      const record = new ObservationRecord({ preparation: new ObservationDigest(DIGEST), core: new ObservationDigest(OTHER), publication });
+      const record = new ObservationRecord({ preparation: new ObservationDigest(DIGEST), support: new ObservationDigest(DIGEST), core: new ObservationDigest(OTHER), publication });
       expect(custody.decodeRecord(custody.encodeRecord(record))).toEqual(record);
     }
     const prepared = custody.decodePreparedPage(custody.encodePreparedPage(new ObservationPreparedPage(Uint8Array.of(9), SUMMARY)));
@@ -74,6 +76,7 @@ describe('ObservationCustodyCborCodec', () => {
     expect(custody.encodePreparation(preparation({ question: new ObservationQuestion('node-property', 2) }))).not.toEqual(left);
     expect(custody.encodePreparation(preparation({ budget: new ObservationBudget({ records: 1, bytes: 2, work: 4 }) }))).not.toEqual(left);
     expect(custody.encodePreparation(preparation({ evidence: [] }))).not.toEqual(left);
+    expect(custody.encodePreparation(preparation({ dependencies: new ObservationDependencyClaim(1, new ObservationDigest(DIGEST)) }))).not.toEqual(left);
     expect(custody.encodePreparation(preparation({ writePremise: PREMISE }))).not.toEqual(left);
     expect(custody.encodePreparation(preparation({}, '1'.repeat(32)))).not.toEqual(left);
   });
@@ -130,7 +133,7 @@ describe('ObservationCustodyCborCodec', () => {
 
     it('refuses invalid domain values inside well-formed wire shapes', () => {
       const record = codec.encode({
-        domain: 'git-warp/observation-record', version: 1, core: 'not-a-digest', preparation: DIGEST, publication: null,
+        domain: 'git-warp/observation-record', version: 1, core: 'not-a-digest', preparation: DIGEST, publication: null, support: DIGEST,
       });
       expect(custody.decodeRecord(record)).toBeInstanceOf(ObservationDecodeFailure);
       const page = codec.encode({ domain: 'git-warp/observation-settlement-page', version: 1, core: 'text', record: Uint8Array.of(1) });

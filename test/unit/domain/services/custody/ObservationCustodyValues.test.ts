@@ -9,6 +9,7 @@ import ObservationCustodyIdentity from '../../../../../src/domain/services/custo
 import ObservationCustodyPage from '../../../../../src/domain/services/custody/ObservationCustodyPage.ts';
 import ObservationCustodyRoots from '../../../../../src/domain/services/custody/ObservationCustodyRoots.ts';
 import ObservationDependency from '../../../../../src/domain/services/custody/ObservationDependency.ts';
+import ObservationDependencyClaim from '../../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDigest from '../../../../../src/domain/services/custody/ObservationDigest.ts';
 import ObservationEvidenceBinding from '../../../../../src/domain/services/custody/ObservationEvidenceBinding.ts';
 import ObservationPreparation from '../../../../../src/domain/services/custody/ObservationPreparation.ts';
@@ -21,6 +22,7 @@ import ObservationSettlementPage from '../../../../../src/domain/services/custod
 import ObservationSupportLimits from '../../../../../src/domain/services/custody/ObservationSupportLimits.ts';
 import ObservationSupportSummary from '../../../../../src/domain/services/custody/ObservationSupportSummary.ts';
 import ObservationWritePremise from '../../../../../src/domain/services/custody/ObservationWritePremise.ts';
+import NodeCryptoAdapter from '../../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import ResolvedObservation from '../../../../../src/domain/services/custody/ResolvedObservation.ts';
 import RetainedObservation from '../../../../../src/domain/services/custody/RetainedObservation.ts';
 
@@ -35,8 +37,12 @@ const budget = new ObservationBudget({ records: 1, bytes: 1, work: 1 });
 
 function bindings(overrides: Record<string, unknown> = {}): ObservationBindings {
   return Reflect.construct(ObservationBindings, [{
-    basis: COMMIT, observer: 'o', question, purpose: 'p', budget, evidence: [], writePremise: null, ...overrides,
+    basis: COMMIT, observer: 'o', question, purpose: 'p', budget, evidence: [], dependencies: ObservationDependencyClaim.NONE, writePremise: null, ...overrides,
   }]);
+}
+
+function limits(overrides: Partial<ConstructorParameters<typeof ObservationSupportLimits>[0]>): ObservationSupportLimits {
+  return new ObservationSupportLimits({ writers: 0, dependencies: 0, frontierBytes: 0, work: 0, ...overrides });
 }
 
 function construct(type: new (...args: never[]) => object, ...args: readonly unknown[]): object {
@@ -84,6 +90,21 @@ describe('ObservationCoordinate text', () => {
   });
 });
 
+describe('ObservationDependencyClaim', () => {
+  const crypto = new NodeCryptoAdapter();
+  const left = new ObservationDependency('blob', COMMIT);
+  const right = new ObservationDependency('tree', COMMIT);
+
+  it('is order and content sensitive, and empty when nothing is declared', async () => {
+    const forward = await ObservationDependencyClaim.of(crypto, [left, right]);
+    expect(forward.count).toBe(2);
+    expect(forward.equals(await ObservationDependencyClaim.of(crypto, [left, right]))).toBe(true);
+    expect(forward.equals(await ObservationDependencyClaim.of(crypto, [right, left]))).toBe(false);
+    expect(forward.equals(await ObservationDependencyClaim.of(crypto, [left]))).toBe(false);
+    expect(await ObservationDependencyClaim.of(crypto, [])).toBe(ObservationDependencyClaim.NONE);
+  });
+});
+
 describe('observation value invariants', () => {
   it.each([
     ['digest case', () => new ObservationDigest(DIGEST.toUpperCase())],
@@ -109,6 +130,10 @@ describe('observation value invariants', () => {
     ['bindings evidence', () => bindings({ evidence: [DIGEST] })],
     ['bindings evidence list', () => bindings({ evidence: 'none' })],
     ['bindings premise', () => bindings({ writePremise: {} })],
+    ['bindings dependencies', () => bindings({ dependencies: {} })],
+    ['claim count', () => new ObservationDependencyClaim(-1, digest)],
+    ['claim fraction', () => new ObservationDependencyClaim(0.5, digest)],
+    ['claim digest', () => construct(ObservationDependencyClaim, 0, DIGEST)],
     ['preparation attempt', () => construct(ObservationPreparation, HEX32, bindings())],
     ['preparation bindings', () => construct(ObservationPreparation, attemptId, {})],
     ['core family', () => construct(ObservationReceiptCore, { family: 'other', variant: 'v', outcome: new Uint8Array() })],
@@ -116,17 +141,20 @@ describe('observation value invariants', () => {
     ['core outcome', () => construct(ObservationReceiptCore, { family: 'write', variant: 'v', outcome: 'text' })],
     ['publication writer', () => new ObservationPublicationEvidence('', COMMIT)],
     ['publication commit', () => new ObservationPublicationEvidence('w', 'HEAD')],
-    ['record digest', () => construct(ObservationRecord, { preparation: DIGEST, core: digest, publication: null })],
-    ['record core', () => construct(ObservationRecord, { preparation: digest, core: DIGEST, publication: null })],
-    ['record publication', () => construct(ObservationRecord, { preparation: digest, core: digest, publication: {} })],
+    ['record digest', () => construct(ObservationRecord, { preparation: DIGEST, support: digest, core: digest, publication: null })],
+    ['record core', () => construct(ObservationRecord, { preparation: digest, support: digest, core: DIGEST, publication: null })],
+    ['record support', () => construct(ObservationRecord, { preparation: digest, support: DIGEST, core: digest, publication: null })],
+    ['record publication', () => construct(ObservationRecord, { preparation: digest, support: digest, core: digest, publication: {} })],
     ['identity attempt', () => construct(ObservationCustodyIdentity, HEX32, digest)],
     ['identity binding', () => construct(ObservationCustodyIdentity, attemptId, DIGEST)],
     ['roots support', () => new ObservationCustodyRoots([{ type: 'tree', oid: 'x' }], [])],
     ['roots parent', () => new ObservationCustodyRoots([], ['x'])],
     ['page bytes', () => construct(ObservationCustodyPage, 'text', new ObservationCustodyRoots([], []))],
     ['page roots', () => construct(ObservationCustodyPage, new Uint8Array(), {})],
-    ['limits writers', () => new ObservationSupportLimits({ writers: -1, dependencies: 0 })],
-    ['limits dependencies', () => new ObservationSupportLimits({ writers: 0, dependencies: 0.5 })],
+    ['limits writers', () => limits({ writers: -1 })],
+    ['limits dependencies', () => limits({ dependencies: 0.5 })],
+    ['limits frontier', () => limits({ frontierBytes: -1 })],
+    ['limits work', () => limits({ work: Infinity })],
     ['dependency type', () => construct(ObservationDependency, 'commit', COMMIT)],
     ['dependency oid', () => new ObservationDependency('blob', 'x')],
     ['summary count', () => new ObservationSupportSummary({ writers: -1, history: digest, dependencies: 0, dependency: digest, pages: [] })],
@@ -164,7 +192,7 @@ describe('observation value invariants', () => {
     const input = Uint8Array.of(1, 2);
     const identity = new ObservationCustodyIdentity(attemptId, digest);
     const preparation = new ObservationPreparation(attemptId, bindings());
-    const record = new ObservationRecord({ preparation: digest, core: digest, publication: null });
+    const record = new ObservationRecord({ preparation: digest, support: digest, core: digest, publication: null });
     const summary = new ObservationSupportSummary({ writers: 0, history: digest, dependencies: 0, dependency: digest, pages: [] });
     const coordinate = new ObservationCoordinate({ attemptId, binding: digest, record: digest });
     const readers: readonly (() => Uint8Array)[] = [

@@ -1,5 +1,6 @@
 export type ObservationSupportRefusalReason =
-  | 'writer-limit' | 'dependency-limit' | 'basis-unavailable' | 'dependency-unavailable'
+  | 'writer-limit' | 'dependency-limit' | 'frontier-limit' | 'work-limit'
+  | 'basis-unavailable' | 'basis-corrupt' | 'dependency-unavailable' | 'dependency-mismatch'
   | 'writer-head-unavailable' | 'construction-mismatch' | 'construction-contended';
 
 /** Support could not be retained; nothing has been permitted. */

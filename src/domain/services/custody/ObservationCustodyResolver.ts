@@ -8,6 +8,7 @@ import { digestOf } from './observationDigestOf.ts';
 import type ObservationCoordinate from './ObservationCoordinate.ts';
 import ObservationCustodyIdentity from './ObservationCustodyIdentity.ts';
 import ObservationDecodeFailure from './ObservationDecodeFailure.ts';
+import ObservationDependencyClaim from './ObservationDependencyClaim.ts';
 import ObservationPreparation from './ObservationPreparation.ts';
 import type ObservationPreparedPage from './ObservationPreparedPage.ts';
 import type ObservationRecord from './ObservationRecord.ts';
@@ -50,6 +51,14 @@ export default class ObservationCustodyResolver {
   }
 
   async resolve(coordinate: ObservationCoordinate): Promise<ResolvedObservation | ObservationUnavailable> {
+    try {
+      return await this.#resolved(coordinate);
+    } catch {
+      return new ObservationUnavailable('evidence-unreadable');
+    }
+  }
+
+  async #resolved(coordinate: ObservationCoordinate): Promise<ResolvedObservation | ObservationUnavailable> {
     const identity = new ObservationCustodyIdentity(coordinate.attemptId, coordinate.binding);
     const settlement = await this.#verifiedSettlement(coordinate, identity);
     if (settlement instanceof ObservationUnavailable) {
@@ -117,13 +126,22 @@ export default class ObservationCustodyResolver {
     readonly page: ObservationPreparedPage;
     readonly evidence: CustodyEvidence;
   }): Promise<VerifiedPreparation | ObservationUnavailable> {
-    const { identity, record, page, evidence } = found;
-    const digest = await digestOf(this.#crypto, page.preparation());
+    const { identity, page, evidence } = found;
     const preparation = this.#codec.decodePreparation(page.preparation());
-    const bound = digest.equals(identity.binding) && digest.equals(record.preparation);
-    return bound && isAttemptOf(preparation, identity)
-      ? { preparation, page, evidence }
-      : new ObservationUnavailable('preparation-corrupt');
+    const intact = await this.#isBound(found) && isAttemptOf(preparation, identity) && claimHolds(preparation, page);
+    return intact ? { preparation, page, evidence } : new ObservationUnavailable('preparation-corrupt');
+  }
+
+  /** True when the page's preparation and whole bytes are exactly what the Coordinate and record bound. */
+  async #isBound(found: {
+    readonly identity: ObservationCustodyIdentity;
+    readonly record: ObservationRecord;
+    readonly page: ObservationPreparedPage;
+    readonly evidence: CustodyEvidence;
+  }): Promise<boolean> {
+    const digest = await digestOf(this.#crypto, found.page.preparation());
+    const support = await digestOf(this.#crypto, found.evidence.page.record());
+    return digest.equals(found.identity.binding) && digest.equals(found.record.preparation) && support.equals(found.record.support);
   }
 
   async #supportFault(
@@ -155,6 +173,13 @@ function isAttemptOf(
   identity: ObservationCustodyIdentity,
 ): preparation is ObservationPreparation {
   return preparation instanceof ObservationPreparation && preparation.attemptId.value === identity.attemptId.value;
+}
+
+/** The support summary must be exactly what the preparation claimed. */
+function claimHolds(preparation: ObservationPreparation, page: ObservationPreparedPage): boolean {
+  const { summary } = page;
+  const claimed = new ObservationDependencyClaim(summary.dependencies, summary.dependency);
+  return claimed.equals(preparation.bindings.dependencies);
 }
 
 function unavailableEvidence(outcome: object): ObservationUnavailable {
