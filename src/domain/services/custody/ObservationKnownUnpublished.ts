@@ -1,6 +1,6 @@
 import type ObservationAttempt from './ObservationAttempt.ts';
 
-/** Cancellation durably won before arm, so no effect of this attempt can occur. */
+/** Cancellation durably won before arm, so this attempt never publishes or completes. */
 export default class ObservationKnownUnpublished {
   readonly attempt: ObservationAttempt;
 

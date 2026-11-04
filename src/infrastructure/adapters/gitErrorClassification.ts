@@ -108,7 +108,7 @@ export function gitDiagnosticText(err: GitError): string {
 }
 
 /** Is the error transient and safe to retry? */
-function isTransientError(error: Error): boolean {
+export function isTransientError(error: Error): boolean {
   const gitErr = error as GitError;
   const message = (gitErr.message ?? '').toLowerCase();
   const stderr = (gitErr.details?.stderr ?? '').toLowerCase();

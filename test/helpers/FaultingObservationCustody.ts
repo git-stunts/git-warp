@@ -4,7 +4,7 @@ import type {
   CustodyObservation,
   CustodyTransition,
 } from '../../src/domain/services/custody/CustodyOutcome.ts';
-import type { CustodyStage } from '../../src/domain/services/custody/CustodyVocabulary.ts';
+import type { CustodyPhase, CustodyStage } from '../../src/domain/services/custody/CustodyVocabulary.ts';
 import type ObservationCustodyIdentity from '../../src/domain/services/custody/ObservationCustodyIdentity.ts';
 import type ObservationCustodyPage from '../../src/domain/services/custody/ObservationCustodyPage.ts';
 import ObservationCustodyPort from '../../src/ports/ObservationCustodyPort.ts';
@@ -57,6 +57,10 @@ export default class FaultingObservationCustody extends ObservationCustodyPort {
 
   override async inspect(identity: ObservationCustodyIdentity): Promise<CustodyObservation> {
     return await this.#inner.inspect(identity);
+  }
+
+  override async *attempts(phase: CustodyPhase): AsyncGenerator<ObservationCustodyIdentity | CustodyIndeterminate> {
+    yield* this.#inner.attempts(phase);
   }
 
   override async readEvidence(identity: ObservationCustodyIdentity, stage: CustodyStage): Promise<CustodyEvidenceOutcome> {

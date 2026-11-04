@@ -4,13 +4,14 @@ import type CodecPort from '../../ports/CodecPort.ts';
 import ConeFrontierCborCodec from './ConeFrontierCborCodec.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
 import type { GitTreeObjectEntry } from './GitTreeObjectEntry.ts';
+import { isObjectFault } from './ObservationObjectFault.ts';
+import { isMissingObject, objectTypes } from './ObservationObjectTypes.ts';
 import type ObservationWorkMeter from './ObservationWorkMeter.ts';
 
 const FRONTIER_ENTRY = 'frontier';
 
 export type ObservationBasisHistory = {
   readonly plumbing: Pick<GitPlumbing, 'execute'>;
-  nodeExists(oid: string): Promise<boolean>;
   readBlob(oid: string): Promise<Uint8Array>;
   readTreeObjectEntries(treeOid: string): Promise<readonly GitTreeObjectEntry[]>;
 };
@@ -44,9 +45,6 @@ export default class ObservationBasisFrontier {
     if (!meter.spend(1)) {
       return 'work-limit';
     }
-    if (!await this.#history.nodeExists(basis)) {
-      return 'missing';
-    }
     const entries = await this.#entries(basis);
     if (typeof entries === 'string') {
       return entries;
@@ -55,24 +53,31 @@ export default class ObservationBasisFrontier {
     return missing ?? await this.#frontierHeads(entries, meter);
   }
 
-  async #entries(basis: string): Promise<readonly GitTreeObjectEntry[] | 'corrupt'> {
+  async #entries(basis: string): Promise<readonly GitTreeObjectEntry[] | 'missing' | 'corrupt'> {
+    const [type = ''] = await objectTypes(this.#history.plumbing, [basis]);
+    if (isMissingObject(type)) {
+      return 'missing';
+    }
+    return type === 'tree' ? await this.#treeEntries(basis) : 'corrupt';
+  }
+
+  async #treeEntries(basis: string): Promise<readonly GitTreeObjectEntry[] | 'corrupt'> {
     try {
       return await this.#history.readTreeObjectEntries(basis);
-    } catch {
-      return 'corrupt';
+    } catch (cause) {
+      if (isObjectFault(cause)) {
+        return 'corrupt';
+      }
+      throw cause;
     }
   }
 
   async #firstProblem(entries: readonly GitTreeObjectEntry[], meter: ObservationWorkMeter): Promise<ObservationBasisProblem | null> {
-    for (const entry of entries) {
-      if (!meter.spend(1)) {
-        return 'work-limit';
-      }
-      if (!await this.#history.nodeExists(entry.oid)) {
-        return 'missing';
-      }
+    if (!meter.spend(entries.length)) {
+      return 'work-limit';
     }
-    return null;
+    const types = await objectTypes(this.#history.plumbing, entries.map((entry) => entry.oid));
+    return types.some(isMissingObject) ? 'missing' : null;
   }
 
   async #frontierHeads(entries: readonly GitTreeObjectEntry[], meter: ObservationWorkMeter): Promise<readonly string[] | ObservationBasisProblem> {
@@ -94,13 +99,17 @@ export default class ObservationBasisFrontier {
   async #sizeOf(oid: string): Promise<number | null> {
     try {
       return Number(await this.#history.plumbing.execute({ args: ['cat-file', '-s', oid] }));
-    } catch {
-      return null;
+    } catch (cause) {
+      if (isObjectFault(cause)) {
+        return null;
+      }
+      throw cause;
     }
   }
 
   async #decodedHeads(oid: string): Promise<readonly string[] | ObservationBasisProblem> {
-    const frontier = await this.#decoded(oid);
+    const bytes = await this.#blob(oid);
+    const frontier = bytes === null ? null : this.#decoded(bytes);
     if (frontier === null) {
       return 'corrupt';
     }
@@ -108,9 +117,20 @@ export default class ObservationBasisFrontier {
     return heads.length > this.#limits.writers ? 'writer-limit' : heads;
   }
 
-  async #decoded(oid: string): Promise<ConeFrontier | null> {
+  async #blob(oid: string): Promise<Uint8Array | null> {
     try {
-      return this.#frontiers.decode(await this.#history.readBlob(oid));
+      return await this.#history.readBlob(oid);
+    } catch (cause) {
+      if (isObjectFault(cause)) {
+        return null;
+      }
+      throw cause;
+    }
+  }
+
+  #decoded(bytes: Uint8Array): ConeFrontier | null {
+    try {
+      return this.#frontiers.decode(bytes);
     } catch {
       return null;
     }

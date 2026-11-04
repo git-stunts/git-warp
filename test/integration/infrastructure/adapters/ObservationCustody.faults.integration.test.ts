@@ -8,6 +8,7 @@ import ObservationPrepared from '../../../../src/domain/services/custody/Observa
 import ObservationPublicationEvidence from '../../../../src/domain/services/custody/ObservationPublicationEvidence.ts';
 import ObservationPublicationPermission from '../../../../src/domain/services/custody/ObservationPublicationPermission.ts';
 import ObservationReconcileOnly from '../../../../src/domain/services/custody/ObservationReconcileOnly.ts';
+import ObservationUnretained from '../../../../src/domain/services/custody/ObservationUnretained.ts';
 import ObservationReconciled from '../../../../src/domain/services/custody/ObservationReconciled.ts';
 import ObservationSupportLimits from '../../../../src/domain/services/custody/ObservationSupportLimits.ts';
 import ObservationRefused from '../../../../src/domain/services/custody/ObservationRefused.ts';
@@ -26,6 +27,7 @@ import ObservationCustodyFixture, {
   writeBindings,
   writeCore,
   writerCommits,
+  preparationOf,
 } from '../../../helpers/ObservationCustodyFixture.ts';
 
 const fixture = new ObservationCustodyFixture();
@@ -116,12 +118,12 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
     narrowed(await restored.service.prepare(resumed.attempt, sources()), ObservationPrepared);
   });
 
-  it('settles a real publication after its arm acknowledgement was lost', async () => {
+  it('settles a publication an earlier process made, after its arm acknowledgement was lost', async () => {
     const path = await fixture.repository(format);
     const opened = await faulted(path, 2);
     const attempt = await preparedWrite(opened, 'lost-ack', path);
     opened.faults.inject({ operation: 'arm', when: 'after' });
-    expect(await opened.service.authorizePublication(attempt)).toBeInstanceOf(ObservationIndeterminate);
+    expect(await opened.service.authorizePublication(preparationOf(attempt))).toBeInstanceOf(ObservationIndeterminate);
     const publication = new ObservationPublicationEvidence('writer-1', writerCommits(path, 1)[0] ?? '');
     const retained = narrowed(await opened.service.settle(attempt, { core: writeCore('lost-ack'), publication }), RetainedObservation);
     expect(await opened.service.resolve(retained.coordinate)).toBeInstanceOf(ResolvedObservation);
@@ -144,14 +146,14 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
     const attempt = await preparedWrite(opened, `arm-${when}`, path);
     const effect = new CountedEffect(writerCommits(path, 1)[0] ?? '');
     opened.faults.inject({ operation: 'arm', when });
-    expect(effect.perform(await opened.service.authorizePublication(attempt))).toBeNull();
+    expect(effect.perform(await opened.service.authorizePublication(preparationOf(attempt)))).toBeNull();
     expect(effect.invocations).toBe(0);
     if (when === 'after') {
-      expect(await opened.service.authorizePublication(attempt)).toBeInstanceOf(ObservationReconcileOnly);
+      expect(await opened.service.authorizePublication(preparationOf(attempt))).toBeInstanceOf(ObservationReconcileOnly);
       expect(effect.invocations).toBe(0);
       expect(await opened.service.cancel(attempt)).toBeInstanceOf(ObservationReconcileOnly);
     } else {
-      expect(effect.perform(await opened.service.authorizePublication(attempt))).not.toBeNull();
+      expect(effect.perform(await opened.service.authorizePublication(preparationOf(attempt)))).not.toBeNull();
       expect(effect.invocations).toBe(1);
     }
   });
@@ -161,17 +163,17 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
     const opened = await faulted(path, 2);
     const attempt = await preparedWrite(opened, 'settle', path);
     const effect = new CountedEffect(writerCommits(path, 1)[0] ?? '');
-    const commit = effect.perform(await opened.service.authorizePublication(attempt)) ?? '';
+    const commit = effect.perform(await opened.service.authorizePublication(preparationOf(attempt))) ?? '';
     const outcome = { core: writeCore('settled'), publication: new ObservationPublicationEvidence('writer-1', commit) };
     opened.faults.inject({ operation: 'settle', when: 'after' });
-    expect(await opened.service.settle(attempt, outcome)).toBeInstanceOf(ObservationIndeterminate);
+    expect(await opened.service.settle(attempt, outcome)).toEqual(new ObservationUnretained(attempt, 'settlement-unacknowledged'));
     expect(narrowed(await opened.service.reconcile(attempt), ObservationReconciled).phase).toBe('settled');
     const retained = narrowed(await opened.service.settle(attempt, outcome), RetainedObservation);
     expect(await opened.service.resolve(retained.coordinate)).toBeInstanceOf(ResolvedObservation);
     expect(effect.invocations).toBe(1);
 
     const different = { core: writeCore('rewritten'), publication: outcome.publication };
-    expect(await opened.service.settle(attempt, different)).toEqual(new ObservationRefused('settlement-mismatch'));
+    expect(await opened.service.settle(attempt, different)).toEqual(new ObservationUnretained(attempt, 'settlement-refused'));
   });
 
   it('does not treat a cancel it could not confirm as known-unpublished', async () => {
@@ -181,7 +183,7 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
     opened.faults.inject({ operation: 'cancel', when: 'after' });
     expect(await opened.service.cancel(attempt)).toBeInstanceOf(ObservationIndeterminate);
     expect(await opened.service.cancel(attempt)).toBeInstanceOf(ObservationKnownUnpublished);
-    expect(await opened.service.authorizePublication(attempt)).toBeInstanceOf(ObservationKnownUnpublished);
+    expect(await opened.service.authorizePublication(preparationOf(attempt))).toBeInstanceOf(ObservationKnownUnpublished);
   });
 
   it('lets a late read settlement lose to a cancel that already won', async () => {
@@ -216,7 +218,7 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
     expect(await preparing).toEqual(new ObservationRefused('cancelled'));
     expect(opened.carriersPublished()).toBe(carriersAtCancel);
     expect(carriersAtCancel).toBeLessThan(4);
-    expect(await opened.service.authorizePublication(attempt)).toBeInstanceOf(ObservationKnownUnpublished);
+    expect(await opened.service.authorizePublication(preparationOf(attempt))).toBeInstanceOf(ObservationKnownUnpublished);
   });
 
   it('never publishes more than one batch of heads in a carrier', async () => {

@@ -4,6 +4,8 @@ import ObservationSupportFault from '../../domain/services/custody/ObservationSu
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
 import ObservationCarrierMessage from './ObservationCarrierMessage.ts';
+import { isObjectFault } from './ObservationObjectFault.ts';
+import { isMissingObject, objectTypes } from './ObservationObjectTypes.ts';
 import type ObservationWorkMeter from './ObservationWorkMeter.ts';
 
 const HISTORY_DOMAIN = 'git-warp/observation-history';
@@ -115,12 +117,15 @@ export default class ObservationCarrierChain {
     return await this.#withHeads(carrierOf(message, info.parents), meter);
   }
 
-  /** A non-commit or a corrupt object cannot be a carrier, so damage stays a checkable fault. */
+  /** A non-commit or corrupt object cannot be a carrier, so damage is a checkable fault; other failures surface. */
   async #commitOf(oid: string): Promise<CommitParts | null> {
     try {
       return commitParts(await this.#history.plumbing.execute({ args: ['cat-file', 'commit', oid] }));
-    } catch {
-      return null;
+    } catch (cause) {
+      if (isObjectFault(cause)) {
+        return null;
+      }
+      throw cause;
     }
   }
 
@@ -132,12 +137,7 @@ export default class ObservationCarrierChain {
   }
 
   async #headsExist(heads: readonly string[]): Promise<boolean> {
-    for (const head of heads) {
-      if (!await this.#history.nodeExists(head)) {
-        return false;
-      }
-    }
-    return true;
+    return !(await objectTypes(this.#history.plumbing, heads)).some(isMissingObject);
   }
 
   /** True when `later` is exactly `earlier` plus its own heads. */

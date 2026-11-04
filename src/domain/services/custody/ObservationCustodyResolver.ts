@@ -8,7 +8,6 @@ import { digestOf } from './observationDigestOf.ts';
 import type ObservationCoordinate from './ObservationCoordinate.ts';
 import ObservationCustodyIdentity from './ObservationCustodyIdentity.ts';
 import ObservationDecodeFailure from './ObservationDecodeFailure.ts';
-import ObservationDependencyClaim from './ObservationDependencyClaim.ts';
 import ObservationPreparation from './ObservationPreparation.ts';
 import type ObservationPreparedPage from './ObservationPreparedPage.ts';
 import type ObservationRecord from './ObservationRecord.ts';
@@ -128,7 +127,7 @@ export default class ObservationCustodyResolver {
   }): Promise<VerifiedPreparation | ObservationUnavailable> {
     const { identity, page, evidence } = found;
     const preparation = this.#codec.decodePreparation(page.preparation());
-    const intact = await this.#isBound(found) && isAttemptOf(preparation, identity) && claimHolds(preparation, page);
+    const intact = await this.#isBound(found) && isAttemptOf(preparation, identity) && page.summary.claim().equals(preparation.bindings.dependencies);
     return intact ? { preparation, page, evidence } : new ObservationUnavailable('preparation-corrupt');
   }
 
@@ -175,14 +174,9 @@ function isAttemptOf(
   return preparation instanceof ObservationPreparation && preparation.attemptId.value === identity.attemptId.value;
 }
 
-/** The support summary must be exactly what the preparation claimed. */
-function claimHolds(preparation: ObservationPreparation, page: ObservationPreparedPage): boolean {
-  const { summary } = page;
-  const claimed = new ObservationDependencyClaim(summary.dependencies, summary.dependency);
-  return claimed.equals(preparation.bindings.dependencies);
-}
-
+/** Only a store's definite answer means not retained: contention says nothing about the evidence. */
 function unavailableEvidence(outcome: object): ObservationUnavailable {
-  const reason: ObservationUnavailableReason = outcome instanceof CustodyRefused ? 'not-retained' : 'evidence-unreadable';
+  const definite = outcome instanceof CustodyRefused && outcome.reason !== 'contention';
+  const reason: ObservationUnavailableReason = definite ? 'not-retained' : 'evidence-unreadable';
   return new ObservationUnavailable(reason);
 }

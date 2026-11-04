@@ -29,6 +29,7 @@ export class ScriptedCustody extends ObservationCustodyPort {
   settled: CustodyTransition = new CustodyAcknowledged('settled', 'settled');
   cancelled: CustodyTransition = new CustodyAcknowledged('cancelled', 'cancelled');
   reconciled: CustodyTransition = new CustodyAcknowledged('recovered', 'prepared');
+  listed: readonly (ObservationCustodyIdentity | CustodyIndeterminate)[] = [];
   inspected: CustodyObservation = inspectionAt('reserved');
   evidence: Partial<Record<CustodyStage, CustodyEvidenceOutcome>> = {};
   readonly pages: ObservationCustodyPage[] = [];
@@ -61,6 +62,10 @@ export class ScriptedCustody extends ObservationCustodyPort {
 
   override async inspect(_identity: ObservationCustodyIdentity): Promise<CustodyObservation> {
     return await Promise.resolve(this.inspected);
+  }
+
+  override async *attempts(): AsyncGenerator<ObservationCustodyIdentity | CustodyIndeterminate> {
+    yield* await Promise.resolve(this.listed);
   }
 
   override async readEvidence(_identity: ObservationCustodyIdentity, stage: CustodyStage): Promise<CustodyEvidenceOutcome> {

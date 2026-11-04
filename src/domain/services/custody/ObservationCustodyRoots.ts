@@ -9,11 +9,15 @@ export default class ObservationCustodyRoots {
   readonly parents: readonly string[];
 
   constructor(supports: readonly ObservationSupportEntry[], parents: readonly string[]) {
-    if (!supports.every((entry) => isObjectId(entry.oid)) || !parents.every(isObjectId)) {
+    if (!supports.every(isSupport) || !parents.every(isObjectId)) {
       throw new ObservationCustodyError('Custody roots must name canonical object ids');
     }
     this.supports = Object.freeze(supports.map((entry) => Object.freeze({ type: entry.type, oid: entry.oid })));
     this.parents = Object.freeze([...parents]);
     Object.freeze(this);
   }
+}
+
+function isSupport(entry: ObservationSupportEntry): boolean {
+  return (entry.type === 'blob' || entry.type === 'tree') && isObjectId(entry.oid);
 }

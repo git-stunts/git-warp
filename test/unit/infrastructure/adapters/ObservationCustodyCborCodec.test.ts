@@ -131,6 +131,12 @@ describe('ObservationCustodyCborCodec', () => {
       expect(custody.decodeCore(withWideVersion(valid))).toBeInstanceOf(ObservationDecodeFailure);
     });
 
+    it('refuses a duplicated field', () => {
+      const valid = custody.encodeCore(new ObservationReceiptCore({ family: 'write', variant: 'retained', outcome: Uint8Array.of(1) }));
+      const entries = sortedEntries(valid);
+      expect(custody.decodeCore(handEncodedMap([...entries, ['version', 1]]))).toBeInstanceOf(ObservationDecodeFailure);
+    });
+
     it('refuses invalid domain values inside well-formed wire shapes', () => {
       const record = codec.encode({
         domain: 'git-warp/observation-record', version: 1, core: 'not-a-digest', preparation: DIGEST, publication: null, support: DIGEST,

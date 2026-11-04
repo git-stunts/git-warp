@@ -3,7 +3,8 @@ import type {
   CustodyObservation,
   CustodyTransition,
 } from '../domain/services/custody/CustodyOutcome.ts';
-import type { CustodyStage } from '../domain/services/custody/CustodyVocabulary.ts';
+import type CustodyIndeterminate from '../domain/services/custody/CustodyIndeterminate.ts';
+import type { CustodyPhase, CustodyStage } from '../domain/services/custody/CustodyVocabulary.ts';
 import type ObservationCustodyIdentity from '../domain/services/custody/ObservationCustodyIdentity.ts';
 import type ObservationCustodyPage from '../domain/services/custody/ObservationCustodyPage.ts';
 
@@ -34,6 +35,9 @@ export default abstract class ObservationCustodyPort {
 
   /** Observes the ledger's view of an attempt. */
   abstract inspect(_identity: ObservationCustodyIdentity): Promise<CustodyObservation>;
+
+  /** Attempts the ledger last recorded in a phase, paged; a store failure ends the stream as an indeterminate item. */
+  abstract attempts(_phase: CustodyPhase): AsyncGenerator<ObservationCustodyIdentity | CustodyIndeterminate>;
 
   /** Reads the acknowledged evidence of one stage. */
   abstract readEvidence(_identity: ObservationCustodyIdentity, _stage: CustodyStage): Promise<CustodyEvidenceOutcome>;

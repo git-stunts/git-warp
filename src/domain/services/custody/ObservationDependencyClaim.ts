@@ -9,7 +9,8 @@ const HASH_ALGORITHM = 'sha256';
 /**
  * What an attempt declares it depends on, bound into its preparation before any
  * support is built: how many objects, and a digest of exactly which, in order.
- * Retained support must match this, so a partial source cannot pass as complete.
+ * Retained support must match this, so a stream that differs from the claim cannot
+ * pass. The producer computes both, so whether the claim is complete is its obligation.
  */
 export default class ObservationDependencyClaim {
   static readonly NONE = new ObservationDependencyClaim(0, new ObservationDigest('0'.repeat(64)));

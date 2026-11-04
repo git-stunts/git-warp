@@ -34,6 +34,7 @@ import GitCasObservationCustodyAdapter from '../../../../src/infrastructure/adap
 import GitConeRecordStoreAdapter from '../../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import codec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import ObservationCustodyFixture, {
   FIXTURE_GRAPH,
   basisTree,
@@ -52,6 +53,7 @@ import ObservationCustodyFixture, {
   writeBindings,
   writeCore,
   writerCommits,
+  preparationOf,
 } from '../../../helpers/ObservationCustodyFixture.ts';
 
 const fixture = new ObservationCustodyFixture();
@@ -92,11 +94,12 @@ function missingOid(path: string, digit: string): string {
 
 /** Fails every update of the namespace ledger: custody pins land, the ledger cannot advance. */
 async function freezeLedger(path: string): Promise<void> {
+  const namespace = await GitCasObservationCustodyAdapter.namespaceOf(new NodeCryptoAdapter(), FIXTURE_GRAPH);
   const hook = join(path, 'hooks', 'reference-transaction');
   await writeFile(hook, [
     '#!/bin/sh',
     '[ "$1" = prepared ] || exit 0',
-    `if grep -q ' refs/cas/reservations/warp/${FIXTURE_GRAPH}/observations$'; then exit 1; fi`,
+    `if grep -q ' refs/cas/reservations/${namespace}$'; then exit 1; fi`,
     'exit 0',
     '',
   ].join('\n'));
@@ -192,7 +195,7 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     expect(await opened.service.resume(attemptId, readBindings(basisTree(path, 'other'))))
       .toEqual(new ObservationRefused('binding-conflict'));
     await expect(GitCasObservationCustodyAdapter.open({
-      reservations: opened.store.reservations, graphName: FIXTURE_GRAPH, limit: 5,
+      reservations: opened.store.reservations, graphName: FIXTURE_GRAPH, limit: 5, crypto: new NodeCryptoAdapter(),
     })).resolves.toEqual(new CustodyRefused('policy-mismatch'));
   });
 
@@ -205,8 +208,8 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     const commit = writerCommits(path, 1)[0] ?? '';
     const publication = new ObservationPublicationEvidence('writer-1', commit);
     expect(await opened.service.settle(attempt, { core, publication })).toMatchObject({ cause: { code: 'E_OBSERVATION_CUSTODY_CONTRADICTED' } });
-    expect(await opened.service.authorizePublication(attempt)).toBeInstanceOf(ObservationPublicationPermission);
-    expect(await opened.service.authorizePublication(attempt)).toBeInstanceOf(ObservationReconcileOnly);
+    expect(await opened.service.authorizePublication(preparationOf(attempt))).toBeInstanceOf(ObservationPublicationPermission);
+    expect(await opened.service.authorizePublication(preparationOf(attempt))).toBeInstanceOf(ObservationReconcileOnly);
     const retained = narrowed(await opened.service.settle(attempt, { core, publication }), RetainedObservation);
     removeFixtureRefs(path);
     collectGarbage(path);
@@ -222,13 +225,13 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     const cancelled = await admitted(opened.service, writeBindings(basisTree(path, 'cancelled', writerCommits(path, 2))));
     narrowed(await opened.service.prepare(cancelled, sources()), ObservationPrepared);
     expect(await opened.service.cancel(cancelled)).toBeInstanceOf(ObservationKnownUnpublished);
-    expect(await opened.service.authorizePublication(cancelled)).toBeInstanceOf(ObservationKnownUnpublished);
+    expect(await opened.service.authorizePublication(preparationOf(cancelled))).toBeInstanceOf(ObservationKnownUnpublished);
     expect(await opened.service.resume(cancelled.identity.attemptId, cancelled.preparation.bindings))
       .toEqual(new ObservationRefused('cancelled'));
 
     const armed = await admitted(opened.service, writeBindings(basisTree(path, 'armed')));
     narrowed(await opened.service.prepare(armed, sources()), ObservationPrepared);
-    expect(await opened.service.authorizePublication(armed)).toBeInstanceOf(ObservationPublicationPermission);
+    expect(await opened.service.authorizePublication(preparationOf(armed))).toBeInstanceOf(ObservationPublicationPermission);
     expect(await opened.service.cancel(armed)).toBeInstanceOf(ObservationReconcileOnly);
     expect(await opened.service.begin(readBindings(basisTree(path, 'full')))).toEqual(new ObservationRefused('capacity-full'));
   });
@@ -239,15 +242,15 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     const bindings = writeBindings(basisTree(path, 'restart', writerCommits(path, 70)));
     const attempt = await admitted(first.service, bindings);
     const prepared = narrowed(await first.service.prepare(attempt, sources()), ObservationPrepared);
-    expect(await first.service.authorizePublication(attempt)).toBeInstanceOf(ObservationPublicationPermission);
+    expect(await first.service.authorizePublication(preparationOf(attempt))).toBeInstanceOf(ObservationPublicationPermission);
     await fixture.close(first);
 
     const second = await fixture.open(path, { limit: 4 });
     const resumed = narrowed(await second.service.resume(attempt.identity.attemptId, bindings), ObservationAdmitted);
     expect(resumed.phase).toBe('armed');
-    expect(await second.service.authorizePublication(resumed.attempt)).toBeInstanceOf(ObservationReconcileOnly);
-    const recovered = await second.service.prepare(resumed.attempt, sources());
-    expect(narrowed(recovered, ObservationPrepared).roots.parents).toEqual(prepared.roots.parents);
+    const recovered = narrowed(await second.service.prepare(resumed.attempt, sources()), ObservationPrepared);
+    expect(recovered.roots.parents).toEqual(prepared.roots.parents);
+    expect(await second.service.authorizePublication(recovered)).toBeInstanceOf(ObservationReconcileOnly);
     expect(second.carriersPublished()).toBe(0);
     expect(constructionRefs(path)).toBe('');
   });
@@ -290,16 +293,16 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     expect(await opened.service.resolve(retained.coordinate)).toBeInstanceOf(ResolvedObservation);
   });
 
-  it('never lets two racing builders adopt one another, and both converge on one attempt', async () => {
+  it('lets two racing builders of one attempt converge, each loser refused and nothing uncertain', async () => {
     const path = await fixture.repository(format);
     const left = await fixture.open(path, { limit: 4 });
     const right = await fixture.open(path, { limit: 4 });
     const attempt = await admitted(left.service, readBindings(basisTree(path, 'race', writerCommits(path, 130))));
     const racing = await Promise.all([left.service.prepare(attempt, sources()), right.service.prepare(attempt, sources())]);
     for (const outcome of racing.filter((candidate) => candidate instanceof ObservationRefused)) {
-      expect(['construction-contended', 'construction-mismatch', 'contention']).toContain(outcome.reason);
+      expect(['construction-contended', 'construction-mismatch', 'contention', 'preparation-mismatch']).toContain(outcome.reason);
     }
-    expect(racing.every((outcome) => !(outcome instanceof ObservationKnownUnpublished))).toBe(true);
+    expect(racing.every((outcome) => !(outcome instanceof ObservationKnownUnpublished || outcome instanceof ObservationIndeterminate))).toBe(true);
     const prepared = narrowed(await right.service.prepare(attempt, sources()), ObservationPrepared);
     expect(prepared.roots.parents).toHaveLength(1);
     const retained = narrowed(await left.service.settle(attempt, { core: readCore('raced'), publication: null }), RetainedObservation);
@@ -340,7 +343,7 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     const attempt = await admitted(opened.service, writeBindings(basisTree(path, 'budget', writerCommits(path, 70))));
     expect(await opened.service.prepare(attempt, sources())).toEqual(new ObservationRefused('writer-limit'));
     expect(opened.carriersPublished()).toBe(0);
-    expect(await opened.service.authorizePublication(attempt)).toEqual(new ObservationRefused('not-prepared'));
+    expect(await opened.service.authorizePublication(preparationOf(attempt))).toEqual(new ObservationRefused('not-prepared'));
 
     const content = blobDependency(blob(path, 'content'));
     const three = [content, content, content];
@@ -457,7 +460,7 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     const publication = writerCommits(path, 1)[0] ?? '';
     const written = await admitted(opened.service, writeBindings(basisTree(path, 'w')));
     narrowed(await opened.service.prepare(written, sources()), ObservationPrepared);
-    narrowed(await opened.service.authorizePublication(written), ObservationPublicationPermission);
+    narrowed(await opened.service.authorizePublication(preparationOf(written)), ObservationPublicationPermission);
     const withPublication = narrowed(await opened.service.settle(written, {
       core: writeCore('w'), publication: new ObservationPublicationEvidence('writer-1', publication),
     }), RetainedObservation);
@@ -476,7 +479,8 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     expect(await opened.service.resolve(withBasis.coordinate)).toEqual(new ObservationUnavailable('basis-missing'));
     expect(await opened.service.resolve(withFrontier.coordinate)).toEqual(new ObservationUnavailable('basis-missing'));
     expect(await opened.service.resolve(withPublication.coordinate)).toEqual(new ObservationUnavailable('evidence-unreadable'));
-    expect(await opened.service.resolve(withCorrupt.coordinate)).toEqual(new ObservationUnavailable('basis-corrupt'));
+    // An object Git cannot parse counts as missing: neither is there to read.
+    expect(await opened.service.resolve(withCorrupt.coordinate)).toEqual(new ObservationUnavailable('basis-missing'));
     expect(git(path, ['for-each-ref'])).toBe(refsBefore);
 
     const unknown = ObservationCoordinate.parse(withBasis.coordinate.toString().replace(/[0-9a-f]{32}/u, 'f'.repeat(32)));
@@ -489,9 +493,9 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     const attempt = await admitted(opened.service, writeBindings(basisTree(path, 'lost')));
     narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
     expect(await opened.custody.arm(attempt.identity)).toEqual(new CustodyAcknowledged('armed', 'armed'));
-    expect(await opened.service.authorizePublication(attempt)).toBeInstanceOf(ObservationReconcileOnly);
+    expect(await opened.service.authorizePublication(preparationOf(attempt))).toBeInstanceOf(ObservationReconcileOnly);
     expect(narrowed(await opened.service.reconcile(attempt), ObservationReconciled).phase).toBe('armed');
-    expect(await opened.service.authorizePublication(attempt)).toBeInstanceOf(ObservationReconcileOnly);
+    expect(await opened.service.authorizePublication(preparationOf(attempt))).toBeInstanceOf(ObservationReconcileOnly);
   });
 
   it('reconciles preparation and settlement when only the ledger update was lost', async () => {

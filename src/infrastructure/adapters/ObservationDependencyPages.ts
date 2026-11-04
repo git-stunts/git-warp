@@ -9,6 +9,7 @@ import GitFastImportTreeScript from './GitFastImportTreeScript.ts';
 import type GitFastImportTreeWriter from './GitFastImportTreeWriter.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
 import type { GitTreeObjectEntry } from './GitTreeObjectEntry.ts';
+import { isMissingObject, objectTypes } from './ObservationObjectTypes.ts';
 import type ObservationWorkMeter from './ObservationWorkMeter.ts';
 
 /** Dependency entries per page tree. */
@@ -16,7 +17,6 @@ export const OBSERVATION_DEPENDENCY_PAGE = 1024;
 /** Page trees per attempt: custody evidence allows 64 supports, and the basis tree is one. */
 export const OBSERVATION_DEPENDENCY_PAGES = 63;
 const ENTRY_NAME_DIGITS = 8;
-const MISSING_SUFFIX = ' missing';
 
 export type ObservationDependencyHistory = {
   readonly plumbing: Pick<GitPlumbing, 'execute'>;
@@ -98,6 +98,9 @@ export default class ObservationDependencyPages {
     if (count > Math.min(this.#limits.dependencies, OBSERVATION_DEPENDENCY_PAGE * OBSERVATION_DEPENDENCY_PAGES)) {
       return new ObservationSupportRefused('dependency-limit');
     }
+    if (count > request.claim.count) {
+      return new ObservationSupportRefused('dependency-mismatch');
+    }
     return meter.spend(1) ? null : new ObservationSupportRefused('work-limit');
   }
 
@@ -128,18 +131,11 @@ export default class ObservationDependencyPages {
   }
 
   async #typeProblem(batch: readonly ObservationDependency[]): Promise<ObservationSupportRefused | null> {
-    const actual = await this.#typesOf(batch.map((dependency) => dependency.oid));
-    if (actual.some(isMissing)) {
+    const actual = await objectTypes(this.#history.plumbing, batch.map((dependency) => dependency.oid));
+    if (actual.some(isMissingObject)) {
       return new ObservationSupportRefused('dependency-unavailable');
     }
     return batch.every((dependency, index) => actual[index] === dependency.type) ? null : new ObservationSupportRefused('dependency-mismatch');
-  }
-
-  /** Each object's type, or its missing line, from one process per page rather than two per object. */
-  async #typesOf(oids: readonly string[]): Promise<readonly string[]> {
-    const input = oids.map((oid) => `${oid}\n`).join('');
-    const output = await this.#history.plumbing.execute({ args: ['cat-file', '--batch-check=%(objecttype)'], input });
-    return output.trim().split('\n');
   }
 
   /** A page's dependency entries in order, or the reason they cannot be read. */
@@ -162,8 +158,8 @@ export default class ObservationDependencyPages {
     if (!meter.spend(entries.length)) {
       return 'work-limit';
     }
-    const types = await this.#typesOf(entries.map((entry) => entry.oid));
-    return types.some(isMissing) ? 'dependency-missing' : null;
+    const types = await objectTypes(this.#history.plumbing, entries.map((entry) => entry.oid));
+    return types.some(isMissingObject) ? 'dependency-missing' : null;
   }
 
   async #extendedBy(claim: ObservationDependencyClaim, entries: readonly GitTreeObjectEntry[]): Promise<ObservationDependencyClaim> {
@@ -173,10 +169,6 @@ export default class ObservationDependencyPages {
     }
     return extended;
   }
-}
-
-function isMissing(line: string): boolean {
-  return line.endsWith(MISSING_SUFFIX);
 }
 
 function entryType(entry: GitTreeObjectEntry): 'blob' | 'tree' {

@@ -1,3 +1,4 @@
+import { ReservationCursor, type ReservationListUnavailable, type ReservationPage } from '@git-stunts/git-cas';
 import { describe, expect, it } from 'vitest';
 import CustodyAcknowledged from '../../../../src/domain/services/custody/CustodyAcknowledged.ts';
 import CustodyEvidence from '../../../../src/domain/services/custody/CustodyEvidence.ts';
@@ -9,17 +10,21 @@ import ObservationCustodyIdentity from '../../../../src/domain/services/custody/
 import ObservationCustodyPage from '../../../../src/domain/services/custody/ObservationCustodyPage.ts';
 import ObservationCustodyRoots from '../../../../src/domain/services/custody/ObservationCustodyRoots.ts';
 import ObservationDigest from '../../../../src/domain/services/custody/ObservationDigest.ts';
-import ObservationSupportFault from '../../../../src/domain/services/custody/ObservationSupportFault.ts';
 import EntropyObservationAttemptSource from '../../../../src/infrastructure/adapters/EntropyObservationAttemptSource.ts';
 import GitCasObservationCustodyAdapter, {
   type ObservationReservationNamespace,
   type ObservationReservations,
 } from '../../../../src/infrastructure/adapters/GitCasObservationCustodyAdapter.ts';
-import ObservationCarrierChain from '../../../../src/infrastructure/adapters/ObservationCarrierChain.ts';
 import ObservationCarrierMessage from '../../../../src/infrastructure/adapters/ObservationCarrierMessage.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
-import ObservationWorkMeter from '../../../../src/infrastructure/adapters/ObservationWorkMeter.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
+import { isObjectFault } from '../../../../src/infrastructure/adapters/ObservationObjectFault.ts';
+import ObservationBasisFrontier, { type ObservationBasisHistory } from '../../../../src/infrastructure/adapters/ObservationBasisFrontier.ts';
+import ObservationCarrierChain from '../../../../src/infrastructure/adapters/ObservationCarrierChain.ts';
+import ObservationWorkMeter from '../../../../src/infrastructure/adapters/ObservationWorkMeter.ts';
+import ObservationSupportLimits from '../../../../src/domain/services/custody/ObservationSupportLimits.ts';
+import ObservationSupportFault from '../../../../src/domain/services/custody/ObservationSupportFault.ts';
+import codec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { buildObservationConstructionRef } from '../../../../src/domain/utils/ObservationRefLayout.ts';
 import { narrowed } from '../../../helpers/ObservationCustodyFixture.ts';
 
@@ -41,20 +46,100 @@ function unscripted(): Promise<never> {
 function namespaceWith(handlers: Partial<ObservationReservationNamespace>): ObservationReservationNamespace {
   return {
     status: 'opened', reserve: unscripted, prepare: unscripted, arm: unscripted, settle: unscripted,
-    cancel: unscripted, reconcile: unscripted, inspect: unscripted, readEvidence: unscripted, ...handlers,
+    cancel: unscripted, reconcile: unscripted, inspect: unscripted, readEvidence: unscripted, list: unscripted, ...handlers,
   };
 }
 
 async function adapterOver(handlers: Partial<ObservationReservationNamespace>): Promise<GitCasObservationCustodyAdapter> {
   const reservations: ObservationReservations = { open: async () => await Promise.resolve(namespaceWith(handlers)) };
-  const opened = await GitCasObservationCustodyAdapter.open({ reservations, graphName: 'g', limit: 2 });
+  const opened = await GitCasObservationCustodyAdapter.open({ reservations, graphName: 'g', limit: 2, crypto: new NodeCryptoAdapter() });
   if (!(opened instanceof GitCasObservationCustodyAdapter)) {
     throw new Error('Scripted custody did not open');
   }
   return opened;
 }
 
+describe('reading what might be damaged', () => {
+  const OID = 'ab'.repeat(20);
+  const fatal = (stderr: string): Error => Object.assign(new Error('git failed'), { details: { code: 128, stderr } });
+  const spawn = new Error('spawn git EAGAIN');
+  const meter = (): ObservationWorkMeter => new ObservationWorkMeter(100);
+
+  it('calls only an object Git refused to read a fault', () => {
+    expect(isObjectFault(fatal('fatal: Not a valid object name'))).toBe(true);
+    expect(isObjectFault(fatal('fatal: resource temporarily unavailable'))).toBe(false);
+    expect(isObjectFault(spawn)).toBe(false);
+  });
+
+  it('keeps a transient failure reading a carrier out of the damage verdict', async () => {
+    const chainOver = (failure: Error): ObservationCarrierChain => new ObservationCarrierChain({
+      plumbing: { execute: async () => await Promise.reject(failure) },
+      nodeExists: async () => await Promise.resolve(true),
+    }, new NodeCryptoAdapter());
+    expect(await chainOver(fatal('fatal: not a commit')).walk(IDENTITY, OID, meter())).toEqual(new ObservationSupportFault('history-mismatch'));
+    await expect(chainOver(spawn).walk(IDENTITY, OID, meter())).rejects.toBe(spawn);
+  });
+
+  it('keeps a transient failure reading a basis out of the damage verdict', async () => {
+    const frontierEntry = { name: 'frontier', mode: '100644', type: 'blob', oid: OID };
+    const frontierOver = (overrides: Partial<ObservationBasisHistory>): ObservationBasisFrontier => new ObservationBasisFrontier({
+      history: {
+        plumbing: { execute: async (options) => await Promise.resolve(options.args[1] === '-s' ? '1' : 'tree') },
+        readBlob: async () => await Promise.resolve(Uint8Array.of(0xff)),
+        readTreeObjectEntries: async () => await Promise.resolve([frontierEntry]),
+        ...overrides,
+      },
+      codec,
+      limits: new ObservationSupportLimits({ writers: 1, dependencies: 1, frontierBytes: 10, work: 100 }),
+    });
+    const reject = async (failure: Error): Promise<never> => await Promise.reject(failure);
+    const heads = async (overrides: Partial<ObservationBasisHistory>): Promise<readonly string[] | string> =>
+      await frontierOver(overrides).heads(OID, meter());
+    expect(await heads({})).toBe('corrupt');
+    expect(await heads({ readTreeObjectEntries: async () => await reject(fatal('fatal: not a tree')) })).toBe('corrupt');
+    await expect(heads({ readTreeObjectEntries: async () => await reject(spawn) })).rejects.toBe(spawn);
+    expect(await heads({ readBlob: async () => await reject(fatal('fatal: bad file')) })).toBe('corrupt');
+    await expect(heads({ readBlob: async () => await reject(spawn) })).rejects.toBe(spawn);
+    const sized = (failure: Error): Partial<ObservationBasisHistory> => ({
+      plumbing: { execute: async (options) => (options.args[1] === '-s' ? await reject(failure) : 'tree') },
+    });
+    expect(await heads(sized(fatal('fatal: bad file')))).toBe('corrupt');
+    await expect(heads(sized(spawn))).rejects.toBe(spawn);
+  });
+});
+
 describe('GitCasObservationCustodyAdapter', () => {
+  it('pages through attempts, and ends on a store failure as uncertainty', async () => {
+    const unavailable = new Error('ledger unavailable');
+    const page = (records: readonly (typeof RECORD)[], next: ReservationCursor | null): ReservationPage => ({
+      status: 'page', policy: POLICY, charged: records.length, revision: 'r', records, visitedNodes: 1, next,
+    });
+    const cursor = new ReservationCursor({ namespace: 'warp/g/observations', revision: 'a'.repeat(40), after: 'a'.repeat(64), phase: 'prepared' });
+    const failed: ReservationListUnavailable = { status: 'unavailable', namespace: 'n', cursor, cause: unavailable };
+    const pages = [page([RECORD], cursor), failed];
+    const seen: object[] = [];
+    const custody = await adapterOver({
+      list: async (options) => {
+        seen.push(options ?? {});
+        return await Promise.resolve(pages[seen.length - 1] ?? failed);
+      },
+    });
+    const listed: object[] = [];
+    for await (const item of custody.attempts('prepared')) {
+      listed.push(item);
+    }
+    expect(listed).toEqual([IDENTITY, new CustodyIndeterminate(unavailable)]);
+    expect(seen).toEqual([{ phase: 'prepared', cursor: null }, { phase: 'prepared', cursor }]);
+    const final = await adapterOver({ list: async () => await Promise.resolve(page([], null)) });
+    expect((await final.attempts('prepared').next()).done).toBe(true);
+    const thrown = await adapterOver({ list: async () => await Promise.reject(unavailable) });
+    const iterator = thrown.attempts('armed');
+    expect((await iterator.next()).value).toEqual(new CustodyIndeterminate(unavailable));
+    expect((await iterator.next()).done).toBe(true);
+    const odd = await adapterOver({ list: async () => await Promise.reject(Object.create(null)) });
+    expect((await odd.attempts('armed').next()).value).toBeInstanceOf(CustodyIndeterminate);
+  });
+
   it('opens a policy-bound namespace under the graph and maps refusal and uncertainty', async () => {
     let requested: object | null = null;
     const reservations: ObservationReservations = {
@@ -63,14 +148,16 @@ describe('GitCasObservationCustodyAdapter', () => {
         return await Promise.resolve({ status: 'refused', policy: POLICY, reason: 'policy-mismatch' });
       },
     };
-    expect(await GitCasObservationCustodyAdapter.open({ reservations, graphName: 'g', limit: 2 }))
+    expect(await GitCasObservationCustodyAdapter.open({ reservations, graphName: 'g', limit: 2, crypto: new NodeCryptoAdapter() }))
       .toEqual(new CustodyRefused('policy-mismatch'));
-    expect(requested).toEqual({ namespace: 'warp/g/observations', capacity: { unit: 'record-slot', limit: 2 } });
+    const namespace = await GitCasObservationCustodyAdapter.namespaceOf(new NodeCryptoAdapter(), 'g');
+    expect(namespace).toMatch(/^warp\/[0-9a-f]{64}\/observations$/u);
+    expect(requested).toEqual({ namespace, capacity: { unit: 'record-slot', limit: 2 } });
     const cause = new Error('open failed');
     const failing: ObservationReservations = {
       open: async () => await Promise.resolve({ status: 'indeterminate', policy: POLICY, cause }),
     };
-    expect(await GitCasObservationCustodyAdapter.open({ reservations: failing, graphName: 'g', limit: 2 }))
+    expect(await GitCasObservationCustodyAdapter.open({ reservations: failing, graphName: 'g', limit: 2, crypto: new NodeCryptoAdapter() }))
       .toEqual(new CustodyIndeterminate(cause));
   });
 
@@ -166,7 +253,11 @@ class CarrierHistory {
   }
 
   readonly plumbing = {
-    execute: async ({ args }: { args: string[] }): Promise<string> => {
+    execute: async ({ args, input }: { args: string[]; input?: string | Buffer }): Promise<string> => {
+      if (args[1]?.startsWith('--batch-check') === true) {
+        const oids = String(input).trim().split('\n');
+        return await Promise.resolve(oids.map((oid) => (this.missing.has(oid) ? `${oid} missing` : 'commit')).join('\n'));
+      }
       const raw = this.commits.get(args[2] ?? '') ?? '';
       this.peakHeadsRead = Math.max(this.peakHeadsRead, raw.split('\n').filter((line) => line.startsWith('parent ')).length);
       return await Promise.resolve(raw);

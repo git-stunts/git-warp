@@ -4,9 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import ContentAddressableStore from '@git-stunts/git-cas';
 import Plumbing from '@git-stunts/plumbing';
+import type ObservationAttempt from '../../src/domain/services/custody/ObservationAttempt.ts';
 import ObservationAttemptId from '../../src/domain/services/custody/ObservationAttemptId.ts';
 import ObservationBindings from '../../src/domain/services/custody/ObservationBindings.ts';
 import ObservationBudget from '../../src/domain/services/custody/ObservationBudget.ts';
+import ObservationCustodyRoots from '../../src/domain/services/custody/ObservationCustodyRoots.ts';
 import ObservationCustodyService from '../../src/domain/services/custody/ObservationCustodyService.ts';
 import ConeFrontier from '../../src/domain/services/cone/ConeFrontier.ts';
 import ConeWriterPosition from '../../src/domain/services/cone/ConeWriterPosition.ts';
@@ -15,6 +17,7 @@ import ObservationDependencyClaim from '../../src/domain/services/custody/Observ
 import ObservationDigest from '../../src/domain/services/custody/ObservationDigest.ts';
 import ObservationEvidenceBinding from '../../src/domain/services/custody/ObservationEvidenceBinding.ts';
 import ObservationIndeterminate from '../../src/domain/services/custody/ObservationIndeterminate.ts';
+import ObservationPrepared from '../../src/domain/services/custody/ObservationPrepared.ts';
 import ObservationQuestion from '../../src/domain/services/custody/ObservationQuestion.ts';
 import ObservationReceiptCore from '../../src/domain/services/custody/ObservationReceiptCore.ts';
 import ObservationSupportLimits from '../../src/domain/services/custody/ObservationSupportLimits.ts';
@@ -86,13 +89,13 @@ export default class ObservationCustodyFixture {
     const plumbing = await Plumbing.createDefault({ cwd: path });
     const store = ContentAddressableStore.createCbor({ plumbing, applicationRefPrefixes: ['refs/warp/'] });
     this.#stores.add(store);
+    const crypto = new NodeCryptoAdapter();
     const custody = await GitCasObservationCustodyAdapter.open({
-      reservations: store.reservations, graphName: FIXTURE_GRAPH, limit: options.limit,
+      reservations: store.reservations, graphName: FIXTURE_GRAPH, limit: options.limit, crypto,
     });
     if (!(custody instanceof GitCasObservationCustodyAdapter)) {
       throw new Error('Fixture custody did not open');
     }
-    const crypto = new NodeCryptoAdapter();
     let carriers = 0;
     const support = new GitCasObservationSupportAdapter({
       publications: {
@@ -129,6 +132,11 @@ export default class ObservationCustodyFixture {
     this.#stores.clear();
     await Promise.all(this.#directories.splice(0).map(async (path) => await rm(path, { recursive: true })));
   }
+}
+
+/** What `prepare` returns, for tests whose subject is what the ledger does with an arm. */
+export function preparationOf(attempt: ObservationAttempt): ObservationPrepared {
+  return new ObservationPrepared(attempt, new ObservationCustodyRoots([], []));
 }
 
 let writerSequence = 0;

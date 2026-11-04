@@ -154,6 +154,7 @@ describe('observation value invariants', () => {
     ['roots parent', () => new ObservationCustodyRoots([], ['x'])],
     ['page bytes', () => construct(ObservationCustodyPage, 'text', new ObservationCustodyRoots([], []))],
     ['page roots', () => construct(ObservationCustodyPage, new Uint8Array(), {})],
+    ['roots support type', () => new ObservationCustodyRoots([Object.create({ type: 'commit', oid: COMMIT })], [])],
     ['limits writers', () => limits({ writers: -1 })],
     ['limits dependencies', () => limits({ dependencies: 0.5 })],
     ['limits frontier', () => limits({ frontierBytes: -1 })],
@@ -196,7 +197,7 @@ describe('observation value invariants', () => {
     expect(digest.equals(new ObservationDigest(OTHER))).toBe(false);
   });
 
-  it('copies bytes in and out of every byte owner', () => {
+  it('copies bytes in and out of these byte owners', () => {
     const input = Uint8Array.of(1, 2);
     const identity = new ObservationCustodyIdentity(attemptId, digest);
     const preparation = new ObservationPreparation(attemptId, bindings());

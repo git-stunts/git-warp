@@ -20,12 +20,14 @@ import ObservationBasisFrontier, { type ObservationBasisHistory, type Observatio
 import ObservationCarrierChain, { type ObservationChainPosition } from './ObservationCarrierChain.ts';
 import ObservationCarrierMessage from './ObservationCarrierMessage.ts';
 import ObservationDependencyPages, { type ObservationPageSet } from './ObservationDependencyPages.ts';
+import { isMissingObject, objectTypes } from './ObservationObjectTypes.ts';
 import ObservationWorkMeter from './ObservationWorkMeter.ts';
 
 /** New writer heads per carrier: one of a commit's 64 parents names the previous carrier. */
 export const OBSERVATION_CARRIER_BATCH = 63;
 
 export type ObservationSupportHistory = ObservationBasisHistory & {
+  nodeExists(oid: string): Promise<boolean>;
   readRef(ref: string): Promise<string | null>;
   deleteRef(ref: string): Promise<void>;
 };
@@ -203,12 +205,7 @@ export default class GitCasObservationSupportAdapter extends ObservationSupportP
   }
 
   async #headsExist(batch: readonly string[]): Promise<boolean> {
-    for (const head of batch) {
-      if (!await this.#history.nodeExists(head)) {
-        return false;
-      }
-    }
-    return true;
+    return !(await objectTypes(this.#history.plumbing, batch)).some(isMissingObject);
   }
 
   async #commitCarrier(
@@ -318,7 +315,10 @@ function basisFault(problem: ObservationBasisProblem): ObservationSupportFaultRe
   if (problem === 'missing') {
     return 'basis-missing';
   }
-  return problem === 'work-limit' ? 'work-limit' : 'basis-corrupt';
+  if (problem === 'corrupt') {
+    return 'basis-corrupt';
+  }
+  return problem === 'work-limit' ? 'work-limit' : 'support-limit';
 }
 
 function resumeRefusal(fault: ObservationSupportFault): ObservationSupportRefusalReason {

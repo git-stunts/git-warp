@@ -82,10 +82,12 @@ function loosePath(path: string, oid: string): string {
 async function supportOver(h: Harness, overrides: {
   readonly limits?: ObservationSupportLimits;
   readonly commitFailure?: Error;
+  readonly publications?: GitCasPublications;
 }): Promise<GitCasObservationSupportAdapter> {
   const { commitFailure } = overrides;
   return new GitCasObservationSupportAdapter({
-    publications: commitFailure === undefined ? h.opened.store.publications : { commit: async () => await Promise.reject(commitFailure) },
+    publications: overrides.publications
+      ?? (commitFailure === undefined ? h.opened.store.publications : { commit: async () => await Promise.reject(commitFailure) }),
     assets: h.opened.store.assets,
     history: new GitTimelineHistoryAdapter({ plumbing: await Plumbing.createDefault({ cwd: h.path }) }),
     crypto: new NodeCryptoAdapter(),
@@ -94,6 +96,8 @@ async function supportOver(h: Harness, overrides: {
     limits: overrides.limits ?? DEFAULT_SUPPORT_LIMITS,
   });
 }
+
+type GitCasPublications = ConstructorParameters<typeof GitCasObservationSupportAdapter>[0]['publications'];
 
 function coded(code: string): Error {
   return Object.assign(new Error(code), { code });
@@ -116,6 +120,24 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
     expect(await contended.retain(requestOf(h))).toEqual(new ObservationSupportRefused('construction-contended'));
     const broken = await supportOver(h, { commitFailure: coded('GIT_ERROR') });
     await expect(broken.retain(requestOf(h))).rejects.toMatchObject({ code: 'GIT_ERROR' });
+  });
+
+  it('finds a carrier that landed with its acknowledgement lost, without publishing it again', async () => {
+    const h = await harness(format, (path) => writerCommits(path, 2));
+    const lost = new Error('acknowledgement lost');
+    const lossy = await supportOver(h, {
+      publications: {
+        commit: async (request) => {
+          await h.opened.store.publications.commit(request);
+          throw lost;
+        },
+      },
+    });
+    await expect(lossy.retain(requestOf(h))).rejects.toBe(lost);
+    const landed = git(h.path, ['rev-parse', constructionRef(h.identity)]);
+    const resumed = narrowed(await h.opened.support.retain(requestOf(h)), ObservationSupportRetained);
+    expect(resumed.roots.parents).toEqual([landed]);
+    expect(h.opened.carriersPublished()).toBe(0);
   });
 
   it('refuses a construction ref that points at anything but this attempt', async () => {
@@ -183,9 +205,26 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
         yield await Promise.resolve(content);
       }
     }
-    const outcome = await generous.retain({ ...requestOf(h), dependencies: endless() });
+    const claim = new ObservationDependencyClaim(Number.MAX_SAFE_INTEGER, ObservationDependencyClaim.NONE.digest);
+    const outcome = await generous.retain({ ...requestOf(h, { claim }), dependencies: endless() });
     expect(outcome).toEqual(new ObservationSupportRefused('dependency-limit'));
     expect(pulled).toBe((OBSERVATION_DEPENDENCY_PAGE * OBSERVATION_DEPENDENCY_PAGES) + 1);
+  });
+
+  it('stops a stream at the count its claim allows', async () => {
+    const h = await harness(format);
+    const content = blobDependency(blob(h.path, 'content'));
+    const claim = await claimOf([content]);
+    let pulled = 0;
+    async function* longer(): AsyncGenerator<ObservationDependency> {
+      for (;;) {
+        pulled += 1;
+        yield await Promise.resolve(content);
+      }
+    }
+    expect(await h.opened.support.retain({ ...requestOf(h, { claim }), dependencies: longer() }))
+      .toEqual(new ObservationSupportRefused('dependency-mismatch'));
+    expect(pulled).toBe(2);
   });
 
   it('pulls no more than one page of dependencies ahead of the pages it has written', async () => {

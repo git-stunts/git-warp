@@ -1,4 +1,5 @@
 import ObservationCustodyError from '../../errors/ObservationCustodyError.ts';
+import ObservationDependencyClaim from './ObservationDependencyClaim.ts';
 import ObservationDigest from './ObservationDigest.ts';
 import { isObjectId } from './ObservationObjectId.ts';
 
@@ -29,6 +30,11 @@ export default class ObservationSupportSummary {
     this.dependency = options.dependency;
     this.pages = Object.freeze([...options.pages]);
     Object.freeze(this);
+  }
+
+  /** The dependency claim these retained pages satisfy. */
+  claim(): ObservationDependencyClaim {
+    return new ObservationDependencyClaim(this.dependencies, this.dependency);
   }
 }
 
