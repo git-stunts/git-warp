@@ -221,6 +221,16 @@ describe('ObservationCustodyService', () => {
       expect(await service.prepare(attempt, sources())).toBeInstanceOf(ObservationPrepared);
     });
 
+    it('releases construction when a cancellation won while building', async () => {
+      const attempt = await readAttempt();
+      custody.prepared = new CustodyRefused('cancelled');
+      expect(await service.prepare(attempt, sources())).toEqual(new ObservationRefused('cancelled'));
+      expect(support.releases).toBe(1);
+      custody.prepared = new CustodyRefused('capacity-full');
+      expect(await service.prepare(attempt, sources())).toEqual(new ObservationRefused('capacity-full'));
+      expect(support.releases).toBe(1);
+    });
+
     it('awaits verification as owned work before cancelling', async () => {
       const attempt = await readAttempt();
       let finish: (fault: null) => void = () => undefined;
@@ -466,8 +476,9 @@ describe('ObservationCustodyService', () => {
         reject = rejecting;
       });
       const preparing = service.prepare(attempt, sources());
-      await Promise.resolve();
-      await Promise.resolve();
+      await new Promise((resolve) => {
+        setImmediate(resolve);
+      });
       const cancelling = service.cancel(attempt);
       reject(failure);
       expect(await cancelling).toBeInstanceOf(ObservationKnownUnpublished);

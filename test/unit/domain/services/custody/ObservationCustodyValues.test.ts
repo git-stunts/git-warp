@@ -35,7 +35,10 @@ const attemptId = new ObservationAttemptId(HEX32);
 const question = new ObservationQuestion('q', 1);
 const budget = new ObservationBudget({ records: 1, bytes: 1, work: 1 });
 
-function bindings(overrides: Record<string, unknown> = {}): ObservationBindings {
+/** What a malformed-shape test hands a constructor, closed to the values these tests use. */
+type ConstructorArgument = string | number | object | null;
+
+function bindings(overrides: Readonly<Record<string, ConstructorArgument>> = {}): ObservationBindings {
   return Reflect.construct(ObservationBindings, [{
     basis: COMMIT, observer: 'o', question, purpose: 'p', budget, evidence: [], dependencies: ObservationDependencyClaim.NONE, writePremise: null, ...overrides,
   }]);
@@ -45,7 +48,7 @@ function limits(overrides: Partial<ConstructorParameters<typeof ObservationSuppo
   return new ObservationSupportLimits({ writers: 0, dependencies: 0, frontierBytes: 0, work: 0, ...overrides });
 }
 
-function construct(type: new (...args: never[]) => object, ...args: readonly unknown[]): object {
+function construct(type: new (...args: never[]) => object, ...args: readonly ConstructorArgument[]): object {
   return Reflect.construct(type, args);
 }
 
@@ -166,6 +169,11 @@ describe('observation value invariants', () => {
     ['settlement record', () => construct(ObservationSettlementPage, 'text', new Uint8Array())],
     ['settlement core', () => construct(ObservationSettlementPage, new Uint8Array(), 'text')],
     ['attempt preparation', () => construct(ObservationAttempt, { preparation: {}, identity: {}, bytes: new Uint8Array() })],
+    ['attempt mismatch', () => construct(ObservationAttempt, {
+      preparation: new ObservationPreparation(attemptId, bindings()),
+      identity: new ObservationCustodyIdentity(new ObservationAttemptId('1'.repeat(32)), digest),
+      bytes: new Uint8Array(),
+    })],
   ])('refuses invalid %s', (_name, build) => {
     expect(build).toThrow(ObservationCustodyError);
   });

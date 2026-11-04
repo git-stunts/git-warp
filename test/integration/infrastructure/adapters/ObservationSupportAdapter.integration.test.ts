@@ -186,7 +186,7 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
     const outcome = await generous.retain({ ...requestOf(h), dependencies: endless() });
     expect(outcome).toEqual(new ObservationSupportRefused('dependency-limit'));
     expect(pulled).toBe((OBSERVATION_DEPENDENCY_PAGE * OBSERVATION_DEPENDENCY_PAGES) + 1);
-  }, 120_000);
+  });
 
   it('pulls no more than one page of dependencies ahead of the pages it has written', async () => {
     const h = await harness(format);
@@ -337,11 +337,11 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
 
       const other = await harness(format, (path) => writerCommits(path, 2));
       const otherEdges = await retained(other, blob(other.path, 'other'));
-      await expect(other.opened.support.verify(other.identity, {
+      expect(await other.opened.support.verify(other.identity, {
         basis: other.basis,
         roots: new ObservationCustodyRoots(otherEdges.roots.supports, [other.basis]),
         summary: otherEdges.summary,
-      })).rejects.toBeInstanceOf(Error);
+      })).toEqual(new ObservationSupportFault('history-mismatch'));
 
       const empty = await harness(format);
       const noHeads = await retained(empty, blob(empty.path, 'none'));

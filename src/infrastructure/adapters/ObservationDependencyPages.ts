@@ -16,6 +16,7 @@ export const OBSERVATION_DEPENDENCY_PAGE = 1024;
 /** Page trees per attempt: custody evidence allows 64 supports, and the basis tree is one. */
 export const OBSERVATION_DEPENDENCY_PAGES = 63;
 const ENTRY_NAME_DIGITS = 8;
+const MISSING_SUFFIX = ' missing';
 
 export type ObservationDependencyHistory = {
   readonly plumbing: Pick<GitPlumbing, 'execute'>;
@@ -55,14 +56,18 @@ export default class ObservationDependencyPages {
     let claim = ObservationDependencyClaim.NONE;
     let batch: ObservationDependency[] = [];
     for await (const dependency of request.dependencies) {
-      const stopped = await this.#stopFor({ request, meter, dependency, count: claim.count + 1 });
+      const stopped = this.#stopFor(request, meter, claim.count + 1);
       if (stopped !== null) {
         return stopped;
       }
       claim = await claim.extended(this.#crypto, dependency);
       batch.push(dependency);
       if (batch.length === OBSERVATION_DEPENDENCY_PAGE) {
-        pages.push(await this.#writePage(batch));
+        const page = await this.#writePage(batch);
+        if (page instanceof ObservationSupportRefused) {
+          return page;
+        }
+        pages.push(page);
         batch = [];
       }
     }
@@ -86,31 +91,14 @@ export default class ObservationDependencyPages {
     return claim.equals(claimed) ? null : 'dependency-mismatch';
   }
 
-  async #stopFor(step: {
-    readonly request: ObservationSupportRequest;
-    readonly meter: ObservationWorkMeter;
-    readonly dependency: ObservationDependency;
-    readonly count: number;
-  }): Promise<WriteStop | null> {
-    if (step.request.isCancelled()) {
+  #stopFor(request: ObservationSupportRequest, meter: ObservationWorkMeter, count: number): WriteStop | null {
+    if (request.isCancelled()) {
       return new ObservationSupportCancelled();
     }
-    if (step.count > Math.min(this.#limits.dependencies, OBSERVATION_DEPENDENCY_PAGE * OBSERVATION_DEPENDENCY_PAGES)) {
+    if (count > Math.min(this.#limits.dependencies, OBSERVATION_DEPENDENCY_PAGE * OBSERVATION_DEPENDENCY_PAGES)) {
       return new ObservationSupportRefused('dependency-limit');
     }
-    if (!step.meter.spend(1)) {
-      return new ObservationSupportRefused('work-limit');
-    }
-    return await this.#typeProblem(step.dependency);
-  }
-
-  /** A refusal unless the object exists with its declared type, which a page's tree mode depends on. */
-  async #typeProblem(dependency: ObservationDependency): Promise<ObservationSupportRefused | null> {
-    if (!await this.#history.nodeExists(dependency.oid)) {
-      return new ObservationSupportRefused('dependency-unavailable');
-    }
-    const actual = await this.#history.plumbing.execute({ args: ['cat-file', '-t', dependency.oid] });
-    return actual.trim() === dependency.type ? null : new ObservationSupportRefused('dependency-mismatch');
+    return meter.spend(1) ? null : new ObservationSupportRefused('work-limit');
   }
 
   async #finished(
@@ -121,14 +109,37 @@ export default class ObservationDependencyPages {
     if (!state.claim.equals(request.claim)) {
       return new ObservationSupportRefused('dependency-mismatch');
     }
-    return batch.length === 0 ? state : { ...state, pages: [...state.pages, await this.#writePage(batch)] };
+    if (batch.length === 0) {
+      return state;
+    }
+    const page = await this.#writePage(batch);
+    return page instanceof ObservationSupportRefused ? page : { ...state, pages: [...state.pages, page] };
   }
 
-  /** One page tree of dependency edges. Its objects were just checked, so a failure here is a real store failure. */
-  async #writePage(batch: readonly ObservationDependency[]): Promise<string> {
+  /** One page tree of dependency edges, once every object exists with the type its tree mode depends on. */
+  async #writePage(batch: readonly ObservationDependency[]): Promise<string | ObservationSupportRefused> {
+    const problem = await this.#typeProblem(batch);
+    if (problem !== null) {
+      return problem;
+    }
     const script = new GitFastImportTreeScript();
     batch.forEach((dependency, index) => placeEntry(script, dependency, index));
     return await this.#trees.write(script);
+  }
+
+  async #typeProblem(batch: readonly ObservationDependency[]): Promise<ObservationSupportRefused | null> {
+    const actual = await this.#typesOf(batch.map((dependency) => dependency.oid));
+    if (actual.some(isMissing)) {
+      return new ObservationSupportRefused('dependency-unavailable');
+    }
+    return batch.every((dependency, index) => actual[index] === dependency.type) ? null : new ObservationSupportRefused('dependency-mismatch');
+  }
+
+  /** Each object's type, or its missing line, from one process per page rather than two per object. */
+  async #typesOf(oids: readonly string[]): Promise<readonly string[]> {
+    const input = oids.map((oid) => `${oid}\n`).join('');
+    const output = await this.#history.plumbing.execute({ args: ['cat-file', '--batch-check=%(objecttype)'], input });
+    return output.trim().split('\n');
   }
 
   /** A page's dependency entries in order, or the reason they cannot be read. */
@@ -148,15 +159,11 @@ export default class ObservationDependencyPages {
   }
 
   async #entriesExist(entries: readonly GitTreeObjectEntry[], meter: ObservationWorkMeter): Promise<'dependency-missing' | 'work-limit' | null> {
-    for (const entry of entries) {
-      if (!meter.spend(1)) {
-        return 'work-limit';
-      }
-      if (!await this.#history.nodeExists(entry.oid)) {
-        return 'dependency-missing';
-      }
+    if (!meter.spend(entries.length)) {
+      return 'work-limit';
     }
-    return null;
+    const types = await this.#typesOf(entries.map((entry) => entry.oid));
+    return types.some(isMissing) ? 'dependency-missing' : null;
   }
 
   async #extendedBy(claim: ObservationDependencyClaim, entries: readonly GitTreeObjectEntry[]): Promise<ObservationDependencyClaim> {
@@ -166,6 +173,10 @@ export default class ObservationDependencyPages {
     }
     return extended;
   }
+}
+
+function isMissing(line: string): boolean {
+  return line.endsWith(MISSING_SUFFIX);
 }
 
 function entryType(entry: GitTreeObjectEntry): 'blob' | 'tree' {

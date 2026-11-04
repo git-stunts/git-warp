@@ -19,6 +19,7 @@ import ObservationCarrierChain from '../../../../src/infrastructure/adapters/Obs
 import ObservationCarrierMessage from '../../../../src/infrastructure/adapters/ObservationCarrierMessage.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import ObservationWorkMeter from '../../../../src/infrastructure/adapters/ObservationWorkMeter.ts';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import { buildObservationConstructionRef } from '../../../../src/domain/utils/ObservationRefLayout.ts';
 import { narrowed } from '../../../helpers/ObservationCustodyFixture.ts';
 
@@ -316,5 +317,7 @@ describe('observation host boundaries', () => {
   it('names construction refs under the graph and validates it', () => {
     expect(buildObservationConstructionRef('events', 'abc')).toBe('refs/warp/events/observations/construction/abc');
     expect(() => buildObservationConstructionRef('../events', 'abc')).toThrow();
+    expect(() => buildObservationConstructionRef('events', '../abc')).toThrow(WarpError);
+    expect(() => buildObservationConstructionRef('events', '')).toThrow(WarpError);
   });
 });

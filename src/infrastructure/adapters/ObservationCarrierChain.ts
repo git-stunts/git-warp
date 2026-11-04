@@ -23,6 +23,8 @@ export type ObservationChainPosition = {
   readonly history: ObservationDigest;
 };
 
+type CommitParts = { readonly message: string; readonly parents: readonly string[] };
+
 /** One carrier as read: its claim, its writer heads and the carrier before it. */
 type ReadCarrier = {
   readonly message: ObservationCarrierMessage;
@@ -98,12 +100,28 @@ export default class ObservationCarrierChain {
     if (!await this.#history.nodeExists(oid)) {
       return new ObservationSupportFault('history-missing');
     }
-    const info = commitParts(await this.#history.plumbing.execute({ args: ['cat-file', 'commit', oid] }));
+    return await this.#parsed(identity, oid, meter);
+  }
+
+  async #parsed(identity: ObservationCustodyIdentity, oid: string, meter: ObservationWorkMeter): Promise<ReadCarrier | ObservationSupportFault> {
+    const info = await this.#commitOf(oid);
+    if (info === null) {
+      return new ObservationSupportFault('history-mismatch');
+    }
     const message = ObservationCarrierMessage.parse(info.message);
     if (message === null || !message.binding.equals(identity.binding)) {
       return new ObservationSupportFault('history-mismatch');
     }
     return await this.#withHeads(carrierOf(message, info.parents), meter);
+  }
+
+  /** A non-commit or a corrupt object cannot be a carrier, so damage stays a checkable fault. */
+  async #commitOf(oid: string): Promise<CommitParts | null> {
+    try {
+      return commitParts(await this.#history.plumbing.execute({ args: ['cat-file', 'commit', oid] }));
+    } catch {
+      return null;
+    }
   }
 
   async #withHeads(carrier: ReadCarrier, meter: ObservationWorkMeter): Promise<ReadCarrier | ObservationSupportFault> {
@@ -139,7 +157,7 @@ export default class ObservationCarrierChain {
  * The parents and message of a raw commit object. Reading the object itself
  * keeps a missing parent a checkable fault: `git show` fails outright on one.
  */
-function commitParts(raw: string): { readonly message: string; readonly parents: readonly string[] } {
+function commitParts(raw: string): CommitParts {
   const separator = raw.indexOf('\n\n');
   const parents = raw.slice(0, separator).split('\n')
     .filter((line) => line.startsWith(PARENT_HEADER))

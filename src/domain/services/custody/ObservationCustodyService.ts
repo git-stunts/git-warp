@@ -251,7 +251,18 @@ export default class ObservationCustodyService {
     const prepared = await this.#custody.prepare(attempt.identity, new ObservationCustodyPage(bytes, built.roots));
     return prepared instanceof CustodyAcknowledged
       ? await this.#acknowledgePrepared(attempt, built.roots)
-      : failureOf(prepared, 'preparation');
+      : await this.#preparationFailure(attempt, prepared);
+  }
+
+  /** A cancellation that won while building leaves construction state nothing else would release. */
+  async #preparationFailure(
+    attempt: ObservationAttempt,
+    outcome: CustodyIndeterminateOrRefused,
+  ): Promise<ObservationRefused | ObservationIndeterminate> {
+    if (outcome instanceof CustodyRefused && outcome.reason === 'cancelled') {
+      await this.#releaseConstruction(attempt);
+    }
+    return failureOf(outcome, 'preparation');
   }
 
   async #acknowledgePrepared(attempt: ObservationAttempt, roots: ObservationCustodyRoots): Promise<ObservationPrepared> {

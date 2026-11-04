@@ -103,7 +103,7 @@ describe('ObservationCustodyCborCodec', () => {
   });
 
   describe('adversarial bytes', () => {
-    const core = (fields: Record<string, unknown>): Uint8Array => codec.encode({
+    const core = (fields: WireMap): Uint8Array => codec.encode({
       domain: 'git-warp/observation-receipt-core', version: 1, family: 'write', outcome: Uint8Array.of(1), variant: 'retained', ...fields,
     });
 
@@ -147,21 +147,26 @@ describe('ObservationCustodyCborCodec', () => {
   });
 });
 
+/** A value on the custody wire. */
+type WireValue = string | number | null | Uint8Array | readonly WireValue[] | WireMap;
+type WireMap = { readonly [field: string]: WireValue };
+
 /** The same map with its first two entries swapped: same content, not canonical order. */
 function unsortedMap(valid: Uint8Array): Uint8Array {
-  const decoded = codec.decode<Record<string, unknown>>(valid);
-  const reversed = Object.keys(decoded).sort().reverse();
-  return handEncodedMap(reversed.map((key) => [key, decoded[key]]));
+  return handEncodedMap([...sortedEntries(valid)].reverse());
 }
 
 /** The same value with its small version integer in a wider, non-minimal form. */
 function withWideVersion(valid: Uint8Array): Uint8Array {
-  const decoded = codec.decode<Record<string, unknown>>(valid);
-  return handEncodedMap(Object.keys(decoded).sort().map((key) => [key, decoded[key]]), { wideVersion: true });
+  return handEncodedMap(sortedEntries(valid), { wideVersion: true });
+}
+
+function sortedEntries(valid: Uint8Array): readonly (readonly [string, WireValue])[] {
+  return Object.entries(codec.decode<WireMap>(valid)).sort(([left], [right]) => left.localeCompare(right));
 }
 
 function handEncodedMap(
-  entries: readonly (readonly [string, unknown])[],
+  entries: readonly (readonly [string, WireValue])[],
   options: { readonly wideVersion?: boolean } = {},
 ): Uint8Array {
   const parts: number[] = [0xa0 + entries.length];

@@ -18,6 +18,9 @@ export default class ObservationAttempt {
     if (!typed) {
       throw new ObservationCustodyError('Observation attempt needs a preparation, an identity and canonical bytes');
     }
+    if (options.preparation.attemptId.value !== options.identity.attemptId.value) {
+      throw new ObservationCustodyError('Observation attempt preparation and identity name different attempts');
+    }
     this.preparation = options.preparation;
     this.identity = options.identity;
     this.#bytes = new Uint8Array(options.bytes);
