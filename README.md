@@ -137,6 +137,12 @@ test runners directly on the host or mount host Git repositories into test
 containers. For installed-package acceptance from source, run
 `bash scripts/run-in-docker.sh bash scripts/smoke-packed-artifact.sh`.
 
+The COPY-based runner stages its build context from Git's indexed paths using
+working-tree bytes. Stage new files before testing them; unstaged edits to
+tracked files are included. Untracked files and locally excluded logs are
+omitted. A failed Git inventory or a symlinked parent directory refuses the run
+before Docker starts. Direct Compose invocations retain their own contexts.
+
 ## v19 First-Use API
 
 Application code enters through one production composition root. Wesley-generated

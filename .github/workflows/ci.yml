@@ -117,6 +117,8 @@ jobs:
         env:
           GIT_WARP_QUARANTINE_BASE: origin/main
         run: npm run lint:quarantine-graduate
+      - name: 'Gate 4i: Public capability allowances only shrink from the merge base'
+        run: node --experimental-strip-types scripts/public-surface/check-history.ts
 
   type-firewall-surface:
     runs-on: ubuntu-latest

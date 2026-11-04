@@ -24,9 +24,7 @@ const TEST_FILE_PATTERN = /\.(?:test|spec|benchmark)\.(?:[cm][jt]s|[jt]sx?)$/;
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const VITEST_ENTRY = join(ROOT, 'node_modules', 'vitest', 'vitest.mjs');
 
-function isTestFile(fileName: string): boolean {
-  return TEST_FILE_PATTERN.test(fileName);
-}
+const isTestFile = (fileName: string): boolean => TEST_FILE_PATTERN.test(fileName);
 
 function listDirectTestFiles(relativeDirectory: string): string[] {
   return readdirSync(join(ROOT, relativeDirectory), { withFileTypes: true })
@@ -82,6 +80,7 @@ const UNIT_SHARDS: readonly Shard[] = [
       ...listRecursiveTestFiles('test/unit/domain/continuum'),
       ...listRecursiveTestFiles('test/unit/domain/crdt'),
       ...listRecursiveTestFiles('test/unit/domain/entities'),
+      ...listRecursiveTestFiles('test/unit/domain/entity'),
       ...listRecursiveTestFiles('test/unit/domain/errors'),
       ...listRecursiveTestFiles('test/unit/domain/graph'),
       ...listRecursiveTestFiles('test/unit/domain/memory'),
@@ -105,6 +104,7 @@ const UNIT_SHARDS: readonly Shard[] = [
     name: 'unit-domain-services-subdirs',
     paths: [
       ...listRecursiveTestFiles('test/unit/domain/services/controllers'),
+      ...listRecursiveTestFiles('test/unit/domain/services/cone'),
       ...listRecursiveTestFiles('test/unit/domain/services/optic'),
       ...listRecursiveTestFiles('test/unit/domain/services/query'),
       ...listRecursiveTestFiles('test/unit/domain/services/snapshot'),

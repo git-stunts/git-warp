@@ -55,6 +55,8 @@ export default tseslint.config(
       "!scripts/performance/**",
       "!scripts/package-payload",
       "!scripts/package-payload/**",
+      "!scripts/public-surface",
+      "!scripts/public-surface/**",
       ".claude/**",
       ".obsidian/**",
       "test/type-check/**",
@@ -108,10 +110,10 @@ export default tseslint.config(
     },
   },
 
-  // Package-payload code executes release law, so it receives the normal
+  // Package-payload and public-surface code execute merge/release law, so they receive the normal
   // typed structural caps instead of the global maintainer-script exclusion.
   {
-    files: ["scripts/package-payload/**/*.ts"],
+    files: ["scripts/package-payload/**/*.ts", "scripts/public-surface/**/*.ts"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",

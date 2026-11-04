@@ -114,6 +114,15 @@ it('rejects invalid removal observations', () => {
   expect(() => new NodeRemovalObservation(new NodeRemove('n', []), [new EdgeRemove({ from: 'a', to: 'b', label: 'x', observedDots: [] })], 0)).toThrow();
 });
 
+it('reports edge-only attached data and leaves incident membership intact for a warning', () => {
+  const removal = new NodeRemove('n', ['alice:1']);
+  const edge = new EdgeRemove({ from: 'n', to: 'm', label: 'rel', observedDots: ['alice:2'] });
+  const observation = new NodeRemovalObservation(removal, [edge], 0);
+  expect(() => observation.operations('reject', nullLogger)).toThrow('attached data (1 edge(s))');
+  expect(observation.operations('warn', nullLogger)).toEqual([removal]);
+  expect(observation.operations('cascade', nullLogger)).toEqual([edge, removal]);
+});
+
 it('keeps an addition outside the captured frontier concurrent with the removal', async () => {
   const fields = fixture([entry([new NodeAdd('n', new Dot('alice', 1))])]);
   const patch = builder(fields);

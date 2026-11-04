@@ -16,16 +16,17 @@ const DECLARATION_README_HEADINGS: readonly string[] = [
 ];
 
 const PACKAGE_FILE_SCHEMA = z.object({
-  dependencies: z.record(z.string()),
+  dependencies: z.record(z.string(), z.string()),
 });
 
 const DENO_IMPORT_MAP_SCHEMA = z.object({
-  imports: z.record(z.string()),
+  imports: z.record(z.string(), z.string()),
 });
 
 const SHARED_RUNTIME_DEPENDENCIES: readonly string[] = [
   '@git-stunts/git-cas',
   '@git-stunts/plumbing',
+  'zod',
 ];
 
 function repoPath(relativePath: string): URL {
@@ -46,15 +47,19 @@ describe('dependency hygiene', () => {
 
     const manifest = new PackedArtifactBoundaryAdapter().read(
       fileURLToPath(repoPath('package.json')),
-      z.object({ overrides: z.record(z.union([z.string(), z.record(z.string())])) })
+      z.object({ overrides: z.record(z.string(), z.union([z.string(), z.record(z.string(), z.string())])) })
     );
     // Exact allowlist: each out-of-range security fix needs caller evidence and review.
     expect(manifest.overrides).toEqual({
-      'markdownlint-cli': { 'js-yaml': '5.4.2', 'smol-toml': '1.9.0' },
+      eslint: { minimatch: '11.0.3' },
+      '@eslint/config-array': { minimatch: '11.0.3' },
+      '@typescript-eslint/typescript-estree': { minimatch: '11.0.3' },
+      '@vercel/nft': { glob: '14.0.3' },
+      'markdownlint-cli': { minimatch: '11.0.3', 'js-yaml': '5.4.2', 'smol-toml': '1.9.0' },
       katex: '0.18.2',
     });
     expect(packageJson).not.toContain('"tar": "7.5.16"');
-    expect(packageJson).toContain('"zod": "^3.24.1"');
+    expect(packageJson).toContain('"zod": "^4.6.7"');
     expect(packageJson).not.toContain('"patch-package"');
     expect(packageJson).toContain('./scripts/TrailerCodecDeclarationInstaller.ts');
     expect(packageJson).toContain('&& node scripts/setup-hooks.ts');
@@ -73,7 +78,7 @@ describe('dependency hygiene', () => {
     }
   });
 
-  it('keeps Deno on the same git storage ranges as the package manifest', async () => {
+  it('keeps Deno on the same schema and git storage ranges as the package manifest', async () => {
     const reader = new PackedArtifactBoundaryAdapter();
     const packageFile = reader.read(fileURLToPath(repoPath('package.json')), PACKAGE_FILE_SCHEMA);
     const denoImportMap = reader.read(

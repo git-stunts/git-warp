@@ -39,7 +39,7 @@ export const INTERNAL_SYNC_ERROR_CODE = 'E_SYNC_INTERNAL';
 
 export const authSchema = z.object({
   mode: z.enum(['enforce', 'log-only']).default('enforce'),
-  keys: z.record(z.custom<SyncSecret>((v) => v instanceof SyncSecret, 'auth.keys values must be SyncSecret')).refine(
+  keys: z.record(z.string(), z.custom<SyncSecret>((v) => v instanceof SyncSecret, 'auth.keys values must be SyncSecret')).refine(
     (obj) => Object.keys(obj).length > 0,
     'auth.keys must not be empty',
   ),

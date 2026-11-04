@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -31,6 +32,20 @@ function runStableUnitTests(options: {
 }
 
 describe('scripts/run-stable-unit-tests.ts', () => {
+  it('selects every cone runtime test and the entity admission inventory test exactly once', () => {
+    const result = runStableUnitTests();
+    expect(result.status).toBe(0);
+    const coneDirectory = 'test/unit/domain/services/cone/';
+    const coneFiles = readdirSync(new URL(`../../../${coneDirectory}`, import.meta.url))
+      .filter((name) => name.endsWith('.test.ts')).map((name) => `${coneDirectory}${name}`);
+    expect(coneFiles.length).toBeGreaterThan(0);
+    const expected = [...coneFiles, 'test/unit/domain/entity/ConeEntityAdmissionInventory.test.ts'];
+    const argumentsPrinted = result.output.split(/\s+/);
+    for (const path of expected) {
+      expect(argumentsPrinted.filter((argument) => argument === path), path).toHaveLength(1);
+    }
+  });
+
   it('prints resource facts and runs deterministic shards with bounded workers', () => {
     const result = runStableUnitTests();
 

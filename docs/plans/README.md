@@ -39,3 +39,17 @@ Validate that each active issue has exactly one release/category/workstream, eve
 The [streaming/indexed/recursive design record](./streaming-indexed-recursive-warp.md) retains its historical incident evidence. Its old v20 target and release sequencing are superseded by [v21.0.0](./v21.0.0/README.md); its source anchors are not a fresh implementation audit.
 
 The [worldline dot mints design record](./worldline-dot-mints.md) defines the v21.0.0 dot identity, minting authority, strand ref layout and migration contract tracked by [#1012](https://github.com/git-stunts/git-warp/issues/1012).
+
+The [optic-only public API contract](./optic-only-public-api.md), tracked by
+[#1049](https://github.com/git-stunts/git-warp/issues/1049), defines the observer,
+purpose, budget, receipt-derived Coordinate, and migration boundary for
+[#1048](https://github.com/git-stunts/git-warp/issues/1048). It is an implementation
+contract effective on integration of [#1059](https://github.com/git-stunts/git-warp/pull/1059),
+not a claim that the target API has shipped.
+
+The [Docker tracked-context design record](./docker-tracked-context.md) makes the COPY-based test runner build images from `git ls-files` paths only, tracked by [#1047](https://github.com/git-stunts/git-warp/issues/1047).
+
+The [public surface guard plan](./public-surface-guard.md), tracked by
+[#1050](https://github.com/git-stunts/git-warp/issues/1050), specifies an export-map
+driven capability check and shrinking legacy inventory for the accepted Optic
+contract. It does not remove existing APIs.
