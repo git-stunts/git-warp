@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type ObservationAttemptId from '../../domain/services/custody/ObservationAttemptId.ts';
+import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import ObservationDecodeFailure from '../../domain/services/custody/ObservationDecodeFailure.ts';
 import WriteOccurrence from '../../domain/api/WriteOccurrence.ts';
 import WriteAttemptRecord from '../../domain/services/write/WriteAttemptRecord.ts';
@@ -70,7 +71,7 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
 
   override async read(attemptId: ObservationAttemptId): Promise<WriteAttemptRecord | null> {
     const oid = await this.#history.readRef(buildWriteAttemptRef(this.#graph, attemptId.value));
-    return oid === null ? null : await this.#readRecord(oid);
+    return oid === null ? null : this.#requireRecord(await this.#history.readBlob(oid));
   }
 
   override async remove(attemptId: ObservationAttemptId): Promise<void> {
@@ -90,19 +91,37 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     return Object.freeze(records);
   }
 
-  /** A blob that cannot be read or decoded is not a record, however it came to be there. */
-  async #decoded(oid: string): Promise<z.infer<typeof storedRecordSchema> | null> {
+  /** A blob that does not decode is not a record, however it came to be there. */
+  #decoded(bytes: Uint8Array): z.infer<typeof storedRecordSchema> | null {
     try {
-      const parsed = storedRecordSchema.safeParse(this.#codec.decode(await this.#history.readBlob(oid)));
+      const parsed = storedRecordSchema.safeParse(this.#codec.decode(bytes));
       return parsed.success ? parsed.data : null;
     } catch {
       return null;
     }
   }
 
-  async #readRecord(oid: string): Promise<WriteAttemptRecord | null> {
-    const decoded = await this.#decoded(oid);
+  /** A record that exists but cannot be read is not an absent one: a caller told null may discard the attempt. */
+  #requireRecord(bytes: Uint8Array): WriteAttemptRecord {
+    const record = this.#decodedRecord(bytes);
+    if (record === null) {
+      throw new AdapterValidationError('A saved write attempt record could not be decoded');
+    }
+    return record;
+  }
+
+  #decodedRecord(bytes: Uint8Array): WriteAttemptRecord | null {
+    const decoded = this.#decoded(bytes);
     return decoded === null ? null : this.#recordOf(decoded);
+  }
+
+  /** For a listing: one unreadable blob must not stop the rest. */
+  async #readRecord(oid: string): Promise<WriteAttemptRecord | null> {
+    try {
+      return this.#decodedRecord(await this.#history.readBlob(oid));
+    } catch {
+      return null;
+    }
   }
 
   #recordOf({ preparation: bytes, admission, occurrences, savedAt, reported, commit }: z.infer<typeof storedRecordSchema>): WriteAttemptRecord | null {

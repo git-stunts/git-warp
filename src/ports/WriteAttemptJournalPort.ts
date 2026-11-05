@@ -6,7 +6,7 @@ export default abstract class WriteAttemptJournalPort {
   /** Saves the record durably before returning. */
   abstract save(_record: WriteAttemptRecord): Promise<void>;
 
-  /** The record of one attempt, or null when none is saved. */
+  /** The record of one attempt, or null when none is saved. A saved record that cannot be read throws. */
   abstract read(_attemptId: ObservationAttemptId): Promise<WriteAttemptRecord | null>;
 
   /** Forgets a finished attempt; an absent one is ignored. */

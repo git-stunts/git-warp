@@ -202,7 +202,7 @@ describe('GitWriteAttemptJournalAdapter', () => {
       history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
     });
 
-    await expect(journal.read(ATTEMPT)).resolves.toBeNull();
+    await expect(journal.read(ATTEMPT)).rejects.toThrow('could not be decoded');
   });
 });
 
@@ -294,12 +294,14 @@ describe('a saved record that is not a write', () => {
       codec: {} as CodecPort,
       custodyCodec: {} as ObservationCustodyCodecPort,
       history: {
+        readRef: () => Promise.resolve(OID),
         readRefTargets: () => Promise.resolve(new Map([['r', OID]])),
         readBlob: () => Promise.reject(new Error('missing object')),
       } as unknown as WriteAttemptHistory,
     });
 
     await expect(journal.list(4)).resolves.toEqual([]);
+    await expect(journal.read(ATTEMPT)).rejects.toThrow('missing object');
   });
 
   it('reads a blob of the wrong shape as no record', async () => {
@@ -310,7 +312,7 @@ describe('a saved record that is not a write', () => {
       history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
     });
 
-    await expect(journal.read(ATTEMPT)).resolves.toBeNull();
+    await expect(journal.read(ATTEMPT)).rejects.toThrow('could not be decoded');
   });
 
   it('reads an undecodable preparation as no record', async () => {
@@ -321,7 +323,7 @@ describe('a saved record that is not a write', () => {
       history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
     });
 
-    await expect(journal.read(ATTEMPT)).resolves.toBeNull();
+    await expect(journal.read(ATTEMPT)).rejects.toThrow('could not be decoded');
   });
 
   it('reads as no record', async () => {
@@ -332,6 +334,6 @@ describe('a saved record that is not a write', () => {
       history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
     });
 
-    await expect(journal.read(ATTEMPT)).resolves.toBeNull();
+    await expect(journal.read(ATTEMPT)).rejects.toThrow('could not be decoded');
   });
 });
