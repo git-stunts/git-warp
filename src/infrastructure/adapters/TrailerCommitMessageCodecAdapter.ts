@@ -39,6 +39,7 @@ export const TRAILER_KEYS = Object.freeze({
   storageVersion: 'eg-storage-version',
   storageSchema: 'eg-storage-schema',
   encrypted: 'eg-encrypted',
+  publicationAttempt: 'eg-publication-attempt',
 });
 
 const graphNameSchema = z.string().superRefine((value, ctx) => {
@@ -103,6 +104,7 @@ const patchCommitMessageBaseSchema = z.object({
 const patchCommitMessageSchema = patchCommitMessageBaseSchema.extend({
   patchHandle: z.string().min(1),
   storage: gitCasStorageSchema,
+  publicationAttempt: z.string().min(1).optional(),
 });
 
 const checkpointCommitMessageSchema = z.object({
@@ -145,6 +147,11 @@ export type EncodeAnchorCompatParams = {
 
 function messageCodecError(message: string): MessageCodecError {
   return new MessageCodecError(message, { code: 'E_MESSAGE_CODEC' });
+}
+
+function publicationAttemptOf(trailers: Record<string, string>): { publicationAttempt?: string } {
+  const value = trailers[TRAILER_KEYS.publicationAttempt];
+  return value === undefined ? {} : { publicationAttempt: value };
 }
 
 function requireTrailer(trailers: Record<string, string>, key: string): string {
@@ -215,6 +222,9 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
     if (parsed.data.storage.encrypted) {
       trailers[TRAILER_KEYS.encrypted] = 'true';
     }
+    if (parsed.data.publicationAttempt !== undefined) {
+      trailers[TRAILER_KEYS.publicationAttempt] = parsed.data.publicationAttempt;
+    }
     return this._codec.encode({
       title: 'warp:patch',
       trailers,
@@ -235,6 +245,7 @@ export class TrailerCommitMessageCodecAdapter extends CommitMessageCodecPort {
       patchHandle: requireTrailer(trailers, TRAILER_KEYS.patchHandle),
       schema: parsePositiveIntegerTrailer(trailers, TRAILER_KEYS.schema),
       storage,
+      ...publicationAttemptOf(trailers),
     };
     const parsed = patchCommitMessageSchema.safeParse(candidate);
     if (!parsed.success) {

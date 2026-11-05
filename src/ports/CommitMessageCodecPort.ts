@@ -40,6 +40,8 @@ type PatchCommitMessageBase = {
 export type PatchCommitMessage = PatchCommitMessageBase & {
   patchHandle: AssetHandle;
   storage: GitCasAssetPatchStorage;
+  /** The custody attempt that published this patch, when one did (#1051). */
+  publicationAttempt?: string | undefined;
 };
 
 export interface CheckpointCommitMessage {

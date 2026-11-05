@@ -46,7 +46,9 @@ chain on every write. It is clone-local and rebuilt from the writer chain when
 absent.
 
 Seek cursors and retained materializations live in git-cas cache sets under
-`refs/cas/caches/`, not under `refs/warp/`. See [Sync WARP refs](sync.md) for
+`refs/cas/caches/`, not under `refs/warp/`. A `Warp` write adds one clone-local
+`refs/warp/<graphName>/write-attempts/<id>` ref while it is in flight, and one permanent
+custody ref under `refs/cas/reservation-custody/`. See [Sync WARP refs](sync.md) for
 which of these refs travel between clones.
 
 Normal source code remains under refs such as `refs/heads/main`.

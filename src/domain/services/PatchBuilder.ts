@@ -1,5 +1,4 @@
 /** Fluent schema:2 patch builder. Add dots come from the chain's DotMint. */
-
 import SharedDotRemovalGuard from './SharedDotRemovalGuard.ts';
 import nullLogger from '../utils/nullLogger.ts';
 import VersionVector from '../crdt/VersionVector.ts';
@@ -8,7 +7,13 @@ import Patch from '../types/Patch.ts';
 import NodeAdd from '../types/ops/NodeAdd.ts';
 import PropSet from '../types/ops/PropSet.ts';
 import BoundedNodeRemovalBasis from './BoundedNodeRemovalBasis.ts';
-import captureObservedWriteBasis from './captureObservedWriteBasis.ts';
+import captureObservedWriteBasis, { readWriterHeadContext } from './captureObservedWriteBasis.ts';
+import ConeWriteBasis from './cone/ConeWriteBasis.ts';
+import type ConeBasis from './cone/ConeBasis.ts';
+import type ConeWritePremise from './cone/ConeWritePremise.ts';
+import ConeWriteRaces from './cone/ConeWriteRaces.ts';
+import type ConeWriteTargets from './cone/ConeWriteTargets.ts';
+import InWriteAddDots from './InWriteAddDots.ts';
 import type ObservedWriteFrontier from '../types/ObservedWriteFrontier.ts';
 import NodeRemovalObservation from './NodeRemovalObservation.ts';
 import NodeRemove from '../types/ops/NodeRemove.ts';
@@ -74,7 +79,7 @@ export class PatchBuilder {
   private readonly _writerId: string;
   private readonly _targetRefPath: string | null;
   private _lamport: number;
-  private _removalBasis: BoundedNodeRemovalBasis | null = null;
+  private _removalBasis: BoundedNodeRemovalBasis | ConeWriteBasis | null = null;
   private readonly _removalGuard: SharedDotRemovalGuard;
   private _observedFrontier: ObservedWriteFrontier | undefined;
   private _vv: VersionVector;
@@ -94,6 +99,8 @@ export class PatchBuilder {
   private readonly _nodesRemoved = new Set<string>();
   private readonly _edgesRemoved = new Set<string>();
   private readonly _edgesAdded = new Set<string>();
+  private readonly _nodeAddDots = new InWriteAddDots();
+  private readonly _edgeAddDots = new InWriteAddDots();
   private readonly _observedOperands = new Set<string>();
   private readonly _writes = new Set<string>();
   private readonly _entityAdmissions: EntityAdmissionBoundary[] = [];
@@ -119,25 +126,15 @@ export class PatchBuilder {
     this._commitMessageCodec = options.commitMessageCodec ?? null;
     this._logger = options.logger ?? nullLogger;
     this._properties = new PatchBuilderPropertyRuntime({
-      assetStorage: options.assetStorage ?? null,
-      assertMutable: () => this._assertNotCommitted(),
-      edgesAdded: this._edgesAdded,
-      edgesRemoved: this._edgesRemoved,
-      nodesRemoved: this._nodesRemoved,
-      getSnapshotState: () => this._getSnapshotState(),
-      getWriteBasis: () => this._removalBasis,
-      graphName: this._graphName,
-      nodesAdded: this._nodesAdded,
-      observedOperands: this._observedOperands,
-      ops: this._ops,
-      writes: this._writes,
+      assetStorage: options.assetStorage ?? null, assertMutable: () => this._assertNotCommitted(),
+      edgesAdded: this._edgesAdded, edgesRemoved: this._edgesRemoved, nodesRemoved: this._nodesRemoved,
+      getSnapshotState: () => this._getSnapshotState(), getWriteBasis: () => this._removalBasis,
+      graphName: this._graphName, nodesAdded: this._nodesAdded, observedOperands: this._observedOperands,
+      ops: this._ops, writes: this._writes,
     });
     capturePatchBuilderCausalBasis(this, {
-      graphName: options.graphName,
-      writerId: options.writerId,
-      participantId: options.admissionParticipantId ?? options.writerId,
-      expectedParentSha: this._expectedParentSha,
-      evaluationCoordinateRef: options.evaluationCoordinateRef ?? null,
+      graphName: options.graphName, writerId: options.writerId, participantId: options.admissionParticipantId ?? options.writerId,
+      expectedParentSha: this._expectedParentSha, evaluationCoordinateRef: options.evaluationCoordinateRef ?? null,
     });
   }
 
@@ -168,6 +165,7 @@ export class PatchBuilder {
     this._vv.include(dot);
     this._ops.push(new NodeAdd(nodeId, dot));
     this._nodesAdded.add(nodeId);
+    this._nodeAddDots.record(nodeId, dot);
     this._writes.add(nodeId);
     return this;
   }
@@ -217,6 +215,7 @@ export class PatchBuilder {
     const operationIndex = this._ops.length;
     this._ops.push(new NodeAdd(capture.nodeId, capture.dot), ...capture.payload);
     this._nodesAdded.add(capture.nodeId);
+    this._nodeAddDots.record(capture.nodeId, capture.dot);
     this._writes.add(capture.nodeId);
     this._entityAdmissions.push(new EntityAdmissionBoundary({
       operationCount: 1 + capture.payload.length,
@@ -245,47 +244,57 @@ export class PatchBuilder {
     this._removalBasis = basis;
     this._vv = this._dotMint.observed(this._vv.merge(basis.context()));
     this._lamport = Math.max(this._lamport, basis.lamport + 1);
-    capturePatchBuilderCausalBasis(this, {
-      ...readPatchBuilderCausalBasis(this), evaluationCoordinateRef: basis.coordinateRef,
+    capturePatchBuilderCausalBasis(this, { ...readPatchBuilderCausalBasis(this), evaluationCoordinateRef: basis.coordinateRef });
+  }
+
+  /**
+   * Reads a write's targets from one cone basis, recording `observed` as what it saw (#1039, #1051), which
+   * for a blind write can be less. Its clock still passes every folded tip.
+   */
+  async prepareConeWriteBasis(targets: ConeWriteTargets, premise: ConeWritePremise, observed: ConeBasis): Promise<void> {
+    this._assertNotCommitted();
+    if (this._ops.length > 0) {throw new PatchError('Write callback supplied operations before intent lowering', { code: 'E_WRITE_INTENT_PUBLICATION' });}
+    await this._captureObservation(observed.writerHeads(), Math.max(this._lamport, premise.basis.frontier.maxLamport() + 1));
+    this._removalBasis = await ConeWriteBasis.capture({ reader: premise.reader, basis: premise.basis, targets, policy: this._onDeleteWithData });
+  }
+
+  /** The concurrent values this lowered write leaves standing beside its own (#1039). */
+  coneWriteRaces(): ConeWriteRaces {
+    if (!(this._removalBasis instanceof ConeWriteBasis) || this._observedFrontier === undefined) { return ConeWriteRaces.none(); }
+    return ConeWriteRaces.of({
+      owners: this._removalBasis.registerOwners, observation: this._observedFrontier, writer: this._writerId, lamport: this._lamport, ops: this._ops,
     });
   }
 
   private async _prepareObservation(nodeIds: readonly string[]): Promise<void> {
     const cachedRemoval = nodeIds.length > 0 && this._getSnapshotState() !== null;
-    if (this._targetRefPath !== null || this._patchJournal === null
-      || (cachedRemoval && this._snapshotFrontier === undefined)) {
+    if (this._targetRefPath !== null || this._patchJournal === null || (cachedRemoval && this._snapshotFrontier === undefined)) {
       await this._restoreWriterContext();
       return;
     }
+    await this._captureObservation(cachedRemoval ? this._snapshotFrontier : undefined, this._lamport);
+  }
+
+  private async _captureObservation(selected: ReadonlyMap<string, string> | undefined, ownCandidate: number): Promise<void> {
+    if (this._patchJournal === null) { throw new PatchError('A write observation requires a patch journal', { code: 'E_PATCH_NO_STATE' }); }
     const basis = await captureObservedWriteBasis({
       refs: this._persistence, journal: this._patchJournal, graphName: this._graphName,
       writerId: this._writerId, expectedParentSha: this._expectedParentSha,
-      ownCandidate: this._lamport, context: this._vv,
-      selectedFrontier: cachedRemoval ? this._snapshotFrontier : undefined,
+      ownCandidate, context: this._vv, selectedFrontier: selected,
     });
     this._assertNotCommitted();
-    if (this._ops.length > 0) {
-      throw new PatchError('Write changed during observation capture', { code: 'E_WRITE_INTENT_PUBLICATION' });
-    }
+    if (this._ops.length > 0) { throw new PatchError('Write changed during observation capture', { code: 'E_WRITE_INTENT_PUBLICATION' }); }
     this._observedFrontier = basis.observation;
     this._vv = this._dotMint.observed(basis.context());
     this._lamport = basis.lamport;
-    capturePatchBuilderCausalBasis(this, {
-      ...readPatchBuilderCausalBasis(this), evaluationCoordinateRef: basis.coordinateRef,
-    });
+    capturePatchBuilderCausalBasis(this, { ...readPatchBuilderCausalBasis(this), evaluationCoordinateRef: basis.coordinateRef });
   }
 
   private async _restoreWriterContext(): Promise<void> {
     if (this._patchJournal === null || this._expectedParentSha === null) { return; }
-    const history = this._patchJournal.scanPatchHistory(this._writerId, this._expectedParentSha)[Symbol.asyncIterator]();
-    try {
-      const head = await history.next();
-      if (head.done === true) { throw new PatchError('Writer parent is unavailable', { code: 'E_PATCH_NO_STATE' }); }
-      this._assertNotCommitted();
-      this._vv = this._dotMint.observed(this._vv.merge(VersionVector.from(head.value.patch.context)));
-    } finally {
-      await history.return?.();
-    }
+    const context = await readWriterHeadContext(this._patchJournal, this._writerId, this._expectedParentSha);
+    this._assertNotCommitted();
+    this._vv = this._dotMint.observed(this._vv.merge(context));
   }
 
   removeNode(nodeId: string): PatchBuilder {
@@ -294,10 +303,8 @@ export class PatchBuilder {
     const observation = this._removalBasis !== null
       ? this._removalBasis.node(nodeId)
       : state === null ? null : NodeRemovalObservation.fromState(state, nodeId);
-    if (observation === null) {
-      throw new PatchError(`Cannot remove node '${nodeId}': graph must be materialized or a bounded removal basis prepared`, { code: 'E_PATCH_NO_STATE' });
-    }
-    for (const op of observation.operations(this._onDeleteWithData, this._logger)) {
+    if (observation === null) { throw new PatchError(`Cannot remove node '${nodeId}': graph must be materialized or a bounded removal basis prepared`, { code: 'E_PATCH_NO_STATE' }); }
+    for (const op of observation.withAddDots(this._inWriteDots(this._nodeAddDots, nodeId)).operations(this._onDeleteWithData, this._logger)) {
       this._recordRemoval(op);
     }
     return this;
@@ -313,6 +320,7 @@ export class PatchBuilder {
     this._ops.push(new EdgeAdd({ from, to, label, dot }));
     const edgeKey = encodeEdgeKey(from, to, label);
     this._edgesAdded.add(edgeKey);
+    this._edgeAddDots.record(edgeKey, dot);
     this._observedOperands.add(from);
     this._observedOperands.add(to);
     this._writes.add(edgeKey);
@@ -321,18 +329,22 @@ export class PatchBuilder {
 
   removeEdge(from: string, to: string, label: string): PatchBuilder {
     this._assertNotCommitted();
-    const state = this._getSnapshotState();
     const edgeKey = encodeEdgeKey(from, to, label);
-    if (!state) {
-      throw new PatchError(
-        `Cannot remove edge '${from}->${to}' (${label}): graph must be materialized before removing edges`,
-        { code: 'E_PATCH_NO_STATE' }
-      );
-    }
-    const observedDots = [...state.edgeAlive.getDots(edgeKey)];
+    const observedDots = [...new Set([...this._edgeRemovalDots(from, to, label), ...this._inWriteDots(this._edgeAddDots, edgeKey)])];
     assertObservedDotsForRemove(observedDots, 'edge', { edgeKey });
     this._recordRemoval(new EdgeRemove({ from, to, label, observedDots }));
     return this;
+  }
+
+  /** Add dots this write issued itself, which only a cone write's remove observes. */
+  private _inWriteDots(dots: InWriteAddDots, element: string): readonly string[] { return this._removalBasis instanceof ConeWriteBasis ? dots.of(element) : []; }
+
+  /** The dots an edge remove observes: from the cone write basis, else from materialized state. */
+  private _edgeRemovalDots(from: string, to: string, label: string): Iterable<string> {
+    if (this._removalBasis instanceof ConeWriteBasis) { return this._removalBasis.edgeDots(from, to, label); }
+    const state = this._getSnapshotState();
+    if (!state) { throw new PatchError(`Cannot remove edge '${from}->${to}' (${label}): graph must be materialized before removing edges`, { code: 'E_PATCH_NO_STATE' }); }
+    return state.edgeAlive.getDots(encodeEdgeKey(from, to, label));
   }
 
   private _recordRemoval(op: NodeRemove | EdgeRemove): void {
@@ -444,30 +456,19 @@ export class PatchBuilder {
     return (await this.commitWithEvidence()).sha;
   }
 
-  /** Commits and returns the storage-retention evidence for the causal patch. */
-  async commitWithEvidence(): Promise<PatchCommitResult> {
+  /** Commits with storage-retention evidence. A custody attempt names itself on the commit (#1051). */
+  async commitWithEvidence(publicationAttempt?: string): Promise<PatchCommitResult> {
     this._assertNotCommitted();
     this._committing = true;
     try {
       const result = await commitPatch({
-        persistence: this._persistence,
-        graphName: this._graphName,
-        writerId: this._writerId,
-        lamport: this._lamport,
-        vv: this._vv,
-        ops: this._ops,
-        observedOperands: this._observedOperands,
-        writes: this._writes,
-        entityAdmissions: this._entityAdmissions,
-        observedFrontier: this._observedFrontier,
-        hasEdgeProps: this._properties.hasEdgeProperties,
-        expectedParentSha: this._expectedParentSha,
-        targetRefPath: this._targetRefPath,
-        contentAssets: this._properties.contentAssets,
-        patchJournal: this._patchJournal,
-        commitMessageCodec: requireCommitMessageCodec(this._commitMessageCodec),
-        logger: this._logger,
-        onCommitSuccess: this._onCommitSuccess,
+        persistence: this._persistence, graphName: this._graphName, writerId: this._writerId,
+        lamport: this._lamport, vv: this._vv, ops: this._ops, observedOperands: this._observedOperands,
+        writes: this._writes, entityAdmissions: this._entityAdmissions, observedFrontier: this._observedFrontier,
+        hasEdgeProps: this._properties.hasEdgeProperties, expectedParentSha: this._expectedParentSha,
+        targetRefPath: this._targetRefPath, contentAssets: this._properties.contentAssets,
+        patchJournal: this._patchJournal, commitMessageCodec: requireCommitMessageCodec(this._commitMessageCodec),
+        logger: this._logger, onCommitSuccess: this._onCommitSuccess, publicationAttempt,
       });
       this._committed = true;
       return result;
@@ -475,8 +476,6 @@ export class PatchBuilder {
       this._committing = false;
     }
   }
-
-  // ── Accessors ──────────────────────────────────────────────────────
 
   get ops(): PatchOp[] {
     return this._ops;

@@ -1,6 +1,7 @@
 # Getting Started
 
-git-warp v19 has one root runtime value:
+git-warp's reads and writes go through one root runtime value. `Warp` is its write-only
+replacement while [#1048](https://github.com/git-stunts/git-warp/issues/1048) lands:
 
 ```text
 Runtime

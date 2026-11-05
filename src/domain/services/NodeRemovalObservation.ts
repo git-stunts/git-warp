@@ -37,6 +37,15 @@ export default class NodeRemovalObservation {
     return this.#node.observedDots.length > 0;
   }
 
+  /** This observation with add dots the removing write itself issued for the node (#1039). */
+  withAddDots(dots: readonly string[]): NodeRemovalObservation {
+    if (dots.length === 0) {
+      return this;
+    }
+    const observedDots = [...new Set([...this.#node.observedDots, ...dots])];
+    return new NodeRemovalObservation(new NodeRemove(this.#node.node, observedDots), this.#edges, this.#propertyCount);
+  }
+
   operations(policy: 'reject' | 'cascade' | 'warn', logger: LoggerPort): readonly (NodeRemove | EdgeRemove)[] {
     assertObservedDotsForRemove(this.#node.observedDots, 'node', { nodeId: this.#node.node });
     const edgeCount = this.#edges.length;

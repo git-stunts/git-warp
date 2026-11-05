@@ -6,6 +6,7 @@ import GitTimelineHistoryAdapter, {
 } from '../infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { openDefaultGitPlumbing } from '../infrastructure/adapters/GitPlumbingRuntimeAdapter.ts';
 import PlumbingHookPathAdapter from '../infrastructure/adapters/PlumbingHookPathAdapter.ts';
+import { locateGitStorage } from './GitStorageLocation.ts';
 import WarpStorage from './WarpStorage.ts';
 import { bindWarpStorage } from './WarpStorageRegistry.ts';
 
@@ -62,8 +63,23 @@ async function captureCloseFailure(
 }
 
 export default class GitStorage extends WarpStorage {
-  private constructor(closeStorage: () => Promise<void>) {
+  private constructor(closeStorage?: () => Promise<void>) {
     super(closeStorage);
+  }
+
+  /** The repository holding the current working directory, resolved when a Warp opens. */
+  static root(): GitStorage {
+    return GitStorage.at(process.cwd());
+  }
+
+  /** The repository at `location`, resolved when a Warp opens. */
+  static at(location: string): GitStorage {
+    if (typeof location !== 'string' || location.length === 0) {
+      throw new AdapterValidationError('GitStorage.at requires a path');
+    }
+    const storage = new GitStorage();
+    locateGitStorage(storage, location);
+    return storage;
   }
 
   static async open(options: GitStorageOptions): Promise<GitStorage> {
@@ -118,6 +134,7 @@ function bindGitStorage(
     runtimeStorage: repository,
     createTrustChain: (crypto) => repository.createTrustChain(crypto),
     hookPaths: new PlumbingHookPathAdapter({ plumbing, path }),
+    coneWrites: { history, ...repository.observationStorage() },
   });
   return storage;
 }

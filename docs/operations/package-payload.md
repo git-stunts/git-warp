@@ -68,7 +68,7 @@ The resulting artifact contains 993 files, 716,164 compressed bytes, and
 | ---------------- | --------- | ----------------------------------- |
 | Compressed bytes | 760,000   | 43,836 bytes (6.1%)                 |
 | Unpacked bytes   | 3,300,000 | 156,428 bytes (5.0%)                |
-| Entries          | 1,050     | 57 entries (5.7%)                   |
+| Entries          | 1,300     | 307 entries (30.9%)                 |
 
 By October 2026 source growth had used that headroom: the artifact measured
 756,533 compressed and 3,297,802 unpacked bytes, and a single new source file
@@ -81,6 +81,13 @@ byte-identical to the single-pass build. The artifact then measured 994 files,
 ceilings. The packed smoke rejects shipped JavaScript that carries doc
 comments and requires the public `Runtime` declaration to keep its
 documentation.
+
+Composing `Warp` from the package root brought the cone engine and observation custody
+into the published closure alongside the legacy `Runtime`
+([#1051](https://github.com/git-stunts/git-warp/issues/1051)). The artifact measured 1,229
+entries, so the entry ceiling rose to 1,300, and only about 4,200 unpacked bytes
+of headroom remain. Removing the legacy surface under
+[#1054](https://github.com/git-stunts/git-warp/issues/1054) should allow it to fall again.
 
 ## Allowlist
 

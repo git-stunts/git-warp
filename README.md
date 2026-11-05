@@ -400,7 +400,8 @@ The broader worldline-wide direction is still narrower than the doctrine: live s
 
 ## API surface
 
-The v19 application entry point is the root `Runtime` value. Generated SDKs
+The application entry point is the root `Runtime` value. `Warp` is its write-only
+replacement while [#1048](https://github.com/git-stunts/git-warp/issues/1048) lands. Generated SDKs
 provide domain-specific intents and observers; lanes stream readings and leave
 receipts. The v18 `openWarpWorldline()` and `openWarpGraph()` package entry
 points are removed. Operator code uses explicit diagnostic APIs instead of a

@@ -1,4 +1,5 @@
 import type BoundedNodeRemovalBasis from './BoundedNodeRemovalBasis.ts';
+import type ConeWriteBasis from './cone/ConeWriteBasis.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import ContentAttachmentWriteIntent, { type ContentAttachmentEdgeWriteTarget } from '../graph/ContentAttachmentWriteIntent.ts';
 import type ContentAttachmentPayload from '../graph/ContentAttachmentPayload.ts';
@@ -31,7 +32,7 @@ type PatchBuilderPropertyRuntimeOptions = {
   readonly edgesRemoved: ReadonlySet<string>;
   readonly nodesRemoved: ReadonlySet<string>;
   readonly getSnapshotState: () => WarpState | null;
-  readonly getWriteBasis: () => BoundedNodeRemovalBasis | null;
+  readonly getWriteBasis: () => BoundedNodeRemovalBasis | ConeWriteBasis | null;
   readonly graphName: string;
   readonly nodesAdded: ReadonlySet<string>;
   readonly observedOperands: Set<string>;

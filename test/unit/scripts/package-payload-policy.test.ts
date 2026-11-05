@@ -158,7 +158,7 @@ describe('package payload policy', () => {
       (path, index) => new PackagePayloadEntry(path, index === 0 ? 3_300_001 : 0)
     );
     const generatedEntries = Array.from(
-      { length: 1_051 },
+      { length: 1_301 },
       (_, index) => new PackagePayloadEntry(`dist/src/generated/${String(index)}.js`, 0)
     );
     const entries = [...oversizedEntries, ...generatedEntries];
@@ -168,7 +168,7 @@ describe('package payload policy', () => {
     expect(assessment.violations).toContain('compressed size 760001 exceeds 760000');
     expect(assessment.violations).toContain('unpacked size 3300001 exceeds 3300000');
     expect(assessment.violations).toContain(
-      `entry count ${String(entries.length)} exceeds 1050`
+      `entry count ${String(entries.length)} exceeds 1300`
     );
   });
 });

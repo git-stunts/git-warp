@@ -2,8 +2,11 @@ import type PatchEntry from '../../artifacts/PatchEntry.ts';
 import type ConePatchFeedPort from '../../../ports/ConePatchFeedPort.ts';
 import type ConeRecordStorePort from '../../../ports/ConeRecordStorePort.ts';
 import type ConeBasis from './ConeBasis.ts';
+import ConeContendedObstruction from './ConeContendedObstruction.ts';
+import ConeWritePremise from './ConeWritePremise.ts';
+import type ConeBasisHead from './ConeBasisHead.ts';
 import type ConeBasisScope from './ConeBasisScope.ts';
-import ConeIngest from './ConeIngest.ts';
+import ConeIngest, { CONE_INGEST_ATTEMPTS } from './ConeIngest.ts';
 import ConeIngestAdvanced from './ConeIngestAdvanced.ts';
 import ConeIngestCurrent from './ConeIngestCurrent.ts';
 import type ConeIngestOutcome from './ConeIngestOutcome.ts';
@@ -34,11 +37,13 @@ export default class ConeLaneBasis {
   readonly reader: ConeReader;
   readonly #store: ConeRecordStorePort;
   readonly #ingest: ConeIngest;
+  readonly #head: ConeBasisHead;
 
   constructor(options: ConePorts & { readonly scope: ConeBasisScope }) {
     this.lane = options.scope.head.lane;
     this.reader = new ConeReader(options.store);
     this.#store = options.store;
+    this.#head = options.scope.head;
     this.#ingest = new ConeIngest({ store: options.store, feed: options.feed, scope: options.scope });
     Object.freeze(this);
   }
@@ -129,6 +134,34 @@ export default class ConeLaneBasis {
     }
     const settled = outcome.settled();
     return settled instanceof ConeObstruction ? settled : { from: settled, basis: settled };
+  }
+
+  /**
+   * Fixes the one published basis a write reads its premises from (#1051). A clone
+   * with nothing folded publishes its empty basis, since custody retains a stored tree.
+   */
+  async writePremise(): Promise<ConeWritePremise | ConeObstruction> {
+    for (let attempt = 0; attempt < CONE_INGEST_ATTEMPTS; attempt += 1) {
+      const premise = await this.#attemptPremise();
+      if (premise !== null) {
+        return premise;
+      }
+    }
+    return new ConeContendedObstruction(this.lane, CONE_INGEST_ATTEMPTS);
+  }
+
+  async #attemptPremise(): Promise<ConeWritePremise | ConeObstruction | null> {
+    const outcome = await this.refresh();
+    const settled = outcome.settled();
+    if (settled instanceof ConeObstruction) {
+      return settled;
+    }
+    const stored = publishedBasis(outcome) ?? await this.#store.publishBasis(this.#head, settled, null);
+    if (stored === null) {
+      return null;
+    }
+    const from = outcome instanceof ConeIngestAdvanced ? outcome.from : settled;
+    return new ConeWritePremise({ from, stored, reader: this.reader });
   }
 
   /** The bases this lane's captures retained, oldest first. */

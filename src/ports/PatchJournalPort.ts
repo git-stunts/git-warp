@@ -15,6 +15,8 @@ export type AppendPatchRequest = Readonly<{
   expectedHead: string | null;
   parent: string | null;
   attachments: readonly AssetHandle[];
+  /** The custody attempt publishing this patch, recorded on its commit (#1051). */
+  publicationAttempt?: string;
 }>;
 
 export type PublishedPatch = Readonly<{

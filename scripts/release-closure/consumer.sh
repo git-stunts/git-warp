@@ -45,8 +45,10 @@ bounded node --input-type=module <<'NODE'
 class ReleaseConsumerError extends Error {}
 const values = await import('@git-stunts/git-warp');
 const names = Object.keys(values);
-if (names.length !== 1 || names[0] !== 'Runtime' || typeof values.Runtime !== 'function') {
-  throw new ReleaseConsumerError('public root must export exactly Runtime');
+// A published version may predate the Warp values, so they are permitted rather than required.
+const allowed = new Set(['Coordinate', 'GitStorage', 'IndeterminateWriteReceipt', 'RetainedWriteReceipt', 'Runtime', 'UnpublishedWriteReceipt', 'UnretainedWriteReceipt', 'Warp', 'WarpAccessDenied', 'WarpAccessPort', 'WarpAddress', 'WarpWriteGrant']);
+if (names.some((name) => !allowed.has(name)) || typeof values.Runtime !== 'function') {
+  throw new ReleaseConsumerError('public root must export Runtime and nothing outside the allowed values');
 }
 let denied = false;
 try {

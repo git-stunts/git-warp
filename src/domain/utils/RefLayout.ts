@@ -53,6 +53,7 @@ export const RESERVED_GRAPH_NAME_SEGMENTS: Set<string> = new Set([
   'checkpoints',
   'coverage',
   'cone',
+  'write-attempts',
   'cursor',
   'strands',
   'audit',

@@ -102,6 +102,7 @@ export class CborPatchJournalAdapter extends PatchJournalPort {
       patchHandle: stagedPatch.handle,
       schema: request.patch.schema,
       storage: createGitCasPatchStorage({ encrypted: this.#encrypted }),
+      ...(request.publicationAttempt === undefined ? {} : { publicationAttempt: request.publicationAttempt }),
     });
     const publication = await this.#publishBundle(bundle.handle, message, request);
     return Object.freeze({

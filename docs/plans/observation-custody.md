@@ -4,8 +4,9 @@ Implementation contract for [#1067](https://github.com/git-stunts/git-warp/issue
 under the [Optic contract](./optic-only-public-api.md), especially section 7.
 This document specifies the private prerequisite. The service, its production
 adapters and native witnesses exist in `src/domain/services/custody/` and
-`src/infrastructure/adapters/`, but nothing composes or exports them yet: #1051 and
-#1052 connect the producers. This is not a public Coordinate or a shipped release.
+`src/infrastructure/adapters/`. `src/application/WarpWriteComposition.ts` composes them
+for writes (#1051, in `src/domain/services/write/`); #1052 connects reads. The service
+stays private: applications see only the write receipts and their opaque Coordinate.
 Producers can start at the [producer protocol](#producer-protocol), with terms in the
 [vocabulary](#vocabulary); the sections before it explain why it is shaped that way.
 
@@ -198,7 +199,7 @@ reclamation or automatic expiry is introduced.
 Successful settlement roots keep the final record, original receipt core, original
 preparation, basis, required history and dependencies reachable without disposable
 memo/head refs. Repository destruction or storage loss remains outside ordinary
-GC survival. There is no public release or expiry operation in this delivery.
+GC survival. There is no public release or expiry operation yet.
 
 ## Producer protocol
 
@@ -212,8 +213,8 @@ Compose the service from `GitCasObservationCustodyAdapter.open`,
 A graph's capacity `limit` is fixed the first time it opens. A
 different value refuses, which also stops that process resolving existing Coordinates.
 Support limits are configuration: lowering them makes affected Coordinates report
-`work-limit` or `support-limit` until restored, so treat them as raise-only. No default
-for either exists yet; #1051 chooses them.
+`work-limit` or `support-limit` until restored, so treat them as raise-only. #1051's
+defaults are `WARP_RETENTION_SLOTS` and `WARP_SUPPORT_LIMITS` in `WarpWriteComposition.ts`.
 
 ### Building the inputs
 
@@ -227,7 +228,7 @@ those of kind `dependency`, which say what was relied on; only the claim retains
 `sources.dependencies`, or use `ObservationDependencyClaim.NONE`. The stream is consumed
 once per call, so it must be re-creatable. A claim is bound before the attempt runs, so
 a read must know its dependencies before `begin`; how a streaming read does that is
-#1052's design question, and this delivery does not answer it.
+#1052's design question, and #1067 does not answer it.
 
 An `ObservationReceiptCore` holds a `family`, `observation` or `write`, the `variant` naming
 the receipt it belongs to, and the producer's canonical `outcome` bytes. #1051 and #1052 own
@@ -242,7 +243,8 @@ The id must be saved before anything can go wrong:
 3. `prepare(attempt, sources)`.
 4. `authorizePublication(prepared)`.
 5. On `ObservationPublicationPermission`, perform the one publication. Then exactly one of:
-   - It published: durably save the exact `{ core, publication }`, then `settle(attempt, outcome)`.
+   - It published: durably save the exact `{ core, publication }`, unless the record already
+     reproduces them, as #1051's does, then `settle(attempt, outcome)`.
    - It definitely did not: `settleFailedPublication(permission, core)`. On
      `ObservationPublicationFailed` the attempt has ended. Report unpublished even if this
      call fails, because you know it did not publish; this only records it. The exception is
@@ -301,8 +303,7 @@ unpublished, and start a new attempt only as a new decision.
 
 For attempts with no saved record, `attempts(phase)` lists what
 the ledger holds, as identities, and may end with an `ObservationIndeterminate` item if the
-store fails. Nothing runs this sweep yet: #1051 decides when, and how to tell an attempt has
-no owner. Try `recoverCoordinate(identity)` on each first. Then, if it stayed `not-settled`:
+store fails. #1051's writes do not need this listing, as [its sweep](#what-1051-decided) explains; #1052's `begin` may. Try `recoverCoordinate(identity)` on each first. Then, if it stayed `not-settled`:
 
 - `reserved` or `prepared` with no owner: `abandon(identity)`. Nothing can prove a producer
   is gone, so a live one loses its work, safely: its later arm refuses as cancelled.
@@ -372,7 +373,7 @@ A refused admission holds no slot. A durably cancelled attempt charges nothing.
 Otherwise the attempt stays charged until a successful `cancel`, which is impossible once armed or settled.
 
 - **Admission:** `capacity-full` needs another attempt cancelled or a larger capacity limit,
-  and this delivery cannot raise one, so do not loop on it. `preparation-unencodable` needs
+  and nothing can raise one yet, so do not loop on it. `preparation-unencodable` needs
   smaller bindings. `binding-conflict` means this id already holds other bindings: a producer bug.
 - **Retry the step:** `contention`, `construction-contended`.
 - **Inputs do not hold; `cancel`, and start a new attempt only once they do:**
@@ -398,16 +399,68 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   `policy-mismatch`, meaning a different capacity limit, or for `contention`, or a
   `CustodyIndeterminate`. An illegal graph name or an invalid limit throws a programming error of its own.
 
-### Open before #1051 routes writes here
+### What #1051 decided
 
-Only cancelling an unarmed, unsettled attempt frees
-its record slot in this delivery, so a graph's capacity `limit` is its lifetime count of
-attempts that were not cancelled, reads included. Every lost publication
-race also burns a slot. The default limit, what exhaustion looks like to a user, and whether
-git-cas should allow raising a limit are undecided. #1051 must settle them before custody
-carries real writes, and #1052 before it carries reads.
-#1051 must also decide how a restarted producer recognises its own publication when it saved
-nothing after publishing; until it can, that attempt reports indeterminate.
+- **Capacity (open for the maintainer until a release fixes it):** every graph opens with `Number.MAX_SAFE_INTEGER` slots. Only cancelling an
+  unarmed attempt frees a slot, so a limit is a lifetime count of attempts,
+  and it can't be raised. Any limit a graph could reach would eventually stop it accepting
+  writes, and git-cas charges nothing per unused slot. A slot limit doesn't cap bytes anyway. Reaching it still has a typed answer:
+  `UnpublishedWriteReceipt` with cause `retention-capacity-exhausted`. Choosing a smaller limit,
+  or letting one rise, needs a git-cas change and a new decision. #1052 decides whether reads
+  share this namespace.
+- **What is persisted:** `WriteAttemptJournalPort`, one clone-local ref per in-flight attempt
+  under `refs/warp/<graph>/write-attempts/`, saved before reserving and removed once finished.
+  Each holds the preparation and what the receipt core needs beyond the commit id, so
+  the core is reproducible and nothing further is saved between arming and publishing.
+- **Recognising a publication:** a patch commit carries an `eg-publication-attempt` trailer.
+  A writer's chain is compare-and-swapped, so at most one commit can follow a predecessor: if
+  it names this attempt the attempt published, and if it names anything else the attempt never
+  can, unless someone force-moves a writer ref, which is outside this contract: a publication that
+  landed but never settled can then read as lost. With no such commit yet, the fate stays unknown and the receipt stays indeterminate.
+  That also proves evidence: after publishing, the producer checks the commit's parent,
+  graph, writer and attempt before settling.
+- **Failed publications:** only the chain showing another commit in its place counts as
+  definitely failed. Any error, including a compare-and-swap one, which the committer also raises
+  for a commit that landed with its acknowledgement lost, asks the chain, and reports indeterminate if
+  the chain has no answer. Before permission a write reports unpublished even if custody couldn't
+  answer, because this producer alone would publish; that deliberately differs from the outcome table.
+  A ledger saying `reserved` or `prepared` can't outrank a record or chain naming a commit. One
+  saying `cancelled` still does, which only a copied record can reach.
+- **Limits a graph can reach:** a walk stops 4,096 commits past the predecessor, after which an
+  attempt stays indeterminate and each later open pays for the walk. The 4,097th writer on a graph
+  refuses every write there, with no repair, because the support limit counts the whole frontier.
+- **The sweep:** it runs when a Warp opens, over at most 64 saved attempts from a random start,
+  so records that never clear can't starve the rest. It needs no `attempts(phase)` listing
+  because `resume` is only called on a saved id. An unarmed attempt under an hour old is left
+  alone apart from `resume`, which reserves if a crash came before that, in case its owner is
+  alive; an older one is abandoned, and a live owner loses only its
+  work. An armed one is settled from the chain, has its record removed if another commit took
+  its place, staying charged, and otherwise waits for its writer's next patch. Custody's settled outcome outranks the chain.
+  There is no retry count, since nothing repeats without an open or a caller asking.
+- **Reported attempts:** before `execute` returns an indeterminate or repeatable unretained
+  receipt it marks the record, with the commit if one is known, and the sweep leaves a marked record
+  alone. Only `AuthoredWarp.reconcile` answers it, for that writer, and then removes it, so an answer
+  can't be consumed by whoever opens the graph next. The mark comes before the receipt is delivered,
+  so a process that dies between them strands the record, and `reconcile` removes it before delivering
+  too, so it answers at most once. A caller who never reconciles leaves one ref
+  behind, which also counts against a sweep's page. `reconcile` returning null never means nothing
+  landed: it was answered already, or isn't this writer's, or the writer is denied now, or, in a rare
+  race where marking failed or a sweep had already listed the record, a sweep answered first.
+- **What a blind write observed:** what this clone held when this Warp began writing, plus that
+  writer's own chain, which always counts as observed. The published cone head can't say this, since any
+  fold moves it without anyone reading it. The patch's frontier is bound as `dependency` evidence
+  because it can be less than the retained basis. Limits: a new process starts from the head it finds,
+  so in an open, write, close pattern every earlier same-clone write counts as seen and `plural`
+  is rarely reachable there. A patch records one frontier, so a sequence that also reads records, such as
+  a `node.remove` beside a `property.set`, observes the whole basis for both. Nothing but a landed write
+  adds to what was seen until #1052's reads can, so a raced register stays `plural` until then.
+  Races are on the outer receipt only, not the retained core, so no replay will have them.
+- **Authority:** the access port's grant supplies the authority evidence and budget, and is asked
+  again before arming. A grant that changed refuses, since the premise binds the original. Staging
+  content asks too. A budget
+  bounds premise records, intent bytes and lowered operations, not physical I/O. The
+  commit's parent is enforced, but its author name is only the trailer's writer label: nothing
+  signs it. `WarpAccessPort` must authenticate the writer it authorizes.
 
 ## Vocabulary
 
@@ -424,12 +477,15 @@ nothing after publishing; until it can, that attempt reports indeterminate.
   permission, or once did. **Core:** the canonical receipt without its Coordinate.
   **Record:** what binds a core to its preparation and publication. **Binding:** the digest
   of the preparation, as opposed to `ObservationBindings`, the values it covers.
+- **Blind write:** one that reads no record to lower, such as a `property.set`. **Premise:** what a
+  write's admission read, fixed at one cone basis. **Fold:** applying a patch to the cone records.
+  **Reported:** a record whose attempt a receipt has named, so only `reconcile` may finish it.
 - **Coordinate, token:** the same thing, the `ObservationCoordinate` a retained observation
   returns, whose `toString` is its opaque text form.
 
 ## Evidence
 
-Validation evidence is in the PR, with the commit each run saw. Each guarantee has a
+Validation evidence for #1067 is in PR #1069, with the commit each run saw, and for #1051 in PR #1071. Each guarantee has a
 witness:
 
 | Guarantee | Witness |

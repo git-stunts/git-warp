@@ -835,7 +835,7 @@ The superseded pre-checkpoint v19 facade has these dispositions:
 | Transitional v19 symbol  | Canonical disposition                                            |
 | ------------------------ | ---------------------------------------------------------------- |
 | `openWarp()`             | `Runtime.open()`                                                 |
-| `Warp`                   | `Runtime`                                                        |
+| `Warp` from `openWarp()` | `Runtime`. Today's root `Warp`, from `Warp.open`, is a new API   |
 | `Timeline`               | `Lane`                                                           |
 | `DraftTimeline`          | `Lane` with `kind: 'strand'`                                     |
 | `timeline.read(reading)` | `lane.observe(observer)`                                         |

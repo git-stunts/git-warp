@@ -143,7 +143,7 @@ calibrate npm-integrity 'release closure rejects npm consumer integrity mismatch
 calibrate installation-failure 'release closure rejects consumer installation failure' \
   'jq -r .consumer.stage' "$CONSUMER" '> "$WORK/install.log" 2>&1' '> "$WORK/install.log" 2>&1 || true'
 calibrate root-export 'release closure executes the public import rather than checking metadata' \
-  "$NONZERO" "$CONSUMER" "if (names.length !== 1 || names[0] !== 'Runtime' || typeof values.Runtime !== 'function')" 'if (false)'
+  "$NONZERO" "$CONSUMER" "if (names.some((name) => !allowed.has(name)) || typeof values.Runtime !== 'function')" 'if (false)'
 calibrate private-export 'release closure rejects a newly exposed private storage import' \
   "$NONZERO" "$CONSUMER" 'if (!denied) throw' 'if (false) throw'
 calibrate cli-execution 'release closure executes the installed CLI' \

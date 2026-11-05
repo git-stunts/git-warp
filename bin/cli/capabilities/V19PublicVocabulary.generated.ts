@@ -5,6 +5,10 @@ export const V19_PUBLIC_VOCABULARY = {
   "moduleSummary": "Write intents. Observe lanes. Keep receipts.",
   "sdkSummary": "Generated SDKs construct validated Intent and Observer values for Runtime Lane workflows.",
   "formalIdentifiers": [
+    "GitStorage",
+    "GitStorageOptions",
+    "./src/application/GitStorage.ts",
+    "./GitStorage.ts",
     "WitnessReference",
     "WitnessReferences",
     "witnessRef",
