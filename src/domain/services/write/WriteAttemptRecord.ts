@@ -13,6 +13,7 @@ import type ObservationWritePremise from '../custody/ObservationWritePremise.ts'
  */
 export default class WriteAttemptRecord {
   readonly preparation: ObservationPreparation;
+  readonly premise: ObservationWritePremise;
   readonly admission: WriteAdmissionKind;
   readonly occurrences: readonly WriteOccurrence[];
   /** Host time when saved; only ages an attempt nothing has armed. */
@@ -24,9 +25,11 @@ export default class WriteAttemptRecord {
     readonly occurrences: readonly WriteOccurrence[];
     readonly savedAt: number;
   }) {
-    if (fields.preparation.bindings.writePremise === null) {
+    const { writePremise } = fields.preparation.bindings;
+    if (writePremise === null) {
       throw new WarpError('A write attempt record needs a write premise', 'E_WRITE_ATTEMPT_RECORD');
     }
+    this.premise = writePremise;
     this.preparation = fields.preparation;
     this.admission = fields.admission;
     this.occurrences = Object.freeze([...fields.occurrences]);
@@ -40,13 +43,5 @@ export default class WriteAttemptRecord {
 
   get bindings(): ObservationBindings {
     return this.preparation.bindings;
-  }
-
-  get premise(): ObservationWritePremise {
-    const { writePremise } = this.preparation.bindings;
-    if (writePremise === null) {
-      throw new WarpError('A write attempt record needs a write premise', 'E_WRITE_ATTEMPT_RECORD');
-    }
-    return writePremise;
   }
 }

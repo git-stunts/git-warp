@@ -27,7 +27,7 @@ import GitStorage from './GitStorage.ts';
 import { gitStorageLocation } from './GitStorageLocation.ts';
 import { getDefaultRuntimeHostNodePorts, type RuntimeHostNodePorts } from './RuntimeHostNodeDefaults.ts';
 import type WarpAddress from './WarpAddress.ts';
-import { resolveWarpStorage, type WarpConeWriteStorage } from './WarpStorageRegistry.ts';
+import { resolveConeWrites, resolveWarpStorage, type WarpConeWriteStorage } from './WarpStorageRegistry.ts';
 
 /**
  * Every graph's retention capacity, fixed the first time custody opens it. A slot is
@@ -60,6 +60,7 @@ export function overrideWarpComposition(access: WarpAccessPort, overrides: WarpC
 export type WarpWrites = {
   readonly executor: ConeWriteExecutor;
   readonly recovery: ConeWriteRecovery;
+  readonly custody: ObservationCustodyService;
   stage(writer: string, staged: { readonly content: ContentInput; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent>;
   close(): Promise<void>;
 };
@@ -92,7 +93,7 @@ async function composeOverStorage(run: {
   const { address, access, overrides, storage } = run;
   const graph = address.name;
   const ports = getDefaultRuntimeHostNodePorts();
-  const git = requireConeWrites(storage);
+  const git = resolveConeWrites(storage);
   const hosts = writerHosts({ graph, storage, ports });
   const custody = await openCustodyService({ graph, git, ports, overrides });
   const journal = new GitWriteAttemptJournalAdapter({ graph, history: git.history, codec: ports.codec, custodyCodec: new ObservationCustodyCborCodec(ports.codec) });
@@ -100,24 +101,17 @@ async function composeOverStorage(run: {
   const settlement = new ConeWriteSettlement({ graph, custody, journal });
   const clock = overrides.clock ?? (() => Date.now());
   const content = new ContentStagingAuthority();
+  const recovery = new ConeWriteRecovery({ graph, custody, journal, probe, settlement, clock });
   return {
+    custody, recovery,
     executor: new ConeWriteExecutor({
-      graph, access,
+      graph, access, recovery,
       lowering: new ConeWriteLowering({ graph, cone: await openCone({ graph, git, ports, storage }), content, crypto: ports.crypto, openPatch: async (writer) => await (await hosts(writer)).createPatch() }),
       publisher: new ConeWritePublisher({ graph, custody, journal, probe, settlement, clock, attempts: overrides.attempts ?? new EntropyObservationAttemptSource() }),
     }),
-    recovery: new ConeWriteRecovery({ graph, custody, journal, probe, settlement, clock }),
     stage: async (writer, staged) => await content.stage({ assetStorage: (await hosts(writer))._assetStorage, content: staged.content, metadata: staged.metadata, slug: `${graph}/${writer}` }),
     close: async () => await storage.close(),
   };
-}
-
-function requireConeWrites(storage: GitStorage): WarpConeWriteStorage {
-  const { coneWrites } = resolveWarpStorage(storage);
-  if (coneWrites === undefined) {
-    throw new WarpError('Git storage opened without its write capabilities', 'E_WARP_STORAGE_UNBOUND');
-  }
-  return coneWrites;
 }
 
 function writerHosts(fields: {

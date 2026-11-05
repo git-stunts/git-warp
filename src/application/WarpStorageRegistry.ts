@@ -44,3 +44,11 @@ export function resolveWarpStorage(storage: WarpStorage): WarpStorageBinding {
   }
   return binding;
 }
+
+export function resolveConeWrites(storage: WarpStorage): WarpConeWriteStorage {
+  const { coneWrites } = resolveWarpStorage(storage);
+  if (coneWrites === undefined) {
+    throw new WarpError('This storage has no cone write capabilities', 'E_WARP_STORAGE_UNBOUND');
+  }
+  return coneWrites;
+}

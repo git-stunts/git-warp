@@ -73,20 +73,20 @@ export default class ConeWritePublisher {
     Object.freeze(this);
   }
 
-  async publish(lowered: LoweredConeWrite): Promise<AuthoredWriteReceipt> {
+  async publish(lowered: LoweredConeWrite, revocation: () => Promise<string | null>): Promise<AuthoredWriteReceipt> {
     const record = new WriteAttemptRecord({
       preparation: new ObservationPreparation(this.#attempts.next(), lowered.bindings),
       admission: lowered.admission,
       occurrences: lowered.occurrences,
       savedAt: this.#clock(),
     });
-    const permission = await this.#permission(record);
+    const permission = await this.#permission(record, revocation);
     return permission instanceof ObservationPublicationPermission
       ? await this.#publishPermitted({ lowered, record, permission })
       : permission;
   }
 
-  async #permission(record: WriteAttemptRecord): Promise<ObservationPublicationPermission | UnpublishedWriteReceipt> {
+  async #permission(record: WriteAttemptRecord, revocation: () => Promise<string | null>): Promise<ObservationPublicationPermission | UnpublishedWriteReceipt> {
     if (!await this.#saved(record)) {
       return this.#unpublished(record, 'attempt-journal-unavailable');
     }
@@ -94,13 +94,26 @@ export default class ConeWritePublisher {
     if (!(admitted instanceof ObservationAdmitted)) {
       return await this.#notPermitted(record, { step: admitted, attempt: null });
     }
-    const { attempt } = admitted;
+    return await this.#armed(record, admitted.attempt, revocation);
+  }
+
+  async #armed(record: WriteAttemptRecord, attempt: ObservationAttempt, revocation: () => Promise<string | null>): Promise<ObservationPublicationPermission | UnpublishedWriteReceipt> {
     const prepared = await contended(async () => await this.#custody.prepare(attempt, { dependencies: NO_DEPENDENCIES() }));
     if (!(prepared instanceof ObservationPrepared)) {
       return await this.#notPermitted(record, { step: prepared, attempt });
     }
+    const revoked = await revocation();
+    if (revoked !== null) {
+      return await this.#revoked(record, attempt, revoked);
+    }
     const armed = await contended(async () => await this.#custody.authorizePublication(prepared));
     return armed instanceof ObservationPublicationPermission ? armed : await this.#notPermitted(record, { step: armed, attempt });
+  }
+
+  async #revoked(record: WriteAttemptRecord, attempt: ObservationAttempt, cause: string): Promise<UnpublishedWriteReceipt> {
+    await this.#custody.cancel(attempt);
+    await this.#journal.remove(record.attemptId);
+    return this.#unpublished(record, cause);
   }
 
   /** Nothing is reserved until the record is durable, so an attempt that fails here has no trace to recover. */

@@ -7,7 +7,7 @@ import type ObservationAttempt from '../custody/ObservationAttempt.ts';
 import type ObservationCustodyService from '../custody/ObservationCustodyService.ts';
 import ObservationPublicationFailed from '../custody/ObservationPublicationFailed.ts';
 import ObservationReconciled from '../custody/ObservationReconciled.ts';
-import ObservationRefused from '../custody/ObservationRefused.ts';
+import ObservationRefused, { type ObservationRefusalReason } from '../custody/ObservationRefused.ts';
 import RetainedObservation from '../custody/RetainedObservation.ts';
 import ObservationAttemptId from '../custody/ObservationAttemptId.ts';
 import type ConeWriteSettlement from './ConeWriteSettlement.ts';
@@ -23,6 +23,9 @@ const PUBLICATION_UNRESOLVED = 'publication-unresolved';
 const RECOVERY_UNAVAILABLE = 'retention-unavailable';
 const STALE_PREDECESSOR = 'stale-predecessor';
 const CANCELLED = 'attempt-cancelled';
+const RETENTION_EXHAUSTED = 'retention-capacity-exhausted';
+/** It was cancelled, or never held a slot: either way it cannot have published. Anything else may clear, so its record stays. */
+const FINISHED_REFUSALS: ReadonlySet<ObservationRefusalReason> = new Set<ObservationRefusalReason>(['cancelled', 'capacity-full']);
 
 /**
  * Resolves write attempts a process left unfinished (#1051), from what can prove
@@ -69,10 +72,10 @@ export default class ConeWriteRecovery {
     }
   }
 
-  /** The current receipt of one attempt, or null when no record of it remains. */
-  async reconcile(attemptText: string): Promise<AuthoredWriteReceipt | null> {
+  /** The current receipt of one writer's attempt, or null when it has no record of that attempt. */
+  async reconcile(writer: string, attemptText: string): Promise<AuthoredWriteReceipt | null> {
     const record = await this.#journal.read(new ObservationAttemptId(attemptText));
-    return record === null ? null : await this.#recover(record);
+    return record?.premise.writerId === writer ? await this.#recover(record) : null;
   }
 
   async #recover(record: WriteAttemptRecord): Promise<AuthoredWriteReceipt> {
@@ -80,8 +83,8 @@ export default class ConeWriteRecovery {
     if (admitted instanceof ObservationAdmitted) {
       return await this.#recoverAdmitted(record, admitted);
     }
-    return admitted instanceof ObservationRefused
-      ? await this.#finishedUnpublished(record, admitted.reason === 'cancelled' ? CANCELLED : `retention-refused-${admitted.reason}`)
+    return admitted instanceof ObservationRefused && FINISHED_REFUSALS.has(admitted.reason)
+      ? await this.#finishedUnpublished(record, admitted.reason === 'cancelled' ? CANCELLED : RETENTION_EXHAUSTED)
       : this.#indeterminate(record, RECOVERY_UNAVAILABLE);
   }
 

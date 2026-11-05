@@ -1,130 +1,44 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
 import {
   Coordinate,
   GitStorage,
-  IndeterminateWriteReceipt,
-  RetainedWriteReceipt,
-  UnpublishedWriteReceipt,
   UnretainedWriteReceipt,
   Warp,
-  WarpAccessDenied,
   WarpAccessPort,
   WarpAddress,
   WarpWriteGrant,
 } from '../../../index.ts';
-import type { AuthoredWriteReceipt, WarpWriteRequest } from '../../../index.ts';
-import { overrideWarpComposition, type WarpCompositionOverrides } from '../../../src/application/WarpWriteComposition.ts';
-import { getDefaultRuntimeHostNodePorts } from '../../../src/application/RuntimeHostNodeDefaults.ts';
-import { resolveWarpStorage } from '../../../src/application/WarpStorageRegistry.ts';
+import type { WarpCompositionOverrides } from '../../../src/application/WarpWriteComposition.ts';
 import ObservationAttemptId from '../../../src/domain/services/custody/ObservationAttemptId.ts';
-import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
 import { buildWriteAttemptsPrefix } from '../../../src/domain/utils/WriteAttemptRefLayout.ts';
 import { CborPatchJournalAdapter } from '../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
-import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
-
-const GRAPH = 'todos';
-const BUDGET = { records: 1024, bytes: 1024 * 1024, work: 50_000 };
-
-class TestAccess extends WarpAccessPort {
-  readonly requests: WarpWriteRequest[] = [];
-  constructor(readonly denied: ReadonlySet<string> = new Set()) { super(); }
-  override authorizeWrite(request: WarpWriteRequest): Promise<WarpWriteGrant | WarpAccessDenied> {
-    this.requests.push(request);
-    return Promise.resolve(this.denied.has(request.writer)
-      ? new WarpAccessDenied('this writer may not write')
-      : new WarpWriteGrant({ authority: `test:${request.writer}`, budget: BUDGET }));
-  }
-}
-
-const directories: string[] = [];
-const opened: Warp[] = [];
+import { getDefaultRuntimeHostNodePorts } from '../../../src/application/RuntimeHostNodeDefaults.ts';
+import { resolveWarpStorage } from '../../../src/application/WarpStorageRegistry.ts';
+import { openRuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import {
+  GRAPH,
+  TestAccess,
+  attemptRefs,
+  disposeWarpFixtures,
+  git,
+  indeterminate,
+  materialized,
+  open,
+  repository,
+  retained,
+  tip,
+  unpublished,
+} from '../../helpers/WarpWriteFixture.ts';
 
 afterEach(async () => {
   vi.restoreAllMocks();
-  await Promise.all(opened.splice(0).map(async (warp) => await warp.close()));
-  await Promise.all(directories.splice(0).map(async (path) => await rm(path, { recursive: true, force: true })));
+  await disposeWarpFixtures();
 });
-
-function git(path: string, args: readonly string[]): string {
-  return execFileSync('git', [...args], { cwd: path, encoding: 'utf8' }).trim();
-}
-
-async function repository(): Promise<string> {
-  const path = await mkdtemp(join(tmpdir(), 'warp-writes-'));
-  directories.push(path);
-  git(path, ['init', '--quiet']);
-  git(path, ['config', 'user.name', 'Warp test']);
-  git(path, ['config', 'user.email', 'warp@example.invalid']);
-  return path;
-}
-
-async function open(path: string, overrides: WarpCompositionOverrides = {}, access: WarpAccessPort = new TestAccess()): Promise<Warp> {
-  overrideWarpComposition(access, overrides);
-  const warp = await Warp.open(WarpAddress.of(GitStorage.at(path), GRAPH), access);
-  opened.push(warp);
-  return warp;
-}
-
-function retained(receipt: AuthoredWriteReceipt | null): RetainedWriteReceipt {
-  if (!(receipt instanceof RetainedWriteReceipt)) {
-    throw new Error(`Expected a retained receipt, got ${JSON.stringify(receipt)}`);
-  }
-  return receipt;
-}
-
-function unpublished(receipt: AuthoredWriteReceipt | null): UnpublishedWriteReceipt {
-  if (!(receipt instanceof UnpublishedWriteReceipt)) {
-    throw new Error(`Expected an unpublished receipt, got ${JSON.stringify(receipt)}`);
-  }
-  return receipt;
-}
-
-function indeterminate(receipt: AuthoredWriteReceipt | null): IndeterminateWriteReceipt {
-  if (!(receipt instanceof IndeterminateWriteReceipt)) {
-    throw new Error(`Expected an indeterminate receipt, got ${JSON.stringify(receipt)}`);
-  }
-  return receipt;
-}
-
-function tip(path: string, writer: string): string | null {
-  try {
-    return git(path, ['rev-parse', '--verify', '--quiet', buildWriterRef(GRAPH, writer)]);
-  } catch {
-    return null;
-  }
-}
-
-function attemptRefs(path: string): string[] {
-  const listed = git(path, ['for-each-ref', '--format=%(refname)', buildWriteAttemptsPrefix(GRAPH)]);
-  return listed === '' ? [] : listed.split('\n');
-}
-
-/** Reads what the graph converged to through the legacy whole-state path, which #1052 replaces. */
-async function materialized(path: string): Promise<{ nodes: string[]; edges: string[] }> {
-  const storage = await GitStorage.open({ cwd: path });
-  try {
-    const ports = getDefaultRuntimeHostNodePorts();
-    const binding = resolveWarpStorage(storage);
-    const reader = await openRuntimeHostProduct({
-      persistence: binding.history, runtimeStorage: binding.runtimeStorage, graphName: GRAPH, writerId: 'test-reader',
-      codec: ports.codec, crypto: ports.crypto, trustCrypto: ports.trustCrypto, commitMessageCodec: ports.commitMessageCodec,
-    });
-    await reader.materialize();
-    return {
-      nodes: (await reader.getNodes()).sort(),
-      edges: (await reader.getEdges()).map(({ from, to, label }) => `${from}>${to}:${label}`).sort(),
-    };
-  } finally {
-    await storage.close();
-  }
-}
 
 describe('Warp.open and as(writer).execute', () => {
   it('publishes through custody on a fresh repository and returns a parsable Coordinate', async () => {

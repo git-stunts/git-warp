@@ -1,0 +1,167 @@
+import { describe, expect, it, vi } from 'vitest';
+import { GitStorage } from '../../../../../index.ts';
+import { bindWarpStorage, resolveConeWrites } from '../../../../../src/application/WarpStorageRegistry.ts';
+import MessageCodecError from '../../../../../src/domain/errors/MessageCodecError.ts';
+import WarpError from '../../../../../src/domain/errors/WarpError.ts';
+import type ObservationAttempt from '../../../../../src/domain/services/custody/ObservationAttempt.ts';
+import ObservationAttemptId from '../../../../../src/domain/services/custody/ObservationAttemptId.ts';
+import ObservationBindings from '../../../../../src/domain/services/custody/ObservationBindings.ts';
+import ObservationBudget from '../../../../../src/domain/services/custody/ObservationBudget.ts';
+import type ObservationCoordinate from '../../../../../src/domain/services/custody/ObservationCoordinate.ts';
+import type ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
+import ObservationDependencyClaim from '../../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
+import ObservationDigest from '../../../../../src/domain/services/custody/ObservationDigest.ts';
+import ObservationPreparation from '../../../../../src/domain/services/custody/ObservationPreparation.ts';
+import ObservationQuestion from '../../../../../src/domain/services/custody/ObservationQuestion.ts';
+import ObservationUnretained from '../../../../../src/domain/services/custody/ObservationUnretained.ts';
+import ObservationWritePremise from '../../../../../src/domain/services/custody/ObservationWritePremise.ts';
+import ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
+import WriteAttemptRecord from '../../../../../src/domain/services/write/WriteAttemptRecord.ts';
+import WritePublicationProbe from '../../../../../src/domain/services/write/WritePublicationProbe.ts';
+import UnretainedWriteReceipt from '../../../../../src/domain/api/UnretainedWriteReceipt.ts';
+import { buildWriteAttemptRef } from '../../../../../src/domain/utils/WriteAttemptRefLayout.ts';
+import type WriteAttemptJournalPort from '../../../../../src/ports/WriteAttemptJournalPort.ts';
+import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';
+import type CodecPort from '../../../../../src/ports/CodecPort.ts';
+import type ObservationCustodyCodecPort from '../../../../../src/ports/ObservationCustodyCodecPort.ts';
+import GitWriteAttemptJournalAdapter, { type WriteAttemptHistory } from '../../../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
+
+const ATTEMPT = new ObservationAttemptId('a'.repeat(32));
+const DIGEST = new ObservationDigest('b'.repeat(64));
+const OID = 'c'.repeat(40);
+const PARENT = 'd'.repeat(40);
+
+function bindings(writePremise: ObservationWritePremise | null): ObservationBindings {
+  return new ObservationBindings({
+    basis: OID, observer: 'writer:alice', question: new ObservationQuestion('q', 1), purpose: 'p',
+    budget: new ObservationBudget({ records: 1, bytes: 1, work: 1 }), evidence: [],
+    dependencies: ObservationDependencyClaim.NONE, writePremise,
+  });
+}
+
+function recordOf(predecessor: string | null = PARENT): WriteAttemptRecord {
+  return new WriteAttemptRecord({
+    preparation: new ObservationPreparation(ATTEMPT, bindings(new ObservationWritePremise({ intents: DIGEST, writerId: 'alice', predecessor }))),
+    admission: 'derived', occurrences: [], savedAt: 1,
+  });
+}
+
+function probe(fields: {
+  readonly tip?: string | null;
+  readonly parents?: readonly string[];
+  readonly decode?: () => object;
+}): WritePublicationProbe {
+  const decodePatch = fields.decode ?? (() => ({ graph: 'g', writer: 'alice', publicationAttempt: ATTEMPT.value }));
+  return new WritePublicationProbe({
+    graph: 'g',
+    messages: { decodePatch } as unknown as CommitMessageCodecPort,
+    history: {
+      readRef: () => Promise.resolve(fields.tip === undefined ? OID : fields.tip),
+      getNodeInfo: (sha) => Promise.resolve({ sha, message: 'm', author: 'a', date: 'd', parents: [...(fields.parents ?? [PARENT])] }),
+    },
+  });
+}
+
+describe('WriteAttemptRecord', () => {
+  it('refuses a preparation that is not a write', () => {
+    expect(() => new WriteAttemptRecord({
+      preparation: new ObservationPreparation(ATTEMPT, bindings(null)), admission: 'derived', occurrences: [], savedAt: 1,
+    })).toThrow('write premise');
+  });
+});
+
+describe('WritePublicationProbe', () => {
+  it('proves only the attempt that names itself on its predecessor', async () => {
+    await expect(probe({}).proves(OID, recordOf())).resolves.toBe(true);
+    await expect(probe({ parents: [] }).proves(OID, recordOf())).resolves.toBe(false);
+    await expect(probe({ parents: [PARENT, OID] }).proves(OID, recordOf())).resolves.toBe(false);
+    await expect(probe({ decode: () => ({ graph: 'g', writer: 'bob', publicationAttempt: ATTEMPT.value }) }).proves(OID, recordOf())).resolves.toBe(false);
+    await expect(probe({ decode: () => ({ graph: 'other', writer: 'alice', publicationAttempt: ATTEMPT.value }) }).proves(OID, recordOf())).resolves.toBe(false);
+    await expect(probe({ decode: () => ({ graph: 'g', writer: 'alice' }) }).proves(OID, recordOf())).resolves.toBe(false);
+  });
+
+  it('calls an undecodable commit not its own, and does not hide any other failure', async () => {
+    const undecodable = probe({ decode: () => { throw new MessageCodecError('bad'); } });
+    await expect(undecodable.proves(OID, recordOf())).resolves.toBe(false);
+    const broken = probe({ decode: () => { throw new Error('boom'); } });
+    await expect(broken.proves(OID, recordOf())).rejects.toThrow('boom');
+  });
+
+  it('finds nothing without a tip, at its predecessor, or past a chain that never reaches it', async () => {
+    await expect(probe({ tip: null }).locate(recordOf())).resolves.toEqual({ kind: 'none' });
+    await expect(probe({ tip: PARENT }).locate(recordOf())).resolves.toEqual({ kind: 'none' });
+    await expect(probe({ parents: [] }).locate(recordOf())).resolves.toEqual({ kind: 'none' });
+    const endless = probe({ parents: [OID] });
+    await expect(endless.locate(recordOf())).resolves.toEqual({ kind: 'none' });
+  });
+
+  it('tells its own commit from another that took its place', async () => {
+    await expect(probe({}).locate(recordOf())).resolves.toEqual({ kind: 'own', commit: OID });
+    await expect(probe({ decode: () => ({ graph: 'g', writer: 'alice', publicationAttempt: 'f'.repeat(32) }) }).locate(recordOf())).resolves.toEqual({ kind: 'other' });
+  });
+});
+
+describe('ConeWriteSettlement', () => {
+  const attempt = {} as ObservationAttempt;
+
+  function settlement(settled: () => Promise<object>): { readonly settling: ConeWriteSettlement; readonly remove: ReturnType<typeof vi.fn> } {
+    const remove = vi.fn(() => Promise.reject(new Error('journal went away')));
+    return {
+      remove,
+      settling: new ConeWriteSettlement({
+        graph: 'g',
+        custody: { settle: settled } as unknown as ObservationCustodyService,
+        journal: { remove } as unknown as WriteAttemptJournalPort,
+      }),
+    };
+  }
+
+  it('reports an unretained write however custody fails, keeping a record worth repeating', async () => {
+    const { settling, remove } = settlement(() => Promise.reject(new Error('boom')));
+    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID, plurality: [] });
+
+    expect(receipt).toBeInstanceOf(UnretainedWriteReceipt);
+    expect(receipt instanceof UnretainedWriteReceipt ? receipt.retention : '').toBe('settlement-unacknowledged');
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('drops the record when custody can never hold this core, even if removing it fails', async () => {
+    const { settling, remove } = settlement(() => Promise.resolve(new ObservationUnretained(attempt, 'settlement-conflict')));
+    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID, plurality: [] });
+
+    expect(receipt instanceof UnretainedWriteReceipt ? receipt.retention : '').toBe('settlement-conflict');
+    expect(remove).toHaveBeenCalledOnce();
+  });
+
+  it('refuses a Coordinate whose text custody cannot have issued', () => {
+    const { settling } = settlement(() => Promise.resolve({}));
+    const coordinate = { toString: () => 'nope' } as ObservationCoordinate;
+    expect(() => settling.retained({ attempt, record: recordOf(), commit: OID, plurality: [] }, coordinate)).toThrow(WarpError);
+  });
+});
+
+describe('write attempt storage', () => {
+  it('reserves its ref segment so no graph can collide with it', () => {
+    expect(buildWriteAttemptRef('g', ATTEMPT.value)).toBe(`refs/warp/g/write-attempts/${ATTEMPT.value}`);
+    expect(() => buildWriteAttemptRef('write-attempts', ATTEMPT.value)).toThrow('reserved');
+  });
+
+  it('refuses a storage bound without cone write capabilities', () => {
+    const storage = GitStorage.at('.');
+    bindWarpStorage(storage, { history: {} as never, runtimeStorage: {} as never });
+    expect(() => resolveConeWrites(storage)).toThrow('cone write capabilities');
+  });
+});
+
+describe('GitWriteAttemptJournalAdapter', () => {
+  it('treats a blob that does not decode as no record', async () => {
+    const journal = new GitWriteAttemptJournalAdapter({
+      graph: 'g',
+      codec: { decode: () => { throw new Error('not cbor'); } } as unknown as CodecPort,
+      custodyCodec: {} as ObservationCustodyCodecPort,
+      history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
+    });
+
+    await expect(journal.read(ATTEMPT)).resolves.toBeNull();
+  });
+});

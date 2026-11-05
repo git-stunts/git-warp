@@ -38,7 +38,7 @@ export default class Warp {
     assertWriterIdentity(writer, 'writer', OPEN_WARP_IDENTITY_FAILURE);
     return new AuthoredWarp(writer, {
       execute: async (name: string, input: WriteIntentInput) => await this.#queued(async () => await this.#writes.executor.execute(name, input)),
-      reconcile: async (attempt: string) => await this.#queued(async () => await this.#writes.recovery.reconcile(attempt)),
+      reconcile: async (name: string, attempt: string) => await this.#queued(async () => await this.#writes.executor.reconcile(name, attempt)),
       stage: async (name: string, staged: { readonly content: ContentInput; readonly metadata: ContentMetadataInput | undefined }) => await this.#queued(async () => await this.#staged(name, staged)),
     });
   }

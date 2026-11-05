@@ -7,7 +7,7 @@ import type StagedContent from '../domain/api/StagedContent.ts';
 /** What an authored handle asks of its Warp. */
 export type AuthoredWarpBackend = {
   execute(writer: string, input: WriteIntentInput): Promise<AuthoredWriteReceipt>;
-  reconcile(attempt: string): Promise<AuthoredWriteReceipt | null>;
+  reconcile(writer: string, attempt: string): Promise<AuthoredWriteReceipt | null>;
   stage(writer: string, content: { readonly content: ContentInput; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent>;
 };
 
@@ -32,7 +32,7 @@ export default class AuthoredWarp {
 
   /** Asks again what became of an indeterminate write's `attempt`. Null means nothing is left unfinished under that name. */
   async reconcile(attempt: string): Promise<AuthoredWriteReceipt | null> {
-    return await this.#backend.reconcile(attempt);
+    return await this.#backend.reconcile(this.writer, attempt);
   }
 
   /** Stages content for a later attach intent on this Warp. Staged bytes alone change nothing in the graph. */
