@@ -102,7 +102,7 @@ describe('Warp.open and as(writer).execute', () => {
     const second = await open(path);
     retained(await second.as('alice').execute(intent.node.add({ subject: 'next' })));
 
-    expect(Coordinate.parse(receipt.coordinate.toString()).toString()).toBe(receipt.coordinate.toString());
+    expect(receipt.publication.toString()).toBe(git(path, ['rev-list', '--max-parents=0', buildWriterRef(GRAPH, 'alice')]));
     expect((await materialized(path)).nodes).toEqual(['kept', 'next']);
   });
 

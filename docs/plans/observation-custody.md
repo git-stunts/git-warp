@@ -302,7 +302,7 @@ unpublished, and start a new attempt only as a new decision.
 
 For attempts with no saved record, `attempts(phase)` lists what
 the ledger holds, as identities, and may end with an `ObservationIndeterminate` item if the
-store fails. #1051's writes do not need this listing, as above; #1052's `begin` may. Try `recoverCoordinate(identity)` on each first. Then, if it stayed `not-settled`:
+store fails. #1051's writes do not need this listing, as [its sweep](#what-1051-decided) explains; #1052's `begin` may. Try `recoverCoordinate(identity)` on each first. Then, if it stayed `not-settled`:
 
 - `reserved` or `prepared` with no owner: `abandon(identity)`. Nothing can prove a producer
   is gone, so a live one loses its work, safely: its later arm refuses as cancelled.

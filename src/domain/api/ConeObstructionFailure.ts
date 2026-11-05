@@ -1,5 +1,6 @@
 import ConeContendedObstruction from '../services/cone/ConeContendedObstruction.ts';
 import type ConeObstruction from '../services/cone/ConeObstruction.ts';
+import ConeRecoveryObstruction from '../services/cone/ConeRecoveryObstruction.ts';
 import ConeSharedDotObstruction from '../services/cone/ConeSharedDotObstruction.ts';
 import type { RepairHint } from './ReceiptSupport.ts';
 
@@ -28,6 +29,15 @@ const CONTENDED: ConeObstructionFailure = Object.freeze({
   })]),
 });
 
+const RECOVERY: ConeObstructionFailure = Object.freeze({
+  outcome: 'obstructed',
+  reason: 'cone_recovery',
+  repairHints: Object.freeze([Object.freeze({
+    code: 'restore_patch_history',
+    message: 'A value this lane evicted could not be recovered from its patch; restore that history, then retry.',
+  })]),
+});
+
 const WRITER_DIVERGED: ConeObstructionFailure = Object.freeze({
   outcome: 'obstructed',
   reason: 'cone_writer_diverged',
@@ -41,6 +51,9 @@ const WRITER_DIVERGED: ConeObstructionFailure = Object.freeze({
 export function coneObstructionFailure(obstruction: ConeObstruction): ConeObstructionFailure {
   if (obstruction instanceof ConeSharedDotObstruction) {
     return SHARED_DOT;
+  }
+  if (obstruction instanceof ConeRecoveryObstruction) {
+    return RECOVERY;
   }
   return obstruction instanceof ConeContendedObstruction ? CONTENDED : WRITER_DIVERGED;
 }

@@ -5,7 +5,8 @@
  *
  * Write intents. Observe lanes. Keep receipts.
  *
- * `Runtime` is the sole root runtime value. Generated SDKs provide validated
+ * `Warp` and its write receipts are the new application surface, and `Runtime`
+ * remains beside them until its removal. Generated SDKs provide validated
  * Intent and Observer values; formal optics and diagnostics remain on named
  * expert subpaths.
  */

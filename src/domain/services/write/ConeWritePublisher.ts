@@ -104,12 +104,26 @@ export default class ConeWritePublisher {
     if (!(prepared instanceof ObservationPrepared)) {
       return await this.#notPermitted(record, { step: prepared, attempt });
     }
-    const revoked = await revocation();
+    const revoked = await this.#revocationChecked({ record, attempt, revocation });
     if (revoked !== null) {
       return await this.#revoked(record, attempt, revoked);
     }
     const armed = await contended(async () => await this.#custody.authorizePublication(prepared));
     return armed instanceof ObservationPublicationPermission ? armed : await this.#notPermitted(record, { step: armed, attempt });
+  }
+
+  /** An access port that throws here stops the attempt, rather than leave it charged until a sweep. */
+  async #revocationChecked(run: {
+    readonly record: WriteAttemptRecord;
+    readonly attempt: ObservationAttempt;
+    readonly revocation: () => Promise<string | null>;
+  }): Promise<string | null> {
+    try {
+      return await run.revocation();
+    } catch (error) {
+      await this.#stop(run.record, run.attempt);
+      throw error;
+    }
   }
 
   async #revoked(record: WriteAttemptRecord, attempt: ObservationAttempt, cause: string): Promise<UnpublishedWriteReceipt> {

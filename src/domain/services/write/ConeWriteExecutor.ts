@@ -3,11 +3,13 @@ import type { AuthoredWriteReceipt } from '../../api/AuthoredWriteReceipt.ts';
 import IntentSequence, { type WriteIntentInput } from '../../api/IntentSequence.ts';
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import WarpAccessDenied from '../../api/WarpAccessDenied.ts';
-import type WarpWriteGrant from '../../api/WarpWriteGrant.ts';
+import WarpWriteGrant from '../../api/WarpWriteGrant.ts';
 import WarpWriteRequest from '../../api/WarpWriteRequest.ts';
 import { WRITE_PURPOSE, type default as ConeWriteLowering } from './ConeWriteLowering.ts';
 import type ConeWritePublisher from './ConeWritePublisher.ts';
 import type ConeWriteRecovery from './ConeWriteRecovery.ts';
+
+const UNRECOGNIZED_DECISION = 'the access boundary gave no grant';
 
 /** One authored write: authorization before any read, then lowering, then the one publication. */
 export default class ConeWriteExecutor {
@@ -36,7 +38,7 @@ export default class ConeWriteExecutor {
     const sequence = IntentSequence.from(input);
     const request = new WarpWriteRequest({ graph: this.#graph, writer, purpose: WRITE_PURPOSE, intents: sequence.intents });
     const grant = await this.#access.authorizeWrite(request);
-    if (grant instanceof WarpAccessDenied) {
+    if (!(grant instanceof WarpWriteGrant)) {
       return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: accessDeniedCause(grant) });
     }
     const lowered = await this.#lowering.lower({ writer, sequence, grant });
@@ -47,15 +49,15 @@ export default class ConeWriteExecutor {
   async reconcile(writer: string, attempt: string): Promise<AuthoredWriteReceipt | null> {
     const request = new WarpWriteRequest({ graph: this.#graph, writer, purpose: WRITE_PURPOSE, intents: [] });
     const grant = await this.#access.authorizeWrite(request);
-    return grant instanceof WarpAccessDenied ? null : await this.#recovery.reconcile(writer, attempt);
+    return grant instanceof WarpWriteGrant ? await this.#recovery.reconcile(writer, attempt) : null;
   }
 
   /** Asks whether a writer may stage content, which writes objects before any intent exists. */
   async authorizeStage(writer: string, size: number): Promise<WarpAccessDenied | null> {
     const request = new WarpWriteRequest({ graph: this.#graph, writer, purpose: WRITE_PURPOSE, intents: [] });
     const grant = await this.#access.authorizeWrite(request);
-    if (grant instanceof WarpAccessDenied) {
-      return grant;
+    if (!(grant instanceof WarpWriteGrant)) {
+      return grant instanceof WarpAccessDenied ? grant : new WarpAccessDenied(UNRECOGNIZED_DECISION);
     }
     return size > grant.budget.bytes ? new WarpAccessDenied('budget-exhausted') : null;
   }
@@ -66,7 +68,7 @@ export default class ConeWriteExecutor {
    */
   async #revocation(request: WarpWriteRequest, grant: WarpWriteGrant): Promise<string | null> {
     const current = await this.#access.authorizeWrite(request);
-    if (current instanceof WarpAccessDenied) {
+    if (!(current instanceof WarpWriteGrant)) {
       return accessDeniedCause(current);
     }
     return sameGrant(current, grant) ? null : 'authority-changed';
@@ -78,6 +80,7 @@ function sameGrant(left: WarpWriteGrant, right: WarpWriteGrant): boolean {
   return budgets && left.authority === right.authority;
 }
 
-function accessDeniedCause(denied: WarpAccessDenied): string {
-  return `access-denied: ${denied.cause}`;
+/** Only a real grant authorizes. Anything else a port returns is a denial, whatever it claims. */
+function accessDeniedCause(decision: WarpAccessDenied | WarpWriteGrant): string {
+  return `access-denied: ${decision instanceof WarpAccessDenied ? decision.cause : UNRECOGNIZED_DECISION}`;
 }

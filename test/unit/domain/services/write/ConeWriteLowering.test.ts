@@ -5,6 +5,8 @@ import UnpublishedWriteReceipt from '../../../../../src/domain/api/UnpublishedWr
 import WarpWriteGrant from '../../../../../src/domain/api/WarpWriteGrant.ts';
 import WarpError from '../../../../../src/domain/errors/WarpError.ts';
 import ConeBasis from '../../../../../src/domain/services/cone/ConeBasis.ts';
+import { EventId } from '../../../../../src/domain/utils/EventId.ts';
+import ConeRecoveryObstruction from '../../../../../src/domain/services/cone/ConeRecoveryObstruction.ts';
 import ConeContendedObstruction from '../../../../../src/domain/services/cone/ConeContendedObstruction.ts';
 import type ConeLaneBasis from '../../../../../src/domain/services/cone/ConeLaneBasis.ts';
 import ContentStagingAuthority from '../../../../../src/domain/services/ContentStagingAuthority.ts';
@@ -36,6 +38,13 @@ describe('ConeWriteLowering', () => {
     expect(lowered).toBeInstanceOf(UnpublishedWriteReceipt);
     expect(lowered instanceof UnpublishedWriteReceipt ? lowered.cause : '').toBe('cone_contended');
     expect(lowered instanceof UnpublishedWriteReceipt ? lowered.repairHints[0]?.code : '').toBe('retry_cone_advance');
+  });
+
+  it('names a failed value recovery with its own repair', async () => {
+    const event = new EventId(1, 'bob', 'a'.repeat(40), 0);
+    const lowered = await lowering({ premise: () => Promise.resolve(new ConeRecoveryObstruction(event, 'unavailable')) }).lower(request);
+
+    expect(lowered instanceof UnpublishedWriteReceipt ? lowered.cause : '').toBe('cone_recovery');
   });
 
   it('reports a store that fails before anything was reserved as unpublished', async () => {

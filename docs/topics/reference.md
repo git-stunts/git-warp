@@ -25,25 +25,25 @@ public API export, CLI command, package entrypoint, or public error class.
 
 ## Root API export surface
 
-First-use product API: one `Runtime` value plus Lane, Intent, Observer, Observation, Reading, and Receipt types.
+First-use product API: the `Warp` write surface and its receipts beside the legacy `Runtime` value, plus Lane, Intent, Observer, Observation, Reading, and Receipt types.
 
 ### Value exports
 
 Source: `index.ts`. Count: 12.
 
 ```text
-Coordinate @ index.ts#L23
-GitStorage @ index.ts#L17
-IndeterminateWriteReceipt @ index.ts#L27
-RetainedWriteReceipt @ index.ts#L24
-Runtime @ index.ts#L13
-UnpublishedWriteReceipt @ index.ts#L26
-UnretainedWriteReceipt @ index.ts#L25
-Warp @ index.ts#L14
-WarpAccessDenied @ index.ts#L21
-WarpAccessPort @ index.ts#L18
-WarpAddress @ index.ts#L16
-WarpWriteGrant @ index.ts#L19
+Coordinate @ index.ts#L24
+GitStorage @ index.ts#L18
+IndeterminateWriteReceipt @ index.ts#L28
+RetainedWriteReceipt @ index.ts#L25
+Runtime @ index.ts#L14
+UnpublishedWriteReceipt @ index.ts#L27
+UnretainedWriteReceipt @ index.ts#L26
+Warp @ index.ts#L15
+WarpAccessDenied @ index.ts#L22
+WarpAccessPort @ index.ts#L19
+WarpAddress @ index.ts#L17
+WarpWriteGrant @ index.ts#L20
 ```
 
 ### Type exports
@@ -51,60 +51,60 @@ WarpWriteGrant @ index.ts#L19
 Source: `index.ts`. Count: 54.
 
 ```text
-AdmissionOutcome @ index.ts#L82
-AuthoredWarp @ index.ts#L15
-AuthoredWriteReceipt @ index.ts#L28
-ContentAttachment @ index.ts#L86
-ContentInput @ index.ts#L43
-ContentMetadataInput @ index.ts#L44
-ContentOwnerDescriptor @ index.ts#L87
-CoordinateReference @ index.ts#L47
-EntityAdmission @ index.ts#L74
-EntityAdmissionInitialProperties @ index.ts#L75
-EntityAdmissionInventoryCertificate @ index.ts#L81
-EntityAdmissionOccurrenceReference @ index.ts#L76
-EntityAdmissionOrdering @ index.ts#L77
-EntityAdmissionOriginReading @ index.ts#L78
-EntityAdmissionRepresentationReference @ index.ts#L79
-EntityCausalRelation @ index.ts#L71
-EntityOccurrence @ index.ts#L70
-Evidence @ index.ts#L39
-EvidenceHandle @ index.ts#L39
-Intent @ index.ts#L40
-Lane @ index.ts#L42
-LaneDescriptor @ index.ts#L48
-LaneKind @ index.ts#L49
-LaneReference @ index.ts#L50
-Observation @ index.ts#L52
-ObservationReceipt @ index.ts#L53
-ObservationStatus @ index.ts#L54
-Observer @ index.ts#L55
-ObserverCardinality @ index.ts#L56
-Reading @ index.ts#L57
-ReadingCoordinate @ index.ts#L59
-ReadingValue @ index.ts#L60
-Receipt @ index.ts#L83
-RepairHint @ index.ts#L84
-RuntimeForkOptions @ index.ts#L34
-RuntimeOpenOptions @ index.ts#L35
-RuntimeSettlementOptions @ index.ts#L36
-RuntimeStrandOptions @ index.ts#L37
-SettlementPlan @ index.ts#L67
-SettlementPreview @ index.ts#L65
-SettlementReceipt @ index.ts#L66
-StagedContent @ index.ts#L45
-SupportReport @ index.ts#L61
-Tick @ index.ts#L64
-WarpWriteBudget @ index.ts#L20
-WarpWriteRequest @ index.ts#L22
-WitnessReference @ index.ts#L62
-WriteAdmission @ index.ts#L29
-WriteAdmissionKind @ index.ts#L29
-WriteIntentInput @ index.ts#L41
-WriteOccurrence @ index.ts#L30
-WritePublication @ index.ts#L31
-WriteRace @ index.ts#L32
-WriteReceipt @ index.ts#L68
+AdmissionOutcome @ index.ts#L83
+AuthoredWarp @ index.ts#L16
+AuthoredWriteReceipt @ index.ts#L29
+ContentAttachment @ index.ts#L87
+ContentInput @ index.ts#L44
+ContentMetadataInput @ index.ts#L45
+ContentOwnerDescriptor @ index.ts#L88
+CoordinateReference @ index.ts#L48
+EntityAdmission @ index.ts#L75
+EntityAdmissionInitialProperties @ index.ts#L76
+EntityAdmissionInventoryCertificate @ index.ts#L82
+EntityAdmissionOccurrenceReference @ index.ts#L77
+EntityAdmissionOrdering @ index.ts#L78
+EntityAdmissionOriginReading @ index.ts#L79
+EntityAdmissionRepresentationReference @ index.ts#L80
+EntityCausalRelation @ index.ts#L72
+EntityOccurrence @ index.ts#L71
+Evidence @ index.ts#L40
+EvidenceHandle @ index.ts#L40
+Intent @ index.ts#L41
+Lane @ index.ts#L43
+LaneDescriptor @ index.ts#L49
+LaneKind @ index.ts#L50
+LaneReference @ index.ts#L51
+Observation @ index.ts#L53
+ObservationReceipt @ index.ts#L54
+ObservationStatus @ index.ts#L55
+Observer @ index.ts#L56
+ObserverCardinality @ index.ts#L57
+Reading @ index.ts#L58
+ReadingCoordinate @ index.ts#L60
+ReadingValue @ index.ts#L61
+Receipt @ index.ts#L84
+RepairHint @ index.ts#L85
+RuntimeForkOptions @ index.ts#L35
+RuntimeOpenOptions @ index.ts#L36
+RuntimeSettlementOptions @ index.ts#L37
+RuntimeStrandOptions @ index.ts#L38
+SettlementPlan @ index.ts#L68
+SettlementPreview @ index.ts#L66
+SettlementReceipt @ index.ts#L67
+StagedContent @ index.ts#L46
+SupportReport @ index.ts#L62
+Tick @ index.ts#L65
+WarpWriteBudget @ index.ts#L21
+WarpWriteRequest @ index.ts#L23
+WitnessReference @ index.ts#L63
+WriteAdmission @ index.ts#L30
+WriteAdmissionKind @ index.ts#L30
+WriteIntentInput @ index.ts#L42
+WriteOccurrence @ index.ts#L31
+WritePublication @ index.ts#L32
+WriteRace @ index.ts#L33
+WriteReceipt @ index.ts#L69
 ```
 
 ## Advanced export surface

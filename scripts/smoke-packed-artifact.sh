@@ -71,9 +71,10 @@ class PackedArtifactSmokeError extends Error {
 const mod = await import('@git-stunts/git-warp');
 
 const rootValues = Object.keys(mod).sort();
-if (rootValues.length !== 1 || rootValues[0] !== 'Runtime') {
+const expectedRootValues = ['Coordinate','GitStorage','IndeterminateWriteReceipt','RetainedWriteReceipt','Runtime','UnpublishedWriteReceipt','UnretainedWriteReceipt','Warp','WarpAccessDenied','WarpAccessPort','WarpAddress','WarpWriteGrant'];
+if (rootValues.join() !== expectedRootValues.join()) {
   throw new PackedArtifactSmokeError(
-    `package root values must contain exactly Runtime; received ${rootValues.join(', ')}`,
+    `package root values must be exactly ${expectedRootValues.join(', ')}; received ${rootValues.join(', ')}`,
   );
 }
 

@@ -20,14 +20,18 @@ export default class WarpWriteGrant {
   readonly budget: WarpWriteBudget;
 
   constructor(fields: { readonly authority: string; readonly budget: WarpWriteBudget }) {
-    const { records, bytes, work } = fields.budget;
-    if (fields.authority.length === 0 || ![records, bytes, work].every(isLimit)) {
+    if (typeof fields.authority !== 'string' || fields.authority.length === 0 || !isBudget(fields.budget)) {
       throw new WarpError('A write grant needs authority evidence and finite positive limits', 'E_WARP_WRITE_GRANT');
     }
     this.authority = fields.authority;
+    const { records, bytes, work } = fields.budget;
     this.budget = Object.freeze({ records, bytes, work });
     Object.freeze(this);
   }
+}
+
+function isBudget(budget: WarpWriteBudget | undefined): boolean {
+  return budget !== undefined && [budget.records, budget.bytes, budget.work].every(isLimit);
 }
 
 function isLimit(limit: number): boolean {

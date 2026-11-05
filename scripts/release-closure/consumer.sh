@@ -44,9 +44,10 @@ CONSUMER_STAGE="imports"
 bounded node --input-type=module <<'NODE'
 class ReleaseConsumerError extends Error {}
 const values = await import('@git-stunts/git-warp');
-const names = Object.keys(values);
-if (names.length !== 1 || names[0] !== 'Runtime' || typeof values.Runtime !== 'function') {
-  throw new ReleaseConsumerError('public root must export exactly Runtime');
+const names = Object.keys(values).sort();
+const expected = ['Coordinate','GitStorage','IndeterminateWriteReceipt','RetainedWriteReceipt','Runtime','UnpublishedWriteReceipt','UnretainedWriteReceipt','Warp','WarpAccessDenied','WarpAccessPort','WarpAddress','WarpWriteGrant'];
+if (names.join() !== expected.join() || typeof values.Runtime !== 'function' || typeof values.Warp !== 'function') {
+  throw new ReleaseConsumerError(`public root must export exactly ${expected.join(', ')}`);
 }
 let denied = false;
 try {

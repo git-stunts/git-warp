@@ -32,8 +32,8 @@ export default class AuthoredWarp {
 
   /**
    * Asks again what became of an indeterminate or unretained write's `attempt`, whose answer
-   * waits here until you ask. Null means it was already answered, or was never this writer's:
-   * it does not mean the write did not land.
+   * waits here until you ask. Null means it was already answered, was never this writer's, or
+   * this writer is denied now. It does not mean the write did not land.
    */
   async reconcile(attempt: string): Promise<AuthoredWriteReceipt | null> {
     return await this.#backend.reconcile(this.writer, attempt);

@@ -143,6 +143,40 @@ describe('stage', () => {
   });
 });
 
+describe('an access port that misbehaves', () => {
+  it('treats anything but a real grant as a denial', async () => {
+    const path = await repository();
+    const confused = new (class extends WarpAccessPort {
+      override authorizeWrite(): ReturnType<WarpAccessPort['authorizeWrite']> {
+        return Promise.resolve({ authority: 'looks right' } as unknown as WarpWriteGrant);
+      }
+    })();
+    const warp = await open(path, {}, confused);
+
+    expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toContain('no grant');
+    expect(await warp.as('alice').stage('hello')).toBeInstanceOf(WarpAccessDenied);
+    expect(await warp.as('alice').reconcile('f'.repeat(32))).toBeNull();
+    expect(tip(path, 'alice')).toBeNull();
+  });
+
+  it('stops the attempt when it throws at the recheck, freeing the slot', async () => {
+    const path = await repository();
+    const access = new TestAccess();
+    let calls = 0;
+    const throwing = new (class extends WarpAccessPort {
+      override authorizeWrite(request: Parameters<WarpAccessPort['authorizeWrite']>[0]): ReturnType<WarpAccessPort['authorizeWrite']> {
+        calls += 1;
+        return calls === 2 ? Promise.reject(new Error('boundary went away')) : access.authorizeWrite(request);
+      }
+    })();
+    const warp = await open(path, { limit: 1 }, throwing);
+
+    await expect(warp.as('alice').execute(intent.node.add({ subject: 'x' }))).rejects.toThrow('went away');
+    expect(attemptRefs(path)).toEqual([]);
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'fits' })));
+  });
+});
+
 describe('a grant that changes before publication', () => {
   it('refuses rather than retain the authority it was not admitted under', async () => {
     const path = await repository();
@@ -386,5 +420,7 @@ describe('composition', () => {
     expect(() => Coordinate.parse('nope')).toThrow('not a saved Coordinate');
     expect(() => new WarpWriteGrant({ authority: '', budget: { records: 1, bytes: 1, work: 1 } })).toThrow('finite positive');
     expect(() => new WarpWriteGrant({ authority: 'x', budget: { records: 0, bytes: 1, work: 1 } })).toThrow('finite positive');
+    expect(() => new WarpWriteGrant({ authority: 5 as unknown as string, budget: { records: 1, bytes: 1, work: 1 } })).toThrow('finite positive');
+    expect(() => new WarpWriteGrant({ authority: 'x' } as unknown as ConstructorParameters<typeof WarpWriteGrant>[0])).toThrow('finite positive');
   });
 });
