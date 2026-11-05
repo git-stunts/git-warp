@@ -1,0 +1,64 @@
+import { assertWriterIdentity } from '../domain/api/assertIdentity.ts';
+import type { ContentInput } from '../domain/api/ContentInput.ts';
+import type { ContentMetadataInput } from '../domain/api/ContentMetadataInput.ts';
+import type { WriteIntentInput } from '../domain/api/IntentSequence.ts';
+import { OPEN_WARP_IDENTITY_FAILURE } from '../domain/api/OpenWarpIdentityFailure.ts';
+import type StagedContent from '../domain/api/StagedContent.ts';
+import WarpError from '../domain/errors/WarpError.ts';
+import WarpAccessPort from '../ports/WarpAccessPort.ts';
+import AuthoredWarp from './AuthoredWarp.ts';
+import WarpAddress from './WarpAddress.ts';
+import { composeWarpWrites, type WarpWrites } from './WarpWriteComposition.ts';
+
+/**
+ * One opened graph (#1051). Opening grants nothing: the injected access boundary
+ * decides each operation. Operations on one Warp run one at a time, so a writer's
+ * predecessor cannot move under a write this handle itself queued.
+ */
+export default class Warp {
+  readonly #writes: WarpWrites;
+  #tail: Promise<void> = Promise.resolve();
+  #closing: Promise<void> | null = null;
+
+  private constructor(writes: WarpWrites) {
+    this.#writes = writes;
+  }
+
+  static async open(address: WarpAddress, access: WarpAccessPort): Promise<Warp> {
+    if (!(address instanceof WarpAddress)) {
+      throw new WarpError('Warp.open requires a WarpAddress', 'E_WARP_OPEN_ADDRESS');
+    }
+    if (!(access instanceof WarpAccessPort)) {
+      throw new WarpError('Warp.open requires a WarpAccessPort; there is no implicit access', 'E_WARP_OPEN_ACCESS');
+    }
+    return new Warp(await composeWarpWrites(address, access));
+  }
+
+  as(writer: string): AuthoredWarp {
+    assertWriterIdentity(writer, 'writer', OPEN_WARP_IDENTITY_FAILURE);
+    return new AuthoredWarp(writer, {
+      execute: async (name: string, input: WriteIntentInput) => await this.#queued(async () => await this.#writes.executor.execute(name, input)),
+      reconcile: async (attempt: string) => await this.#queued(async () => await this.#writes.recovery.reconcile(attempt)),
+      stage: async (name: string, staged: { readonly content: ContentInput; readonly metadata: ContentMetadataInput | undefined }) => await this.#queued(async () => await this.#staged(name, staged)),
+    });
+  }
+
+  /** Stops admitting operations, waits for those underway, and releases local resources. Published history and retained evidence stay. */
+  close(): Promise<void> {
+    this.#closing ??= this.#tail.then(async () => await this.#writes.close());
+    return this.#closing;
+  }
+
+  async #staged(writer: string, staged: { readonly content: ContentInput; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent> {
+    return await this.#writes.stage(writer, staged);
+  }
+
+  async #queued<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.#closing !== null) {
+      throw new WarpError('This Warp is closed', 'E_WARP_CLOSED');
+    }
+    const run = this.#tail.then(operation);
+    this.#tail = run.then(() => undefined, () => undefined);
+    return await run;
+  }
+}

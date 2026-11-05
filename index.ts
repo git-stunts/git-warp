@@ -11,6 +11,24 @@
  */
 
 export { default as Runtime } from './src/application/Runtime.ts';
+export { default as Warp } from './src/application/Warp.ts';
+export type { default as AuthoredWarp } from './src/application/AuthoredWarp.ts';
+export { default as WarpAddress } from './src/application/WarpAddress.ts';
+export { default as GitStorage } from './src/application/GitStorage.ts';
+export { default as WarpAccessPort } from './src/ports/WarpAccessPort.ts';
+export { default as WarpWriteGrant } from './src/domain/api/WarpWriteGrant.ts';
+export type { WarpWriteBudget } from './src/domain/api/WarpWriteGrant.ts';
+export { default as WarpAccessDenied } from './src/domain/api/WarpAccessDenied.ts';
+export type { default as WarpWriteRequest } from './src/domain/api/WarpWriteRequest.ts';
+export { default as Coordinate } from './src/domain/api/Coordinate.ts';
+export { default as RetainedWriteReceipt } from './src/domain/api/RetainedWriteReceipt.ts';
+export { default as UnretainedWriteReceipt } from './src/domain/api/UnretainedWriteReceipt.ts';
+export { default as UnpublishedWriteReceipt } from './src/domain/api/UnpublishedWriteReceipt.ts';
+export { default as IndeterminateWriteReceipt } from './src/domain/api/IndeterminateWriteReceipt.ts';
+export type { AuthoredWriteReceipt } from './src/domain/api/AuthoredWriteReceipt.ts';
+export type { default as WriteAdmission, WriteAdmissionKind } from './src/domain/api/WriteAdmission.ts';
+export type { default as WriteOccurrence } from './src/domain/api/WriteOccurrence.ts';
+export type { default as WritePublication } from './src/domain/api/WritePublication.ts';
 export type {
   RuntimeForkOptions,
   RuntimeOpenOptions,

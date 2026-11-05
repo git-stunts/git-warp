@@ -4,13 +4,25 @@ import type CryptoPort from '../ports/CryptoPort.ts';
 import type RuntimeStorageProviderPort from '../ports/RuntimeStorageProviderPort.ts';
 import type TrustChainPort from '../ports/TrustChainPort.ts';
 import type HookPathPort from '../ports/HookPathPort.ts';
+import type GitTimelineHistoryAdapter from '../infrastructure/adapters/GitTimelineHistoryAdapter.ts';
+import type { ObservationReservations } from '../infrastructure/adapters/GitCasObservationCustodyAdapter.ts';
+import type { PublicationCapability, AssetCapability } from '@git-stunts/git-cas';
 import type WarpStorage from './WarpStorage.ts';
+
+/** The Git capabilities the cone write path composes directly (#1051). */
+export type WarpConeWriteStorage = {
+  readonly history: GitTimelineHistoryAdapter;
+  readonly reservations: ObservationReservations;
+  readonly publications: Pick<PublicationCapability, 'commit'>;
+  readonly assets: Pick<AssetCapability, 'put'>;
+};
 
 export type WarpStorageBinding = {
   readonly history: CorePersistence;
   readonly runtimeStorage: RuntimeStorageProviderPort;
   readonly createTrustChain?: (crypto: CryptoPort) => TrustChainPort;
   readonly hookPaths?: HookPathPort;
+  readonly coneWrites?: WarpConeWriteStorage;
 };
 
 const STORAGE_BINDINGS = new WeakMap<WarpStorage, WarpStorageBinding>();

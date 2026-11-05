@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
+  `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
+  with an injected `WarpAccessPort` and no implicit access. `execute` returns
+  `RetainedWriteReceipt`, `UnretainedWriteReceipt`, `UnpublishedWriteReceipt` or
+  `IndeterminateWriteReceipt`; only the retained one has a `Coordinate`
+  ([#1051](https://github.com/git-stunts/git-warp/issues/1051)).
+
 ### Breaking
 
 - Reserve `cone` as a graph-name segment for clone-local cone basis refs

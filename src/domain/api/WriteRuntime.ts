@@ -54,7 +54,7 @@ type PublishedWriteFields = Omit<IntentWriteFields, 'commit'> & {
   readonly recoveryEvidence: Evidence;
 };
 
-type OperationalWriteFailure = WriteObstruction & {
+export type OperationalWriteFailure = WriteObstruction & {
   readonly repairHints: readonly RepairHint[];
 };
 
@@ -268,7 +268,7 @@ async function committedWriteEvidence(fields: PublishedWriteFields): Promise<Evi
   }
 }
 
-function operationalWriteFailure(error: WarpError): OperationalWriteFailure | null {
+export function operationalWriteFailure(error: WarpError): OperationalWriteFailure | null {
   if (error.code === 'E_PATCH_NO_STATE' || invalidObservationMetadata(error)) {
     return missingWriteBasisFailure();
   }

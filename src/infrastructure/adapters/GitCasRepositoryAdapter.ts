@@ -5,6 +5,7 @@ import ContentAddressableStore, {
   type CacheCapability,
   type ExpiringSetCapability,
   type PublicationCapability,
+  type ReservationCapability,
 } from '@git-stunts/git-cas';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
@@ -66,6 +67,8 @@ export type GitCasFacade = Pick<
   readonly workspaces: GitCasMaterializationFacade['workspaces'];
   readonly expiringSets: Pick<ExpiringSetCapability, 'open'>;
   readonly publications: Pick<PublicationCapability, 'commit'>;
+  /** Optional so narrow test facades need not implement custody. */
+  readonly reservations?: ReservationCapability;
 };
 
 export type GitCasRepositoryAdapterOptions = {
@@ -134,6 +137,20 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   createMigrationStorageServices(request: RuntimeStorageRequest): MigrationStorageServices {
     this._assertOpen();
     return this._createServices(request);
+  }
+
+  /** The git-cas capabilities observation custody composes directly. */
+  observationStorage(): {
+    readonly reservations: ReservationCapability;
+    readonly publications: GitCasFacade['publications'];
+    readonly assets: GitCasFacade['assets'];
+  } {
+    this._assertOpen();
+    const { reservations, publications, assets } = this._cas;
+    if (reservations === undefined) {
+      throw new AdapterValidationError('This git-cas facade has no reservation capability');
+    }
+    return { reservations, publications, assets };
   }
 
   private _createServices(request: RuntimeStorageRequest): MigrationStorageServices {

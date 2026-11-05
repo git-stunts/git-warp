@@ -4,8 +4,9 @@ Implementation contract for [#1067](https://github.com/git-stunts/git-warp/issue
 under the [Optic contract](./optic-only-public-api.md), especially section 7.
 This document specifies the private prerequisite. The service, its production
 adapters and native witnesses exist in `src/domain/services/custody/` and
-`src/infrastructure/adapters/`, but nothing composes or exports them yet: #1051 and
-#1052 connect the producers. This is not a public Coordinate or a shipped release.
+`src/infrastructure/adapters/`. `src/application/WarpWriteComposition.ts` composes them
+for writes (#1051, in `src/domain/services/write/`); #1052 connects reads. The service
+stays private: applications see only the write receipts and their opaque Coordinate.
 Producers can start at the [producer protocol](#producer-protocol), with terms in the
 [vocabulary](#vocabulary); the sections before it explain why it is shaped that way.
 
@@ -212,8 +213,8 @@ Compose the service from `GitCasObservationCustodyAdapter.open`,
 A graph's capacity `limit` is fixed the first time it opens. A
 different value refuses, which also stops that process resolving existing Coordinates.
 Support limits are configuration: lowering them makes affected Coordinates report
-`work-limit` or `support-limit` until restored, so treat them as raise-only. No default
-for either exists yet; #1051 chooses them.
+`work-limit` or `support-limit` until restored, so treat them as raise-only. #1051's
+defaults are `WARP_RETENTION_SLOTS` and `WARP_SUPPORT_LIMITS` in `WarpWriteComposition.ts`.
 
 ### Building the inputs
 
@@ -301,8 +302,7 @@ unpublished, and start a new attempt only as a new decision.
 
 For attempts with no saved record, `attempts(phase)` lists what
 the ledger holds, as identities, and may end with an `ObservationIndeterminate` item if the
-store fails. Nothing runs this sweep yet: #1051 decides when, and how to tell an attempt has
-no owner. Try `recoverCoordinate(identity)` on each first. Then, if it stayed `not-settled`:
+store fails. #1051's writes do not need this listing, as above; #1052's `begin` may. Try `recoverCoordinate(identity)` on each first. Then, if it stayed `not-settled`:
 
 - `reserved` or `prepared` with no owner: `abandon(identity)`. Nothing can prove a producer
   is gone, so a live one loses its work, safely: its later arm refuses as cancelled.
@@ -398,16 +398,38 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   `policy-mismatch`, meaning a different capacity limit, or for `contention`, or a
   `CustodyIndeterminate`. An illegal graph name or an invalid limit throws a programming error of its own.
 
-### Open before #1051 routes writes here
+### What #1051 decided
 
-Only cancelling an unarmed, unsettled attempt frees
-its record slot in this delivery, so a graph's capacity `limit` is its lifetime count of
-attempts that were not cancelled, reads included. Every lost publication
-race also burns a slot. The default limit, what exhaustion looks like to a user, and whether
-git-cas should allow raising a limit are undecided. #1051 must settle them before custody
-carries real writes, and #1052 before it carries reads.
-#1051 must also decide how a restarted producer recognises its own publication when it saved
-nothing after publishing; until it can, that attempt reports indeterminate.
+- **Capacity:** every graph opens with `Number.MAX_SAFE_INTEGER` slots. Only cancelling an
+  unarmed attempt frees a slot, so a limit is a lifetime count of attempts, reads included,
+  and it can't be raised. Any limit a graph could reach would eventually stop it accepting
+  writes, and git-cas charges nothing per unused slot. A slot limit doesn't cap bytes anyway. Reaching it still has a typed answer:
+  `UnpublishedWriteReceipt` with cause `retention-capacity-exhausted`. Choosing a smaller limit,
+  or letting one rise, needs a git-cas change and a new decision. #1052 decides whether reads
+  share this namespace.
+- **What is persisted:** `WriteAttemptJournalPort`, one clone-local ref per in-flight attempt
+  under `refs/warp/<graph>/write-attempts/`, saved before reserving and removed once finished.
+  Each holds the preparation and what the receipt core needs beyond the commit id, so
+  the core is reproducible and nothing further is saved between arming and publishing.
+- **Recognising a publication:** a patch commit carries an `eg-publication-attempt` trailer.
+  A writer's chain is compare-and-swapped, so at most one commit can follow a predecessor: if
+  it names this attempt the attempt published, and if it names anything else the attempt never
+  can. With no such commit yet, the fate stays unknown and the receipt stays indeterminate.
+  That also proves evidence: after publishing, the producer checks the commit's parent,
+  graph, writer and attempt before settling.
+- **Failed publications:** only a lost compare-and-swap, or the chain showing another commit
+  in its place, counts as definitely failed. Any other error asks the chain, and
+  reports indeterminate if the chain has no answer.
+- **The sweep:** it runs when a Warp opens, over at most 64 saved attempts, and needs no
+  `attempts(phase)` listing because `resume` is only called on a saved id. An unarmed attempt
+  under an hour old is left alone, in case its owner is alive; an older one is abandoned, and a
+  live owner loses only its work. An armed one is settled from the chain, ended if another commit took its place, and otherwise waits for its
+  writer's next patch. `AuthoredWarp.reconcile` runs the same logic for one attempt. There is no
+  retry count, since nothing repeats without an open or a caller asking.
+- **Authority:** the access port's grant supplies the authority evidence and budget. A budget
+  bounds premise records, intent bytes and lowered operations, not physical I/O. The
+  commit's parent is enforced, but its author name is only the trailer's writer label: nothing
+  signs it. `WarpAccessPort` must authenticate the writer it authorizes.
 
 ## Vocabulary
 

@@ -47,6 +47,7 @@ export type CommitState = {
   commitMessageCodec: CommitMessageCodecPort;
   logger: LoggerPort;
   onCommitSuccess: ((result: PatchCommitResult) => void | Promise<void>) | null;
+  publicationAttempt?: string | undefined;
 };
 
 /**
@@ -154,6 +155,7 @@ async function publishPatch(
       expectedHead: state.expectedParentSha,
       parent: parentCommit,
       attachments: state.contentAssets,
+      ...(state.publicationAttempt === undefined ? {} : { publicationAttempt: state.publicationAttempt }),
     });
   } catch (error) {
     const actualSha = await state.persistence.readRef(writerRef);
