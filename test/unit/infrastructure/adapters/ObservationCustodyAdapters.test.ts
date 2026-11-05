@@ -91,7 +91,7 @@ describe('reading what might be damaged', () => {
         plumbing: { execute: async () => await Promise.resolve('tree') },
         readTreeObjectEntries: async () => await Promise.reject(failure),
       },
-      trees: new GitFastImportTreeWriter({ plumbing: { execute: async () => await Promise.resolve(''), executeStream: unscripted, emptyTree: OID } }),
+      trees: new GitFastImportTreeWriter({ plumbing: { execute: async () => await Promise.resolve('') } }),
       crypto,
       limits: new ObservationSupportLimits({ writers: 1, dependencies: 1, frontierBytes: 1, work: 100 }),
     });
