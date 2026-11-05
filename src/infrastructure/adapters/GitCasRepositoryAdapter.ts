@@ -71,6 +71,13 @@ export type GitCasFacade = Pick<
   readonly reservations?: ReservationCapability;
 };
 
+/** The git-cas capabilities observation custody composes directly. */
+export type ObservationStorage = {
+  readonly reservations: ReservationCapability;
+  readonly publications: GitCasFacade['publications'];
+  readonly assets: GitCasFacade['assets'];
+};
+
 export type GitCasRepositoryAdapterOptions = {
   readonly plumbing: GitPlumbing;
   readonly history: GitTimelineHistoryAdapter;
@@ -140,11 +147,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   }
 
   /** The git-cas capabilities observation custody composes directly. */
-  observationStorage(): {
-    readonly reservations: ReservationCapability;
-    readonly publications: GitCasFacade['publications'];
-    readonly assets: GitCasFacade['assets'];
-  } {
+  observationStorage(): ObservationStorage {
     this._assertOpen();
     const { reservations, publications, assets } = this._cas;
     if (reservations === undefined) {
