@@ -9,10 +9,7 @@ import { availableParallelism, freemem, totalmem } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-type Shard = {
-  readonly name: string;
-  readonly paths: readonly string[];
-};
+import StableUnitTestPartition, { type UnitTestShard } from './StableUnitTestPartition.ts';
 
 const BYTES_PER_MIB = 1024 * 1024;
 const DEFAULT_MAX_WORKERS = 4;
@@ -25,13 +22,6 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const VITEST_ENTRY = join(ROOT, 'node_modules', 'vitest', 'vitest.mjs');
 
 const isTestFile = (fileName: string): boolean => TEST_FILE_PATTERN.test(fileName);
-
-function listDirectTestFiles(relativeDirectory: string): string[] {
-  return readdirSync(join(ROOT, relativeDirectory), { withFileTypes: true })
-    .filter((entry) => entry.isFile() && isTestFile(entry.name))
-    .map((entry) => `${relativeDirectory}/${entry.name}`)
-    .sort();
-}
 
 function listRecursiveTestFiles(relativeDirectory: string): string[] {
   const files: string[] = [];
@@ -46,78 +36,6 @@ function listRecursiveTestFiles(relativeDirectory: string): string[] {
   }
 
   return files.sort();
-}
-
-const UNIT_SHARDS: readonly Shard[] = [
-  {
-    name: 'unit-small-surfaces',
-    paths: [
-      ...listDirectTestFiles('test/unit'),
-      ...listRecursiveTestFiles('test/unit/benchmark'),
-      ...listRecursiveTestFiles('test/unit/boundary'),
-      ...listRecursiveTestFiles('test/unit/cli'),
-      ...listRecursiveTestFiles('test/unit/helpers'),
-      ...listRecursiveTestFiles('test/unit/ports'),
-      ...listRecursiveTestFiles('test/unit/security'),
-      ...listRecursiveTestFiles('test/unit/specs'),
-      'test/contract/NeighborProviderPort.contract.test.ts',
-    ],
-  },
-  {
-    name: 'unit-infrastructure',
-    paths: listRecursiveTestFiles('test/unit/infrastructure'),
-  },
-  {
-    name: 'unit-scripts',
-    paths: listRecursiveTestFiles('test/unit/scripts'),
-  },
-  {
-    name: 'unit-domain-core',
-    paths: [
-      ...listDirectTestFiles('test/unit/domain'),
-      ...listRecursiveTestFiles('test/unit/domain/artifacts'),
-      ...listRecursiveTestFiles('test/unit/domain/capabilities'),
-      ...listRecursiveTestFiles('test/unit/domain/continuum'),
-      ...listRecursiveTestFiles('test/unit/domain/crdt'),
-      ...listRecursiveTestFiles('test/unit/domain/entities'),
-      ...listRecursiveTestFiles('test/unit/domain/entity'),
-      ...listRecursiveTestFiles('test/unit/domain/errors'),
-      ...listRecursiveTestFiles('test/unit/domain/graph'),
-      ...listRecursiveTestFiles('test/unit/domain/memory'),
-      ...listRecursiveTestFiles('test/unit/domain/migrations'),
-      ...listRecursiveTestFiles('test/unit/domain/orset'),
-      ...listRecursiveTestFiles('test/unit/domain/properties'),
-      ...listRecursiveTestFiles('test/unit/domain/stream'),
-      ...listRecursiveTestFiles('test/unit/domain/storage'),
-      ...listRecursiveTestFiles('test/unit/domain/tree'),
-      ...listRecursiveTestFiles('test/unit/domain/trust'),
-      ...listRecursiveTestFiles('test/unit/domain/types'),
-      ...listRecursiveTestFiles('test/unit/domain/utils'),
-      ...listRecursiveTestFiles('test/unit/domain/warp'),
-    ],
-  },
-  {
-    name: 'unit-domain-services-root',
-    paths: listDirectTestFiles('test/unit/domain/services'),
-  },
-  {
-    name: 'unit-domain-services-subdirs',
-    paths: ['controllers', 'cone', 'custody', 'optic', 'query', 'snapshot', 'state', 'strand', 'sync']
-      .flatMap((directory) => listRecursiveTestFiles(`test/unit/domain/services/${directory}`)),
-  },
-];
-
-function assertUniqueShardPaths(shards: readonly Shard[]): void {
-  const seen = new Set<string>();
-  for (const shard of shards) {
-    for (const path of shard.paths) {
-      if (seen.has(path)) {
-        console.error(`stable-unit-tests: duplicate shard path ${path}`);
-        process.exit(FAILURE_EXIT_CODE);
-      }
-      seen.add(path);
-    }
-  }
 }
 
 function readPositiveInt(name: string, fallback: number): number {
@@ -244,7 +162,7 @@ function runVitest(args: readonly string[], dryRun: boolean): number {
   return FAILURE_EXIT_CODE;
 }
 
-function runShard(shard: Shard, workers: number, dryRun: boolean): number {
+function runShard(shard: UnitTestShard, workers: number, dryRun: boolean): number {
   console.log(`stable-unit-tests: running shard ${shard.name} (${shard.paths.length} files)`);
   return runVitest(createVitestArgs(workers, shard.paths), dryRun);
 }
@@ -261,8 +179,6 @@ const freeBytes = readMemoryBytes('WARP_TEST_FAKE_FREE_MB', freemem());
 const detectedTotalMemoryBytes = readMemoryBytes('WARP_TEST_FAKE_TOTAL_MB', totalmem());
 const dryRun = process.env['WARP_STABLE_TEST_DRY_RUN'] === '1';
 const vitestVersion = detectVitestVersion();
-
-assertUniqueShardPaths(UNIT_SHARDS);
 
 printRunnerFacts({
   cpuCount,
@@ -281,7 +197,9 @@ if (targetArgs.length > 0) {
   process.exit(runTargeted(targetArgs, workers, dryRun));
 }
 
-for (const shard of UNIT_SHARDS) {
+const partition = StableUnitTestPartition.fromInventory(listRecursiveTestFiles('test/unit'));
+
+for (const shard of partition.shards) {
   const exitCode = runShard(shard, workers, dryRun);
   if (exitCode !== SUCCESS_EXIT_CODE) {
     process.exit(exitCode);

@@ -1,5 +1,15 @@
 # Coverage runs and threshold updates
 
+The normal `npm run test:local` runner recursively discovers files under
+`test/unit/` whose names end in `.test`, `.spec` or `.benchmark` followed by
+`.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.mts`, `.cjs` or `.cts`. It partitions
+that complete inventory into six ordered groups and includes
+`test/contract/NeighborProviderPort.contract.test.ts` explicitly. Each path
+must occur exactly once; an incomplete or overlapping partition refuses before
+Vitest starts. Empty groups are omitted. New unit-test directories require no
+allowlist change. Targeted invocations keep their explicit selection and worker
+bound; they do not run the default inventory.
+
 Run coverage through the COPY-based Docker commands:
 
 ```bash
