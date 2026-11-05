@@ -27,9 +27,9 @@ export default class AuthoredWarp {
 
   /**
    * Executes an intent or an atomic intent sequence, publishing at most once. It is never
-   * retried for you. It rejects, having published nothing, if the access port throws or a
-   * store fails while reading premises. A process that dies here leaves no receipt, and no
-   * way yet to ask what became of the write.
+   * retried for you. A store failure fixing the basis returns an unpublished receipt. It
+   * rejects, having published nothing, if the access port throws or a store fails reading records.
+   * A process that dies here leaves no receipt, and no way yet to ask what became of the write.
    */
   async execute(input: WriteIntentInput): Promise<AuthoredWriteReceipt> {
     return await this.#backend.execute(this.writer, input);
