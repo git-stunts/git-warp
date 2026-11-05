@@ -90,10 +90,10 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     return Object.freeze(records);
   }
 
-  /** A blob that does not decode is not a record, however it came to be there. */
-  #decoded(bytes: Uint8Array): z.infer<typeof storedRecordSchema> | null {
+  /** A blob that cannot be read or decoded is not a record, however it came to be there. */
+  async #decoded(oid: string): Promise<z.infer<typeof storedRecordSchema> | null> {
     try {
-      const parsed = storedRecordSchema.safeParse(this.#codec.decode(bytes));
+      const parsed = storedRecordSchema.safeParse(this.#codec.decode(await this.#history.readBlob(oid)));
       return parsed.success ? parsed.data : null;
     } catch {
       return null;
@@ -101,7 +101,7 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
   }
 
   async #readRecord(oid: string): Promise<WriteAttemptRecord | null> {
-    const decoded = this.#decoded(await this.#history.readBlob(oid));
+    const decoded = await this.#decoded(oid);
     return decoded === null ? null : this.#recordOf(decoded);
   }
 

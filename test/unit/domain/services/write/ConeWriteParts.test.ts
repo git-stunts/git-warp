@@ -288,6 +288,20 @@ describe('ConeWriteRecovery', () => {
 });
 
 describe('a saved record that is not a write', () => {
+  it('reads a blob it cannot open as no record, so one dangling ref cannot stop a listing', async () => {
+    const journal = new GitWriteAttemptJournalAdapter({
+      graph: 'g',
+      codec: {} as CodecPort,
+      custodyCodec: {} as ObservationCustodyCodecPort,
+      history: {
+        readRefTargets: () => Promise.resolve(new Map([['r', OID]])),
+        readBlob: () => Promise.reject(new Error('missing object')),
+      } as unknown as WriteAttemptHistory,
+    });
+
+    await expect(journal.list(4)).resolves.toEqual([]);
+  });
+
   it('reads a blob of the wrong shape as no record', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
