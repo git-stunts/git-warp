@@ -85,7 +85,7 @@ documentation.
 Composing `Warp` from the package root brought the cone engine and observation custody
 into the published closure alongside the legacy `Runtime`
 ([#1051](https://github.com/git-stunts/git-warp/issues/1051)). The artifact measured 1,229
-entries, so the entry ceiling rose to 1,300, and only about 3,600 unpacked bytes
+entries, so the entry ceiling rose to 1,300, and only about 4,200 unpacked bytes
 of headroom remain. Removing the legacy surface under
 [#1054](https://github.com/git-stunts/git-warp/issues/1054) should allow it to fall again.
 

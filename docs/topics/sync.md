@@ -19,7 +19,7 @@ wildcard in either direction:
 - A wildcard push publishes refs this clone does not own, such as its derived
   checkpoint head.
 - A wildcard fetch also copies `refs/warp/<graph>/write-attempts/`, which is clone-local. The
-  reservation ledger under `refs/cas/` does not come with it, so a copied record can't be resolved.
+  reservation ledger under `refs/cas/` does not come with it, so a copied record can later be answered wrongly as cancelled.
 - Never add `+` to a WARP refspec. A forced update can move another writer's
   chain backward.
 

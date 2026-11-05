@@ -107,7 +107,7 @@ export default class ConeWriteLowering {
   }): Promise<LoweredConeWrite | UnpublishedWriteReceipt> {
     const { request, builder, premise } = run;
     const targets = coneWriteTargets(request.sequence);
-    const seen = this.#knowledge.seen(request.writer, premise.from);
+    const seen = this.#knowledge.seen(premise.from);
     const observed = targets.readsRecords() ? premise.basis : seen;
     await builder.prepareConeWriteBasis(targets, premise, observed);
     applyIntentSequenceToPatch(request.sequence, builder, this.#content);
@@ -121,7 +121,7 @@ export default class ConeWriteLowering {
       admission: races.isEmpty() ? 'derived' : 'plural',
       bindings: await this.#bindings({ request, basis: premise.stored.revision, predecessor, observed }),
       occurrences: occurrencesOf(request.sequence, builder),
-      fold: new PatchEntryFold(this.#cone, { parent: predecessor, knowledge: this.#knowledge, from: premise.from }),
+      fold: new PatchEntryFold(this.#cone, predecessor),
     });
   }
 

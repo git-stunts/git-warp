@@ -424,7 +424,8 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   for a commit that landed with its acknowledgement lost, asks the chain, and reports indeterminate if
   the chain has no answer. Before permission a write reports unpublished even if custody couldn't
   answer, because this producer alone would publish; that deliberately differs from the outcome table.
-  A ledger that says unarmed can't outrank a record or chain naming a commit.
+  A ledger saying `reserved` or `prepared` can't outrank a record or chain naming a commit. One
+  saying `cancelled` still does, which only a copied record can reach.
 - **Limits a graph can reach:** a walk stops 4,096 commits past the predecessor, after which an
   attempt stays indeterminate and each later open pays for the walk. The 4,097th writer on a graph
   refuses every write there, with no repair, because the support limit counts the whole frontier.
@@ -446,8 +447,7 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   landed: it was answered already, or isn't this writer's, or the writer is denied now, or, in a rare
   race where marking failed or a sweep had already listed the record, a sweep answered first.
 - **What a blind write observed:** what this clone held when this Warp began writing, plus that
-  writer's own landed patches, since the writer is the observer. A landing whose acknowledgement
-  was lost adds nothing, which errs towards `plural`. The published cone head can't say this, since any
+  writer's own chain, which always counts as observed. The published cone head can't say this, since any
   fold moves it without anyone reading it. The patch's frontier is bound as `dependency` evidence
   because it can be less than the retained basis. Limits: a new process starts from the head it finds,
   so in an open, write, close pattern every earlier same-clone write counts as seen and `plural`

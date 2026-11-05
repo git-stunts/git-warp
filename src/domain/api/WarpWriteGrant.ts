@@ -13,8 +13,8 @@ export type WarpWriteBudget = {
 /**
  * An access decision permitting one write. `authority` is what its digest retains as
  * evidence. The port is asked again before publication and a different grant refuses, so
- * `authority` and `budget` must name the policy decision, not one call: a nonce or a
- * remaining quota would refuse every write.
+ * `authority` and `budget` must name the policy decision, not one call: any value that
+ * changes between the two asks, such as a nonce, refuses the write.
  */
 export default class WarpWriteGrant {
   readonly authority: string;
