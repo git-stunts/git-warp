@@ -9,6 +9,7 @@ import GitFastImportTreeScript from './GitFastImportTreeScript.ts';
 import type GitFastImportTreeWriter from './GitFastImportTreeWriter.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
 import type { GitTreeObjectEntry } from './GitTreeObjectEntry.ts';
+import { isObjectFault } from './ObservationObjectFault.ts';
 import { isMissingObject, objectTypes } from './ObservationObjectTypes.ts';
 import type ObservationWorkMeter from './ObservationWorkMeter.ts';
 
@@ -20,7 +21,6 @@ const ENTRY_NAME_DIGITS = 8;
 
 export type ObservationDependencyHistory = {
   readonly plumbing: Pick<GitPlumbing, 'execute'>;
-  nodeExists(oid: string): Promise<boolean>;
   readTreeObjectEntries(treeOid: string): Promise<readonly GitTreeObjectEntry[]>;
 };
 
@@ -142,16 +142,28 @@ export default class ObservationDependencyPages {
   async #pageEntries(
     oid: string,
     meter: ObservationWorkMeter,
-  ): Promise<readonly GitTreeObjectEntry[] | 'dependency-missing' | 'work-limit'> {
+  ): Promise<readonly GitTreeObjectEntry[] | 'dependency-missing' | 'dependency-mismatch' | 'work-limit'> {
     if (!meter.spend(1)) {
       return 'work-limit';
     }
-    if (!await this.#history.nodeExists(oid)) {
+    const read = await this.#treeEntries(oid);
+    return typeof read === 'string' ? read : await this.#entriesExist(read, meter) ?? read;
+  }
+
+  async #treeEntries(oid: string): Promise<readonly GitTreeObjectEntry[] | 'dependency-missing' | 'dependency-mismatch'> {
+    const [type = ''] = await objectTypes(this.#history.plumbing, [oid]);
+    if (isMissingObject(type)) {
       return 'dependency-missing';
     }
-    const entries = [...await this.#history.readTreeObjectEntries(oid)]
-      .sort((left, right) => left.name.localeCompare(right.name));
-    return await this.#entriesExist(entries, meter) ?? entries;
+    try {
+      const entries = await this.#history.readTreeObjectEntries(oid);
+      return [...entries].sort((left, right) => left.name.localeCompare(right.name));
+    } catch (cause) {
+      if (isObjectFault(cause)) {
+        return 'dependency-mismatch';
+      }
+      throw cause;
+    }
   }
 
   async #entriesExist(entries: readonly GitTreeObjectEntry[], meter: ObservationWorkMeter): Promise<'dependency-missing' | 'work-limit' | null> {

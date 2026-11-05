@@ -6,13 +6,12 @@ import type ObservationSupportPort from '../../../ports/ObservationSupportPort.t
 import ObservationCustodyError from '../../errors/ObservationCustodyError.ts';
 import CustodyAcknowledged from './CustodyAcknowledged.ts';
 import CustodyEvidence from './CustodyEvidence.ts';
-import CustodyIndeterminate from './CustodyIndeterminate.ts';
 import CustodyInspection from './CustodyInspection.ts';
 import CustodyRefused from './CustodyRefused.ts';
 import type { CustodyPhase } from './CustodyVocabulary.ts';
 import {
-  armRefusal, assertArmable, assertPublicationMatches, bytesEqual, cancelRefusal, cancelledOutcome, failureOf, mapSupport, preArmReason, settlementFailure,
-  unarmedWrite, unverified,
+  armRefusal, assertArmable, assertPermitted, assertPublicationMatches, bytesEqual, cancelRefusal, cancelledOutcome, failureOf, mapSupport,
+  preArmReason, settlementFailure, unarmedWrite, unverified,
 } from './observationCustodyOutcomes.ts';
 import type { CustodyIndeterminateOrRefused } from './observationCustodyVariants.ts';
 import { digestOf } from './observationDigestOf.ts';
@@ -20,9 +19,10 @@ import ObservationAdmitted from './ObservationAdmitted.ts';
 import ObservationAttempt from './ObservationAttempt.ts';
 import type ObservationAttemptId from './ObservationAttemptId.ts';
 import type ObservationBindings from './ObservationBindings.ts';
-import ObservationCoordinate from './ObservationCoordinate.ts';
+import type ObservationCoordinate from './ObservationCoordinate.ts';
 import ObservationCustodyIdentity from './ObservationCustodyIdentity.ts';
 import ObservationCustodyPage from './ObservationCustodyPage.ts';
+import ObservationCustodyRecovery, { coordinateOf } from './ObservationCustodyRecovery.ts';
 import ObservationCustodyResolver from './ObservationCustodyResolver.ts';
 import ObservationCustodyRoots from './ObservationCustodyRoots.ts';
 import ObservationDecodeFailure from './ObservationDecodeFailure.ts';
@@ -32,6 +32,7 @@ import ObservationPreparation from './ObservationPreparation.ts';
 import ObservationPrepared from './ObservationPrepared.ts';
 import ObservationPreparedPage from './ObservationPreparedPage.ts';
 import type ObservationPublicationEvidence from './ObservationPublicationEvidence.ts';
+import ObservationPublicationFailed from './ObservationPublicationFailed.ts';
 import ObservationPublicationPermission from './ObservationPublicationPermission.ts';
 import type ObservationReceiptCore from './ObservationReceiptCore.ts';
 import ObservationReconciled from './ObservationReconciled.ts';
@@ -81,6 +82,7 @@ export default class ObservationCustodyService {
   readonly #crypto: CryptoPort;
   readonly #attempts: ObservationAttemptSourcePort;
   readonly #resolver: ObservationCustodyResolver;
+  readonly #recovery: ObservationCustodyRecovery;
   readonly #builds = new Map<string, OwnedBuild>();
 
   constructor(options: ObservationCustodyServiceOptions) {
@@ -90,9 +92,14 @@ export default class ObservationCustodyService {
     this.#crypto = options.crypto;
     this.#attempts = options.attempts;
     this.#resolver = new ObservationCustodyResolver(options);
+    this.#recovery = new ObservationCustodyRecovery({ ...options, resolver: this.#resolver });
   }
 
-  /** Reserves capacity for a new attempt before anything can be published. */
+  /**
+   * Reserves capacity for a new attempt with an id minted here. The caller learns
+   * that id only from the result, so a producer that must recover from a lost
+   * acknowledgement saves its own id first and calls `resume` instead.
+   */
   async begin(bindings: ObservationBindings): Promise<ObservationAdmitted | ObservationRefused | ObservationIndeterminate> {
     return await this.resume(this.#attempts.next(), bindings);
   }
@@ -143,7 +150,7 @@ export default class ObservationCustodyService {
     return armed instanceof CustodyRefused ? armRefusal(attempt, armed) : failureOf(armed, 'arm');
   }
 
-  /** Retains the exact final outcome. A Coordinate exists only when this returns it. */
+  /** Retains the exact final outcome, and issues its Coordinate once that resolves. */
   async settle(
     attempt: ObservationAttempt,
     outcome: { readonly core: ObservationReceiptCore; readonly publication: ObservationPublicationEvidence | null },
@@ -153,22 +160,26 @@ export default class ObservationCustodyService {
   }
 
   /**
-   * Records that an armed write's one attempt definitely did not publish, such as a
-   * lost predecessor race, so the attempt ends rather than staying open forever. Its
-   * slot stays charged and the producer's receipt is unpublished, with no Coordinate.
-   * The producer owns that claim: an uncertain outcome must stay uncertain instead.
+   * Records that the one attempt this permission allowed definitely did not publish,
+   * such as a lost predecessor race, so the attempt ends rather than staying open.
+   * Requiring the permission keeps this from anyone who could not know that. An
+   * uncertain outcome must stay uncertain: call nothing, and report it indeterminate.
    */
   async settleFailedPublication(
-    attempt: ObservationAttempt,
+    permission: ObservationPublicationPermission,
     core: ObservationReceiptCore,
-  ): Promise<RetainedObservation | ObservationUnretained | ObservationKnownUnpublished | ObservationRefused | ObservationIndeterminate> {
+  ): Promise<ObservationPublicationFailed | ObservationUnretained | ObservationKnownUnpublished | ObservationRefused | ObservationIndeterminate> {
+    assertPermitted(permission);
+    const { attempt } = permission;
     const inspected = await this.#custody.inspect(attempt.identity);
     if (!(inspected instanceof CustodyInspection)) {
       return failureOf(inspected, 'settlement');
     }
-    return inspected.phase === 'armed' || inspected.phase === 'settled'
-      ? await this.#settled(attempt, { core, publication: null })
-      : new ObservationRefused('not-armed');
+    if (inspected.phase === 'reserved' || inspected.phase === 'prepared') {
+      return new ObservationRefused('not-armed');
+    }
+    const settled = await this.#settled(attempt, { core, publication: null });
+    return settled instanceof RetainedObservation ? new ObservationPublicationFailed(attempt.identity) : settled;
   }
 
   async #settled(
@@ -197,10 +208,10 @@ export default class ObservationCustodyService {
   async cancel(
     attempt: ObservationAttempt,
   ): Promise<ObservationKnownUnpublished | ObservationReconcileOnly | ObservationRefused | ObservationIndeterminate> {
-    await this.#quiesce(attempt);
+    await this.#quiesce(attempt.identity);
     const cancelled = await this.#custody.cancel(attempt.identity);
     if (cancelled instanceof CustodyAcknowledged) {
-      await this.#releaseConstruction(attempt);
+      await this.#releaseConstruction(attempt.identity);
       return new ObservationKnownUnpublished(attempt);
     }
     return cancelled instanceof CustodyRefused ? cancelRefusal(attempt, cancelled) : failureOf(cancelled, 'cancellation');
@@ -208,54 +219,48 @@ export default class ObservationCustodyService {
 
   /** Completes storage transitions only. It never arms, retries or executes anything. */
   async reconcile(attempt: ObservationAttempt): Promise<ObservationReconciled | ObservationRefused | ObservationIndeterminate> {
-    await this.#quiesce(attempt);
+    await this.#quiesce(attempt.identity);
     const reconciled = await this.#custody.reconcile(attempt.identity);
     if (!(reconciled instanceof CustodyAcknowledged)) {
       return failureOf(reconciled, 'reconciliation');
     }
     if (reconciled.phase !== 'reserved') {
-      await this.#releaseConstruction(attempt);
+      await this.#releaseConstruction(attempt.identity);
     }
     return new ObservationReconciled(reconciled.phase);
   }
 
   /**
-   * The Coordinate of a settled attempt, rebuilt from its retained settlement. This is
-   * how a producer that lost the acknowledgement, or its process, gets the token back.
+   * The outcome of a settled attempt, rebuilt from retained evidence and its identity.
+   * This is how a producer that lost an acknowledgement, or its process, gets a token
+   * back. It completes storage first, so settlement evidence pinned just before a
+   * crash is found. Unverified evidence may be a transient read failure, so may be retried.
    */
-  async recoverCoordinate(identity: ObservationCustodyIdentity): Promise<RetainedObservation | ObservationRefused | ObservationIndeterminate> {
-    const evidence = await this.#custody.readEvidence(identity, 'settlement');
-    if (!(evidence instanceof CustodyEvidence)) {
-      return failureOf(evidence, 'settlement');
-    }
-    const page = this.#codec.decodeSettlementPage(evidence.page.record());
-    if (page instanceof ObservationDecodeFailure) {
-      return unverified('record-corrupt');
-    }
-    return await this.#issue(await this.#coordinateOf(identity, page.record()), page.core());
+  async recoverCoordinate(identity: ObservationCustodyIdentity): Promise<RetainedObservation | ObservationPublicationFailed | ObservationRefused | ObservationIndeterminate> {
+    return await this.#recovery.recoverCoordinate(identity);
   }
 
   /**
    * Attempts in one phase, as the ledger last recorded them, one bounded page at a time.
    * Diagnostic only: it finds what a crash stranded and never decides admission.
    */
-  async *attempts(phase: CustodyPhase): AsyncGenerator<ObservationCustodyIdentity | ObservationIndeterminate> {
-    for await (const item of this.#custody.attempts(phase)) {
-      yield item instanceof CustodyIndeterminate ? new ObservationIndeterminate('reconciliation', item.cause) : item;
-    }
+  attempts(phase: CustodyPhase): AsyncGenerator<ObservationCustodyIdentity | ObservationIndeterminate> {
+    return this.#recovery.attempts(phase);
   }
 
   /**
    * Frees an unarmed attempt known only by identity, such as a reservation whose
-   * producer crashed before saving it. Safe against a live attempt: its later arm
-   * refuses as cancelled. An armed attempt refuses, because its charge stays.
+   * producer crashed before saving it. Nothing can prove a producer is gone, but this
+   * is safe against a live one: it loses its work and its later arm refuses as
+   * cancelled. An armed attempt refuses, because its charge stays.
    */
   async abandon(identity: ObservationCustodyIdentity): Promise<ObservationReconciled | ObservationRefused | ObservationIndeterminate> {
+    await this.#quiesce(identity);
     const cancelled = await this.#custody.cancel(identity);
     if (!(cancelled instanceof CustodyAcknowledged)) {
       return failureOf(cancelled, 'cancellation');
     }
-    await this.#support.release(identity).catch(() => undefined);
+    await this.#releaseConstruction(identity);
     return new ObservationReconciled('cancelled');
   }
 
@@ -349,13 +354,13 @@ export default class ObservationCustodyService {
       return failureOf(outcome, 'preparation');
     }
     if (outcome.reason === 'cancelled' || outcome.reason === 'preparation-mismatch') {
-      await this.#releaseConstruction(attempt);
+      await this.#releaseConstruction(attempt.identity);
     }
     return outcome.reason === 'cancelled' ? new ObservationKnownUnpublished(attempt) : new ObservationRefused(outcome.reason);
   }
 
   async #acknowledgePrepared(attempt: ObservationAttempt, roots: ObservationCustodyRoots): Promise<ObservationPrepared> {
-    await this.#releaseConstruction(attempt);
+    await this.#releaseConstruction(attempt.identity);
     return new ObservationPrepared(attempt, roots);
   }
 
@@ -450,7 +455,7 @@ export default class ObservationCustodyService {
     record: ObservationRecord,
     bytes: { readonly recordBytes: Uint8Array; readonly coreBytes: Uint8Array },
   ): Promise<RetainedObservation | ObservationUnretained | ObservationIndeterminate> {
-    const issued = await this.#issue(await this.#coordinateOf(attempt.identity, bytes.recordBytes), bytes.coreBytes);
+    const issued = await this.#issue(await coordinateOf(this.#crypto, attempt.identity, bytes.recordBytes), bytes.coreBytes);
     return issued instanceof ObservationIndeterminate && record.publication !== null ? new ObservationUnretained(attempt, 'settlement-unverified') : issued;
   }
 
@@ -462,14 +467,6 @@ export default class ObservationCustodyService {
     return this.#codec.decodeCore(coreBytes) instanceof ObservationDecodeFailure ? 'evidence-undecodable' : null;
   }
 
-  async #coordinateOf(identity: ObservationCustodyIdentity, recordBytes: Uint8Array): Promise<ObservationCoordinate> {
-    return new ObservationCoordinate({
-      attemptId: identity.attemptId,
-      binding: identity.binding,
-      record: await digestOf(this.#crypto, recordBytes),
-    });
-  }
-
   /** Issues a Coordinate only for evidence that resolves back to the exact core. */
   async #issue(coordinate: ObservationCoordinate, coreBytes: Uint8Array): Promise<RetainedObservation | ObservationIndeterminate> {
     const resolved = await this.#resolver.resolve(coordinate);
@@ -479,8 +476,8 @@ export default class ObservationCustodyService {
     return new RetainedObservation(coordinate, coreBytes);
   }
 
-  async #quiesce(attempt: ObservationAttempt): Promise<void> {
-    const build = this.#builds.get(attempt.identity.attemptId.value);
+  async #quiesce(identity: ObservationCustodyIdentity): Promise<void> {
+    const build = this.#builds.get(identity.attemptId.value);
     if (build !== undefined) {
       build.stop.requested = true;
       await build.work.catch(() => null);
@@ -488,7 +485,7 @@ export default class ObservationCustodyService {
   }
 
   /** Construction state is disposable once custody holds it; residue only costs a ref until reconciled. */
-  async #releaseConstruction(attempt: ObservationAttempt): Promise<void> {
-    await this.#support.release(attempt.identity).catch(() => undefined);
+  async #releaseConstruction(identity: ObservationCustodyIdentity): Promise<void> {
+    await this.#support.release(identity).catch(() => undefined);
   }
 }

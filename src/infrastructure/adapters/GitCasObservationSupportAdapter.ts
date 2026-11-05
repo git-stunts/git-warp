@@ -27,7 +27,6 @@ import ObservationWorkMeter from './ObservationWorkMeter.ts';
 export const OBSERVATION_CARRIER_BATCH = 63;
 
 export type ObservationSupportHistory = ObservationBasisHistory & {
-  nodeExists(oid: string): Promise<boolean>;
   readRef(ref: string): Promise<string | null>;
   deleteRef(ref: string): Promise<void>;
 };
@@ -122,7 +121,7 @@ export default class GitCasObservationSupportAdapter extends ObservationSupportP
   }
 
   override async verifyPublication(commit: string): Promise<ObservationSupportFault | null> {
-    return await this.#history.nodeExists(commit) ? null : new ObservationSupportFault('publication-missing');
+    return await this.#headsExist([commit]) ? null : new ObservationSupportFault('publication-missing');
   }
 
   #constructionRef(identity: ObservationCustodyIdentity): string {

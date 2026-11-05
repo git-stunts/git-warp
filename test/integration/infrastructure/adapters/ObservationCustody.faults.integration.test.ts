@@ -173,7 +173,7 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
     expect(effect.invocations).toBe(1);
 
     const different = { core: writeCore('rewritten'), publication: outcome.publication };
-    expect(await opened.service.settle(attempt, different)).toEqual(new ObservationUnretained(attempt, 'settlement-refused'));
+    expect(await opened.service.settle(attempt, different)).toEqual(new ObservationUnretained(attempt, 'settlement-conflict'));
   });
 
   it('does not treat a cancel it could not confirm as known-unpublished', async () => {

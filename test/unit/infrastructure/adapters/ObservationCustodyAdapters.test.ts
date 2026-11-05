@@ -21,6 +21,9 @@ import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import { isObjectFault } from '../../../../src/infrastructure/adapters/ObservationObjectFault.ts';
 import ObservationBasisFrontier, { type ObservationBasisHistory } from '../../../../src/infrastructure/adapters/ObservationBasisFrontier.ts';
 import ObservationCarrierChain from '../../../../src/infrastructure/adapters/ObservationCarrierChain.ts';
+import GitFastImportTreeWriter from '../../../../src/infrastructure/adapters/GitFastImportTreeWriter.ts';
+import ObservationDependencyPages from '../../../../src/infrastructure/adapters/ObservationDependencyPages.ts';
+import ObservationDependencyClaim from '../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationWorkMeter from '../../../../src/infrastructure/adapters/ObservationWorkMeter.ts';
 import ObservationSupportLimits from '../../../../src/domain/services/custody/ObservationSupportLimits.ts';
 import ObservationSupportFault from '../../../../src/domain/services/custody/ObservationSupportFault.ts';
@@ -67,17 +70,34 @@ describe('reading what might be damaged', () => {
 
   it('calls only an object Git refused to read a fault', () => {
     expect(isObjectFault(fatal('fatal: Not a valid object name'))).toBe(true);
-    expect(isObjectFault(fatal('fatal: resource temporarily unavailable'))).toBe(false);
+    expect(isObjectFault(fatal('fatal: not a git repository'))).toBe(false);
+    expect(isObjectFault(fatal('error: Permission denied'))).toBe(false);
     expect(isObjectFault(spawn)).toBe(false);
+    expect(isObjectFault(Object.assign(new Error('bad tree'), { code: 'TREE_PARSE_ERROR' }))).toBe(true);
+    expect(isObjectFault(Object.assign(new Error('Git failed'), { details: { code: 1, stderr: 'bad file' } }))).toBe(false);
   });
 
   it('keeps a transient failure reading a carrier out of the damage verdict', async () => {
     const chainOver = (failure: Error): ObservationCarrierChain => new ObservationCarrierChain({
-      plumbing: { execute: async () => await Promise.reject(failure) },
-      nodeExists: async () => await Promise.resolve(true),
+      plumbing: { execute: async (options) => (options.args[1]?.startsWith('--batch-check') === true ? 'commit' : await Promise.reject(failure)) },
     }, new NodeCryptoAdapter());
-    expect(await chainOver(fatal('fatal: not a commit')).walk(IDENTITY, OID, meter())).toEqual(new ObservationSupportFault('history-mismatch'));
+    expect(await chainOver(fatal('fatal: bad file')).walk(IDENTITY, OID, meter())).toEqual(new ObservationSupportFault('history-mismatch'));
     await expect(chainOver(spawn).walk(IDENTITY, OID, meter())).rejects.toBe(spawn);
+  });
+
+  it('keeps a transient failure reading a page out of the damage verdict', async () => {
+    const pagesOver = (failure: Error): ObservationDependencyPages => new ObservationDependencyPages({
+      history: {
+        plumbing: { execute: async () => await Promise.resolve('tree') },
+        readTreeObjectEntries: async () => await Promise.reject(failure),
+      },
+      trees: new GitFastImportTreeWriter({ plumbing: { execute: async () => await Promise.resolve(''), executeStream: unscripted, emptyTree: OID } }),
+      crypto,
+      limits: new ObservationSupportLimits({ writers: 1, dependencies: 1, frontierBytes: 1, work: 100 }),
+    });
+    const claim = ObservationDependencyClaim.NONE;
+    expect(await pagesOver(fatal('fatal: bad file')).check([OID], claim, meter())).toBe('dependency-mismatch');
+    await expect(pagesOver(spawn).check([OID], claim, meter())).rejects.toBe(spawn);
   });
 
   it('keeps a transient failure reading a basis out of the damage verdict', async () => {
@@ -96,7 +116,7 @@ describe('reading what might be damaged', () => {
     const heads = async (overrides: Partial<ObservationBasisHistory>): Promise<readonly string[] | string> =>
       await frontierOver(overrides).heads(OID, meter());
     expect(await heads({})).toBe('corrupt');
-    expect(await heads({ readTreeObjectEntries: async () => await reject(fatal('fatal: not a tree')) })).toBe('corrupt');
+    expect(await heads({ readTreeObjectEntries: async () => await reject(fatal('fatal: bad file')) })).toBe('corrupt');
     await expect(heads({ readTreeObjectEntries: async () => await reject(spawn) })).rejects.toBe(spawn);
     expect(await heads({ readBlob: async () => await reject(fatal('fatal: bad file')) })).toBe('corrupt');
     await expect(heads({ readBlob: async () => await reject(spawn) })).rejects.toBe(spawn);
@@ -263,10 +283,6 @@ class CarrierHistory {
       return await Promise.resolve(raw);
     },
   };
-
-  async nodeExists(oid: string): Promise<boolean> {
-    return await Promise.resolve(!this.missing.has(oid));
-  }
 
   oid(): string {
     this.#next += 1;

@@ -8,6 +8,7 @@ import ObservationIndeterminate, { type ObservationCustodyStep } from './Observa
 import ObservationKnownUnpublished from './ObservationKnownUnpublished.ts';
 import ObservationPrepared from './ObservationPrepared.ts';
 import type ObservationPublicationEvidence from './ObservationPublicationEvidence.ts';
+import ObservationPublicationPermission from './ObservationPublicationPermission.ts';
 import ObservationReconcileOnly from './ObservationReconcileOnly.ts';
 import ObservationRefused, { type ObservationRefusalReason } from './ObservationRefused.ts';
 import ObservationSupportCancelled from './ObservationSupportCancelled.ts';
@@ -15,7 +16,8 @@ import type ObservationSupportFault from './ObservationSupportFault.ts';
 import ObservationSupportRefused from './ObservationSupportRefused.ts';
 import type ObservationSupportRetained from './ObservationSupportRetained.ts';
 import type { ObservationUnavailableReason } from './ObservationUnavailable.ts';
-import ObservationUnretained from './ObservationUnretained.ts';
+import ObservationUnretained, { type ObservationUnretainedReason } from './ObservationUnretained.ts';
+import type ResolvedObservation from './ResolvedObservation.ts';
 
 export function failureOf(outcome: CustodyIndeterminateOrRefused, step: ObservationCustodyStep): ObservationRefused | ObservationIndeterminate {
   return outcome instanceof CustodyRefused ? new ObservationRefused(outcome.reason) : new ObservationIndeterminate(step, outcome.cause);
@@ -49,7 +51,26 @@ export function settlementFailure(
   if (publication === null) {
     return failureOf(outcome, 'settlement');
   }
-  return new ObservationUnretained(attempt, outcome instanceof CustodyRefused ? 'settlement-refused' : 'settlement-unacknowledged');
+  return new ObservationUnretained(attempt, unretainedReason(outcome));
+}
+
+function unretainedReason(outcome: CustodyIndeterminateOrRefused): ObservationUnretainedReason {
+  if (!(outcome instanceof CustodyRefused)) {
+    return 'settlement-unacknowledged';
+  }
+  return outcome.reason === 'settlement-mismatch' ? 'settlement-conflict' : 'settlement-refused';
+}
+
+/** Ending an attempt as failed needs the permission only a fresh arm grants. */
+export function assertPermitted(permission: ObservationPublicationPermission): void {
+  if (!(permission instanceof ObservationPublicationPermission)) {
+    throw misuse('Only the holder of a publication permission can record that it failed');
+  }
+}
+
+/** A write settled with no publication is one that recorded a failed publication. */
+export function endedUnpublished(resolved: ResolvedObservation): boolean {
+  return resolved.preparation.bindings.writePremise !== null && resolved.record.publication === null;
 }
 
 /** Arming needs preparation this service verified, so recovery cannot step around that check. */

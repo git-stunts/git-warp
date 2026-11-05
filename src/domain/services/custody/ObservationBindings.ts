@@ -20,6 +20,8 @@ export type ObservationBindingsFields = {
   readonly writePremise: ObservationWritePremise | null;
 };
 
+const LONE_SURROGATE = /[\ud800-\udfff]/u;
+
 /**
  * The original standpoint of one observation attempt, as its producer captured
  * it. Custody never recaptures any of it from a later graph.
@@ -72,6 +74,7 @@ function isEvidenceList(evidence: readonly ObservationEvidenceBinding[]): boolea
   return Array.isArray(evidence) && evidence.every((entry) => entry instanceof ObservationEvidenceBinding);
 }
 
+/** Lone surrogates cannot survive canonical encoding, so a name holding one could not stay this name. */
 function isName(value: string): boolean {
-  return typeof value === 'string' && value.length > 0;
+  return typeof value === 'string' && value.length > 0 && !LONE_SURROGATE.test(value);
 }

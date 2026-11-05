@@ -14,7 +14,6 @@ const PARENT_HEADER = 'parent ';
 
 export type ObservationCarrierHistory = {
   readonly plumbing: Pick<GitPlumbing, 'execute'>;
-  nodeExists(oid: string): Promise<boolean>;
 };
 
 /** Where a retained carrier chain stands. */
@@ -99,7 +98,7 @@ export default class ObservationCarrierChain {
     if (!meter.spend(1)) {
       return new ObservationSupportFault('work-limit');
     }
-    if (!await this.#history.nodeExists(oid)) {
+    if (!await this.#headsExist([oid])) {
       return new ObservationSupportFault('history-missing');
     }
     return await this.#parsed(identity, oid, meter);

@@ -23,6 +23,7 @@ import ObservationPreparation from '../../../../../src/domain/services/custody/O
 import ObservationPrepared from '../../../../../src/domain/services/custody/ObservationPrepared.ts';
 import ObservationPreparedPage from '../../../../../src/domain/services/custody/ObservationPreparedPage.ts';
 import ObservationPublicationEvidence from '../../../../../src/domain/services/custody/ObservationPublicationEvidence.ts';
+import ObservationPublicationFailed from '../../../../../src/domain/services/custody/ObservationPublicationFailed.ts';
 import ObservationPublicationPermission from '../../../../../src/domain/services/custody/ObservationPublicationPermission.ts';
 import ObservationReceiptCore from '../../../../../src/domain/services/custody/ObservationReceiptCore.ts';
 import ObservationReconcileOnly from '../../../../../src/domain/services/custody/ObservationReconcileOnly.ts';
@@ -721,71 +722,39 @@ describe('ObservationCustodyService', () => {
   });
 
   describe('a publication that definitely failed', () => {
-    it('ends an armed write with a record, and refuses an unarmed one', async () => {
+    it('ends an armed write with no Coordinate, and refuses an unarmed one', async () => {
       const attempt = await writeAttempt();
+      const permission = new ObservationPublicationPermission(attempt);
       storePreparation(attempt);
       custody.inspected = inspectionAt('prepared');
-      expect(await service.settleFailedPublication(attempt, writeCore('stale'))).toEqual(new ObservationRefused('not-armed'));
+      expect(await service.settleFailedPublication(permission, writeCore('stale'))).toEqual(new ObservationRefused('not-armed'));
+      custody.inspected = inspectionAt('reserved');
+      expect(await service.settleFailedPublication(permission, writeCore('stale'))).toEqual(new ObservationRefused('not-armed'));
       custody.inspected = new CustodyIndeterminate(failure);
-      expect(await service.settleFailedPublication(attempt, writeCore('stale'))).toEqual(new ObservationIndeterminate('settlement', failure));
+      expect(await service.settleFailedPublication(permission, writeCore('stale'))).toEqual(new ObservationIndeterminate('settlement', failure));
       custody.inspected = inspectionAt('armed');
       custody.settled = new CustodyRefused('contention');
-      expect(await service.settleFailedPublication(attempt, writeCore('stale'))).toEqual(new ObservationRefused('contention'));
+      expect(await service.settleFailedPublication(permission, writeCore('stale'))).toEqual(new ObservationRefused('contention'));
+      custody.settled = new CustodyAcknowledged('settled', 'settled');
+      const settling = service.settleFailedPublication(permission, writeCore('stale'));
+      await storeSettlement(attempt, { core: custodyCodec.encodeCore(writeCore('stale')) });
+      expect(await settling).toEqual(new ObservationPublicationFailed(attempt.identity));
+      expect(await service.recoverCoordinate(attempt.identity)).toEqual(new ObservationPublicationFailed(attempt.identity));
     });
-  });
 
-  describe('retention after a publication', () => {
-    const publication = new ObservationPublicationEvidence('writer-1', COMMIT);
+    it('is misuse without the permission', async () => {
+      const attempt = await writeAttempt();
+      await expect(Reflect.apply(service.settleFailedPublication, service, [attempt, writeCore('stale')]))
+        .rejects.toMatchObject({ code: 'E_OBSERVATION_CUSTODY_MISUSE' });
+    });
 
-    it.each([
-      [new CustodyRefused('contention'), 'settlement-refused'],
-      [new CustodyIndeterminate(failure), 'settlement-unacknowledged'],
-    ] as const)('stays unretained, never refused or uncertain: %#', async (settled, reason) => {
+    it('reports a conflicting settlement as never worth repeating', async () => {
       const attempt = await writeAttempt();
       storePreparation(attempt);
       custody.inspected = inspectionAt('armed');
-      custody.settled = settled;
-      expect(await service.settle(attempt, { core: writeCore('w'), publication })).toEqual(new ObservationUnretained(attempt, reason));
-    });
-
-    it('reports a failed inspection and unreadable preparation as unretained', async () => {
-      const attempt = await writeAttempt();
-      custody.inspected = new CustodyIndeterminate(failure);
-      expect(await service.settle(attempt, { core: writeCore('w'), publication }))
-        .toEqual(new ObservationUnretained(attempt, 'settlement-unacknowledged'));
-    });
-
-    it('reports settlement that does not resolve as unretained', async () => {
-      const attempt = await writeAttempt();
-      storePreparation(attempt);
-      custody.inspected = inspectionAt('armed');
-      custody.evidence.settlement = new CustodyRefused('not-settled');
-      expect(await service.settle(attempt, { core: writeCore('w'), publication }))
-        .toEqual(new ObservationUnretained(attempt, 'settlement-unverified'));
-    });
-  });
-
-  describe('bytes the codec cannot read back', () => {
-    const undecodable = `\ud800${'é'.repeat(40)}`;
-
-    it('refuses a preparation before reserving anything', async () => {
-      const reserve = vi.spyOn(custody, 'reserve');
-      const bindings = new ObservationBindings({ ...fieldsOf(readBindings(BASIS)), observer: undecodable });
-      expect(await service.begin(bindings)).toEqual(new ObservationRefused('preparation-unencodable'));
-      expect(reserve).not.toHaveBeenCalled();
-    });
-
-    it('refuses or reports a core before settling it', async () => {
-      const read = await readAttempt();
-      storePreparation(read);
-      const core = new ObservationReceiptCore({ family: 'observation', variant: undecodable, outcome: Uint8Array.of(1) });
-      expect(await service.settle(read, { core, publication: null })).toEqual(new ObservationRefused('evidence-undecodable'));
-      const write = await writeAttempt();
-      storePreparation(write);
-      custody.inspected = inspectionAt('armed');
-      const writeOutcome = new ObservationReceiptCore({ family: 'write', variant: undecodable, outcome: Uint8Array.of(1) });
-      expect(await service.settle(write, { core: writeOutcome, publication: new ObservationPublicationEvidence('writer-1', COMMIT) }))
-        .toEqual(new ObservationUnretained(write, 'evidence-undecodable'));
+      custody.settled = new CustodyRefused('settlement-mismatch');
+      expect(await service.settle(attempt, { core: writeCore('w'), publication: new ObservationPublicationEvidence('writer-1', COMMIT) }))
+        .toEqual(new ObservationUnretained(attempt, 'settlement-conflict'));
     });
   });
 });

@@ -127,6 +127,7 @@ describe('observation value invariants', () => {
     ['premise predecessor', () => new ObservationWritePremise({ intents: digest, writerId: 'w', predecessor: 'HEAD' })],
     ['bindings basis', () => bindings({ basis: 'main' })],
     ['bindings observer', () => bindings({ observer: '' })],
+    ['bindings observer surrogate', () => bindings({ observer: `\ud800${'a'.repeat(63)}` })],
     ['bindings purpose', () => bindings({ purpose: 7 })],
     ['bindings question', () => bindings({ question: 'q' })],
     ['bindings budget', () => bindings({ budget: {} })],

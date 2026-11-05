@@ -53,6 +53,7 @@ import ObservationCustodyFixture, {
   writeBindings,
   writeCore,
   writerCommits,
+  freezeLedger,
   preparationOf,
 } from '../../../helpers/ObservationCustodyFixture.ts';
 
@@ -90,20 +91,6 @@ function constructionRefs(path: string): string {
 
 function missingOid(path: string, digit: string): string {
   return digit.repeat(git(path, ['rev-parse', '--show-object-format']) === 'sha256' ? 64 : 40);
-}
-
-/** Fails every update of the namespace ledger: custody pins land, the ledger cannot advance. */
-async function freezeLedger(path: string): Promise<void> {
-  const namespace = await GitCasObservationCustodyAdapter.namespaceOf(new NodeCryptoAdapter(), FIXTURE_GRAPH);
-  const hook = join(path, 'hooks', 'reference-transaction');
-  await writeFile(hook, [
-    '#!/bin/sh',
-    '[ "$1" = prepared ] || exit 0',
-    `if grep -q ' refs/cas/reservations/${namespace}$'; then exit 1; fi`,
-    'exit 0',
-    '',
-  ].join('\n'));
-  await chmod(hook, 0o755);
 }
 
 describe.each(['sha1', 'sha256'])('shared observation custody on published git-cas (%s)', (format) => {

@@ -10,6 +10,7 @@ import ObservationCustodyIdentity from '../../../../src/domain/services/custody/
 import ObservationDigest from '../../../../src/domain/services/custody/ObservationDigest.ts';
 import ObservationPrepared from '../../../../src/domain/services/custody/ObservationPrepared.ts';
 import ObservationPublicationEvidence from '../../../../src/domain/services/custody/ObservationPublicationEvidence.ts';
+import ObservationPublicationFailed from '../../../../src/domain/services/custody/ObservationPublicationFailed.ts';
 import ObservationPublicationPermission from '../../../../src/domain/services/custody/ObservationPublicationPermission.ts';
 import ObservationReconciled from '../../../../src/domain/services/custody/ObservationReconciled.ts';
 import ObservationRefused from '../../../../src/domain/services/custody/ObservationRefused.ts';
@@ -25,12 +26,14 @@ import ObservationCustodyFixture, {
   DEFAULT_SUPPORT_LIMITS,
   basisTree,
   collectGarbage,
+  freezeLedger,
   git,
   narrowed,
   readBindings,
   readCore,
   removeFixtureRefs,
   sources,
+  thawLedger,
   writeBindings,
   writeCore,
   writerCommits,
@@ -91,7 +94,7 @@ describe.each(['sha1', 'sha256'])('observation custody recovery (%s)', (format) 
     expect(await second.service.recoverCoordinate(identity)).toEqual(recovered);
   });
 
-  it('opens custody for every legal graph name, with nested names kept apart', async () => {
+  it('opens custody for graph names a store namespace refuses, with nested names kept apart', async () => {
     const path = await fixture.repository(format);
     const plumbing = await Plumbing.createDefault({ cwd: path });
     const store = ContentAddressableStore.createCbor({ plumbing, applicationRefPrefixes: ['refs/warp/'] });
@@ -128,18 +131,33 @@ describe.each(['sha1', 'sha256'])('observation custody recovery (%s)', (format) 
     expect(await second.service.begin(readBindings(basisTree(path, 'still-blocked')))).toEqual(new ObservationRefused('capacity-full'));
   });
 
-  it('ends an armed write that did not publish, keeping its slot', async () => {
+  it('ends an armed write that did not publish with no Coordinate, keeping its slot', async () => {
     const path = await fixture.repository(format);
     const opened = await fixture.open(path, { limit: 1 });
     const { attempt } = narrowed(await opened.service.begin(writeBindings(basisTree(path, 'stale'))), ObservationAdmitted);
     const prepared = narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
-    expect(await opened.service.settleFailedPublication(attempt, writeCore('stale'))).toEqual(new ObservationRefused('not-armed'));
-    narrowed(await opened.service.authorizePublication(prepared), ObservationPublicationPermission);
-    const ended = narrowed(await opened.service.settleFailedPublication(attempt, writeCore('stale')), RetainedObservation);
-    expect(await opened.service.settleFailedPublication(attempt, writeCore('stale'))).toEqual(ended);
-    const resolved = narrowed(await opened.service.resolve(ended.coordinate), ResolvedObservation);
-    expect(resolved.record.publication).toBeNull();
+    const permission = narrowed(await opened.service.authorizePublication(prepared), ObservationPublicationPermission);
+    const failed = new ObservationPublicationFailed(attempt.identity);
+    expect(await opened.service.settleFailedPublication(permission, writeCore('stale'))).toEqual(failed);
+    expect(await opened.service.settleFailedPublication(permission, writeCore('stale'))).toEqual(failed);
+    expect(await opened.service.recoverCoordinate(attempt.identity)).toEqual(failed);
+    const commit = writerCommits(path, 1)[0] ?? '';
+    expect(await opened.service.settle(attempt, { core: writeCore('stale'), publication: new ObservationPublicationEvidence('writer-1', commit) }))
+      .toEqual(new ObservationUnretained(attempt, 'settlement-conflict'));
     expect(await opened.service.begin(readBindings(basisTree(path, 'full')))).toEqual(new ObservationRefused('capacity-full'));
+  });
+
+  it('finds settlement evidence pinned just before a crash, from the identity alone', async () => {
+    const path = await fixture.repository(format);
+    const first = await fixture.open(path, { limit: 2 });
+    const { attempt } = narrowed(await first.service.begin(readBindings(basisTree(path, 'pinned'))), ObservationAdmitted);
+    narrowed(await first.service.prepare(attempt, sources()), ObservationPrepared);
+    await freezeLedger(path);
+    expect(await first.service.settle(attempt, { core: readCore('pinned'), publication: null })).not.toBeInstanceOf(RetainedObservation);
+    await thawLedger(path);
+    await fixture.close(first);
+    const second = await fixture.open(path, { limit: 2 });
+    narrowed(await second.service.recoverCoordinate(attempt.identity), RetainedObservation);
   });
 
   it('reports lowered limits as limits on an issued Coordinate, undone by restoring them', async () => {

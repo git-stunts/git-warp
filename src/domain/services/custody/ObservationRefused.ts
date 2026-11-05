@@ -5,7 +5,8 @@ export type ObservationRefusalReason = CustodyRefusalReason | ObservationSupport
 
 /**
  * A transition was refused and nothing was published by it. Previously issued
- * observations are untouched. The attempt keeps its slot until cancelled or settled.
+ * observations are untouched. A refused admission holds no slot. Otherwise the
+ * attempt stays charged, and only a successful `cancel`, while unarmed, frees it.
  */
 export default class ObservationRefused {
   readonly reason: ObservationRefusalReason;

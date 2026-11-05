@@ -2,7 +2,8 @@ import ObservationCustodyError from '../../errors/ObservationCustodyError.ts';
 
 /**
  * Explicit bounds on one attempt's support. Crossing one while building refuses
- * before arm; crossing one while verifying reports an unavailable outcome.
+ * before arm. Verifying applies all but `dependencies`, and crossing one then reports
+ * an unavailable outcome.
  */
 export default class ObservationSupportLimits {
   /** Distinct writer heads a basis may require. */

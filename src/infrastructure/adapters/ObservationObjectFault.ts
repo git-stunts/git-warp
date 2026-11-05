@@ -1,13 +1,19 @@
-import { getExitCode, isTransientError, toGitError } from './gitErrorClassification.ts';
+import { getExitCode, gitDiagnosticText, toGitError } from './gitErrorClassification.ts';
 
 const GIT_FATAL_EXIT = 128;
+const TREE_PARSE_FAILURE = 'TREE_PARSE_ERROR';
+const OBJECT_DAMAGE: readonly string[] = ['bad file', 'corrupt', 'header for', 'unable to parse', 'not a valid object', 'bad object'];
 
 /**
- * True when Git itself refused to read an object as what was asked, which makes the
- * object damaged. A spawn failure or a transient error says nothing about the object,
- * and must surface as uncertainty rather than as damage.
+ * True when Git, or the store's tree parser, read an object and found it damaged or
+ * not what was asked for. A spawn failure, a timeout, a lost repository or a refused
+ * read says nothing about the object, and must surface as uncertainty, not damage.
  */
 export function isObjectFault(cause: unknown): boolean {
+  if (Object(cause) === cause && Reflect.get(Object(cause), 'code') === TREE_PARSE_FAILURE) {
+    return true;
+  }
   const error = toGitError(cause);
-  return getExitCode(error) === GIT_FATAL_EXIT && !isTransientError(error);
+  const diagnostic = gitDiagnosticText(error);
+  return getExitCode(error) === GIT_FATAL_EXIT && OBJECT_DAMAGE.some((pattern) => diagnostic.includes(pattern));
 }

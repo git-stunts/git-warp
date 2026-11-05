@@ -5,7 +5,8 @@ export type ObservationCustodyStep = 'reservation' | 'preparation' | 'arm' | 'se
  * never licenses retrying an intent. Usually reconcile the attempt's evidence, but
  * `cause.code` separates two states reconciling cannot fix:
  * `E_OBSERVATION_CUSTODY_CONTRADICTED` (a publication custody never permitted) and
- * `E_OBSERVATION_CUSTODY_UNVERIFIED` (settled read evidence that does not resolve).
+ * `E_OBSERVATION_CUSTODY_UNVERIFIED` (settled evidence that did not resolve, which
+ * may be transient, so recovery may be retried).
  */
 export default class ObservationIndeterminate {
   readonly step: ObservationCustodyStep;

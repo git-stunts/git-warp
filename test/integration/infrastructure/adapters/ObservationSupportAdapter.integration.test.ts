@@ -248,7 +248,6 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
         plumbing,
         readRef: async (ref) => await history.readRef(ref),
         deleteRef: async (ref) => await history.deleteRef(ref),
-        nodeExists: async (oid) => await history.nodeExists(oid),
         readBlob: async (oid) => await history.readBlob(oid),
         readTreeObjectEntries: async (oid) => await history.readTreeObjectEntries(oid),
       },

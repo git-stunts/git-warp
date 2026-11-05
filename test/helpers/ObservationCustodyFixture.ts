@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import ContentAddressableStore from '@git-stunts/git-cas';
@@ -137,6 +137,24 @@ export default class ObservationCustodyFixture {
 /** What `prepare` returns, for tests whose subject is what the ledger does with an arm. */
 export function preparationOf(attempt: ObservationAttempt): ObservationPrepared {
   return new ObservationPrepared(attempt, new ObservationCustodyRoots([], []));
+}
+
+/** Fails every update of the namespace ledger: custody pins land, the ledger cannot advance. */
+export async function freezeLedger(path: string): Promise<void> {
+  const namespace = await GitCasObservationCustodyAdapter.namespaceOf(new NodeCryptoAdapter(), FIXTURE_GRAPH);
+  const hook = join(path, 'hooks', 'reference-transaction');
+  await writeFile(hook, [
+    '#!/bin/sh',
+    '[ "$1" = prepared ] || exit 0',
+    `if grep -q ' refs/cas/reservations/${namespace}$'; then exit 1; fi`,
+    'exit 0',
+    '',
+  ].join('\n'));
+  await chmod(hook, 0o755);
+}
+
+export async function thawLedger(path: string): Promise<void> {
+  await rm(join(path, 'hooks', 'reference-transaction'));
 }
 
 let writerSequence = 0;
