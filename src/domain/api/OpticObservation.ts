@@ -4,7 +4,7 @@ import type OpticReceipt from './OpticReceipt.ts';
 
 /** How a read runs: its readings in order, and the terminal result of any given status. */
 export type OpticExecution = {
-  readings(): AsyncGenerator<OpticReading, OpticReceipt>;
+  readings(): AsyncGenerator<OpticReading, OpticReceipt, undefined>;
   cancelled(): OpticReceipt;
 };
 
@@ -39,7 +39,7 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
     return await this.#settled;
   }
 
-  [Symbol.asyncIterator](): AsyncGenerator<OpticReading, undefined, undefined> {
+  [Symbol.asyncIterator](): AsyncIterator<OpticReading, undefined, undefined> {
     if (this.#consumed) {
       throw new WarpError('An observation has one consumer, and this one already has it', 'E_OBSERVATION_CONSUMED');
     }

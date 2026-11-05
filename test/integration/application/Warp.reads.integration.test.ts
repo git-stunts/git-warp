@@ -145,7 +145,7 @@ describe('one execution, one consumer, one terminal result', () => {
     const first = observed[Symbol.asyncIterator]();
 
     expect(() => observed[Symbol.asyncIterator]()).toThrow('one consumer');
-    await first.return();
+    await first.return?.();
   });
 
   it('cancels when iteration is broken', async () => {

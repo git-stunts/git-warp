@@ -867,14 +867,10 @@
 1054	.%2Fadvanced Coordinate Coordinate%3Adeclared%3Adeclared%3Adeclared%3Adeclared%5B%5D uninspectable-type
 1054	.%2Fadvanced Coordinate Coordinate%3Adeclared%3Adeclared%3Adeclared%3Adeclared%5B%5D%3Atype checkpoint
 1054	.%2Fadvanced Coordinate Coordinate%3Adeclared%3Adeclared%3Adeclared%3Atype checkpoint
-1054	.%2Fadvanced Coordinate Coordinate%3Adeclared%3Adeclared%3Adeclared%5B%5D%3Adeclared%3C1%3E uninspectable-type
-1054	.%2Fadvanced Coordinate Coordinate%3Adeclared%3Adeclared%3Adeclared%5B%5D%3Adeclared%3C2%3E uninspectable-type
 1054	.%2Fadvanced Coordinate Coordinate%3Adeclared%3Adeclared%3Atype frontier
 1054	.%2Fadvanced Coordinate Coordinate%3Adeclared%3Atype frontier
 1054	.%2Fadvanced Coordinate Coordinate%3Adeclared%3C0%3E%3Atype frontier
 1054	.%2Fadvanced Coordinate Coordinate%3Adeclared%5B%5D%3Atype frontier
-1054	.%2Fadvanced createEdgeContentObserver createEdgeContentObserver%3Adeclared%3Adeclared%3Adeclared%3C1%3E uninspectable-type
-1054	.%2Fadvanced createEdgeContentObserver createEdgeContentObserver%3Adeclared%3Adeclared%3Adeclared%3C2%3E uninspectable-type
 1054	.%2Fadvanced createEdgeContentObserver createEdgeContentObserver%3Adeclared%3Adeclared%3C1%3E uninspectable-type
 1054	.%2Fadvanced createEdgeContentObserver createEdgeContentObserver%3Adeclared%3Adeclared%3C2%3E uninspectable-type
 1054	.%2Fadvanced createEntityAdmissionInventoryObserver createEntityAdmissionInventoryObserver%3Adeclared%3Adeclared%3Adeclared%3C1%3E uninspectable-type
@@ -883,8 +879,6 @@
 1054	.%2Fadvanced createManyObserver createManyObserver%3Adeclared%3Adeclared%3C2%3E uninspectable-type
 1054	.%2Fadvanced createManyObserver createManyObserver%3Adeclared%3C1%3E uninspectable-type
 1054	.%2Fadvanced createManyObserver createManyObserver%3Adeclared%3C2%3E uninspectable-type
-1054	.%2Fadvanced createNodeContentObserver createNodeContentObserver%3Adeclared%3Adeclared%3Adeclared%3C1%3E uninspectable-type
-1054	.%2Fadvanced createNodeContentObserver createNodeContentObserver%3Adeclared%3Adeclared%3Adeclared%3C2%3E uninspectable-type
 1054	.%2Fadvanced createNodeContentObserver createNodeContentObserver%3Adeclared%3Adeclared%3C1%3E uninspectable-type
 1054	.%2Fadvanced createNodeContentObserver createNodeContentObserver%3Adeclared%3Adeclared%3C2%3E uninspectable-type
 1054	.%2Fadvanced createObserver createObserver%3Adeclared%3Adeclared%3C1%3E uninspectable-type

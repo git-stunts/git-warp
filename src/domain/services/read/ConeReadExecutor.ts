@@ -76,7 +76,7 @@ export default class ConeReadExecutor {
     const answered = this.#answered.bind(this);
     return {
       cancelled: () => receipt('cancelled', { cause: 'cancelled' }),
-      async *readings(): AsyncGenerator<OpticReading, OpticReceipt> {
+      async *readings(): AsyncGenerator<OpticReading, OpticReceipt, undefined> {
         const reading = await answered(run.request.question, run.basis);
         if (encodedSize(reading) > run.grant.budget.bytes) {
           return receipt('budget-exhausted', { cause: 'budget-exhausted', records: RECORDS_PER_EXACT_READ });
@@ -127,7 +127,7 @@ function ended(receipt: ReceiptMaker, terminal: OpticReceipt): OpticObservation 
   return new OpticObservation({
     cancelled: () => receipt('cancelled', { cause: 'cancelled' }),
     // eslint-disable-next-line require-yield -- A decided read emits nothing.
-    async *readings(): AsyncGenerator<OpticReading, OpticReceipt> { return await Promise.resolve(terminal); },
+    async *readings(): AsyncGenerator<OpticReading, OpticReceipt, undefined> { return await Promise.resolve(terminal); },
   });
 }
 
