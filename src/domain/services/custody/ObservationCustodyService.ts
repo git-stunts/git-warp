@@ -242,7 +242,7 @@ export default class ObservationCustodyService {
 
   /**
    * Attempts in one phase, as the ledger last recorded them, one bounded page at a time.
-   * Diagnostic only: it finds what a crash stranded and never decides admission.
+   * It finds what a crash stranded and never decides admission.
    */
   attempts(phase: CustodyPhase): AsyncGenerator<ObservationCustodyIdentity | ObservationIndeterminate> {
     return this.#recovery.attempts(phase);

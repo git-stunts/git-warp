@@ -13,8 +13,8 @@ Producers can start at the [producer protocol](#producer-protocol), with terms i
 
 An observation survives close/reopen and ordinary Git GC with its original receipt
 core, basis and required dependencies intact. Capacity is admitted before a writer
-can publish. A retained result is issued only after durable custody and semantic
-correspondence are verified. Failure never becomes permission to retry an intent.
+can publish. A retained result is issued only after durable custody is acknowledged and
+the retained evidence is verified against what the attempt bound. Failure never becomes permission to retry an intent.
 
 git-cas 7.1.0 owns hard record-slot admission, its durable ledger, and preparation
 and settlement custody. WARP consumes the published package and owns the meaning
@@ -207,21 +207,35 @@ Compose the service from `GitCasObservationCustodyAdapter.open`,
 `GitCasObservationSupportAdapter`, `ObservationCustodyCborCodec`, crypto, and an
 `ObservationAttemptSourcePort` such as `EntropyObservationAttemptSource`.
 
-**Configuration.** A graph's capacity `limit` is fixed the first time it opens. A
+### Configuration
+
+A graph's capacity `limit` is fixed the first time it opens. A
 different value refuses, which also stops that process resolving existing Coordinates.
 Support limits are configuration: lowering them makes affected Coordinates report
 `work-limit` or `support-limit` until restored, so treat them as raise-only. No default
 for either exists yet; #1051 chooses them.
 
-**Building the inputs.** `ObservationBindings` holds the basis, observer, question,
-purpose, budget, evidence, a dependency claim, and a write's premise, or null for a read. Compute the claim with
+### Building the inputs
+
+`ObservationBindings` holds the basis, observer, question,
+purpose, budget, evidence, a dependency claim, and a write's premise, or null for a read.
+The basis is a published cone basis tree with its `frontier` entry, from
+`ConeRecordStorePort.publishBasis`. A premise's `intents` is the digest of the submitted
+intent sequence, which #1051 canonicalizes. Evidence entries bind digests only, including
+those of kind `dependency`, which say what was relied on; only the claim retains objects. Compute the claim with
 `ObservationDependencyClaim.of` over the same ordered stream you will hand `prepare` as
 `sources.dependencies`, or use `ObservationDependencyClaim.NONE`. The stream is consumed
 once per call, so it must be re-creatable. A claim is bound before the attempt runs, so
 a read must know its dependencies before `begin`; how a streaming read does that is
 #1052's design question, and this delivery does not answer it.
 
-**Write.** The id must be saved before anything can go wrong:
+An `ObservationReceiptCore` holds a `family`, `observation` or `write`, the `variant` naming
+the receipt it belongs to, and the producer's canonical `outcome` bytes. #1051 and #1052 own
+those variants. It must be built without its Coordinate, and reproducible on any retry.
+
+### Write
+
+The id must be saved before anything can go wrong:
 
 1. `attemptSource.next()`, then durably save the id and bindings.
 2. `resume(id, bindings)`, which reserves.
@@ -237,21 +251,27 @@ a read must know its dependencies before `begin`; how a streaming read does that
    - You cannot tell: **call neither.** Report indeterminate, leave the attempt armed,
      and settle later only once publication is established. It stays charged regardless.
 
-**Read.** `begin(bindings)`, `prepare(attempt, sources)`, produce the answer, then
+### Read
+
+`begin(bindings)`, `prepare(attempt, sources)`, produce the answer, then
 `settle(attempt, { core, publication: null })`. `begin` keeps no id for you, so a lost
 acknowledgement leaves an unnamed reservation for the sweep below; use the write path's
 first two steps if a slot matters more than the extra save. Every read that is not
 cancelled spends a slot for the life of the graph. A read that crashed can restart from its
 saved id as below, or, since it has no effect to protect, `abandon` and run as a new attempt.
 
-**Misuse throws.** `ObservationCustodyError` with `E_OBSERVATION_CUSTODY_MISUSE` means a
+### Misuse throws
+
+`ObservationCustodyError` with `E_OBSERVATION_CUSTODY_MISUSE` means a
 programming error, not an outcome: arming a read, arming without an `ObservationPrepared`,
 settling a failure without the permission, settling a read with a publication, or settling
 a write without the premise's writer label or a publication. A write that has already
 published must therefore get its evidence right before calling `settle`.
 
-**What to persist, and where.** Choosing the store and encoding is the producer's job, and
-#1051 owns it; `encodePreparation` gives canonical bytes for an id and its bindings. To
+### What to persist, and where
+
+Choosing the store and encoding is the producer's job, and
+#1051 owns it; `encodePreparation` and `decodePreparation` give canonical bytes for an id and its bindings. To
 recover by `resume` and `prepare`: the id and bindings, and the means to recreate `sources`
 while the attempt is still `reserved`. `prepare` ignores `sources` in any later phase, where
 empty ones will do. To repeat `settle`: the exact core and publication
@@ -259,7 +279,9 @@ evidence, since a different page conflicts. A published write that crashed befor
 them may rebuild them, as long as nothing settled yet, since the first settlement wins.
 Nothing further is needed for a token: `recoverCoordinate(identity)` rebuilds it.
 
-**On restart.** `resume` with the saved id and bindings is safe to repeat. It returns
+### On restart
+
+`resume` with the saved id and bindings is safe to repeat. It returns
 `ObservationAdmitted`, holding the `attempt` and its `phase`, and reserves if a crash came
 before step 2. Unless the phase is `reserved`, next try `recoverCoordinate(attempt.identity)`,
 since settlement evidence can be pinned ahead of the ledger. If that reports `not-settled`,
@@ -275,7 +297,9 @@ since settlement evidence can be pinned ahead of the ledger. If that reports `no
 `resume` refuses as `cancelled` when the attempt was cancelled or abandoned: report known
 unpublished, and start a new attempt only as a new decision.
 
-**Sweeping after a crash.** For attempts with no saved record, `attempts(phase)` lists what
+### Sweeping after a crash
+
+For attempts with no saved record, `attempts(phase)` lists what
 the ledger holds, as identities, and may end with an `ObservationIndeterminate` item if the
 store fails. Nothing runs this sweep yet: #1051 decides when, and how to tell an attempt has
 no owner. Try `recoverCoordinate(identity)` on each first. Then, if it stayed `not-settled`:
@@ -286,19 +310,25 @@ no owner. Try `recoverCoordinate(identity)` on each first. Then, if it stayed `n
   no way to end the attempt, because the permission is never reissued, and must not construct
   one. The slot stays charged and the receipt is built from that evidence alone.
 
+### Outcomes
+
+What each result obliges the producer to do, and the receipt it reports:
+
 | The service returned | The producer | Write receipt | Read terminal |
 | --- | --- | --- | --- |
 | `ObservationAdmitted`, `ObservationPrepared` | Continues. Neither permits publishing | None yet | None yet |
 | `ObservationPublicationPermission` | Publishes once | None yet | Not applicable |
-| `ObservationReconcileOnly` | Never publishes on this history. `reconcile`, and settles what is established | Indeterminate until established | Reconcile, then `recoverCoordinate`: a settled read completed before a cancel |
+| `ObservationReconcileOnly` | Never publishes for this attempt. `reconcile`, settles what is established, and `recoverCoordinate` if it reached `settled` | Indeterminate until established | Reconcile, then `recoverCoordinate`: a settled read completed before a cancel |
 | `ObservationKnownUnpublished` | Stops; nothing can publish or complete | Unpublished | Cancelled |
 | `ObservationPublicationFailed` | Stops; the attempt ended and has no Coordinate | Unpublished | Not applicable |
-| `ObservationRefused` | Stops this step and follows the groups below | **Never decides publication by itself.** Unpublished only if no permission was ever issued. Otherwise what the producer knows of its publication decides, or Indeterminate | Refused, or budget-exhausted for a limit |
+| `ObservationRefused` | Stops this step and follows the groups below | **Never decides publication by itself.** Unpublished only if no permission was ever issued. Otherwise what the producer knows of its publication decides, or Indeterminate | Refused, or budget-exhausted for a support limit. What `capacity-full` means to a user is open, below |
 | `ObservationIndeterminate` | Follows the recovery below. Never infers from it that nothing published, or retries the intent | Indeterminate, unless the producer independently knows the publication's fate | Failed, unless recovery completes it |
 | `ObservationUnretained` | Reports the admitted outcome. See its reasons below | Unretained | Not applicable |
 | `RetainedObservation` | Returns its Coordinate | Retained | Completed |
 
-**`ObservationUnretained` reasons.** `settlement-unacknowledged`, `settlement-refused` and
+### `ObservationUnretained` reasons
+
+`settlement-unacknowledged`, `settlement-refused` and
 `settlement-unverified` may repeat `settle` with the identical outcome, or use
 `recoverCoordinate`. `settlement-conflict` means custody already holds a different outcome,
 so do not repeat it: report the admitted outcome, and investigate the disagreement as a
@@ -306,7 +336,9 @@ producer bug.
 `evidence-too-large` and `evidence-undecodable` mean this core can never retain, and a
 published write cannot usefully settle another: the outcome stays unretained.
 
-**Recovering from `ObservationIndeterminate`.** Its `step` says what to redo. Each of these
+### Recovering from `ObservationIndeterminate`
+
+Its `step` says what to redo. Each of these
 is safe to repeat, since none can publish. Bound the repeats: a store failure that never
 clears, such as damaged custody, stays indeterminate, so stop and report it that way.
 
@@ -331,10 +363,12 @@ to read `code`. Two codes need their own handling:
 - `E_OBSERVATION_CUSTODY_UNVERIFIED`: settled evidence did not resolve. `cause.context.reason`
   says why. `work-limit` and `support-limit` need the limit restored, and
   `evidence-unreadable` may be transient, so call `recoverCoordinate` again. Anything else means evidence is gone, and
-  the producer reports what it independently knows: a write it published is Unretained, and
-  anything else stays Indeterminate.
+  the producer reports what it independently knows: a write it published is Unretained, a
+  write it knows failed is Unpublished, and anything else stays Indeterminate.
 
-**Refusals.** A refused admission holds no slot. A durably cancelled attempt charges nothing.
+### Refusals
+
+A refused admission holds no slot. A durably cancelled attempt charges nothing.
 Otherwise the attempt stays charged until a successful `cancel`, which is impossible once armed or settled.
 
 - **Admission:** `capacity-full` needs another attempt cancelled or a larger capacity limit,
@@ -357,18 +391,23 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   unless you asked to cancel. From `resume` or `recoverCoordinate` it means the attempt was
   durably cancelled: report known unpublished.
 - **Settled otherwise:** `settlement-mismatch` means custody holds a different outcome. Use
-  `recoverCoordinate`, compare its core if it returns a `RetainedObservation`, and treat any
-  disagreement as a producer bug.
+  `recoverCoordinate`. `ObservationPublicationFailed` confirms a failure. For a write, a
+  `RetainedObservation` means custody holds a publication, so a holder who believed it failed
+  reports Indeterminate and alerts. For a read, compare its core; a difference is a producer bug.
 - **Opening:** `GitCasObservationCustodyAdapter.open` returns a `CustodyRefused` for
   `policy-mismatch`, meaning a different capacity limit, or for `contention`, or a
-  `CustodyIndeterminate`. An illegal graph name or a limit below 1 throws, as misuse.
+  `CustodyIndeterminate`. An illegal graph name or an invalid limit throws a programming error of its own.
 
-**Open before #1051 routes writes here.** Only cancelling an unarmed, unsettled attempt frees
+### Open before #1051 routes writes here
+
+Only cancelling an unarmed, unsettled attempt frees
 its record slot in this delivery, so a graph's capacity `limit` is its lifetime count of
 attempts that were not cancelled, reads included. Every lost publication
 race also burns a slot. The default limit, what exhaustion looks like to a user, and whether
 git-cas should allow raising a limit are undecided. #1051 must settle them before custody
 carries real writes, and #1052 before it carries reads.
+#1051 must also decide how a restarted producer recognises its own publication when it saved
+nothing after publishing; until it can, that attempt reports indeterminate.
 
 ## Vocabulary
 

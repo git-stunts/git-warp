@@ -32,7 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Adopt published `@git-stunts/git-cas` 7.1.0. It stamps its version into new content
   manifests, so a newly stored attachment's handle differs from one stored by 7.0.0,
-  though its chunks and payload match
+  though its chunks and payload match. Stored manifests are not rewritten, so existing
+  handles still name the same objects, but writers on different git-cas versions now get
+  different handles for identical content
   ([#1067](https://github.com/git-stunts/git-warp/issues/1067)).
 - Add the private shared observation identity and custody that the final write and
   observation receipts will consume, on that version's durable record-slot reservations
