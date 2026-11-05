@@ -11,6 +11,7 @@ import type ObservationWorkMeter from './ObservationWorkMeter.ts';
 const HISTORY_DOMAIN = 'git-warp/observation-history';
 const HASH_ALGORITHM = 'sha256';
 const PARENT_HEADER = 'parent ';
+const COMMIT_TYPE = 'commit';
 
 export type ObservationCarrierHistory = {
   readonly plumbing: Pick<GitPlumbing, 'execute'>;
@@ -98,10 +99,11 @@ export default class ObservationCarrierChain {
     if (!meter.spend(1)) {
       return new ObservationSupportFault('work-limit');
     }
-    if (!await this.#headsExist([oid])) {
+    const [type = ''] = await objectTypes(this.#history.plumbing, [oid]);
+    if (isMissingObject(type)) {
       return new ObservationSupportFault('history-missing');
     }
-    return await this.#parsed(identity, oid, meter);
+    return type === COMMIT_TYPE ? await this.#parsed(identity, oid, meter) : new ObservationSupportFault('history-mismatch');
   }
 
   async #parsed(identity: ObservationCustodyIdentity, oid: string, meter: ObservationWorkMeter): Promise<ReadCarrier | ObservationSupportFault> {
@@ -116,7 +118,7 @@ export default class ObservationCarrierChain {
     return await this.#withHeads(carrierOf(message, info.parents), meter);
   }
 
-  /** A non-commit or corrupt object cannot be a carrier, so damage is a checkable fault; other failures surface. */
+  /** A corrupt object cannot be a carrier, so damage is a checkable fault; other failures surface. */
   async #commitOf(oid: string): Promise<CommitParts | null> {
     try {
       return commitParts(await this.#history.plumbing.execute({ args: ['cat-file', 'commit', oid] }));
