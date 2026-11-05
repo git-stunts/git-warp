@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import fc from 'fast-check';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
-import { GitStorage, RetainedWriteReceipt, Warp, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
+import { GitStorage, RetainedWriteReceipt, Warp, WarpAccessDenied, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
 import CheckpointController from '../../../src/domain/services/controllers/CheckpointController.ts';
 import { PatchDiscovery } from '../../../src/domain/services/controllers/PatchDiscovery.ts';
 import CheckpointTailBasisLoader from '../../../src/domain/services/optic/CheckpointTailBasisLoader.ts';
@@ -126,6 +126,7 @@ describe('Zero whole-state traps', () => {
     const warp = await openWarp(path);
     const writer = warp.as('alice');
     const staged = await writer.stage('hello', { mime: 'text/plain' });
+    if (staged instanceof WarpAccessDenied) { throw new Error(staged.cause); }
     const written = [
       intent.node.add({ subject: 'a' }),
       intent.node.add({ subject: 'b' }),

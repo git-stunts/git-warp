@@ -3,6 +3,7 @@ import type { ContentMetadataInput } from '../domain/api/ContentMetadataInput.ts
 import type { WriteIntentInput } from '../domain/api/IntentSequence.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from '../domain/api/OpenWarpIdentityFailure.ts';
 import type StagedContent from '../domain/api/StagedContent.ts';
+import type WarpAccessDenied from '../domain/api/WarpAccessDenied.ts';
 import WarpError from '../domain/errors/WarpError.ts';
 import WarpAccessPort from '../ports/WarpAccessPort.ts';
 import AuthoredWarp from './AuthoredWarp.ts';
@@ -48,8 +49,9 @@ export default class Warp {
     return this.#closing;
   }
 
-  async #staged(writer: string, staged: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent> {
-    return await this.#writes.stage(writer, staged);
+  async #staged(writer: string, staged: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent | WarpAccessDenied> {
+    const denied = await this.#writes.executor.authorizeStage(writer, staged.content.length);
+    return denied ?? await this.#writes.stage(writer, staged);
   }
 
   async #queued<T>(operation: () => Promise<T>): Promise<T> {

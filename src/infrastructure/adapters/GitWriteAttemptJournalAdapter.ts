@@ -16,6 +16,7 @@ const storedRecordSchema = z.object({
   admission: z.enum(['derived', 'plural']),
   occurrences: z.array(z.tuple([z.number(), z.string()])),
   savedAt: z.number(),
+  reported: z.boolean(),
 });
 
 /** The Git surface the journal uses: a blob per record, held by one ref each. */
@@ -31,7 +32,8 @@ export type WriteAttemptHistory = {
 /**
  * Keeps each in-flight attempt in a clone-local ref, so a finished attempt leaves
  * nothing behind and the prefix lists exactly what is unfinished. Updating the ref
- * is the durable step: a record is saved once `save` returns.
+ * is the durable step: a record is saved once `save` returns. A listing starts somewhere
+ * random, so records that never clear cannot starve the rest of a bounded sweep.
  */
 export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPort {
   readonly #graph: string;
@@ -59,6 +61,7 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
       admission: record.admission,
       occurrences: record.occurrences.map(({ intentIndex, subject }) => [intentIndex, subject]),
       savedAt: record.savedAt,
+      reported: record.reported,
     }));
     await this.#history.updateRef(buildWriteAttemptRef(this.#graph, record.attemptId.value), oid);
   }
@@ -73,9 +76,10 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
   }
 
   override async list(limit: number): Promise<readonly WriteAttemptRecord[]> {
-    const targets = await this.#history.readRefTargets(buildWriteAttemptsPrefix(this.#graph));
+    const targets = [...(await this.#history.readRefTargets(buildWriteAttemptsPrefix(this.#graph))).values()];
+    const start = Math.floor(Math.random() * targets.length);
     const records: WriteAttemptRecord[] = [];
-    for (const oid of [...targets.values()].slice(0, limit)) {
+    for (const oid of [...targets.slice(start), ...targets.slice(0, start)].slice(0, limit)) {
       const record = await this.#readRecord(oid);
       if (record !== null) {
         records.push(record);
@@ -96,13 +100,16 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
 
   async #readRecord(oid: string): Promise<WriteAttemptRecord | null> {
     const decoded = this.#decoded(await this.#history.readBlob(oid));
-    if (decoded === null) {
+    return decoded === null ? null : this.#recordOf(decoded);
+  }
+
+  #recordOf({ preparation: bytes, admission, occurrences, savedAt, reported }: z.infer<typeof storedRecordSchema>): WriteAttemptRecord | null {
+    const preparation = this.#custodyCodec.decodePreparation(bytes);
+    if (preparation instanceof ObservationDecodeFailure || preparation.bindings.writePremise === null) {
       return null;
     }
-    const { preparation: bytes, admission, occurrences, savedAt } = decoded;
-    const preparation = this.#custodyCodec.decodePreparation(bytes);
-    return preparation instanceof ObservationDecodeFailure ? null : new WriteAttemptRecord({
-      preparation, admission, savedAt,
+    return new WriteAttemptRecord({
+      preparation, admission, savedAt, reported,
       occurrences: occurrences.map(([index, subject]) => new WriteOccurrence(index, subject)),
     });
   }

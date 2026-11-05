@@ -14,6 +14,7 @@ import ObservationPrepared from '../custody/ObservationPrepared.ts';
 import ObservationPublicationFailed from '../custody/ObservationPublicationFailed.ts';
 import ObservationPublicationPermission from '../custody/ObservationPublicationPermission.ts';
 import ObservationRefused from '../custody/ObservationRefused.ts';
+import ObservationUnretained from '../custody/ObservationUnretained.ts';
 import type ConeWriteSettlement from './ConeWriteSettlement.ts';
 import type LoweredConeWrite from './LoweredConeWrite.ts';
 import WriteAttemptRecord from './WriteAttemptRecord.ts';
@@ -111,9 +112,24 @@ export default class ConeWritePublisher {
   }
 
   async #revoked(record: WriteAttemptRecord, attempt: ObservationAttempt, cause: string): Promise<UnpublishedWriteReceipt> {
-    await this.#custody.cancel(attempt);
-    await this.#journal.remove(record.attemptId);
+    await this.#stop(record, attempt);
     return this.#unpublished(record, cause);
+  }
+
+  /** Forgets an attempt only once it holds no slot. One still charged keeps its record, so a sweep can end it. */
+  async #stop(record: WriteAttemptRecord, attempt: ObservationAttempt | null): Promise<void> {
+    const ended = attempt === null || await this.#custody.cancel(attempt) instanceof ObservationKnownUnpublished;
+    if (ended) {
+      await this.#forget(record);
+    }
+  }
+
+  async #forget(record: WriteAttemptRecord): Promise<void> {
+    try {
+      await this.#journal.remove(record.attemptId);
+    } catch {
+      // The next sweep finds this attempt finished and removes the record.
+    }
   }
 
   /** Nothing is reserved until the record is durable, so an attempt that fails here has no trace to recover. */
@@ -135,14 +151,11 @@ export default class ConeWritePublisher {
     readonly attempt: ObservationAttempt | null;
   }): Promise<UnpublishedWriteReceipt> {
     const { step, attempt } = failure;
-    if (step instanceof ObservationRefused) {
-      if (attempt !== null) {
-        await this.#custody.cancel(attempt);
-      }
-      await this.#journal.remove(record.attemptId);
-    }
     if (step instanceof ObservationKnownUnpublished) {
-      await this.#journal.remove(record.attemptId);
+      await this.#forget(record);
+    }
+    if (step instanceof ObservationRefused) {
+      await this.#stop(record, attempt);
     }
     return this.#unpublished(record, refusalCause(step));
   }
@@ -160,7 +173,7 @@ export default class ConeWritePublisher {
       }
       return await this.#settlement.settle({ attempt: permission.attempt, record, commit: fate.commit, races: lowered.races });
     }
-    return fate.kind === 'failed' ? await this.#failed(record, permission) : this.#indeterminate(record);
+    return fate.kind === 'failed' ? await this.#failed(record, permission) : await this.#indeterminate(record);
   }
 
   async #publishOnce(lowered: LoweredConeWrite, record: WriteAttemptRecord): Promise<PublicationFate> {
@@ -185,20 +198,30 @@ export default class ConeWritePublisher {
     }
   }
 
-  /** The attempt ends and keeps its slot. Report unpublished however that records: it did not publish. */
-  async #failed(record: WriteAttemptRecord, permission: ObservationPublicationPermission): Promise<UnpublishedWriteReceipt> {
+  /**
+   * The attempt ends and keeps its slot. Report unpublished however that records,
+   * since it did not publish, unless custody holds another outcome for this attempt.
+   */
+  async #failed(record: WriteAttemptRecord, permission: ObservationPublicationPermission): Promise<AuthoredWriteReceipt> {
     try {
       const settled = await this.#custody.settleFailedPublication(permission, failedWriteCore(this.#graph, record, STALE_PREDECESSOR));
       if (settled instanceof ObservationPublicationFailed) {
-        await this.#journal.remove(record.attemptId);
+        await this.#forget(record);
       }
+      return isSettledOtherwise(settled) ? await this.#indeterminate(record) : this.#unpublished(record, STALE_PREDECESSOR);
     } catch {
       // The record stays: the chain still shows this attempt lost, so the next sweep finishes it.
+      return this.#unpublished(record, STALE_PREDECESSOR);
     }
-    return this.#unpublished(record, STALE_PREDECESSOR);
   }
 
-  #indeterminate(record: WriteAttemptRecord): IndeterminateWriteReceipt {
+  /** The caller now holds this attempt's name, so a sweep must leave its answer for `reconcile`. */
+  async #indeterminate(record: WriteAttemptRecord): Promise<IndeterminateWriteReceipt> {
+    try {
+      await this.#journal.save(record.asReported());
+    } catch {
+      // The receipt is still true. A sweep may answer first, and `reconcile` then reports null.
+    }
     return new IndeterminateWriteReceipt({
       graph: this.#graph, writer: record.premise.writerId, attempt: record.attemptId.value, requirement: PUBLICATION_UNRESOLVED,
     });
@@ -210,6 +233,11 @@ export default class ConeWritePublisher {
       ...(cause === 'retention-capacity-exhausted' ? { repairHints: CAPACITY_REPAIR } : {}),
     });
   }
+}
+
+function isSettledOtherwise(settled: object): boolean {
+  return (settled instanceof ObservationRefused && settled.reason === 'settlement-mismatch')
+    || (settled instanceof ObservationUnretained && settled.reason === 'settlement-conflict');
 }
 
 function isLostRace(error: WriterError | null, record: WriteAttemptRecord): boolean {

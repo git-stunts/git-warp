@@ -18,12 +18,15 @@ export default class WriteAttemptRecord {
   readonly occurrences: readonly WriteOccurrence[];
   /** Host time when saved; only ages an attempt nothing has armed. */
   readonly savedAt: number;
+  /** A receipt told a caller to ask again, so only that caller's `reconcile` may finish this record. */
+  readonly reported: boolean;
 
   constructor(fields: {
     readonly preparation: ObservationPreparation;
     readonly admission: WriteAdmissionKind;
     readonly occurrences: readonly WriteOccurrence[];
     readonly savedAt: number;
+    readonly reported?: boolean;
   }) {
     const { writePremise } = fields.preparation.bindings;
     if (writePremise === null) {
@@ -34,7 +37,13 @@ export default class WriteAttemptRecord {
     this.admission = fields.admission;
     this.occurrences = Object.freeze([...fields.occurrences]);
     this.savedAt = fields.savedAt;
+    this.reported = fields.reported ?? false;
     Object.freeze(this);
+  }
+
+  asReported(): WriteAttemptRecord {
+    const { preparation, admission, occurrences, savedAt } = this;
+    return new WriteAttemptRecord({ preparation, admission, occurrences, savedAt, reported: true });
   }
 
   get attemptId(): ObservationAttemptId {

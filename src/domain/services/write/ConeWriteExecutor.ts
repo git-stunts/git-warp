@@ -3,6 +3,7 @@ import type { AuthoredWriteReceipt } from '../../api/AuthoredWriteReceipt.ts';
 import IntentSequence, { type WriteIntentInput } from '../../api/IntentSequence.ts';
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import WarpAccessDenied from '../../api/WarpAccessDenied.ts';
+import type WarpWriteGrant from '../../api/WarpWriteGrant.ts';
 import WarpWriteRequest from '../../api/WarpWriteRequest.ts';
 import { WRITE_PURPOSE, type default as ConeWriteLowering } from './ConeWriteLowering.ts';
 import type ConeWritePublisher from './ConeWritePublisher.ts';
@@ -39,7 +40,7 @@ export default class ConeWriteExecutor {
       return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: accessDeniedCause(grant) });
     }
     const lowered = await this.#lowering.lower({ writer, sequence, grant });
-    return lowered instanceof UnpublishedWriteReceipt ? lowered : await this.#publisher.publish(lowered, async () => await this.#revocation(request));
+    return lowered instanceof UnpublishedWriteReceipt ? lowered : await this.#publisher.publish(lowered, async () => await this.#revocation(request, grant));
   }
 
   /** Asks again after a writer's indeterminate write. A writer denied now learns nothing of it, as if no record remained. */
@@ -49,11 +50,32 @@ export default class ConeWriteExecutor {
     return grant instanceof WarpAccessDenied ? null : await this.#recovery.reconcile(writer, attempt);
   }
 
-  /** Authority is current at publication, not merely at submission. */
-  async #revocation(request: WarpWriteRequest): Promise<string | null> {
-    const current = await this.#access.authorizeWrite(request);
-    return current instanceof WarpAccessDenied ? accessDeniedCause(current) : null;
+  /** Asks whether a writer may stage content, which writes objects before any intent exists. */
+  async authorizeStage(writer: string, size: number): Promise<WarpAccessDenied | null> {
+    const request = new WarpWriteRequest({ graph: this.#graph, writer, purpose: WRITE_PURPOSE, intents: [] });
+    const grant = await this.#access.authorizeWrite(request);
+    if (grant instanceof WarpAccessDenied) {
+      return grant;
+    }
+    return size > grant.budget.bytes ? new WarpAccessDenied('budget-exhausted') : null;
   }
+
+  /**
+   * Authority is current at publication, not merely at submission. A grant that changed
+   * refuses too, since the retained premise binds the one this write was admitted under.
+   */
+  async #revocation(request: WarpWriteRequest, grant: WarpWriteGrant): Promise<string | null> {
+    const current = await this.#access.authorizeWrite(request);
+    if (current instanceof WarpAccessDenied) {
+      return accessDeniedCause(current);
+    }
+    return sameGrant(current, grant) ? null : 'authority-changed';
+  }
+}
+
+function sameGrant(left: WarpWriteGrant, right: WarpWriteGrant): boolean {
+  const budgets = left.budget.records === right.budget.records && left.budget.bytes === right.budget.bytes && left.budget.work === right.budget.work;
+  return budgets && left.authority === right.authority;
 }
 
 function accessDeniedCause(denied: WarpAccessDenied): string {

@@ -38,6 +38,12 @@ describe('ConeWriteLowering', () => {
     expect(lowered instanceof UnpublishedWriteReceipt ? lowered.repairHints[0]?.code : '').toBe('retry_cone_advance');
   });
 
+  it('reports a store that fails before anything was reserved as unpublished', async () => {
+    const lowered = await lowering({ premise: () => Promise.reject(new Error('store went away')) }).lower(request);
+
+    expect(lowered instanceof UnpublishedWriteReceipt ? lowered.cause : '').toBe('write-basis-unavailable');
+  });
+
   it('does not hide a failure that is not an expected write refusal', async () => {
     await expect(lowering({ premise, prepare: () => Promise.reject(new Error('boom')) }).lower(request)).rejects.toThrow('boom');
     await expect(lowering({ premise, prepare: () => Promise.reject(new WarpError('odd', 'E_ODD')) }).lower(request)).rejects.toThrow('odd');

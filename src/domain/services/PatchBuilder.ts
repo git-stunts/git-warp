@@ -9,6 +9,7 @@ import PropSet from '../types/ops/PropSet.ts';
 import BoundedNodeRemovalBasis from './BoundedNodeRemovalBasis.ts';
 import captureObservedWriteBasis, { readWriterHeadContext } from './captureObservedWriteBasis.ts';
 import ConeWriteBasis from './cone/ConeWriteBasis.ts';
+import type ConeBasis from './cone/ConeBasis.ts';
 import type ConeWritePremise from './cone/ConeWritePremise.ts';
 import ConeWriteRaces from './cone/ConeWriteRaces.ts';
 import type ConeWriteTargets from './cone/ConeWriteTargets.ts';
@@ -247,14 +248,12 @@ export class PatchBuilder {
   }
 
   /**
-   * Observes a write's targets from one cone basis (#1039). A write that reads records to lower observed that
-   * basis; one that only sets properties observed what this clone had folded when it began, so a value fetched
-   * since stays its sibling. Its clock still passes every folded tip.
+   * Reads a write's targets from one cone basis, recording `observed` as what it saw (#1039, #1051), which
+   * for a blind write can be less. Its clock still passes every folded tip.
    */
-  async prepareConeWriteBasis(targets: ConeWriteTargets, premise: ConeWritePremise): Promise<void> {
+  async prepareConeWriteBasis(targets: ConeWriteTargets, premise: ConeWritePremise, observed: ConeBasis): Promise<void> {
     this._assertNotCommitted();
     if (this._ops.length > 0) {throw new PatchError('Write callback supplied operations before intent lowering', { code: 'E_WRITE_INTENT_PUBLICATION' });}
-    const observed = targets.readsRecords() ? premise.basis : premise.from;
     await this._captureObservation(observed.writerHeads(), Math.max(this._lamport, premise.basis.frontier.maxLamport() + 1));
     this._removalBasis = await ConeWriteBasis.capture({ reader: premise.reader, basis: premise.basis, targets, policy: this._onDeleteWithData });
   }

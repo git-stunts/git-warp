@@ -420,13 +420,27 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
 - **Failed publications:** only a lost compare-and-swap, or the chain showing another commit
   in its place, counts as definitely failed. Any other error asks the chain, and
   reports indeterminate if the chain has no answer.
-- **The sweep:** it runs when a Warp opens, over at most 64 saved attempts, and needs no
-  `attempts(phase)` listing because `resume` is only called on a saved id. An unarmed attempt
-  under an hour old is left alone, in case its owner is alive; an older one is abandoned, and a
-  live owner loses only its work. An armed one is settled from the chain, ended if another commit took its place, and otherwise waits for its
-  writer's next patch. `AuthoredWarp.reconcile` runs the same logic for one attempt. There is no
-  retry count, since nothing repeats without an open or a caller asking.
-- **Authority:** the access port's grant supplies the authority evidence and budget. A budget
+- **The sweep:** it runs when a Warp opens, over at most 64 saved attempts from a random start,
+  so records that never clear can't starve the rest. It needs no `attempts(phase)` listing
+  because `resume` is only called on a saved id. An unarmed attempt under an hour old is left
+  alone, in case its owner is alive; an older one is abandoned, and a live owner loses only its
+  work. An armed one is settled from the chain, ended if another commit took its place, and
+  otherwise waits for its writer's next patch. Custody's settled outcome outranks the chain.
+  There is no retry count, since nothing repeats without an open or a caller asking.
+- **Reported attempts:** an indeterminate or repeatable unretained receipt marks its record first,
+  and the sweep leaves a marked record alone. Only `AuthoredWarp.reconcile` answers it, for that
+  writer, and then removes it, so an answer can't be consumed by whoever opens the graph next.
+  `reconcile` returning null means already answered or not this writer's, never that nothing landed.
+- **What a blind write observed:** the writer heads this Warp's own landed writes had seen, not
+  the published cone head, which any fold moves without anyone reading it. So a refused attempt
+  can't turn a later race into `derived`. The patch's frontier is bound as `dependency` evidence
+  because it can be less than the retained basis. Two limits remain. A new process starts from the
+  head it finds, so it counts what earlier processes folded as seen. And a patch records one frontier,
+  so a sequence that also reads records, such as a `node.remove` beside a `property.set`,
+  observes the whole basis for both.
+- **Authority:** the access port's grant supplies the authority evidence and budget, and is asked
+  again before arming. A grant that changed refuses, since the premise binds the original. Staging
+  content asks too. A budget
   bounds premise records, intent bytes and lowered operations, not physical I/O. The
   commit's parent is enforced, but its author name is only the trailer's writer label: nothing
   signs it. `WarpAccessPort` must authenticate the writer it authorizes.

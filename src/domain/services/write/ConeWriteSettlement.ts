@@ -53,10 +53,9 @@ export default class ConeWriteSettlement {
       await this.#forget(attemptId);
       return this.retained(published, settled.coordinate);
     }
-    if (FINAL_UNRETAINED.has(settled)) {
-      await this.#forget(attemptId);
-    }
-    return this.#unretained(published, settled);
+    const final = FINAL_UNRETAINED.has(settled);
+    await (final ? this.#forget(attemptId) : this.#markReported(published.record));
+    return this.#unretained(published, { retention: settled, attempt: final ? null : attemptId.value });
   }
 
   /** The write already published, so nothing that goes wrong here may hide that from its receipt. */
@@ -75,6 +74,15 @@ export default class ConeWriteSettlement {
     }
   }
 
+  /** A caller now holds this attempt's name. If this fails, a sweep may finish it first, and `reconcile` then answers null. */
+  async #markReported(record: WriteAttemptRecord): Promise<void> {
+    try {
+      await this.#journal.save(record.asReported());
+    } catch {
+      // The receipt is still true, and the original record still recovers.
+    }
+  }
+
   /** A record that outlives its attempt only costs a later sweep a look at it. */
   async #forget(attemptId: ObservationAttemptId): Promise<void> {
     try {
@@ -88,8 +96,8 @@ export default class ConeWriteSettlement {
     return new RetainedWriteReceipt({ ...this.#fields(published), coordinate: Coordinate.parse(coordinate.toString()) });
   }
 
-  #unretained(published: PublishedAttempt, retention: string): UnretainedWriteReceipt {
-    return new UnretainedWriteReceipt({ ...this.#fields(published), retention });
+  #unretained(published: PublishedAttempt, why: { readonly retention: string; readonly attempt: string | null }): UnretainedWriteReceipt {
+    return new UnretainedWriteReceipt({ ...this.#fields(published), ...why });
   }
 
   #fields({ record, commit, races }: PublishedAttempt): {

@@ -4,10 +4,12 @@ import IndeterminateWriteReceipt from '../../api/IndeterminateWriteReceipt.ts';
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import ObservationAdmitted from '../custody/ObservationAdmitted.ts';
 import type ObservationAttempt from '../custody/ObservationAttempt.ts';
+import type ObservationCoordinate from '../custody/ObservationCoordinate.ts';
 import type ObservationCustodyService from '../custody/ObservationCustodyService.ts';
 import ObservationPublicationFailed from '../custody/ObservationPublicationFailed.ts';
 import ObservationReconciled from '../custody/ObservationReconciled.ts';
 import ObservationRefused, { type ObservationRefusalReason } from '../custody/ObservationRefused.ts';
+import ResolvedObservation from '../custody/ResolvedObservation.ts';
 import RetainedObservation from '../custody/RetainedObservation.ts';
 import ObservationAttemptId from '../custody/ObservationAttemptId.ts';
 import type ConeWriteSettlement from './ConeWriteSettlement.ts';
@@ -59,12 +61,27 @@ export default class ConeWriteRecovery {
   }
 
   /**
-   * Resolves what it can of a bounded page of saved attempts. An attempt that stays
-   * unresolved stays saved. A store that fails here must not stop new writes, so it only leaves work for a later sweep.
+   * Resolves what it can of a bounded page of attempts nobody holds a receipt for: a
+   * reported one waits for its owner's `reconcile`, or its only answer would be lost.
+   * A failure on one record, or the listing, only leaves work for a later sweep.
    */
   async sweep(): Promise<void> {
+    for (const record of await this.#listed()) {
+      await this.#swept(record);
+    }
+  }
+
+  async #listed(): Promise<readonly WriteAttemptRecord[]> {
     try {
-      for (const record of await this.#journal.list(SWEEP_LIMIT)) {
+      return await this.#journal.list(SWEEP_LIMIT);
+    } catch {
+      return [];
+    }
+  }
+
+  async #swept(record: WriteAttemptRecord): Promise<void> {
+    try {
+      if (!record.reported) {
         await this.#recover(record);
       }
     } catch {
@@ -72,7 +89,7 @@ export default class ConeWriteRecovery {
     }
   }
 
-  /** The current receipt of one writer's attempt, or null when it has no record of that attempt. */
+  /** The current receipt of one writer's attempt, or null if it has no record: already answered, or never this writer's. */
   async reconcile(writer: string, attemptText: string): Promise<AuthoredWriteReceipt | null> {
     const record = await this.#journal.read(new ObservationAttemptId(attemptText));
     return record?.premise.writerId === writer ? await this.#recover(record) : null;
@@ -97,7 +114,9 @@ export default class ConeWriteRecovery {
     if (recovered instanceof ObservationPublicationFailed) {
       return await this.#finishedUnpublished(record, STALE_PREDECESSOR);
     }
-    return await this.#fromChain({ record, attempt, recovered });
+    return recovered instanceof RetainedObservation
+      ? await this.#fromCustody({ record, attempt, coordinate: recovered.coordinate })
+      : await this.#fromChain(record, attempt);
   }
 
   /** Nothing ever armed it, so it never published. Only its age says whether its owner might still try. */
@@ -111,29 +130,42 @@ export default class ConeWriteRecovery {
       : this.#indeterminate(record, RECOVERY_UNAVAILABLE);
   }
 
-  async #fromChain(run: {
+  /** Custody settled a publication, and that outranks whatever the chain says now. */
+  async #fromCustody(run: {
     readonly record: WriteAttemptRecord;
     readonly attempt: ObservationAttempt;
-    readonly recovered: object;
+    readonly coordinate: ObservationCoordinate;
   }): Promise<AuthoredWriteReceipt> {
-    const { record, attempt, recovered } = run;
+    const { record, attempt, coordinate } = run;
+    const resolved = await this.#custody.resolve(coordinate);
+    const commit = resolved instanceof ResolvedObservation ? resolved.record.publication?.commit : undefined;
+    if (commit === undefined) {
+      return this.#indeterminate(record, RECOVERY_UNAVAILABLE);
+    }
+    await this.#forget(record);
+    return this.#settlement.retained({ attempt, record, commit, races: [] }, coordinate);
+  }
+
+  async #fromChain(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<AuthoredWriteReceipt> {
     const found = await this.#probe.locate(record);
     if (found.kind === 'other') {
       return await this.#finishedUnpublished(record, STALE_PREDECESSOR);
     }
-    if (found.kind === 'none') {
-      return this.#indeterminate(record, PUBLICATION_UNRESOLVED);
-    }
-    const published = { attempt, record, commit: found.commit, races: [] };
-    if (recovered instanceof RetainedObservation) {
+    return found.kind === 'none'
+      ? this.#indeterminate(record, PUBLICATION_UNRESOLVED)
+      : await this.#settlement.settle({ attempt, record, commit: found.commit, races: [] });
+  }
+
+  async #forget(record: WriteAttemptRecord): Promise<void> {
+    try {
       await this.#journal.remove(record.attemptId);
-      return this.#settlement.retained(published, recovered.coordinate);
+    } catch {
+      // The next sweep or reconcile finds this attempt finished and removes the record.
     }
-    return await this.#settlement.settle(published);
   }
 
   async #finishedUnpublished(record: WriteAttemptRecord, cause: string): Promise<UnpublishedWriteReceipt> {
-    await this.#journal.remove(record.attemptId);
+    await this.#forget(record);
     return new UnpublishedWriteReceipt({ graph: this.#graph, writer: record.premise.writerId, cause });
   }
 

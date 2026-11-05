@@ -2,12 +2,13 @@ import type { AuthoredWriteReceipt } from '../domain/api/AuthoredWriteReceipt.ts
 import type { ContentMetadataInput } from '../domain/api/ContentMetadataInput.ts';
 import type { WriteIntentInput } from '../domain/api/IntentSequence.ts';
 import type StagedContent from '../domain/api/StagedContent.ts';
+import type WarpAccessDenied from '../domain/api/WarpAccessDenied.ts';
 
 /** What an authored handle asks of its Warp. */
 export type AuthoredWarpBackend = {
   execute(writer: string, input: WriteIntentInput): Promise<AuthoredWriteReceipt>;
   reconcile(writer: string, attempt: string): Promise<AuthoredWriteReceipt | null>;
-  stage(writer: string, content: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent>;
+  stage(writer: string, content: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent | WarpAccessDenied>;
 };
 
 /**
@@ -29,13 +30,17 @@ export default class AuthoredWarp {
     return await this.#backend.execute(this.writer, input);
   }
 
-  /** Asks again what became of an indeterminate write's `attempt`. Null means nothing is left unfinished under that name. */
+  /**
+   * Asks again what became of an indeterminate or unretained write's `attempt`, whose answer
+   * waits here until you ask. Null means it was already answered, or was never this writer's:
+   * it does not mean the write did not land.
+   */
   async reconcile(attempt: string): Promise<AuthoredWriteReceipt | null> {
     return await this.#backend.reconcile(this.writer, attempt);
   }
 
   /** Stages text for a later attach intent on this Warp, changing nothing in the graph until then. Binary staging is still only on `Lane`. */
-  async stage(content: string, metadata?: ContentMetadataInput): Promise<StagedContent> {
+  async stage(content: string, metadata?: ContentMetadataInput): Promise<StagedContent | WarpAccessDenied> {
     return await this.#backend.stage(this.writer, { content, metadata });
   }
 }

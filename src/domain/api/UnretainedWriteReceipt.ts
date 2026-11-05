@@ -12,6 +12,8 @@ export default class UnretainedWriteReceipt {
   readonly publication: WritePublication;
   /** Why no Coordinate was issued. */
   readonly retention: string;
+  /** Opaque evidence naming the attempt: `AuthoredWarp.reconcile` may still retain it, unless null means it never can. */
+  readonly attempt: string | null;
 
   constructor(fields: {
     readonly graph: string;
@@ -20,6 +22,7 @@ export default class UnretainedWriteReceipt {
     readonly occurrences: readonly WriteOccurrence[];
     readonly publication: WritePublication;
     readonly retention: string;
+    readonly attempt: string | null;
   }) {
     this.graph = fields.graph;
     this.writer = fields.writer;
@@ -27,6 +30,7 @@ export default class UnretainedWriteReceipt {
     this.occurrences = Object.freeze([...fields.occurrences]);
     this.publication = fields.publication;
     this.retention = fields.retention;
+    this.attempt = fields.attempt;
     Object.freeze(this);
   }
 }

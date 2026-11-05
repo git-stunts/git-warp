@@ -12,6 +12,7 @@ import WarpError from '../../errors/WarpError.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
 import { textEncode } from '../../utils/bytes.ts';
 import { readPatchBuilderCausalBasis } from '../admission/PatchBuilderCausalBasis.ts';
+import type ConeBasis from '../cone/ConeBasis.ts';
 import type ConeLaneBasis from '../cone/ConeLaneBasis.ts';
 import ConeObstruction from '../cone/ConeObstruction.ts';
 import type ConeWritePremise from '../cone/ConeWritePremise.ts';
@@ -25,6 +26,7 @@ import { digestOf } from '../custody/observationDigestOf.ts';
 import ObservationQuestion from '../custody/ObservationQuestion.ts';
 import ObservationWritePremise from '../custody/ObservationWritePremise.ts';
 import type { PatchBuilder } from '../PatchBuilder.ts';
+import ConeWriteKnowledge from './ConeWriteKnowledge.ts';
 import LoweredConeWrite from './LoweredConeWrite.ts';
 import PatchEntryFold from './PatchEntryFold.ts';
 import { writeRaceOf } from './writeRaceOf.ts';
@@ -50,6 +52,7 @@ export default class ConeWriteLowering {
   readonly #openPatch: (writer: string) => Promise<PatchBuilder>;
   readonly #content: ContentStagingAuthority;
   readonly #crypto: CryptoPort;
+  readonly #knowledge = new ConeWriteKnowledge();
 
   constructor(fields: {
     readonly graph: string;
@@ -71,11 +74,11 @@ export default class ConeWriteLowering {
     if (refused !== null) {
       return refused;
     }
-    const builder = await this.#openPatch(request.writer);
-    const premise = await this.#cone.writePremise();
-    if (premise instanceof ConeObstruction) {
-      return this.#unpublished(request.writer, coneObstructionFailure(premise));
+    const opened = await this.#opened(request.writer);
+    if (opened instanceof UnpublishedWriteReceipt) {
+      return opened;
     }
+    const { builder, premise } = opened;
     try {
       return await this.#loweredOnto({ request, builder, premise });
     } catch (error) {
@@ -86,13 +89,26 @@ export default class ConeWriteLowering {
     }
   }
 
+  /** Nothing has been reserved, so a store that fails here leaves a write known not to have published. */
+  async #opened(writer: string): Promise<{ readonly builder: PatchBuilder; readonly premise: ConeWritePremise } | UnpublishedWriteReceipt> {
+    try {
+      const builder = await this.#openPatch(writer);
+      const premise = await this.#cone.writePremise();
+      return premise instanceof ConeObstruction ? this.#unpublished(writer, coneObstructionFailure(premise)) : { builder, premise };
+    } catch {
+      return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: 'write-basis-unavailable' });
+    }
+  }
+
   async #loweredOnto(run: {
     readonly request: LoweringRequest;
     readonly builder: PatchBuilder;
     readonly premise: ConeWritePremise;
   }): Promise<LoweredConeWrite | UnpublishedWriteReceipt> {
     const { request, builder, premise } = run;
-    await builder.prepareConeWriteBasis(coneWriteTargets(request.sequence), premise);
+    const targets = coneWriteTargets(request.sequence);
+    const observed = targets.readsRecords() ? premise.basis : this.#knowledge.seen(premise.from);
+    await builder.prepareConeWriteBasis(targets, premise, observed);
     applyIntentSequenceToPatch(request.sequence, builder, this.#content);
     if (builder.ops.length > request.grant.budget.work) {
       return new UnpublishedWriteReceipt({ graph: this.#graph, writer: request.writer, cause: 'budget-exhausted' });
@@ -102,9 +118,9 @@ export default class ConeWriteLowering {
     return new LoweredConeWrite({
       writer: request.writer, builder, races: races.plurality.map(writeRaceOf),
       admission: races.isEmpty() ? 'derived' : 'plural',
-      bindings: await this.#bindings({ request, basis: premise.stored.revision, predecessor }),
+      bindings: await this.#bindings({ request, basis: premise.stored.revision, predecessor, observed }),
       occurrences: occurrencesOf(request.sequence, builder),
-      fold: new PatchEntryFold(this.#cone, predecessor),
+      fold: new PatchEntryFold(this.#cone, { parent: predecessor, knowledge: this.#knowledge, observed }),
     });
   }
 
@@ -112,17 +128,24 @@ export default class ConeWriteLowering {
     readonly request: LoweringRequest;
     readonly basis: string;
     readonly predecessor: string | null;
+    readonly observed: ConeBasis;
   }): Promise<ObservationBindings> {
     const { writer, sequence, grant } = fields.request;
-    const [intents, authority, law] = await Promise.all([
+    const [intents, authority, law, observed] = await Promise.all([
       digestOf(this.#crypto, descriptorBytes(sequence)),
       digestOf(this.#crypto, textEncode(grant.authority)),
       digestOf(this.#crypto, textEncode(WRITE_LAW)),
+      digestOf(this.#crypto, textEncode(canonicalStringify(Object.fromEntries(fields.observed.writerHeads())))),
     ]);
     return new ObservationBindings({
       basis: fields.basis, observer: `writer:${writer}`, question: WRITE_QUESTION, purpose: WRITE_PURPOSE,
       budget: new ObservationBudget(grant.budget),
-      evidence: [new ObservationEvidenceBinding('authority', authority), new ObservationEvidenceBinding('law', law)],
+      evidence: [
+        new ObservationEvidenceBinding('authority', authority),
+        new ObservationEvidenceBinding('law', law),
+        // A blind write may observe less than the retained basis: this says exactly what.
+        new ObservationEvidenceBinding('dependency', observed),
+      ],
       dependencies: ObservationDependencyClaim.NONE,
       writePremise: new ObservationWritePremise({ intents, writerId: writer, predecessor: fields.predecessor }),
     });
@@ -152,9 +175,13 @@ function descriptorBytes(sequence: IntentSequence): Uint8Array {
   return textEncode(canonicalStringify(sequence.descriptor));
 }
 
+/** An intent may appear twice, so each occurrence claims the next position its intent holds. */
 function occurrencesOf(sequence: IntentSequence, builder: PatchBuilder): readonly WriteOccurrence[] {
-  return inspectPublishedIntentSequence(sequence, builder.build())
-    .map(({ intent, subject }) => new WriteOccurrence(sequence.intents.indexOf(intent), subject));
+  let position = -1;
+  return inspectPublishedIntentSequence(sequence, builder.build()).map(({ intent, subject }) => {
+    position = sequence.intents.indexOf(intent, position + 1);
+    return new WriteOccurrence(position, subject);
+  });
 }
 
 /** The entities a write must observe before lowering, read from cone records. */

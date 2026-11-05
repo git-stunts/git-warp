@@ -15,6 +15,7 @@ import ObservationPrepared from '../../../../../src/domain/services/custody/Obse
 import ObservationPublicationPermission from '../../../../../src/domain/services/custody/ObservationPublicationPermission.ts';
 import ObservationQuestion from '../../../../../src/domain/services/custody/ObservationQuestion.ts';
 import ObservationRefused from '../../../../../src/domain/services/custody/ObservationRefused.ts';
+import ObservationUnretained from '../../../../../src/domain/services/custody/ObservationUnretained.ts';
 import ObservationWritePremise from '../../../../../src/domain/services/custody/ObservationWritePremise.ts';
 import ConeWritePublisher from '../../../../../src/domain/services/write/ConeWritePublisher.ts';
 import type ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
@@ -81,7 +82,7 @@ describe('ConeWritePublisher before permission', () => {
   });
 
   it('cancels and forgets an attempt whose preparation is refused', async () => {
-    const cancel = vi.fn(() => Promise.resolve({}));
+    const cancel = vi.fn(() => Promise.resolve(new ObservationKnownUnpublished({ identity: {} } as ObservationAttempt)));
     const { publisher, lowered, remove } = publisherOf({ custody: { prepare: () => Promise.resolve(new ObservationRefused('writer-limit')), cancel } });
 
     const receipt = await publisher.publish(lowered, NOT_REVOKED);
@@ -89,6 +90,14 @@ describe('ConeWritePublisher before permission', () => {
     expect(receipt instanceof UnpublishedWriteReceipt ? receipt.cause : '').toBe('retention-refused-writer-limit');
     expect(cancel).toHaveBeenCalledOnce();
     expect(remove).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the record of an attempt it could not cancel, which still holds a slot', async () => {
+    const { publisher, lowered, remove } = publisherOf({ custody: { prepare: () => Promise.resolve(new ObservationRefused('writer-limit')), cancel: () => Promise.resolve({}) } });
+
+    await publisher.publish(lowered, NOT_REVOKED);
+
+    expect(remove).not.toHaveBeenCalled();
   });
 
   it('repeats a preparation another builder holds', async () => {
@@ -142,6 +151,34 @@ describe('ConeWritePublisher after permission', () => {
 
     expect(receipt instanceof UnpublishedWriteReceipt ? receipt.cause : '').toBe('stale-predecessor');
     expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('reports indeterminate when custody already holds another outcome for a lost race', async () => {
+    const conflict = new WriterError('moved', { code: 'WRITER_CAS_CONFLICT' });
+    conflict.actualSha = 'd'.repeat(40);
+    const { publisher, lowered } = publisherOf({
+      commit: () => Promise.reject(conflict),
+      custody: { settleFailedPublication: () => Promise.resolve(new ObservationRefused('settlement-mismatch')) },
+    });
+
+    expect(await publisher.publish(lowered, NOT_REVOKED)).toBeInstanceOf(IndeterminateWriteReceipt);
+  });
+
+  it('reports indeterminate when settling the failure conflicts with what custody holds', async () => {
+    const conflict = new WriterError('moved', { code: 'WRITER_CAS_CONFLICT' });
+    conflict.actualSha = 'd'.repeat(40);
+    const { publisher, lowered } = publisherOf({
+      commit: () => Promise.reject(conflict),
+      custody: { settleFailedPublication: () => Promise.resolve(new ObservationUnretained({ identity: {} } as ObservationAttempt, 'settlement-conflict')) },
+    });
+
+    expect(await publisher.publish(lowered, NOT_REVOKED)).toBeInstanceOf(IndeterminateWriteReceipt);
+  });
+
+  it('still reports indeterminate when marking the record fails', async () => {
+    const { publisher, lowered } = publisherOf({ commit: () => Promise.reject(new Error('disk')), save: vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('full')) });
+
+    expect(await publisher.publish(lowered, NOT_REVOKED)).toBeInstanceOf(IndeterminateWriteReceipt);
   });
 
   it('does not call a conflict lost when the ref still reads as its predecessor', async () => {

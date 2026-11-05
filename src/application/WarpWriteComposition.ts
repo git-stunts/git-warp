@@ -127,7 +127,12 @@ function writerHosts(fields: {
       codec: ports.codec, crypto: ports.crypto, trustCrypto: ports.trustCrypto, commitMessageCodec: ports.commitMessageCodec,
     });
     opened.set(writer, known);
-    return await known;
+    try {
+      return await known;
+    } catch (error) {
+      opened.delete(writer);
+      throw error;
+    }
   };
 }
 

@@ -16,6 +16,11 @@ import ObservationQuestion from '../../../../../src/domain/services/custody/Obse
 import ObservationRefused from '../../../../../src/domain/services/custody/ObservationRefused.ts';
 import ObservationUnretained from '../../../../../src/domain/services/custody/ObservationUnretained.ts';
 import ObservationWritePremise from '../../../../../src/domain/services/custody/ObservationWritePremise.ts';
+import ObservationDecodeFailure from '../../../../../src/domain/services/custody/ObservationDecodeFailure.ts';
+import ObservationAdmitted from '../../../../../src/domain/services/custody/ObservationAdmitted.ts';
+import RetainedObservation from '../../../../../src/domain/services/custody/RetainedObservation.ts';
+import IndeterminateWriteReceipt from '../../../../../src/domain/api/IndeterminateWriteReceipt.ts';
+import ConeWriteRecovery from '../../../../../src/domain/services/write/ConeWriteRecovery.ts';
 import ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
 import WriteAttemptRecord from '../../../../../src/domain/services/write/WriteAttemptRecord.ts';
 import WritePublicationProbe from '../../../../../src/domain/services/write/WritePublicationProbe.ts';
@@ -194,6 +199,82 @@ describe('GitWriteAttemptJournalAdapter', () => {
       graph: 'g',
       codec: { decode: () => { throw new Error('not cbor'); } } as unknown as CodecPort,
       custodyCodec: {} as ObservationCustodyCodecPort,
+      history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
+    });
+
+    await expect(journal.read(ATTEMPT)).resolves.toBeNull();
+  });
+});
+
+describe('ConeWriteRecovery', () => {
+  function recovery(fields: { readonly custody?: object; readonly journal: object }): ConeWriteRecovery {
+    return new ConeWriteRecovery({
+      graph: 'g', clock: () => 1,
+      custody: fields.custody as ObservationCustodyService,
+      journal: fields.journal as WriteAttemptJournalPort,
+      probe: {} as WritePublicationProbe,
+      settlement: {} as ConeWriteSettlement,
+    });
+  }
+
+  it('survives a listing that fails, and one record that throws', async () => {
+    await expect(recovery({ journal: { list: () => Promise.reject(new Error('no refs')) } }).sweep()).resolves.toBeUndefined();
+    const resume = vi.fn(() => Promise.reject(new Error('bad')));
+    await expect(recovery({ custody: { resume }, journal: { list: () => Promise.resolve([recordOf(), recordOf()]) } }).sweep()).resolves.toBeUndefined();
+    expect(resume).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a record when custody refuses for a reason that may clear', async () => {
+    const remove = vi.fn();
+    const answer = await recovery({
+      custody: { resume: () => Promise.resolve(new ObservationRefused('contention')) },
+      journal: { read: () => Promise.resolve(recordOf()), remove },
+    }).reconcile('alice', ATTEMPT.value);
+
+    expect(answer).toBeInstanceOf(IndeterminateWriteReceipt);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('leaves a reported attempt for its caller', async () => {
+    const resume = vi.fn();
+    await recovery({ custody: { resume }, journal: { list: () => Promise.resolve([recordOf().asReported()]) } }).sweep();
+    expect(resume).not.toHaveBeenCalled();
+  });
+
+  it('stays indeterminate when a settled publication cannot be resolved', async () => {
+    const attempt = { identity: {} } as ObservationAttempt;
+    const remove = vi.fn();
+    const answer = await recovery({
+      custody: {
+        resume: () => Promise.resolve(new ObservationAdmitted(attempt, 'settled')),
+        recoverCoordinate: () => Promise.resolve(new RetainedObservation({} as ObservationCoordinate, new Uint8Array())),
+        resolve: () => Promise.resolve({}),
+      },
+      journal: { read: () => Promise.resolve(recordOf()), remove },
+    }).reconcile('alice', ATTEMPT.value);
+
+    expect(answer).toBeInstanceOf(IndeterminateWriteReceipt);
+    expect(remove).not.toHaveBeenCalled();
+  });
+});
+
+describe('a saved record that is not a write', () => {
+  it('reads an undecodable preparation as no record', async () => {
+    const journal = new GitWriteAttemptJournalAdapter({
+      graph: 'g',
+      codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', occurrences: [], savedAt: 1, reported: false }) } as unknown as CodecPort,
+      custodyCodec: { decodePreparation: () => new ObservationDecodeFailure('malformed') } as unknown as ObservationCustodyCodecPort,
+      history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
+    });
+
+    await expect(journal.read(ATTEMPT)).resolves.toBeNull();
+  });
+
+  it('reads as no record', async () => {
+    const journal = new GitWriteAttemptJournalAdapter({
+      graph: 'g',
+      codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', occurrences: [], savedAt: 1, reported: false }) } as unknown as CodecPort,
+      custodyCodec: { decodePreparation: () => new ObservationPreparation(ATTEMPT, bindings(null)) } as unknown as ObservationCustodyCodecPort,
       history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
     });
 

@@ -12,6 +12,6 @@ export default abstract class WriteAttemptJournalPort {
   /** Forgets a finished attempt; an absent one is ignored. */
   abstract remove(_attemptId: ObservationAttemptId): Promise<void>;
 
-  /** Up to `limit` saved records, in no particular order. A record that cannot be decoded is skipped, not removed. */
+  /** Up to `limit` saved records, from a varying start. A record that cannot be decoded is skipped, not removed. */
   abstract list(_limit: number): Promise<readonly WriteAttemptRecord[]>;
 }

@@ -6,11 +6,18 @@ import {
   GitStorage,
   UnretainedWriteReceipt,
   Warp,
+  WarpAccessDenied,
   WarpAccessPort,
   WarpAddress,
   WarpWriteGrant,
 } from '../../../index.ts';
-import type { WarpCompositionOverrides } from '../../../src/application/WarpWriteComposition.ts';
+import { composeWarpWrites, type WarpCompositionOverrides } from '../../../src/application/WarpWriteComposition.ts';
+import ObservationCoordinate from '../../../src/domain/services/custody/ObservationCoordinate.ts';
+import type ResolvedObservation from '../../../src/domain/services/custody/ResolvedObservation.ts';
+import WritePublicationProbe from '../../../src/domain/services/write/WritePublicationProbe.ts';
+import { textEncode } from '../../../src/domain/utils/bytes.ts';
+import { canonicalStringify } from '../../../src/domain/utils/canonicalStringify.ts';
+import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import ObservationAttemptId from '../../../src/domain/services/custody/ObservationAttemptId.ts';
 import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
@@ -128,6 +135,70 @@ describe('Warp.open and as(writer).execute', () => {
     expect(raced.outcome.kind).toBe('plural');
     expect(raced.outcome.races).toHaveLength(1);
     expect(raced.outcome.races[0]).toMatchObject({ kind: 'register', subject: 'doc', key: 'title', writers: ['bob'], overflow: 0 });
+  });
+});
+
+describe('what a blind write observed', () => {
+  async function foreignValue(path: string): Promise<void> {
+    const storage = await GitStorage.open({ cwd: path });
+    const ports = getDefaultRuntimeHostNodePorts();
+    const binding = resolveWarpStorage(storage);
+    const other = await openRuntimeHostProduct({
+      persistence: binding.history, runtimeStorage: binding.runtimeStorage, graphName: GRAPH, writerId: 'bob',
+      codec: ports.codec, crypto: ports.crypto, trustCrypto: ports.trustCrypto, commitMessageCodec: ports.commitMessageCodec,
+    });
+    await other.patch((patch) => { patch.setProperty('doc', 'title', 'unseen'); });
+    await storage.close();
+  }
+
+  it('keeps a race plural after a refused attempt folded the value nobody read', async () => {
+    const path = await repository();
+    const access = new TestAccess();
+    const warp = await open(path, {}, access);
+    retained(await warp.as('alice').execute([intent.node.add({ subject: 'doc' }), intent.property.set({ subject: 'doc', key: 'title', value: 'one' })]));
+    await foreignValue(path);
+    let revoke = true;
+    const revoking = vi.spyOn(access, 'authorizeWrite').mockImplementation(async (request) => {
+      if (revoke && revoking.mock.calls.length === 2) {
+        revoke = false;
+        return new WarpAccessDenied('not now');
+      }
+      return new WarpWriteGrant({ authority: `test:${request.writer}`, budget: { records: 99, bytes: 9999, work: 99 } });
+    });
+
+    unpublished(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' })));
+    const retry = retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' })));
+
+    expect(retry.outcome.kind).toBe('plural');
+    expect(retry.outcome.races[0]?.writers).toEqual(['bob']);
+  });
+
+  it('stays derived for writes this Warp itself made, in sequence', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    retained(await warp.as('alice').execute([intent.node.add({ subject: 'doc' }), intent.property.set({ subject: 'doc', key: 'title', value: 'one' })]));
+
+    expect(retained(await warp.as('bob').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' }))).outcome.kind).toBe('derived');
+    expect(retained(await warp.as('carol').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'three' }))).outcome.kind).toBe('derived');
+  });
+
+  it('binds exactly what it observed when that is less than the retained basis', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    const first = retained(await warp.as('alice').execute([intent.node.add({ subject: 'doc' }), intent.property.set({ subject: 'doc', key: 'title', value: 'one' })]));
+    await foreignValue(path);
+    const raced = retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' })));
+    await warp.close();
+
+    const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
+    const resolved = await writes.custody.resolve(ObservationCoordinate.parse(raced.coordinate.toString()) as ObservationCoordinate);
+    await writes.close();
+
+    const original = resolved as ResolvedObservation;
+    const crypto = new NodeCryptoAdapter();
+    const observed = await crypto.hash('sha256', textEncode(canonicalStringify({ alice: first.publication.toString() })));
+    expect(original.preparation.bindings.evidence.find(({ kind }) => kind === 'dependency')?.digest.hex).toBe(observed);
+    expect(git(path, ['cat-file', '-t', original.preparation.bindings.basis])).toBe('tree');
   });
 });
 
@@ -280,10 +351,38 @@ describe('uncertainty after permission', () => {
     append.mockRestore();
 
     retained(await writer.execute(intent.node.add({ subject: 'third' })));
+    retained(await writer.execute(intent.node.add({ subject: 'fourth' })));
+    retained(await writer.execute(intent.node.add({ subject: 'fifth' })));
 
     expect(unpublished(await writer.reconcile(receipt.attempt)).cause).toBe('stale-predecessor');
     expect(await writer.reconcile(receipt.attempt)).toBeNull();
-    expect((await materialized(path)).nodes).toEqual(['first', 'third']);
+    expect((await materialized(path)).nodes).toEqual(['fifth', 'first', 'fourth', 'third']);
+  });
+
+  it('keeps the answer to an indeterminate write for its caller, across a reopen', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    const original = CborPatchJournalAdapter.prototype.appendPatch;
+    vi.spyOn(CborPatchJournalAdapter.prototype, 'appendPatch').mockImplementationOnce(async function lost(this: CborPatchJournalAdapter, request) {
+      await original.call(this, request);
+      vi.spyOn(WritePublicationProbe.prototype, 'locate').mockRejectedValueOnce(new Error('chain unreadable'));
+      throw new Error('acknowledgement lost');
+    });
+
+    const receipt = indeterminate(await warp.as('alice').execute(intent.node.add({ subject: 'landed' })));
+    const landed = tip(path, 'alice');
+    await warp.close();
+
+    const reopened = await open(path);
+    expect(attemptRefs(path)).toHaveLength(1);
+    expect(await reopened.as('bob').reconcile(receipt.attempt)).toBeNull();
+    retained(await reopened.as('alice').execute(intent.node.add({ subject: 'later' })));
+    retained(await reopened.as('alice').execute(intent.node.add({ subject: 'later still' })));
+
+    const answered = retained(await reopened.as('alice').reconcile(receipt.attempt));
+
+    expect(answered.publication.toString()).toBe(landed);
+    expect(await reopened.as('alice').reconcile(receipt.attempt)).toBeNull();
   });
 
   it('recognises its own publication when the acknowledgement was lost', async () => {
@@ -318,14 +417,19 @@ describe('uncertainty after permission', () => {
 
     const receipt = await warp.as('alice').execute(intent.node.add({ subject: 'landed' }));
 
-    expect(receipt).toBeInstanceOf(UnretainedWriteReceipt);
+    if (!(receipt instanceof UnretainedWriteReceipt) || receipt.attempt === null) {
+      throw new Error('Expected a repeatable unretained receipt');
+    }
     expect(attemptRefs(path)).toHaveLength(1);
     expect((await materialized(path)).nodes).toEqual(['landed']);
     failing = false;
     await warp.close();
 
-    await open(path);
+    const reopened = await open(path);
+    expect(attemptRefs(path)).toHaveLength(1);
+    const finished = retained(await reopened.as('alice').reconcile(receipt.attempt));
 
+    expect(finished.publication.toString()).toBe(receipt.publication.toString());
     expect(attemptRefs(path)).toEqual([]);
     expect((await materialized(path)).nodes).toEqual(['landed']);
   });
@@ -369,9 +473,16 @@ describe('recovery on open', () => {
     const blob = execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: path, encoding: 'utf8', input: 'not a record' }).trim();
     git(path, ['update-ref', `${buildWriteAttemptsPrefix(GRAPH)}${'a'.repeat(32)}`, blob]);
 
-    const warp = await open(path);
+    let now = 1_000;
+    const clock = (): number => now;
+    const crashed = await open(path, { clock, wrapCustody: crashingAt('arm') });
+    unpublished(await crashed.as('alice').execute(intent.node.add({ subject: 'never' })));
+    await crashed.close();
+    now += 2 * 60 * 60 * 1000;
 
-    expect(attemptRefs(path)).toHaveLength(1);
+    const warp = await open(path, { clock });
+
+    expect(attemptRefs(path)).toEqual([`${buildWriteAttemptsPrefix(GRAPH)}${'a'.repeat(32)}`]);
     retained(await warp.as('alice').execute(intent.node.add({ subject: 'unaffected' })));
   });
 });

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
-import { Coordinate, GitStorage, UnretainedWriteReceipt, Warp, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
+import { Coordinate, GitStorage, UnretainedWriteReceipt, Warp, WarpAccessDenied, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
 import { composeWarpWrites, overrideWarpComposition } from '../../../src/application/WarpWriteComposition.ts';
 import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import CustodyRefused from '../../../src/domain/services/custody/CustodyRefused.ts';
@@ -8,6 +8,8 @@ import ObservationCoordinate from '../../../src/domain/services/custody/Observat
 import ResolvedObservation from '../../../src/domain/services/custody/ResolvedObservation.ts';
 import ObservationAttemptId from '../../../src/domain/services/custody/ObservationAttemptId.ts';
 import { textDecode } from '../../../src/domain/utils/bytes.ts';
+import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
+import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import GitWriteAttemptJournalAdapter from '../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
 import {
@@ -129,6 +131,37 @@ describe('current authority', () => {
   });
 });
 
+describe('stage', () => {
+  it('asks the access boundary, and stays within the budget', async () => {
+    const path = await repository();
+    const access = new TestAccess(['mallory']);
+    const warp = await open(path, {}, access);
+
+    expect(await warp.as('mallory').stage('hello')).toBeInstanceOf(WarpAccessDenied);
+    expect(await warp.as('alice').stage('x'.repeat(2 * 1024 * 1024))).toMatchObject({ cause: 'budget-exhausted' });
+    expect(await warp.as('alice').stage('hello')).not.toBeInstanceOf(WarpAccessDenied);
+  });
+});
+
+describe('a grant that changes before publication', () => {
+  it('refuses rather than retain the authority it was not admitted under', async () => {
+    const path = await repository();
+    let authority = 'first';
+    const changing = new (class extends WarpAccessPort {
+      override authorizeWrite(): Promise<WarpWriteGrant> {
+        const grant = new WarpWriteGrant({ authority, budget: { records: 9, bytes: 9999, work: 9 } });
+        authority = 'second';
+        return Promise.resolve(grant);
+      }
+    })();
+    const warp = await open(path, {}, changing);
+
+    expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toBe('authority-changed');
+    expect(tip(path, 'alice')).toBeNull();
+    expect(attemptRefs(path)).toEqual([]);
+  });
+});
+
 describe('custody that cannot answer', () => {
   it('reports unpublished and keeps the record when a reservation is unacknowledged', async () => {
     const path = await repository();
@@ -196,13 +229,30 @@ describe('a record that outlives its attempt', () => {
     const path = await repository();
     const crashed = await open(path, { wrapCustody: custodyWith({ settle: unavailable }) });
     const receipt = await crashed.as('alice').execute(intent.entity.addAuto({ namespace: 'todo', properties: { title: 'one' } }));
-    const subject = receipt instanceof UnretainedWriteReceipt ? receipt.occurrences[0]?.subject : null;
+    if (!(receipt instanceof UnretainedWriteReceipt) || receipt.attempt === null) {
+      throw new Error('Expected a repeatable unretained receipt');
+    }
     await crashed.close();
 
-    await open(path);
+    const finished = retained(await (await open(path)).as('alice').reconcile(receipt.attempt));
 
-    expect(attemptRefs(path)).toEqual([]);
-    expect((await materialized(path)).nodes).toEqual([subject]);
+    expect(finished.occurrences).toEqual(receipt.occurrences);
+    expect((await materialized(path)).nodes).toEqual([receipt.occurrences[0]?.subject]);
+  });
+
+  it('answers from custody when the chain no longer shows a settled publication', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    vi.spyOn(GitWriteAttemptJournalAdapter.prototype, 'remove').mockRejectedValueOnce(new Error('ref store went away'));
+    const receipt = retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
+    const [ref] = attemptRefs(path);
+    const attempt = (ref ?? '').split('/').at(-1) ?? '';
+    git(path, ['update-ref', '-d', buildWriterRef(GRAPH, 'alice')]);
+
+    const answered = retained(await warp.as('alice').reconcile(attempt));
+
+    expect(answered.publication.toString()).toBe(receipt.publication.toString());
+    expect(answered.coordinate.toString()).toBe(receipt.coordinate.toString());
   });
 
   it('finishes a retained write whose record could not be removed', async () => {
@@ -298,6 +348,15 @@ describe('composition', () => {
     retained(await warp.as('alice').execute(intent.node.add({ subject: 'y' })));
     await Promise.all([warp.close(), warp.close()]);
     expect((await materialized(path)).nodes).toEqual(['y']);
+  });
+
+  it('tries again to open a writer whose first open failed', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    vi.spyOn(GitCasRepositoryAdapter.prototype, 'createRuntimeStorageServices').mockImplementationOnce(() => Promise.reject(new Error('blip')));
+
+    expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toBe('write-basis-unavailable');
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'y' })));
   });
 
   it('parses only an exact Coordinate, and validates grants', () => {
