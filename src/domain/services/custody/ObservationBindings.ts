@@ -1,4 +1,5 @@
 import ObservationCustodyError from '../../errors/ObservationCustodyError.ts';
+import { isObservationName } from './observationName.ts';
 import ObservationBudget from './ObservationBudget.ts';
 import ObservationDependencyClaim from './ObservationDependencyClaim.ts';
 import ObservationEvidenceBinding from './ObservationEvidenceBinding.ts';
@@ -19,8 +20,6 @@ export type ObservationBindingsFields = {
   /** Null for a read; a write also binds what it submitted. */
   readonly writePremise: ObservationWritePremise | null;
 };
-
-const LONE_SURROGATE = /[\ud800-\udfff]/u;
 
 /**
  * The original standpoint of one observation attempt, as its producer captured
@@ -52,7 +51,7 @@ export default class ObservationBindings {
 }
 
 function assertStandpoint(fields: ObservationBindingsFields): void {
-  if (!isObjectId(fields.basis) || !isName(fields.observer) || !isName(fields.purpose)) {
+  if (!isObjectId(fields.basis) || !isObservationName(fields.observer) || !isObservationName(fields.purpose)) {
     throw new ObservationCustodyError('Observation bindings need a basis tree, an observer and a purpose');
   }
 }
@@ -72,9 +71,4 @@ function assertPlans(fields: ObservationBindingsFields): void {
 
 function isEvidenceList(evidence: readonly ObservationEvidenceBinding[]): boolean {
   return Array.isArray(evidence) && evidence.every((entry) => entry instanceof ObservationEvidenceBinding);
-}
-
-/** Lone surrogates cannot survive canonical encoding, so a name holding one could not stay this name. */
-function isName(value: string): boolean {
-  return typeof value === 'string' && value.length > 0 && !LONE_SURROGATE.test(value);
 }

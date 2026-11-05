@@ -2,6 +2,7 @@ import { getExitCode, gitDiagnosticText, toGitError } from './gitErrorClassifica
 
 const GIT_FATAL_EXIT = 128;
 const TREE_PARSE_FAILURE = 'TREE_PARSE_ERROR';
+const REFUSED_READ = 'permission denied';
 const OBJECT_DAMAGE: readonly string[] = ['bad file', 'corrupt', 'header for', 'unable to parse', 'not a valid object', 'bad object'];
 
 /**
@@ -15,5 +16,6 @@ export function isObjectFault(cause: unknown): boolean {
   }
   const error = toGitError(cause);
   const diagnostic = gitDiagnosticText(error);
-  return getExitCode(error) === GIT_FATAL_EXIT && OBJECT_DAMAGE.some((pattern) => diagnostic.includes(pattern));
+  const damaged = OBJECT_DAMAGE.some((pattern) => diagnostic.includes(pattern)) && !diagnostic.includes(REFUSED_READ);
+  return getExitCode(error) === GIT_FATAL_EXIT && damaged;
 }

@@ -71,7 +71,7 @@ describe('reading what might be damaged', () => {
   it('calls only an object Git refused to read a fault', () => {
     expect(isObjectFault(fatal('fatal: Not a valid object name'))).toBe(true);
     expect(isObjectFault(fatal('fatal: not a git repository'))).toBe(false);
-    expect(isObjectFault(fatal('error: Permission denied'))).toBe(false);
+    expect(isObjectFault(fatal('error: unable to open loose object: Permission denied\nfatal: git cat-file abc: bad file'))).toBe(false);
     expect(isObjectFault(spawn)).toBe(false);
     expect(isObjectFault(Object.assign(new Error('bad tree'), { code: 'TREE_PARSE_ERROR' }))).toBe(true);
     expect(isObjectFault(Object.assign(new Error('Git failed'), { details: { code: 1, stderr: 'bad file' } }))).toBe(false);

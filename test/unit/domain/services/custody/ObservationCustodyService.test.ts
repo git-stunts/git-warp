@@ -699,6 +699,17 @@ describe('ObservationCustodyService', () => {
       expect(await service.recoverCoordinate(attempt.identity)).toMatchObject({ cause: { code: 'E_OBSERVATION_CUSTODY_UNVERIFIED' } });
     });
 
+    it('reports a reconcile it could not finish rather than reading a stale phase', async () => {
+      const attempt = await readAttempt();
+      custody.evidence.settlement = new CustodyRefused('not-settled');
+      custody.reconciled = new CustodyRefused('contention');
+      expect(await service.recoverCoordinate(attempt.identity)).toEqual(new ObservationRefused('contention'));
+      custody.reconciled = new CustodyIndeterminate(failure);
+      expect(await service.recoverCoordinate(attempt.identity)).toEqual(new ObservationIndeterminate('reconciliation', failure));
+      custody.reconciled = new CustodyRefused('not-reserved');
+      expect(await service.recoverCoordinate(attempt.identity)).toEqual(new ObservationRefused('not-settled'));
+    });
+
     it('lists stranded attempts, ending on a store failure', async () => {
       const attempt = await readAttempt();
       custody.listed = [attempt.identity, new CustodyIndeterminate(failure)];

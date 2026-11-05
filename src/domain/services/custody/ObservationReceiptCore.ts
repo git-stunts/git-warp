@@ -1,4 +1,5 @@
 import ObservationCustodyError from '../../errors/ObservationCustodyError.ts';
+import { isObservationName } from './observationName.ts';
 
 export type ObservationReceiptFamily = 'write' | 'observation';
 
@@ -19,8 +20,7 @@ export default class ObservationReceiptCore {
     readonly variant: string;
     readonly outcome: Uint8Array;
   }) {
-    const named = typeof options.variant === 'string' && options.variant.length > 0;
-    if (!RECEIPT_FAMILIES.has(options.family) || !named || !(options.outcome instanceof Uint8Array)) {
+    if (!RECEIPT_FAMILIES.has(options.family) || !isObservationName(options.variant) || !(options.outcome instanceof Uint8Array)) {
       throw new ObservationCustodyError('Observation receipt core needs a family, a variant and outcome bytes');
     }
     this.family = options.family;

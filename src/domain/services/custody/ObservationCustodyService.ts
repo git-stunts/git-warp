@@ -162,8 +162,8 @@ export default class ObservationCustodyService {
   /**
    * Records that the one attempt this permission allowed definitely did not publish,
    * such as a lost predecessor race, so the attempt ends rather than staying open.
-   * Requiring the permission keeps this from anyone who could not know that. An
-   * uncertain outcome must stay uncertain: call nothing, and report it indeterminate.
+   * Requiring the permission keeps this to the process that attempted it. An uncertain
+   * outcome must stay uncertain: call nothing, and report it indeterminate.
    */
   async settleFailedPublication(
     permission: ObservationPublicationPermission,

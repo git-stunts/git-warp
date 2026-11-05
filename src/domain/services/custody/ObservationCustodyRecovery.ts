@@ -3,6 +3,8 @@ import type ObservationCustodyCodecPort from '../../../ports/ObservationCustodyC
 import type ObservationCustodyPort from '../../../ports/ObservationCustodyPort.ts';
 import CustodyEvidence from './CustodyEvidence.ts';
 import CustodyIndeterminate from './CustodyIndeterminate.ts';
+import type { CustodyTransition } from './CustodyOutcome.ts';
+import CustodyRefused from './CustodyRefused.ts';
 import type { CustodyPhase } from './CustodyVocabulary.ts';
 import { endedUnpublished, failureOf, unverified } from './observationCustodyOutcomes.ts';
 import { digestOf } from './observationDigestOf.ts';
@@ -46,11 +48,18 @@ export default class ObservationCustodyRecovery {
   }
 
   async recoverCoordinate(identity: ObservationCustodyIdentity): Promise<RetainedObservation | ObservationPublicationFailed | ObservationRefused | ObservationIndeterminate> {
-    await this.#custody.reconcile(identity);
+    const reconciled = await this.#custody.reconcile(identity);
+    if (isUnfinished(reconciled)) {
+      return failureOf(reconciled, 'reconciliation');
+    }
     const evidence = await this.#custody.readEvidence(identity, 'settlement');
     if (!(evidence instanceof CustodyEvidence)) {
       return failureOf(evidence, 'settlement');
     }
+    return await this.#outcomeOf(identity, evidence);
+  }
+
+  async #outcomeOf(identity: ObservationCustodyIdentity, evidence: CustodyEvidence): Promise<RetainedObservation | ObservationPublicationFailed | ObservationIndeterminate> {
     const page = this.#codec.decodeSettlementPage(evidence.page.record());
     if (page instanceof ObservationDecodeFailure) {
       return unverified('record-corrupt');
@@ -68,4 +77,9 @@ export default class ObservationCustodyRecovery {
       yield item instanceof CustodyIndeterminate ? new ObservationIndeterminate('reconciliation', item.cause) : item;
     }
   }
+}
+
+/** A reconcile that could not finish leaves "not settled" unproven, so the attempt's phase must not be read from it. */
+function isUnfinished(reconciled: CustodyTransition): reconciled is CustodyIndeterminate | CustodyRefused {
+  return reconciled instanceof CustodyIndeterminate || (reconciled instanceof CustodyRefused && reconciled.reason === 'contention');
 }

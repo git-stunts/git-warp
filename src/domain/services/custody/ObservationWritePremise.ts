@@ -1,4 +1,5 @@
 import ObservationCustodyError from '../../errors/ObservationCustodyError.ts';
+import { isObservationName } from './observationName.ts';
 import ObservationDigest from './ObservationDigest.ts';
 import { isObjectId } from './ObservationObjectId.ts';
 
@@ -25,6 +26,5 @@ export default class ObservationWritePremise {
 }
 
 function isValidWriter(options: { readonly writerId: string; readonly predecessor: string | null }): boolean {
-  const named = typeof options.writerId === 'string' && options.writerId.length > 0;
-  return named && (options.predecessor === null || isObjectId(options.predecessor));
+  return isObservationName(options.writerId) && (options.predecessor === null || isObjectId(options.predecessor));
 }

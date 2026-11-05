@@ -8,6 +8,7 @@ import ObservationAttemptId from '../../../../../src/domain/services/custody/Obs
 import ObservationCustodyPage from '../../../../../src/domain/services/custody/ObservationCustodyPage.ts';
 import ObservationCustodyRoots from '../../../../../src/domain/services/custody/ObservationCustodyRoots.ts';
 import ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
+import ObservationDecodeFailure from '../../../../../src/domain/services/custody/ObservationDecodeFailure.ts';
 import ObservationPreparedPage from '../../../../../src/domain/services/custody/ObservationPreparedPage.ts';
 import ObservationPublicationEvidence from '../../../../../src/domain/services/custody/ObservationPublicationEvidence.ts';
 import ObservationReceiptCore from '../../../../../src/domain/services/custody/ObservationReceiptCore.ts';
@@ -87,17 +88,23 @@ describe('ObservationCustodyService settling what it cannot retain', () => {
   });
 
   describe('bytes the codec cannot read back', () => {
-    const undecodable = `\ud800${'é'.repeat(40)}`;
-
     it('refuses or reports a core before settling it', async () => {
+      class UnreadableCores extends ObservationCustodyCborCodec {
+        override decodeCore(): ObservationDecodeFailure {
+          return new ObservationDecodeFailure('unreadable');
+        }
+      }
+      service = new ObservationCustodyService({
+        custody, support: new ScriptedSupport(), codec: new UnreadableCores(codec), crypto: new NodeCryptoAdapter(), attempts: new FixedAttempts(),
+      });
       const read = await readAttempt();
       storePreparation(read);
-      const core = new ObservationReceiptCore({ family: 'observation', variant: undecodable, outcome: Uint8Array.of(1) });
+      const core = new ObservationReceiptCore({ family: 'observation', variant: 'v', outcome: Uint8Array.of(1) });
       expect(await service.settle(read, { core, publication: null })).toEqual(new ObservationRefused('evidence-undecodable'));
       const write = await writeAttempt();
       storePreparation(write);
       custody.inspected = inspectionAt('armed');
-      const writeOutcome = new ObservationReceiptCore({ family: 'write', variant: undecodable, outcome: Uint8Array.of(1) });
+      const writeOutcome = new ObservationReceiptCore({ family: 'write', variant: 'v', outcome: Uint8Array.of(1) });
       expect(await service.settle(write, { core: writeOutcome, publication: new ObservationPublicationEvidence('writer-1', COMMIT) }))
         .toEqual(new ObservationUnretained(write, 'evidence-undecodable'));
     });
