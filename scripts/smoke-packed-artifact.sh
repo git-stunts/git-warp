@@ -73,9 +73,7 @@ const mod = await import('@git-stunts/git-warp');
 const rootValues = Object.keys(mod).sort();
 const expectedRootValues = ['Coordinate','GitStorage','IndeterminateWriteReceipt','RetainedWriteReceipt','Runtime','UnpublishedWriteReceipt','UnretainedWriteReceipt','Warp','WarpAccessDenied','WarpAccessPort','WarpAddress','WarpWriteGrant'];
 if (rootValues.join() !== expectedRootValues.join()) {
-  throw new PackedArtifactSmokeError(
-    `package root values must be exactly ${expectedRootValues.join(', ')}; received ${rootValues.join(', ')}`,
-  );
+  throw new PackedArtifactSmokeError(`package root values must be exactly ${expectedRootValues.join(', ')}; received ${rootValues.join(', ')}`);
 }
 
 let storageSubpathImported = false;
