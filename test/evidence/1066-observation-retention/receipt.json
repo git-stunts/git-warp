@@ -1,0 +1,81 @@
+{
+  "phase": "observation-retention-capabilities-02",
+  "source_base": "ecc8f5c1c26c9d43ca77257e4b69ea8c492a850b",
+  "test_source": "test/integration/infrastructure/adapters/ObservationRetentionCapabilities.integration.test.ts",
+  "test_source_sha256": "b7e84c0319bcf1b0ae94f108e744afd2943fd3e5181125a90848e3e4c1a9d2ae",
+  "source_archive_sha256": "2741151e744103fe834fa897d1849ef1d37aac24e396eed54fc376ca3a128713",
+  "source_archive_kind": "Python tarfile snapshot of indexed paths and working bytes; not git archive",
+  "package_lock_sha256": "272575dc43fb8f78f7fe67fe77218e925fdabda9e1694503387558eb0de74315",
+  "git_cas": {
+    "version": "7.0.0",
+    "release_commit": "ae3a81cddf5f45a54a676c62bdb0335db77da5a0"
+  },
+  "plumbing_version": "3.3.3",
+  "image": "sha256:14a4933e6cef421424f7a66d89a3f4eafcbd0d90e0a822251f298e05132dc735",
+  "command": [
+    "env",
+    "WARP_TEST_MAX_WORKERS=2",
+    "bash",
+    "-c",
+    "node node_modules/vitest/vitest.mjs run test/integration/infrastructure/adapters/ObservationRetentionCapabilities.integration.test.ts --maxWorkers=1 && npm run typecheck:test && node node_modules/eslint/bin/eslint.js test/integration/infrastructure/adapters/ObservationRetentionCapabilities.integration.test.ts"
+  ],
+  "raw_console_sha256": "8842a5ecbdf0bd492b6e2935675d7e33602e4bc85106bccf8d8ee4cf8f2478f5",
+  "checks": {
+    "native_cases_passed": 6,
+    "formats": [
+      "sha1",
+      "sha256"
+    ],
+    "history_heads_per_positive_case": 129,
+    "carrier_parent_counts": [
+      63,
+      64,
+      4
+    ],
+    "metadata_control_missing_commit_exit": 1,
+    "pinned_cache_limit": 1,
+    "accepted_pinned_cache_entries": 2,
+    "configured_test_typecheck": "passed",
+    "targeted_eslint": "passed"
+  },
+  "resources": {
+    "exit_code": 0,
+    "guard_error": null,
+    "peaks": {
+      "pids": 27,
+      "build_bytes": 2795081728,
+      "/data": 1908736,
+      "/tmp": 0,
+      "/dev/shm": 0,
+      "generated_nonobject_bytes": 2408448,
+      "project_runtime_bytes": 19226624,
+      "npm_log_bytes": 118784,
+      "minimum_vm_free_bytes": 572974944256,
+      "<CONTAINER_HOME>": 0
+    },
+    "stdout_bytes": 906,
+    "timeout_seconds": 1700,
+    "measurement_mode": "allocated inode census without workload pauses",
+    "measurement_pauses": 0,
+    "measurement_pause_seconds": 0.0,
+    "cgroup": {
+      "pids.current": "3",
+      "pids.max": "768",
+      "pids.events": "max 0",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+      "cpu.max": "400000 100000",
+      "cpuset.cpus.effective": "0-3"
+    },
+    "limits": {
+      "build_bytes": 21474836480,
+      "runtime_tmpfs_bytes": 3221225472,
+      "stdout_bytes": 8388608,
+      "generated_nonobject_bytes": 50331648,
+      "project_runtime_bytes": 536870912,
+      "npm_log_bytes": 16777216
+    }
+  },
+  "coordination": "Canonical workstation host/docker/git-warp-tests/ claim/release plus native queue; original legacy launch no-lock field is false and raw evidence is preserved.",
+  "raw_resources_sha256": "7e73c312a769b46074f3e6bfe3fcf37daf186c7a87a4e53cfd5a35277f505862",
+  "public_normalization": "Container home path key replaced with <CONTAINER_HOME>; measurements unchanged."
+}
