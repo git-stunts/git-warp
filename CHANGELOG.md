@@ -30,6 +30,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Adopt published `@git-stunts/git-cas` 7.1.0. It stamps its version into new content
+  manifests, so a newly stored attachment's handle differs from one stored by 7.0.0,
+  though its chunks and payload match. Stored manifests are not rewritten, so existing
+  handles still name the same objects, but writers on different git-cas versions now get
+  different handles for identical content
+  ([#1067](https://github.com/git-stunts/git-warp/issues/1067)).
+- Add the private shared observation identity and custody that the final write and
+  observation receipts will consume, on that version's durable record-slot reservations
+  ([#1067](https://github.com/git-stunts/git-warp/issues/1067)). It is not exported or
+  wired into `Warp` yet, so no public API changes.
 - Upgrade `zod` from 3 to 4 (`^4.6.7`) to clear GHSA-mrhx-c7xc-m3w5, an
   out-of-memory risk when validating oversized constrained collections
   ([#1042](https://github.com/git-stunts/git-warp/issues/1042)). Where a schema

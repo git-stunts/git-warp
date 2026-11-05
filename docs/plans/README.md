@@ -47,6 +47,12 @@ purpose, budget, receipt-derived Coordinate, and migration boundary for
 contract effective on integration of [#1059](https://github.com/git-stunts/git-warp/pull/1059),
 not a claim that the target API has shipped.
 
+The [observation custody design](./observation-custody.md), tracked by
+[#1067](https://github.com/git-stunts/git-warp/issues/1067), defines the private
+identity, capacity admission and durable evidence shared by the final read/write
+receipts. Its ownership graph incorporates the maintainer's direct cutover
+amendment; public historical operations remain separately owned by #1053.
+
 The [Docker tracked-context design record](./docker-tracked-context.md) makes the COPY-based test runner build images from `git ls-files` paths only, tracked by [#1047](https://github.com/git-stunts/git-warp/issues/1047).
 
 The [public surface guard plan](./public-surface-guard.md), tracked by

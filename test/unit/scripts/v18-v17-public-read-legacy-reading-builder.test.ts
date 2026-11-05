@@ -48,9 +48,9 @@ describe('v18 v17 public-read legacy reading builder', () => {
     ]);
     // git-cas stamps its package version into the manifest formatVersion, so dependency
     // bumps intentionally advance this migration-reading golden handle and manifestHash.
-    // Verified against published git-cas 7.0.0; old/new readers retain identical payload bytes.
+    // Verified against published git-cas 7.1.0: chunks and payload match 7.0.0; only the stamp and its hash differ.
     expect(reading.facts.find((fact) => fact.factKey === 'node:alpha:_content')?.value)
-      .toBe('git-cas:1:asset:manifest-tree:cbor:sha1:bea516f63cbdfb91b07300cc0ffb79754df4ef59');
+      .toBe('git-cas:1:asset:manifest-tree:cbor:sha1:18e9a9e597779e2073bd0be477e6835e57f564b0');
   });
 
   it('fails closed when a restored v17 writer ref drifts after restore', async () => {

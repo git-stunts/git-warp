@@ -102,16 +102,8 @@ const UNIT_SHARDS: readonly Shard[] = [
   },
   {
     name: 'unit-domain-services-subdirs',
-    paths: [
-      ...listRecursiveTestFiles('test/unit/domain/services/controllers'),
-      ...listRecursiveTestFiles('test/unit/domain/services/cone'),
-      ...listRecursiveTestFiles('test/unit/domain/services/optic'),
-      ...listRecursiveTestFiles('test/unit/domain/services/query'),
-      ...listRecursiveTestFiles('test/unit/domain/services/snapshot'),
-      ...listRecursiveTestFiles('test/unit/domain/services/state'),
-      ...listRecursiveTestFiles('test/unit/domain/services/strand'),
-      ...listRecursiveTestFiles('test/unit/domain/services/sync'),
-    ],
+    paths: ['controllers', 'cone', 'custody', 'optic', 'query', 'snapshot', 'state', 'strand', 'sync']
+      .flatMap((directory) => listRecursiveTestFiles(`test/unit/domain/services/${directory}`)),
   },
 ];
 
