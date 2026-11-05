@@ -1,4 +1,3 @@
-import type { ContentInput } from '../domain/api/ContentInput.ts';
 import type { ContentMetadataInput } from '../domain/api/ContentMetadataInput.ts';
 import type StagedContent from '../domain/api/StagedContent.ts';
 import WarpError from '../domain/errors/WarpError.ts';
@@ -61,7 +60,7 @@ export type WarpWrites = {
   readonly executor: ConeWriteExecutor;
   readonly recovery: ConeWriteRecovery;
   readonly custody: ObservationCustodyService;
-  stage(writer: string, staged: { readonly content: ContentInput; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent>;
+  stage(writer: string, staged: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent>;
   close(): Promise<void>;
 };
 

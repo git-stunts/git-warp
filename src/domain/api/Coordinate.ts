@@ -1,3 +1,4 @@
+import WarpError from '../errors/WarpError.ts';
 import ObservationCoordinate from '../services/custody/ObservationCoordinate.ts';
 
 /**
@@ -13,10 +14,13 @@ export default class Coordinate {
     Object.freeze(this);
   }
 
-  /** The Coordinate in `text`, or null for anything but its exact saved form. */
-  static parse(text: string): Coordinate | null {
+  /** The Coordinate in `text`. Anything but its exact saved form is misuse, so it throws. */
+  static parse(text: string): Coordinate {
     const parsed = ObservationCoordinate.parse(text);
-    return parsed === null ? null : new Coordinate(parsed.toString());
+    if (parsed === null) {
+      throw new WarpError('This is not a saved Coordinate', 'E_COORDINATE_SYNTAX');
+    }
+    return new Coordinate(parsed.toString());
   }
 
   toString(): string {

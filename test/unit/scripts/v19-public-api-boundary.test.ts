@@ -4,10 +4,25 @@ import { describe, expect, it } from 'vitest';
 
 const REPO_ROOT = new URL('../../../', import.meta.url);
 
-const ROOT_VALUE_EXPORTS = ['Runtime'] as const;
+const ROOT_VALUE_EXPORTS = [
+  'Coordinate',
+  'GitStorage',
+  'IndeterminateWriteReceipt',
+  'RetainedWriteReceipt',
+  'Runtime',
+  'UnpublishedWriteReceipt',
+  'UnretainedWriteReceipt',
+  'Warp',
+  'WarpAccessDenied',
+  'WarpAccessPort',
+  'WarpAddress',
+  'WarpWriteGrant',
+] as const;
 
 const ROOT_TYPE_EXPORTS = [
   'AdmissionOutcome',
+  'AuthoredWarp',
+  'AuthoredWriteReceipt',
   'ContentInput',
   'ContentMetadataInput',
   'CoordinateReference',
@@ -48,6 +63,13 @@ const ROOT_TYPE_EXPORTS = [
   'ContentAttachment',
   'ContentOwnerDescriptor',
   'SupportReport',
+  'WarpWriteBudget',
+  'WarpWriteRequest',
+  'WriteAdmission',
+  'WriteAdmissionKind',
+  'WriteOccurrence',
+  'WritePublication',
+  'WriteRace',
   'Tick',
   'WitnessReference',
   'WriteIntentInput',
@@ -193,7 +215,7 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 }
 
 describe('v19 public API boundary', () => {
-  it('exports Runtime as the only package-root runtime value', () => {
+  it('exports only the Runtime and Warp application values from the package root', () => {
     const surface = moduleSurface();
     expect(surface.starExports).toEqual([]);
     expect(surface.valueExports).toEqual(sorted(ROOT_VALUE_EXPORTS));

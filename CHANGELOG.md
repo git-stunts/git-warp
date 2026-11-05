@@ -799,7 +799,7 @@ property reclamation does not establish a constant bound on total metadata.
   77 audited unreachable JavaScript outputs without rewriting retained code.
   Maintainer programs use a separate build profile.
 - Release and prepack gates reject unrecognized paths and enforce final
-  ceilings of **760,000 compressed bytes, 3,300,000 unpacked bytes, and 1,050
+  ceilings of **760,000 compressed bytes, 3,300,000 unpacked bytes, and 1,300
   entries**. The inventory boundary tolerates npm 10 prepare output only before
   a terminal schema-valid JSON frame. The external packed-consumer smoke checks
   all public exports and declarations with `skipLibCheck: false`, metadata,

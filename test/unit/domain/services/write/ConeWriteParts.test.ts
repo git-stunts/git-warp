@@ -19,7 +19,12 @@ import ObservationWritePremise from '../../../../../src/domain/services/custody/
 import ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
 import WriteAttemptRecord from '../../../../../src/domain/services/write/WriteAttemptRecord.ts';
 import WritePublicationProbe from '../../../../../src/domain/services/write/WritePublicationProbe.ts';
+import ConcurrentValue from '../../../../../src/domain/api/ConcurrentValue.ts';
+import LifecyclePlurality from '../../../../../src/domain/api/LifecyclePlurality.ts';
+import RegisterPlurality from '../../../../../src/domain/api/RegisterPlurality.ts';
 import UnretainedWriteReceipt from '../../../../../src/domain/api/UnretainedWriteReceipt.ts';
+import type WriteRace from '../../../../../src/domain/api/WriteRace.ts';
+import { writeRaceOf } from '../../../../../src/domain/services/write/writeRaceOf.ts';
 import { buildWriteAttemptRef } from '../../../../../src/domain/utils/WriteAttemptRefLayout.ts';
 import type WriteAttemptJournalPort from '../../../../../src/ports/WriteAttemptJournalPort.ts';
 import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';
@@ -62,6 +67,28 @@ function probe(fields: {
     },
   });
 }
+
+describe('writeRaceOf', () => {
+  it('names who raced on a register, without what they wrote', () => {
+    const race = writeRaceOf(new RegisterPlurality({
+      subject: 'doc', key: 'title', overflow: 1, causality: 'observed',
+      winner: new ConcurrentValue({ writer: 'alice', value: 'mine' }),
+      siblings: [new ConcurrentValue({ writer: 'bob', value: 'a' }), new ConcurrentValue({ writer: 'bob', value: 'b' })],
+    }));
+
+    expect(race).toMatchObject({ kind: 'register', subject: 'doc', key: 'title', writers: ['bob'], overflow: 1 });
+    expect(JSON.stringify(race)).not.toContain('mine');
+  });
+
+  it('names who removed a raced node or edge', () => {
+    const lifecycle = (element: ConstructorParameters<typeof LifecyclePlurality>[0]['element']): WriteRace => writeRaceOf(new LifecyclePlurality({
+      element, removedBy: ['bob'], editedBy: ['alice'], overflow: 0, causality: 'observed',
+    }));
+
+    expect(lifecycle({ kind: 'node', subject: 'doc' })).toMatchObject({ kind: 'lifecycle', subject: 'doc', key: null, writers: ['bob'] });
+    expect(lifecycle({ kind: 'edge', from: 'a', to: 'b', label: 'l' }).subject).toBe('a>b:l');
+  });
+});
 
 describe('WriteAttemptRecord', () => {
   it('refuses a preparation that is not a write', () => {
@@ -119,7 +146,7 @@ describe('ConeWriteSettlement', () => {
 
   it('reports an unretained write however custody fails, keeping a record worth repeating', async () => {
     const { settling, remove } = settlement(() => Promise.reject(new Error('boom')));
-    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID, plurality: [] });
+    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID, races: [] });
 
     expect(receipt).toBeInstanceOf(UnretainedWriteReceipt);
     expect(receipt instanceof UnretainedWriteReceipt ? receipt.retention : '').toBe('settlement-unacknowledged');
@@ -128,7 +155,7 @@ describe('ConeWriteSettlement', () => {
 
   it('drops the record when custody can never hold this core, even if removing it fails', async () => {
     const { settling, remove } = settlement(() => Promise.resolve(new ObservationUnretained(attempt, 'settlement-conflict')));
-    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID, plurality: [] });
+    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID, races: [] });
 
     expect(receipt instanceof UnretainedWriteReceipt ? receipt.retention : '').toBe('settlement-conflict');
     expect(remove).toHaveBeenCalledOnce();
@@ -136,7 +163,7 @@ describe('ConeWriteSettlement', () => {
 
   it('calls any other settlement answer unacknowledged', async () => {
     const { settling } = settlement(() => Promise.resolve(new ObservationRefused('contention')));
-    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID, plurality: [] });
+    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID, races: [] });
 
     expect(receipt instanceof UnretainedWriteReceipt ? receipt.retention : '').toBe('settlement-unacknowledged');
   });
@@ -144,7 +171,7 @@ describe('ConeWriteSettlement', () => {
   it('refuses a Coordinate whose text custody cannot have issued', () => {
     const { settling } = settlement(() => Promise.resolve({}));
     const coordinate = { toString: () => 'nope' } as ObservationCoordinate;
-    expect(() => settling.retained({ attempt, record: recordOf(), commit: OID, plurality: [] }, coordinate)).toThrow(WarpError);
+    expect(() => settling.retained({ attempt, record: recordOf(), commit: OID, races: [] }, coordinate)).toThrow(WarpError);
   });
 });
 

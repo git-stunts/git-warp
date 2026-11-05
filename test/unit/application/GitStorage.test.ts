@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => {
   class GitCasRepositoryAdapter {
     readonly close = repositoryClose;
     readonly createTrustChain = createTrustChain;
+    readonly observationStorage = () => ({});
 
     constructor(options: object) {
       repositoryConstructions.push(options);

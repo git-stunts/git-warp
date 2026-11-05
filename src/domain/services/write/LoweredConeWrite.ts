@@ -1,4 +1,4 @@
-import type { Plurality } from '../../api/Plurality.ts';
+import type WriteRace from '../../api/WriteRace.ts';
 import type WriteOccurrence from '../../api/WriteOccurrence.ts';
 import type { WriteAdmissionKind } from '../../api/WriteAdmission.ts';
 import type { PatchBuilder } from '../PatchBuilder.ts';
@@ -11,7 +11,7 @@ export default class LoweredConeWrite {
   readonly builder: PatchBuilder;
   readonly bindings: ObservationBindings;
   readonly admission: WriteAdmissionKind;
-  readonly plurality: readonly Plurality[];
+  readonly races: readonly WriteRace[];
   readonly occurrences: readonly WriteOccurrence[];
   readonly fold: PatchEntryFold;
 
@@ -20,7 +20,7 @@ export default class LoweredConeWrite {
     readonly builder: PatchBuilder;
     readonly bindings: ObservationBindings;
     readonly admission: WriteAdmissionKind;
-    readonly plurality: readonly Plurality[];
+    readonly races: readonly WriteRace[];
     readonly occurrences: readonly WriteOccurrence[];
     readonly fold: PatchEntryFold;
   }) {
@@ -28,7 +28,7 @@ export default class LoweredConeWrite {
     this.builder = fields.builder;
     this.bindings = fields.bindings;
     this.admission = fields.admission;
-    this.plurality = Object.freeze([...fields.plurality]);
+    this.races = Object.freeze([...fields.races]);
     this.occurrences = Object.freeze([...fields.occurrences]);
     this.fold = fields.fold;
     Object.freeze(this);

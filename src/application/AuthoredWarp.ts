@@ -1,5 +1,4 @@
 import type { AuthoredWriteReceipt } from '../domain/api/AuthoredWriteReceipt.ts';
-import type { ContentInput } from '../domain/api/ContentInput.ts';
 import type { ContentMetadataInput } from '../domain/api/ContentMetadataInput.ts';
 import type { WriteIntentInput } from '../domain/api/IntentSequence.ts';
 import type StagedContent from '../domain/api/StagedContent.ts';
@@ -8,7 +7,7 @@ import type StagedContent from '../domain/api/StagedContent.ts';
 export type AuthoredWarpBackend = {
   execute(writer: string, input: WriteIntentInput): Promise<AuthoredWriteReceipt>;
   reconcile(writer: string, attempt: string): Promise<AuthoredWriteReceipt | null>;
-  stage(writer: string, content: { readonly content: ContentInput; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent>;
+  stage(writer: string, content: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent>;
 };
 
 /**
@@ -35,8 +34,8 @@ export default class AuthoredWarp {
     return await this.#backend.reconcile(this.writer, attempt);
   }
 
-  /** Stages content for a later attach intent on this Warp. Staged bytes alone change nothing in the graph. */
-  async stage(content: ContentInput, metadata?: ContentMetadataInput): Promise<StagedContent> {
+  /** Stages text for a later attach intent on this Warp, changing nothing in the graph until then. Binary staging is still only on `Lane`. */
+  async stage(content: string, metadata?: ContentMetadataInput): Promise<StagedContent> {
     return await this.#backend.stage(this.writer, { content, metadata });
   }
 }

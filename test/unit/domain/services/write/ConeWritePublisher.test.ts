@@ -52,7 +52,7 @@ function publisherOf(stubs: Stubs): { readonly publisher: ConeWritePublisher; re
   return {
     remove,
     lowered: new LoweredConeWrite({
-      writer: 'alice', bindings: BINDINGS, admission: 'derived', plurality: [], occurrences: [],
+      writer: 'alice', bindings: BINDINGS, admission: 'derived', races: [], occurrences: [],
       builder: { commitWithEvidence: stubs.commit ?? (() => Promise.resolve({ sha: OID })) } as unknown as PatchBuilder,
       fold: { fold: () => Promise.resolve() } as unknown as PatchEntryFold,
     }),

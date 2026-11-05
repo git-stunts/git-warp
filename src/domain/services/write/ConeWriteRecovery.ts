@@ -124,7 +124,7 @@ export default class ConeWriteRecovery {
     if (found.kind === 'none') {
       return this.#indeterminate(record, PUBLICATION_UNRESOLVED);
     }
-    const published = { attempt, record, commit: found.commit, plurality: [] };
+    const published = { attempt, record, commit: found.commit, races: [] };
     if (recovered instanceof RetainedObservation) {
       await this.#journal.remove(record.attemptId);
       return this.#settlement.retained(published, recovered.coordinate);

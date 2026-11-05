@@ -125,7 +125,7 @@ describe('Zero whole-state traps', () => {
     installTraps();
     const warp = await openWarp(path);
     const writer = warp.as('alice');
-    const staged = await writer.stage(new TextEncoder().encode('hello'), { mime: 'text/plain' });
+    const staged = await writer.stage('hello', { mime: 'text/plain' });
     const written = [
       intent.node.add({ subject: 'a' }),
       intent.node.add({ subject: 'b' }),

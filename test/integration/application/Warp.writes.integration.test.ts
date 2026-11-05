@@ -50,7 +50,7 @@ describe('Warp.open and as(writer).execute', () => {
     expect(receipt.outcome.kind).toBe('derived');
     expect(receipt.writer).toBe('alice');
     expect(receipt.publication.toString()).toBe(tip(path, 'alice'));
-    expect(Coordinate.parse(receipt.coordinate.toString())?.toString()).toBe(receipt.coordinate.toString());
+    expect(Coordinate.parse(receipt.coordinate.toString()).toString()).toBe(receipt.coordinate.toString());
     expect(attemptRefs(path)).toEqual([]);
   });
 
@@ -95,7 +95,7 @@ describe('Warp.open and as(writer).execute', () => {
     const second = await open(path);
     retained(await second.as('alice').execute(intent.node.add({ subject: 'next' })));
 
-    expect(Coordinate.parse(receipt.coordinate.toString())).not.toBeNull();
+    expect(Coordinate.parse(receipt.coordinate.toString()).toString()).toBe(receipt.coordinate.toString());
     expect((await materialized(path)).nodes).toEqual(['kept', 'next']);
   });
 
@@ -126,7 +126,8 @@ describe('Warp.open and as(writer).execute', () => {
     const raced = retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' })));
 
     expect(raced.outcome.kind).toBe('plural');
-    expect(raced.outcome.plurality).toHaveLength(1);
+    expect(raced.outcome.races).toHaveLength(1);
+    expect(raced.outcome.races[0]).toMatchObject({ kind: 'register', subject: 'doc', key: 'title', writers: ['bob'], overflow: 0 });
   });
 });
 

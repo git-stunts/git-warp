@@ -301,7 +301,7 @@ describe('composition', () => {
   });
 
   it('parses only an exact Coordinate, and validates grants', () => {
-    expect(Coordinate.parse('nope')).toBeNull();
+    expect(() => Coordinate.parse('nope')).toThrow('not a saved Coordinate');
     expect(() => new WarpWriteGrant({ authority: '', budget: { records: 1, bytes: 1, work: 1 } })).toThrow('finite positive');
     expect(() => new WarpWriteGrant({ authority: 'x', budget: { records: 0, bytes: 1, work: 1 } })).toThrow('finite positive');
   });

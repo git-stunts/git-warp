@@ -29,6 +29,7 @@ export type { AuthoredWriteReceipt } from './src/domain/api/AuthoredWriteReceipt
 export type { default as WriteAdmission, WriteAdmissionKind } from './src/domain/api/WriteAdmission.ts';
 export type { default as WriteOccurrence } from './src/domain/api/WriteOccurrence.ts';
 export type { default as WritePublication } from './src/domain/api/WritePublication.ts';
+export type { default as WriteRace } from './src/domain/api/WriteRace.ts';
 export type {
   RuntimeForkOptions,
   RuntimeOpenOptions,

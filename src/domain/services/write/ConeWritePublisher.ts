@@ -158,7 +158,7 @@ export default class ConeWritePublisher {
       if (fate.result !== null) {
         await lowered.fold.fold(fate.result);
       }
-      return await this.#settlement.settle({ attempt: permission.attempt, record, commit: fate.commit, plurality: lowered.plurality });
+      return await this.#settlement.settle({ attempt: permission.attempt, record, commit: fate.commit, races: lowered.races });
     }
     return fate.kind === 'failed' ? await this.#failed(record, permission) : this.#indeterminate(record);
   }

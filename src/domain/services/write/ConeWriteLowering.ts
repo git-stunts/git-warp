@@ -27,6 +27,7 @@ import ObservationWritePremise from '../custody/ObservationWritePremise.ts';
 import type { PatchBuilder } from '../PatchBuilder.ts';
 import LoweredConeWrite from './LoweredConeWrite.ts';
 import PatchEntryFold from './PatchEntryFold.ts';
+import { writeRaceOf } from './writeRaceOf.ts';
 
 /** The registered purpose every write's premises are read under. */
 export const WRITE_PURPOSE = 'git-warp:purpose/write-admission/v1';
@@ -99,7 +100,7 @@ export default class ConeWriteLowering {
     const races = builder.coneWriteRaces();
     const predecessor = readPatchBuilderCausalBasis(builder).expectedParentSha;
     return new LoweredConeWrite({
-      writer: request.writer, builder, plurality: races.plurality,
+      writer: request.writer, builder, races: races.plurality.map(writeRaceOf),
       admission: races.isEmpty() ? 'derived' : 'plural',
       bindings: await this.#bindings({ request, basis: premise.stored.revision, predecessor }),
       occurrences: occurrencesOf(request.sequence, builder),

@@ -1,5 +1,4 @@
 import { assertWriterIdentity } from '../domain/api/assertIdentity.ts';
-import type { ContentInput } from '../domain/api/ContentInput.ts';
 import type { ContentMetadataInput } from '../domain/api/ContentMetadataInput.ts';
 import type { WriteIntentInput } from '../domain/api/IntentSequence.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from '../domain/api/OpenWarpIdentityFailure.ts';
@@ -39,7 +38,7 @@ export default class Warp {
     return new AuthoredWarp(writer, {
       execute: async (name: string, input: WriteIntentInput) => await this.#queued(async () => await this.#writes.executor.execute(name, input)),
       reconcile: async (name: string, attempt: string) => await this.#queued(async () => await this.#writes.executor.reconcile(name, attempt)),
-      stage: async (name: string, staged: { readonly content: ContentInput; readonly metadata: ContentMetadataInput | undefined }) => await this.#queued(async () => await this.#staged(name, staged)),
+      stage: async (name: string, staged: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }) => await this.#queued(async () => await this.#staged(name, staged)),
     });
   }
 
@@ -49,7 +48,7 @@ export default class Warp {
     return this.#closing;
   }
 
-  async #staged(writer: string, staged: { readonly content: ContentInput; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent> {
+  async #staged(writer: string, staged: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent> {
     return await this.#writes.stage(writer, staged);
   }
 

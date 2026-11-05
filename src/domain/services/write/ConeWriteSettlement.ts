@@ -3,9 +3,8 @@ import Coordinate from '../../api/Coordinate.ts';
 import RetainedWriteReceipt from '../../api/RetainedWriteReceipt.ts';
 import UnretainedWriteReceipt from '../../api/UnretainedWriteReceipt.ts';
 import WriteAdmission from '../../api/WriteAdmission.ts';
-import type { Plurality } from '../../api/Plurality.ts';
+import type WriteRace from '../../api/WriteRace.ts';
 import WritePublication from '../../api/WritePublication.ts';
-import WarpError from '../../errors/WarpError.ts';
 import type ObservationAttempt from '../custody/ObservationAttempt.ts';
 import type ObservationAttemptId from '../custody/ObservationAttemptId.ts';
 import type ObservationCoordinate from '../custody/ObservationCoordinate.ts';
@@ -27,7 +26,7 @@ export type PublishedAttempt = {
   readonly attempt: ObservationAttempt;
   readonly record: WriteAttemptRecord;
   readonly commit: string;
-  readonly plurality: readonly Plurality[];
+  readonly races: readonly WriteRace[];
 };
 
 /** Turns a publication that landed into its Retained or Unretained receipt; it can never be called unapplied. */
@@ -86,18 +85,14 @@ export default class ConeWriteSettlement {
   }
 
   retained(published: PublishedAttempt, coordinate: ObservationCoordinate): RetainedWriteReceipt {
-    const issued = Coordinate.parse(coordinate.toString());
-    if (issued === null) {
-      throw new WarpError('Custody issued a Coordinate its own text form refuses', 'E_WRITE_COORDINATE');
-    }
-    return new RetainedWriteReceipt({ ...this.#fields(published), coordinate: issued });
+    return new RetainedWriteReceipt({ ...this.#fields(published), coordinate: Coordinate.parse(coordinate.toString()) });
   }
 
   #unretained(published: PublishedAttempt, retention: string): UnretainedWriteReceipt {
     return new UnretainedWriteReceipt({ ...this.#fields(published), retention });
   }
 
-  #fields({ record, commit, plurality }: PublishedAttempt): {
+  #fields({ record, commit, races }: PublishedAttempt): {
     readonly graph: string;
     readonly writer: string;
     readonly outcome: WriteAdmission;
@@ -107,7 +102,7 @@ export default class ConeWriteSettlement {
     return {
       graph: this.#graph,
       writer: record.premise.writerId,
-      outcome: new WriteAdmission(record.admission, plurality),
+      outcome: new WriteAdmission(record.admission, races),
       occurrences: record.occurrences,
       publication: new WritePublication(commit),
     };
