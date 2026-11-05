@@ -5,6 +5,7 @@ import { OPEN_WARP_IDENTITY_FAILURE } from '../domain/api/OpenWarpIdentityFailur
 import type StagedContent from '../domain/api/StagedContent.ts';
 import type WarpAccessDenied from '../domain/api/WarpAccessDenied.ts';
 import WarpError from '../domain/errors/WarpError.ts';
+import { textEncode } from '../domain/utils/bytes.ts';
 import WarpAccessPort from '../ports/WarpAccessPort.ts';
 import AuthoredWarp from './AuthoredWarp.ts';
 import WarpAddress from './WarpAddress.ts';
@@ -50,7 +51,7 @@ export default class Warp {
   }
 
   async #staged(writer: string, staged: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent | WarpAccessDenied> {
-    const denied = await this.#writes.executor.authorizeStage(writer, staged.content.length);
+    const denied = await this.#writes.executor.authorizeStage(writer, textEncode(staged.content).length);
     return denied ?? await this.#writes.stage(writer, staged);
   }
 

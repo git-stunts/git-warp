@@ -9,23 +9,23 @@ export default class PatchEntryFold {
   readonly #cone: ConeLaneBasis;
   readonly #parent: string | null;
   readonly #knowledge: ConeWriteKnowledge;
-  readonly #observed: ConeBasis;
+  readonly #from: ConeBasis;
 
   constructor(cone: ConeLaneBasis, written: {
     readonly parent: string | null;
     readonly knowledge: ConeWriteKnowledge;
-    readonly observed: ConeBasis;
+    readonly from: ConeBasis;
   }) {
     this.#cone = cone;
     this.#parent = written.parent;
     this.#knowledge = written.knowledge;
-    this.#observed = written.observed;
+    this.#from = written.from;
     Object.freeze(this);
   }
 
   /** The basis is derived: a fold that cannot finish here is left to the next advance, which folds it from the chain. */
   async fold(publication: PatchCommitResult): Promise<void> {
-    this.#knowledge.landed(this.#observed, publication);
+    this.#knowledge.landed(this.#from, publication);
     try {
       await this.#cone.foldCommitted(new PatchEntry({ patch: publication.patch, sha: publication.sha }), this.#parent);
     } catch {

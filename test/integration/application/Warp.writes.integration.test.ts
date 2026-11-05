@@ -173,6 +173,30 @@ describe('what a blind write observed', () => {
     expect(retry.outcome.races[0]?.writers).toEqual(['bob']);
   });
 
+  it('keeps a race plural when the first attempt was a refused read', async () => {
+    const path = await repository();
+    const seeded = await open(path);
+    retained(await seeded.as('alice').execute([intent.node.add({ subject: 'doc' }), intent.property.set({ subject: 'doc', key: 'title', value: 'one' })]));
+    await seeded.close();
+    await foreignValue(path);
+    const warp = await open(path);
+
+    unpublished(await warp.as('alice').execute(intent.node.remove({ subject: 'absent' })));
+
+    expect(retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' }))).outcome.kind).toBe('plural');
+  });
+
+  it('does not let one writer\'s read count as another writer having seen it', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    retained(await warp.as('alice').execute([intent.node.add({ subject: 'doc' }), intent.property.set({ subject: 'doc', key: 'title', value: 'one' }), intent.node.add({ subject: 'x' })]));
+    await foreignValue(path);
+
+    retained(await warp.as('carol').execute(intent.node.remove({ subject: 'x' })));
+
+    expect(retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' }))).outcome.kind).toBe('plural');
+  });
+
   it('stays derived for writes this Warp itself made, in sequence', async () => {
     const path = await repository();
     const warp = await open(path);

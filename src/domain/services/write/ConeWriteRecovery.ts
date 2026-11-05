@@ -147,6 +147,9 @@ export default class ConeWriteRecovery {
   }
 
   async #fromChain(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<AuthoredWriteReceipt> {
+    if (record.commit !== null) {
+      return await this.#settlement.settle({ attempt, record, commit: record.commit, races: [] });
+    }
     const found = await this.#probe.locate(record);
     if (found.kind === 'other') {
       return await this.#finishedUnpublished(record, STALE_PREDECESSOR);

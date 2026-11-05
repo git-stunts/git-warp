@@ -3,6 +3,7 @@ import type WriteAttemptJournalPort from '../../../ports/WriteAttemptJournalPort
 import type { AuthoredWriteReceipt } from '../../api/AuthoredWriteReceipt.ts';
 import IndeterminateWriteReceipt from '../../api/IndeterminateWriteReceipt.ts';
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
+import UnretainedWriteReceipt from '../../api/UnretainedWriteReceipt.ts';
 import WriterError from '../../errors/WriterError.ts';
 import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
 import ObservationAdmitted from '../custody/ObservationAdmitted.ts';
@@ -15,7 +16,7 @@ import ObservationPublicationFailed from '../custody/ObservationPublicationFaile
 import ObservationPublicationPermission from '../custody/ObservationPublicationPermission.ts';
 import ObservationRefused from '../custody/ObservationRefused.ts';
 import ObservationUnretained from '../custody/ObservationUnretained.ts';
-import type ConeWriteSettlement from './ConeWriteSettlement.ts';
+import type { default as ConeWriteSettlement, PublishedAttempt } from './ConeWriteSettlement.ts';
 import type LoweredConeWrite from './LoweredConeWrite.ts';
 import WriteAttemptRecord from './WriteAttemptRecord.ts';
 import type WritePublicationProbe from './WritePublicationProbe.ts';
@@ -171,9 +172,17 @@ export default class ConeWritePublisher {
       if (fate.result !== null) {
         await lowered.fold.fold(fate.result);
       }
-      return await this.#settlement.settle({ attempt: permission.attempt, record, commit: fate.commit, races: lowered.races });
+      return await this.#settledLanding({ attempt: permission.attempt, record, commit: fate.commit, races: lowered.races });
     }
     return fate.kind === 'failed' ? await this.#failed(record, permission) : await this.#indeterminate(record);
+  }
+
+  async #settledLanding(published: PublishedAttempt): Promise<AuthoredWriteReceipt> {
+    const receipt = await this.#settlement.settle(published);
+    if (receipt instanceof UnretainedWriteReceipt && receipt.attempt !== null) {
+      await this.#markReported(published.record, published.commit);
+    }
+    return receipt;
   }
 
   async #publishOnce(lowered: LoweredConeWrite, record: WriteAttemptRecord): Promise<PublicationFate> {
@@ -217,14 +226,19 @@ export default class ConeWritePublisher {
 
   /** The caller now holds this attempt's name, so a sweep must leave its answer for `reconcile`. */
   async #indeterminate(record: WriteAttemptRecord): Promise<IndeterminateWriteReceipt> {
-    try {
-      await this.#journal.save(record.asReported());
-    } catch {
-      // The receipt is still true. A sweep may answer first, and `reconcile` then reports null.
-    }
+    await this.#markReported(record, null);
     return new IndeterminateWriteReceipt({
       graph: this.#graph, writer: record.premise.writerId, attempt: record.attemptId.value, requirement: PUBLICATION_UNRESOLVED,
     });
+  }
+
+  /** Only here does a caller hold the attempt's name. If this fails a sweep may answer first, and `reconcile` then reports null. */
+  async #markReported(record: WriteAttemptRecord, commit: string | null): Promise<void> {
+    try {
+      await this.#journal.save(record.asReported(commit));
+    } catch {
+      // The receipt is still true, and the original record still recovers.
+    }
   }
 
   #unpublished(record: WriteAttemptRecord, cause: string): UnpublishedWriteReceipt {

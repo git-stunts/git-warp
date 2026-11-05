@@ -54,7 +54,9 @@ export default class ConeWriteSettlement {
       return this.retained(published, settled.coordinate);
     }
     const final = FINAL_UNRETAINED.has(settled);
-    await (final ? this.#forget(attemptId) : this.#markReported(published.record));
+    if (final) {
+      await this.#forget(attemptId);
+    }
     return this.#unretained(published, { retention: settled, attempt: final ? null : attemptId.value });
   }
 
@@ -71,15 +73,6 @@ export default class ConeWriteSettlement {
       return settled instanceof ObservationUnretained ? settled.reason : SETTLEMENT_UNACKNOWLEDGED;
     } catch {
       return SETTLEMENT_UNACKNOWLEDGED;
-    }
-  }
-
-  /** A caller now holds this attempt's name. If this fails, a sweep may finish it first, and `reconcile` then answers null. */
-  async #markReported(record: WriteAttemptRecord): Promise<void> {
-    try {
-      await this.#journal.save(record.asReported());
-    } catch {
-      // The receipt is still true, and the original record still recovers.
     }
   }
 

@@ -107,7 +107,8 @@ export default class ConeWriteLowering {
   }): Promise<LoweredConeWrite | UnpublishedWriteReceipt> {
     const { request, builder, premise } = run;
     const targets = coneWriteTargets(request.sequence);
-    const observed = targets.readsRecords() ? premise.basis : this.#knowledge.seen(premise.from);
+    const seen = this.#knowledge.seen(premise.from);
+    const observed = targets.readsRecords() ? premise.basis : seen;
     await builder.prepareConeWriteBasis(targets, premise, observed);
     applyIntentSequenceToPatch(request.sequence, builder, this.#content);
     if (builder.ops.length > request.grant.budget.work) {
@@ -120,7 +121,7 @@ export default class ConeWriteLowering {
       admission: races.isEmpty() ? 'derived' : 'plural',
       bindings: await this.#bindings({ request, basis: premise.stored.revision, predecessor, observed }),
       occurrences: occurrencesOf(request.sequence, builder),
-      fold: new PatchEntryFold(this.#cone, { parent: predecessor, knowledge: this.#knowledge, observed }),
+      fold: new PatchEntryFold(this.#cone, { parent: predecessor, knowledge: this.#knowledge, from: premise.from }),
     });
   }
 
@@ -135,7 +136,7 @@ export default class ConeWriteLowering {
       digestOf(this.#crypto, descriptorBytes(sequence)),
       digestOf(this.#crypto, textEncode(grant.authority)),
       digestOf(this.#crypto, textEncode(WRITE_LAW)),
-      digestOf(this.#crypto, textEncode(canonicalStringify(Object.fromEntries(fields.observed.writerHeads())))),
+      digestOf(this.#crypto, observedFrontierBytes(fields.observed, { writer, predecessor: fields.predecessor })),
     ]);
     return new ObservationBindings({
       basis: fields.basis, observer: `writer:${writer}`, question: WRITE_QUESTION, purpose: WRITE_PURPOSE,
@@ -143,7 +144,7 @@ export default class ConeWriteLowering {
       evidence: [
         new ObservationEvidenceBinding('authority', authority),
         new ObservationEvidenceBinding('law', law),
-        // A blind write may observe less than the retained basis: this says exactly what.
+        // A blind write may observe less than the retained basis: this is the patch's own frontier.
         new ObservationEvidenceBinding('dependency', observed),
       ],
       dependencies: ObservationDependencyClaim.NONE,
@@ -169,6 +170,17 @@ export default class ConeWriteLowering {
   #unpublished(writer: string, failure: ReturnType<typeof coneObstructionFailure>): UnpublishedWriteReceipt {
     return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: failure.reason, repairHints: failure.repairHints });
   }
+}
+
+/** The frontier the patch records: what was observed, with the writer's own head pinned to its predecessor. */
+function observedFrontierBytes(observed: ConeBasis, own: { readonly writer: string; readonly predecessor: string | null }): Uint8Array {
+  const heads = new Map(observed.writerHeads());
+  if (own.predecessor === null) {
+    heads.delete(own.writer);
+  } else {
+    heads.set(own.writer, own.predecessor);
+  }
+  return textEncode(canonicalStringify(Object.fromEntries(heads)));
 }
 
 function descriptorBytes(sequence: IntentSequence): Uint8Array {

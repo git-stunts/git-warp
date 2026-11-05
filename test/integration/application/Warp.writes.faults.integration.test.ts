@@ -240,6 +240,29 @@ describe('a record that outlives its attempt', () => {
     expect((await materialized(path)).nodes).toEqual([receipt.occurrences[0]?.subject]);
   });
 
+  it('leaves nothing unfinished when a sweep cannot settle a crash nobody holds a receipt for', async () => {
+    const path = await repository();
+    const crashed = await open(path, { wrapCustody: custodyWith({ settle: unavailable }) });
+    const original = GitWriteAttemptJournalAdapter.prototype.save;
+    let saves = 0;
+    vi.spyOn(GitWriteAttemptJournalAdapter.prototype, 'save').mockImplementation(async function failingSecond(this: GitWriteAttemptJournalAdapter, record) {
+      saves += 1;
+      if (saves === 2) {
+        throw new Error('crash before marking');
+      }
+      await original.call(this, record);
+    });
+    await crashed.as('alice').execute(intent.node.add({ subject: 'x' }));
+    await crashed.close();
+    vi.restoreAllMocks();
+
+    await (await open(path, { wrapCustody: custodyWith({ settle: unavailable }) })).close();
+    expect(attemptRefs(path)).toHaveLength(1);
+    await open(path);
+
+    expect(attemptRefs(path)).toEqual([]);
+  });
+
   it('answers from custody when the chain no longer shows a settled publication', async () => {
     const path = await repository();
     const warp = await open(path);

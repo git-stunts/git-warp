@@ -17,6 +17,7 @@ const storedRecordSchema = z.object({
   occurrences: z.array(z.tuple([z.number(), z.string()])),
   savedAt: z.number(),
   reported: z.boolean(),
+  commit: z.string().nullable(),
 });
 
 /** The Git surface the journal uses: a blob per record, held by one ref each. */
@@ -62,6 +63,7 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
       occurrences: record.occurrences.map(({ intentIndex, subject }) => [intentIndex, subject]),
       savedAt: record.savedAt,
       reported: record.reported,
+      commit: record.commit,
     }));
     await this.#history.updateRef(buildWriteAttemptRef(this.#graph, record.attemptId.value), oid);
   }
@@ -103,13 +105,13 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     return decoded === null ? null : this.#recordOf(decoded);
   }
 
-  #recordOf({ preparation: bytes, admission, occurrences, savedAt, reported }: z.infer<typeof storedRecordSchema>): WriteAttemptRecord | null {
+  #recordOf({ preparation: bytes, admission, occurrences, savedAt, reported, commit }: z.infer<typeof storedRecordSchema>): WriteAttemptRecord | null {
     const preparation = this.#custodyCodec.decodePreparation(bytes);
     if (preparation instanceof ObservationDecodeFailure || preparation.bindings.writePremise === null) {
       return null;
     }
     return new WriteAttemptRecord({
-      preparation, admission, savedAt, reported,
+      preparation, admission, savedAt, reported, commit,
       occurrences: occurrences.map(([index, subject]) => new WriteOccurrence(index, subject)),
     });
   }

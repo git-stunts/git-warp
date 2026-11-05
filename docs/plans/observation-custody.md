@@ -414,7 +414,8 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
 - **Recognising a publication:** a patch commit carries an `eg-publication-attempt` trailer.
   A writer's chain is compare-and-swapped, so at most one commit can follow a predecessor: if
   it names this attempt the attempt published, and if it names anything else the attempt never
-  can. With no such commit yet, the fate stays unknown and the receipt stays indeterminate.
+  can, unless someone force-moves a writer ref, which is outside this contract: a publication that
+  landed but never settled can then read as lost. With no such commit yet, the fate stays unknown and the receipt stays indeterminate.
   That also proves evidence: after publishing, the producer checks the commit's parent,
   graph, writer and attempt before settling.
 - **Failed publications:** only a lost compare-and-swap, or the chain showing another commit
@@ -424,20 +425,24 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   so records that never clear can't starve the rest. It needs no `attempts(phase)` listing
   because `resume` is only called on a saved id. An unarmed attempt under an hour old is left
   alone, in case its owner is alive; an older one is abandoned, and a live owner loses only its
-  work. An armed one is settled from the chain, ended if another commit took its place, and
-  otherwise waits for its writer's next patch. Custody's settled outcome outranks the chain.
+  work. An armed one is settled from the chain, has its record removed if another commit took
+  its place, staying charged, and otherwise waits for its writer's next patch. Custody's settled outcome outranks the chain.
   There is no retry count, since nothing repeats without an open or a caller asking.
-- **Reported attempts:** an indeterminate or repeatable unretained receipt marks its record first,
-  and the sweep leaves a marked record alone. Only `AuthoredWarp.reconcile` answers it, for that
-  writer, and then removes it, so an answer can't be consumed by whoever opens the graph next.
-  `reconcile` returning null means already answered or not this writer's, never that nothing landed.
-- **What a blind write observed:** the writer heads this Warp's own landed writes had seen, not
-  the published cone head, which any fold moves without anyone reading it. So a refused attempt
-  can't turn a later race into `derived`. The patch's frontier is bound as `dependency` evidence
-  because it can be less than the retained basis. Two limits remain. A new process starts from the
-  head it finds, so it counts what earlier processes folded as seen. And a patch records one frontier,
-  so a sequence that also reads records, such as a `node.remove` beside a `property.set`,
-  observes the whole basis for both.
+- **Reported attempts:** before `execute` returns an indeterminate or repeatable unretained
+  receipt it marks the record, with the commit if one is known, and the sweep leaves a marked record
+  alone. Only `AuthoredWarp.reconcile` answers it, for that writer, and then removes it, so an answer
+  can't be consumed by whoever opens the graph next. A caller who never reconciles leaves one ref
+  behind, which also counts against a sweep's page. `reconcile` returning null never means nothing
+  landed: it was answered already, or isn't this writer's, or the writer is denied now, or, in a rare
+  race where marking failed or a sweep had already listed the record, a sweep answered first.
+- **What a blind write observed:** what this clone held when this Warp began writing, plus the
+  patches this Warp's own writes landed, for all its writers. The published cone head can't say this,
+  since any fold moves it without anyone reading it, so a refused attempt can't turn a later race
+  into `derived`. The patch's frontier is bound as `dependency` evidence because it can be less than
+  the retained basis. Limits: a new process starts from the head it finds, counting what earlier
+  processes folded as seen. A patch records one frontier, so a sequence that also reads records, such as
+  a `node.remove` beside a `property.set`, observes the whole basis for both. And nothing but a landed
+  write adds to what was seen until #1052's reads can, so a raced register stays `plural` until then.
 - **Authority:** the access port's grant supplies the authority evidence and budget, and is asked
   again before arming. A grant that changed refuses, since the premise binds the original. Staging
   content asks too. A budget

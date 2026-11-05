@@ -224,6 +224,16 @@ describe('ConeWriteRecovery', () => {
     expect(resume).toHaveBeenCalledTimes(2);
   });
 
+  it('finishes an attempt that never held a slot, or was cancelled', async () => {
+    for (const [reason, cause] of [['capacity-full', 'retention-capacity-exhausted'], ['cancelled', 'attempt-cancelled']] as const) {
+      const answer = await recovery({
+        custody: { resume: () => Promise.resolve(new ObservationRefused(reason)) },
+        journal: { read: () => Promise.resolve(recordOf()), remove: () => Promise.resolve() },
+      }).reconcile('alice', ATTEMPT.value);
+      expect(answer).toMatchObject({ cause });
+    }
+  });
+
   it('keeps a record when custody refuses for a reason that may clear', async () => {
     const remove = vi.fn();
     const answer = await recovery({
@@ -235,9 +245,28 @@ describe('ConeWriteRecovery', () => {
     expect(remove).not.toHaveBeenCalled();
   });
 
+  it('settles from the commit a receipt reported, whatever the chain says now', async () => {
+    const attempt = { identity: {} } as ObservationAttempt;
+    const settle = vi.fn(() => Promise.resolve({}));
+    const service = new ConeWriteRecovery({
+      graph: 'g', clock: () => 1,
+      custody: {
+        resume: () => Promise.resolve(new ObservationAdmitted(attempt, 'armed')),
+        recoverCoordinate: () => Promise.resolve(new ObservationRefused('not-settled')),
+      } as unknown as ObservationCustodyService,
+      journal: { read: () => Promise.resolve(recordOf().asReported(OID)) } as unknown as WriteAttemptJournalPort,
+      probe: { locate: () => Promise.reject(new Error('not asked')) } as unknown as WritePublicationProbe,
+      settlement: { settle } as unknown as ConeWriteSettlement,
+    });
+
+    await service.reconcile('alice', ATTEMPT.value);
+
+    expect(settle).toHaveBeenCalledWith(expect.objectContaining({ commit: OID }));
+  });
+
   it('leaves a reported attempt for its caller', async () => {
     const resume = vi.fn();
-    await recovery({ custody: { resume }, journal: { list: () => Promise.resolve([recordOf().asReported()]) } }).sweep();
+    await recovery({ custody: { resume }, journal: { list: () => Promise.resolve([recordOf().asReported(null)]) } }).sweep();
     expect(resume).not.toHaveBeenCalled();
   });
 
@@ -259,10 +288,21 @@ describe('ConeWriteRecovery', () => {
 });
 
 describe('a saved record that is not a write', () => {
+  it('reads a blob of the wrong shape as no record', async () => {
+    const journal = new GitWriteAttemptJournalAdapter({
+      graph: 'g',
+      codec: { decode: () => ({ version: 99 }) } as unknown as CodecPort,
+      custodyCodec: {} as ObservationCustodyCodecPort,
+      history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
+    });
+
+    await expect(journal.read(ATTEMPT)).resolves.toBeNull();
+  });
+
   it('reads an undecodable preparation as no record', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
-      codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', occurrences: [], savedAt: 1, reported: false }) } as unknown as CodecPort,
+      codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
       custodyCodec: { decodePreparation: () => new ObservationDecodeFailure('malformed') } as unknown as ObservationCustodyCodecPort,
       history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
     });
@@ -273,7 +313,7 @@ describe('a saved record that is not a write', () => {
   it('reads as no record', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
-      codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', occurrences: [], savedAt: 1, reported: false }) } as unknown as CodecPort,
+      codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
       custodyCodec: { decodePreparation: () => new ObservationPreparation(ATTEMPT, bindings(null)) } as unknown as ObservationCustodyCodecPort,
       history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
     });

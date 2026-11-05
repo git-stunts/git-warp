@@ -10,7 +10,11 @@ export type WarpWriteBudget = {
   readonly work: number;
 };
 
-/** An access decision permitting one write. `authority` is what its digest retains as evidence. */
+/**
+ * An access decision permitting one write. `authority` is what its digest retains as
+ * evidence. The port is asked again before publication and a different grant refuses, so
+ * `authority` must name the policy decision, not one call: a nonce would refuse every write.
+ */
 export default class WarpWriteGrant {
   readonly authority: string;
   readonly budget: WarpWriteBudget;

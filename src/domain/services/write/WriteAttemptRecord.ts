@@ -20,6 +20,8 @@ export default class WriteAttemptRecord {
   readonly savedAt: number;
   /** A receipt told a caller to ask again, so only that caller's `reconcile` may finish this record. */
   readonly reported: boolean;
+  /** The commit a receipt already reported as published, which nothing may later contradict. */
+  readonly commit: string | null;
 
   constructor(fields: {
     readonly preparation: ObservationPreparation;
@@ -27,6 +29,7 @@ export default class WriteAttemptRecord {
     readonly occurrences: readonly WriteOccurrence[];
     readonly savedAt: number;
     readonly reported?: boolean;
+    readonly commit?: string | null;
   }) {
     const { writePremise } = fields.preparation.bindings;
     if (writePremise === null) {
@@ -38,12 +41,13 @@ export default class WriteAttemptRecord {
     this.occurrences = Object.freeze([...fields.occurrences]);
     this.savedAt = fields.savedAt;
     this.reported = fields.reported ?? false;
+    this.commit = fields.commit ?? null;
     Object.freeze(this);
   }
 
-  asReported(): WriteAttemptRecord {
+  asReported(commit: string | null): WriteAttemptRecord {
     const { preparation, admission, occurrences, savedAt } = this;
-    return new WriteAttemptRecord({ preparation, admission, occurrences, savedAt, reported: true });
+    return new WriteAttemptRecord({ preparation, admission, occurrences, savedAt, reported: true, commit });
   }
 
   get attemptId(): ObservationAttemptId {
