@@ -332,8 +332,9 @@ Neither an unretained nor an indeterminate result
 may silently re-execute the intent; any reconciliation uses the attempt's actual
 publication evidence. A separate caller decision is required to submit a new
 attempt, and uncertain publication must be resolved before treating it as a retry
-of an unapplied operation. This is the final #1053 contract; #1051's additive
-intermediate receipt shape remains as specified in section 10.
+of an unapplied operation. #1051 owns this final receipt family and consumes
+#1067's shared identity and custody; #1053 owns its historical use. There is no
+intermediate compatibility receipt shape.
 
 `AuthoredWarp.execute(intent)` obtains that observation internally. The registered
 intent's admission plan declares the versioned premise question; the writer is
@@ -434,41 +435,50 @@ reintroduce removed capabilities through transport DTOs.
 ## 10. Delivery and acceptance
 
 Each implementation PR remains independently usable and carries its own witness.
-The sequence below preserves existing public behavior until the explicit major
-removal. It does not claim the final contract is implemented during intermediate
-slices.
+The [maintainer's direct breaking cutover amendment](https://github.com/git-stunts/git-warp/issues/1048#issuecomment-6570380317)
+supersedes the original additive receipt stage. Producers implement their final
+receipt families when they land. Existing paths may remain until removal, but
+compatibility wrappers are not a prerequisite. Private preparation does not claim
+that the final public contract is implemented.
 
 | Owner | Contract sections | Required prior integration / safe result |
 | --- | --- | --- |
 | #1049 | Entire record | No implementation prerequisite; reviewed contract, not runtime evidence |
 | #1050 | 2, 9 | Existing amended allowlist; shrinking export ratchet, no removals |
-| #1051 | 2–3, write premise capture in 5–7 | #1040 and #1049; additive Warp composition, authority boundary, and cone writes with retained premise evidence |
-| #1052 | 3–6 | #1040, #1049, and shared Warp composition from #1051; additive bounded Optic reads |
-| #1053 | 7–8 | #1049 and #1052; finalize Coordinate-bearing receipts, replay, re-ask, forks, and the Strand preview/settlement journey |
+| #1062 | Private cone foundation | Independently tested records, ingest and basis services; no final public API |
+| #1067 | Shared identity and custody in 7 | #1049, integrated #1062, and released git-cas #157; private canonical identity, Coordinate codec, durable admission and exact retained evidence |
+| #1051 | 2–3, write premise capture in 5–7 | #1049, #1062 and #1067; Warp composition, authority boundary, cone writes and all four final write-receipt variants |
+| #1052 | 3–6 | #1049, #1062, #1067 and shared Warp composition from #1051; bounded Optic execution and final observation receipts |
+| #1053 | Historical operations in 7–8 | #1049, #1067 and #1052; replay, re-ask, forks, and the Strand preview/settlement journey |
 | #1054 | 9 | #1050–#1053 and #1055; remove legacy public capabilities with the export guard and migrated consumers in place |
 | #1055 | 3–4, 8–9 | #1051–#1053; migrate the existing example, newcomer witness, and full read/write/fork/settlement documentation |
-| #1057 | 9 | #1040, #1049, and #1052 for actual Optic probes; retention actions also require the corresponding #1044 capabilities |
+| #1057 | 9 | #1062, #1049, and #1052 for actual Optic probes; retention actions also require the corresponding #1044 capabilities |
 
-The following prerequisite corrections are part of accepting this ownership
-graph; they are proposals until this record is integrated and the issue scopes
-are reconciled. #1051 precedes #1052 because it owns shared Warp composition and
-access. #1053 precedes #1055 because the existing newcomer journey includes forks
+These ownership corrections reconcile the live producer issues with the
+maintainer amendment. #1067 precedes both producers because durable observation
+identity and custody are shared prerequisites; public historical operations are
+not a prerequisite for producing a receipt. #1051 precedes #1052 because it owns
+shared Warp composition and access. #1053 precedes #1055 because the existing newcomer journey includes forks
 and settlement. #1050 and #1055 precede #1054 so removal is checked and existing
 documentation/examples keep working. #1052 precedes #1057 because an actual Optic
 probe cannot be replaced by a parallel readiness approximation. The #1044
 retention work remains an explicit external prerequisite for its corresponding
 operator actions, not an assertion that those capabilities already exist.
 
-#1051 owns capture and retention of the actual write premises and publication
-evidence, exposing the existing write receipt shape and opaque evidence handles
-in that additive intermediate release. #1052 similarly owns bounded execution
-and retained read evidence using the existing receipt contract. Neither claims
-the final `CompletedObservationReceipt` or durable public Coordinate before
-#1053 establishes its invariants. #1053 consumes those original records; it may
-not recapture historical premises. It owns the final Coordinate codec, durable
-receipt variants and retention checks, replay, and the section 8 public journey.
-This preserves observable writes and reads after each merge without creating a
-backward dependency from their producers to the later Coordinate consumer.
+#1067 owns the common canonical identity, opaque Coordinate codec and private
+durable custody described in the [observation custody design](./observation-custody.md).
+git-cas owns hard record-slot admission and retained roots; WARP owns semantic
+correspondence to the original observation and publication. #1066 is a native
+capability witness, not a production-code prerequisite. PR #1040 supplies reusable
+prototype evidence, not a required legacy public conversion.
+
+#1051 owns capture of the actual write premises, publication and the final retained,
+unretained, unpublished and indeterminate write receipts. #1052 owns bounded
+execution, terminal observation variants, cancellation and page continuation,
+using shared custody before exposing a completed Coordinate. #1053 consumes those
+original records for historical operations; it may neither recapture a newer
+basis nor re-execute an intent. No always-unretained or always-refused substitute
+satisfies the producers' final behavior.
 
 #1054 owns removal and any remaining transport/import changes necessary to keep
 the package, CLI, MCP, generated SDKs, and examples working in the same merge.

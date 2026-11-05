@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- Reserve `cone` as a graph-name segment for clone-local cone basis refs
+  ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
 - Give every strand an immutable id and every strand writer its own dots.
   A strand id is now the sha256 of a genesis record naming a creation
   occurrence reserved from the creating writer's lane counter, so two strands
@@ -28,6 +30,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Adopt published `@git-stunts/git-cas` 7.1.0. It stamps its version into new content
+  manifests, so a newly stored attachment's handle differs from one stored by 7.0.0,
+  though its chunks and payload match. Stored manifests are not rewritten, so existing
+  handles still name the same objects, but writers on different git-cas versions now get
+  different handles for identical content
+  ([#1067](https://github.com/git-stunts/git-warp/issues/1067)).
+- Add the private shared observation identity and custody that the final write and
+  observation receipts will consume, on that version's durable record-slot reservations
+  ([#1067](https://github.com/git-stunts/git-warp/issues/1067)). It is not exported or
+  wired into `Warp` yet, so no public API changes.
 - Upgrade `zod` from 3 to 4 (`^4.6.7`) to clear GHSA-mrhx-c7xc-m3w5, an
   out-of-memory risk when validating oversized constrained collections
   ([#1042](https://github.com/git-stunts/git-warp/issues/1042)). Where a schema
@@ -52,6 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the private causal-cone engine foundation: validated records, incremental
+  folding and ingest, admission indexes, concurrency/plurality, scoped bases,
+  and a Git record trie with object-session reads and fast-import writes.
+  This prepares the final Warp/Optic cutover; it does not expose that API or
+  establish repository-lifetime Coordinate retention. The existing capability
+  inventory stays unchanged
+  ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
 - Guard executable package exports and reachable declaration capabilities against
   the accepted Optic boundary. Exact legacy allowances must shrink, with a
   built-package witness and merge-base history check; existing public APIs remain
@@ -109,6 +128,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before starting Vitest and retains the explicit neighbor-provider contract
   ([#1063](https://github.com/git-stunts/git-warp/issues/1063)).
 
+- Restore the private cone engine's bounded concurrent payloads after partial
+  retirement, making node and edge record bytes converge across arrival orders
+  and persisted reloads. Recovery validates exact source events with at most
+  sixteen direct patch reads per affected register; missing or inconsistent
+  evidence prevents basis publication. Lifecycle roles recover without I/O
+  ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
+
+- Refuse register/lifecycle member-family mismatches at cone ownership and
+  write boundaries, including evicted evidence and deferred record loads.
+  Stored eviction evidence from the wrong family is reported as corrupt
+  ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
+
+- Preserve evicted cone events' identity, causal qualification, and lifecycle
+  role. Reads and writes now report evicted removes and uncertain register
+  races; stored overflow retains that evidence without retaining discarded
+  property payloads
+  ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
+
+- Protect retained cone clocks, membership, property registers, dot claims,
+  footprints, and captured write/strand bases from caller mutation. Native
+  collection accessors return detached snapshots, including nested register
+  values; reducer hydration explicitly reads record accessors
+  ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
+
+- Detach retained cone concurrent property values from constructor inputs and
+  returned composites so caller mutations cannot change recorded writes.
+- Keep acquired cone element effects immutable when later operations update
+  the same element; every effect now carries a validated lifecycle event (#1062).
 - Compare historical release verification receipts independently of per-run
   elapsed measurements in the regression suite, while retaining raw timing
   evidence and rejecting changes to identity or verification outcomes

@@ -21,9 +21,7 @@ const TEST_FILE_PATTERN = /\.(?:test|spec|benchmark)\.(?:[cm][jt]s|[jt]sx?)$/;
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const VITEST_ENTRY = join(ROOT, 'node_modules', 'vitest', 'vitest.mjs');
 
-function isTestFile(fileName: string): boolean {
-  return TEST_FILE_PATTERN.test(fileName);
-}
+const isTestFile = (fileName: string): boolean => TEST_FILE_PATTERN.test(fileName);
 
 function listRecursiveTestFiles(relativeDirectory: string): string[] {
   const files: string[] = [];
