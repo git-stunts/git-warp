@@ -13,6 +13,7 @@ import ObservationDependencyClaim from '../../../../../src/domain/services/custo
 import ObservationDigest from '../../../../../src/domain/services/custody/ObservationDigest.ts';
 import ObservationPreparation from '../../../../../src/domain/services/custody/ObservationPreparation.ts';
 import ObservationQuestion from '../../../../../src/domain/services/custody/ObservationQuestion.ts';
+import ObservationRefused from '../../../../../src/domain/services/custody/ObservationRefused.ts';
 import ObservationUnretained from '../../../../../src/domain/services/custody/ObservationUnretained.ts';
 import ObservationWritePremise from '../../../../../src/domain/services/custody/ObservationWritePremise.ts';
 import ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
@@ -131,6 +132,13 @@ describe('ConeWriteSettlement', () => {
 
     expect(receipt instanceof UnretainedWriteReceipt ? receipt.retention : '').toBe('settlement-conflict');
     expect(remove).toHaveBeenCalledOnce();
+  });
+
+  it('calls any other settlement answer unacknowledged', async () => {
+    const { settling } = settlement(() => Promise.resolve(new ObservationRefused('contention')));
+    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID, plurality: [] });
+
+    expect(receipt instanceof UnretainedWriteReceipt ? receipt.retention : '').toBe('settlement-unacknowledged');
   });
 
   it('refuses a Coordinate whose text custody cannot have issued', () => {

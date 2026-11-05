@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
-import { Coordinate, GitStorage, Warp, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
+import { Coordinate, GitStorage, UnretainedWriteReceipt, Warp, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
 import { composeWarpWrites, overrideWarpComposition } from '../../../src/application/WarpWriteComposition.ts';
 import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import CustodyRefused from '../../../src/domain/services/custody/CustodyRefused.ts';
@@ -122,6 +122,7 @@ describe('current authority', () => {
     const { attempt } = indeterminate(await warp.as('alice').execute(intent.node.add({ subject: 'second' })));
 
     expect(await warp.as('bob').reconcile(attempt)).toBeNull();
+    expect(await warp.as('alice').reconcile('f'.repeat(32))).toBeNull();
     access.denied.add('alice');
     expect(await warp.as('alice').reconcile(attempt)).toBeNull();
     expect(attemptRefs(path)).toHaveLength(1);
@@ -178,7 +179,7 @@ describe('custody that cannot answer', () => {
           const value = Reflect.get(target, name) as unknown;
           if (name === 'reserve' && contended > 0) {
             contended -= 1;
-            return () => Promise.resolve(new CustodyRefused('contention'));
+            return () => Promise.resolve(new CustodyRefused(contended === 1 ? 'contention' : 'construction-contended'));
           }
           return typeof value === 'function' ? value.bind(target) : value;
         },
@@ -191,6 +192,19 @@ describe('custody that cannot answer', () => {
 });
 
 describe('a record that outlives its attempt', () => {
+  it('rebuilds an unretained write, with the entity it admitted, from its saved record', async () => {
+    const path = await repository();
+    const crashed = await open(path, { wrapCustody: custodyWith({ settle: unavailable }) });
+    const receipt = await crashed.as('alice').execute(intent.entity.addAuto({ namespace: 'todo', properties: { title: 'one' } }));
+    const subject = receipt instanceof UnretainedWriteReceipt ? receipt.occurrences[0]?.subject : null;
+    await crashed.close();
+
+    await open(path);
+
+    expect(attemptRefs(path)).toEqual([]);
+    expect((await materialized(path)).nodes).toEqual([subject]);
+  });
+
   it('finishes a retained write whose record could not be removed', async () => {
     const path = await repository();
     const warp = await open(path);

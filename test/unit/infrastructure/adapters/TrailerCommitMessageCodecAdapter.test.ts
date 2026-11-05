@@ -75,6 +75,27 @@ describe('TrailerCommitMessageCodecAdapter storage routing', () => {
     });
   });
 
+  it('round-trips the custody attempt that published a patch, and refuses a malformed one', () => {
+    const adapter = new TrailerCommitMessageCodecAdapter();
+    const message = {
+      kind: 'patch' as const,
+      graph: 'events',
+      writer: 'alice',
+      lamport: 1,
+      patchHandle: new AssetHandle('asset:current-patch'),
+      schema: 2,
+      storage: createGitCasPatchStorage({ encrypted: false }),
+    };
+    const publicationAttempt = 'a'.repeat(32);
+
+    const encoded = adapter.encodePatch({ ...message, publicationAttempt });
+
+    expect(encoded).toContain(`${TRAILER_KEYS.publicationAttempt}: ${publicationAttempt}`);
+    expect(adapter.decodePatch(encoded).publicationAttempt).toBe(publicationAttempt);
+    expect(adapter.decodePatch(adapter.encodePatch(message))).not.toHaveProperty('publicationAttempt');
+    expect(() => adapter.encodePatch({ ...message, publicationAttempt: 'not-an-attempt' })).toThrow();
+  });
+
   it('rejects a v18 raw-OID patch message', () => {
     const adapter = new TrailerCommitMessageCodecAdapter();
     const encoded = [
