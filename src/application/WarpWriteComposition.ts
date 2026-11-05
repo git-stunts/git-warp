@@ -5,6 +5,7 @@ import ConeLaneBasis from '../domain/services/cone/ConeLaneBasis.ts';
 import ContentStagingAuthority from '../domain/services/ContentStagingAuthority.ts';
 import ObservationCustodyService from '../domain/services/custody/ObservationCustodyService.ts';
 import ObservationSupportLimits from '../domain/services/custody/ObservationSupportLimits.ts';
+import ConeReadExecutor from '../domain/services/read/ConeReadExecutor.ts';
 import ConeWriteExecutor from '../domain/services/write/ConeWriteExecutor.ts';
 import ConeWriteLowering from '../domain/services/write/ConeWriteLowering.ts';
 import ConeWritePublisher from '../domain/services/write/ConeWritePublisher.ts';
@@ -60,6 +61,7 @@ export type WarpWrites = {
   readonly executor: ConeWriteExecutor;
   readonly recovery: ConeWriteRecovery;
   readonly custody: ObservationCustodyService;
+  readonly reads: ConeReadExecutor;
   stage(writer: string, staged: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent>;
   close(): Promise<void>;
 };
@@ -101,11 +103,13 @@ async function composeOverStorage(run: {
   const clock = overrides.clock ?? (() => Date.now());
   const content = new ContentStagingAuthority();
   const recovery = new ConeWriteRecovery({ graph, custody, journal, probe, settlement, clock });
+  const cone = await openCone({ graph, git, ports, storage });
   return {
     custody, recovery,
+    reads: new ConeReadExecutor({ graph, access, cone }),
     executor: new ConeWriteExecutor({
       graph, access, recovery,
-      lowering: new ConeWriteLowering({ graph, cone: await openCone({ graph, git, ports, storage }), content, crypto: ports.crypto, openPatch: async (writer) => await (await hosts(writer)).createPatch() }),
+      lowering: new ConeWriteLowering({ graph, cone, content, crypto: ports.crypto, openPatch: async (writer) => await (await hosts(writer)).createPatch() }),
       publisher: new ConeWritePublisher({ graph, custody, journal, probe, settlement, clock, attempts: overrides.attempts ?? new EntropyObservationAttemptSource() }),
     }),
     stage: async (writer, staged) => await content.stage({ assetStorage: (await hosts(writer))._assetStorage, content: staged.content, metadata: staged.metadata, slug: `${graph}/${writer}` }),
