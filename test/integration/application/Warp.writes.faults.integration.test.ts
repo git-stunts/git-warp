@@ -179,7 +179,7 @@ describe('custody that cannot answer', () => {
           const value = Reflect.get(target, name) as unknown;
           if (name === 'reserve' && contended > 0) {
             contended -= 1;
-            return () => Promise.resolve(new CustodyRefused(contended === 1 ? 'contention' : 'construction-contended'));
+            return () => Promise.resolve(new CustodyRefused('contention'));
           }
           return typeof value === 'function' ? value.bind(target) : value;
         },

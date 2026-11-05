@@ -91,6 +91,18 @@ describe('ConeWritePublisher before permission', () => {
     expect(remove).toHaveBeenCalledOnce();
   });
 
+  it('repeats a preparation another builder holds', async () => {
+    const prepare = vi.fn()
+      .mockResolvedValueOnce(new ObservationRefused('construction-contended'))
+      .mockResolvedValueOnce(new ObservationRefused('writer-limit'));
+    const { publisher, lowered } = publisherOf({ custody: { prepare } });
+
+    const receipt = await publisher.publish(lowered, NOT_REVOKED);
+
+    expect(prepare).toHaveBeenCalledTimes(2);
+    expect(receipt instanceof UnpublishedWriteReceipt ? receipt.cause : '').toBe('retention-refused-writer-limit');
+  });
+
   it('forgets an attempt custody says was cancelled', async () => {
     const attempt = { identity: {} } as ObservationAttempt;
     const { publisher, lowered, remove } = publisherOf({ custody: { prepare: () => Promise.resolve(new ObservationKnownUnpublished(attempt)) } });
