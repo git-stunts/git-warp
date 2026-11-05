@@ -7,17 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
-  `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
-  with an injected `WarpAccessPort` and no implicit access. `execute` returns
-  `RetainedWriteReceipt`, `UnretainedWriteReceipt`, `UnpublishedWriteReceipt` or
-  `IndeterminateWriteReceipt`; only the retained one has a `Coordinate`
-  ([#1051](https://github.com/git-stunts/git-warp/issues/1051)).
-
 ### Breaking
 
+- Reserve `write-attempts` as a graph-name segment for clone-local write attempt refs.
+  Patch commits made through `Warp` carry an `eg-publication-attempt` trailer; existing
+  decoders read only the trailers they know
+  ([#1051](https://github.com/git-stunts/git-warp/issues/1051)).
 - Reserve `cone` as a graph-name segment for clone-local cone basis refs
   ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
 - Give every strand an immutable id and every strand writer its own dots.
@@ -73,6 +68,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
+  `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
+  with an injected `WarpAccessPort` and no implicit access. `execute` returns
+  `RetainedWriteReceipt`, `UnretainedWriteReceipt`, `UnpublishedWriteReceipt` or
+  `IndeterminateWriteReceipt`; only the retained one has a `Coordinate`.
+  `AuthoredWarp.reconcile` asks again after an indeterminate or unretained write, and
+  `AuthoredWarp.stage` stages text. `Warp` has no reads until
+  [#1052](https://github.com/git-stunts/git-warp/issues/1052)
+  ([#1051](https://github.com/git-stunts/git-warp/issues/1051)).
 - Add the private causal-cone engine foundation: validated records, incremental
   folding and ingest, admission indexes, concurrency/plurality, scoped bases,
   and a Git record trie with object-session reads and fast-import writes.
@@ -307,6 +311,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tool versions, platform constraints, and runtime dependency graph. Verify
   mathematical rendering, TOML configuration, and bounded indexed source maps
   ([#987](https://github.com/git-stunts/git-warp/issues/987)).
+
+### Packaging
+
+- The published root now reaches `Warp` as well as `Runtime`, so the entry ceiling rises. The
+  ceilings are 760,000 compressed bytes, 3,300,000 unpacked bytes and 1,300 entries.
 
 ## [20.0.0] - 2026-10-03
 
@@ -799,7 +808,7 @@ property reclamation does not establish a constant bound on total metadata.
   77 audited unreachable JavaScript outputs without rewriting retained code.
   Maintainer programs use a separate build profile.
 - Release and prepack gates reject unrecognized paths and enforce final
-  ceilings of **760,000 compressed bytes, 3,300,000 unpacked bytes, and 1,300
+  ceilings of **760,000 compressed bytes, 3,300,000 unpacked bytes, and 1,050
   entries**. The inventory boundary tolerates npm 10 prepare output only before
   a terminal schema-valid JSON frame. The external packed-consumer smoke checks
   all public exports and declarations with `skipLibCheck: false`, metadata,
