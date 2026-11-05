@@ -12,7 +12,7 @@ export default class UnretainedWriteReceipt {
   readonly publication: WritePublication;
   /** Why no Coordinate was issued. */
   readonly retention: string;
-  /** Opaque evidence naming the attempt: `AuthoredWarp.reconcile` may still retain it, unless null means it never can. */
+  /** Names the attempt for `AuthoredWarp.reconcile`, which may still retain it. Null: it never can be. */
   readonly attempt: string | null;
 
   constructor(fields: {

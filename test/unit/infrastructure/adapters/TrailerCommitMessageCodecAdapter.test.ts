@@ -75,7 +75,7 @@ describe('TrailerCommitMessageCodecAdapter storage routing', () => {
     });
   });
 
-  it('round-trips the custody attempt that published a patch, and refuses a malformed one', () => {
+  it('round-trips the custody attempt that published a patch, whatever format it has', () => {
     const adapter = new TrailerCommitMessageCodecAdapter();
     const message = {
       kind: 'patch' as const,
@@ -93,7 +93,8 @@ describe('TrailerCommitMessageCodecAdapter storage routing', () => {
     expect(encoded).toContain(`${TRAILER_KEYS.publicationAttempt}: ${publicationAttempt}`);
     expect(adapter.decodePatch(encoded).publicationAttempt).toBe(publicationAttempt);
     expect(adapter.decodePatch(adapter.encodePatch(message))).not.toHaveProperty('publicationAttempt');
-    expect(() => adapter.encodePatch({ ...message, publicationAttempt: 'not-an-attempt' })).toThrow();
+    expect(adapter.decodePatch(adapter.encodePatch({ ...message, publicationAttempt: 'a-later-format' })).publicationAttempt).toBe('a-later-format');
+    expect(() => adapter.encodePatch({ ...message, publicationAttempt: '' })).toThrow();
   });
 
   it('rejects a v18 raw-OID patch message', () => {

@@ -25,15 +25,20 @@ export default class AuthoredWarp {
     Object.freeze(this);
   }
 
-  /** Executes an intent or an atomic intent sequence, publishing at most once. It is never retried for you. */
+  /**
+   * Executes an intent or an atomic intent sequence, publishing at most once. It is never
+   * retried for you. It rejects, having published nothing, if the access port throws or a
+   * store fails while reading premises. A process that dies here leaves no receipt, and no
+   * way yet to ask what became of the write.
+   */
   async execute(input: WriteIntentInput): Promise<AuthoredWriteReceipt> {
     return await this.#backend.execute(this.writer, input);
   }
 
   /**
-   * Asks again what became of an indeterminate or unretained write's `attempt`, whose answer
-   * waits here until you ask. Null means it was already answered, was never this writer's, or
-   * this writer is denied now. It does not mean the write did not land.
+   * Asks again what became of an indeterminate or unretained write's `attempt`, and answers
+   * once. Null means it was already answered, was never this writer's, this writer is denied
+   * now, or a sweep finished it first. It does not mean the write did not land.
    */
   async reconcile(attempt: string): Promise<AuthoredWriteReceipt | null> {
     return await this.#backend.reconcile(this.writer, attempt);

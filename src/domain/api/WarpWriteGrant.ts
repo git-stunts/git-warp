@@ -4,7 +4,7 @@ import WarpError from '../errors/WarpError.ts';
 export type WarpWriteBudget = {
   /** Entity records the write may read before it lowers. */
   readonly records: number;
-  /** Bytes of the submitted intent sequence. */
+  /** Bytes of the submitted intent sequence, or of text being staged. */
   readonly bytes: number;
   /** Operations the write may lower to. */
   readonly work: number;
@@ -13,7 +13,8 @@ export type WarpWriteBudget = {
 /**
  * An access decision permitting one write. `authority` is what its digest retains as
  * evidence. The port is asked again before publication and a different grant refuses, so
- * `authority` must name the policy decision, not one call: a nonce would refuse every write.
+ * `authority` and `budget` must name the policy decision, not one call: a nonce or a
+ * remaining quota would refuse every write.
  */
 export default class WarpWriteGrant {
   readonly authority: string;

@@ -67,6 +67,12 @@ function publisherOf(stubs: Stubs): { readonly publisher: ConeWritePublisher; re
   };
 }
 
+function conflict(): WriterError {
+  const error = new WriterError('moved', { code: 'WRITER_CAS_CONFLICT' });
+  error.actualSha = 'd'.repeat(40);
+  return error;
+}
+
 const NOT_REVOKED = (): Promise<null> => Promise.resolve(null);
 
 describe('ConeWritePublisher before permission', () => {
@@ -140,10 +146,9 @@ describe('ConeWritePublisher after permission', () => {
   });
 
   it('reports a lost race unpublished however recording it goes, and keeps the record', async () => {
-    const conflict = new WriterError('moved', { code: 'WRITER_CAS_CONFLICT' });
-    conflict.actualSha = 'd'.repeat(40);
     const { publisher, lowered, remove } = publisherOf({
-      commit: () => Promise.reject(conflict),
+      commit: () => Promise.reject(conflict()),
+      probe: { locate: () => Promise.resolve({ kind: 'other' }) },
       custody: { settleFailedPublication: () => Promise.reject(new Error('store went away')) },
     });
 
@@ -153,11 +158,16 @@ describe('ConeWritePublisher after permission', () => {
     expect(remove).not.toHaveBeenCalled();
   });
 
+  it('does not take a compare-and-swap error as proof, since the chain found nothing', async () => {
+    const { publisher, lowered } = publisherOf({ commit: () => Promise.reject(conflict()) });
+
+    expect(await publisher.publish(lowered, NOT_REVOKED)).toBeInstanceOf(IndeterminateWriteReceipt);
+  });
+
   it('reports indeterminate when custody already holds another outcome for a lost race', async () => {
-    const conflict = new WriterError('moved', { code: 'WRITER_CAS_CONFLICT' });
-    conflict.actualSha = 'd'.repeat(40);
     const { publisher, lowered } = publisherOf({
-      commit: () => Promise.reject(conflict),
+      commit: () => Promise.reject(conflict()),
+      probe: { locate: () => Promise.resolve({ kind: 'other' }) },
       custody: { settleFailedPublication: () => Promise.resolve(new ObservationRefused('settlement-mismatch')) },
     });
 
@@ -165,10 +175,9 @@ describe('ConeWritePublisher after permission', () => {
   });
 
   it('reports indeterminate when settling the failure conflicts with what custody holds', async () => {
-    const conflict = new WriterError('moved', { code: 'WRITER_CAS_CONFLICT' });
-    conflict.actualSha = 'd'.repeat(40);
     const { publisher, lowered } = publisherOf({
-      commit: () => Promise.reject(conflict),
+      commit: () => Promise.reject(conflict()),
+      probe: { locate: () => Promise.resolve({ kind: 'other' }) },
       custody: { settleFailedPublication: () => Promise.resolve(new ObservationUnretained({ identity: {} } as ObservationAttempt, 'settlement-conflict')) },
     });
 
@@ -177,14 +186,6 @@ describe('ConeWritePublisher after permission', () => {
 
   it('still reports indeterminate when marking the record fails', async () => {
     const { publisher, lowered } = publisherOf({ commit: () => Promise.reject(new Error('disk')), save: vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('full')) });
-
-    expect(await publisher.publish(lowered, NOT_REVOKED)).toBeInstanceOf(IndeterminateWriteReceipt);
-  });
-
-  it('does not call a conflict lost when the ref still reads as its predecessor', async () => {
-    const conflict = new WriterError('moved', { code: 'WRITER_CAS_CONFLICT' });
-    conflict.actualSha = OID;
-    const { publisher, lowered } = publisherOf({ commit: () => Promise.reject(conflict) });
 
     expect(await publisher.publish(lowered, NOT_REVOKED)).toBeInstanceOf(IndeterminateWriteReceipt);
   });

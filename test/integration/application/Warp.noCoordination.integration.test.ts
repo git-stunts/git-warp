@@ -6,6 +6,7 @@ import fc from 'fast-check';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
 import { GitStorage, RetainedWriteReceipt, Warp, WarpAccessDenied, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
+import { GRAPH, addDots, disposeWarpFixtures, materialized, nodeProperties } from '../../helpers/WarpWriteFixture.ts';
 import CheckpointController from '../../../src/domain/services/controllers/CheckpointController.ts';
 import { PatchDiscovery } from '../../../src/domain/services/controllers/PatchDiscovery.ts';
 import CheckpointTailBasisLoader from '../../../src/domain/services/optic/CheckpointTailBasisLoader.ts';
@@ -14,10 +15,10 @@ import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
 
 /**
  * The multi-writer no-coordination guarantees of `WarpGraph.noCoordination.test.ts`,
- * through the public Warp boundary (#1051): writers never coordinate, chains stay
- * linear, and clocks and dots stay unique, across arbitrary interleavings.
+ * through the public Warp boundary (#1051): chains stay linear, clocks and dots stay
+ * unique, and a register settles alike, across interleavings run one at a time. Each write
+ * does list writer refs for its premise, which the legacy suite's commit path does not.
  */
-const GRAPH = 'shared';
 const WRITERS = ['alice', 'bob', 'carol'] as const;
 
 class AllowAll extends WarpAccessPort {
@@ -30,6 +31,7 @@ const directories: string[] = [];
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  await disposeWarpFixtures();
   await Promise.all(directories.splice(0).map(async (path) => await rm(path, { recursive: true, force: true })));
 });
 
@@ -84,7 +86,37 @@ describe('No-coordination through the Warp boundary', () => {
     ), { numRuns: 4 });
   });
 
-  it('advances a clock past every folded writer, with no other writer consulted at commit', async () => {
+  it('never issues one dot twice across writers', async () => {
+    const path = await repository();
+    const warp = await openWarp(path);
+    for (const writer of WRITERS) {
+      await warp.as(writer).execute([intent.node.add({ subject: `${writer}:a` }), intent.node.add({ subject: `${writer}:b` })]);
+      await warp.as(writer).execute(intent.edge.add({ from: `${writer}:a`, to: `${writer}:b`, label: 'to' }));
+    }
+    await warp.close();
+
+    const dots = await addDots(path, WRITERS);
+
+    expect(dots).toHaveLength(9);
+    expect(new Set(dots).size).toBe(9);
+  });
+
+  it('settles one register the same way however it is read, with the highest clock winning', async () => {
+    const path = await repository();
+    const warp = await openWarp(path);
+    await warp.as('alice').execute(intent.node.add({ subject: 'doc' }));
+    for (const writer of WRITERS) {
+      await warp.as(writer).execute(intent.property.set({ subject: 'doc', key: 'title', value: writer }));
+    }
+    await warp.close();
+
+    const properties = await nodeProperties(path, 'doc');
+
+    expect(properties?.['title']).toBe('carol');
+    expect((await nodeProperties(path, 'doc'))?.['title']).toBe('carol');
+  });
+
+  it('advances a clock past every folded writer', async () => {
     const path = await repository();
     const warp = await openWarp(path);
     await warp.as('alice').execute(intent.node.add({ subject: 'a' }));
@@ -149,10 +181,14 @@ describe('Zero whole-state traps', () => {
     expect(hits).toEqual([]);
   });
 
-  it('has live traps: the whole-state path they guard does fire', async () => {
+  it('has live traps: the whole-state read tests use does fire them', async () => {
+    const path = await repository();
+    const warp = await openWarp(path);
+    await warp.as('alice').execute(intent.node.add({ subject: 'a' }));
+    await warp.close();
     installTraps();
 
-    await expect(async () => await RuntimeHost.prototype.materialize.call({} as RuntimeHost)).rejects.toThrow('trap');
-    expect(hits).toEqual(['RuntimeHost.materialize']);
+    await expect(materialized(path)).rejects.toThrow('trap');
+    expect(hits.length).toBeGreaterThan(0);
   });
 });

@@ -194,7 +194,7 @@ describe('write attempt storage', () => {
 });
 
 describe('GitWriteAttemptJournalAdapter', () => {
-  it('treats a blob that does not decode as no record', async () => {
+  it('refuses to read a blob that does not decode as though nothing were saved', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
       codec: { decode: () => { throw new Error('not cbor'); } } as unknown as CodecPort,
@@ -232,6 +232,24 @@ describe('ConeWriteRecovery', () => {
       }).reconcile('alice', ATTEMPT.value);
       expect(answer).toMatchObject({ cause });
     }
+  });
+
+  it('never calls an unarmed attempt unpublished when a record or the chain names its commit', async () => {
+    const attempt = { identity: {} } as ObservationAttempt;
+    const remove = vi.fn();
+    const abandon = vi.fn();
+    const run = async (record: WriteAttemptRecord, kind: 'own' | 'none'): Promise<object | null> => await new ConeWriteRecovery({
+      graph: 'g', clock: () => 1e12,
+      custody: { resume: () => Promise.resolve(new ObservationAdmitted(attempt, 'reserved')), abandon } as unknown as ObservationCustodyService,
+      journal: { read: () => Promise.resolve(record), remove } as unknown as WriteAttemptJournalPort,
+      probe: { locate: () => Promise.resolve({ kind, commit: OID }) } as unknown as WritePublicationProbe,
+      settlement: {} as ConeWriteSettlement,
+    }).reconcile('alice', ATTEMPT.value);
+
+    expect(await run(recordOf().asReported(OID), 'none')).toBeInstanceOf(IndeterminateWriteReceipt);
+    expect(await run(recordOf(), 'own')).toBeInstanceOf(IndeterminateWriteReceipt);
+    expect(abandon).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
   });
 
   it('keeps a record when custody refuses for a reason that may clear', async () => {
@@ -288,7 +306,7 @@ describe('ConeWriteRecovery', () => {
 });
 
 describe('a saved record that is not a write', () => {
-  it('reads a blob it cannot open as no record, so one dangling ref cannot stop a listing', async () => {
+  it('skips a blob it cannot open in a listing, and rejects on a direct read', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
       codec: {} as CodecPort,
@@ -304,7 +322,7 @@ describe('a saved record that is not a write', () => {
     await expect(journal.read(ATTEMPT)).rejects.toThrow('missing object');
   });
 
-  it('reads a blob of the wrong shape as no record', async () => {
+  it('refuses to read a blob of the wrong shape', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
       codec: { decode: () => ({ version: 99 }) } as unknown as CodecPort,
@@ -315,7 +333,7 @@ describe('a saved record that is not a write', () => {
     await expect(journal.read(ATTEMPT)).rejects.toThrow('could not be decoded');
   });
 
-  it('reads an undecodable preparation as no record', async () => {
+  it('refuses to read an undecodable preparation', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
       codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
@@ -326,7 +344,7 @@ describe('a saved record that is not a write', () => {
     await expect(journal.read(ATTEMPT)).rejects.toThrow('could not be decoded');
   });
 
-  it('reads as no record', async () => {
+  it('refuses to read it', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
       codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,

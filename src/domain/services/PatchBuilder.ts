@@ -268,8 +268,7 @@ export class PatchBuilder {
 
   private async _prepareObservation(nodeIds: readonly string[]): Promise<void> {
     const cachedRemoval = nodeIds.length > 0 && this._getSnapshotState() !== null;
-    if (this._targetRefPath !== null || this._patchJournal === null
-      || (cachedRemoval && this._snapshotFrontier === undefined)) {
+    if (this._targetRefPath !== null || this._patchJournal === null || (cachedRemoval && this._snapshotFrontier === undefined)) {
       await this._restoreWriterContext();
       return;
     }
@@ -304,10 +303,8 @@ export class PatchBuilder {
     const observation = this._removalBasis !== null
       ? this._removalBasis.node(nodeId)
       : state === null ? null : NodeRemovalObservation.fromState(state, nodeId);
-    if (observation === null) {
-      throw new PatchError(`Cannot remove node '${nodeId}': graph must be materialized or a bounded removal basis prepared`, { code: 'E_PATCH_NO_STATE' });
-    }
-    for (const op of observation.withAddDots(this._nodeAddDots.of(nodeId)).operations(this._onDeleteWithData, this._logger)) {
+    if (observation === null) { throw new PatchError(`Cannot remove node '${nodeId}': graph must be materialized or a bounded removal basis prepared`, { code: 'E_PATCH_NO_STATE' }); }
+    for (const op of observation.withAddDots(this._inWriteDots(this._nodeAddDots, nodeId)).operations(this._onDeleteWithData, this._logger)) {
       this._recordRemoval(op);
     }
     return this;
@@ -333,11 +330,14 @@ export class PatchBuilder {
   removeEdge(from: string, to: string, label: string): PatchBuilder {
     this._assertNotCommitted();
     const edgeKey = encodeEdgeKey(from, to, label);
-    const observedDots = [...new Set([...this._edgeRemovalDots(from, to, label), ...this._edgeAddDots.of(edgeKey)])];
+    const observedDots = [...new Set([...this._edgeRemovalDots(from, to, label), ...this._inWriteDots(this._edgeAddDots, edgeKey)])];
     assertObservedDotsForRemove(observedDots, 'edge', { edgeKey });
     this._recordRemoval(new EdgeRemove({ from, to, label, observedDots }));
     return this;
   }
+
+  /** Add dots this write issued itself, which only a cone write's remove observes. */
+  private _inWriteDots(dots: InWriteAddDots, element: string): readonly string[] { return this._removalBasis instanceof ConeWriteBasis ? dots.of(element) : []; }
 
   /** The dots an edge remove observes: from the cone write basis, else from materialized state. */
   private _edgeRemovalDots(from: string, to: string, label: string): Iterable<string> {

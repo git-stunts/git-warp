@@ -104,7 +104,7 @@ const patchCommitMessageBaseSchema = z.object({
 const patchCommitMessageSchema = patchCommitMessageBaseSchema.extend({
   patchHandle: z.string().min(1),
   storage: gitCasStorageSchema,
-  publicationAttempt: z.string().regex(/^[0-9a-f]{32}$/u).optional(),
+  publicationAttempt: z.string().min(1).optional(),
 });
 
 const checkpointCommitMessageSchema = z.object({

@@ -5,7 +5,7 @@ export default class UnpublishedWriteReceipt {
   readonly operation: 'write' = 'write';
   readonly graph: string;
   readonly writer: string;
-  /** The policy-safe reason, such as `stale-predecessor` or `access-denied`. */
+  /** The policy-safe reason, such as `stale-predecessor`. A denial reads `access-denied: <its cause>`. */
   readonly cause: string;
   readonly repairHints: readonly RepairHint[];
 

@@ -35,6 +35,7 @@ import {
   git,
   indeterminate,
   materialized,
+  nodeProperties,
   open,
   repository,
   retained,
@@ -87,6 +88,9 @@ describe('Warp.open and as(writer).execute', () => {
     expect((await materialized(path)).nodes).toEqual(['node:alice', 'node:bob', 'node:carol']);
     expect((await materialized(path)).edges).toHaveLength(3);
     for (const writer of ['alice', 'bob', 'carol']) {
+      expect((await nodeProperties(path, `node:${writer}`))?.['title']).toBe(writer);
+    }
+    for (const writer of ['alice', 'bob', 'carol']) {
       expect(git(path, ['rev-list', '--count', buildWriterRef(GRAPH, writer)])).toBe('3');
       expect(git(path, ['rev-list', '--count', '--merges', buildWriterRef(GRAPH, writer)])).toBe('0');
     }
@@ -135,6 +139,27 @@ describe('Warp.open and as(writer).execute', () => {
     expect(raced.outcome.kind).toBe('plural');
     expect(raced.outcome.races).toHaveLength(1);
     expect(raced.outcome.races[0]).toMatchObject({ kind: 'register', subject: 'doc', key: 'title', writers: ['bob'], overflow: 0 });
+  });
+});
+
+describe('the journey as written', () => {
+  it('opens the current repository from GitStorage.root', async () => {
+    const path = await repository();
+    vi.spyOn(process, 'cwd').mockReturnValue(path);
+    const warp = await Warp.open(WarpAddress.of(GitStorage.root(), GRAPH), new TestAccess());
+
+    const receipt = retained(await warp.as('alice').execute(intent.node.add({ subject: 'a' })));
+    await warp.close();
+
+    expect(receipt.publication.toString()).toBe(tip(path, 'alice'));
+  });
+
+  it('removes a node with attached data under the warn policy, as Runtime does', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    retained(await warp.as('alice').execute([intent.node.add({ subject: 'a' }), intent.node.add({ subject: 'b' }), intent.edge.add({ from: 'a', to: 'b', label: 'to' })]));
+
+    expect(retained(await warp.as('alice').execute(intent.node.remove({ subject: 'a' }))).outcome.kind).toBe('derived');
   });
 });
 
@@ -197,13 +222,24 @@ describe('what a blind write observed', () => {
     expect(retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' }))).outcome.kind).toBe('plural');
   });
 
-  it('stays derived for writes this Warp itself made, in sequence', async () => {
+  it('stays derived for a writer\'s own writes, in sequence', async () => {
     const path = await repository();
     const warp = await open(path);
     retained(await warp.as('alice').execute([intent.node.add({ subject: 'doc' }), intent.property.set({ subject: 'doc', key: 'title', value: 'one' })]));
 
-    expect(retained(await warp.as('bob').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' }))).outcome.kind).toBe('derived');
-    expect(retained(await warp.as('carol').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'three' }))).outcome.kind).toBe('derived');
+    expect(retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' }))).outcome.kind).toBe('derived');
+    expect(retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'three' }))).outcome.kind).toBe('derived');
+  });
+
+  it('does not count another writer\'s landed write on this Warp as seen', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    retained(await warp.as('alice').execute([intent.node.add({ subject: 'doc' }), intent.property.set({ subject: 'doc', key: 'title', value: 'one' })]));
+
+    const overwrite = retained(await warp.as('bob').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' })));
+
+    expect(overwrite.outcome.kind).toBe('plural');
+    expect(overwrite.outcome.races[0]?.writers).toEqual(['alice']);
   });
 
   it('binds exactly what it observed when that is less than the retained basis', async () => {
@@ -353,7 +389,15 @@ describe('the write premise is never recaptured', () => {
     }));
 
     const receipt = retained(await warp.as('alice').execute(intent.node.add({ subject: 'alices' })));
+    const headAfter = git(path, ['rev-parse', `refs/warp/${GRAPH}/cone/head`]);
+    await warp.close();
+    const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
+    const original = await writes.custody.resolve(ObservationCoordinate.parse(receipt.coordinate.toString()) as ObservationCoordinate) as ResolvedObservation;
+    await writes.close();
 
+    expect(original.preparation.bindings.basis).not.toBe(headAfter);
+    expect(git(path, ['ls-tree', '--name-only', original.preparation.bindings.basis])).toContain('frontier');
+    expect(original.preparation.bindings.writePremise?.predecessor).toBeNull();
     expect(git(path, ['log', '-1', '--format=%P', receipt.publication.toString()])).toBe('');
     expect((await materialized(path)).nodes).toEqual(['alices', 'bobs']);
   });

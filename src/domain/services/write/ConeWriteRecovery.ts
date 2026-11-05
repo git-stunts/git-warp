@@ -119,8 +119,15 @@ export default class ConeWriteRecovery {
       : await this.#fromChain(record, attempt);
   }
 
-  /** Nothing ever armed it, so it never published. Only its age says whether its owner might still try. */
+  /**
+   * The ledger says nothing armed it, so it never published, unless the ledger lost that
+   * fact: a record or chain naming a commit outranks it. Otherwise only its age says
+   * whether its owner might still try.
+   */
   async #recoverUnarmed(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<AuthoredWriteReceipt> {
+    if (await this.#provesPublication(record)) {
+      return this.#indeterminate(record, RECOVERY_UNAVAILABLE);
+    }
     if (this.#clock() - record.savedAt < UNARMED_ATTEMPT_GRACE_MS) {
       return this.#indeterminate(record, ATTEMPT_UNOWNED_YET);
     }
@@ -128,6 +135,10 @@ export default class ConeWriteRecovery {
     return abandoned instanceof ObservationReconciled
       ? await this.#finishedUnpublished(record, CANCELLED)
       : this.#indeterminate(record, RECOVERY_UNAVAILABLE);
+  }
+
+  async #provesPublication(record: WriteAttemptRecord): Promise<boolean> {
+    return record.commit !== null || (await this.#probe.locate(record)).kind === 'own';
   }
 
   /** Custody settled a publication, and that outranks whatever the chain says now. */

@@ -63,7 +63,7 @@ export default class ConeWriteExecutor {
   }
 
   /**
-   * Authority is current at publication, not merely at submission. A grant that changed
+   * Authority is checked again just before arming, not only at submission. A grant that changed
    * refuses too, since the retained premise binds the one this write was admitted under.
    */
   async #revocation(request: WarpWriteRequest, grant: WarpWriteGrant): Promise<string | null> {

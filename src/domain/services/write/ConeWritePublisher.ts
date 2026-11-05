@@ -4,7 +4,6 @@ import type { AuthoredWriteReceipt } from '../../api/AuthoredWriteReceipt.ts';
 import IndeterminateWriteReceipt from '../../api/IndeterminateWriteReceipt.ts';
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import UnretainedWriteReceipt from '../../api/UnretainedWriteReceipt.ts';
-import WriterError from '../../errors/WriterError.ts';
 import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
 import ObservationAdmitted from '../custody/ObservationAdmitted.ts';
 import type ObservationAttempt from '../custody/ObservationAttempt.ts';
@@ -24,7 +23,6 @@ import { failedWriteCore } from './writeReceiptCore.ts';
 
 const CONTENDED_STEP_ATTEMPTS = 4;
 const STALE_PREDECESSOR = 'stale-predecessor';
-const WRITER_CAS_CONFLICT = 'WRITER_CAS_CONFLICT';
 const PUBLICATION_UNRESOLVED = 'publication-unresolved';
 const NO_DEPENDENCIES = async function* noDependencies(): AsyncGenerator<never> { /* A write claims none. */ };
 const CAPACITY_REPAIR = Object.freeze([Object.freeze({
@@ -203,19 +201,22 @@ export default class ConeWritePublisher {
     try {
       const result = await lowered.builder.commitWithEvidence(record.attemptId.value);
       return await this.#probe.proves(result.sha, record) ? { kind: 'landed', commit: result.sha, result } : UNCERTAIN;
-    } catch (error) {
-      return await this.#fateAfterFailure(record, error instanceof WriterError ? error : null);
+    } catch {
+      return await this.#fateAfterFailure(record);
     }
   }
 
-  /** A failed call does not prove nothing landed: the chain decides, and a compare-and-swap loser is failed only once it does. */
-  async #fateAfterFailure(record: WriteAttemptRecord, error: WriterError | null): Promise<PublicationFate> {
+  /**
+   * A failed call proves nothing, and neither does a compare-and-swap error, which the
+   * committer also raises for a commit that landed with its acknowledgement lost. Only the chain decides.
+   */
+  async #fateAfterFailure(record: WriteAttemptRecord): Promise<PublicationFate> {
     try {
       const found = await this.#probe.locate(record);
       if (found.kind === 'own') {
         return { kind: 'landed', commit: found.commit, result: null };
       }
-      return found.kind === 'other' || isLostRace(error, record) ? FAILED : UNCERTAIN;
+      return found.kind === 'other' ? FAILED : UNCERTAIN;
     } catch {
       return UNCERTAIN;
     }
@@ -266,10 +267,6 @@ export default class ConeWritePublisher {
 function isSettledOtherwise(settled: object): boolean {
   return (settled instanceof ObservationRefused && settled.reason === 'settlement-mismatch')
     || (settled instanceof ObservationUnretained && settled.reason === 'settlement-conflict');
-}
-
-function isLostRace(error: WriterError | null, record: WriteAttemptRecord): boolean {
-  return error?.code === WRITER_CAS_CONFLICT && error.actualSha !== record.premise.predecessor;
 }
 
 /** Repeats a step while it only reports another participant's contention, which is safe: none of these publish. */

@@ -107,7 +107,7 @@ export default class ConeWriteLowering {
   }): Promise<LoweredConeWrite | UnpublishedWriteReceipt> {
     const { request, builder, premise } = run;
     const targets = coneWriteTargets(request.sequence);
-    const seen = this.#knowledge.seen(premise.from);
+    const seen = this.#knowledge.seen(request.writer, premise.from);
     const observed = targets.readsRecords() ? premise.basis : seen;
     await builder.prepareConeWriteBasis(targets, premise, observed);
     applyIntentSequenceToPatch(request.sequence, builder, this.#content);

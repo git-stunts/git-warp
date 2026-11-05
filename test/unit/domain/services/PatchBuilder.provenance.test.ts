@@ -418,6 +418,21 @@ describe('PatchBuilder provenance', () => {
     });
   });
 
+  describe('removing what this patch added, on a legacy path', () => {
+    it('still refuses, since only a cone write observes its own add dots', () => {
+      const builder = createPatchBuilder({
+        writerId: 'writer1',
+        lamport: 1,
+        versionVector: VersionVector.empty(),
+        getCurrentState: () => createMockState(),
+      });
+      builder.addNode('a').addNode('b').addEdge('a', 'b', 'to');
+
+      expect(() => builder.removeEdge('a', 'b', 'to')).toThrow(PatchError);
+      expect(() => builder.removeNode('a')).toThrow(PatchError);
+    });
+  });
+
   describe('removeNode / removeEdge without materialized state', () => {
     it('removeNode throws PatchError when state is null', () => {
       const vv = VersionVector.empty();

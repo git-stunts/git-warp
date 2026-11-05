@@ -19,7 +19,9 @@ import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts
 import { overrideWarpComposition, type WarpCompositionOverrides } from '../../src/application/WarpWriteComposition.ts';
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';
 import { buildWriteAttemptsPrefix } from '../../src/domain/utils/WriteAttemptRefLayout.ts';
-import { openRuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
+import EdgeAdd from '../../src/domain/types/ops/EdgeAdd.ts';
+import NodeAdd from '../../src/domain/types/ops/NodeAdd.ts';
+import { openRuntimeHostProduct, type RuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
 
 export const GRAPH = 'todos';
 const BUDGET = { records: 1024, bytes: 1024 * 1024, work: 50_000 };
@@ -104,22 +106,51 @@ export function attemptRefs(path: string): string[] {
   return listed === '' ? [] : listed.split('\n');
 }
 
-/** Reads what the graph converged to through the legacy whole-state path, which #1052 replaces. */
-export async function materialized(path: string): Promise<{ nodes: string[]; edges: string[] }> {
+/** Reads the graph through the legacy whole-state path, which #1052 replaces. */
+async function withReader<T>(path: string, read: (reader: RuntimeHostProduct) => Promise<T>): Promise<T> {
   const storage = await GitStorage.open({ cwd: path });
   try {
     const ports = getDefaultRuntimeHostNodePorts();
     const binding = resolveWarpStorage(storage);
-    const reader = await openRuntimeHostProduct({
+    return await read(await openRuntimeHostProduct({
       persistence: binding.history, runtimeStorage: binding.runtimeStorage, graphName: GRAPH, writerId: 'test-reader',
       codec: ports.codec, crypto: ports.crypto, trustCrypto: ports.trustCrypto, commitMessageCodec: ports.commitMessageCodec,
-    });
+    }));
+  } finally {
+    await storage.close();
+  }
+}
+
+export async function materialized(path: string): Promise<{ nodes: string[]; edges: string[] }> {
+  return await withReader(path, async (reader) => {
     await reader.materialize();
     return {
       nodes: (await reader.getNodes()).sort(),
       edges: (await reader.getEdges()).map(({ from, to, label }) => `${from}>${to}:${label}`).sort(),
     };
-  } finally {
-    await storage.close();
-  }
+  });
+}
+
+export async function nodeProperties(path: string, nodeId: string): ReturnType<RuntimeHostProduct['getNodeProps']> {
+  return await withReader(path, async (reader) => {
+    await reader.materialize();
+    return await reader.getNodeProps(nodeId);
+  });
+}
+
+/** Every add dot each writer's chain issued, as `writer:counter`. */
+export async function addDots(path: string, writers: readonly string[]): Promise<string[]> {
+  return await withReader(path, async (reader) => {
+    const dots: string[] = [];
+    for (const writer of writers) {
+      for (const { patch } of await reader.getWriterPatches(writer)) {
+        for (const op of patch.ops) {
+          if (op instanceof NodeAdd || op instanceof EdgeAdd) {
+            dots.push(`${op.dot.writerId}:${op.dot.counter}`);
+          }
+        }
+      }
+    }
+    return dots;
+  });
 }
