@@ -91,8 +91,7 @@ async function composeOverStorage(run: {
   readonly overrides: WarpCompositionOverrides;
   readonly storage: GitStorage;
 }): Promise<WarpWrites> {
-  const { address, access, overrides, storage } = run;
-  const graph = address.name;
+  const { access, overrides, storage, address: { name: graph } } = run;
   const ports = getDefaultRuntimeHostNodePorts();
   const git = resolveConeWrites(storage);
   const hosts = writerHosts({ graph, storage, ports });
