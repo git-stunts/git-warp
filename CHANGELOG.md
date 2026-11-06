@@ -314,8 +314,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Packaging
 
-- The published root now reaches `Warp` as well as `Runtime`, so the entry ceiling rises. The
-  ceilings are 760,000 compressed bytes, 3,300,000 unpacked bytes and 1,300 entries.
+- The published root now reaches `Warp` and its bounded reads as well as `Runtime`, so the
+  unpacked and entry ceilings rise. The ceilings are 760,000 compressed bytes, 3,490,000
+  unpacked bytes and 1,320 entries.
 
 ## [20.0.0] - 2026-10-03
 
