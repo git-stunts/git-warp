@@ -64,11 +64,11 @@ any file is removed. JavaScript and supported assets remain unchanged.
 The resulting artifact contains 993 files, 716,164 compressed bytes, and
 3,143,572 unpacked bytes.
 
-| Ceiling          | Value     | Headroom over the measured artifact |
-| ---------------- | --------- | ----------------------------------- |
-| Compressed bytes | 760,000   | 43,836 bytes (6.1%)                 |
-| Unpacked bytes   | 3,300,000 | 156,428 bytes (5.0%)                |
-| Entries          | 1,300     | 307 entries (30.9%)                 |
+| Ceiling          | Value at that audit | Headroom over that artifact |
+| ---------------- | ------------------- | --------------------------- |
+| Compressed bytes | 760,000             | 43,836 bytes (6.1%)         |
+| Unpacked bytes   | 3,300,000           | 156,428 bytes (5.0%)        |
+| Entries          | 1,050               | 57 entries (5.7%)           |
 
 By October 2026 source growth had used that headroom: the artifact measured
 756,533 compressed and 3,297,802 unpacked bytes, and a single new source file
@@ -88,6 +88,21 @@ into the published closure alongside the legacy `Runtime`
 entries, so the entry ceiling rose to 1,300, and only about 4,200 unpacked bytes
 of headroom remain. Removing the legacy surface under
 [#1054](https://github.com/git-stunts/git-warp/issues/1054) should allow it to fall again.
+
+Bounded optic reads ([#1052](https://github.com/git-stunts/git-warp/issues/1052))
+then measured 1,254 entries, 719,742 compressed bytes and 3,319,627 unpacked
+bytes, over the unpacked ceiling. These ceilings are regression tripwires, not
+a size budget: each was set at about 5% over a measured artifact, and the path
+allowlist below is what keeps unsupported files out. The unpacked ceiling rose
+to 3,490,000 bytes and the entry ceiling to 1,320, again about 5% over the
+measurement. The compressed ceiling still had 5.6% headroom and stays. #1054
+deletes the legacy surface and should set them from a fresh measurement.
+
+| Ceiling          | Current value | Headroom over the #1052 artifact |
+| ---------------- | ------------- | -------------------------------- |
+| Compressed bytes | 760,000       | 40,258 bytes (5.6%)              |
+| Unpacked bytes   | 3,490,000     | 170,373 bytes (5.1%)             |
+| Entries          | 1,320         | 66 entries (5.3%)                |
 
 ## Allowlist
 
