@@ -46,7 +46,7 @@ class ReleaseConsumerError extends Error {}
 const values = await import('@git-stunts/git-warp');
 const names = Object.keys(values);
 // A published version may predate the Warp values, so they are permitted rather than required.
-const allowed = new Set(['Coordinate', 'GitStorage', 'IndeterminateWriteReceipt', 'RetainedWriteReceipt', 'Runtime', 'UnpublishedWriteReceipt', 'UnretainedWriteReceipt', 'Warp', 'WarpAccessDenied', 'WarpAccessPort', 'WarpAddress', 'WarpWriteGrant']);
+const allowed = new Set(['Coordinate', 'GitStorage', 'IndeterminateWriteReceipt', 'ObserverIdentity', 'Optic', 'OpticReceipt', 'Purpose', 'ReadBudget', 'RetainedWriteReceipt', 'Runtime', 'UnpublishedWriteReceipt', 'UnretainedWriteReceipt', 'Warp', 'WarpAccessDenied', 'WarpAccessPort', 'WarpAddress', 'WarpReadGrant', 'WarpWriteGrant']);
 if (names.some((name) => !allowed.has(name)) || typeof values.Runtime !== 'function') {
   throw new ReleaseConsumerError('public root must export Runtime and nothing outside the allowed values');
 }
