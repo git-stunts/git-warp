@@ -266,7 +266,7 @@ describe('ConeWriteRecovery', () => {
 
   it('settles from the commit a receipt reported, whatever the chain says now', async () => {
     const attempt = { identity: {} } as ObservationAttempt;
-    const settle = vi.fn(() => Promise.resolve({}));
+    const attempted = vi.fn(() => Promise.resolve('settlement-refused'));
     const service = new ConeWriteRecovery({
       graph: 'g', clock: () => 1,
       custody: {
@@ -275,12 +275,12 @@ describe('ConeWriteRecovery', () => {
       } as unknown as ObservationCustodyService,
       journal: { read: () => Promise.resolve(recordOf().asReported(OID)) } as unknown as WriteAttemptJournalPort,
       probe: { locate: () => Promise.reject(new Error('not asked')) } as unknown as WritePublicationProbe,
-      settlement: { settle } as unknown as ConeWriteSettlement,
+      settlement: { attempted, concluded: () => Promise.resolve({}) } as unknown as ConeWriteSettlement,
     });
 
     await service.reconcile('alice', ATTEMPT.value);
 
-    expect(settle).toHaveBeenCalledWith(expect.objectContaining({ commit: OID }));
+    expect(attempted).toHaveBeenCalledWith(expect.objectContaining({ commit: OID }));
   });
 
   it('leaves a reported attempt for its caller', async () => {

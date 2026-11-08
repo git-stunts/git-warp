@@ -6,6 +6,7 @@ import ObservationAdmitted from '../custody/ObservationAdmitted.ts';
 import type ObservationAttempt from '../custody/ObservationAttempt.ts';
 import type ObservationCoordinate from '../custody/ObservationCoordinate.ts';
 import type ObservationCustodyService from '../custody/ObservationCustodyService.ts';
+import type ObservationIndeterminate from '../custody/ObservationIndeterminate.ts';
 import ObservationPublicationFailed from '../custody/ObservationPublicationFailed.ts';
 import ObservationReconciled from '../custody/ObservationReconciled.ts';
 import ObservationRefused, { type ObservationRefusalReason } from '../custody/ObservationRefused.ts';
@@ -13,6 +14,7 @@ import ResolvedObservation from '../custody/ResolvedObservation.ts';
 import RetainedObservation from '../custody/RetainedObservation.ts';
 import ObservationAttemptId from '../custody/ObservationAttemptId.ts';
 import type ConeWriteSettlement from './ConeWriteSettlement.ts';
+import type { PublishedAttempt } from './ConeWriteSettlement.ts';
 import RetainedWriteCoreMismatchError from '../../errors/RetainedWriteCoreMismatchError.ts';
 import UnsupportedWriteAttemptLayoutError from '../../errors/UnsupportedWriteAttemptLayoutError.ts';
 import WriteAttemptListing from './WriteAttemptListing.ts';
@@ -129,13 +131,27 @@ export default class ConeWriteRecovery {
     if (phase === 'reserved' || phase === 'prepared') {
       return await this.#recoverUnarmed(record, attempt);
     }
-    const recovered = await this.#custody.recoverCoordinate(attempt.identity);
+    return await this.#fromLedger(record, attempt, await this.#custody.recoverCoordinate(attempt.identity));
+  }
+
+  /**
+   * The record's races may stand alone only when custody positively holds no settlement. Any
+   * other doubt keeps the record for an ask that can compare it with custody's copy.
+   */
+  async #fromLedger(
+    record: WriteAttemptRecord,
+    attempt: ObservationAttempt,
+    recovered: RetainedObservation | ObservationPublicationFailed | ObservationRefused | ObservationIndeterminate,
+  ): Promise<AuthoredWriteReceipt> {
     if (recovered instanceof ObservationPublicationFailed) {
       return await this.#finishedUnpublished(record, STALE_PREDECESSOR);
     }
-    return recovered instanceof RetainedObservation
-      ? await this.#fromCustody({ record, attempt, coordinate: recovered.coordinate })
-      : await this.#fromChain(record, attempt);
+    if (recovered instanceof RetainedObservation) {
+      return await this.#fromCustody({ record, attempt, coordinate: recovered.coordinate });
+    }
+    return recovered instanceof ObservationRefused && recovered.reason === 'not-settled'
+      ? await this.#fromChain(record, attempt)
+      : this.#indeterminate(record, RECOVERY_UNAVAILABLE);
   }
 
   /**
@@ -192,7 +208,7 @@ export default class ConeWriteRecovery {
 
   async #fromChain(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<AuthoredWriteReceipt> {
     if (record.commit !== null) {
-      return await this.#settlement.settle({ attempt, record, commit: record.commit });
+      return await this.#settled({ attempt, record, commit: record.commit });
     }
     const found = await this.#probe.locate(record);
     if (found.kind === 'other') {
@@ -200,7 +216,15 @@ export default class ConeWriteRecovery {
     }
     return found.kind === 'none'
       ? this.#indeterminate(record, PUBLICATION_UNRESOLVED)
-      : await this.#settlement.settle({ attempt, record, commit: found.commit });
+      : await this.#settled({ attempt, record, commit: found.commit });
+  }
+
+  /** A conflict after custody reported no settlement means one landed since, which this record may not rebuild. */
+  async #settled(published: PublishedAttempt): Promise<AuthoredWriteReceipt> {
+    const settled = await this.#settlement.attempted(published);
+    return settled === 'settlement-conflict'
+      ? this.#indeterminate(published.record, RECOVERY_UNAVAILABLE)
+      : await this.#settlement.concluded(published, settled);
   }
 
   async #forget(record: WriteAttemptRecord): Promise<void> {

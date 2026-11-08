@@ -45,7 +45,11 @@ export default class ConeWriteSettlement {
   }
 
   async settle(published: PublishedAttempt): Promise<RetainedWriteReceipt | UnretainedWriteReceipt> {
-    const settled = await this.#attemptSettlement(published);
+    return await this.concluded(published, await this.attempted(published));
+  }
+
+  /** The receipt one settle outcome gives; a final outcome also removes the record. */
+  async concluded(published: PublishedAttempt, settled: RetainedObservation | ObservationUnretainedReason): Promise<RetainedWriteReceipt | UnretainedWriteReceipt> {
     const { attemptId } = published.record;
     if (settled instanceof RetainedObservation) {
       await this.#forget(attemptId);
@@ -59,7 +63,7 @@ export default class ConeWriteSettlement {
   }
 
   /** The write already published, so nothing that goes wrong here may hide that from its receipt. */
-  async #attemptSettlement({ attempt, record, commit }: PublishedAttempt): Promise<RetainedObservation | ObservationUnretainedReason> {
+  async attempted({ attempt, record, commit }: PublishedAttempt): Promise<RetainedObservation | ObservationUnretainedReason> {
     try {
       const settled = await this.#custody.settle(attempt, {
         core: publishedWriteCore(this.#graph, record, commit),
