@@ -308,6 +308,11 @@ DTO and stop there**. Do not hallucinate fake domain models.
   not mount host repositories or Git directories into test containers.
 - `npm test` and test/benchmark scripts route through `scripts/run-in-docker.sh`.
   Direct Vitest invocations are guarded before test modules load.
+- Any test that relies on time must use a fake clock: an injected clock or
+  Vitest fake timers. Never use `Date.now()`, `new Date()`,
+  `performance.now()`, or real timer waits in a time-dependent test; they
+  make tests nondeterministic. A process timeout that only bounds a run is
+  allowed.
 
 - Useful commands:
   - `npm run test:local`
