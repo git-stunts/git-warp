@@ -1,8 +1,11 @@
 /**
- * OpStrategies — the per-op-type dispatch table used by the reducer.
+ * OpStrategies — per-op-type strategy table. Production code reads only
+ * `receiptName` (conflict analysis). The reducers call the `Op` class
+ * methods; the `validate`/`mutate`/`outcome`/`snapshot`/`accumulate`
+ * methods here run only in tests, and a debt card tracks removing them.
  *
- * Each concrete `OpStrategy` subclass owns the five operations that
- * the reducer needs for a single op type:
+ * Each concrete `OpStrategy` subclass carries five operations for a
+ * single op type:
  *
  *   1. `validate(op)`    — boundary field-shape checks
  *   2. `mutate(state, op, eventId)` — CRDT mutation (in place)
@@ -15,7 +18,8 @@
  * that share mutate / snapshot / accumulate helpers via protected
  * statics on the base class.
  *
- * `OP_STRATEGIES` is the frozen Map used by JoinReducer for dispatch.
+ * `OP_STRATEGIES` is a frozen Map; JoinReducer re-exports it but does not
+ * dispatch through it.
  *
  * @module domain/services/OpStrategies
  */

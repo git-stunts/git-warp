@@ -185,6 +185,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Refuse a `NodeRemove` without `node`, or an `EdgeRemove` without `from`,
+  `to` and `label`, with `PatchError` (`E_PATCH_MALFORMED`). Before, the
+  reducer dropped such an op without a receipt entry, even when it listed
+  observed dots. Stored patches are not affected, because the patch decoder
+  already refused these shapes. Sync responses do not pass through that
+  decoder: `applySyncResponse` now refuses a whole response that contains an
+  ownerless remove and leaves the caller's state unchanged. A remove that
+  names its owner and lists no observed dots is still a lawful no-op, and its
+  receipt reports `redundant`
+  ([#193](https://github.com/git-stunts/git-warp/issues/193)).
+- Make `materialize({ receipts: true })`, and `materialize()` without a
+  retained earlier state (for example in a fresh clone after a sync), agree
+  with the patch history on Git storage. With two or more writers, a remove
+  could be applied before the add that it observed, so a removed node or
+  edge came back in the returned and cached state. A full replay still lists
+  receipts in writer order, so such an early remove still reports
+  `redundant`, but the element is now removed. Earlier versions can have
+  stored that wrong state in the checkpoint and in retained
+  materializations, and the fix does not repair them. On an affected Git
+  repository, delete `refs/warp/<graph>/checkpoints/head` and
+  `refs/cas/caches/git-warp/materializations`, then materialize again
+  ([#1119](https://github.com/git-stunts/git-warp/issues/1119)).
+- Refuse a patch in which a remove lists an observed dot that the same patch
+  adds to a different element, with `CrossOwnerRemoveError`
+  (`E_PATCH_CROSS_OWNER_REMOVE`, a `PatchError`), at the patch decoder and at
+  sync ingress. No git-warp writer produces this shape. A remove that lists
+  another element's dot from an earlier patch is not refused yet
+  ([#1120](https://github.com/git-stunts/git-warp/issues/1120)).
 - Discover every supported test file recursively under `test/unit/` before
   partitioning the default unit run. New directories no longer need a runner
   allowlist entry. The runner refuses missing, unexpected or duplicate paths

@@ -8,15 +8,19 @@ This page describes the current source's internal CRDT admission contract. It do
 
 Construction copies the outer map, every nested dot set and the tombstone set. Later mutation of caller-owned collections cannot change the constructed value. The admitted ORSet remains mutable during reduction; this contract does not freeze its working storage or change add, remove, join and compaction behavior.
 
-Empty string elements and empty dot collections remain admissible. Floating tombstones remain valid even when their additions have not arrived. A later matching add stays removed; constructor validation must not discard that causal evidence.
+Empty string elements and empty dot collections remain admissible. Floating tombstones remain valid even when their additions have not arrived, in the in-memory `ORSet` and in the session trie (see "Remove operations and empty observed dots"). A later matching add stays removed; constructor validation must not discard that causal evidence.
 
 ## Remove operations and empty observed dots
 
-This law is the decision for [#193](https://github.com/git-stunts/git-warp/issues/193). A `NodeRemove` or `EdgeRemove` deletes only the add dots that it lists in `observedDots`. The law has three rules:
+This law is the decision for [#193](https://github.com/git-stunts/git-warp/issues/193). A `NodeRemove` or `EdgeRemove` deletes only the add dots that it lists in `observedDots`. Its observed dots are expected to belong to its named owner. The reducers check this only inside one patch (see below); for a dot that another patch added to a different element, the in-memory and session reducers still differ ([#1120](https://github.com/git-stunts/git-warp/issues/1120)). The law has three rules:
 
-1. A remove must name its owner. A `NodeRemove` without `node`, or an `EdgeRemove` without `from`, `to` and `label`, is malformed. Every reducer path refuses it with `PatchError` (`E_PATCH_MALFORMED`). The persisted-patch decode boundary already refused these shapes, and the patch builder cannot write them, so the rule does not make a readable history unreadable.
+1. A remove must name its owner. A `NodeRemove` without `node`, or an `EdgeRemove` without `from`, `to` and `label`, is malformed. Every reducer path refuses it with `PatchError` (`E_PATCH_MALFORMED`). The persisted-patch decode boundary already refused these shapes, and the patch builder cannot write them, so the rule does not make a readable history unreadable. Sync responses do not pass through that decode boundary. `applySyncResponse` refuses a whole response that contains an ownerless remove and leaves the caller's state unchanged. A conforming git-warp peer cannot send this shape, because it serves patches that it read through the decode boundary.
 2. A remove that names its owner and lists no dots is a lawful explicit no-op. This is true when the owner is absent and when the owner is alive. The receipt reports `redundant` for the named owner. The remove does not advance the owner's lifecycle: node properties stay visible, and no edge-remove event is recorded.
 3. A remove never deletes an add that it did not observe. A concurrent add stays present in every join order, whether the remove lists dots or not.
+
+The rules hold on both reducers: the in-memory reducer (`reducePatches`, `applySyncResponse`, memory storage) and the session reducer that Git storage uses. A remove that arrives before the add it observed still deletes that add, on both reducers and on every materialize path ([#1119](https://github.com/git-stunts/git-warp/issues/1119)). A full replay streams writer chains in writer-id order, so this case is ordinary with two or more writers. The session trie keeps the tombstone for such a dot under the named element's entry, in the existing per-element `tombstonedDots` field, so no trie leaf or root format changes. Receipts are still listed in writer order: an early remove reports `redundant`, because nothing live was removed at that point, and the later add reports `applied`. Both reducers report the same outcomes for the same order.
+
+Inside one patch a remove can be checked against its owner, because the add that carries each dot is visible. A remove that lists an observed dot that the same patch adds to a different element is refused with `CrossOwnerRemoveError` (`E_PATCH_CROSS_OWNER_REMOVE`, a `PatchError`). The check runs when a `Patch` is built, so it covers the persisted-patch decode boundary and sync ingress. A dot carries no element (`writerId:counter`), so a dot that another patch added cannot be checked without state. For that malformed cross-patch shape the materialized state of both reducers deletes the element that holds the dot, while point reads through the session trie on Git storage (for example `hasNode`) still report it present. [#1120](https://github.com/git-stunts/git-warp/issues/1120) tracks this case. No git-warp writer produces it.
 
 Rejected alternatives:
 
@@ -24,7 +28,7 @@ Rejected alternatives:
 - Keep the earlier reducer behavior, which skipped ownerless removes without validation or a receipt entry. That hides malformed input, and it disagrees with the decode boundary. Before the April 2026 op-class refactor, the same shape with dots deleted membership; after it, the shape was dropped without a sign.
 - Log a warning for empty removes. Core has no logger port on this path, and the receipt already reports the no-op honestly.
 
-The witnesses are in `test/unit/domain/services/JoinReducer.emptyRemoveLaw.test.ts`.
+The witnesses are in `test/unit/domain/services/JoinReducer.emptyRemoveLaw.test.ts` and `JoinReducer.emptyRemoveLaw.session.test.ts` (both reducers), `test/unit/domain/properties/RemoveReplayOrder.property.test.ts` (replay order on every reducer path), `test/unit/application/MaterializeReceiptsAgreement.test.ts` (Git storage), `test/unit/domain/types/SamePatchRemoveOwnership.test.ts` and `test/unit/domain/services/sync/SyncIngressRemoveLaw.test.ts`.
 
 ## Register identities
 
