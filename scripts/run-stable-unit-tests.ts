@@ -8,7 +8,6 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { availableParallelism, freemem, totalmem } from 'node:os';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseCLI } from 'vitest/node';
 
 import vitestConfig from '../vitest.config.ts';
 
@@ -44,7 +43,7 @@ function listRecursiveTestFiles(relativeDirectory: string): string[] {
   return files.sort();
 }
 
-/** Reads an integer environment override of at least `minimum`; a malformed value stops the runner. */
+/** Reads an integer override with `Number.parseInt` (leading digits); no digits, or a value below `minimum`, stops the runner. */
 function readIntAtLeast(name: string, fallback: number, minimum: number): number {
   const raw = process.env[name];
   if (raw === undefined || raw.trim() === '') {
@@ -102,7 +101,7 @@ function assertMemoryPreflight(freeBytes: number, minFreeBytes: number): void {
     return;
   }
 
-  console.error('stable-unit-tests: BLOCKED before spawning Vitest workers');
+  console.error('stable-unit-tests: BLOCKED: not enough free memory to spawn Vitest workers');
   console.error(`  free memory: ${formatMib(freeBytes)} MiB`);
   console.error(`  required free memory: ${formatMib(minFreeBytes)} MiB`);
   console.error('  close other processes or lower WARP_TEST_MIN_FREE_MB with an explicit operator decision');
@@ -146,7 +145,7 @@ function listVitestResolvedFiles(entry: string, args: readonly string[]): Readon
 
 function vitestListFailure(result: SpawnSyncReturns<string>): string | undefined {
   if (result.error !== undefined) {
-    return `could not be run: ${result.error.message}`;
+    return `failed: ${result.error.message}`;
   }
   if (result.signal !== null) {
     return `was killed by signal ${result.signal}`;
@@ -206,20 +205,25 @@ function assertRunnerSelectsRunnables(resolved: ReadonlySet<string>, selected: R
     ]);
 }
 
-/** A filter shaped like a test file name that no file Vitest would run contains, so Vitest would skip it. */
+/** Mirrors Vitest's `filterFiles`: a lower-cased substring of a listed path, as typed or normalized from the root. */
 function isUnmatchedTestName(filter: string, resolved: ReadonlySet<string>): boolean {
-  const needle = filter.replace(/^\.\//, '');
-  return isTestFile(basename(filter)) && ![...resolved].some((path) => path.includes(needle));
+  const needles = [filter, relative(ROOT, resolve(ROOT, filter))].map((needle) => needle.toLowerCase());
+  return isTestFile(basename(filter))
+    && ![...resolved].some((path) => needles.some((needle) => path.toLowerCase().includes(needle)));
 }
 
-/** Fail closed on targeted file filters that name a file Vitest ignores, or a test file that does not exist. */
-function assertVitestRunsTargets(args: readonly string[], resolved: ReadonlySet<string>): void {
+/** Fail closed on a `--` tail, on file filters that name a file Vitest ignores, and on unmatched test names. */
+async function assertVitestRunsTargets(args: readonly string[], resolved: ReadonlySet<string>): Promise<void> {
+  const tail = args.includes('--') ? args.slice(args.indexOf('--') + 1) : [];
+  blockOnFiles((count) => `${count} ${count === 1 ? 'argument' : 'arguments'} after \`--\`, which Vitest does not use as a file filter:`,
+    tail, ['Put each file or filter before `--`; with nothing before it, Vitest runs the whole suite.']);
+  const { parseCLI } = await import('vitest/node');
   const filters = parseCLI(['vitest', 'run', ...args]).filter.map((filter) => ({
     filter, path: resolve(ROOT, filter), isFile: statSync(resolve(ROOT, filter), { throwIfNoEntry: false })?.isFile(),
   }));
-  const missing = filters.filter((target) => target.isFile === undefined && isUnmatchedTestName(target.filter, resolved));
-  blockOnFiles((count) => `${count} named test ${count === 1 ? 'file does' : 'files do'} not exist:`,
-    missing.map((target) => target.filter), ['Check the spelling and path; Vitest would have skipped them silently.']);
+  const unmatched = filters.filter((target) => target.isFile === undefined && isUnmatchedTestName(target.filter, resolved));
+  blockOnFiles((count) => `${count} named test ${count === 1 ? 'file matches' : 'files match'} no file that Vitest runs:`,
+    unmatched.map((target) => target.filter), ['Check the spelling and the path of each name.', `vitest.config.ts includes only ${VITEST_INCLUDE}.`]);
   const ignored = filters.filter((target) => target.isFile === true)
     .map((target) => relative(ROOT, target.path).split(sep).join('/')).filter((path) => !resolved.has(path));
   blockOnFiles((count) => `${countFiles(count, 'named ', '')} not run by Vitest:`, ignored, [
@@ -261,7 +265,7 @@ const targetArgs = process.argv.slice(2);
 const resolvedFiles = listVitestResolvedFiles(vitestListEntry(dryRun), targetArgs);
 
 if (targetArgs.length > 0) {
-  assertVitestRunsTargets(targetArgs, resolvedFiles);
+  await assertVitestRunsTargets(targetArgs, resolvedFiles);
   process.exit(runTargeted(targetArgs, workers, dryRun));
 }
 

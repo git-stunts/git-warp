@@ -18,6 +18,7 @@ const listFailureHeadline = 'stable-unit-tests: BLOCKED: `vitest list --filesOnl
 const blocked = 'stable-unit-tests: BLOCKED:';
 const includeQuote = 'vitest.config.ts includes only **/*.{test,spec}.?(c|m)[jt]s?(x) and **/benchmark/*.benchmark.ts.';
 const deleteRemedy = 'Rename or move each file to match, or delete it if it is not meant to run.';
+const unmatchedGuidance = 'Check the spelling and the path of each name.';
 const passingTest = "import { expect, it } from 'vitest';\nit('passes', () => { expect(1).toBe(1); });\n";
 const markedBenchmark = "import { it } from 'vitest';\nit('must not run', () => { throw new Error('THIS BENCHMARK RAN'); });\n";
 
@@ -61,22 +62,24 @@ function runStableUnitTests(options: {
   readonly freeMib?: string;
   readonly maxWorkers?: string;
   readonly realRun?: boolean;
+  readonly unset?: readonly string[];
   readonly vitestListEntry?: string;
 } = {}) {
+  const env = {
+    ...process.env,
+    NO_COLOR: '1',
+    WARP_STABLE_TEST_DRY_RUN: options.realRun === true ? '0' : '1',
+    WARP_TEST_FAKE_CPU_COUNT: '8',
+    WARP_TEST_FAKE_FREE_MB: options.freeMib ?? '2048',
+    WARP_TEST_FAKE_TOTAL_MB: '16384',
+    WARP_TEST_MAX_WORKERS: options.maxWorkers ?? '3',
+    WARP_TEST_MIN_FREE_MB: '512',
+    ...(options.vitestListEntry === undefined ? {} : { WARP_TEST_FAKE_VITEST_LIST_ENTRY: options.vitestListEntry }),
+  };
   const result = spawnSync(process.execPath, [scriptPath, ...(options.args ?? [])], {
     cwd: repoRoot,
     encoding: 'utf8',
-    env: {
-      ...process.env,
-      NO_COLOR: '1',
-      WARP_STABLE_TEST_DRY_RUN: options.realRun === true ? '0' : '1',
-      WARP_TEST_FAKE_CPU_COUNT: '8',
-      WARP_TEST_FAKE_FREE_MB: options.freeMib ?? '2048',
-      WARP_TEST_FAKE_TOTAL_MB: '16384',
-      WARP_TEST_MAX_WORKERS: options.maxWorkers ?? '3',
-      WARP_TEST_MIN_FREE_MB: '512',
-      ...(options.vitestListEntry === undefined ? {} : { WARP_TEST_FAKE_VITEST_LIST_ENTRY: options.vitestListEntry }),
-    },
+    env: Object.fromEntries(Object.entries(env).filter(([name]) => !(options.unset ?? []).includes(name))),
   });
 
   return {
@@ -171,7 +174,7 @@ describe('scripts/run-stable-unit-tests.ts', () => {
       vitestListEntry: writeVitestListStub(directory, "process.stdout.write('x'.repeat(2 * 1024 * 1024));"),
     });
     expect(result.status).toBe(1);
-    expect(result.output).toContain(`${listFailureHeadline} could not be run: spawnSync`);
+    expect(result.output).toContain(`${listFailureHeadline} failed: spawnSync`);
     expect(result.output).toContain('ENOBUFS');
   }));
 
@@ -197,17 +200,55 @@ describe('scripts/run-stable-unit-tests.ts', () => {
     expect(result.output).not.toContain('dry-run node');
   }));
 
-  it('refuses a targeted test file that does not exist', () => withUnitFixtures((directory) => {
+  it('refuses a targeted test-file name that matches no file Vitest runs', () => withUnitFixtures((directory) => {
     const good = writeFixture(directory, 'Good.test.ts');
+    writeFixture(directory, 'Bad.benchmark.ts');
     const missing = `${relative(repoRoot, directory).split(sep).join('/')}/DoesNotExist.test.ts`;
     const one = runStableUnitTests({ args: [good, missing, 'domain/stable-runner-fixture', 'Good.test.ts'] });
     expect(one.status).toBe(1);
-    expect(one.output).toContain(`${blocked} 1 named test file does not exist:`);
+    expect(one.output).toContain(`${blocked} 1 named test file matches no file that Vitest runs:`);
     expect(one.output).toContain(`  ${missing}`);
     expect(one.output).not.toContain('  Good.test.ts');
-    expect(one.output).toContain('Check the spelling and path; Vitest would have skipped them silently.');
-    const two = runStableUnitTests({ args: [good, missing, 'NoSuchName.spec.ts'] });
-    expect(two.output).toContain(`${blocked} 2 named test files do not exist:`);
+    expect(one.output).toContain(unmatchedGuidance);
+    expect(one.output).toContain(includeQuote);
+    const two = runStableUnitTests({ args: [good, missing, 'Bad.benchmark.ts'] });
+    expect(two.status).toBe(1);
+    expect(two.output).toContain(`${blocked} 2 named test files match no file that Vitest runs:`);
+    expect(two.output).toContain('  Bad.benchmark.ts');
+  }));
+
+  it('matches targeted names the way Vitest does: case-insensitive, raw or normalized', () => withUnitFixtures((directory) => {
+    const good = writeFixture(directory, 'Good.test.ts');
+    const folder = relative(repoRoot, directory).split(sep).join('/');
+    const name = folder.split('/').at(-1) ?? '';
+    for (const filter of [`${folder}/good.test.ts`, `${name}/../${name}/Good.test.ts`, './Good.test.ts']) {
+      const result = runStableUnitTests({ args: [good, filter] });
+      expect(result.status, `${filter}\n${result.output}`).toBe(0);
+    }
+  }));
+
+  it('refuses arguments after -- in a targeted run', () => withUnitFixtures((directory) => {
+    const good = writeFixture(directory, 'Good.test.ts');
+    const bad = writeFixture(directory, 'Bad.benchmark.ts');
+    const result = runStableUnitTests({ args: [good, '--', bad] });
+    expect(result.status).toBe(1);
+    expect(result.output).toContain(`${blocked} 1 argument after \`--\`, which Vitest does not use as a file filter:`);
+    expect(result.output).toContain(`  ${bad}`);
+    expect(result.output).not.toContain('dry-run node');
+    expect(runStableUnitTests({ args: [good, '--', bad, good] }).output)
+      .toContain(`${blocked} 2 arguments after \`--\`, which Vitest does not use as a file filter:`);
+    expect(runStableUnitTests({ args: [good, '--'] }).status).toBe(0);
+  }));
+
+  it('lists Vitest files for the run\'s own --config in a real run', () => withUnitFixtures((directory) => {
+    const good = writeFixture(directory, 'Good.test.ts', passingTest);
+    const other = writeFixture(directory, 'Other.test.ts', passingTest);
+    const config = writeFixture(directory, 'alt.config.mjs', `export default { test: { include: ['${other}'] } };\n`);
+    const result = runStableUnitTests({ args: ['--config', config, good, other], realRun: true });
+    expect(result.status, result.output).toBe(1);
+    expect(result.output).toContain(`${blocked} 1 named file is not run by Vitest:`);
+    expect(result.output).toContain(`  ${good}`);
+    expect(result.output).not.toContain('Test Files');
   }));
 
   it('judges only positional filters, never option values', () => withUnitFixtures((directory) => {
@@ -220,7 +261,7 @@ describe('scripts/run-stable-unit-tests.ts', () => {
     }
   }));
 
-  it('runs a real targeted file and refuses a real ignored one before any test runs', () => withUnitFixtures((directory) => {
+  it('runs a real targeted file (ignoring the list seam) and refuses a real ignored one before any test runs', () => withUnitFixtures((directory) => {
     const good = writeFixture(directory, 'Good.test.ts', passingTest);
     const bad = writeFixture(directory, 'Bad.benchmark.ts', markedBenchmark);
     const stub = writeVitestListStub(directory, 'process.exit(3);');
@@ -233,6 +274,13 @@ describe('scripts/run-stable-unit-tests.ts', () => {
     expect(refused.output).not.toContain('Test Files');
     expect(refused.output).not.toContain('THIS BENCHMARK RAN');
   }));
+
+  it('falls back to detected values when numeric overrides are unset', () => {
+    const result = runStableUnitTests({ unset: ['WARP_TEST_MAX_WORKERS', 'WARP_TEST_MIN_FREE_MB'] });
+    expect(result.status).toBe(0);
+    expect(result.output).toContain('max workers: 4');
+    expect(result.output).toContain('minimum free memory: 512 MiB');
+  });
 
   it('rejects malformed numeric overrides', () => {
     const workers = runStableUnitTests({ maxWorkers: '0' });
@@ -297,7 +345,7 @@ describe('scripts/run-stable-unit-tests.ts', () => {
     const result = runStableUnitTests({ freeMib: '256' });
 
     expect(result.status).toBe(1);
-    expect(result.output).toContain('stable-unit-tests: BLOCKED before spawning Vitest workers');
+    expect(result.output).toContain(`${blocked} not enough free memory to spawn Vitest workers`);
     expect(result.output).toContain('free memory: 256 MiB');
     expect(result.output).toContain('required free memory: 512 MiB');
     expect(result.output).not.toContain('dry-run node');
