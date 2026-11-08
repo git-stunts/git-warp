@@ -67,16 +67,21 @@ function listSources(directory: string): string[] {
 }
 
 function readAllowances(path: string): Readonly<{ paths: ReadonlySet<string>; problems: readonly string[] }> {
-  if (!existsSync(path)) return Object.freeze({ paths: new Set<string>(), problems: Object.freeze([]) });
+  const lines = existsSync(path) ? readFileSync(path, 'utf8').split('\n') : [];
   const paths = new Set<string>();
   const problems: string[] = [];
-  for (const line of readFileSync(path, 'utf8').split('\n')) {
-    if (line === '' || line.startsWith('# ')) continue;
-    const match = ALLOWANCE.exec(line);
-    const allowed = match?.[2];
-    if (allowed === undefined) problems.push(`MALFORMED allowance: ${line}`);
-    else if (paths.has(allowed)) problems.push(`DUPLICATE allowance ${allowed}`);
-    else paths.add(allowed);
+  for (const line of lines.filter((entry) => entry !== '' && !entry.startsWith('# '))) {
+    const problem = admitAllowance(line, paths);
+    if (problem !== null) problems.push(problem);
   }
   return Object.freeze({ paths, problems: Object.freeze(problems) });
+}
+
+/** Adds one owned allowance, or names why the line is refused. */
+function admitAllowance(line: string, paths: Set<string>): string | null {
+  const allowed = ALLOWANCE.exec(line)?.[2];
+  if (allowed === undefined) return `MALFORMED allowance: ${line}`;
+  if (paths.has(allowed)) return `DUPLICATE allowance ${allowed}`;
+  paths.add(allowed);
+  return null;
 }
