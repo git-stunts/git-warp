@@ -27,9 +27,14 @@ export default class UnsupportedWriteAttemptLayoutError extends WarpError {
 function messageOf({ ref, version, readable }: { readonly ref: string; readonly version: number; readonly readable: number }): string {
   const unread = `The write attempt record at ${ref} uses layout version ${String(version)}, which this git-warp does not read`;
   if (version === RETIRED_LAYOUT) {
-    return `${unread}; it holds no graph data, so delete only that ref: git update-ref -d ${ref}`;
+    return `${unread}; it holds no graph data, so delete only that ref, in the repository that holds the graph: git update-ref -d ${shellQuoted(ref)}`;
   }
   return version > readable
     ? `${unread}; a newer git-warp wrote it, so keep the ref and finish that attempt with that build`
     : `${unread}; no release writes that layout, so the record is corrupt: keep the ref and report it`;
+}
+
+/** One POSIX shell word, so a pasted remedy names exactly this ref whatever the graph name holds. */
+function shellQuoted(text: string): string {
+  return `'${text.replaceAll("'", "'\\''")}'`;
 }

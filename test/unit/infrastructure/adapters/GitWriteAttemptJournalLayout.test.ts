@@ -111,7 +111,7 @@ describe('a well-formed write attempt record in a layout other than 2', () => {
     await journal.save(record(OLD));
 
     store.rewrite(OLD_REF, (stored) => ({ ...stored, version: 1 }));
-    expect((await refusal(journal, OLD))?.message).toContain(`git update-ref -d ${OLD_REF}`);
+    expect((await refusal(journal, OLD))?.message).toContain(`in the repository that holds the graph: git update-ref -d '${OLD_REF}'`);
     store.rewrite(OLD_REF, (stored) => ({ ...stored, version: 0 }));
     const corrupt = (await refusal(journal, OLD))?.message;
     expect(corrupt).toContain('corrupt');
