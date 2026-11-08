@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
+import HostRandomAdapter from '../../../../src/infrastructure/adapters/HostRandomAdapter.ts';
 import SyncAuthService, {
   signSyncRequest,
   canonicalizePath,
@@ -10,6 +11,8 @@ import SyncAuthService, {
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
 import { createMockLogger } from '../../../helpers/mockPorts.ts';
+
+const HOST_RANDOM = new HostRandomAdapter();
 
 const SECRET_VALUE = 'test-secret-key-1234567890';
 const SECRET = SyncSecret.fromString(SECRET_VALUE);
@@ -179,7 +182,7 @@ describe('signSyncRequest', () => {
     const body = Buffer.from('hello');
     const headers = await signSyncRequest(
       { method: 'POST', path: '/sync', contentType: 'text/plain', body, secret: SECRET, keyId: KEY_ID, lamport: 1 },
-      { crypto: defaultCrypto },
+      { crypto: defaultCrypto, random: HOST_RANDOM },
     );
     expect(Object.keys(headers)).toHaveLength(6);
     expect(headers).toHaveProperty('x-warp-auth-scheme', 'shared-secret-hmac-sha256');
@@ -194,11 +197,11 @@ describe('signSyncRequest', () => {
     const body = Buffer.from('');
     const h1 = await signSyncRequest(
       { method: 'POST', path: '/', contentType: '', body, secret: SECRET, keyId: KEY_ID, lamport: 1 },
-      { crypto: defaultCrypto },
+      { crypto: defaultCrypto, random: HOST_RANDOM },
     );
     const h2 = await signSyncRequest(
       { method: 'POST', path: '/', contentType: '', body, secret: SECRET, keyId: KEY_ID, lamport: 2 },
-      { crypto: defaultCrypto },
+      { crypto: defaultCrypto, random: HOST_RANDOM },
     );
     expect(h1['x-warp-nonce']).not.toBe(h2['x-warp-nonce']);
   });
@@ -211,7 +214,7 @@ describe('signSyncRequest', () => {
     const body = Buffer.from('verify-me');
     const headers = await signSyncRequest(
       { method: 'POST', path: '/sync', contentType: 'text/plain', body, secret: SECRET, keyId: KEY_ID, lamport: 42 },
-      { crypto: defaultCrypto },
+      { crypto: defaultCrypto, random: HOST_RANDOM },
     );
     const req = {
       method: 'POST',
@@ -227,7 +230,7 @@ describe('signSyncRequest', () => {
     const body = Buffer.from('');
     const headers = await signSyncRequest(
       { method: 'POST', path: '/', contentType: '', body, secret: SECRET, keyId: 'custom-key', lamport: 1 },
-      { crypto: defaultCrypto },
+      { crypto: defaultCrypto, random: HOST_RANDOM },
     );
     expect(headers['x-warp-key-id']).toBe('custom-key');
   });

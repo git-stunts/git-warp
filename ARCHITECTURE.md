@@ -229,6 +229,7 @@ Abstract contracts between domain and infrastructure:
 - **CodecPort** — encode/decode (CBOR)
 - **CryptoPort** — hash, hmac, sign, verify
 - **ClockPort** — wall clock (injected, not ambient)
+- **RandomPort** — entropy for minted ids, nonces, and sampling seeds (injected, not ambient)
 - **LoggerPort** — structured logging
 - **PatchJournalPort** — streamed patch-entry scans
 - **CheckpointStorePort** — folded checkpoint state storage

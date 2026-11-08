@@ -5,6 +5,7 @@ import type { WarpState } from '../JoinReducer.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type RandomPort from '../../../ports/RandomPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type SyncTrustGate from '../sync/SyncTrustGate.ts';
@@ -29,6 +30,7 @@ export interface SyncHost {
   _persistence: CorePersistence;
   _codec: CodecPort;
   _crypto: CryptoPort;
+  _random: RandomPort;
   _logger: LoggerPort | null;
   _syncReplayProtection: SyncReplayProtectionPort | null;
   _patchJournal?: PatchJournalPort | null;

@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Route all domain entropy through an injected `RandomPort`. Generated writer
+  ids, unnamed strand ids, fork names and fork writer ids, index-verification
+  sampling seeds, and sync request nonces now draw bytes from the runtime's
+  port instead of host crypto globals, so a deterministic port reproduces them
+  exactly. Writer-id format, nonce wire format, and validation are unchanged;
+  a port that returns the wrong number of bytes fails with `EntropyError`
+  (`E_ENTROPY_SHORT_READ`) ([#184](https://github.com/git-stunts/git-warp/issues/184)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)
   trees instead of 64 ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).

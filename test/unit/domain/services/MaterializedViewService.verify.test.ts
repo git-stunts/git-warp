@@ -4,6 +4,10 @@ import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
+
+/** Seed the verifier derives from the bytes 0x00 0x01 0x02 0x03: 0x00010203 >>> 1. */
+const SEQUENCE_SEED = 33_025;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +51,7 @@ describe('MaterializedViewService.verifyIndex', () => {
     const result = service.verifyIndex({
       state,
       logicalIndex,
+      random: new SequenceRandomPort(),
       options: { sampleRate: 1.0, seed: 42 },
     });
 
@@ -78,6 +83,7 @@ describe('MaterializedViewService.verifyIndex', () => {
     const result = service.verifyIndex({
       state,
       logicalIndex,
+      random: new SequenceRandomPort(),
       options: { sampleRate: 1.0, seed: 99 },
     });
 
@@ -112,6 +118,7 @@ describe('MaterializedViewService.verifyIndex', () => {
     const result = service.verifyIndex({
       state,
       logicalIndex: (corruptedIndex),
+      random: new SequenceRandomPort(),
       options: { sampleRate: 1.0, seed: 777 },
     });
 
@@ -126,8 +133,8 @@ describe('MaterializedViewService.verifyIndex', () => {
 
     const opts = { sampleRate: 0.5, seed: 12345 };
 
-    const r1 = service.verifyIndex({ state, logicalIndex, options: opts });
-    const r2 = service.verifyIndex({ state, logicalIndex, options: opts });
+    const r1 = service.verifyIndex({ state, logicalIndex, random: new SequenceRandomPort(), options: opts });
+    const r2 = service.verifyIndex({ state, logicalIndex, random: new SequenceRandomPort(), options: opts });
 
     expect(r1.passed).toBe(r2.passed);
     expect(r1.failed).toBe(r2.failed);
@@ -143,22 +150,37 @@ describe('MaterializedViewService.verifyIndex', () => {
     const result = service.verifyIndex({
       state,
       logicalIndex,
+      random: new SequenceRandomPort(),
       options: { sampleRate: 0.001, seed: 42 },
     });
 
     expect(result.passed + result.failed).toBeGreaterThan(0);
   });
 
-  it('uses default seed and sampleRate when options omitted', () => {
+  it('derives the default seed only from the injected port', () => {
     const service = new MaterializedViewService({ codec: defaultCodec });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
+    const random = new SequenceRandomPort(0);
 
-    const result = service.verifyIndex({ state, logicalIndex });
+    const result = service.verifyIndex({ state, logicalIndex, random });
+    const replay = service.verifyIndex({ state, logicalIndex, random: new SequenceRandomPort(0) });
 
-    expect(typeof result.seed).toBe('number');
+    expect(result.seed).toBe(SEQUENCE_SEED);
+    expect(replay).toEqual(result);
+    expect(random.requests).toEqual([4]);
     expect(result.failed).toBe(0);
     expect(result.errors).toEqual([]);
+  });
+
+  it('does not draw entropy when the caller supplies a seed', () => {
+    const service = new MaterializedViewService({ codec: defaultCodec });
+    const state = buildTestState();
+    const { logicalIndex } = service.build(state);
+    const random = new SequenceRandomPort(0);
+
+    expect(service.verifyIndex({ state, logicalIndex, random, options: { seed: 5 } }).seed).toBe(5);
+    expect(random.requests).toEqual([]);
   });
 
   it('handles empty state without errors', () => {
@@ -169,6 +191,7 @@ describe('MaterializedViewService.verifyIndex', () => {
     const result = service.verifyIndex({
       state,
       logicalIndex,
+      random: new SequenceRandomPort(),
       options: { sampleRate: 1.0, seed: 1 },
     });
 
@@ -205,6 +228,7 @@ describe('MaterializedViewService.verifyIndex', () => {
     const result = service.verifyIndex({
       state,
       logicalIndex: (corruptedIndex),
+      random: new SequenceRandomPort(),
       options: { sampleRate: 1.0, seed: 123 },
     });
 

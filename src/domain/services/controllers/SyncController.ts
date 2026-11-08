@@ -30,6 +30,7 @@ import OperationPolicyExhaustedError from '../../errors/OperationPolicyExhausted
 import type OperationPolicyPort from '../../../ports/OperationPolicyPort.ts';
 import type { OperationPolicyExecuteOptions } from '../../../ports/OperationPolicyPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type RandomPort from '../../../ports/RandomPort.ts';
 import type SyncSecret from '../sync/SyncSecret.ts';
 import {
   mapsEqual,
@@ -80,7 +81,7 @@ type SyncMetadataResult = {
  */
 function resolveAuth(
   auth: { secret: SyncSecret; keyId?: string } | undefined,
-  crypto: CryptoPort,
+  signing: { crypto: CryptoPort; random: RandomPort },
   lamport: number,
 ): SyncHttpAuth | undefined {
   if (auth === undefined || auth.secret === undefined) { return undefined; }
@@ -89,7 +90,8 @@ function resolveAuth(
     secret: auth.secret,
     ...(auth.keyId !== undefined && auth.keyId !== '' ? { keyId: auth.keyId } : {}),
     lamport,
-    crypto,
+    crypto: signing.crypto,
+    random: signing.random,
   };
 }
 
@@ -447,7 +449,11 @@ export default class SyncController {
     emit: (type: string, payload?: SyncStatusPayload) => void,
   ): Promise<SyncResponse> {
     const httpClient = await this._resolveHttpClient();
-    const resolvedAuth = resolveAuth(auth, this._host._crypto, this._host._maxObservedLamport);
+    const resolvedAuth = resolveAuth(
+      auth,
+      { crypto: this._host._crypto, random: this._host._random },
+      this._host._maxObservedLamport,
+    );
     const result = await httpClient.exchange(
       {
         targetUrl, body: request, timeoutMs,

@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { inspect } from 'node:util';
 
 import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
+import HostRandomAdapter from '../../../../src/infrastructure/adapters/HostRandomAdapter.ts';
 import SyncAuthService, {
   signSyncRequest,
 } from '../../../../src/domain/services/sync/SyncAuthService.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
+
+const HOST_RANDOM = new HostRandomAdapter();
 
 describe('SyncSecret', () => {
   it('redacts accidental string, JSON, and inspect output', () => {
@@ -36,7 +39,7 @@ describe('SyncSecret', () => {
         keyId: 'default',
         lamport: 1,
       },
-      { crypto: defaultCrypto },
+      { crypto: defaultCrypto, random: HOST_RANDOM },
     );
 
     const result = await service.verify({

@@ -5,6 +5,7 @@ import OperationAbortedError from '../../../../../src/domain/errors/OperationAbo
 import SyncTrustGate from '../../../../../src/domain/services/sync/SyncTrustGate.ts';
 import SyncSecret from '../../../../../src/domain/services/sync/SyncSecret.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
+import SequenceRandomPort from '../../../../helpers/SequenceRandomPort.ts';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────
 
@@ -87,6 +88,7 @@ function createMockHost(overrides: Record<string, unknown> = {}): any {
       listRefs: vi.fn().mockResolvedValue([]),
     },
     _codec: {},
+    _random: new SequenceRandomPort(),
     _crypto: {
       hash: vi.fn().mockResolvedValue('abcdef'.repeat(10) + 'abcd'),
       hmac: vi.fn().mockResolvedValue('hmac-sig'),

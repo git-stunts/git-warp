@@ -3,7 +3,10 @@ import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.
 import { signSyncRequest } from '../../../../src/domain/services/sync/SyncAuthService.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import { createMockCrypto } from '../../../helpers/mockPorts.ts';
+import HostRandomAdapter from '../../../../src/infrastructure/adapters/HostRandomAdapter.ts';
 import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
+
+const HOST_RANDOM = new HostRandomAdapter();
 
 const SECRET = SyncSecret.fromString('test-secret');
 const KEY_ID = 'default';
@@ -35,7 +38,7 @@ async function signedBody(bodyObj) {
   const body = Buffer.from(JSON.stringify(bodyObj));
   const headers = await signSyncRequest(
     { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SECRET, keyId: KEY_ID, lamport: signLamport },
-    { crypto: TEST_CRYPTO },
+    { crypto: TEST_CRYPTO, random: HOST_RANDOM },
   );
   return { body, headers: { 'content-type': 'application/json', host: '127.0.0.1:9999', ...headers } };
 }
@@ -154,7 +157,7 @@ describe('HttpSyncServer auth integration', () => {
       const body = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
       const headers = await signSyncRequest(
         { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SyncSecret.fromString('wrong-secret'), keyId: KEY_ID, lamport: ++signLamport },
-        { crypto: TEST_CRYPTO },
+        { crypto: TEST_CRYPTO, random: HOST_RANDOM },
       );
       const res = await handler({
         method: 'POST',
@@ -212,7 +215,7 @@ describe('HttpSyncServer auth integration', () => {
       const lowLamportBody = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
       const lowHeaders = await signSyncRequest(
         { method: 'POST', path: '/sync', contentType: 'application/json', body: lowLamportBody, secret: SECRET, keyId: KEY_ID, lamport: 0 },
-        { crypto: TEST_CRYPTO },
+        { crypto: TEST_CRYPTO, random: HOST_RANDOM },
       );
       const res2 = await handler({
         method: 'POST', url: '/sync',
@@ -226,7 +229,7 @@ describe('HttpSyncServer auth integration', () => {
       const body = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
       const headers = await signSyncRequest(
         { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SECRET, keyId: 'unknown-key', lamport: ++signLamport },
-        { crypto: TEST_CRYPTO },
+        { crypto: TEST_CRYPTO, random: HOST_RANDOM },
       );
       const res = await handler({
         method: 'POST',
@@ -270,7 +273,7 @@ describe('HttpSyncServer auth integration', () => {
       const body = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
       const headers = await signSyncRequest(
         { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SyncSecret.fromString('wrong-secret'), keyId: KEY_ID, lamport: ++signLamport },
-        { crypto: TEST_CRYPTO },
+        { crypto: TEST_CRYPTO, random: HOST_RANDOM },
       );
       const res = await handler({
         method: 'POST',
@@ -558,7 +561,7 @@ describe('HttpSyncServer auth integration', () => {
       const body = Buffer.from(JSON.stringify(bodyObj));
       const headers = await signSyncRequest(
         { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SyncSecret.fromString('wrong-secret'), keyId: KEY_ID, lamport: ++signLamport },
-        { crypto: TEST_CRYPTO },
+        { crypto: TEST_CRYPTO, random: HOST_RANDOM },
       );
       const res = await handler({
         method: 'POST',
