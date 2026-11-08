@@ -4,9 +4,9 @@
 import './RequireDockerTests.ts';
 
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { availableParallelism, freemem, totalmem } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import StableUnitTestPartition, { type UnitTestShard } from './StableUnitTestPartition.ts';
@@ -163,31 +163,68 @@ function runVitest(args: readonly string[], dryRun: boolean): number {
 }
 
 /** Vitest's own resolution of its include and exclude globs; stderr reaches the operator unchanged. */
-function listVitestResolvedFiles(): Readonly<{ files: ReadonlySet<string>; status: number | null }> {
-  const result = spawnSync(process.execPath, [VITEST_ENTRY, 'list', '--filesOnly'], {
+function listVitestResolvedFiles(): ReadonlySet<string> {
+  const entry = process.env['WARP_TEST_FAKE_VITEST_LIST_ENTRY'] ?? VITEST_ENTRY;
+  const result = spawnSync(process.execPath, [entry, 'list', '--filesOnly'], {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'inherit'],
   });
-  const files = new Set(result.stdout.split('\n').map((line) => line.trim()).filter((line) => line !== ''));
-  return { files, status: result.status };
+  assertVitestListSucceeded(result.status);
+  return new Set(result.stdout.split('\n').map((line) => line.trim()).filter((line) => line !== ''));
 }
 
-/** Fail closed when the partition selects a file that Vitest does not resolve as runnable. */
-function assertVitestRunsSelection(paths: readonly string[]): void {
-  const resolved = listVitestResolvedFiles();
-  const ignored = paths.filter((path) => !resolved.files.has(path));
-  if (ignored.length === 0) {
+function assertVitestListSucceeded(status: number | null): void {
+  if (status === SUCCESS_EXIT_CODE) {
     return;
   }
 
-  console.error('stable-unit-tests: BLOCKED selected files that Vitest does not run');
-  console.error(`  vitest list exit status: ${String(resolved.status)}`);
-  for (const path of ignored) {
-    console.error(`  ${path}`);
-  }
-  console.error('  rename or move each file so the vitest.config.ts include globs select it');
+  console.error(`stable-unit-tests: BLOCKED: \`vitest list --filesOnly\` exited ${String(status)}`);
+  console.error('  No test file was judged; its error output is printed above.');
+  console.error('  Fix the Vitest failure, then rerun.');
   process.exit(FAILURE_EXIT_CODE);
+}
+
+function blockOnFiles(headline: string, paths: readonly string[], guidance: readonly string[]): void {
+  if (paths.length === 0) {
+    return;
+  }
+
+  console.error(`stable-unit-tests: BLOCKED: ${headline}`);
+  for (const line of [...paths, ...guidance]) {
+    console.error(`  ${line}`);
+  }
+  process.exit(FAILURE_EXIT_CODE);
+}
+
+const countFiles = (count: number, before: string, after: string): string =>
+  `${count} ${before}${count === 1 ? 'file' : 'files'}${after} ${count === 1 ? 'is' : 'are'}`;
+
+/** Fail closed when the runner selects a file that Vitest's include and exclude globs ignore. */
+function assertVitestRunsSelection(paths: readonly string[], resolved: ReadonlySet<string>): void {
+  const ignored = paths.filter((path) => !resolved.has(path));
+  blockOnFiles(`${countFiles(ignored.length, 'selected ', '')} not run by Vitest:`, ignored, [
+    'vitest.config.ts runs only *.test.* / *.spec.* files and benchmark/*.benchmark.ts.',
+    'Rename or move each file to match, or delete it if it is not meant to run.',
+  ]);
+}
+
+/** Fail closed when Vitest would run a unit test that the partition never selects. */
+function assertRunnerSelectsRunnables(resolved: ReadonlySet<string>, selected: ReadonlySet<string>): void {
+  const unselected = [...resolved].filter((path) => path.startsWith('test/unit/') && !selected.has(path));
+  blockOnFiles(`${countFiles(unselected.length, '', ' under test/unit/')} run by Vitest but never selected by the stable runner:`,
+    unselected, [
+      'The stable runner selects *.test.*, *.spec.* and *.benchmark.* files ending in .js, .jsx, .ts, .tsx,',
+      '.mjs, .mts, .cjs or .cts, and it does not follow symlinked directories.',
+      'Rename or move each file to match, or delete it if it is not meant to run.',
+    ]);
+}
+
+/** Targeted arguments that name an existing file, as repo-relative `/` paths; filters and flags are left out. */
+function targetedFilePaths(args: readonly string[]): string[] {
+  return args.map((arg) => resolve(ROOT, arg))
+    .filter((path) => statSync(path, { throwIfNoEntry: false })?.isFile() === true)
+    .map((path) => relative(ROOT, path).split(sep).join('/'));
 }
 
 function runShard(shard: UnitTestShard, workers: number, dryRun: boolean): number {
@@ -220,13 +257,17 @@ printRunnerFacts({
 assertMemoryPreflight(freeBytes, minFreeBytes);
 
 const targetArgs = process.argv.slice(2);
+const resolvedFiles = listVitestResolvedFiles();
 
 if (targetArgs.length > 0) {
+  assertVitestRunsSelection(targetedFilePaths(targetArgs), resolvedFiles);
   process.exit(runTargeted(targetArgs, workers, dryRun));
 }
 
 const partition = StableUnitTestPartition.fromInventory(listRecursiveTestFiles('test/unit'));
-assertVitestRunsSelection(partition.shards.flatMap((shard) => shard.paths));
+const selectedPaths = partition.shards.flatMap((shard) => shard.paths);
+assertVitestRunsSelection(selectedPaths, resolvedFiles);
+assertRunnerSelectsRunnables(resolvedFiles, new Set(selectedPaths));
 
 for (const shard of partition.shards) {
   const exitCode = runShard(shard, workers, dryRun);
