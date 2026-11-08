@@ -71,10 +71,12 @@ Run the migration without `--dry-run`; the framed application discovers graph
 names, reports source and scratch capacity, and asks for confirmation:
 
 ```bash
-GRAPH_NAME=your-graph-name
+GRAPH_NAME='<graph-name>' # one of the names the discovery listed
+```
 
-npm exec --package=@git-stunts/git-warp@19.1.0 -- \
-  git-warp-v18-to-v19 \
+<!-- v18-to-v19-cli: example promote shell -->
+```bash
+npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
   --repo "$REPOSITORY" \
   --graph "$GRAPH_NAME"
 ```

@@ -71,6 +71,7 @@ not fixed: one Git repository may contain several independent WARP graphs.
 
 Run the migration once:
 
+<!-- v18-to-v19-cli: example promote literal -->
 ```bash
 npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \
@@ -88,6 +89,89 @@ Use `--yes` for non-interactive automation and `--json` for a machine-readable
 final report. Before confirmation, the summary also reports current Git object
 storage, the scratch path, free space on the scratch and source Git volumes,
 and whether scratch free space meets the operating budget.
+
+### Command reference
+
+`--help` prints the complete flag list and the default behavior:
+
+<!-- v18-to-v19-cli: help -->
+```text
+Usage: git-warp-v18-to-v19 --repo <path> --graph <graph-name> [options]
+
+Options:
+  --repo <path>             Git repository that holds the graph (required).
+  --graph <graph-name>      Discovered graph name to migrate (required).
+  --dry-run                 Rehearse fully, then discard the verified scratch repo.
+  --yes                     Skip the interactive confirmation for automation.
+  --apply                   Compatibility alias for the default promotion mode.
+  --json                    Print the machine-readable report.
+  --recovery-id <token>     Stable recovery-ref suffix for operator tracking.
+  --scratch-root <path>     Place disposable repositories on this volume.
+  -h, --help                Show this help.
+
+The default is one pass: discover, confirm, rehearse, promote, and verify.
+Discovery lists every graph and whether it is current or needs an upgrade.
+Without --yes, the command requires an interactive terminal and asks for
+confirmation before inventory. Authoritative refs change only in the final
+compare-and-swap transaction, after the scratch proof succeeds.
+A separate --dry-run is intentionally disposable and cannot be reused.
+For encrypted stores, set GIT_WARP_MIGRATION_PASSPHRASE in the environment.
+```
+
+### What the command reports
+
+Each transcript below is the real output of the `--yes` form, checked against
+the command by the repository's test suite. Paths and graph names are replaced
+by the same placeholders as the examples above. Errors are written to standard
+error and exit with status 1.
+
+A `--repo` path that does not exist, or that Git does not recognize as a
+repository, stops before discovery:
+
+<!-- v18-to-v19-cli: outcome repository-not-found -->
+```console
+$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --yes
+git-warp-v18-to-v19: Repository not found: /path/to/repository does not exist
+```
+
+A repository without any git-warp graph has nothing to migrate:
+
+<!-- v18-to-v19-cli: outcome empty-repository -->
+```console
+$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --yes
+git-warp-v18-to-v19: Graph not found: <graph-name>
+Graphs found: none
+```
+
+A name that the repository does not hold stops before migration work and lists
+every graph that discovery found. In this transcript the repository holds a v18
+graph named `orders` and a current graph named `team-notes`; your repository
+reports its own names. Rerun with one of the listed names:
+
+<!-- v18-to-v19-cli: outcome graph-not-found -->
+```console
+$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --yes
+git-warp-v18-to-v19: Graph not found: <graph-name>
+Graphs found:
+  - orders — upgrade required (legacy unmarked substrate); 1 writer; 1 ref
+  - team-notes — v19 current; 0 writers; 1 ref
+```
+
+A graph that already carries the current substrate marker needs no upgrade.
+The command verifies it through a disposable append and bounded reading,
+changes no refs, and prints this report on standard output with status 0:
+
+<!-- v18-to-v19-cli: outcome already-current -->
+```console
+$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --yes
+git-warp v18-to-v19 migration completed successfully
+status: already-current
+repository: /path/to/repository
+graph: <graph-name>
+writers: 0
+scratch verified: no
+authoritative refs changed: no
+```
 
 ### Maintenance-window checklist
 
@@ -111,7 +195,7 @@ being migrated.
 3. Record the selected graph's starting refs somewhere outside the repository.
 
    ```bash
-   GRAPH_NAME=your-graph-name
+   GRAPH_NAME='<graph-name>'
    REF_SNAPSHOT=/path/to/warp-refs.before.txt
 
    git -C "$REPOSITORY" for-each-ref \
@@ -267,6 +351,7 @@ The normal command performs the scratch proof and promotion in one invocation.
 Use `--dry-run` only when you explicitly want a rehearsal whose result will be
 discarded:
 
+<!-- v18-to-v19-cli: example dry-run literal -->
 ```bash
 npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \

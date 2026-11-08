@@ -24,6 +24,7 @@ The migration has five boundaries:
 Stop every process that can write to the repository and make a normal backup.
 After installing v19 without starting the application, run the migration:
 
+<!-- v18-to-v19-cli: example promote literal -->
 ```bash
 npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \
@@ -34,6 +35,36 @@ The command discovers the repository's graph names before it does migration
 work. If `<graph-name>` is wrong, it stops with `Graph not found` and lists the
 graphs it did find, including their version posture, writer count, and ref
 count. A repository may contain any number of independently named graphs.
+
+`--help` prints the complete flag list and the default behavior:
+
+<!-- v18-to-v19-cli: help -->
+```text
+Usage: git-warp-v18-to-v19 --repo <path> --graph <graph-name> [options]
+
+Options:
+  --repo <path>             Git repository that holds the graph (required).
+  --graph <graph-name>      Discovered graph name to migrate (required).
+  --dry-run                 Rehearse fully, then discard the verified scratch repo.
+  --yes                     Skip the interactive confirmation for automation.
+  --apply                   Compatibility alias for the default promotion mode.
+  --json                    Print the machine-readable report.
+  --recovery-id <token>     Stable recovery-ref suffix for operator tracking.
+  --scratch-root <path>     Place disposable repositories on this volume.
+  -h, --help                Show this help.
+
+The default is one pass: discover, confirm, rehearse, promote, and verify.
+Discovery lists every graph and whether it is current or needs an upgrade.
+Without --yes, the command requires an interactive terminal and asks for
+confirmation before inventory. Authoritative refs change only in the final
+compare-and-swap transaction, after the scratch proof succeeds.
+A separate --dry-run is intentionally disposable and cannot be reused.
+For encrypted stores, set GIT_WARP_MIGRATION_PASSPHRASE in the environment.
+```
+
+The [v19 migration guide](../../docs/migrations/v19/README.md#what-the-command-reports)
+quotes the output for a missing repository, an empty repository, an unknown
+graph name, and a graph that is already current.
 
 In an interactive terminal, the command displays the selected graph and exact
 mode in a framed application, then waits for confirmation before inventory or
@@ -71,6 +102,7 @@ public API, and validates its receipt.
 
 Use `--dry-run` only when you explicitly want a disposable rehearsal:
 
+<!-- v18-to-v19-cli: example dry-run literal -->
 ```bash
 npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
   --repo /path/to/repository \

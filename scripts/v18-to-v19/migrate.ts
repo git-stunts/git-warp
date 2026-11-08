@@ -9,92 +9,126 @@ import { pathToFileURL } from 'node:url';
 import { formatFailure } from '../formatFailure.ts';
 import { runV18MigrationApp } from './V18MigrationApp.ts';
 import { runV18ToV19Migration, type V18MigrationCommandReport } from './V18MigrationCommand.ts';
-import V18MigrationExecutionMode from './V18MigrationExecutionMode.ts';
+import type V18MigrationGraph from './V18MigrationGraph.ts';
 import V18MigrationGraphCatalog from './V18MigrationGraphCatalog.ts';
 import {
   formatV18MigrationPreflight,
   inspectV18MigrationPreflight,
+  type V18MigrationPreflight,
 } from './V18MigrationPreflight.ts';
 import { type V18MigrationProgress, v18MigrationProgressPercent } from './V18MigrationProgress.ts';
 import V18MigrationProgressCoalescer from './V18MigrationProgressCoalescer.ts';
 import { formatV18MigrationReport } from './V18MigrationReport.ts';
 import { createV18MigrationTheme } from './V18MigrationTheme.ts';
+import { V18_MIGRATION_CLI_FLAGS } from './V18MigrationCliContract.ts';
+import { formatV18MigrationCliHelp } from './V18MigrationCliHelp.ts';
+import {
+  isV18MigrationCliHelpRequest,
+  parseV18MigrationCliOptions,
+  type V18MigrationCliOptions,
+} from './V18MigrationCliOptions.ts';
+import { requireV18MigrationRepository } from './V18MigrationRepository.ts';
 
-export type V18MigrationCliOptions = Readonly<{
-  assumeYes: boolean;
-  graph: string;
-  json: boolean;
-  mode: V18MigrationExecutionMode;
-  recoveryId?: string;
+type V18MigrationTarget = Readonly<{
+  catalog: V18MigrationGraphCatalog;
+  graph: V18MigrationGraph;
+  preflight: V18MigrationPreflight;
   repositoryPath: string;
-  scratchRoot?: string;
 }>;
 
+/** A finished run, or null when the operator cancelled before any ref changed. */
+type V18MigrationRun = Readonly<{ interactive: boolean; report: V18MigrationCommandReport }> | null;
+
 async function main(): Promise<void> {
-  if (process.argv.includes('--help') || process.argv.includes('-h')) {
-    process.stdout.write(usage());
+  const args = process.argv.slice(2);
+  if (isV18MigrationCliHelpRequest(args)) {
+    process.stdout.write(formatV18MigrationCliHelp());
     return;
   }
-  const options = parseV18MigrationCliOptions(process.argv.slice(2));
+  const options = parseV18MigrationCliOptions(args);
+  const target = await discoverTarget(options);
+  const run = options.assumeYes
+    ? await runAutomated(options, target)
+    : await runInteractive(options, target);
+  if (run !== null) {
+    writeReport(options, run);
+  }
+}
+
+async function discoverTarget(options: V18MigrationCliOptions): Promise<V18MigrationTarget> {
   const repositoryPath = resolve(options.repositoryPath);
+  await requireV18MigrationRepository(repositoryPath);
   const catalog = await V18MigrationGraphCatalog.discover(repositoryPath);
   const graph = catalog.require(options.graph);
   const preflight = await inspectV18MigrationPreflight({
     repositoryPath,
     ...(options.scratchRoot === undefined ? {} : { scratchRoot: options.scratchRoot }),
   });
-  const ctx = migrationContext();
+  return Object.freeze({ catalog, graph, preflight, repositoryPath });
+}
+
+function sharedOptions(options: V18MigrationCliOptions, repositoryPath: string) {
   const passphrase = process.env['GIT_WARP_MIGRATION_PASSPHRASE'];
-  const sharedOptions = {
+  return {
     mode: options.mode,
     repositoryPath,
     ...(passphrase === undefined ? {} : { passphrase }),
     ...(options.recoveryId === undefined ? {} : { recoveryId: options.recoveryId }),
     ...(options.scratchRoot === undefined ? {} : { scratchRoot: options.scratchRoot }),
   };
-  let report: V18MigrationCommandReport;
-  let usedInteractiveApp = false;
-  if (!options.assumeYes) {
-    requireInteractiveConfirmation(catalog.summary());
-    usedInteractiveApp = true;
-    const result = await runV18MigrationApp({
-      context: ctx,
-      graph,
-      preflight,
-      ...sharedOptions,
-    });
-    if (result.status === 'cancelled') {
-      process.stdout.write('v18-to-v19 migration cancelled; no refs changed\n');
-      return;
-    }
-    if (result.status === 'failed') {
-      throw result.error;
-    }
-    report = result.report;
-  } else {
-    process.stderr.write(`${catalog.summary()}\n${formatV18MigrationPreflight(preflight)}\n`);
-    const progress = new V18MigrationProgressCoalescer((update) => {
-      process.stderr.write(formatProgress(update, ctx));
-    });
-    try {
-      report = await runV18ToV19Migration({
-        ...sharedOptions,
-        graph: options.graph,
-        progress: (update) => progress.report(update),
-      });
-    } finally {
-      progress.flushBestEffort();
-    }
+}
+
+async function runInteractive(
+  options: V18MigrationCliOptions,
+  target: V18MigrationTarget
+): Promise<V18MigrationRun> {
+  requireInteractiveConfirmation(target.catalog.summary());
+  const result = await runV18MigrationApp({
+    context: migrationContext(),
+    graph: target.graph,
+    preflight: target.preflight,
+    ...sharedOptions(options, target.repositoryPath),
+  });
+  if (result.status === 'cancelled') {
+    process.stdout.write('v18-to-v19 migration cancelled; no refs changed\n');
+    return null;
   }
-  if (usedInteractiveApp) {
-    process.stderr.write(formatV18MigrationReport(report));
+  if (result.status === 'failed') {
+    throw result.error;
+  }
+  return Object.freeze({ interactive: true, report: result.report });
+}
+
+async function runAutomated(
+  options: V18MigrationCliOptions,
+  target: V18MigrationTarget
+): Promise<V18MigrationRun> {
+  process.stderr.write(`${target.catalog.summary()}\n${formatV18MigrationPreflight(target.preflight)}\n`);
+  const ctx = migrationContext();
+  const progress = new V18MigrationProgressCoalescer((update) => {
+    process.stderr.write(formatProgress(update, ctx));
+  });
+  try {
+    const report = await runV18ToV19Migration({
+      ...sharedOptions(options, target.repositoryPath),
+      graph: options.graph,
+      progress: (update) => progress.report(update),
+    });
+    return Object.freeze({ interactive: false, report });
+  } finally {
+    progress.flushBestEffort();
+  }
+}
+
+/** The interactive app owns the terminal, so its durable report goes to stderr. */
+function writeReport(options: V18MigrationCliOptions, run: NonNullable<V18MigrationRun>): void {
+  if (run.interactive) {
+    process.stderr.write(formatV18MigrationReport(run.report));
   }
   if (options.json) {
-    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-    return;
-  }
-  if (!usedInteractiveApp) {
-    process.stdout.write(formatV18MigrationReport(report));
+    process.stdout.write(`${JSON.stringify(run.report, null, 2)}\n`);
+  } else if (!run.interactive) {
+    process.stdout.write(formatV18MigrationReport(run.report));
   }
 }
 
@@ -112,104 +146,29 @@ function requireInteractiveConfirmation(catalogSummary: string): void {
   if (!process.stdin.isTTY || !process.stderr.isTTY) {
     process.stderr.write(`${catalogSummary}\n`);
     throw new Error(
-      'confirmation requires an interactive terminal; inspect the graph list and rerun with --yes'
+      `confirmation requires an interactive terminal; inspect the graph list and rerun with ${V18_MIGRATION_CLI_FLAGS.yes.name}`
     );
   }
 }
 
 function formatProgress(progress: V18MigrationProgress, ctx: BijouContext): string {
   const writer = progress.writer === undefined ? '' : ` ${progress.writer}`;
-  const count =
-    progress.completed === undefined || progress.total === undefined
-      ? ''
-      : ` ${String(progress.completed)}/${String(progress.total)}`;
-  const bar =
-    progress.completed === undefined || progress.total === undefined
-      ? ''
-      : `\n  ${progressBar(v18MigrationProgressPercent(progress.completed, progress.total), {
-          ctx,
-          width: 28,
-        })}`;
-  return `v18-to-v19 [${progress.phase}]${writer}${count}: ${progress.message}${bar}\n`;
+  const completion = formatCompletion(progress, ctx);
+  return `v18-to-v19 [${progress.phase}]${writer}${completion.count}: ${progress.message}${completion.bar}\n`;
 }
 
-export function parseV18MigrationCliOptions(args: readonly string[]): V18MigrationCliOptions {
-  let applySeen = false;
-  let assumeYes = false;
-  let dryRunSeen = false;
-  let graph: string | null = null;
-  let json = false;
-  let mode = V18MigrationExecutionMode.promote();
-  let recoveryId: string | undefined;
-  let repositoryPath: string | null = null;
-  let scratchRoot: string | undefined;
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === '--apply') {
-      applySeen = true;
-    } else if (arg === '--dry-run') {
-      dryRunSeen = true;
-      mode = V18MigrationExecutionMode.rehearse();
-    } else if (arg === '--yes') {
-      assumeYes = true;
-    } else if (arg === '--json') {
-      json = true;
-    } else if (arg === '--graph') {
-      graph = requireValue(args, (index += 1), '--graph');
-    } else if (arg === '--repo') {
-      repositoryPath = requireValue(args, (index += 1), '--repo');
-    } else if (arg === '--recovery-id') {
-      recoveryId = requireValue(args, (index += 1), '--recovery-id');
-    } else if (arg === '--scratch-root') {
-      scratchRoot = requireValue(args, (index += 1), '--scratch-root');
-    } else {
-      throw new Error(`unknown argument: ${String(arg)}`);
-    }
+function formatCompletion(
+  progress: V18MigrationProgress,
+  ctx: BijouContext
+): Readonly<{ bar: string; count: string }> {
+  if (progress.completed === undefined || progress.total === undefined) {
+    return { bar: '', count: '' };
   }
-  if (graph === null || repositoryPath === null) {
-    throw new Error(`--repo and --graph are required\n\n${usage()}`);
-  }
-  if (applySeen && dryRunSeen) {
-    throw new Error('--apply cannot be combined with --dry-run');
-  }
-  return Object.freeze({
-    assumeYes,
-    graph,
-    json,
-    mode,
-    repositoryPath,
-    ...(recoveryId === undefined ? {} : { recoveryId }),
-    ...(scratchRoot === undefined ? {} : { scratchRoot }),
-  });
-}
-
-function requireValue(args: readonly string[], index: number, option: string): string {
-  const value = args[index];
-  if (value === undefined || value.startsWith('--')) {
-    throw new Error(`${option} requires a value`);
-  }
-  return value;
-}
-
-function usage(): string {
-  return [
-    'Usage: git-warp-v18-to-v19 --repo <path> --graph <name> [options]',
-    '',
-    'Options:',
-    '  --dry-run               Rehearse fully, then discard the verified scratch repo.',
-    '  --yes                   Skip the interactive confirmation for automation.',
-    '  --apply                 Compatibility alias for the default promotion mode.',
-    '  --json                  Print the machine-readable report.',
-    '  --recovery-id <token>   Stable recovery-ref suffix for operator tracking.',
-    '  --scratch-root <path>    Place disposable repositories on this volume.',
-    '  -h, --help              Show this help.',
-    '',
-    'The default is one pass: discover, confirm, rehearse, promote, and verify.',
-    'Discovery lists every graph and whether it is current or needs an upgrade.',
-    'A separate --dry-run is intentionally disposable and cannot be reused.',
-    'For encrypted stores, set GIT_WARP_MIGRATION_PASSPHRASE in the environment.',
-    '',
-  ].join('\n');
+  const percent = v18MigrationProgressPercent(progress.completed, progress.total);
+  return {
+    bar: `\n  ${progressBar(percent, { ctx, width: 28 })}`,
+    count: ` ${String(progress.completed)}/${String(progress.total)}`,
+  };
 }
 
 if (isMainModule()) {
