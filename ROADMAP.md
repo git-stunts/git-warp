@@ -17,7 +17,7 @@ In `v20` and earlier, git-warp answers a query by folding the full history of al
 
 ### How the work fits together
 
-The critical path below starts with the retention cost of an observation (`#1080`) and the access behavior of `Warp.open` (`#1078`). Optic reads (`#1052`) come next, then receipt coordinates and strands (`#1053`), then the newcomer path and operator CLI (`#1055`, `#1057`), then the legacy deletion (`#1054`, `#814`), and last the bounded-memory proof (`#823`). The retained-substrate chain (`#815` to `#822`) and the write-path hardening (`#1072` to `#1080`) feed that path.
+The critical path below is the retained-substrate chain. It starts with the retained graph manifests (`#815`). Next come the attachment references (`#819`), the recursive references across CAS boundaries (`#821`), and the migration into indexed graph roots (`#822`). After that chain, `#814` removes the full-state contracts, and the bounded-memory proof (`#823`) is last. The legacy deletion (`#1054`) waits only for the release reconciliation (`#1079`), and it feeds `#814`. The optic path also feeds `#814`: `#1078`, `#1079`, and `#1080` come before optic reads (`#1052`), then receipt coordinates and strands (`#1053`), then the newcomer path and operator CLI (`#1055`, `#1057`). The write-path hardening (`#1072` to `#1080`) feeds the optic path.
 
 ### Out of scope for v21.0.0
 
@@ -29,73 +29,81 @@ GitHub is the source of truth. Each task is a GitHub issue whose body follows th
 
 <!-- BEGIN GENERATED ISSUE DAG (issue-dag --emit-roadmap; do not edit by hand) -->
 
-Compiled from GitHub `git-stunts/git-warp` milestone `v21.0.0`. Artifact hash `259782fef326b07f`. Regenerate with `issue_dag_snapshot.py --from-github --milestone <m> --emit-roadmap`.
+Compiled from GitHub `git-stunts/git-warp` milestone `v21.0.0`. Artifact hash `5caabd54337e9c09`. Regenerate with `issue_dag_snapshot.py --from-github --milestone <m> --emit-roadmap`.
 
 ## DAG Structural Health
 
 | Metric | Value |
 | --- | --- |
-| Open nodes | 53 |
-| Reduced edges (raw) | 50 (58) |
-| Edge density | 0.0363 (in band 0.01–0.50) |
-| Max parallel width | 23 |
-| Critical path (7) | #1080 → #1052 → #1053 → #1055 → #1054 → #814 → #823 |
-| Isolated nodes | 10 |
+| Open nodes | 58 |
+| Reduced edges (raw) | 53 (61) |
+| Edge density | 0.0321 (in band 0.01–0.50) |
+| Max parallel width | 27 |
+| Critical path (6) | #815 → #819 → #821 → #822 → #814 → #823 |
+| Isolated nodes | 12 |
 | Containers excluded | #1048, #1039, #905, #824, #565, #523, #232, #224 |
 
 ## Ranked Open Frontier (Wave 0)
 
 | Rank | Score | Issue | Title | Status | Unblocks | Depth | Locks | Directly unlocks |
 | ---: | ---: | --- | --- | --- | ---: | ---: | --- | --- |
-| 1 | 2372 | [#1078](https://github.com/git-stunts/git-warp/issues/1078) | fix(runtime): settle what Warp.open does before access, and guard clone-local write refs | parked | 18 | 7 | `host/heavy-work` | #1052, #1077 |
-| 2 | 1872 | [#1080](https://github.com/git-stunts/git-warp/issues/1080) | perf(runtime): each retained observation costs about 300 loose objects and a permanent ref | open | 18 | 7 | `host/heavy-work` | #1052, #1077 |
-| 3 | 1771 | [#1079](https://github.com/git-stunts/git-warp/issues/1079) | chore(release): payload headroom and contract reconciliation before v21 | open | 17 | 7 | `docs/` | #1052 |
+| 1 | 2752 | [#1078](https://github.com/git-stunts/git-warp/issues/1078) | fix(runtime): settle what Warp.open does before access, and guard clone-local write refs | in-progress | 17 | 5 | `host/heavy-work` | #1052, #1077 |
+| 2 | 1752 | [#1079](https://github.com/git-stunts/git-warp/issues/1079) | chore(release): payload headroom and contract reconciliation before v21 | open | 17 | 5 | `docs/`, `host/heavy-work` | #1052, #1054 |
+| 3 | 1752 | [#1080](https://github.com/git-stunts/git-warp/issues/1080) | perf(runtime): each retained observation costs about 300 loose objects and a permanent ref | open | 17 | 5 | `host/heavy-work` | #1052, #1077 |
 | 4 | 1362 | [#815](https://github.com/git-stunts/git-warp/issues/815) | Define retained graph manifests and bounded ordinal address pages | open | 13 | 6 | `host/heavy-work` | #816, #819 |
 | 5 | 1262 | [#192](https://github.com/git-stunts/git-warp/issues/192) | IncrementalIndexUpdater leans on `Record<string, unknown>` and a duck-typed `WarpStateLike` | open | 12 | 6 | `host/heavy-work` | #228, #816 |
-| 6 | 861 | [#1072](https://github.com/git-stunts/git-warp/issues/1072) | fix(api): retain write races in the receipt core | open | 8 | 6 | `host/heavy-work` | #1053 |
-| 7 | 621 | [#1032](https://github.com/git-stunts/git-warp/issues/1032) | chore(security): re-review the four expired accepted risks | parked | 1 | 2 | `docs/` | #823 |
-| 8 | 510 | [#1070](https://github.com/git-stunts/git-warp/issues/1070) | Stable unit runner can select test files that Vitest never runs | parked | 0 | 1 | `scripts/` | — |
+| 6 | 1010 | [#1070](https://github.com/git-stunts/git-warp/issues/1070) | Stable unit runner can select test files that Vitest never runs | in-progress | 0 | 1 | `scripts/` | — |
+| 7 | 1010 | [#1085](https://github.com/git-stunts/git-warp/issues/1085) | docs: make GitHub issues and native dependencies the planning source of truth | in-progress | 0 | 1 | `docs/` | — |
+| 8 | 531 | [#1072](https://github.com/git-stunts/git-warp/issues/1072) | fix(api): retain write races in the receipt core | open | 5 | 3 | `host/heavy-work` | #1053 |
 | 9 | 510 | [#1081](https://github.com/git-stunts/git-warp/issues/1081) | public-surface-package test loses dist/ when the script tests run together | parked | 0 | 1 | `scripts/` | — |
-| 10 | 451 | [#1041](https://github.com/git-stunts/git-warp/issues/1041) | Bound pack count for WARP repositories (save cost grows with packs left by bulk loads) | open | 4 | 5 | `host/heavy-work` | #1055 |
-| 11 | 341 | [#1076](https://github.com/git-stunts/git-warp/issues/1076) | refactor(api): typed write causes and receipts callers can't create | open | 3 | 4 | `host/heavy-work` | #1054 |
-| 12 | 341 | [#811](https://github.com/git-stunts/git-warp/issues/811) | Generate migration guidance from one canonical contract | open | 3 | 4 | `docs/` | #822 |
-| 13 | 231 | [#1074](https://github.com/git-stunts/git-warp/issues/1074) | feat(api): recover write attempts after a crash, and re-ask for an answer | open | 2 | 3 | `host/heavy-work` | #1077 |
-| 14 | 231 | [#1075](https://github.com/git-stunts/git-warp/issues/1075) | fix(runtime): bound the publication probe and the writer limit | open | 2 | 3 | `host/heavy-work` | #1077 |
-| 15 | 121 | [#184](https://github.com/git-stunts/git-warp/issues/184) | WriterId.js uses crypto.getRandomValues in domain | open | 1 | 2 | `host/heavy-work` | #1084 |
-| 16 | 10 | [#193](https://github.com/git-stunts/git-warp/issues/193) | JoinReducer accepts NodeRemove/EdgeRemove with empty observedDots and no node/edge fields | open | 0 | 1 | `host/heavy-work` | — |
-| 17 | 10 | [#804](https://github.com/git-stunts/git-warp/issues/804) | Reference the goalpost when opening release PRs | open | 0 | 1 | `docs/` | — |
-| 18 | 10 | [#861](https://github.com/git-stunts/git-warp/issues/861) | BAD CODE™: retire the shell-based JSR npm publication shim | open | 0 | 1 | `docs/` | — |
-| 19 | 10 | [#955](https://github.com/git-stunts/git-warp/issues/955) | Configure and prove routine selected-lane Git transfer for public attachments | open | 0 | 1 | `host/heavy-work` | — |
-| 20 | 10 | [#974](https://github.com/git-stunts/git-warp/issues/974) | Reduce small-write process and storage overhead with measured evidence | open | 0 | 1 | `host/heavy-work` | — |
-| 21 | 10 | [#982](https://github.com/git-stunts/git-warp/issues/982) | Remove duplicate schema-library majors from the install graph | open | 0 | 1 | `scripts/` | — |
-| 22 | 10 | [#983](https://github.com/git-stunts/git-warp/issues/983) | Keep TUI dependencies outside the default library install | open | 0 | 1 | `scripts/` | — |
-| 23 | 10 | [#999](https://github.com/git-stunts/git-warp/issues/999) | Define safe Git transfer for strand, intent, audit, and trust refs | open | 0 | 1 | `host/heavy-work` | — |
+| 10 | 341 | [#811](https://github.com/git-stunts/git-warp/issues/811) | Generate migration guidance from one canonical contract | open | 3 | 4 | `docs/` | #822 |
+| 11 | 231 | [#1074](https://github.com/git-stunts/git-warp/issues/1074) | feat(api): recover write attempts after a crash, and re-ask for an answer | open | 2 | 3 | `host/heavy-work` | #1077 |
+| 12 | 231 | [#1075](https://github.com/git-stunts/git-warp/issues/1075) | fix(runtime): bound the publication probe and the writer limit | open | 2 | 3 | `host/heavy-work` | #1077 |
+| 13 | 231 | [#1087](https://github.com/git-stunts/git-warp/issues/1087) | fix(storage): validate peer-controlled Roaring bitmap input and bound its resources | open | 2 | 3 | `host/heavy-work` | #1032 |
+| 14 | 231 | [#1088](https://github.com/git-stunts/git-warp/issues/1088) | fix(sync): harden CBOR decoding of untrusted sync payloads | open | 2 | 3 | `host/heavy-work` | #1032 |
+| 15 | 231 | [#1089](https://github.com/git-stunts/git-warp/issues/1089) | fix(sync): keep sync replay protection across server restarts | open | 2 | 3 | `host/heavy-work` | #1032 |
+| 16 | 231 | [#1090](https://github.com/git-stunts/git-warp/issues/1090) | feat(sync): rate-limit the sync endpoint in code | open | 2 | 3 | `host/heavy-work` | #1032 |
+| 17 | 121 | [#1041](https://github.com/git-stunts/git-warp/issues/1041) | Bound pack count for WARP repositories (save cost grows with packs left by bulk loads) | open | 1 | 2 | `host/heavy-work` | #1055 |
+| 18 | 121 | [#184](https://github.com/git-stunts/git-warp/issues/184) | WriterId.js uses crypto.getRandomValues in domain | open | 1 | 2 | `host/heavy-work` | #1084 |
+| 19 | 10 | [#1076](https://github.com/git-stunts/git-warp/issues/1076) | refactor(api): typed write causes and receipts callers can't create | open | 0 | 1 | `host/heavy-work` | — |
+| 20 | 10 | [#193](https://github.com/git-stunts/git-warp/issues/193) | JoinReducer accepts NodeRemove/EdgeRemove with empty observedDots and no node/edge fields | open | 0 | 1 | `host/heavy-work` | — |
+| 21 | 10 | [#804](https://github.com/git-stunts/git-warp/issues/804) | Reference the goalpost when opening release PRs | open | 0 | 1 | `docs/` | — |
+| 22 | 10 | [#861](https://github.com/git-stunts/git-warp/issues/861) | BAD CODE™: retire the shell-based JSR npm publication shim | open | 0 | 1 | `docs/` | — |
+| 23 | 10 | [#955](https://github.com/git-stunts/git-warp/issues/955) | Configure and prove routine selected-lane Git transfer for public attachments | open | 0 | 1 | `host/heavy-work` | — |
+| 24 | 10 | [#974](https://github.com/git-stunts/git-warp/issues/974) | Reduce small-write process and storage overhead with measured evidence | open | 0 | 1 | `host/heavy-work` | — |
+| 25 | 10 | [#982](https://github.com/git-stunts/git-warp/issues/982) | Remove duplicate schema-library majors from the install graph | open | 0 | 1 | `scripts/` | — |
+| 26 | 10 | [#983](https://github.com/git-stunts/git-warp/issues/983) | Keep TUI dependencies outside the default library install | open | 0 | 1 | `scripts/` | — |
+| 27 | 10 | [#999](https://github.com/git-stunts/git-warp/issues/999) | Define safe Git transfer for strand, intent, audit, and trust refs | open | 0 | 1 | `host/heavy-work` | — |
 
 ### Conflict-Free git-locks Batch
 
 - [#1078](https://github.com/git-stunts/git-warp/issues/1078) fix(runtime): settle what Warp.open does before access, and guard clone-local write refs — `host/heavy-work`
-- [#1079](https://github.com/git-stunts/git-warp/issues/1079) chore(release): payload headroom and contract reconciliation before v21 — `docs/`
 - [#1070](https://github.com/git-stunts/git-warp/issues/1070) Stable unit runner can select test files that Vitest never runs — `scripts/`
+- [#1085](https://github.com/git-stunts/git-warp/issues/1085) docs: make GitHub issues and native dependencies the planning source of truth — `docs/`
 
 ## Task Checklist by Wave
 
 ### Wave 0
 
-- [ ] [#1078](https://github.com/git-stunts/git-warp/issues/1078) fix(runtime): settle what Warp.open does before access, and guard clone-local write refs (parked)
-- [ ] [#1080](https://github.com/git-stunts/git-warp/issues/1080) perf(runtime): each retained observation costs about 300 loose objects and a permanent ref (open)
+- [ ] [#1078](https://github.com/git-stunts/git-warp/issues/1078) fix(runtime): settle what Warp.open does before access, and guard clone-local write refs (in-progress)
 - [ ] [#1079](https://github.com/git-stunts/git-warp/issues/1079) chore(release): payload headroom and contract reconciliation before v21 (open)
+- [ ] [#1080](https://github.com/git-stunts/git-warp/issues/1080) perf(runtime): each retained observation costs about 300 loose objects and a permanent ref (open)
 - [ ] [#815](https://github.com/git-stunts/git-warp/issues/815) Define retained graph manifests and bounded ordinal address pages (open)
 - [ ] [#192](https://github.com/git-stunts/git-warp/issues/192) IncrementalIndexUpdater leans on `Record<string, unknown>` and a duck-typed `WarpStateLike` (open)
+- [ ] [#1070](https://github.com/git-stunts/git-warp/issues/1070) Stable unit runner can select test files that Vitest never runs (in-progress)
+- [ ] [#1085](https://github.com/git-stunts/git-warp/issues/1085) docs: make GitHub issues and native dependencies the planning source of truth (in-progress)
 - [ ] [#1072](https://github.com/git-stunts/git-warp/issues/1072) fix(api): retain write races in the receipt core (open)
-- [ ] [#1032](https://github.com/git-stunts/git-warp/issues/1032) chore(security): re-review the four expired accepted risks (parked)
-- [ ] [#1070](https://github.com/git-stunts/git-warp/issues/1070) Stable unit runner can select test files that Vitest never runs (parked)
 - [ ] [#1081](https://github.com/git-stunts/git-warp/issues/1081) public-surface-package test loses dist/ when the script tests run together (parked)
-- [ ] [#1041](https://github.com/git-stunts/git-warp/issues/1041) Bound pack count for WARP repositories (save cost grows with packs left by bulk loads) (open)
-- [ ] [#1076](https://github.com/git-stunts/git-warp/issues/1076) refactor(api): typed write causes and receipts callers can't create (open)
 - [ ] [#811](https://github.com/git-stunts/git-warp/issues/811) Generate migration guidance from one canonical contract (open)
 - [ ] [#1074](https://github.com/git-stunts/git-warp/issues/1074) feat(api): recover write attempts after a crash, and re-ask for an answer (open)
 - [ ] [#1075](https://github.com/git-stunts/git-warp/issues/1075) fix(runtime): bound the publication probe and the writer limit (open)
+- [ ] [#1087](https://github.com/git-stunts/git-warp/issues/1087) fix(storage): validate peer-controlled Roaring bitmap input and bound its resources (open)
+- [ ] [#1088](https://github.com/git-stunts/git-warp/issues/1088) fix(sync): harden CBOR decoding of untrusted sync payloads (open)
+- [ ] [#1089](https://github.com/git-stunts/git-warp/issues/1089) fix(sync): keep sync replay protection across server restarts (open)
+- [ ] [#1090](https://github.com/git-stunts/git-warp/issues/1090) feat(sync): rate-limit the sync endpoint in code (open)
+- [ ] [#1041](https://github.com/git-stunts/git-warp/issues/1041) Bound pack count for WARP repositories (save cost grows with packs left by bulk loads) (open)
 - [ ] [#184](https://github.com/git-stunts/git-warp/issues/184) WriterId.js uses crypto.getRandomValues in domain (open)
+- [ ] [#1076](https://github.com/git-stunts/git-warp/issues/1076) refactor(api): typed write causes and receipts callers can't create (open)
 - [ ] [#193](https://github.com/git-stunts/git-warp/issues/193) JoinReducer accepts NodeRemove/EdgeRemove with empty observedDots and no node/edge fields (open)
 - [ ] [#804](https://github.com/git-stunts/git-warp/issues/804) Reference the goalpost when opening release PRs (open)
 - [ ] [#861](https://github.com/git-stunts/git-warp/issues/861) BAD CODE™: retire the shell-based JSR npm publication shim (open)
@@ -111,6 +119,8 @@ Compiled from GitHub `git-stunts/git-warp` milestone `v21.0.0`. Artifact hash `2
 - [ ] [#816](https://github.com/git-stunts/git-warp/issues/816) Remix Roaring indexes as the retained-state selection plane (open)
 - [ ] [#819](https://github.com/git-stunts/git-warp/issues/819) Add typed recursive WARP graph attachment references (open)
 - [ ] [#228](https://github.com/git-stunts/git-warp/issues/228) MaterializedViewService carries index verification concern (open)
+- [ ] [#1054](https://github.com/git-stunts/git-warp/issues/1054) feat(api)!: remove legacy Runtime, Lane, capture and checkpoint capabilities (open)
+- [ ] [#1032](https://github.com/git-stunts/git-warp/issues/1032) chore(security): re-review the four expired accepted risks (open)
 - [ ] [#1077](https://github.com/git-stunts/git-warp/issues/1077) test(runtime): real crash, concurrency and durability witnesses for Warp writes (open)
 - [ ] [#1084](https://github.com/git-stunts/git-warp/issues/1084) fix(tooling): the determinism gate scans no TypeScript domain files (open)
 
@@ -130,9 +140,9 @@ Compiled from GitHub `git-stunts/git-warp` milestone `v21.0.0`. Artifact hash `2
 ### Wave 3
 
 - [ ] [#822](https://github.com/git-stunts/git-warp/issues/822) Migrate retained substrates directly into indexed graph roots (in-progress)
-- [ ] [#1055](https://github.com/git-stunts/git-warp/issues/1055) docs: optic-only newcomer path, Rust-free scaffold and witness migration (open)
 - [ ] [#248](https://github.com/git-stunts/git-warp/issues/248) `_materializeGraph()` survives the v17 reading contract (open)
 - [ ] [#917](https://github.com/git-stunts/git-warp/issues/917) Stream public bulk intents through bounded atomic batches (open)
+- [ ] [#1055](https://github.com/git-stunts/git-warp/issues/1055) docs: optic-only newcomer path, Rust-free scaffold and witness migration (open)
 - [ ] [#186](https://github.com/git-stunts/git-warp/issues/186) Materialization snapshotting is off by default (open)
 - [ ] [#454](https://github.com/git-stunts/git-warp/issues/454) Materialization budget — O(P) with a ceiling (open)
 - [ ] [#458](https://github.com/git-stunts/git-warp/issues/458) Streaming materialization with progressive state (open)
@@ -143,13 +153,9 @@ Compiled from GitHub `git-stunts/git-warp` milestone `v21.0.0`. Artifact hash `2
 
 ### Wave 4
 
-- [ ] [#1054](https://github.com/git-stunts/git-warp/issues/1054) feat(api)!: remove legacy Runtime, Lane, capture and checkpoint capabilities (open)
-
-### Wave 5
-
 - [ ] [#814](https://github.com/git-stunts/git-warp/issues/814) Eliminate production full-state materialization contracts (in-progress)
 
-### Wave 6
+### Wave 5
 
 - [ ] [#823](https://github.com/git-stunts/git-warp/issues/823) Prove bounded memory across global jobs, attachments, migration, and recursion (open)
 
@@ -183,6 +189,7 @@ Compiled from GitHub `git-stunts/git-warp` milestone `v21.0.0`. Artifact hash `2
 
 - [ ] [#811](https://github.com/git-stunts/git-warp/issues/811) Generate migration guidance from one canonical contract
 - [ ] [#1055](https://github.com/git-stunts/git-warp/issues/1055) docs: optic-only newcomer path, Rust-free scaffold and witness migration
+- [ ] [#1085](https://github.com/git-stunts/git-warp/issues/1085) docs: make GitHub issues and native dependencies the planning source of truth
 
 ### query
 
@@ -194,7 +201,6 @@ Compiled from GitHub `git-stunts/git-warp` milestone `v21.0.0`. Artifact hash `2
 
 - [ ] [#804](https://github.com/git-stunts/git-warp/issues/804) Reference the goalpost when opening release PRs
 - [ ] [#861](https://github.com/git-stunts/git-warp/issues/861) BAD CODE™: retire the shell-based JSR npm publication shim
-- [ ] [#1032](https://github.com/git-stunts/git-warp/issues/1032) chore(security): re-review the four expired accepted risks
 
 ### runtime
 
@@ -203,6 +209,7 @@ Compiled from GitHub `git-stunts/git-warp` milestone `v21.0.0`. Artifact hash `2
 - [ ] [#1075](https://github.com/git-stunts/git-warp/issues/1075) fix(runtime): bound the publication probe and the writer limit
 - [ ] [#1078](https://github.com/git-stunts/git-warp/issues/1078) fix(runtime): settle what Warp.open does before access, and guard clone-local write refs
 - [ ] [#1080](https://github.com/git-stunts/git-warp/issues/1080) perf(runtime): each retained observation costs about 300 loose objects and a permanent ref
+- [ ] [#1088](https://github.com/git-stunts/git-warp/issues/1088) fix(sync): harden CBOR decoding of untrusted sync payloads
 
 ### storage
 
@@ -215,12 +222,16 @@ Compiled from GitHub `git-stunts/git-warp` milestone `v21.0.0`. Artifact hash `2
 - [ ] [#822](https://github.com/git-stunts/git-warp/issues/822) Migrate retained substrates directly into indexed graph roots
 - [ ] [#969](https://github.com/git-stunts/git-warp/issues/969) Preserve the author identity of Strand overlay patches
 - [ ] [#1041](https://github.com/git-stunts/git-warp/issues/1041) Bound pack count for WARP repositories (save cost grows with packs left by bulk loads)
+- [ ] [#1087](https://github.com/git-stunts/git-warp/issues/1087) fix(storage): validate peer-controlled Roaring bitmap input and bound its resources
 
 ### sync
 
 - [ ] [#184](https://github.com/git-stunts/git-warp/issues/184) WriterId.js uses crypto.getRandomValues in domain
 - [ ] [#955](https://github.com/git-stunts/git-warp/issues/955) Configure and prove routine selected-lane Git transfer for public attachments
 - [ ] [#999](https://github.com/git-stunts/git-warp/issues/999) Define safe Git transfer for strand, intent, audit, and trust refs
+- [ ] [#1032](https://github.com/git-stunts/git-warp/issues/1032) chore(security): re-review the four expired accepted risks
+- [ ] [#1089](https://github.com/git-stunts/git-warp/issues/1089) fix(sync): keep sync replay protection across server restarts
+- [ ] [#1090](https://github.com/git-stunts/git-warp/issues/1090) feat(sync): rate-limit the sync endpoint in code
 
 ### testing
 
@@ -244,20 +255,24 @@ Compiled from GitHub `git-stunts/git-warp` milestone `v21.0.0`. Artifact hash `2
 flowchart TD
   subgraph Wave0["Wave 0: Open Frontier (Zero Incomplete Parents)"]
     N__1078["#1078: fix(runtime): settle what Warp.open does befo..."]
-    N__1080["#1080: perf(runtime): each retained observation cost..."]
     N__1079["#1079: chore(release): payload headroom and contract..."]
+    N__1080["#1080: perf(runtime): each retained observation cost..."]
     N__815["#815: Define retained graph manifests and bounded o..."]
     N__192["#192: IncrementalIndexUpdater leans on `Record(stri..."]
-    N__1072["#1072: fix(api): retain write races in the receipt core"]
-    N__1032["#1032: chore(security): re-review the four expired a..."]
     N__1070["#1070: Stable unit runner can select test files that..."]
+    N__1085["#1085: docs: make GitHub issues and native dependenc..."]
+    N__1072["#1072: fix(api): retain write races in the receipt core"]
     N__1081["#1081: public-surface-package test loses dist/ when ..."]
-    N__1041["#1041: Bound pack count for WARP repositories (save ..."]
-    N__1076["#1076: refactor(api): typed write causes and receipt..."]
     N__811["#811: Generate migration guidance from one canonica..."]
     N__1074["#1074: feat(api): recover write attempts after a cra..."]
     N__1075["#1075: fix(runtime): bound the publication probe and..."]
+    N__1087["#1087: fix(storage): validate peer-controlled Roarin..."]
+    N__1088["#1088: fix(sync): harden CBOR decoding of untrusted ..."]
+    N__1089["#1089: fix(sync): keep sync replay protection across..."]
+    N__1090["#1090: feat(sync): rate-limit the sync endpoint in code"]
+    N__1041["#1041: Bound pack count for WARP repositories (save ..."]
     N__184["#184: WriterId.js uses crypto.getRandomValues in do..."]
+    N__1076["#1076: refactor(api): typed write causes and receipt..."]
     N__193["#193: JoinReducer accepts NodeRemove/EdgeRemove wit..."]
     N__804["#804: Reference the goalpost when opening release PRs"]
     N__861["#861: BAD CODE™: retire the shell-based JSR npm pub..."]
@@ -272,6 +287,8 @@ flowchart TD
     N__816["#816: Remix Roaring indexes as the retained-state s..."]
     N__819["#819: Add typed recursive WARP graph attachment ref..."]
     N__228["#228: MaterializedViewService carries index verific..."]
+    N__1054["#1054: feat(api)!: remove legacy Runtime, Lane, capt..."]
+    N__1032["#1032: chore(security): re-review the four expired a..."]
     N__1077["#1077: test(runtime): real crash, concurrency and du..."]
     N__1084["#1084: fix(tooling): the determinism gate scans no T..."]
   end
@@ -289,9 +306,9 @@ flowchart TD
   end
   subgraph Wave3["Wave 3"]
     N__822["#822: Migrate retained substrates directly into ind..."]
-    N__1055["#1055: docs: optic-only newcomer path, Rust-free sca..."]
     N__248["#248: `_materializeGraph()` survives the v17 readin..."]
     N__917["#917: Stream public bulk intents through bounded at..."]
+    N__1055["#1055: docs: optic-only newcomer path, Rust-free sca..."]
     N__186["#186: Materialization snapshotting is off by default"]
     N__454["#454: Materialization budget — O(P) with a ceiling"]
     N__458["#458: Streaming materialization with progressive state"]
@@ -301,30 +318,30 @@ flowchart TD
     N__973["#973: Read entity support slices without prior whol..."]
   end
   subgraph Wave4["Wave 4"]
-    N__1054["#1054: feat(api)!: remove legacy Runtime, Lane, capt..."]
-  end
-  subgraph Wave5["Wave 5"]
     N__814["#814: Eliminate production full-state materializati..."]
   end
-  subgraph Wave6["Wave 6"]
+  subgraph Wave5["Wave 5"]
     N__823["#823: Prove bounded memory across global jobs, atta..."]
   end
   N__1078 --> N__1052
   N__1078 --> N__1077
+  N__1079 --> N__1052
+  N__1079 --> N__1054
   N__1080 --> N__1052
   N__1080 --> N__1077
-  N__1079 --> N__1052
   N__815 --> N__816
   N__815 --> N__819
   N__192 --> N__228
   N__192 --> N__816
   N__1072 --> N__1053
-  N__1032 --> N__823
-  N__1041 --> N__1055
-  N__1076 --> N__1054
   N__811 --> N__822
   N__1074 --> N__1077
   N__1075 --> N__1077
+  N__1087 --> N__1032
+  N__1088 --> N__1032
+  N__1089 --> N__1032
+  N__1090 --> N__1032
+  N__1041 --> N__1055
   N__184 --> N__1084
   N__1052 --> N__1053
   N__1052 --> N__1057
@@ -339,6 +356,8 @@ flowchart TD
   N__819 --> N__820
   N__819 --> N__821
   N__228 --> N__248
+  N__1054 --> N__814
+  N__1032 --> N__823
   N__1077 --> N__823
   N__817 --> N__186
   N__817 --> N__248
@@ -354,10 +373,8 @@ flowchart TD
   N__821 --> N__822
   N__473 --> N__973
   N__822 --> N__814
-  N__1055 --> N__1054
   N__248 --> N__814
   N__917 --> N__823
-  N__1054 --> N__814
   N__814 --> N__823
 ```
 
@@ -380,17 +397,20 @@ flowchart TD
 | #1053 | #969 | GitHub dependency: #1053 blocks #969 (https://github.com/git-stunts/git-warp/issues/1053) |
 | #1053 | #970 | GitHub dependency: #1053 blocks #970 (https://github.com/git-stunts/git-warp/issues/1053) |
 | #1054 | #814 | GitHub dependency: #1054 blocks #814 (https://github.com/git-stunts/git-warp/issues/1054) |
-| #1055 | #1054 | GitHub dependency: #1055 blocks #1054 (https://github.com/git-stunts/git-warp/issues/1055) |
 | #1072 | #1053 | GitHub dependency: #1072 blocks #1053 (https://github.com/git-stunts/git-warp/issues/1072) |
 | #1074 | #1077 | GitHub dependency: #1074 blocks #1077 (https://github.com/git-stunts/git-warp/issues/1074) |
 | #1075 | #1077 | GitHub dependency: #1075 blocks #1077 (https://github.com/git-stunts/git-warp/issues/1075) |
-| #1076 | #1054 | GitHub dependency: #1076 blocks #1054 (https://github.com/git-stunts/git-warp/issues/1076) |
 | #1077 | #823 | GitHub dependency: #1077 blocks #823 (https://github.com/git-stunts/git-warp/issues/1077) |
 | #1078 | #1052 | GitHub dependency: #1078 blocks #1052 (https://github.com/git-stunts/git-warp/issues/1078) |
 | #1078 | #1077 | GitHub dependency: #1078 blocks #1077 (https://github.com/git-stunts/git-warp/issues/1078) |
 | #1079 | #1052 | GitHub dependency: #1079 blocks #1052 (https://github.com/git-stunts/git-warp/issues/1079) |
+| #1079 | #1054 | GitHub dependency: #1079 blocks #1054 (https://github.com/git-stunts/git-warp/issues/1079) |
 | #1080 | #1052 | GitHub dependency: #1080 blocks #1052 (https://github.com/git-stunts/git-warp/issues/1080) |
 | #1080 | #1077 | GitHub dependency: #1080 blocks #1077 (https://github.com/git-stunts/git-warp/issues/1080) |
+| #1087 | #1032 | GitHub dependency: #1087 blocks #1032 (https://github.com/git-stunts/git-warp/issues/1087) |
+| #1088 | #1032 | GitHub dependency: #1088 blocks #1032 (https://github.com/git-stunts/git-warp/issues/1088) |
+| #1089 | #1032 | GitHub dependency: #1089 blocks #1032 (https://github.com/git-stunts/git-warp/issues/1089) |
+| #1090 | #1032 | GitHub dependency: #1090 blocks #1032 (https://github.com/git-stunts/git-warp/issues/1090) |
 | #184 | #1084 | GitHub dependency: #184 blocks #1084 (https://github.com/git-stunts/git-warp/issues/184) |
 | #192 | #228 | GitHub dependency: #192 blocks #228 (https://github.com/git-stunts/git-warp/issues/192) |
 | #192 | #816 | GitHub dependency: #192 blocks #816 (https://github.com/git-stunts/git-warp/issues/192) |
