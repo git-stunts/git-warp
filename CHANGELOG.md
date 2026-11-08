@@ -148,7 +148,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   canonical order, on every receipt, and each race names each writer once, sorted.
   The write attempt record and the write receipt core move to layout version 2. A clone
   built from `main` before this change can hold version-1 write attempt refs under
-  `refs/warp/<graph>/write-attempts/`; they are not read, so delete them
+  `refs/warp/<graph>/write-attempts/`. Reading one, for example through
+  `AuthoredWarp.reconcile`, throws an error with code `E_WRITE_ATTEMPT_RETIRED` that
+  names the ref to delete. The journal listing the recovery sweep reads skips it and
+  reports its ref, rather than dropping it silently
   ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
 
 - Discover every supported test file recursively under `test/unit/` before

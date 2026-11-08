@@ -22,6 +22,7 @@ import RetainedObservation from '../../../../../src/domain/services/custody/Reta
 import IndeterminateWriteReceipt from '../../../../../src/domain/api/IndeterminateWriteReceipt.ts';
 import ConeWriteRecovery from '../../../../../src/domain/services/write/ConeWriteRecovery.ts';
 import ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
+import WriteAttemptListing from '../../../../../src/domain/services/write/WriteAttemptListing.ts';
 import WriteAttemptRecord from '../../../../../src/domain/services/write/WriteAttemptRecord.ts';
 import WritePublicationProbe from '../../../../../src/domain/services/write/WritePublicationProbe.ts';
 import ConcurrentValue from '../../../../../src/domain/api/ConcurrentValue.ts';
@@ -220,7 +221,7 @@ describe('ConeWriteRecovery', () => {
   it('survives a listing that fails, and one record that throws', async () => {
     await expect(recovery({ journal: { list: () => Promise.reject(new Error('no refs')) } }).sweep()).resolves.toBeUndefined();
     const resume = vi.fn(() => Promise.reject(new Error('bad')));
-    await expect(recovery({ custody: { resume }, journal: { list: () => Promise.resolve([recordOf(), recordOf()]) } }).sweep()).resolves.toBeUndefined();
+    await expect(recovery({ custody: { resume }, journal: { list: () => Promise.resolve(new WriteAttemptListing({ records: [recordOf(), recordOf()], retiredRefs: [] })) } }).sweep()).resolves.toBeUndefined();
     expect(resume).toHaveBeenCalledTimes(2);
   });
 
@@ -284,7 +285,7 @@ describe('ConeWriteRecovery', () => {
 
   it('leaves a reported attempt for its caller', async () => {
     const resume = vi.fn();
-    await recovery({ custody: { resume }, journal: { list: () => Promise.resolve([recordOf().asReported(null)]) } }).sweep();
+    await recovery({ custody: { resume }, journal: { list: () => Promise.resolve(new WriteAttemptListing({ records: [recordOf().asReported(null)], retiredRefs: [] })) } }).sweep();
     expect(resume).not.toHaveBeenCalled();
   });
 
@@ -318,7 +319,7 @@ describe('a saved record that is not a write', () => {
       } as unknown as WriteAttemptHistory,
     });
 
-    await expect(journal.list(4)).resolves.toEqual([]);
+    expect((await journal.list(4)).records).toEqual([]);
     await expect(journal.read(ATTEMPT)).rejects.toThrow('missing object');
   });
 

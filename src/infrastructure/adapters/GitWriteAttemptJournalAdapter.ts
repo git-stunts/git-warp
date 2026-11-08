@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import type ObservationAttemptId from '../../domain/services/custody/ObservationAttemptId.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
+import RetiredWriteAttemptError from '../../domain/errors/RetiredWriteAttemptError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import ObservationDecodeFailure from '../../domain/services/custody/ObservationDecodeFailure.ts';
 import WriteOccurrence from '../../domain/api/WriteOccurrence.ts';
 import WriteRace from '../../domain/api/WriteRace.ts';
+import WriteAttemptListing from '../../domain/services/write/WriteAttemptListing.ts';
 import WriteAttemptRecord from '../../domain/services/write/WriteAttemptRecord.ts';
 import { buildWriteAttemptRef, buildWriteAttemptsPrefix } from '../../domain/utils/WriteAttemptRefLayout.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
@@ -16,6 +18,13 @@ import WriteAttemptJournalPort from '../../ports/WriteAttemptJournalPort.ts';
  * can hold, saved no races; it is not read as a record with none.
  */
 const RECORD_VERSION = 2;
+/** The layout before #1072. Only clones of unreleased `main` wrote it, so it is refused by name, never read. */
+const RETIRED_RECORD_VERSION = 1;
+const retiredRecordSchema = z.object({ version: z.literal(RETIRED_RECORD_VERSION) });
+
+/** A saved blob that holds a version-1 record: not unreadable, and not a record either. */
+class RetiredRecord {}
+const RETIRED = Object.freeze(new RetiredRecord());
 
 const writersSchema = z.array(z.string());
 const overflowSchema = z.number().int().nonnegative();
@@ -89,53 +98,70 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
   }
 
   override async read(attemptId: ObservationAttemptId): Promise<WriteAttemptRecord | null> {
-    const oid = await this.#history.readRef(buildWriteAttemptRef(this.#graph, attemptId.value));
-    return oid === null ? null : this.#requireRecord(await this.#history.readBlob(oid));
+    const ref = buildWriteAttemptRef(this.#graph, attemptId.value);
+    const oid = await this.#history.readRef(ref);
+    return oid === null ? null : this.#requireRecord(await this.#history.readBlob(oid), ref);
   }
 
   override async remove(attemptId: ObservationAttemptId): Promise<void> {
     await this.#history.deleteRef(buildWriteAttemptRef(this.#graph, attemptId.value));
   }
 
-  override async list(limit: number): Promise<readonly WriteAttemptRecord[]> {
-    const targets = [...(await this.#history.readRefTargets(buildWriteAttemptsPrefix(this.#graph))).values()];
+  override async list(limit: number): Promise<WriteAttemptListing> {
+    const targets = [...(await this.#history.readRefTargets(buildWriteAttemptsPrefix(this.#graph))).entries()];
     const start = Math.floor(Math.random() * targets.length);
     const records: WriteAttemptRecord[] = [];
-    for (const oid of [...targets.slice(start), ...targets.slice(0, start)].slice(0, limit)) {
+    const retiredRefs: string[] = [];
+    for (const [ref, oid] of [...targets.slice(start), ...targets.slice(0, start)].slice(0, limit)) {
       const record = await this.#readRecord(oid);
-      if (record !== null) {
+      if (record instanceof RetiredRecord) {
+        retiredRefs.push(ref);
+      } else if (record !== null) {
         records.push(record);
       }
     }
-    return Object.freeze(records);
+    return new WriteAttemptListing({ records, retiredRefs });
   }
 
   /** A blob that does not decode is not a record, however it came to be there. */
-  #decoded(bytes: Uint8Array): z.infer<typeof storedRecordSchema> | null {
+  #decoded(bytes: Uint8Array): z.infer<typeof storedRecordSchema> | RetiredRecord | null {
     try {
-      const parsed = storedRecordSchema.safeParse(this.#codec.decode(bytes));
+      const value = this.#codec.decode(bytes);
+      if (retiredRecordSchema.safeParse(value).success) {
+        return RETIRED;
+      }
+      const parsed = storedRecordSchema.safeParse(value);
       return parsed.success ? parsed.data : null;
     } catch {
       return null;
     }
   }
 
-  /** A record that exists but cannot be read is not an absent one: a caller told null may discard the attempt. */
-  #requireRecord(bytes: Uint8Array): WriteAttemptRecord {
+  /**
+   * A record that exists but cannot be read is not an absent one: a caller told null may discard the attempt.
+   * A retired one names its ref, so an operator can delete it.
+   */
+  #requireRecord(bytes: Uint8Array, ref: string): WriteAttemptRecord {
     const record = this.#decodedRecord(bytes);
+    if (record instanceof RetiredRecord) {
+      throw new RetiredWriteAttemptError(ref);
+    }
     if (record === null) {
       throw new AdapterValidationError('A saved write attempt record could not be decoded');
     }
     return record;
   }
 
-  #decodedRecord(bytes: Uint8Array): WriteAttemptRecord | null {
+  #decodedRecord(bytes: Uint8Array): WriteAttemptRecord | RetiredRecord | null {
     const decoded = this.#decoded(bytes);
+    if (decoded instanceof RetiredRecord) {
+      return decoded;
+    }
     return decoded === null ? null : this.#recordOf(decoded);
   }
 
   /** For a listing: one unreadable blob must not stop the rest. */
-  async #readRecord(oid: string): Promise<WriteAttemptRecord | null> {
+  async #readRecord(oid: string): Promise<WriteAttemptRecord | RetiredRecord | null> {
     try {
       return this.#decodedRecord(await this.#history.readBlob(oid));
     } catch {

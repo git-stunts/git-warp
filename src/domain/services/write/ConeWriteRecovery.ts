@@ -13,6 +13,7 @@ import ResolvedObservation from '../custody/ResolvedObservation.ts';
 import RetainedObservation from '../custody/RetainedObservation.ts';
 import ObservationAttemptId from '../custody/ObservationAttemptId.ts';
 import type ConeWriteSettlement from './ConeWriteSettlement.ts';
+import WriteAttemptListing from './WriteAttemptListing.ts';
 import type WriteAttemptRecord from './WriteAttemptRecord.ts';
 import type WritePublicationProbe from './WritePublicationProbe.ts';
 
@@ -66,16 +67,16 @@ export default class ConeWriteRecovery {
    * A failure on one record, or the listing, only leaves work for a later sweep.
    */
   async sweep(): Promise<void> {
-    for (const record of await this.#listed()) {
+    for (const record of (await this.#listed()).records) {
       await this.#swept(record);
     }
   }
 
-  async #listed(): Promise<readonly WriteAttemptRecord[]> {
+  async #listed(): Promise<WriteAttemptListing> {
     try {
       return await this.#journal.list(SWEEP_LIMIT);
     } catch {
-      return [];
+      return WriteAttemptListing.empty();
     }
   }
 

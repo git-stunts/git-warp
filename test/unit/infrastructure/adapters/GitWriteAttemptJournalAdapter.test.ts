@@ -51,6 +51,6 @@ describe('GitWriteAttemptJournalAdapter', () => {
     const journal = new GitWriteAttemptJournalAdapter({ graph: 'g', history, codec, custodyCodec });
 
     await expect(journal.read(ATTEMPT)).rejects.toThrow(RangeError);
-    await expect(journal.list(4)).resolves.toEqual([]);
+    expect((await journal.list(4)).records).toEqual([]);
   });
 });

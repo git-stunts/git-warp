@@ -251,8 +251,7 @@ describe('the journal keeps a record\'s races', () => {
   type Stored = { readonly [field: string]: unknown };
   const withRaces = (races: unknown) => (stored: Stored): Stored => ({ ...stored, races });
   const malformed: ReadonlyArray<readonly [string, (stored: Stored) => Stored]> = [
-    ['a record saved before races were saved (version 1, no races field)', ({ races: _gone, ...before }) => ({ ...before, version: 1 })],
-    ['a version-1 record, even one that names races', (stored) => ({ ...stored, version: 1 })],
+    ['an unknown layout version', (stored) => ({ ...stored, version: 99 })],
     ['an unknown kind', withRaces([['merge', 'doc', 'title', ['bob'], 0, 'observed']])],
     ['a register race with no key', withRaces([['register', 'doc', null, ['bob'], 0, 'observed']])],
     ['a register race with an empty key', withRaces([['register', 'doc', '', ['bob'], 0, 'observed']])],
@@ -275,7 +274,7 @@ describe('the journal keeps a record\'s races', () => {
     store.blobs.set(oid ?? '', codec.encode(corrupt(stored)));
 
     await expect(journal(store).read(ATTEMPT)).rejects.toThrow(AdapterValidationError);
-    await expect(journal(store).list(4)).resolves.toEqual([]);
+    expect((await journal(store).list(4)).records).toEqual([]);
   });
 
   it('fails closed on a derived write that names a race', async () => {

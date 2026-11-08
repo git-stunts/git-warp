@@ -306,6 +306,8 @@ A new invocation's latency, telemetry, or wall-clock time belongs outside those
 bytes. Revocation or missing evidence produces a new refusal record without
 rewriting the historical receipt. Replaying a write receipt verifies the retained
 write and its justifying observation; it never executes the intent again.
+A write core in layout version 1 (pre-#1072, clones of unreleased `main` only)
+is unsupported: replay refuses it and never reads its missing races as `[]`.
 
 A write's Coordinate binds the observation that justified that intent, including
 its actual read-before-write basis. The resulting write receipt separately binds
