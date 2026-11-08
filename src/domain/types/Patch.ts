@@ -16,6 +16,7 @@ import PatchError from '../errors/PatchError.ts';
 import type EntityAdmissionBoundary from './EntityAdmissionBoundary.ts';
 import { freezeEntityAdmissionBoundaries } from './EntityAdmissionBoundaryRuntime.ts';
 import type { PatchOp } from './ops/unions.ts';
+import assertSamePatchRemoveOwnership from './SamePatchRemoveOwnership.ts';
 
 function assertMetadataEntry(value: string): void {
   if (typeof value !== 'string' || value.length === 0) {
@@ -172,6 +173,7 @@ export default class Patch {
     validateWriter(writer);
     validateLamport(lamport);
     validateOps(ops);
+    assertSamePatchRemoveOwnership(ops);
 
     this.schema = schema;
     this.writer = writer;
