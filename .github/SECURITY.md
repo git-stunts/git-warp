@@ -72,10 +72,9 @@ Detailed diagnostics (exact failure reason, key-id, peer info) are sent to the s
 
 ### Nonce Cache and Restart Semantics
 
-The nonce cache is an in-memory LRU (default capacity: 100,000 entries). On server restart, the cache is empty. This means:
-- Nonces from before the restart can be replayed within the 5-minute clock skew window
-- This is an accepted trade-off for simplicity; persistent nonce storage is not implemented in v1
-- For higher security, keep the clock skew window small and use TLS
+Replay protection supports both persistent Git-CAS storage and an in-memory LRU fallback (default capacity: 100,000 entries):
+- When opened through `GitCasRepositoryAdapter`, `GitCasSyncReplayProtectionAdapter` (`src/infrastructure/adapters/GitCasSyncReplayProtectionAdapter.ts`) persists replay nonces in a `@git-stunts/git-cas` `ExpiringSet` (`git-warp.sync-replay` namespace), preserving replay protection across server restarts within the 5-minute TTL window.
+- When using the in-memory LRU without persistent CAS backing, nonces from before a server restart can be replayed within the 5-minute clock skew window; deploy with persistent CAS replay protection and TLS in production.
 
 ### Key Rotation
 
@@ -125,7 +124,7 @@ await graph.syncWith('http://peer:3000', {
 | `@git-stunts/plumbing` | Runtime | Low | Internal package, spawns git processes with strict whitelist |
 | `@git-stunts/alfred` | Runtime | Low | Retry/backoff utility, no I/O |
 | `@git-stunts/trailer-codec` | Runtime | Low | Pure string encoding, no I/O |
-| `cbor-x` | Runtime | Medium | Binary parser processing untrusted sync payloads; mitigated by body size limit in HttpSyncServer (4 MB default) |
+| `cbor-x` | Runtime | Medium | Binary parser processing untrusted sync payloads; mitigated by 10 MiB HTTP body limit (`MAX_BODY_BYTES` in `src/infrastructure/adapters/httpAdapterUtils.ts`), 5 MiB decode ceiling (`MAX_CBOR_DECODE_BYTES` in `src/infrastructure/codecs/CborCodec.ts`), and pre-decode structural bounds (`BoundedCborValidation.ts`: `maxDepth: 32`, `maxContainerEntries: 1_000_000`, `maxItems: 1_000_000`) |
 | `roaring-wasm` | Runtime | Low-Medium | WebAssembly build of CRoaring. Synced peer-controlled graph data influences bitmap construction, and retained index shards are deserialized by bitmap readers. WASM memory isolation does not establish input trust or prevent wrong results, traps, or resource exhaustion |
 | `zod` | Runtime | Low | Schema validation, pure JS |
 
@@ -134,10 +133,10 @@ await graph.syncWith('http://peer:3000', {
 
 | Risk | Severity | Owner | Expiry | Mitigation |
 |---|---|---|---|---|
-| `roaring-wasm` bitmap faults could corrupt results or exhaust resources | Medium | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | WASM memory isolation limits host-memory exposure but does not validate peer-controlled graph data or retained bitmap shards; correctness and availability remain in scope. Input validation and resource bounds require owner re-review |
-| `cbor-x` parser handles untrusted sync payloads | Medium | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | 4 MB body size limit in HttpSyncServer; schema validation post-parse |
-| Nonce cache lost on restart allows replay within clock skew window | Low | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | 5-minute TTL; recommend TLS in production |
-| No rate limiting on sync endpoint | Low | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | Deploy behind reverse proxy with rate limiting |
+| `roaring-wasm` bitmap faults could corrupt results or exhaust resources | Medium | @flyingrobots | 2027-05-01 | WASM memory isolation limits host-memory exposure but does not validate peer-controlled graph data or retained bitmap shards; correctness and availability remain in scope. Synced patches pass `BoundedCborValidation.ts` and schema checks before admission, and bitmap index readers validate shard envelopes before deserialization |
+| `cbor-x` parser handles untrusted sync payloads | Medium | @flyingrobots | 2027-05-01 | Enforced 10 MiB HTTP body limit (`MAX_BODY_BYTES` in `src/infrastructure/adapters/httpAdapterUtils.ts`), 5 MiB CBOR decode ceiling (`MAX_CBOR_DECODE_BYTES` in `src/infrastructure/codecs/CborCodec.ts`), pre-decode structural depth/entry validation (`src/infrastructure/adapters/BoundedCborValidation.ts`), and post-decode schema validation |
+| Nonce cache lost on restart allows replay within clock skew window | Low | @flyingrobots | 2027-05-01 | Persistent replay protection via `GitCasSyncReplayProtectionAdapter` (`src/infrastructure/adapters/GitCasSyncReplayProtectionAdapter.ts`) stores nonces in `@git-stunts/git-cas` `ExpiringSet` across restarts; in-memory LRU fallback remains bounded by the 5-minute clock skew TTL and TLS in production |
+| No rate limiting on sync endpoint | Low | @flyingrobots | 2027-05-01 | Request size bounded by `MAX_BODY_BYTES` (10 MiB) and HMAC-SHA256 authentication before admission; deploy behind an infrastructure reverse proxy with rate limiting in production |
 
 ## Threat Model Boundaries
 
