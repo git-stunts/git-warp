@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
+  to shortest unshared route prefixes so a native ledger update writes ~log16(records)
+  trees instead of 64 ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
+  Coordinated rollout requirement: upgrade every process reading or writing a shared
+  clone before any 7.2.0 reservation-ledger write occurs; git-cas 7.1.0 cannot safely
+  read the resulting reservation index, and git-warp has no runtime gate preventing
+  mixed-version access ([#1083](https://github.com/git-stunts/git-warp/pull/1083)).
 - Adopt published `@git-stunts/git-cas` 7.1.0. It stamps its version into new content
   manifests, so a newly stored attachment's handle differs from one stored by 7.0.0,
   though its chunks and payload match. Stored manifests are not rewritten, so existing

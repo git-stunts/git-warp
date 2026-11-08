@@ -149,6 +149,17 @@ git warp settle apply \
 The apply step revalidates a fresh Runtime-owned plan. A moved source or target
 requires a new preview and review.
 
+## Substrate and git-cas rollout coordination
+
+When upgrading `@git-stunts/git-cas` (such as the 7.2.0 compressed reservation
+index), upgrade every process that reads or writes a shared clone before any
+7.2.0 reservation-ledger write occurs.
+
+`git-cas` 7.1.0 cannot safely read the compressed reservation index written by
+7.2.0 and rejects it as corrupt. `git-warp` does not provide an ambient runtime
+version gate for mixed-version clone access; coordinating the rollout across all
+concurrent processes is required.
+
 ## Storage incidents
 
 Derived materialization repair may remove invalid entries; it cannot recreate
