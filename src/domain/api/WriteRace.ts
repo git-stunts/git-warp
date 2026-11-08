@@ -1,4 +1,5 @@
 import WriteRaceError from '../errors/WriteRaceError.ts';
+import { validateWriterId } from '../utils/RefLayout.ts';
 import type { PluralityCausality } from './PluralityCausality.ts';
 
 type WriteRaceKind = 'register' | 'lifecycle';
@@ -30,6 +31,7 @@ export default class WriteRace {
     WriteRace.#requireKey(fields.kind, fields.key);
     WriteRace.#requireOverflow(fields.overflow);
     WriteRace.#requireParticipants(fields);
+    fields.writers.forEach((writer) => { validateWriterId(writer); });
     this.kind = fields.kind;
     this.subject = fields.subject;
     this.key = fields.key;

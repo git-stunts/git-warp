@@ -22,14 +22,14 @@ describe('canonicalWriteRaces', () => {
   });
 
   it('compares writer lists element by element, a shorter prefix first', () => {
-    const joined = new WriteRace({ ...RACE, writers: ['a\u0000b'] });
+    const joined = new WriteRace({ ...RACE, writers: ['a-b'] });
     const split = new WriteRace({ ...RACE, writers: ['a', 'b'] });
     const prefix = new WriteRace({ ...RACE, writers: ['a'] });
 
     const forward = canonicalWriteRaces([joined, split, prefix]).map(({ writers }) => writers);
     const backward = canonicalWriteRaces([prefix, split, joined]).map(({ writers }) => writers);
 
-    expect(forward).toEqual([['a'], ['a', 'b'], ['a\u0000b']]);
+    expect(forward).toEqual([['a'], ['a', 'b'], ['a-b']]);
     expect(backward).toEqual(forward);
   });
 });
