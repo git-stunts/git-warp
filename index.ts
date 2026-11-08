@@ -5,8 +5,8 @@
  *
  * Write intents. Observe lanes. Keep receipts.
  *
- * `Warp` and its write receipts are the new write-only application surface, and
- * `Runtime` remains beside them, for reads too, until its removal. Generated SDKs provide validated
+ * `Warp`, its write receipts, and bounded optic reads are the new application surface, and
+ * `Runtime` remains beside them until its removal. Generated SDKs provide validated
  * Intent and Observer values; formal optics and diagnostics remain on named
  * expert subpaths.
  */

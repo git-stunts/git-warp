@@ -75,6 +75,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Bounded optic reads over causal history through `Optic(warp.forObserver(observer))`.
+  Reads require a declared `Purpose` and respect an approved `ReadBudget`, asking the
+  injected `WarpAccessPort` before the basis is touched and reading only the subject's
+  record without repair, checkpoint, incidental fork, or whole-state fallback.
+  Each read executes as an `OpticObservation` streaming `OpticReading` values and
+  settling to an `OpticReceipt`. Runtime invariants and access refusals use dedicated
+  domain error classes (`OpticError`, `ObserverIdentityError`, `PurposeError`,
+  `ReadBudgetError`, `WarpReadGrantError`, `WarpReadRequestError`)
+  ([#1052](https://github.com/git-stunts/git-warp/issues/1052)).
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
   with an injected `WarpAccessPort` and no implicit access. `execute` returns
