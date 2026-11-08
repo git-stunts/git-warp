@@ -1,162 +1,184 @@
-# v21.0.0 Delivery Plan: PR #1040 Extractions, Worktree/Branch Audit & Roadmap Checklist
+# `@git-stunts/git-warp` v21.0.0 Roadmap and Execution DAG
 
-## 1. Overview & Architecture Posture
+## 1. Executive Summary (ASD-STE100)
 
-- **Primary Goalposts:**
-  - [#1048](https://github.com/git-stunts/git-warp/issues/1048): Observer-bound Optic API over the cone-bounded runtime.
-  - [#1039](https://github.com/git-stunts/git-warp/issues/1039): Cone-bounded Runtime — public reads and writes without whole-state materialization.
-  - [#1044](https://github.com/git-stunts/git-warp/issues/1044): Retained readings — replace whole-state checkpoints with folded causal cones, support memos, wormholes, compaction, and GC.
-  - [#824](https://github.com/git-stunts/git-warp/issues/824): Streaming indexed recursive WARP without full-state materialization.
-- **Substrate & Version Boundary:** Substrate version `21`; major npm release `21.0.0` (current npm release is `20.0.0`).
-- **Cutover Strategy:** Direct breaking cutover ([maintainer amendment on #1048](https://github.com/git-stunts/git-warp/issues/1048#issuecomment-6570380317)). Extract atomic, independently verifiable PRs from prototype PR [#1040](https://github.com/git-stunts/git-warp/pull/1040) onto the final `Warp` / `Optic` / opaque `Coordinate` surface without building intermediate legacy compatibility wrappers, then delete the legacy `Runtime` / `Lane` / full-state contracts in [#1054](https://github.com/git-stunts/git-warp/issues/1054) and [#814](https://github.com/git-stunts/git-warp/issues/814).
+This roadmap defines the remaining engineering tasks required to ship `@git-stunts/git-warp` `v21.0.0` (substrate version `21`).
 
----
+### Why `v21.0.0` Exists
 
-## 2. PR #1040 Extraction & Goalpost #1048 Checklist
+In `v20.0.0` and earlier versions, `@git-stunts/git-warp` answered graph queries and resumed checkpoints through whole-state materialization (`_materializeGraph`, `WarpFullStateV5`, and legacy `Runtime` / `Lane` surfaces). Whole-state materialization scales with total repository history and total node count instead of the causal cone of the entities that a caller reads or writes.
 
-### Already Extracted & Merged into `main`
+`v21.0.0` replaces whole-state materialization with a cone-bounded runtime and an observer-bound public API:
 
-- [x] **Accepted Optic-Only Public API Design Record** ([#1049](https://github.com/git-stunts/git-warp/issues/1049) / PR [#1059](https://github.com/git-stunts/git-warp/pull/1059))
-  - [x] `docs/plans/optic-only-public-api.md` accepted on `main`.
-- [x] **Public Surface Guard with Opaque `Coordinate` Exception** ([#1050](https://github.com/git-stunts/git-warp/issues/1050) / PR [#1060](https://github.com/git-stunts/git-warp/pull/1060))
-  - [x] `policy/public-surface-ratchet.txt` and reachability/export guards enforcing private `Coordinate` construction and shrinking legacy surface.
-- [x] **Private Cone Engine Foundation** ([#1062](https://github.com/git-stunts/git-warp/issues/1062) / PR [#1064](https://github.com/git-stunts/git-warp/pull/1064))
-  - [x] Per-entity cone record folding (`src/domain/services/cone/*`: node, edge, adjacency page, admission record, footprint, concurrency/plurality sibling sets, settlement footprint).
-  - [x] Clone-local Git trie storage (`GitConeRecordStoreAdapter`, `GitConeRecordTrie`, `GitFastImportTreeWriter`, `GitConePatchFeedAdapter`) from `#1040` and `feat/1039-cone-storage-perf`.
-  - [x] Cone equivalence, concurrency, and strand-overlay oracles (`test/unit/domain/services/cone/*`).
-- [x] **Shared Durable Observation Identity & Custody** ([#1066](https://github.com/git-stunts/git-warp/issues/1066) / PR [#1068](https://github.com/git-stunts/git-warp/pull/1068), [#1067](https://github.com/git-stunts/git-warp/issues/1067) / PR [#1069](https://github.com/git-stunts/git-warp/pull/1069))
-  - [x] Canonical receipt-core/observation identity, opaque `Coordinate` codec, and private repository-lifetime custody (`ObservationCustodyService`, `ObservationCustodyAdapters`, `docs/plans/observation-custody.md`).
-  - [x] Upgraded to `git-cas 7.2.0` compressed reservation index (PR [#1083](https://github.com/git-stunts/git-warp/pull/1083) for [#1080](https://github.com/git-stunts/git-warp/issues/1080)).
-- [x] **Warp Composition, Injected Access & Cone Writes** ([#1051](https://github.com/git-stunts/git-warp/issues/1051) / PR [#1071](https://github.com/git-stunts/git-warp/pull/1071))
-  - [x] `Warp.open({ storage, crypto, codecs, access })` and `warp.as(writer).execute(intent)` producing `AuthoredWriteReceipt`.
-  - [x] Cone write lowering, liveness checks, edge-remove admission (fixing [#1037](https://github.com/git-stunts/git-warp/issues/1037)), and bounded node removal without full-history replay.
+1. **Public Entry and Cone Writes (`#1048`, `#1051` — Merged on `main`):** Callers open a repository with `Warp.open({ storage, crypto, codecs, access })` and execute writes with `warp.as(writer).execute(intent)`. The private cone engine (`#1062`) and observation custody service (`#1066`, `#1067`) fold per-entity causal cones without loading the full graph.
+2. **Observer-Bound Optic Reads (`#1052`):** Callers bind an observer with `warp.forObserver(observer)` and evaluate bounded read projections (`nodeExists`, `nodeProperty`, `edgeProperty`, `edgesAround`, `traverse`, `content`, and paged entity inventory) through `Optic(observedView).read(purpose, budget)`.
+3. **Receipt-Derived Coordinates and Strands (`#1053`):** Write and read receipts expose an opaque `Coordinate`. Callers use `Optic(view).replay(coord)` to verify historical receipts without re-execution, `Optic(view).at(coord)` to ask new questions at a retained basis, and strand forks (`#968`–`#970`) to stage and settle speculative overlays.
+4. **Write-Path Hardening and Custody Scaling (`#1072`–`#1080`, `#1041`):** The write and custody layers eliminate loose-object amplification (`#1080`), recover interrupted write attempts after a process crash (`#1074`), bound publication probes (`#1075`), enforce unforgeable receipts (`#1076`), and prove multi-process durability (`#1077`).
+5. **Retained Readings and Streaming Indexed WARP (`#1044`, `#824`, `#905`, `#917`):** Retained readings (`#1044`) replace the 29,409-line whole-state checkpoint subsystem with Merkle directory pages, support memos, wormholes, and compaction. Retained graph manifests (`#815`), Roaring bitmap selection planes (`#816`), streaming causal reduction (`#817`), recursive graph references (`#819`–`#821`), and bounded bulk ingestion (`#917`) remove all remaining `_materializeGraph` and full-state codec dependencies (`#248`, `#814`).
+6. **Direct Breaking Cutover (`#1055`, `#1057`, `#1054`):** Once the newcomer path (`#1055`) and CLI `doctor`/`repair` commands (`#1057`) run exclusively on `Warp` and `Optic`, `#1054` and `#814` delete legacy `Runtime`, `Lane`, `captureCoordinate`, and `WarpFullState` contracts and empty `policy/public-surface-ratchet.txt` to zero.
 
 ---
 
-### In-Flight & Remaining Extractions from #1040 (and Companion Branches)
+## 2. Already Merged Foundations on `main`
 
-- [ ] **Slice 3a: Observer-Bound Optic Reads — Core Nodes & Properties** ([#1052](https://github.com/git-stunts/git-warp/issues/1052) / PR [#1082](https://github.com/git-stunts/git-warp/pull/1082), worktree `git-warp-w-1052`)
-  - [x] `warp.forObserver(observer)` -> `ObservedWarp` and `Optic(observedWarp)` root read handle.
-  - [x] Purpose, `ReadBudget`, `WarpReadRequest`, `WarpReadGrant` access check before evaluation, single execution, cancel/close, and terminal `OpticReceipt`.
-  - [x] `ConeReadExecutor` for `nodeExists` and `nodeProperty` without prior whole-state materialization.
-  - [x] Dedicated domain error classes (`ObserverIdentityError`, `PurposeError`, `ReadBudgetError`, `WarpReadGrantError`, `WarpReadRequestError`, `OpticError`) with 100% unit test coverage and full-suite line ratchet raised to `93.59%`.
-  - [ ] Push `feat/1052-optic-reads` and merge PR [#1082](https://github.com/git-stunts/git-warp/pull/1082).
-
-- [ ] **Slice 3b: Complete Remaining #1052 Optic Read Surface & Retention** ([#1052](https://github.com/git-stunts/git-warp/issues/1052), extracting from [#1040](https://github.com/git-stunts/git-warp/pull/1040))
-  - [ ] Extract Optic read execution for **edge properties**, **neighborhood (`edgesAround`)**, **traversal**, **content attachments**, and **paged entity admission inventory** (commits `c55b7f8b7`, `a2d11717d`, `7785ebb70` on `#1040`).
-  - [ ] Add `Optic(observedStrand)` observer-bound strand read handle (including strand entity inventory).
-  - [ ] Surface register and lifecycle **plurality** (`RegisterPlurality`, `LifecyclePlurality` from `#1040` Slice 6: `bdcfef932`, `f43587613`, `b23968ee3`) on public `OpticReading`.
-  - [ ] Feed observed read state into `ConeWriteKnowledge` so a raced register read clears blind-overwrite plurality (Baker Street follow-up on [#1052](https://github.com/git-stunts/git-warp/issues/1052#issuecomment-6570380317)).
-  - [ ] Decide/enforce whether Optic reads join `Warp`'s one-at-a-time queue and rename internal `WarpWrites` composition helper.
-  - [ ] Plug in Wesley-generated observers over `Optic`.
-  - [ ] Wire completed observation retention (returning a durable `Coordinate` when requested, once [#1080](https://github.com/git-stunts/git-warp/issues/1080) loose-object cost is resolved).
-  - [ ] Flip newcomer witness ([#1045](https://github.com/git-stunts/git-warp/issues/1045)) read-own-writes, empty-graph, 64-writes, and strand-inventory cases onto `Optic` (carries [#973](https://github.com/git-stunts/git-warp/issues/973) and [#976](https://github.com/git-stunts/git-warp/issues/976)).
-
-- [ ] **Slice 4: Receipt-Derived `Coordinate`, Replay, Re-Ask, Fork & Strand Settlement** ([#1053](https://github.com/git-stunts/git-warp/issues/1053), re-scoping [#968](https://github.com/git-stunts/git-warp/issues/968), [#969](https://github.com/git-stunts/git-warp/issues/969), [#970](https://github.com/git-stunts/git-warp/issues/970))
-  - [ ] Expose public opaque `Coordinate` (`parse` / `toString`) derived from write and read receipts using `#1067`'s custody records.
-  - [ ] Implement `Optic(view).replay(coord)`: rights-checked replay returning byte-identical original receipt or typed refusal (honoring revocation, surviving restart and `git gc --prune=now`, never re-executing an intent).
-  - [ ] Implement `Optic(view).at(coord)`: historical re-ask inheriting basis, observer, and purpose (or checked strict coarsening) with a new question.
-  - [ ] Extract cone-based **fork, strand overlays, and settlement** from `#1040` (`256c3ed4f`, `1cb02dda4`, `7210e649b`) onto the receipt-derived `Coordinate` model:
-    - [ ] Fork a strand from a read/write receipt's `Coordinate` (recording observer, question, and purpose in strand provenance) and fork a strand from an existing strand ([#968](https://github.com/git-stunts/git-warp/issues/968)).
-    - [ ] Preserve author identity of strand overlay patches ([#969](https://github.com/git-stunts/git-warp/issues/969)).
-    - [ ] Strand settlement preview and `footprint-records/v1` settlement surviving target/basis advancement ([#970](https://github.com/git-stunts/git-warp/issues/970)).
-
-- [ ] **Slice 5: Optic-Only Newcomer Path, Rust-Free Scaffold & Showcase Witness** ([#1055](https://github.com/git-stunts/git-warp/issues/1055), reconciles [#979](https://github.com/git-stunts/git-warp/issues/979))
-  - [ ] Extract `examples/annotations/` (authored schema, checked-in Rust-free Wesley SDK, hub sync, receipt ledger) and `benchmarks/cone-showcase/` (`AnnotationCorpus`, `ColdOpen`, `ConeShowcaseWitness`, `GitProcessCounter`, `WitnessReport`, `RunConeShowcaseWitness.sh`) from `#1040` / worktree `git-warp-w-showcase` (`552111eae`, `b7eaa2de4`, `3fa3e4aa7`, `300d8684d`, `f161bfe0d`, `88d891fab`).
-  - [ ] Migrate `examples/annotations/` and newcomer witness ([#1045](https://github.com/git-stunts/git-warp/issues/1045)) onto `Warp.open` -> `as(writer).execute` -> `Optic(...).read()` -> strand -> settle with all gap pins flipped.
-  - [ ] Add `Warp` / `WarpAccessPort` teaching guide (working port implementation, receipt handling, cause catalogue, crash/retry rules, denial shapes, `Warp.open` lifecycle — Baker Street follow-up on [#1055](https://github.com/git-stunts/git-warp/issues/1055)).
-  - [ ] Rewrite `getting-started`, `README.md` first example, `docs/topics/observers.md`, and `docs/topics/strands.md` (deleting "repair before you read").
-
-- [ ] **Slice 6: CLI `doctor` and `repair` Rewrite for the Cone/Optic Model** ([#1057](https://github.com/git-stunts/git-warp/issues/1057))
-  - [ ] Extract and adapt `#1040` commit `05aa20015` (*"advance the cone basis in repair; report cone lag in doctor"*).
-  - [ ] `git warp doctor`: report cone ingest lag, retained-support and `#1067`/`#1044` retention-policy satisfaction, and reading readiness via actual bounded `Optic` probes.
-  - [ ] `git warp repair`: advance/verify cone basis, rebuild derived records, add `retire-legacy` ([#1044](https://github.com/git-stunts/git-warp/issues/1044) Slice 7), and remove `--action materialization` as a user path.
-  - [ ] Strip checkpoint, coordinate-as-frontier, and materialization vocabulary from CLI output (except migration / `retire-legacy`), updating `cli.md` and BATS suites together.
-
-- [ ] **Slice 7: Direct Breaking Cutover — Remove Legacy `Runtime`, `Lane`, Capture & Checkpoint Surfaces** ([#1054](https://github.com/git-stunts/git-warp/issues/1054))
-  - [ ] Remove public `Runtime`, `Lane` (`observe`, `write`, `lane()`), `captureCoordinate`, legacy `Optic` class export, raw `createObserver` / `reading` builders, and checkpoint/basis receipt causes (`missing_bounded_basis`, `E_OPTIC_NO_BOUNDED_BASIS`).
-  - [ ] Apply Baker Street cleanups on [#1054](https://github.com/git-stunts/git-warp/issues/1054):
-    - [ ] Rename `AuthoredWriteReceipt` to `WriteReceipt`.
-    - [ ] Remove public `GitStorage.open` or make `Warp` accept it.
-    - [ ] Move `overrideWarpComposition` test seam out of production code.
-    - [ ] Lower package entry ceiling back down from 1,300.
-  - [ ] Extract iterator surface cleanup commits from worktree `git-warp-w-1050` (`fix/1040-main-integration`: `2e43c1526`, `171ef5744`, `0facc4c3a`).
-  - [ ] Empty `#1050`'s `policy/public-surface-ratchet.txt` to zero and enforce dead-file reachability gate so no unreachable legacy internals remain.
-  - [ ] Write `CHANGELOG.md` breaking-change notes and `docs/migrations/` v20 -> v21 mapping guide with executable test examples.
+- [x] **[#1049](https://github.com/git-stunts/git-warp/issues/1049)** (PR [#1059](https://github.com/git-stunts/git-warp/pull/1059)): Accepted Optic-Only Public API Design Record (`docs/plans/optic-only-public-api.md`).
+- [x] **[#1050](https://github.com/git-stunts/git-warp/issues/1050)** (PR [#1060](https://github.com/git-stunts/git-warp/pull/1060)): Public Surface Guard with Opaque `Coordinate` Exception (`policy/public-surface-ratchet.txt`).
+- [x] **[#1062](https://github.com/git-stunts/git-warp/issues/1062)** (PR [#1064](https://github.com/git-stunts/git-warp/pull/1064)): Private Cone Engine Foundation (`src/domain/services/cone/*`, `GitConeRecordStoreAdapter`, `GitConeRecordTrie`, `GitFastImportTreeWriter`).
+- [x] **[#1066](https://github.com/git-stunts/git-warp/issues/1066) & [#1067](https://github.com/git-stunts/git-warp/issues/1067)** (PRs [#1068](https://github.com/git-stunts/git-warp/pull/1068), [#1069](https://github.com/git-stunts/git-warp/pull/1069), [#1083](https://github.com/git-stunts/git-warp/pull/1083)): Shared Durable Observation Identity, Opaque `Coordinate` Codec, and `ObservationCustodyService` on `git-cas 7.2.0`.
+- [x] **[#1051](https://github.com/git-stunts/git-warp/issues/1051)** (PR [#1071](https://github.com/git-stunts/git-warp/pull/1071)): `Warp.open`, Injected `WarpAccessPort`, and `warp.as(writer).execute(intent)` Cone Writes.
 
 ---
 
-## 3. Audit of All Local Worktrees & Unmerged Branches
+## 3. Open Frontier (`Wave 0` — Zero Incomplete Parent Tasks)
 
-| Worktree / Branch | Head Commit | Status vs `main` | Disposition in Plan |
+Every task in the table below has **zero incomplete parent tasks** (all prerequisites are already merged on `main`). These 16 tasks can start immediately in parallel across isolated worktrees.
+
+| # | Task & Issue | Task Plan Document | Type | Workstream | Directly Unlocks |
+| --- | --- | --- | --- | --- | --- |
+| 1 | **[PR #1082](docs/plans/v21.0.0/tasks/1052a-optic-node-property-reads.md)** ([#1052](https://github.com/git-stunts/git-warp/issues/1052)) | [Observer-bound Optic reads Slice 3a: core nodes and properties](docs/plans/v21.0.0/tasks/1052a-optic-node-property-reads.md) | `Feature` | `W1` | `#1052-3b`, `#1073` |
+| 2 | **[#1081](docs/plans/v21.0.0/tasks/1081-public-surface-package-dist-race.md)** ([#1081](https://github.com/git-stunts/git-warp/issues/1081)) | [Fix public-surface-package test losing dist/ during group script runs](docs/plans/v21.0.0/tasks/1081-public-surface-package-dist-race.md) | `Bug` | `W5` | none |
+| 3 | **[#1070](docs/plans/v21.0.0/tasks/1070-stable-unit-runner-benchmark-filter.md)** ([#1070](https://github.com/git-stunts/git-warp/issues/1070)) | [Prevent stable unit runner from selecting benchmark files that Vitest ignores](docs/plans/v21.0.0/tasks/1070-stable-unit-runner-benchmark-filter.md) | `Bug` | `W5` | none |
+| 4 | **[#1080](docs/plans/v21.0.0/tasks/1080-retained-observation-loose-object-cost.md)** ([#1080](https://github.com/git-stunts/git-warp/issues/1080)) | [Attribute and cut loose-object cost per retained observation and settle read retention](docs/plans/v21.0.0/tasks/1080-retained-observation-loose-object-cost.md) | `Decision` | `W2` | `#1052-3b`, `#1077` |
+| 5 | **[#1078](docs/plans/v21.0.0/tasks/1078-warp-open-pre-access-and-write-ref-guard.md)** ([#1078](https://github.com/git-stunts/git-warp/issues/1078)) | [Settle Warp.open pre-access behavior and guard clone-local write-attempts refs](docs/plans/v21.0.0/tasks/1078-warp-open-pre-access-and-write-ref-guard.md) | `Bug` | `W2` | `#1052-3b`, `#1077` |
+| 6 | **[#1079](docs/plans/v21.0.0/tasks/1079-payload-headroom-and-contract-reconciliation.md)** ([#1079](https://github.com/git-stunts/git-warp/issues/1079)) | [Reconcile unpacked payload headroom, pre-permission I/O failures, and v20 trailer compatibility](docs/plans/v21.0.0/tasks/1079-payload-headroom-and-contract-reconciliation.md) | `Decision` | `W5` | `#1052-3b`, `#1054` |
+| 7 | **[#1072](docs/plans/v21.0.0/tasks/1072-retain-write-races-in-receipt-core.md)** ([#1072](https://github.com/git-stunts/git-warp/issues/1072)) | [Retain concurrent write races in WriteAttemptRecord and writeReceiptCore](docs/plans/v21.0.0/tasks/1072-retain-write-races-in-receipt-core.md) | `Feature` | `W2` | `#1053` |
+| 8 | **[#1074](docs/plans/v21.0.0/tasks/1074-recover-write-attempts-after-crash.md)** ([#1074](https://github.com/git-stunts/git-warp/issues/1074)) | [Recover unresolved write attempts after a process crash and allow re-asking](docs/plans/v21.0.0/tasks/1074-recover-write-attempts-after-crash.md) | `Feature` | `W2` | `#1077` |
+| 9 | **[#1075](docs/plans/v21.0.0/tasks/1075-bound-publication-probe-and-writer-limit.md)** ([#1075](https://github.com/git-stunts/git-warp/issues/1075)) | [Bound WritePublicationProbe ancestry walk and settle the 4,096 writer limit](docs/plans/v21.0.0/tasks/1075-bound-publication-probe-and-writer-limit.md) | `Bug` | `W2` | `#1077` |
+| 10 | **[#1076](docs/plans/v21.0.0/tasks/1076-typed-write-causes-and-unforgeable-receipts.md)** ([#1076](https://github.com/git-stunts/git-warp/issues/1076)) | [Replace string write causes with typed nouns and make write receipts unforgeable](docs/plans/v21.0.0/tasks/1076-typed-write-causes-and-unforgeable-receipts.md) | `Feature` | `W2` | `#1054` |
+| 11 | **[#1041](docs/plans/v21.0.0/tasks/1041-bound-repository-pack-count.md)** ([#1041](https://github.com/git-stunts/git-warp/issues/1041)) | [Bound Git pack count for WARP repositories so save cost stays flat at 20k threads](docs/plans/v21.0.0/tasks/1041-bound-repository-pack-count.md) | `Feature` | `W2` | `#1055` |
+| 12 | **[#1032](docs/plans/v21.0.0/tasks/1032-re-review-expired-accepted-security-risks.md)** ([#1032](https://github.com/git-stunts/git-warp/issues/1032)) | [Re-review the four expired accepted security risks in .github/SECURITY.md](docs/plans/v21.0.0/tasks/1032-re-review-expired-accepted-security-risks.md) | `Decision` | `W5` | `#823` |
+| 13 | **[#815](docs/plans/v21.0.0/tasks/815-retained-graph-manifests-and-address-pages.md)** ([#815](https://github.com/git-stunts/git-warp/issues/815)) | [Define retained graph manifests and bounded ordinal address pages](docs/plans/v21.0.0/tasks/815-retained-graph-manifests-and-address-pages.md) | `Feature` | `W3` | `#816`, `#819`, `#814` |
+| 14 | **[#192](docs/plans/v21.0.0/tasks/192-incremental-index-updater-typed-boundary.md)** ([#192](https://github.com/git-stunts/git-warp/issues/192)) | [Replace Record<string, unknown> and WarpStateLike in IncrementalIndexUpdater](docs/plans/v21.0.0/tasks/192-incremental-index-updater-typed-boundary.md) | `Feature` | `W3` | `#228`, `#816` |
+| 15 | **[#811](docs/plans/v21.0.0/tasks/811-canonical-migration-guidance-contract.md)** ([#811](https://github.com/git-stunts/git-warp/issues/811)) | [Generate migration CLI help and documentation from one canonical contract](docs/plans/v21.0.0/tasks/811-canonical-migration-guidance-contract.md) | `Feature` | `W3` | `#822` |
+| 16 | **[#1044-S1](docs/plans/v21.0.0/tasks/1044a-retained-readings-design-and-record-digests.md)** ([#1044](https://github.com/git-stunts/git-warp/issues/1044)) | [Retained readings Slice 1: canonical record digests, Merkle directory pages, and join laws](docs/plans/v21.0.0/tasks/1044a-retained-readings-design-and-record-digests.md) | `Feature` | `W3` | `#1044-S2..S6`, `#814` |
+
+---
+
+## 4. Sequenced Task Checklist by Topological Wave (`Waves 0–6`)
+
+Each checklist item below links directly to its house-format task specification in `docs/plans/v21.0.0/tasks/*.md`. Each specification contains YAML frontmatter, a self-contained LLM Execution Prompt, and the nine-section ASD-STE100 house template.
+
+### Wave 0 — Open Frontier (Zero Incomplete Parent Tasks)
+
+- [ ] **[PR #1082: Observer-bound Optic reads Slice 3a: core nodes and properties](docs/plans/v21.0.0/tasks/1052a-optic-node-property-reads.md)** ([#1052](https://github.com/git-stunts/git-warp/issues/1052) | `Feature` | `W1` | Prereqs: `#1049 (merged)`, `#1050 (merged)`, `#1062 (merged)`, `#1067 (merged)`, `#1051 (merged)` | Unlocks: `#1052-3b`, `#1073`)
+- [ ] **[#1081: Fix public-surface-package test losing dist/ during group script runs](docs/plans/v21.0.0/tasks/1081-public-surface-package-dist-race.md)** ([#1081](https://github.com/git-stunts/git-warp/issues/1081) | `Bug` | `W5` | Prereqs: `#1050 (merged)` | Unlocks: none)
+- [ ] **[#1070: Prevent stable unit runner from selecting benchmark files that Vitest ignores](docs/plans/v21.0.0/tasks/1070-stable-unit-runner-benchmark-filter.md)** ([#1070](https://github.com/git-stunts/git-warp/issues/1070) | `Bug` | `W5` | Prereqs: `#1063 (merged)` | Unlocks: none)
+- [ ] **[#1080: Attribute and cut loose-object cost per retained observation and settle read retention](docs/plans/v21.0.0/tasks/1080-retained-observation-loose-object-cost.md)** ([#1080](https://github.com/git-stunts/git-warp/issues/1080) | `Decision` | `W2` | Prereqs: `#1051 (merged)`, `#1067 (merged)`, `PR #1083 (merged)` | Unlocks: `#1052-3b`, `#1077`)
+- [ ] **[#1078: Settle Warp.open pre-access behavior and guard clone-local write-attempts refs](docs/plans/v21.0.0/tasks/1078-warp-open-pre-access-and-write-ref-guard.md)** ([#1078](https://github.com/git-stunts/git-warp/issues/1078) | `Bug` | `W2` | Prereqs: `#1051 (merged)` | Unlocks: `#1052-3b`, `#1077`)
+- [ ] **[#1079: Reconcile unpacked payload headroom, pre-permission I/O failures, and v20 trailer compatibility](docs/plans/v21.0.0/tasks/1079-payload-headroom-and-contract-reconciliation.md)** ([#1079](https://github.com/git-stunts/git-warp/issues/1079) | `Decision` | `W5` | Prereqs: `#1051 (merged)` | Unlocks: `#1052-3b`, `#1054`)
+- [ ] **[#1072: Retain concurrent write races in WriteAttemptRecord and writeReceiptCore](docs/plans/v21.0.0/tasks/1072-retain-write-races-in-receipt-core.md)** ([#1072](https://github.com/git-stunts/git-warp/issues/1072) | `Feature` | `W2` | Prereqs: `#1051 (merged)`, `#1067 (merged)` | Unlocks: `#1053`)
+- [ ] **[#1074: Recover unresolved write attempts after a process crash and allow re-asking](docs/plans/v21.0.0/tasks/1074-recover-write-attempts-after-crash.md)** ([#1074](https://github.com/git-stunts/git-warp/issues/1074) | `Feature` | `W2` | Prereqs: `#1051 (merged)`, `#1067 (merged)` | Unlocks: `#1077`)
+- [ ] **[#1075: Bound WritePublicationProbe ancestry walk and settle the 4,096 writer limit](docs/plans/v21.0.0/tasks/1075-bound-publication-probe-and-writer-limit.md)** ([#1075](https://github.com/git-stunts/git-warp/issues/1075) | `Bug` | `W2` | Prereqs: `#1051 (merged)` | Unlocks: `#1077`)
+- [ ] **[#1076: Replace string write causes with typed nouns and make write receipts unforgeable](docs/plans/v21.0.0/tasks/1076-typed-write-causes-and-unforgeable-receipts.md)** ([#1076](https://github.com/git-stunts/git-warp/issues/1076) | `Feature` | `W2` | Prereqs: `#1051 (merged)` | Unlocks: `#1054`)
+- [ ] **[#1041: Bound Git pack count for WARP repositories so save cost stays flat at 20k threads](docs/plans/v21.0.0/tasks/1041-bound-repository-pack-count.md)** ([#1041](https://github.com/git-stunts/git-warp/issues/1041) | `Feature` | `W2` | Prereqs: `#1062 (merged)` | Unlocks: `#1055`)
+- [ ] **[#1032: Re-review the four expired accepted security risks in .github/SECURITY.md](docs/plans/v21.0.0/tasks/1032-re-review-expired-accepted-security-risks.md)** ([#1032](https://github.com/git-stunts/git-warp/issues/1032) | `Decision` | `W5` | Prereqs: `#892 (merged)` | Unlocks: `#823`)
+- [ ] **[#815: Define retained graph manifests and bounded ordinal address pages](docs/plans/v21.0.0/tasks/815-retained-graph-manifests-and-address-pages.md)** ([#815](https://github.com/git-stunts/git-warp/issues/815) | `Feature` | `W3` | Prereqs: none (merged on `main`) | Unlocks: `#816`, `#819`, `#814`)
+- [ ] **[#192: Replace Record<string, unknown> and WarpStateLike in IncrementalIndexUpdater](docs/plans/v21.0.0/tasks/192-incremental-index-updater-typed-boundary.md)** ([#192](https://github.com/git-stunts/git-warp/issues/192) | `Feature` | `W3` | Prereqs: none (merged on `main`) | Unlocks: `#228`, `#816`)
+- [ ] **[#811: Generate migration CLI help and documentation from one canonical contract](docs/plans/v21.0.0/tasks/811-canonical-migration-guidance-contract.md)** ([#811](https://github.com/git-stunts/git-warp/issues/811) | `Feature` | `W3` | Prereqs: none (merged on `main`) | Unlocks: `#822`)
+- [ ] **[#1044-S1: Retained readings Slice 1: canonical record digests, Merkle directory pages, and join laws](docs/plans/v21.0.0/tasks/1044a-retained-readings-design-and-record-digests.md)** ([#1044](https://github.com/git-stunts/git-warp/issues/1044) | `Feature` | `W3` | Prereqs: `#1062 (merged)`, `#1067 (merged)` | Unlocks: `#1044-S2..S6`, `#814`)
+### Wave 1 — Complete Optic Read Surface, Crash Witnesses & Selection Plane
+
+- [ ] **[#1052-3b: Observer-bound Optic reads Slice 3b: edges, neighborhood, traversal, content, inventory, strands, and plurality](docs/plans/v21.0.0/tasks/1052b-optic-edges-inventory-strands-plurality.md)** ([#1052](https://github.com/git-stunts/git-warp/issues/1052) | `Feature` | `W1` | Prereqs: `PR #1082`, `#1080`, `#1078`, `#1079` | Unlocks: `#1053`, `#1057`, `#1055`, `#248`, `#1054`)
+- [ ] **[#1073: Make write derived outcome honest across processes](docs/plans/v21.0.0/tasks/1073-honest-cross-process-derived-outcome.md)** ([#1073](https://github.com/git-stunts/git-warp/issues/1073) | `Bug` | `W2` | Prereqs: `PR #1082` | Unlocks: none)
+- [ ] **[#1077: Add real multi-process crash, concurrency, and durability witnesses for Warp writes](docs/plans/v21.0.0/tasks/1077-write-crash-concurrency-durability-witnesses.md)** ([#1077](https://github.com/git-stunts/git-warp/issues/1077) | `Feature` | `W2` | Prereqs: `#1074`, `#1075`, `#1078`, `#1080` | Unlocks: `#823`)
+- [ ] **[#816: Remix Roaring bitmap indexes as the retained-state selection plane](docs/plans/v21.0.0/tasks/816-roaring-retained-selection-plane.md)** ([#816](https://github.com/git-stunts/git-warp/issues/816) | `Feature` | `W3` | Prereqs: `#815`, `#192` | Unlocks: `#817`, `#820`, `#814`)
+- [ ] **[#228: Remove P5-LEGACY index verification and byte-shard bridge from MaterializedViewService](docs/plans/v21.0.0/tasks/228-materialized-view-service-index-decoupling.md)** ([#228](https://github.com/git-stunts/git-warp/issues/228) | `Feature` | `W3` | Prereqs: `#192` | Unlocks: `#248`)
+- [ ] **[#819: Add typed recursive WARP graph attachment references](docs/plans/v21.0.0/tasks/819-typed-recursive-warp-graph-references.md)** ([#819](https://github.com/git-stunts/git-warp/issues/819) | `Feature` | `W4` | Prereqs: `#815`, `#903 (merged)` | Unlocks: `#820`, `#821`, `#822`)
+### Wave 2 — Receipt Coordinates, Strands, Operator CLI & Root Commitments
+
+- [ ] **[#1053: Receipt-derived observation Coordinate for replay, re-ask, fork, and strand settlement](docs/plans/v21.0.0/tasks/1053-receipt-derived-observation-coordinates.md)** ([#1053](https://github.com/git-stunts/git-warp/issues/1053) | `Feature` | `W1` | Prereqs: `#1052-3b`, `#1072`, `#1049 (merged)`, `#1067 (merged)` | Unlocks: `#1055`, `#1054`)
+- [ ] **[#1057: Rewrite git warp doctor and repair as operator tools for the cone, optic-only model](docs/plans/v21.0.0/tasks/1057-cli-doctor-and-repair-cone-rewrite.md)** ([#1057](https://github.com/git-stunts/git-warp/issues/1057) | `Feature` | `W3` | Prereqs: `#1052-3b`, `#1049 (merged)`, `#1062 (merged)`, `#1067 (merged)` | Unlocks: none)
+- [ ] **[#817: Stream causal reduction and replace full-state hashes with root commitments](docs/plans/v21.0.0/tasks/817-stream-causal-reduction-and-root-commitments.md)** ([#817](https://github.com/git-stunts/git-warp/issues/817) | `Feature` | `W3` | Prereqs: `#816` | Unlocks: `#248`, `#822`, `#917`, `#814`, `#823`)
+- [ ] **[#820: Traverse recursive WARP graphs with cycle-safe bounded receipts](docs/plans/v21.0.0/tasks/820-cycle-safe-recursive-traversal-receipts.md)** ([#820](https://github.com/git-stunts/git-warp/issues/820) | `Feature` | `W4` | Prereqs: `#816`, `#819`, `#903 (merged)` | Unlocks: `#822`, `#823`)
+- [ ] **[#821: Retain and diagnose recursive graph references across CAS boundaries](docs/plans/v21.0.0/tasks/821-retain-and-diagnose-recursive-graph-references.md)** ([#821](https://github.com/git-stunts/git-warp/issues/821) | `Feature` | `W4` | Prereqs: `#819`, `#903 (merged)` | Unlocks: `#822`, `#823`)
+- [ ] **[#1044-S2..S6: Retained readings Slices 2-6: git-cas storage, support memos, wormholes, compaction, and shared-dot folds](docs/plans/v21.0.0/tasks/1044b-support-memos-wormholes-and-compaction.md)** ([#1044](https://github.com/git-stunts/git-warp/issues/1044) | `Feature` | `W3` | Prereqs: `#1044-S1`, `#1052-3b` | Unlocks: `#814`)
+### Wave 3 — Newcomer Scaffold, Bulk Ingestion & Substrate Migration
+
+- [ ] **[#1055: Optic-only newcomer path, Rust-free annotations scaffold, and cone cost witness migration](docs/plans/v21.0.0/tasks/1055-optic-only-newcomer-path-and-annotations-showcase.md)** ([#1055](https://github.com/git-stunts/git-warp/issues/1055) | `Feature` | `W1` | Prereqs: `#1051 (merged)`, `#1052-3b`, `#1053`, `#1041` | Unlocks: `#1054`)
+- [ ] **[#248: Migrate remaining runtime and controller consumers off _materializeGraph()](docs/plans/v21.0.0/tasks/248-remove-materialize-graph-runtime-consumers.md)** ([#248](https://github.com/git-stunts/git-warp/issues/248) | `Feature` | `W3` | Prereqs: `#817`, `#228`, `#1052-3b` | Unlocks: `#814`)
+- [ ] **[#917: Stream public bulk intents through bounded atomic batches with backpressured receipts](docs/plans/v21.0.0/tasks/917-stream-public-bulk-intents-bounded-batches.md)** ([#917](https://github.com/git-stunts/git-warp/issues/917) | `Feature` | `W4` | Prereqs: `#817`, `#916 (merged)` | Unlocks: `#823`)
+- [ ] **[#822: Migrate retained substrates directly into indexed graph roots with verified promotion](docs/plans/v21.0.0/tasks/822-migrate-substrates-into-indexed-graph-roots.md)** ([#822](https://github.com/git-stunts/git-warp/issues/822) | `Feature` | `W3` | Prereqs: `#811`, `#817`, `#818 (merged)`, `#819`, `#820`, `#821` | Unlocks: `#814`, `#823`)
+### Wave 4 — Direct Breaking Cutover & Full-State Deletion
+
+- [ ] **[#1054: Direct breaking cutover: remove legacy Runtime, Lane, captureCoordinate, and checkpoint surfaces](docs/plans/v21.0.0/tasks/1054-remove-legacy-runtime-lane-and-capture-surfaces.md)** ([#1054](https://github.com/git-stunts/git-warp/issues/1054) | `Feature` | `W1` | Prereqs: `#1050 (merged)`, `#1051 (merged)`, `#1052-3b`, `#1053`, `#1055`, `#1076` | Unlocks: `#814`)
+### Wave 5 — Aggregate Bounded-Memory Proof & v21.0.0 Release Closure
+
+- [ ] **[#814: Delete production full-state materialization contracts and whole-state checkpoint system](docs/plans/v21.0.0/tasks/814-eliminate-production-full-state-contracts.md)** ([#814](https://github.com/git-stunts/git-warp/issues/814) | `Feature` | `W3` | Prereqs: `#815`, `#816`, `#817`, `#248`, `#822`, `#1054`, `#1044-S1`, `#1044-S2..S6` | Unlocks: `#823`)
+### Wave 6 — Post-v21.0.0 Deferred Enhancements (Priority: Later)
+
+- [ ] **[#823: Prove bounded process memory across global jobs, attachments, migration, and recursion, and run v21.0.0 release preflight](docs/plans/v21.0.0/tasks/823-prove-bounded-memory-across-global-jobs.md)** ([#823](https://github.com/git-stunts/git-warp/issues/823) | `Feature` | `W4` | Prereqs: `#814`, `#817`, `#818 (merged)`, `#820`, `#821`, `#822`, `#916 (merged)`, `#917`, `#1032`, `#1077` | Unlocks: none)
+
+---
+
+## 5. Task Checklist Partitioned by MECE Workstream (`W1–W5`)
+
+### W1 — Core Optic Read, Coordinate & Strand Cutover (#1048 / #1039)
+
+- [ ] **[PR #1082: Observer-bound Optic reads Slice 3a: core nodes and properties](docs/plans/v21.0.0/tasks/1052a-optic-node-property-reads.md)** ([#1052](https://github.com/git-stunts/git-warp/issues/1052) | `Feature` | `W1` | Prereqs: `#1049 (merged)`, `#1050 (merged)`, `#1062 (merged)`, `#1067 (merged)`, `#1051 (merged)` | Unlocks: `#1052-3b`, `#1073`)
+- [ ] **[#1052-3b: Observer-bound Optic reads Slice 3b: edges, neighborhood, traversal, content, inventory, strands, and plurality](docs/plans/v21.0.0/tasks/1052b-optic-edges-inventory-strands-plurality.md)** ([#1052](https://github.com/git-stunts/git-warp/issues/1052) | `Feature` | `W1` | Prereqs: `PR #1082`, `#1080`, `#1078`, `#1079` | Unlocks: `#1053`, `#1057`, `#1055`, `#248`, `#1054`)
+- [ ] **[#1053: Receipt-derived observation Coordinate for replay, re-ask, fork, and strand settlement](docs/plans/v21.0.0/tasks/1053-receipt-derived-observation-coordinates.md)** ([#1053](https://github.com/git-stunts/git-warp/issues/1053) | `Feature` | `W1` | Prereqs: `#1052-3b`, `#1072`, `#1049 (merged)`, `#1067 (merged)` | Unlocks: `#1055`, `#1054`)
+- [ ] **[#1055: Optic-only newcomer path, Rust-free annotations scaffold, and cone cost witness migration](docs/plans/v21.0.0/tasks/1055-optic-only-newcomer-path-and-annotations-showcase.md)** ([#1055](https://github.com/git-stunts/git-warp/issues/1055) | `Feature` | `W1` | Prereqs: `#1051 (merged)`, `#1052-3b`, `#1053`, `#1041` | Unlocks: `#1054`)
+- [ ] **[#1054: Direct breaking cutover: remove legacy Runtime, Lane, captureCoordinate, and checkpoint surfaces](docs/plans/v21.0.0/tasks/1054-remove-legacy-runtime-lane-and-capture-surfaces.md)** ([#1054](https://github.com/git-stunts/git-warp/issues/1054) | `Feature` | `W1` | Prereqs: `#1050 (merged)`, `#1051 (merged)`, `#1052-3b`, `#1053`, `#1055`, `#1076` | Unlocks: `#814`)
+### W2 — Write-Path Hardening, Custody Scaling & Crash Recovery (#1051 / #1067)
+
+- [ ] **[#1080: Attribute and cut loose-object cost per retained observation and settle read retention](docs/plans/v21.0.0/tasks/1080-retained-observation-loose-object-cost.md)** ([#1080](https://github.com/git-stunts/git-warp/issues/1080) | `Decision` | `W2` | Prereqs: `#1051 (merged)`, `#1067 (merged)`, `PR #1083 (merged)` | Unlocks: `#1052-3b`, `#1077`)
+- [ ] **[#1078: Settle Warp.open pre-access behavior and guard clone-local write-attempts refs](docs/plans/v21.0.0/tasks/1078-warp-open-pre-access-and-write-ref-guard.md)** ([#1078](https://github.com/git-stunts/git-warp/issues/1078) | `Bug` | `W2` | Prereqs: `#1051 (merged)` | Unlocks: `#1052-3b`, `#1077`)
+- [ ] **[#1072: Retain concurrent write races in WriteAttemptRecord and writeReceiptCore](docs/plans/v21.0.0/tasks/1072-retain-write-races-in-receipt-core.md)** ([#1072](https://github.com/git-stunts/git-warp/issues/1072) | `Feature` | `W2` | Prereqs: `#1051 (merged)`, `#1067 (merged)` | Unlocks: `#1053`)
+- [ ] **[#1074: Recover unresolved write attempts after a process crash and allow re-asking](docs/plans/v21.0.0/tasks/1074-recover-write-attempts-after-crash.md)** ([#1074](https://github.com/git-stunts/git-warp/issues/1074) | `Feature` | `W2` | Prereqs: `#1051 (merged)`, `#1067 (merged)` | Unlocks: `#1077`)
+- [ ] **[#1075: Bound WritePublicationProbe ancestry walk and settle the 4,096 writer limit](docs/plans/v21.0.0/tasks/1075-bound-publication-probe-and-writer-limit.md)** ([#1075](https://github.com/git-stunts/git-warp/issues/1075) | `Bug` | `W2` | Prereqs: `#1051 (merged)` | Unlocks: `#1077`)
+- [ ] **[#1076: Replace string write causes with typed nouns and make write receipts unforgeable](docs/plans/v21.0.0/tasks/1076-typed-write-causes-and-unforgeable-receipts.md)** ([#1076](https://github.com/git-stunts/git-warp/issues/1076) | `Feature` | `W2` | Prereqs: `#1051 (merged)` | Unlocks: `#1054`)
+- [ ] **[#1041: Bound Git pack count for WARP repositories so save cost stays flat at 20k threads](docs/plans/v21.0.0/tasks/1041-bound-repository-pack-count.md)** ([#1041](https://github.com/git-stunts/git-warp/issues/1041) | `Feature` | `W2` | Prereqs: `#1062 (merged)` | Unlocks: `#1055`)
+- [ ] **[#1073: Make write derived outcome honest across processes](docs/plans/v21.0.0/tasks/1073-honest-cross-process-derived-outcome.md)** ([#1073](https://github.com/git-stunts/git-warp/issues/1073) | `Bug` | `W2` | Prereqs: `PR #1082` | Unlocks: none)
+- [ ] **[#1077: Add real multi-process crash, concurrency, and durability witnesses for Warp writes](docs/plans/v21.0.0/tasks/1077-write-crash-concurrency-durability-witnesses.md)** ([#1077](https://github.com/git-stunts/git-warp/issues/1077) | `Feature` | `W2` | Prereqs: `#1074`, `#1075`, `#1078`, `#1080` | Unlocks: `#823`)
+### W3 — Retained Readings, Operator CLI & Global Selection Plane (#1044 & #824)
+
+- [ ] **[#815: Define retained graph manifests and bounded ordinal address pages](docs/plans/v21.0.0/tasks/815-retained-graph-manifests-and-address-pages.md)** ([#815](https://github.com/git-stunts/git-warp/issues/815) | `Feature` | `W3` | Prereqs: none (merged on `main`) | Unlocks: `#816`, `#819`, `#814`)
+- [ ] **[#192: Replace Record<string, unknown> and WarpStateLike in IncrementalIndexUpdater](docs/plans/v21.0.0/tasks/192-incremental-index-updater-typed-boundary.md)** ([#192](https://github.com/git-stunts/git-warp/issues/192) | `Feature` | `W3` | Prereqs: none (merged on `main`) | Unlocks: `#228`, `#816`)
+- [ ] **[#811: Generate migration CLI help and documentation from one canonical contract](docs/plans/v21.0.0/tasks/811-canonical-migration-guidance-contract.md)** ([#811](https://github.com/git-stunts/git-warp/issues/811) | `Feature` | `W3` | Prereqs: none (merged on `main`) | Unlocks: `#822`)
+- [ ] **[#1044-S1: Retained readings Slice 1: canonical record digests, Merkle directory pages, and join laws](docs/plans/v21.0.0/tasks/1044a-retained-readings-design-and-record-digests.md)** ([#1044](https://github.com/git-stunts/git-warp/issues/1044) | `Feature` | `W3` | Prereqs: `#1062 (merged)`, `#1067 (merged)` | Unlocks: `#1044-S2..S6`, `#814`)
+- [ ] **[#816: Remix Roaring bitmap indexes as the retained-state selection plane](docs/plans/v21.0.0/tasks/816-roaring-retained-selection-plane.md)** ([#816](https://github.com/git-stunts/git-warp/issues/816) | `Feature` | `W3` | Prereqs: `#815`, `#192` | Unlocks: `#817`, `#820`, `#814`)
+- [ ] **[#228: Remove P5-LEGACY index verification and byte-shard bridge from MaterializedViewService](docs/plans/v21.0.0/tasks/228-materialized-view-service-index-decoupling.md)** ([#228](https://github.com/git-stunts/git-warp/issues/228) | `Feature` | `W3` | Prereqs: `#192` | Unlocks: `#248`)
+- [ ] **[#1057: Rewrite git warp doctor and repair as operator tools for the cone, optic-only model](docs/plans/v21.0.0/tasks/1057-cli-doctor-and-repair-cone-rewrite.md)** ([#1057](https://github.com/git-stunts/git-warp/issues/1057) | `Feature` | `W3` | Prereqs: `#1052-3b`, `#1049 (merged)`, `#1062 (merged)`, `#1067 (merged)` | Unlocks: none)
+- [ ] **[#817: Stream causal reduction and replace full-state hashes with root commitments](docs/plans/v21.0.0/tasks/817-stream-causal-reduction-and-root-commitments.md)** ([#817](https://github.com/git-stunts/git-warp/issues/817) | `Feature` | `W3` | Prereqs: `#816` | Unlocks: `#248`, `#822`, `#917`, `#814`, `#823`)
+- [ ] **[#1044-S2..S6: Retained readings Slices 2-6: git-cas storage, support memos, wormholes, compaction, and shared-dot folds](docs/plans/v21.0.0/tasks/1044b-support-memos-wormholes-and-compaction.md)** ([#1044](https://github.com/git-stunts/git-warp/issues/1044) | `Feature` | `W3` | Prereqs: `#1044-S1`, `#1052-3b` | Unlocks: `#814`)
+- [ ] **[#248: Migrate remaining runtime and controller consumers off _materializeGraph()](docs/plans/v21.0.0/tasks/248-remove-materialize-graph-runtime-consumers.md)** ([#248](https://github.com/git-stunts/git-warp/issues/248) | `Feature` | `W3` | Prereqs: `#817`, `#228`, `#1052-3b` | Unlocks: `#814`)
+- [ ] **[#822: Migrate retained substrates directly into indexed graph roots with verified promotion](docs/plans/v21.0.0/tasks/822-migrate-substrates-into-indexed-graph-roots.md)** ([#822](https://github.com/git-stunts/git-warp/issues/822) | `Feature` | `W3` | Prereqs: `#811`, `#817`, `#818 (merged)`, `#819`, `#820`, `#821` | Unlocks: `#814`, `#823`)
+- [ ] **[#814: Delete production full-state materialization contracts and whole-state checkpoint system](docs/plans/v21.0.0/tasks/814-eliminate-production-full-state-contracts.md)** ([#814](https://github.com/git-stunts/git-warp/issues/814) | `Feature` | `W3` | Prereqs: `#815`, `#816`, `#817`, `#248`, `#822`, `#1054`, `#1044-S1`, `#1044-S2..S6` | Unlocks: `#823`)
+### W4 — Recursive WARP & Bounded Bulk Ingestion (#905 & #917)
+
+- [ ] **[#819: Add typed recursive WARP graph attachment references](docs/plans/v21.0.0/tasks/819-typed-recursive-warp-graph-references.md)** ([#819](https://github.com/git-stunts/git-warp/issues/819) | `Feature` | `W4` | Prereqs: `#815`, `#903 (merged)` | Unlocks: `#820`, `#821`, `#822`)
+- [ ] **[#820: Traverse recursive WARP graphs with cycle-safe bounded receipts](docs/plans/v21.0.0/tasks/820-cycle-safe-recursive-traversal-receipts.md)** ([#820](https://github.com/git-stunts/git-warp/issues/820) | `Feature` | `W4` | Prereqs: `#816`, `#819`, `#903 (merged)` | Unlocks: `#822`, `#823`)
+- [ ] **[#821: Retain and diagnose recursive graph references across CAS boundaries](docs/plans/v21.0.0/tasks/821-retain-and-diagnose-recursive-graph-references.md)** ([#821](https://github.com/git-stunts/git-warp/issues/821) | `Feature` | `W4` | Prereqs: `#819`, `#903 (merged)` | Unlocks: `#822`, `#823`)
+- [ ] **[#917: Stream public bulk intents through bounded atomic batches with backpressured receipts](docs/plans/v21.0.0/tasks/917-stream-public-bulk-intents-bounded-batches.md)** ([#917](https://github.com/git-stunts/git-warp/issues/917) | `Feature` | `W4` | Prereqs: `#817`, `#916 (merged)` | Unlocks: `#823`)
+- [ ] **[#823: Prove bounded process memory across global jobs, attachments, migration, and recursion, and run v21.0.0 release preflight](docs/plans/v21.0.0/tasks/823-prove-bounded-memory-across-global-jobs.md)** ([#823](https://github.com/git-stunts/git-warp/issues/823) | `Feature` | `W4` | Prereqs: `#814`, `#817`, `#818 (merged)`, `#820`, `#821`, `#822`, `#916 (merged)`, `#917`, `#1032`, `#1077` | Unlocks: none)
+### W5 — Test Infrastructure, Security & Release Closure
+
+- [ ] **[#1081: Fix public-surface-package test losing dist/ during group script runs](docs/plans/v21.0.0/tasks/1081-public-surface-package-dist-race.md)** ([#1081](https://github.com/git-stunts/git-warp/issues/1081) | `Bug` | `W5` | Prereqs: `#1050 (merged)` | Unlocks: none)
+- [ ] **[#1070: Prevent stable unit runner from selecting benchmark files that Vitest ignores](docs/plans/v21.0.0/tasks/1070-stable-unit-runner-benchmark-filter.md)** ([#1070](https://github.com/git-stunts/git-warp/issues/1070) | `Bug` | `W5` | Prereqs: `#1063 (merged)` | Unlocks: none)
+- [ ] **[#1079: Reconcile unpacked payload headroom, pre-permission I/O failures, and v20 trailer compatibility](docs/plans/v21.0.0/tasks/1079-payload-headroom-and-contract-reconciliation.md)** ([#1079](https://github.com/git-stunts/git-warp/issues/1079) | `Decision` | `W5` | Prereqs: `#1051 (merged)` | Unlocks: `#1052-3b`, `#1054`)
+- [ ] **[#1032: Re-review the four expired accepted security risks in .github/SECURITY.md](docs/plans/v21.0.0/tasks/1032-re-review-expired-accepted-security-risks.md)** ([#1032](https://github.com/git-stunts/git-warp/issues/1032) | `Decision` | `W5` | Prereqs: `#892 (merged)` | Unlocks: `#823`)
+
+---
+
+## 6. Audit of Local Worktrees and Unmerged Branches
+
+| Worktree / Branch | Head Commit | Status vs `main` | Disposition in Roadmap |
 | --- | --- | --- | --- |
-| `~/git/git-warp` (`main`) | `179e9445a` | +1 ahead of `origin/main` | Active primary checkout containing `PLAN.md`. |
-| `~/git/git-warp-w-1052` (`feat/1052-optic-reads`, PR [#1082](https://github.com/git-stunts/git-warp/pull/1082)) | `5ce1d2d12` | +11 ahead of `origin/main` | **Active:** Slice 3a of `#1052`, ready to push & merge. |
-| `~/git/git-warp-w-cone` (`feat/cone-bounded-runtime`, PR [#1040](https://github.com/git-stunts/git-warp/pull/1040)) | `906d24ea4` | +31 commits | **Source prototype:** Being extracted via Slices 3b–7; close PR #1040 once extractions complete. |
-| `~/git/git-warp-w-1050` (`fix/1040-main-integration`) | `0facc4c3a` | `#1040` + main merge + 3 commits | **Extract:** 3 commits (`2e43c1526`, `171ef5744`, `0facc4c3a`) for `ImmutableBytes` / `ContentAttachment` iterator contracts and `public-surface-ratchet.txt` retirement. |
-| `~/git/git-warp-w-ckpt` (`design/retained-readings` / `origin/design/retained-readings`) | `d1a02bd2b` | `#1040` + 1 commit | **Extract:** `d1a02bd2b` (`docs/design/retained-readings.md`) is the design record for Goalpost [#1044](https://github.com/git-stunts/git-warp/issues/1044). |
-| `~/git/git-warp-w-coneperf` (`feat/1039-cone-storage-perf`) | `b1cab2fdf` | Merged into `#1040` | Storage layout 2 code already landed in `#1062` (PR #1064). |
-| `~/git/git-warp-w-showcase` (`feat/1039-cone-showcase`) | `300d8684d` | Merged into `#1040` | Showcase & witness code to be extracted in Slice 5 ([#1055](https://github.com/git-stunts/git-warp/issues/1055)). |
-| `origin/agent/eliminate-full-state-contracts` | `c937c3c64` | +2 commits | **Extract for [#814](https://github.com/git-stunts/git-warp/issues/814):** `82ba46409` (`full-state-contract-ratchet.test.ts`) and `c937c3c64` (delete `loadReplayBasis` / `RetainedMaterializationResumeStrategy`). |
-| `origin/feature/optic-only-public-api` | `25c2945a3` | +9 commits | **Superseded** by accepted contract `#1049` (PR #1059) and `#1051`/`#1052`. |
-| `origin/policy/quarantine-evidence` | `1f83f7e08` | +2 commits | `5f031e8e9` landed via `#1030` (PR #1033); `1f83f7e08` (occurrence-bound quarantine schema v2) remains optional tooling work. |
-| `docs/v20.1-synapse-plan` (local) | `18c0a0bd7` | Historical docs | **Superseded** historical v20.1 Synapse queue notes (all underlying PRs merged). |
-| `~/git/git-warp-w-1031` (`fix/1031-v16-gc-convergence`, `origin/maintenance/16.x`) | `65207ace7` | `v16.0.1` tag | Maintenance line for [#1031](https://github.com/git-stunts/git-warp/issues/1031) (`v16.0.2`), independent of `v21.0.0`. |
-| `git-warp-v19.1.0`, `git-warp-v20.0.0`, `git-warp-w-982-baseline` | Detached HEAD | Historical tags | Reference checkouts; no unmerged work. |
+| `~/git/git-warp` (`main`) | `HEAD` | Active primary checkout | Contains `ROADMAP.md`, `PLAN.md`, and `docs/plans/v21.0.0/tasks/*.md`. |
+| `~/git/git-warp-w-1052` (`feat/1052-optic-reads`, PR [#1082](https://github.com/git-stunts/git-warp/pull/1082)) | `5ce1d2d12` | Pushed, +11 ahead of `origin/main` | **Active (`PR #1082`):** Pushed with all 9 pre-push gates green and `93.59%` coverage ratchet; ready to merge. |
+| `~/git/git-warp-w-cone` (`feat/cone-bounded-runtime`, PR [#1040](https://github.com/git-stunts/git-warp/pull/1040)) | `906d24ea4` | +31 commits | **Source prototype:** Extracted across `#1052-3b`, `#1053`, `#1055`, `#1057`, and `#1054`; close PR #1040 at `#1054`. |
+| `~/git/git-warp-w-1050` (`fix/1040-main-integration`) | `0facc4c3a` | `#1040` + main merge + 3 commits | **Extract in `#1054`:** Commits `2e43c1526`, `171ef5744`, `0facc4c3a` (`ImmutableBytes` / `ContentAttachment` iterator contracts). |
+| `~/git/git-warp-w-ckpt` (`design/retained-readings` / `origin/design/retained-readings`) | `d1a02bd2b` | `#1040` + 1 commit | **Extract in `#1044-S1`:** Commit `d1a02bd2b` (`docs/plans/retained-readings.md` design record). |
+| `~/git/git-warp-w-coneperf` (`feat/1039-cone-storage-perf`) | `b1cab2fdf` | Merged into `#1040` | Storage layout 2 code already landed on `main` via `#1062` (PR #1064). |
+| `~/git/git-warp-w-showcase` (`feat/1039-cone-showcase`) | `300d8684d` | Merged into `#1040` | **Extract in `#1055`:** `examples/annotations/` and `benchmarks/cone-showcase/`. |
+| `origin/agent/eliminate-full-state-contracts` | `c937c3c64` | +2 commits | **Extract in `#814`:** Commits `82ba46409` (`full-state-contract-ratchet.test.ts`) and `c937c3c64` (delete `loadReplayBasis`). |
+| `origin/feature/optic-only-public-api` | `25c2945a3` | +9 commits | **Superseded** by `#1049` (PR #1059), `#1051` (PR #1071), and `#1052` (PR #1082). |
+| `origin/policy/quarantine-evidence` | `1f83f7e08` | +2 commits | `5f031e8e9` landed via `#1030` (PR #1033); `1f83f7e08` remains optional tooling work. |
+| `~/git/git-warp-w-1031` (`fix/1031-v16-gc-convergence`, `origin/maintenance/16.x`) | `65207ace7` | `v16.0.1` tag | Maintenance line for `#1031` (`v16.0.2`), independent of `v21.0.0`. |
 
 ---
 
-## 4. Remaining v21.0.0 Roadmap & Open GitHub Issues Checklist
-
-### A. Write-Path Hardening, Crash Recovery & Retention Scaling (Milestone `v21.0.0`)
-- [ ] **[#1080](https://github.com/git-stunts/git-warp/issues/1080)** (`priority:asap`): Eliminate the ~300 loose objects and permanent ref per retained observation (wire `git-cas 7.2.0` compressed reservation index across read/write retention).
-- [ ] **[#1078](https://github.com/git-stunts/git-warp/issues/1078)**: Settle what `Warp.open` does before access, and guard clone-local write refs.
-- [ ] **[#1077](https://github.com/git-stunts/git-warp/issues/1077)**: Real multi-process crash, concurrency, and durability witnesses for `Warp` writes.
-- [ ] **[#1076](https://github.com/git-stunts/git-warp/issues/1076)**: Typed write causes and unforgeable receipts callers cannot construct.
-- [ ] **[#1075](https://github.com/git-stunts/git-warp/issues/1075)**: Bound the publication probe and writer limit.
-- [ ] **[#1074](https://github.com/git-stunts/git-warp/issues/1074)**: Recover write attempts after a crash, and re-ask for an answer.
-- [ ] **[#1073](https://github.com/git-stunts/git-warp/issues/1073)**: Make `derived` honest across processes.
-- [ ] **[#1072](https://github.com/git-stunts/git-warp/issues/1072)**: Retain write races in the receipt core.
-- [ ] **[#1041](https://github.com/git-stunts/git-warp/issues/1041)**: Bound pack count for WARP repositories so bulk-load saves do not degrade with pack accumulation.
-
-### B. Retained Readings & Whole-State Checkpoint Replacement (Goalpost [#1044](https://github.com/git-stunts/git-warp/issues/1044))
-- [ ] **Slice 1:** Canonical record digests, Merkle directory pages, canonical adjacency, `join` per record kind, and opaque receipt basis commitment.
-- [ ] **Slice 2:** `git-cas`-owned storage (`pages/bundles/publications.commit`), internal/operator retention pins, deletion of 64-entry ring and adapter-local writer.
-- [ ] **Slice 3:** Support memos (reading identity, dependency sets, lane/strand cache sets, observer gating, cold-equals-warm byte-identical receipt witness).
-- [ ] **Slice 4:** Wormholes (shell and delta, create/compose/verify, ingest consumption, fresh-clone witness).
-- [ ] **Slice 5:** Compaction and GC (Hot tier sweep, release, basis compaction, register sweep, doctor reporting).
-- [ ] **Slice 6:** Exact shared-dot folding (replacing shared-dot obstruction), footprint trailers, lazy element folds, streaming writer ranges.
-- [ ] **Slice 7:** Delete the 29,409-line whole-state checkpoint/materialization system in 7-step dependency order with `repair --action retire-legacy`.
-- [ ] **Slice 8:** Restore settlement default ([#970](https://github.com/git-stunts/git-warp/issues/970)) and align documentation with [#1055](https://github.com/git-stunts/git-warp/issues/1055).
-
-### C. Streaming Indexed & Recursive WARP (`docs/plans/v21.0.0/README.md` Must-Ship Cards, Goalpost [#824](https://github.com/git-stunts/git-warp/issues/824) & [#905](https://github.com/git-stunts/git-warp/issues/905))
-- [ ] **[#814](https://github.com/git-stunts/git-warp/issues/814)** (`status:active`): Eliminate production full-state materialization contracts (`encodeWarpFullState`, `decodeWarpFullState`, `decodeCanonicalWarpFullState`, `loadReplayBasis`, `_materializeGraph` — integrate `origin/agent/eliminate-full-state-contracts`).
-- [ ] **[#248](https://github.com/git-stunts/git-warp/issues/248)**, **[#228](https://github.com/git-stunts/git-warp/issues/228)**, **[#192](https://github.com/git-stunts/git-warp/issues/192)**: Remove `_materializeGraph()` consumers, decouple index verification from `MaterializedViewService`, and clean up `IncrementalIndexUpdater` (`WarpStateLike` / `Record<string, unknown>`).
-- [ ] **[#815](https://github.com/git-stunts/git-warp/issues/815)**: Define retained graph manifests and bounded ordinal address pages.
-- [ ] **[#816](https://github.com/git-stunts/git-warp/issues/816)**: Remix Roaring indexes as the retained-state selection plane.
-- [ ] **[#817](https://github.com/git-stunts/git-warp/issues/817)**: Stream causal reduction and replace state hashes with root commitments.
-- [ ] **[#819](https://github.com/git-stunts/git-warp/issues/819)**, **[#820](https://github.com/git-stunts/git-warp/issues/820)**, **[#821](https://github.com/git-stunts/git-warp/issues/821)**: Typed recursive WARP graph attachment references, cycle-safe bounded traversal receipts, and CAS retention/diagnostics.
-- [ ] **[#822](https://github.com/git-stunts/git-warp/issues/822)** (`status:active`) & **[#811](https://github.com/git-stunts/git-warp/issues/811)**: Migrate retained substrates directly into indexed graph roots and generate migration guidance from one canonical contract.
-- [ ] **[#917](https://github.com/git-stunts/git-warp/issues/917)**: Stream public bulk intents through bounded atomic batches with backpressured receipts.
-- [ ] **[#823](https://github.com/git-stunts/git-warp/issues/823)**: Aggregate bounded-memory proof across global jobs, attachments, migration, and recursion.
-
-### D. Bug Reports Closed or Narrowed by the Cutover
-- [ ] Verify closure of **[#1034](https://github.com/git-stunts/git-warp/issues/1034)** (5 MiB 2nd checkpoint `E_CBOR_DECODE_BOUNDS`), **[#1035](https://github.com/git-stunts/git-warp/issues/1035)** (tail rescan per reading), **[#1036](https://github.com/git-stunts/git-warp/issues/1036)** (400 ms per-observation basis cost at 6k nodes), **[#1037](https://github.com/git-stunts/git-warp/issues/1037)** (`edge.remove` missing bounded basis), and **[#1038](https://github.com/git-stunts/git-warp/issues/1038)** (empty lane observation after repair).
-- [ ] Fix test-runner bugs **[#1081](https://github.com/git-stunts/git-warp/issues/1081)** (`public-surface-package` test losing `dist/` in batch runs) and **[#1070](https://github.com/git-stunts/git-warp/issues/1070)** (stable unit runner file selection mismatch).
-
-### E. Release Hygiene & Preflight Gates
-- [ ] **[#1032](https://github.com/git-stunts/git-warp/issues/1032)** (`priority:asap`): Re-review the four expired accepted security risks.
-- [ ] **[#1079](https://github.com/git-stunts/git-warp/issues/1079)**: Payload headroom and contract reconciliation before `v21.0.0`.
-- [ ] Run full Docker test shards, Deno, BATS release closure, sludge/quarantine checks, and `scripts/release-preflight.sh` / `scripts/release-guard.sh`.
-- [ ] Synchronize version `21.0.0` across `package.json`, `package-lock.json`, and `jsr.json` at release time.
-
----
-
-## 5. Dependency DAG, MECE Workstreams & Antichain Execution Plan
-
-Dependency edges below are defined strictly by **correctness prerequisites**: *Which other PRs must already be merged for this PR to be correct?* Shared files, topic similarity, or parent/child tracking containers alone do not create edges.
-
-### A. Visual Dependency Graph (Mermaid)
+## 7. Correctness Dependency DAG (Mermaid)
 
 ```mermaid
 flowchart TD
@@ -168,56 +190,55 @@ flowchart TD
     M1051["#1051 Warp Cone Writes"]
   end
 
-  subgraph Wave0["Antichain 0: Open Root Nodes (Zero Incomplete Parents)"]
-    W0_1082["PR #1082 (#1052 Slice 3a: Node/Prop Optic Reads)"]
-    W0_Test["#1081 & #1070 Script/Runner Test Fixes"]
-    W0_1080["#1080 Loose-Object Attribution & Read Retention Rule"]
-    W0_1078["#1078 Warp.open Pre-Access & Write-Attempt Ref Guard"]
-    W0_1072["#1072 Retain Write Races in Receipt Core"]
-    W0_1074["#1074 Write Crash Attempt Recovery & Re-Ask"]
-    W0_1075["#1075 Bound Publication Probe & Writer Limit"]
-    W0_1076["#1076 Typed Write Causes & Unforgeable Receipts"]
-    W0_1079["#1079 Payload Headroom & Contract Reconciliation"]
-    W0_1041["#1041 Bound Repository Pack Count"]
-    W0_1032["#1032 Security Risk Re-Review"]
-    W0_815["#815 Retained Manifests & Address Pages"]
-    W0_192["#192 IncrementalIndexUpdater Boundary"]
-    W0_811["#811 Canonical Migration Guidance Contract"]
-    W0_1044S1["#1044 Slice 1: Retained-Readings Design & Record Digests"]
+  subgraph Wave0["Wave 0: Open Frontier (Zero Incomplete Parents)"]
+    W0_1082["PR #1082 (#1052-3a): Core Node/Prop Optic Reads"]
+    W0_Test["#1081 & #1070: Script/Runner Test Fixes"]
+    W0_1080["#1080: Loose-Object Attribution & Read Retention"]
+    W0_1078["#1078: Warp.open Pre-Access & Attempt Ref Guard"]
+    W0_1072["#1072: Retain Write Races in Receipt Core"]
+    W0_1074["#1074: Write Crash Attempt Recovery"]
+    W0_1075["#1075: Bound Publication Probe & Writer Limit"]
+    W0_1076["#1076: Typed Write Causes & Unforgeable Receipts"]
+    W0_1079["#1079: Payload Headroom & Contract Reconciliation"]
+    W0_1041["#1041: Bound Repository Pack Count"]
+    W0_1032["#1032: Security Risk Re-Review"]
+    W0_815["#815: Retained Manifests & Address Pages"]
+    W0_192["#192: IncrementalIndexUpdater Boundary"]
+    W0_811["#811: Canonical Migration Guidance Contract"]
+    W0_1044["#1044-S1: Retained-Readings Design & Record Digests"]
   end
 
-  subgraph Wave1["Antichain 1: Complete Optic Reads & Selection/Reference Roots"]
-    W1_1052B["#1052 Slice 3b: Edges, Neighbourhood, Inventory, Strands, Plurality"]
-    W1_1073["#1073 Honest Cross-Process derived via Read Knowledge"]
-    W1_1077["#1077 Multi-Process Crash & Durability Witnesses"]
-    W1_816["#816 Roaring Selection Plane"]
-    W1_228["#228 MaterializedViewService Index Decoupling"]
-    W1_819["#819 Typed Recursive Graph Refs"]
+  subgraph Wave1["Wave 1: Complete Optic Reads & Selection Roots"]
+    W1_1052B["#1052-3b: Edges, Traversal, Inventory, Strands, Plurality"]
+    W1_1073["#1073: Honest Cross-Process derived via Read Knowledge"]
+    W1_1077["#1077: Multi-Process Crash & Durability Witnesses"]
+    W1_816["#816: Roaring Selection Plane"]
+    W1_228["#228: MaterializedViewService Index Decoupling"]
+    W1_819["#819: Typed Recursive Graph Refs"]
   end
 
-  subgraph Wave2["Antichain 2: Historical Coordinates, Strands & Operator CLI"]
-    W2_1053["#1053 Coordinate Replay, Re-Ask, Fork & Strand Settlement (#968-#970)"]
-    W2_1057["#1057 CLI doctor & repair Cone/Optic Rewrite"]
-    W2_817["#817 Stream Causal Reduction & Root Commitments"]
-    W2_820["#820 Cycle-Safe Recursive Traversal"]
-    W2_821["#821 Recursive CAS Retention & Diagnostics"]
+  subgraph Wave2["Wave 2: Coordinates, Strands, CLI & Root Commitments"]
+    W2_1053["#1053: Coordinate Replay, Re-Ask, Fork & Strands"]
+    W2_1057["#1057: CLI doctor & repair Cone/Optic Rewrite"]
+    W2_817["#817: Stream Causal Reduction & Root Commitments"]
+    W2_820["#820: Cycle-Safe Recursive Traversal"]
+    W2_821["#821: Recursive CAS Retention & Diagnostics"]
   end
 
-  subgraph Wave3["Antichain 3: Newcomer Scaffold, Bulk Stream & Substrate Migration"]
-    W3_1055["#1055 Newcomer Path, Annotations Scaffold & Showcase Witness (#1045, #979)"]
-    W3_248["#248 Remove _materializeGraph Runtime Consumers"]
-    W3_917["#917 Bounded Atomic Bulk Ingestion"]
-    W3_822["#822 Migrate Substrates to Indexed Roots"]
+  subgraph Wave3["Wave 3: Newcomer Path, Bulk Stream & Substrate Migration"]
+    W3_1055["#1055: Newcomer Path, Annotations & Showcase Witness"]
+    W3_248["#248: Remove _materializeGraph Runtime Consumers"]
+    W3_917["#917: Bounded Atomic Bulk Ingestion"]
+    W3_822["#822: Migrate Substrates to Indexed Roots"]
   end
 
-  subgraph Wave4["Antichain 4: Breaking Cutover & Full-State Deletion"]
-    W4_1054["#1054 Remove Legacy Runtime, Lane, Capture & Empty #1050 Ratchet"]
-    W4_814["#814 & #1044-S7 Delete Full-State Codecs & Checkpoint System"]
+  subgraph Wave4["Wave 4: Breaking Cutover & Full-State Deletion"]
+    W4_1054["#1054: Remove Legacy Runtime/Lane & Empty #1050 Ratchet"]
+    W4_814["#814: Delete Full-State Codecs & Checkpoint System"]
   end
 
-  subgraph Wave5["Antichain 5: Aggregate Proof & v21.0.0 Release"]
-    W5_823["#823 Bounded-Memory Proof Matrix"]
-    W5_Rel["v21.0.0 Release Preflight & Tag"]
+  subgraph Wave5["Wave 5: Aggregate Proof & v21.0.0 Release"]
+    W5_823["#823: Bounded-Memory Proof Matrix & Release Preflight"]
   end
 
   M1051 --> W0_1082
@@ -261,74 +282,27 @@ flowchart TD
   W3_248 --> W4_814
   W3_822 --> W4_814
   W4_1054 --> W4_814
-  W0_1044S1 --> W4_814
+  W0_1044 --> W4_814
 
   W4_814 --> W5_823
   W2_821 --> W5_823
   W3_822 --> W5_823
   W3_917 --> W5_823
-  W5_823 --> W5_Rel
-  W0_1032 --> W5_Rel
-  W1_1077 --> W5_Rel
 ```
 
 ---
 
-### B. Prerequisite Edge Accounting (Recorded vs. Evidence-Backed)
+## 8. Prerequisite Edge Accounting Table
 
-| Target Issue / Slice | Must Be Merged First | Edge Type | Correctness Reason |
+| Target Task | Must Be Merged First | Edge Classification | Correctness Justification |
 | --- | --- | --- | --- |
-| **PR #1082** (`#1052` Slice 3a) | `#1049`, `#1050`, `#1062`, `#1067`, `#1051` | Accepted (`#1048`) | All 5 prerequisites are already on `main`; PR #1082 is ready to merge immediately. |
-| **`#1052` Slice 3b** (remaining Optic reads + retention) | PR `#1082`, `#1080`, `#1078`, `#1079` | Recorded (`#1078`–`#1080`) + Evidence | Extends `OpticQuery`/`ConeReadExecutor` from PR #1082; requires `#1080`'s read-retention decision, `#1078`'s `Warp.open` pre-access semantics, and `#1079`'s payload budget reconciliation. |
-| **`#1073`** (honest `derived` across processes) | PR `#1082` (`#1052`) | Recorded (`#1073`) | Feeds observed read state from `#1052` into `ConeWriteKnowledge` or starts from writer's last frontier. |
-| **`#1077`** (real crash/concurrency witnesses) | `#1074`, `#1075`, `#1078`, `#1080` | Evidence-backed | Witnesses test two-process crash recovery (`#1074`), bounded probe walks (`#1075`), clone-local ref guards (`#1078`), and 100k-write ref/object bounds (`#1080`). |
-| **`#1053`** (Coordinate replay, re-ask, fork, strands `#968`–`#970`) | `#1052` Slice 3b, `#1072` | Accepted (`#1048`) + Recorded (`#1072`) | `replay`/`at` are `Optic` operations consuming `#1051`/`#1052` retained records; `#1072` binds write races into `writeReceiptCore.ts` so write replay preserves conflict evidence. |
-| **`#1057`** (CLI `doctor` & `repair` rewrite) | `#1052` Slice 3b (+ `#1044` for `retire-legacy`) | Accepted (`#1048`, `#1057`) | `doctor` readiness probes must execute real bounded `Optic` reads; `retire-legacy` requires `#1044` Slice 7. |
-| **`#1055`** (newcomer path, `examples/annotations`, `#1045`, `#979`) | `#1051`, `#1052`, `#1053` | Accepted (`#1048`, `#1055`) | End-to-end newcomer witness and annotations showcase exercise writes, optic reads, receipt-derived coordinates, strand fork, and settlement. |
-| **`#1054`** (remove legacy `Runtime`, `Lane`, `captureCoordinate`) | `#1050`–`#1053`, `#1055`, `#1076` | Accepted (`#1048`) + Recorded (`#1076`) | Cannot remove legacy public surface until all replacements, migrated docs/examples (`#1055`), and final unforgeable receipt/cause types (`#1076`) are integrated. |
-| **`#814`** (eliminate full-state contracts) | `#815` $\to$ `#816` $\to$ `#817`, `#192` $\to$ `#228` $\to$ `#248`, `#822`, `#1054` | Accepted (`v21.0.0` plan) + Evidence (`82ba46409`) | Branch `origin/agent/eliminate-full-state-contracts` proved that deleting `loadReplayBasis` breaks warm reopen tests until `#815`–`#817` and `#248` replace whole-state resume. |
-| **`#823`** (aggregate bounded-memory proof) | `#814`, `#821`, `#822`, `#917` | Accepted (`v21.0.0` plan) | Aggregate proof must exercise the real production implementations of global selection, recursive refs, migration, and bulk ingestion. |
-
----
-
-### C. Five MECE Workstreams
-
-1. **Workstream W1 — Core Optic Read, Coordinate & Strand Cutover (`#1048` / `#1039` Public Path):**
-   - Owns: PR `#1082` (`#1052` Slice 3a), `#1052` Slice 3b, `#1053` (including `#968`–`#970`), `#1055` (including `#979`, `examples/annotations`, `benchmarks/cone-showcase`), `#1054` (including `git-warp-w-1050` commits `2e43c1526`, `171ef5744`, `0facc4c3a`).
-2. **Workstream W2 — Write-Path Hardening, Custody Scaling & Crash Recovery (`#1051` / `#1067` Follow-ups):**
-   - Owns: `#1080`, `#1078`, `#1076`, `#1075`, `#1074`, `#1072`, `#1073`, `#1077`, `#1041`.
-3. **Workstream W3 — Retained Readings, Operator CLI & Global Selection Plane (`#1044` & `#824`):**
-   - Owns: `#1044` Slices 1–8 (`design/retained-readings`), `#1057` (`doctor`/`repair`), `#815` $\to$ `#816` $\to$ `#817`, `#192` $\to$ `#228` $\to$ `#248` $\to$ `#814` (`origin/agent/eliminate-full-state-contracts`), `#822` & `#811`.
-4. **Workstream W4 — Recursive WARP & Bounded Bulk Ingestion (`#905` & `#917`):**
-   - Owns: `#819` $\to$ `#820` $\to$ `#821`, `#917`, `#823`.
-5. **Workstream W5 — Test Infrastructure, Security & Release Closure:**
-   - Owns: `#1081`, `#1070`, `#1032`, `#1079`, verification of `#1034`–`#1038`, release preflight, and `21.0.0` version bump.
-
----
-
-### D. Step-by-Step Antichain Execution Checklist (Order of Attack)
-
-- [ ] **Wave 0 (Open Root Nodes — Zero Incomplete Parent Tasks):**
-  - [ ] **0.1:** Push & merge PR [#1082](https://github.com/git-stunts/git-warp/pull/1082) (`#1052` Slice 3a: core `Optic` node & property reads).
-  - [ ] **0.2:** Fix CI/script test hygiene bugs [#1081](https://github.com/git-stunts/git-warp/issues/1081) (`public-surface-package` `dist/` race) and [#1070](https://github.com/git-stunts/git-warp/issues/1070) (stable unit runner `.benchmark.` filter).
-  - [ ] **0.3:** Resolve [#1080](https://github.com/git-stunts/git-warp/issues/1080) (attribute ~300 loose objects per retained observation & settle read retention policy) and [#1079](https://github.com/git-stunts/git-warp/issues/1079) (payload headroom & contract reconciliation).
-  - [ ] **0.4:** Land write-path & storage foundations: [#1078](https://github.com/git-stunts/git-warp/issues/1078) (`Warp.open` pre-access & clone-local ref guard), [#1072](https://github.com/git-stunts/git-warp/issues/1072) (write races in receipt core), [#1074](https://github.com/git-stunts/git-warp/issues/1074) (attempt crash recovery), [#1075](https://github.com/git-stunts/git-warp/issues/1075) (bounded probe & writer limit), [#1076](https://github.com/git-stunts/git-warp/issues/1076) (typed causes & unforgeable receipts), and [#1041](https://github.com/git-stunts/git-warp/issues/1041) (bound repository pack count).
-  - [ ] **0.5:** Complete [#1032](https://github.com/git-stunts/git-warp/issues/1032) (re-review 4 expired security risks in `.github/SECURITY.md`).
-  - [ ] **0.6:** Start global selection, migration, and retained-reading root fronts: [#815](https://github.com/git-stunts/git-warp/issues/815) (retained manifests & address pages), [#192](https://github.com/git-stunts/git-warp/issues/192) (`IncrementalIndexUpdater` boundary), [#811](https://github.com/git-stunts/git-warp/issues/811) (canonical migration guidance contract), and [#1044](https://github.com/git-stunts/git-warp/issues/1044) Design Record & Slice 1 (`design/retained-readings` `d1a02bd2b`).
-- [ ] **Wave 1 (Complete Optic Read Surface, Selection Plane & Typed Recursive Refs):**
-  - [ ] **1.1:** Extract & land [#1052](https://github.com/git-stunts/git-warp/issues/1052) Slice 3b (edges, `edgesAround`, traversal, content, paged inventory, `Optic(observedStrand)`, plurality, Wesley observers, read retention, `#1045` read pins).
-  - [ ] **1.2:** Land [#1073](https://github.com/git-stunts/git-warp/issues/1073) (honest cross-process `derived` fed by `#1052` reads) and [#1077](https://github.com/git-stunts/git-warp/issues/1077) (multi-process crash/durability witnesses).
-  - [ ] **1.3:** Advance selection & reference roots: [#816](https://github.com/git-stunts/git-warp/issues/816) (requires `#815` + `#192`), [#228](https://github.com/git-stunts/git-warp/issues/228) (requires `#192`), and [#819](https://github.com/git-stunts/git-warp/issues/819) (requires `#815` + closed `#903`).
-- [ ] **Wave 2 (Coordinates, Strands, Operator CLI, Root Commitments & Recursive Traversal):**
-  - [ ] **2.1:** Extract & land [#1053](https://github.com/git-stunts/git-warp/issues/1053) (receipt-derived `Coordinate`, `replay`, `at`, fork from `Coordinate`, strand overlays & settlement [#968](https://github.com/git-stunts/git-warp/issues/968)–[#970](https://github.com/git-stunts/git-warp/issues/970)).
-  - [ ] **2.2:** Extract & land [#1057](https://github.com/git-stunts/git-warp/issues/1057) (CLI `doctor` and `repair` cone/optic rewrite).
-  - [ ] **2.3:** Advance [#817](https://github.com/git-stunts/git-warp/issues/817) (requires `#816`), [#820](https://github.com/git-stunts/git-warp/issues/820) (requires `#816` + `#819`), [#821](https://github.com/git-stunts/git-warp/issues/821) (requires `#819`), and [#1044](https://github.com/git-stunts/git-warp/issues/1044) Slices 2–6.
-- [ ] **Wave 3 (Newcomer Scaffold, Bulk Ingestion & Runtime/Substrate Migration):**
-  - [ ] **3.1:** Extract & land [#1055](https://github.com/git-stunts/git-warp/issues/1055) (`examples/annotations`, `benchmarks/cone-showcase`, newcomer witness `#1045` full flip, `WarpAccessPort` guide, [#979](https://github.com/git-stunts/git-warp/issues/979)).
-  - [ ] **3.2:** Land [#248](https://github.com/git-stunts/git-warp/issues/248) (`_materializeGraph` consumer migration), [#917](https://github.com/git-stunts/git-warp/issues/917) (bounded atomic bulk ingestion, requires `#817` + closed `#916`), and [#822](https://github.com/git-stunts/git-warp/issues/822) (substrate migration, requires `#811` + `#817` + `#819`–`#821`).
-- [ ] **Wave 4 (Direct Breaking Cutover & Whole-State Deletion):**
-  - [ ] **4.1:** Land [#1054](https://github.com/git-stunts/git-warp/issues/1054) (delete legacy `Runtime`, `Lane`, `captureCoordinate`, empty `#1050` ratchet, include `git-warp-w-1050` iterator commits, write v20 $\to$ v21 migration guide) and close prototype PR [#1040](https://github.com/git-stunts/git-warp/pull/1040).
-  - [ ] **4.2:** Land [#814](https://github.com/git-stunts/git-warp/issues/814) and [#1044](https://github.com/git-stunts/git-warp/issues/1044) Slice 7 (delete full-state codecs/contracts & whole-state checkpoint system).
-- [ ] **Wave 5 (Aggregate Bounded-Memory Proof & v21.0.0 Release):**
-  - [ ] **5.1:** Execute [#823](https://github.com/git-stunts/git-warp/issues/823) bounded-memory proof matrix and verify closure of [#1034](https://github.com/git-stunts/git-warp/issues/1034)–[#1038](https://github.com/git-stunts/git-warp/issues/1038).
-  - [ ] **5.2:** Run `scripts/release-preflight.sh` and `scripts/release-guard.sh`, synchronize version `21.0.0`, and cut release.
+| **[`PR #1082`](docs/plans/v21.0.0/tasks/1052a-optic-node-property-reads.md)** | `#1049`, `#1050`, `#1062`, `#1067`, `#1051` | Accepted (`#1048`) | All 5 parents are merged on `main`; PR #1082 is pushed and ready to merge. |
+| **[`#1052-3b`](docs/plans/v21.0.0/tasks/1052b-optic-edges-inventory-strands-plurality.md)** | `PR #1082`, `#1080`, `#1078`, `#1079` | Recorded (`#1078`–`#1080`) + Evidence | Extends `OpticQuery`/`ConeReadExecutor` from `PR #1082` and wires read retention (`#1080`), pre-access rules (`#1078`), and payload headroom (`#1079`). |
+| **[`#1073`](docs/plans/v21.0.0/tasks/1073-honest-cross-process-derived-outcome.md)** | `PR #1082` | Recorded (`#1073`) | Consumes observed read state from `#1052` or writer frontier to compute cross-process `derived`. |
+| **[`#1077`](docs/plans/v21.0.0/tasks/1077-write-crash-concurrency-durability-witnesses.md)** | `#1074`, `#1075`, `#1078`, `#1080` | Evidence-backed | Exercises multi-process crash recovery (`#1074`), bounded probes (`#1075`), clone-local ref guards (`#1078`), and 100k-write object bounds (`#1080`). |
+| **[`#1053`](docs/plans/v21.0.0/tasks/1053-receipt-derived-observation-coordinates.md)** | `#1052-3b`, `#1072` | Accepted (`#1048`) + Recorded (`#1072`) | `replay` and `at` operate on `Optic` and retained receipt cores (`#1072`). |
+| **[`#1057`](docs/plans/v21.0.0/tasks/1057-cli-doctor-and-repair-cone-rewrite.md)** | `#1052-3b`, `#1044-S1` | Accepted (`#1048`, `#1057`) | `doctor` executes real bounded `Optic` readiness probes; `repair --action retire-legacy` uses `#1044`. |
+| **[`#1055`](docs/plans/v21.0.0/tasks/1055-optic-only-newcomer-path-and-annotations-showcase.md)** | `#1053`, `#1041` | Accepted (`#1048`, `#1055`) | End-to-end newcomer witness and showcase benchmark exercise writes, reads, coordinates, strands, and bounded pack count (`#1041`). |
+| **[`#1054`](docs/plans/v21.0.0/tasks/1054-remove-legacy-runtime-lane-and-capture-surfaces.md)** | `#1055`, `#1076` | Accepted (`#1048`) + Recorded (`#1076`) | Deletes legacy surfaces after newcomer path (`#1055`) and final receipt/cause types (`#1076`) land. |
+| **[`#814`](docs/plans/v21.0.0/tasks/814-eliminate-production-full-state-contracts.md)** | `#248`, `#822`, `#1054`, `#1044-S2..8` | Accepted (`v21.0.0` plan) + Evidence (`82ba46409`) | Deletes `WarpFullState` and `loadReplayBasis` after all runtime, migration, and checkpoint callers are removed. |
+| **[`#823`](docs/plans/v21.0.0/tasks/823-prove-bounded-memory-across-global-jobs.md)** | `#814`, `#821`, `#822`, `#917`, `#1032`, `#1077` | Accepted (`v21.0.0` plan) | Final release-gate witness exercising the completed `v21.0.0` runtime. |
