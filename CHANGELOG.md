@@ -188,7 +188,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A write receipt rebuilt by `AuthoredWarp.reconcile` after an interrupted write now
   reports the same `outcome.races` as the original receipt, rather than none. Retained
   receipts keep their races as durable evidence. `outcome.races` is now always in one
-  canonical order, on every receipt, and each race names each writer once, sorted
+  canonical order, on every receipt, and each race names each writer once, sorted, by a
+  valid writer id. A saved race that names an invalid writer id fails closed
   ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
 - Write attempt refs under `refs/warp/<graph>/write-attempts/` in a non-negative integer
   layout version other than 2 are not read. `AuthoredWarp.reconcile` of such an attempt
