@@ -96,6 +96,7 @@ export default class ConeWriteRecovery {
   /**
    * The current receipt of one writer's attempt, or null if it has no record: already answered, or never this writer's.
    * Ownership is checked before any refusal, so another writer's record in an unreadable layout also answers null.
+   * A record that names no writer this build can read cannot be proved foreign, so it refuses every writer.
    */
   async reconcile(writer: string, attemptText: string): Promise<AuthoredWriteReceipt | null> {
     const record = await this.#ownRecord(writer, new ObservationAttemptId(attemptText));
@@ -106,7 +107,7 @@ export default class ConeWriteRecovery {
     try {
       return ownedBy(await this.#journal.read(attemptId), writer);
     } catch (error) {
-      if (error instanceof UnsupportedWriteAttemptLayoutError && error.writer !== writer) {
+      if (error instanceof UnsupportedWriteAttemptLayoutError && error.writer !== null && error.writer !== writer) {
         return null;
       }
       throw error;

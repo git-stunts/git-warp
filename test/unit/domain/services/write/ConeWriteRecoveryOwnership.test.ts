@@ -24,7 +24,7 @@ function recovery(read: () => Promise<null>): { readonly recovering: ConeWriteRe
 }
 
 describe('reconciling an attempt saved in a layout this build cannot read', () => {
-  const unsupported = (): Promise<null> => Promise.reject(new UnsupportedWriteAttemptLayoutError({ ref: REF, version: 1, writer: 'alice' }));
+  const unsupported = (): Promise<null> => Promise.reject(new UnsupportedWriteAttemptLayoutError({ ref: REF, version: 1, writer: 'alice', readable: 2 }));
 
   it('answers null to any other writer, so the refusal reveals nothing of another writer\'s attempt', async () => {
     const { recovering, resume } = recovery(unsupported);
@@ -36,6 +36,13 @@ describe('reconciling an attempt saved in a layout this build cannot read', () =
   it('refuses its own writer with the error that names the ref', async () => {
     const { recovering } = recovery(unsupported);
 
+    await expect(recovering.reconcile('alice', ATTEMPT)).rejects.toThrow(UnsupportedWriteAttemptLayoutError);
+  });
+
+  it('refuses every writer when the record names no writer it can read, since none can be proved foreign', async () => {
+    const { recovering } = recovery(() => Promise.reject(new UnsupportedWriteAttemptLayoutError({ ref: REF, version: 3, writer: null, readable: 2 })));
+
+    await expect(recovering.reconcile('mallory', ATTEMPT)).rejects.toThrow(UnsupportedWriteAttemptLayoutError);
     await expect(recovering.reconcile('alice', ATTEMPT)).rejects.toThrow(UnsupportedWriteAttemptLayoutError);
   });
 

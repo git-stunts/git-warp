@@ -147,18 +147,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   receipts keep their races as durable evidence. `outcome.races` is now always in one
   canonical order, on every receipt, and each race names each writer once, sorted
   ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
-- A clone built from `main` before #1072 can hold write attempt refs in an older layout
-  under `refs/warp/<graph>/write-attempts/`. This version does not read them.
-  `AuthoredWarp.reconcile` of such an attempt rejects with code
-  `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, and the error names the ref. Delete only the refs
-  such errors name, with `git update-ref -d <ref>`. Each one holds only that attempt's
-  recovery record, not graph data: a patch the attempt published stays on its writer's
-  chain, and only that attempt's receipt is lost. Do not delete the whole prefix, which can
-  also hold current attempts. Deleting the ref frees nothing in custody; it abandons that
-  attempt's fate, which is harmless at the current unlimited retention capacity. The
-  recovery sweep passes over these refs without counting them against its page, but does
-  not report them yet ([#1107](https://github.com/git-stunts/git-warp/issues/1107))
-  ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
+- Write attempt refs under `refs/warp/<graph>/write-attempts/` in a layout other than 2 are
+  not read. `AuthoredWarp.reconcile` of such an attempt rejects with code
+  `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, and the error names the ref and the remedy.
+  - Layout 1 came only from clones built from `main` before this fix. Delete only the ref the
+    error names, with `git update-ref -d <ref>`. It holds only that attempt's recovery record,
+    not graph data: a patch the attempt published stays on its writer's chain, and only that
+    attempt's receipt is lost. Do not delete the whole prefix, which can also hold current
+    attempts. Deleting the ref frees nothing in custody; it abandons that attempt's fate,
+    which is harmless at the current unlimited retention capacity.
+  - A newer layout came from a newer git-warp. Keep the ref and finish the attempt with that
+    build.
+  - Any other layout, such as 0, was never written by a release: the record is corrupt. Keep
+    the ref and report it.
+
+  The recovery sweep passes over at most one page of these refs without counting them
+  against that page, and does not report them yet
+  ([#1072](https://github.com/git-stunts/git-warp/issues/1072); reporting is [#1107](https://github.com/git-stunts/git-warp/issues/1107)).
+- `AuthoredWarp.reconcile` rejects with code `E_WRITE_CORE_MISMATCH` when a saved write
+  attempt record no longer rebuilds the receipt core that custody retained for it. The record
+  was altered, so it is kept, and every later ask rejects the same way. Report it. The sweep
+  does not report it yet ([#1072](https://github.com/git-stunts/git-warp/issues/1072); reporting is [#1107](https://github.com/git-stunts/git-warp/issues/1107)).
 
 - Discover every supported test file recursively under `test/unit/` before
   partitioning the default unit run. New directories no longer need a runner

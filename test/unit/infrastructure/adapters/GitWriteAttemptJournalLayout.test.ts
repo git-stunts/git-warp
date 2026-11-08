@@ -24,6 +24,8 @@ const CURRENT = new ObservationAttemptId('e'.repeat(32));
 const refOf = (attemptId: ObservationAttemptId): string => `refs/warp/g/write-attempts/${attemptId.value}`;
 const OLD_REF = refOf(OLD);
 const custodyCodec = new ObservationCustodyCborCodec(codec);
+/** The layout this build reads; a record in it that does not decode is garbage, not another layout. */
+const RECORD_LAYOUT = 2;
 
 type Stored = { readonly [field: string]: unknown };
 
@@ -44,17 +46,22 @@ function record(attemptId: ObservationAttemptId): WriteAttemptRecord {
 }
 
 /** A Git surface in memory, whose saved blobs a test can rewrite into another layout. */
-function history(): WriteAttemptHistory & { readonly rewrite: (ref: string, change: (stored: Stored) => Stored) => void } {
+function history(): WriteAttemptHistory & {
+  readonly rewrite: (ref: string, change: (stored: Stored) => Stored) => void;
+  readonly reads: () => number;
+} {
   const blobs = new Map<string, Uint8Array>();
   const refs = new Map<string, string>();
+  let reads = 0;
   return {
+    reads: () => reads,
     rewrite: (ref, change) => {
       const oid = refs.get(ref) ?? '';
       const stored: Stored = codec.decode(blobs.get(oid) ?? new Uint8Array());
       blobs.set(oid, codec.encode(change(stored)));
     },
     writeBlob: (content) => { const oid = String(blobs.size).padStart(40, '0'); blobs.set(oid, content); return Promise.resolve(oid); },
-    readBlob: (oid) => Promise.resolve(blobs.get(oid) ?? new Uint8Array()),
+    readBlob: (oid) => { reads += 1; return Promise.resolve(blobs.get(oid) ?? new Uint8Array()); },
     updateRef: (ref, oid) => { refs.set(ref, oid); return Promise.resolve(); },
     readRef: (ref) => Promise.resolve(refs.get(ref) ?? null),
     deleteRef: (ref) => { refs.delete(ref); return Promise.resolve(); },
@@ -70,16 +77,20 @@ async function refusal(journal: GitWriteAttemptJournalAdapter, attemptId: Observ
   return await journal.read(attemptId).then(() => null, (error: Error) => error);
 }
 
-const UNSUPPORTED: ReadonlyArray<readonly [string, number, (stored: Stored) => Stored]> = [
-  ['version 1, saved before races were saved', 1, ({ races: _gone, ...before }) => ({ ...before, version: 1 })],
-  ['version 1, naming races', 1, (stored) => ({ ...stored, version: 1 })],
-  ['version 0', 0, (stored) => ({ ...stored, version: 0 })],
-  ['version 3, from a newer build', 3, (stored) => ({ ...stored, version: 3 })],
-  ['version 7, in a shape this build does not know', 7, ({ preparation }) => ({ version: 7, preparation, extra: true })],
+const UNSUPPORTED: ReadonlyArray<readonly [string, number, string | null, (stored: Stored) => Stored]> = [
+  ['version 1, saved before races were saved', 1, 'alice', ({ races: _gone, ...before }) => ({ ...before, version: 1 })],
+  ['version 1, naming races', 1, 'alice', (stored) => ({ ...stored, version: 1 })],
+  ['version 0', 0, 'alice', (stored) => ({ ...stored, version: 0 })],
+  ['version 3, from a newer build', 3, 'alice', (stored) => ({ ...stored, version: 3 })],
+  ['version 7, in a shape this build does not know', 7, 'alice', ({ preparation }) => ({ version: 7, preparation, extra: true })],
+  ['version 1 with no preparation', 1, null, () => ({ version: 1 })],
+  ['version 3 whose preparation does not decode', 3, null, (stored) => ({ ...stored, version: 3, preparation: new Uint8Array([1, 2]) })],
+  ['version 3 that renames its preparation', 3, null, ({ preparation, ...rest }) => ({ ...rest, version: 3, prepared: preparation })],
+  ['version 1 whose preparation is not a write', 1, null, (stored) => ({ ...stored, version: 1, preparation: custodyCodec.encodePreparation(new ObservationPreparation(OLD, bindings(null))) })],
 ];
 
 describe('a well-formed write attempt record in a layout other than 2', () => {
-  it.each(UNSUPPORTED)('is refused on read (%s) by one typed error that names its ref, layout and writer', async (_name, version, change) => {
+  it.each(UNSUPPORTED)('is refused on read (%s) by one typed error that names its ref, layout and writer, if known', async (_name, version, writer, change) => {
     const store = history();
     const journal = journalOf(store);
     await journal.save(record(OLD));
@@ -90,22 +101,28 @@ describe('a well-formed write attempt record in a layout other than 2', () => {
     expect(refused).toBeInstanceOf(UnsupportedWriteAttemptLayoutError);
     expect(refused instanceof UnsupportedWriteAttemptLayoutError
       ? [refused.code, refused.ref, refused.version, refused.writer]
-      : null).toEqual(['E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED', OLD_REF, version, 'alice']);
+      : null).toEqual(['E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED', OLD_REF, version, writer]);
     expect(refused?.message).toContain(OLD_REF);
   });
 
-  it('tells an older layout to delete only that ref, and a newer one to use the build that wrote it', async () => {
+  it('tells only layout 1 to delete its ref, calls layout 0 corrupt, and sends a newer layout to the build that wrote it', async () => {
     const store = history();
     const journal = journalOf(store);
     await journal.save(record(OLD));
 
     store.rewrite(OLD_REF, (stored) => ({ ...stored, version: 1 }));
     expect((await refusal(journal, OLD))?.message).toContain(`git update-ref -d ${OLD_REF}`);
+    store.rewrite(OLD_REF, (stored) => ({ ...stored, version: 0 }));
+    const corrupt = (await refusal(journal, OLD))?.message;
+    expect(corrupt).toContain('corrupt');
+    expect(corrupt).not.toContain('update-ref');
     store.rewrite(OLD_REF, (stored) => ({ ...stored, version: 3 }));
-    expect((await refusal(journal, OLD))?.message).toContain('newer git-warp');
+    const newer = (await refusal(journal, OLD))?.message;
+    expect(newer).toContain('newer git-warp');
+    expect(newer).not.toContain('update-ref');
   });
 
-  it.each(UNSUPPORTED)('is skipped by a listing (%s), which returns its ref', async (_name, _version, change) => {
+  it.each(UNSUPPORTED)('is skipped by a listing (%s), which returns its ref', async (_name, _version, _writer, change) => {
     const store = history();
     const journal = journalOf(store);
     await journal.save(record(OLD));
@@ -127,9 +144,6 @@ const MALFORMED: ReadonlyArray<readonly [string, (stored: Stored) => Stored]> = 
   ['a negative version', (stored) => ({ ...stored, version: -1 })],
   ['a null version', (stored) => ({ ...stored, version: null })],
   ['a list version', (stored) => ({ ...stored, version: [1] })],
-  ['an other layout with no preparation', () => ({ version: 1 })],
-  ['an other layout whose preparation does not decode', (stored) => ({ ...stored, version: 1, preparation: new Uint8Array([1, 2]) })],
-  ['an other layout whose preparation is not a write', (stored) => ({ ...stored, version: 1, preparation: custodyCodec.encodePreparation(new ObservationPreparation(OLD, bindings(null))) })],
 ];
 
 describe('a write attempt record that is not well formed', () => {
@@ -167,13 +181,11 @@ describe('a listing of write attempts', () => {
     for (const attemptId of ids) {
       await journal.save(record(attemptId));
     }
-    for (const attemptId of ids.slice(1)) {
-      store.rewrite(refOf(attemptId), (stored) => ({ ...stored, version: 1 }));
-    }
+    store.rewrite(refOf(ids[0] ?? OLD), (stored) => ({ ...stored, version: 1 }));
     for (const start of [0, 0.3, 0.6, 0.9]) {
       vi.spyOn(Math, 'random').mockReturnValue(start);
-      const listing = await journal.list(1);
-      expect(listing.records.map(({ attemptId }) => attemptId.value)).toEqual([ids[0]?.value]);
+      const listing = await journal.list(2);
+      expect(listing.records).toHaveLength(2);
     }
   });
 
@@ -188,6 +200,39 @@ describe('a listing of write attempts', () => {
     }
     vi.spyOn(Math, 'random').mockReturnValue(0);
 
-    expect((await journal.list(1)).unsupportedRefs).toEqual(ids.slice(0, 3).map(refOf));
+    expect((await journal.list(3)).unsupportedRefs).toEqual(ids.slice(0, 3).map(refOf));
+  });
+
+  it('reads O(limit) blobs however many other-layout refs a clone holds', async () => {
+    const store = history();
+    const journal = journalOf(store);
+    const many = Array.from({ length: 2000 }, (_, index) => new ObservationAttemptId(index.toString(16).padStart(32, '0')));
+    for (const attemptId of many) {
+      await journal.save(record(attemptId));
+      store.rewrite(refOf(attemptId), (stored) => ({ ...stored, version: 1 }));
+    }
+    await journal.save(record(CURRENT));
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const before = store.reads();
+
+    const listing = await journal.list(64);
+
+    expect(store.reads() - before).toBeLessThanOrEqual(2 * 64);
+    expect(listing.unsupported).toBe(64);
+    expect(listing.records).toEqual([]);
+  });
+
+  it('starts where the random start says, so blobs that never clear cannot starve a live record', async () => {
+    const store = history();
+    const journal = journalOf(store);
+    for (const attemptId of ids) {
+      await journal.save(record(attemptId));
+    }
+    for (const attemptId of ids.slice(0, 3)) {
+      store.rewrite(refOf(attemptId), () => ({ version: RECORD_LAYOUT, garbage: true }));
+    }
+    vi.spyOn(Math, 'random').mockReturnValue(0.75);
+
+    expect((await journal.list(1)).records.map(({ attemptId }) => attemptId.value)).toEqual([ids[3]?.value]);
   });
 });

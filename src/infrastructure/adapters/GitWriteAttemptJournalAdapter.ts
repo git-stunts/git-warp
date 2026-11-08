@@ -20,15 +20,15 @@ import WriteAttemptJournalPort from '../../ports/WriteAttemptJournalPort.ts';
 const RECORD_VERSION = 2;
 const otherLayoutSchema = z.object({
   version: z.number().int().nonnegative().refine((version) => version !== RECORD_VERSION),
-  preparation: z.instanceof(Uint8Array),
 });
+const preparedSchema = z.object({ preparation: z.instanceof(Uint8Array) });
 
-/** A well-formed record in a layout this build does not read, known only by its layout and writer. */
+/** A record in a layout this build does not read, known by its layout and, while it still names one, its writer. */
 class OtherLayoutRecord {
   readonly version: number;
-  readonly writer: string;
+  readonly writer: string | null;
 
-  constructor(version: number, writer: string) {
+  constructor(version: number, writer: string | null) {
     this.version = version;
     this.writer = writer;
     Object.freeze(this);
@@ -116,7 +116,10 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     await this.#history.deleteRef(buildWriteAttemptRef(this.#graph, attemptId.value));
   }
 
-  /** An other-layout record is reported by its ref and does not count against `limit`. */
+  /**
+   * An other-layout record is reported by its ref and does not count against `limit`. At most
+   * `limit` of them are passed over, so one listing reads O(limit) blobs however many a clone holds.
+   */
   override async list(limit: number): Promise<WriteAttemptListing> {
     const targets = [...(await this.#history.readRefTargets(buildWriteAttemptsPrefix(this.#graph))).entries()];
     const start = Math.floor(Math.random() * targets.length);
@@ -124,7 +127,7 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     const unsupportedRefs: string[] = [];
     let examined = 0;
     for (const [ref, oid] of [...targets.slice(start), ...targets.slice(0, start)]) {
-      if (examined >= limit) {
+      if (examined >= limit || unsupportedRefs.length >= limit) {
         break;
       }
       const record = await this.#readRecord(oid);
@@ -140,7 +143,7 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
       const value = this.#codec.decode(bytes);
       const other = otherLayoutSchema.safeParse(value);
       if (other.success) {
-        return this.#otherLayout(other.data.version, other.data.preparation);
+        return new OtherLayoutRecord(other.data.version, this.#writerOf(value));
       }
       const parsed = storedRecordSchema.safeParse(value);
       return parsed.success ? parsed.data : null;
@@ -149,21 +152,24 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     }
   }
 
-  /** Well formed means its preparation still names the writer it belongs to. */
-  #otherLayout(version: number, bytes: Uint8Array): OtherLayoutRecord | null {
-    const preparation = this.#custodyCodec.decodePreparation(bytes);
-    const writer = preparation instanceof ObservationDecodeFailure ? undefined : preparation.bindings.writePremise?.writerId;
-    return writer === undefined ? null : new OtherLayoutRecord(version, writer);
+  /** The writer an other-layout record still names, or null when its preparation is gone, unreadable or not a write. */
+  #writerOf(value: unknown): string | null {
+    const prepared = preparedSchema.safeParse(value);
+    if (!prepared.success) {
+      return null;
+    }
+    const preparation = this.#custodyCodec.decodePreparation(prepared.data.preparation);
+    return preparation instanceof ObservationDecodeFailure ? null : preparation.bindings.writePremise?.writerId ?? null;
   }
 
   /**
    * A record that exists but cannot be read is not an absent one: a caller told null may discard the attempt.
-   * One in another layout names its ref, layout and writer.
+   * One in another layout names its ref, its layout and, if it still names one, its writer.
    */
   #requireRecord(bytes: Uint8Array, ref: string): WriteAttemptRecord {
     const record = this.#decodedRecord(bytes);
     if (record instanceof OtherLayoutRecord) {
-      throw new UnsupportedWriteAttemptLayoutError({ ref, version: record.version, writer: record.writer });
+      throw new UnsupportedWriteAttemptLayoutError({ ref, version: record.version, writer: record.writer, readable: RECORD_VERSION });
     }
     if (record === null) {
       throw new AdapterValidationError('A saved write attempt record could not be decoded');

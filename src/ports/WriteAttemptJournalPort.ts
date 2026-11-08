@@ -9,8 +9,8 @@ export default abstract class WriteAttemptJournalPort {
 
   /**
    * The record of one attempt, or null when none is saved. A saved record that cannot be read
-   * throws; a well-formed one in a layout other than 2 throws `UnsupportedWriteAttemptLayoutError`,
-   * naming its ref, layout and writer.
+   * throws; one with an integer layout version other than 2 throws `UnsupportedWriteAttemptLayoutError`,
+   * naming its ref, its layout and, while it still names one, its writer.
    */
   abstract read(_attemptId: ObservationAttemptId): Promise<WriteAttemptRecord | null>;
 
@@ -19,8 +19,8 @@ export default abstract class WriteAttemptJournalPort {
 
   /**
    * Up to `limit` saved records, from a varying start. A record that cannot be decoded is skipped,
-   * not removed. A well-formed record in another layout is skipped, returned by its ref in
-   * `unsupportedRefs`, and not counted against `limit`.
+   * not removed. A record in another layout is skipped, returned by its ref in `unsupportedRefs`,
+   * and not counted against `limit`; at most `limit` such refs are passed over in one listing.
    */
   abstract list(_limit: number): Promise<WriteAttemptListing>;
 }

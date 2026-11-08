@@ -326,7 +326,7 @@ describe('a saved record that is not a write', () => {
   it('refuses to read a blob of the wrong shape', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
-      codec: { decode: () => ({ version: 99 }) } as unknown as CodecPort,
+      codec: { decode: () => ({ shape: 'wrong' }) } as unknown as CodecPort,
       custodyCodec: {} as ObservationCustodyCodecPort,
       history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
     });
