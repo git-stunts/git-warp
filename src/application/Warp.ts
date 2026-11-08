@@ -25,6 +25,11 @@ export default class Warp {
     this.#writes = writes;
   }
 
+  /**
+   * Opens the repository and changes nothing in it (#1078). A deny-all access port or a
+   * read-only clone opens: custody, the retention policy and the sweep of unfinished
+   * attempts wait for the first granted write, reconcile or stage, which rejects if they fail.
+   */
   static async open(address: WarpAddress, access: WarpAccessPort): Promise<Warp> {
     if (!(address instanceof WarpAddress)) {
       throw new WarpError('Warp.open requires a WarpAddress', 'E_WARP_OPEN_ADDRESS');

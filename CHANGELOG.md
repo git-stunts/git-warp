@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `Warp.open` opens the repository and changes nothing in it. The lane's cone and substrate
+  marker, custody, the retention policy and the sweep of unfinished attempts wait for the first
+  granted write or reconcile, so a deny-all opener or a read-only clone opens, and a failure to
+  open them rejects that operation instead. In-flight write attempts move to
+  `refs/warp-local/<graph>/write-attempts/`, outside `refs/warp/`, so a lane wildcard fetch no
+  longer copies them, and the `warn` removal policy reaches a logger handed to the write
+  composition ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)
   trees instead of 64 ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).

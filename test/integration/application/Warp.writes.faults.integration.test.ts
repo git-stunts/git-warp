@@ -21,6 +21,7 @@ import {
   indeterminate,
   materialized,
   open,
+  openSwept,
   repository,
   retained,
   tip,
@@ -61,7 +62,7 @@ describe('a retained write survives what the graph does later', () => {
     const access = new TestAccess();
     const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), access);
     const parsed = ObservationCoordinate.parse(receipt.coordinate.toString());
-    const resolved = parsed === null ? null : await writes.custody.resolve(parsed);
+    const resolved = parsed === null ? null : await (await writes.custody()).resolve(parsed);
     await writes.close();
 
     expect(resolved).toBeInstanceOf(ResolvedObservation);
@@ -84,7 +85,7 @@ describe('a retained write survives what the graph does later', () => {
 
     const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
     const parsed = ObservationCoordinate.parse(receipt.coordinate.toString());
-    const resolved = parsed === null ? null : await writes.custody.resolve(parsed);
+    const resolved = parsed === null ? null : await (await writes.custody()).resolve(parsed);
     await writes.close();
 
     expect(resolved instanceof ResolvedObservation ? resolved.preparation.bindings.basis : null).toBe(basisAtWrite);
@@ -215,14 +216,14 @@ describe('custody that cannot answer', () => {
     await crashed.close();
     now += 2 * 60 * 60 * 1000;
 
-    const noReserve = await open(path, { clock, wrapCustody: custodyWith({ reserve: unavailable }) });
+    const noReserve = await openSwept(path, { clock, wrapCustody: custodyWith({ reserve: unavailable }) });
     expect(attemptRefs(path)).toHaveLength(1);
     await noReserve.close();
-    const noCancel = await open(path, { clock, wrapCustody: custodyWith({ cancel: unavailable }) });
+    const noCancel = await openSwept(path, { clock, wrapCustody: custodyWith({ cancel: unavailable }) });
     expect(attemptRefs(path)).toHaveLength(1);
     await noCancel.close();
 
-    await open(path, { clock });
+    await openSwept(path, { clock });
     expect(attemptRefs(path)).toEqual([]);
   });
 
@@ -232,7 +233,7 @@ describe('custody that cannot answer', () => {
     unpublished(await crashed.as('alice').execute(intent.node.add({ subject: 'x' })));
     await crashed.close();
 
-    await open(path, { wrapCustody: custodyWith({ reserve: () => Promise.resolve(new CustodyRefused('cancelled')) }) });
+    await openSwept(path, { wrapCustody: custodyWith({ reserve: () => Promise.resolve(new CustodyRefused('cancelled')) }) });
 
     expect(attemptRefs(path)).toEqual([]);
   });
@@ -290,9 +291,9 @@ describe('a record that outlives its attempt', () => {
     await crashed.close();
     vi.restoreAllMocks();
 
-    await (await open(path, { wrapCustody: custodyWith({ settle: unavailable }) })).close();
+    await (await openSwept(path, { wrapCustody: custodyWith({ settle: unavailable }) })).close();
     expect(attemptRefs(path)).toHaveLength(1);
-    await open(path);
+    await openSwept(path);
 
     expect(attemptRefs(path)).toEqual([]);
   });
@@ -321,7 +322,7 @@ describe('a record that outlives its attempt', () => {
     expect(attemptRefs(path)).toHaveLength(1);
     await warp.close();
 
-    await open(path);
+    await openSwept(path);
     expect(attemptRefs(path)).toEqual([]);
   });
 
@@ -363,17 +364,21 @@ describe('a record that outlives its attempt', () => {
     await rival.close();
     remove.mockRestore();
 
-    await open(path);
+    await openSwept(path);
     expect(attemptRefs(path)).toEqual([]);
   });
 });
 
 describe('composition', () => {
-  it('refuses a graph already opened with another retention capacity, and releases what it opened', async () => {
+  it('refuses the first write on a graph whose retention capacity differs, and tries custody again later', async () => {
     const path = await repository();
-    await (await open(path, { limit: 3 })).close();
+    const first = await open(path, { limit: 3 });
+    retained(await first.as('alice').execute(intent.node.add({ subject: 'x' })));
+    await first.close();
 
-    await expect(open(path, { limit: 4 })).rejects.toMatchObject({ code: 'E_WARP_RETENTION_OPEN' });
+    const other = await open(path, { limit: 4 });
+    await expect(other.as('alice').execute(intent.node.add({ subject: 'y' }))).rejects.toMatchObject({ code: 'E_WARP_RETENTION_OPEN' });
+    await expect(other.as('alice').reconcile('a'.repeat(32))).rejects.toMatchObject({ code: 'E_WARP_RETENTION_OPEN' });
   });
 
   it('requires a storage located by root or at', async () => {
@@ -409,7 +414,7 @@ describe('composition', () => {
 
   it('tries again to open a writer whose first open failed', async () => {
     const path = await repository();
-    const warp = await open(path);
+    const warp = await openSwept(path);
     vi.spyOn(GitCasRepositoryAdapter.prototype, 'createRuntimeStorageServices').mockImplementationOnce(() => Promise.reject(new Error('blip')));
 
     expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toBe('write-basis-unavailable');

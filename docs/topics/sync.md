@@ -18,8 +18,10 @@ wildcard in either direction:
   have yet, including this clone's unpublished writer chain.
 - A wildcard push publishes refs this clone does not own, such as its derived
   checkpoint head.
-- A wildcard fetch also copies `refs/warp/<graph>/write-attempts/`, which is clone-local. The
-  reservation ledger under `refs/cas/` does not come with it, so a copied record can later be answered wrongly as cancelled.
+- In-flight `Warp` write attempts live under `refs/warp-local/<graph>/write-attempts/`, outside
+  `refs/warp/`, so a lane wildcard does not copy them. Each names a reservation in its own clone's
+  ledger under `refs/cas/`. Never transfer either: a copied record would be answered against a ledger
+  that never held it.
 - Never add `+` to a WARP refspec. A forced update can move another writer's
   chain backward.
 

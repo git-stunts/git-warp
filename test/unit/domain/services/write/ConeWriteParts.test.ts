@@ -182,7 +182,7 @@ describe('ConeWriteSettlement', () => {
 
 describe('write attempt storage', () => {
   it('reserves its ref segment so no graph can collide with it', () => {
-    expect(buildWriteAttemptRef('g', ATTEMPT.value)).toBe(`refs/warp/g/write-attempts/${ATTEMPT.value}`);
+    expect(buildWriteAttemptRef('g', ATTEMPT.value)).toBe(`refs/warp-local/g/write-attempts/${ATTEMPT.value}`);
     expect(() => buildWriteAttemptRef('write-attempts', ATTEMPT.value)).toThrow('reserved');
   });
 

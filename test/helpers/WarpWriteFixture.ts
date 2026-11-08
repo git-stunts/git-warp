@@ -22,6 +22,8 @@ import { buildWriteAttemptsPrefix } from '../../src/domain/utils/WriteAttemptRef
 import EdgeAdd from '../../src/domain/types/ops/EdgeAdd.ts';
 import NodeAdd from '../../src/domain/types/ops/NodeAdd.ts';
 import { openRuntimeHostProduct, type RuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
+import CustodyIndeterminate from '../../src/domain/services/custody/CustodyIndeterminate.ts';
+import type ObservationCustodyPort from '../../src/ports/ObservationCustodyPort.ts';
 
 export const GRAPH = 'todos';
 const BUDGET = { records: 1024, bytes: 1024 * 1024, work: 50_000 };
@@ -77,6 +79,18 @@ export async function open(
   return warp;
 }
 
+/** An attempt id no writer has used, so asking about it only opens the write path. */
+const UNUSED_ATTEMPT = '0'.repeat(32);
+
+/** Opens a Warp and makes its first granted operation, which opens custody and sweeps (#1078). */
+export async function openSwept(path: string, overrides: WarpCompositionOverrides = {}): Promise<Warp> {
+  const warp = await open(path, overrides);
+  if (await warp.as('sweeper').reconcile(UNUSED_ATTEMPT) !== null) {
+    throw new Error('An unused attempt had an answer');
+  }
+  return warp;
+}
+
 function narrowed<T extends object>(receipt: AuthoredWriteReceipt | null, type: new (...args: never[]) => T): T {
   if (!(receipt instanceof type)) {
     throw new Error(`Expected ${type.name}, got ${JSON.stringify(receipt)}`);
@@ -99,6 +113,19 @@ export function indeterminate(receipt: AuthoredWriteReceipt | null): Indetermina
 export function tip(path: string, writer: string): string | null {
   const listed = git(path, ['for-each-ref', '--format=%(objectname)', buildWriterRef(GRAPH, writer)]);
   return listed === '' ? null : listed;
+}
+
+/** Custody that answers one step as a crash would, leaving the attempt for a later sweep. */
+export function crashingAt(step: string): (custody: ObservationCustodyPort) => ObservationCustodyPort {
+  return (custody) => new Proxy(custody, {
+    get(target: ObservationCustodyPort, name: string | symbol) {
+      if (name === step) {
+        return () => Promise.resolve(new CustodyIndeterminate(new Error('crash')));
+      }
+      const value = Reflect.get(target, name) as unknown;
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
 }
 
 export function attemptRefs(path: string): string[] {
