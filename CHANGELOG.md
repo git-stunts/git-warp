@@ -193,10 +193,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Classify an absent object reported by git-cas persistence
-  (`GIT_OBJECT_NOT_FOUND`) as a typed `E_MISSING_OBJECT` persistence error
-  instead of letting the untyped git-cas failure escape
-  ([#815](https://github.com/git-stunts/git-warp/issues/815)).
 - Discover every supported test file recursively under `test/unit/` before
   partitioning the default unit run. New directories no longer need a runner
   allowlist entry. The runner refuses missing, unexpected or duplicate paths
