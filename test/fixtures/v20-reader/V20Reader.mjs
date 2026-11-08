@@ -46,8 +46,18 @@ async function read(at, subject) {
 function repair(at) {
   const cli = new URL('./node_modules/@git-stunts/git-warp/dist/bin/git-warp.js', import.meta.url);
   const args = ['--repo', at, '--json', 'repair', '--lane', LANE, '--writer', 'reader', '--action', 'materialization'];
-  execFileSync(process.execPath, [cli.pathname, ...args], { encoding: 'utf8' });
+  try {
+    execFileSync(process.execPath, [cli.pathname, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (error) {
+    return cliRefusal(error);
+  }
   return { repaired: true };
+}
+
+/** The error v20's CLI reports as JSON on stdout under `--json`: its code and message. */
+function cliRefusal(error) {
+  const reported = JSON.parse(String(error.stdout ?? '')).error;
+  return { error: reported.code, message: reported.message };
 }
 
 function decode(path) {
@@ -68,6 +78,14 @@ if (run === undefined) {
   process.stderr.write(`unknown operation: ${String(operation)}\n`);
   process.exitCode = 2;
 } else {
-  const result = await run();
+  const result = await run().catch(refusal);
   process.stdout.write(`${typeof result === 'string' ? result : JSON.stringify(result)}\n`);
+}
+
+/** A typed v20 refusal is a result the witness asserts; anything else stays a crash. */
+function refusal(error) {
+  if (typeof error?.code === 'string' && error.code.startsWith('E_')) {
+    return { error: error.code };
+  }
+  throw error;
 }
