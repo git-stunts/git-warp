@@ -394,6 +394,24 @@ describe('shared dist/ guard helpers', () => {
     expect(entryIdentity(join(root, 'sub')), 'a child rename must change the directory identity')
       .not.toBe(directoryBefore);
   });
+
+  it('names non-regular entries by kind, a same-content replacement by inode, a symlinked file by its target', () => {
+    const root = mkdtempSync(join(tmpdir(), 'git-warp-tree-identities-'));
+    isolatedTrees.push(root);
+    writeFileSync(join(root, 'a.txt'), 'abc');
+    symlinkSync('/dev/null', join(root, 'device'));
+    symlinkSync(join(root, 'a.txt'), join(root, 'alias'));
+    expect(entryIdentity(join(root, 'device')), 'a non-regular entry is named by inode and mode, not read')
+      .toMatch(/^\d+:special:\d+$/);
+    const fileBefore = entryIdentity(join(root, 'a.txt'));
+    const aliasBefore = entryIdentity(join(root, 'alias'));
+    writeFileSync(join(root, 'a.txt'), 'abd');
+    expect(entryIdentity(join(root, 'alias')), 'a symlinked file is named by its target').not.toBe(aliasBefore);
+    writeFileSync(join(root, 'next.txt'), 'abc');
+    renameSync(join(root, 'next.txt'), join(root, 'a.txt'));
+    expect(entryIdentity(join(root, 'a.txt')).split(':')[2], 'same content').toBe(fileBefore.split(':')[2]);
+    expect(entryIdentity(join(root, 'a.txt')), 'a same-content replacement must change the identity').not.toBe(fileBefore);
+  });
 });
 
 describe('isolated release build (#1081)', () => {
