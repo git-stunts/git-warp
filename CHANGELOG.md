@@ -151,9 +151,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not read. `AuthoredWarp.reconcile` of such an attempt rejects with code
   `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, and the error names the ref and the remedy.
   - Layout 1 came only from clones built from `main` before this fix. Delete only the ref the
-    error names, with `git update-ref -d <ref>`. It holds only that attempt's recovery record,
-    not graph data: a patch the attempt published stays on its writer's chain, and only that
-    attempt's receipt is lost. Do not delete the whole prefix, which can also hold current
+    error names, with `git update-ref -d '<ref>'` in the repository that holds the graph. It
+    holds only that attempt's recovery record, not graph data: a patch the attempt published
+    stays on its writer's chain, and only that attempt's receipt is lost. Do not delete the whole prefix, which can also hold current
     attempts. Deleting the ref frees nothing in custody; it abandons that attempt's fate,
     which is harmless at the current unlimited retention capacity.
   - A newer layout came from a newer git-warp. Keep the ref and finish the attempt with that
@@ -165,9 +165,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   against that page, and does not report them yet
   ([#1072](https://github.com/git-stunts/git-warp/issues/1072); reporting is [#1107](https://github.com/git-stunts/git-warp/issues/1107)).
 - `AuthoredWarp.reconcile` rejects with code `E_WRITE_CORE_MISMATCH` when a saved write
-  attempt record no longer rebuilds the receipt core that custody retained for it. The record
-  was altered, so it is kept, and every later ask rejects the same way. Report it. The sweep
-  does not report it yet ([#1072](https://github.com/git-stunts/git-warp/issues/1072); reporting is [#1107](https://github.com/git-stunts/git-warp/issues/1107)).
+  attempt record does not rebuild, byte for byte, the receipt core that custody retained for
+  it. The record is altered or corrupt, so it is kept. Report it. The sweep does not report it
+  yet ([#1072](https://github.com/git-stunts/git-warp/issues/1072); reporting is [#1107](https://github.com/git-stunts/git-warp/issues/1107)).
+  - Recovery builds a receipt from the record's races only when custody reports that it holds
+    no settlement for the attempt, or when custody's retained core matched the record.
+  - In every other case, such as a failed custody read, the attempt stays indeterminate and the
+    record is kept. A later ask that can read custody's copy makes the comparison.
+  - After custody reports no settlement, recovery calls `settle`, and its outcome stands as
+    before: a final outcome such as `evidence-too-large` gives an unretained receipt and removes
+    the record, because custody holds no core for those races to disagree with. A `settle`
+    conflict is the exception: it answers indeterminate and keeps the record.
 
 - Discover every supported test file recursively under `test/unit/` before
   partitioning the default unit run. New directories no longer need a runner

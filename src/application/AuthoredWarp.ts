@@ -43,9 +43,10 @@ export default class AuthoredWarp {
    * `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, when this writer's saved record uses a layout this
    * git-warp does not read; the error names the ref and says what to do. Another writer's such
    * record answers null, unless the record no longer names a readable writer, which refuses every
-   * writer. It rejects with code `E_WRITE_CORE_MISMATCH` when the saved record no longer rebuilds
-   * the receipt core that custody retained: the record was altered, so it is kept, and every later
-   * ask rejects the same way. Report it; the sweep does not report it yet.
+   * writer. It rejects with code `E_WRITE_CORE_MISMATCH`, keeping the record, when the record does
+   * not rebuild the receipt core custody retained: the record is altered or corrupt. Report it; the
+   * sweep does not yet. Races come from the record alone only when custody holds no settlement;
+   * while custody's copy cannot be compared, the answer is indeterminate.
    */
   async reconcile(attempt: string): Promise<AuthoredWriteReceipt | null> {
     return await this.#backend.reconcile(this.writer, attempt);
