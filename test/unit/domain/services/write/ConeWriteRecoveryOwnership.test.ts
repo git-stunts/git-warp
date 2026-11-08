@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import UnsupportedWriteAttemptLayoutError from '../../../../../src/domain/errors/UnsupportedWriteAttemptLayoutError.ts';
-import type ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
+import ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
 import ConeWriteRecovery from '../../../../../src/domain/services/write/ConeWriteRecovery.ts';
 import type ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
 import type WritePublicationProbe from '../../../../../src/domain/services/write/WritePublicationProbe.ts';
-import type WriteAttemptJournalPort from '../../../../../src/ports/WriteAttemptJournalPort.ts';
+import WriteAttemptJournalPort from '../../../../../src/ports/WriteAttemptJournalPort.ts';
+import { prototypeStub } from '../../../../helpers/PrototypeStub.ts';
 
 const ATTEMPT = 'a'.repeat(32);
 const REF = `refs/warp/g/write-attempts/${ATTEMPT}`;
@@ -15,8 +16,8 @@ function recovery(read: () => Promise<null>): { readonly recovering: ConeWriteRe
     resume,
     recovering: new ConeWriteRecovery({
       graph: 'g', clock: () => 1,
-      custody: { resume } as unknown as ObservationCustodyService,
-      journal: { read } as unknown as WriteAttemptJournalPort,
+      custody: prototypeStub(ObservationCustodyService, { resume }),
+      journal: prototypeStub(WriteAttemptJournalPort, { read }),
       probe: {} as WritePublicationProbe,
       settlement: {} as ConeWriteSettlement,
     }),

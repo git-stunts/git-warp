@@ -15,7 +15,7 @@ import ObservationAttemptId from '../../../../../src/domain/services/custody/Obs
 import ObservationBindings from '../../../../../src/domain/services/custody/ObservationBindings.ts';
 import ObservationBudget from '../../../../../src/domain/services/custody/ObservationBudget.ts';
 import ObservationCoordinate from '../../../../../src/domain/services/custody/ObservationCoordinate.ts';
-import type ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
+import ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
 import ObservationDependencyClaim from '../../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDigest from '../../../../../src/domain/services/custody/ObservationDigest.ts';
 import ObservationPreparation from '../../../../../src/domain/services/custody/ObservationPreparation.ts';
@@ -43,7 +43,8 @@ import GitWriteAttemptJournalAdapter, { type WriteAttemptHistory } from '../../.
 import ObservationCustodyCborCodec from '../../../../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
 import codec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import type { PatchBuilder } from '../../../../../src/domain/services/PatchBuilder.ts';
-import type WriteAttemptJournalPort from '../../../../../src/ports/WriteAttemptJournalPort.ts';
+import WriteAttemptJournalPort from '../../../../../src/ports/WriteAttemptJournalPort.ts';
+import { prototypeStub } from '../../../../helpers/PrototypeStub.ts';
 
 const ATTEMPT = new ObservationAttemptId('a'.repeat(32));
 const DIGEST = new ObservationDigest('b'.repeat(64));
@@ -121,16 +122,16 @@ describe('a plural write saves its races before it arms', () => {
     const attempt = { identity: {} } as ObservationAttempt;
     const publisher = new ConeWritePublisher({
       graph: 'g', clock: () => 1,
-      custody: {
+      custody: prototypeStub(ObservationCustodyService, {
         resume: () => { steps.push('reserve'); return Promise.resolve(new ObservationAdmitted(attempt, 'reserved')); },
-        prepare: () => Promise.resolve(Object.create(ObservationPrepared.prototype)),
+        prepare: () => Promise.resolve(prototypeStub(ObservationPrepared, {})),
         authorizePublication: () => { steps.push('arm'); return Promise.resolve(new ObservationRefused('capacity-full')); },
         cancel: () => Promise.resolve(new ObservationKnownUnpublished(attempt)),
-      } as unknown as ObservationCustodyService,
-      journal: {
+      }),
+      journal: prototypeStub(WriteAttemptJournalPort, {
         save: (saving: WriteAttemptRecord) => { steps.push('save'); saved.push(saving); return Promise.resolve(); },
         remove: () => Promise.resolve(),
-      } as unknown as WriteAttemptJournalPort,
+      }),
       attempts: { next: () => ATTEMPT },
       probe: {} as WritePublicationProbe,
       settlement: {} as ConeWriteSettlement,
@@ -176,7 +177,7 @@ describe('a settled write reports the races its core binds', () => {
   it('passes custody the core with the races and reports the same ones', async () => {
     const settle = vi.fn((_attempt: ObservationAttempt, _fields: { readonly core: ObservationReceiptCore }) => Promise.resolve(new ObservationRefused('contention')));
     const settling = new ConeWriteSettlement({
-      graph: 'g', custody: { settle } as unknown as ObservationCustodyService, journal: { remove: () => Promise.resolve() } as unknown as WriteAttemptJournalPort,
+      graph: 'g', custody: prototypeStub(ObservationCustodyService, { settle }), journal: prototypeStub(WriteAttemptJournalPort, { remove: () => Promise.resolve() }),
     });
     const saved = record();
 
@@ -200,13 +201,13 @@ describe('a settled write reports the races its core binds', () => {
     const settlement = new ConeWriteSettlement({ graph: 'g', custody: {} as ObservationCustodyService, journal: {} as WriteAttemptJournalPort });
     const recovery = new ConeWriteRecovery({
       graph: 'g', clock: () => 1, settlement,
-      custody: {
+      custody: prototypeStub(ObservationCustodyService, {
         resume: () => Promise.resolve(new ObservationAdmitted(attempt, 'settled')),
         recoverCoordinate: () => Promise.resolve(new RetainedObservation(new ObservationCoordinate({ attemptId: ATTEMPT, binding: DIGEST, record: DIGEST }), held)),
         resolve: () => Promise.resolve(resolved),
         holdsCore: (evidence: ResolvedObservation, core: ObservationReceiptCore) => bytesEqual(evidence.core(), custodyCodec.encodeCore(core)),
-      } as unknown as ObservationCustodyService,
-      journal: { read: () => Promise.resolve(saved), remove } as unknown as WriteAttemptJournalPort,
+      }),
+      journal: prototypeStub(WriteAttemptJournalPort, { read: () => Promise.resolve(saved), remove }),
       probe: {} as WritePublicationProbe,
     });
     return { recovery, remove };
