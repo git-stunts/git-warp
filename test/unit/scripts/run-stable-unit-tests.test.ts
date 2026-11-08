@@ -6,8 +6,25 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const scriptPath = fileURLToPath(new URL('../../../scripts/run-stable-unit-tests.ts', import.meta.url));
-const testSuffixes = ['test', 'spec', 'benchmark'].flatMap((kind) =>
-  ['js', 'jsx', 'ts', 'tsx', 'mjs', 'mts', 'cjs', 'cts'].map((extension) => `.${kind}.${extension}`));
+const extensions = ['js', 'jsx', 'ts', 'tsx', 'mjs', 'mts', 'cjs', 'cts'];
+const suffixesFor = (kinds: readonly string[]) =>
+  kinds.flatMap((kind) => extensions.map((extension) => `.${kind}.${extension}`));
+const testSuffixes = suffixesFor(['test', 'spec', 'benchmark']);
+const runnableSuffixes = suffixesFor(['test', 'spec']);
+const vitestEntry = join(repoRoot, 'node_modules', 'vitest', 'vitest.mjs');
+
+function vitestResolvedFiles(): Set<string> {
+  const result = spawnSync(process.execPath, [vitestEntry, 'list', '--filesOnly'], { cwd: repoRoot, encoding: 'utf8' });
+  expect(result.status).toBe(0);
+  return new Set(result.stdout.split('\n').map((line) => line.trim()).filter((line) => line !== ''));
+}
+
+function writeFixture(directory: string, name: string): string {
+  mkdirSync(directory, { recursive: true });
+  const path = join(directory, name);
+  writeFileSync(path, 'export {};\n');
+  return relative(repoRoot, path).split(sep).join('/');
+}
 
 function printedTestPaths(output: string): string[] {
   return output.split(/\s+/).filter((argument) => argument.startsWith('test/')).sort();
@@ -50,6 +67,30 @@ describe('scripts/run-stable-unit-tests.ts', () => {
     expect(result.status).toBe(0);
     const expected = [...unitInventory(), 'test/contract/NeighborProviderPort.contract.test.ts'].sort();
     expect(printedTestPaths(result.output)).toEqual(expected);
+    const resolved = vitestResolvedFiles();
+    expect(expected.filter((path) => !resolved.has(path))).toEqual([]);
+  });
+
+  it('refuses before any shard runs when it selects a file that Vitest does not run', () => {
+    const directory = mkdtempSync(join(repoRoot, 'test/unit/domain', 'stable-ignored-fixture-'));
+    try {
+      writeFixture(directory, 'Good.test.ts');
+      const runnable = writeFixture(join(directory, 'benchmark'), 'Runnable.benchmark.ts');
+      const ignored = [
+        writeFixture(directory, 'Bad.benchmark.ts'),
+        writeFixture(join(directory, 'benchmark'), 'Bad.benchmark.mts'),
+      ];
+      const result = runStableUnitTests();
+      expect(result.status).toBe(1);
+      expect(result.output).toContain('stable-unit-tests: BLOCKED selected files that Vitest does not run');
+      expect(result.output).toContain('vitest list exit status: 0');
+      for (const path of ignored) { expect(result.output).toContain(`  ${path}`); }
+      expect(result.output).not.toContain(`  ${runnable}`);
+      expect(result.output).not.toContain('stable-unit-tests: running shard');
+      expect(result.output).not.toContain('dry-run node');
+    } finally {
+      rmSync(directory, { recursive: true });
+    }
   });
 
   it('discovers every supported suffix beneath newly introduced nested directories', () => {
@@ -60,7 +101,7 @@ describe('scripts/run-stable-unit-tests.ts', () => {
         const nested = join(directory, 'new', 'nested');
         mkdirSync(nested, { recursive: true });
         writeFileSync(join(nested, 'ordinary-module.ts'), 'export {};\n');
-        return testSuffixes.map((suffix) => {
+        return runnableSuffixes.map((suffix) => {
           const path = join(nested, `fixture${suffix}`);
           writeFileSync(path, 'export {};\n');
           return relative(repoRoot, path).split(sep).join('/');

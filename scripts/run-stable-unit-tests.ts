@@ -162,6 +162,34 @@ function runVitest(args: readonly string[], dryRun: boolean): number {
   return FAILURE_EXIT_CODE;
 }
 
+/** Vitest's own resolution of its include and exclude globs; stderr reaches the operator unchanged. */
+function listVitestResolvedFiles(): Readonly<{ files: ReadonlySet<string>; status: number | null }> {
+  const result = spawnSync(process.execPath, [VITEST_ENTRY, 'list', '--filesOnly'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
+  const files = new Set(result.stdout.split('\n').map((line) => line.trim()).filter((line) => line !== ''));
+  return { files, status: result.status };
+}
+
+/** Fail closed when the partition selects a file that Vitest does not resolve as runnable. */
+function assertVitestRunsSelection(paths: readonly string[]): void {
+  const resolved = listVitestResolvedFiles();
+  const ignored = paths.filter((path) => !resolved.files.has(path));
+  if (ignored.length === 0) {
+    return;
+  }
+
+  console.error('stable-unit-tests: BLOCKED selected files that Vitest does not run');
+  console.error(`  vitest list exit status: ${String(resolved.status)}`);
+  for (const path of ignored) {
+    console.error(`  ${path}`);
+  }
+  console.error('  rename or move each file so the vitest.config.ts include globs select it');
+  process.exit(FAILURE_EXIT_CODE);
+}
+
 function runShard(shard: UnitTestShard, workers: number, dryRun: boolean): number {
   console.log(`stable-unit-tests: running shard ${shard.name} (${shard.paths.length} files)`);
   return runVitest(createVitestArgs(workers, shard.paths), dryRun);
@@ -198,6 +226,7 @@ if (targetArgs.length > 0) {
 }
 
 const partition = StableUnitTestPartition.fromInventory(listRecursiveTestFiles('test/unit'));
+assertVitestRunsSelection(partition.shards.flatMap((shard) => shard.paths));
 
 for (const shard of partition.shards) {
   const exitCode = runShard(shard, workers, dryRun);
