@@ -52,7 +52,7 @@ representations; schema generation belongs at transport boundaries.
 | `Reading` | Emitted only by an Observation | Validated value plus scoped evidence; never a whole-state object |
 | `PageSize` / `PageContinuation` | `PageSize.of(records)` requires a positive safe integer, rejecting fractions, non-positive values, and non-finite or unsafe numbers; continuation is returned only by `ContinuedCoverage` | Continuation is opaque, bound to one live pagination session, and consumed by `query.resume(continuation).read()` |
 | `CompleteCoverage` / `ContinuedCoverage` | Returned in a completed observation receipt's `coverage`; only `ContinuedCoverage` has `continuation` | A completed page is not a complete answer; only `CompleteCoverage` attests exhaustion of the underlying question |
-| `Receipt` variants | Returned by writes, observations, forks, replay, and settlement; `CompletedObservationReceipt` carries a durable Coordinate | Describe the actual operation and its outcome; no caller-created success evidence |
+| `Receipt` variants | Returned by writes, observations, forks, replay, and settlement; `CompletedObservationReceipt` carries a durable Coordinate when the query asked for one | Describe the actual operation and its outcome; no caller-created success evidence |
 | `WriteReceipt` variants | Returned only by `execute`; `RetainedWriteReceipt`, `UnretainedWriteReceipt`, `UnpublishedWriteReceipt`, or `IndeterminateWriteReceipt` | Section 7 defines which variant establishes publication, admission, retention, and a usable `coordinate` |
 | `Coordinate` | Obtained from a retained receipt; `parse(text)` and `toString()` | Parsing validates syntax only; resolution and authority checks occur at use |
 | `Strand` | Returned by `observedWarp.fork(coordinate)` or `observedStrand.fork(coordinate)` | Fork authorization and retained origin are required; no fork from a raw cut |
@@ -128,13 +128,17 @@ A live Optic without
 `at` captures the replica's admitted basis when `read()` starts execution. Building
 the query does not silently freeze a moving history.
 
-Reads never append writer patches. Every successful completed observation,
-including a completed page, must retain its observation evidence through the
-separate retention path before returning `CompletedObservationReceipt` and its
-durable Coordinate. There is no non-durable completed receipt in this target API.
-Retention denial or failure yields a typed non-completed terminal receipt even
-if some readings were already delivered; streamed values alone do not prove
-durability or completion. Cancelled/refused/failed attempts need not invent a
+Reads never append writer patches. A read retains only when its query asks
+for a Coordinate (decided 2026-11-06, #1080). Retention costs objects and a
+permanent ref per observation, and a read that nobody can cite again gains
+nothing from paying it. Without that request, a completed read returns
+`CompletedObservationReceipt` with no Coordinate: it states what was read and
+at which basis, but it cannot be replayed or forked from. With the request,
+the observation, including a completed page, must retain its evidence through
+the separate retention path before returning the receipt and its durable
+Coordinate. Retention denial or failure then yields a typed non-completed
+terminal receipt even if some readings were already delivered; streamed values
+alone do not prove durability or completion. Cancelled/refused/failed attempts need not invent a
 Coordinate. Retention's storage cost and disclosure policy are explicit; it
 cannot become an ambient writer identity merely to reuse a write API.
 
