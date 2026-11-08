@@ -97,9 +97,15 @@ describe('ConeWriteLowering', () => {
     expect(causeOf(patch)).toBe('write-basis-unavailable');
   });
 
-  it('rejects a defect or an untyped failure while fixing the basis or opening the patch', async () => {
-    const defect = new TypeError('a defect');
-    await expect(lowering({ premise: async () => await Promise.reject(defect) }).lower(request)).rejects.toBe(defect);
+  it('rejects a defect, corruption or an untyped failure while fixing the basis or opening the patch', async () => {
+    const failures = [
+      new TypeError('a defect'),
+      new ConeRecordError('Cone basis head has no frontier', { code: 'E_CONE_RECORD_CORRUPT' }),
+      new PersistenceError('object missing', PersistenceError.E_MISSING_OBJECT),
+    ];
+    for (const failure of failures) {
+      await expect(lowering({ premise: async () => await Promise.reject(failure) }).lower(request)).rejects.toBe(failure);
+    }
     await expect(lowering({ openPatch: async () => await Promise.reject(new Error('untyped')) }).lower(request)).rejects.toThrow('untyped');
   });
 

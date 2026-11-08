@@ -1,3 +1,6 @@
+import { execFileSync } from 'node:child_process';
+import { chmodSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
 import { Coordinate, GitStorage, UnretainedWriteReceipt, Warp, WarpAccessDenied, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
@@ -294,6 +297,56 @@ describe('a store that fails before publication is permitted', () => {
     expect(attemptRefs(path)).toEqual([]);
     retained(await warp.as('alice').execute(intent.node.remove({ subject: 'x' })));
     expect((await materialized(path)).nodes).toEqual([]);
+  });
+
+  /** Moves every pack aside and unpacks it, so each object is a loose file a test can damage. */
+  function loosen(path: string): void {
+    const packs = join(path, '.git', 'objects', 'pack');
+    const held = join(path, 'held-packs');
+    mkdirSync(held);
+    for (const name of readdirSync(packs)) {
+      renameSync(join(packs, name), join(held, name));
+    }
+    for (const name of readdirSync(held).filter((file) => file.endsWith('.pack'))) {
+      execFileSync('git', ['unpack-objects', '-q'], { cwd: path, input: readFileSync(join(held, name)) });
+    }
+  }
+
+  /** Overwrites one loose object with bytes Git cannot read. */
+  function ruin(path: string, oid: string): void {
+    const file = join(path, '.git', 'objects', oid.slice(0, 2), oid.slice(2));
+    chmodSync(file, 0o644);
+    writeFileSync(file, 'ruin');
+  }
+
+  it('rejects a corrupt records tree read through git-cas, on every retry, publishing nothing', async () => {
+    const path = await repository();
+    const first = await open(path);
+    retained(await first.as('alice').execute(intent.node.add({ subject: 'x' })));
+    await first.close();
+    loosen(path);
+    ruin(path, git(path, ['rev-parse', `refs/warp/${GRAPH}/cone/head:records`]));
+    const before = tip(path, 'alice');
+    const warp = await open(path);
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await expect(warp.as('alice').execute(intent.node.remove({ subject: 'x' }))).rejects.toMatchObject({ code: 'E_MISSING_OBJECT' });
+    }
+    expect(tip(path, 'alice')).toBe(before);
+    expect(attemptRefs(path)).toEqual([]);
+  });
+
+  it('rejects a stored cone record that does not decode as corruption, not as a missing basis', async () => {
+    const path = await repository();
+    const first = await open(path);
+    retained(await first.as('alice').execute(intent.node.add({ subject: 'x' })));
+    await first.close();
+    loosen(path);
+    ruin(path, recordBlob(path, 'x'));
+    const warp = await open(path);
+
+    await expect(warp.as('alice').execute(intent.node.remove({ subject: 'x' }))).rejects.toMatchObject({ name: 'ConeRecordError', code: 'E_CONE_RECORD_CORRUPT' });
+    expect(attemptRefs(path)).toEqual([]);
   });
 
   it('rejects, publishing nothing, when a defect throws while reading the premise records', async () => {

@@ -360,6 +360,32 @@ describe('GitConeRecordStoreAdapter host failures (#1079)', () => {
     await unavailability(store.readBasis(HEAD_OF_LANE), ref);
   });
 
+  it('reports a ref that cannot be locked or read for permission as an unavailable store', async () => {
+    const { history, store } = await fixture();
+    const locked = new PersistenceError('Ref I/O error: cone head', PersistenceError.E_REF_IO);
+    vi.spyOn(history, 'readRef').mockRejectedValueOnce(locked);
+    await unavailability(store.readBasis(HEAD_OF_LANE), locked);
+  });
+
+  it('reports a host failure deleting a basis head as an unavailable store', async () => {
+    const { history, store } = await fixture();
+    await store.publishBasis(HEAD_OF_LANE, ConeBasis.empty(), null);
+    const busy = new Error('EBUSY: resource busy');
+    vi.spyOn(history, 'deleteRef').mockRejectedValueOnce(busy);
+    await unavailability(store.dropBasis(HEAD_OF_LANE).then(() => null), busy);
+  });
+
+  it('refuses a stored record that does not decode as corruption, keeping defects as they are', async () => {
+    const { history, store } = await fixture();
+    const garbage = await history.writeBlob('not a cbor cone record');
+    const family = await history.writeTree([`100644 blob ${garbage}\t${ConeRecordKey.forNode('b').route}`]);
+    const forged = ConeRoot.at(await history.writeTree([`040000 tree ${family}\tn`]));
+    await expect(store.readRecords(forged, [ConeRecordKey.forNode('b')])).rejects.toMatchObject({ name: 'ConeRecordError', code: 'E_CONE_RECORD_CORRUPT' });
+    const defect = new TypeError('a decoder defect');
+    vi.spyOn(CborCodec.prototype, 'decode').mockImplementationOnce(() => { throw defect; });
+    await expect(store.readRecords(forged, [ConeRecordKey.forNode('b')])).rejects.toBe(defect);
+  });
+
   it('reports a failing Git process beneath a write as an unavailable store', async () => {
     const { history, store } = await fixture();
     const spawn = new Error('spawn git EAGAIN');

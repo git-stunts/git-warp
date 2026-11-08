@@ -1,4 +1,5 @@
 import ConeStoreUnavailableError from '../../domain/errors/ConeStoreUnavailableError.ts';
+import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import type { ConeTrieHistory } from './GitConeRecordStoreAdapter.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
@@ -9,9 +10,11 @@ const DEFECTS = Object.freeze([TypeError, RangeError, ReferenceError, SyntaxErro
 
 /**
  * The cone record store's view of its Git history (#1079). Every call goes to the
- * history unchanged; a failure of the host or of a Git process beneath it becomes
- * a `ConeStoreUnavailableError` carrying that failure. Typed failures (corruption,
- * a missing object) and defects pass through as they are, so they still reject.
+ * history unchanged. An untyped failure of the host or of a Git process beneath it,
+ * or a ref that cannot be locked or read for permission (`E_REF_IO`), becomes a
+ * `ConeStoreUnavailableError` carrying that failure: a retry can clear it. Other
+ * typed failures (corruption, a missing object) and defects pass through as they
+ * are, so they still reject.
  */
 export default class GitConeStoreHost implements ConeTrieHistory {
   readonly plumbing: Pick<GitPlumbing, 'execute'>;
@@ -55,13 +58,25 @@ async function hostCall<T>(operation: string, call: () => Promise<T>): Promise<T
   }
 }
 
-/** Only an untyped host error is an unavailable store; a thrown non-error is a defect. */
+/**
+ * An untyped host error or a ref I/O failure is an unavailable store. The history
+ * adapter already turns a thrown non-error into a typed failure (`toGitError`), so
+ * the non-error branch guards only another history implementation.
+ */
 function classified(operation: string, error: unknown): Error {
   if (!(error instanceof Error)) {
     return new WarpError(`The cone store host threw a non-error value while trying to ${operation}`, 'E_CONE_STORE_HOST_DEFECT');
   }
-  if (error instanceof WarpError || DEFECTS.some((defect) => error instanceof defect)) {
-    return error;
+  if (isRefIo(error) || !isTypedOrDefect(error)) {
+    return new ConeStoreUnavailableError(operation, error);
   }
-  return new ConeStoreUnavailableError(operation, error);
+  return error;
+}
+
+function isRefIo(error: Error): boolean {
+  return error instanceof PersistenceError && error.code === PersistenceError.E_REF_IO;
+}
+
+function isTypedOrDefect(error: Error): boolean {
+  return error instanceof WarpError || DEFECTS.some((defect) => error instanceof defect);
 }

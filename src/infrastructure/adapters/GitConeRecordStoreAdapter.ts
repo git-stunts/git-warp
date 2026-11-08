@@ -1,4 +1,5 @@
 import ConeRecordError from '../../domain/errors/ConeRecordError.ts';
+import WarpError from '../../domain/errors/WarpError.ts';
 import ConeBasis from '../../domain/services/cone/ConeBasis.ts';
 import type ConeBasisHead from '../../domain/services/cone/ConeBasisHead.ts';
 import type { ConeRecord } from '../../domain/services/cone/ConeRecord.ts';
@@ -238,7 +239,7 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
   }
 
   #decodeRecord(bytes: Uint8Array, key: ConeRecordKey): ConeRecord {
-    const record = this.#records.decode(bytes);
+    const record = decodedRecord(this.#records, bytes, key);
     if (!record.key().equals(key)) {
       throw new ConeRecordError('Stored cone record does not match its trie path', {
         code: 'E_CONE_RECORD_CORRUPT',
@@ -282,6 +283,20 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
       script.graft(RECORDS_ENTRY, basis.root.revision());
     }
     return await this.#writer.write(script);
+  }
+}
+
+/** A stored record that fails to decode is corruption (#1079); a defect stays a defect. */
+function decodedRecord(codec: ConeRecordCborCodec, bytes: Uint8Array, key: ConeRecordKey): ConeRecord {
+  try {
+    return codec.decode(bytes);
+  } catch (error) {
+    if (error instanceof WarpError && !(error instanceof ConeRecordError)) {
+      throw new ConeRecordError(`Stored cone record does not decode: ${error.message}`, {
+        code: 'E_CONE_RECORD_CORRUPT', context: { key: key.toString(), decodeCode: error.code },
+      });
+    }
+    throw error;
   }
 }
 
