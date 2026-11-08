@@ -31,8 +31,9 @@ describe('GraphOrdinal and OrdinalSegment (#815)', () => {
   it('refuses unknown kinds, invalid writers and counters outside a dot', () => {
     expect(() => new GraphOrdinal({ kind: untyped<ConeDotSet>('"prop"'), writerId: 'alice', counter: 1 }))
       .toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
-    expect(() => new GraphOrdinal({ kind: 'node', writerId: '', counter: 1 })).toThrow();
-    expect(() => new GraphOrdinal({ kind: 'node', writerId: 'alice', counter: 0 })).toThrow();
+    expect(() => new GraphOrdinal({ kind: 'node', writerId: '', counter: 1 })).toThrow(expect.objectContaining({ code: 'E_CRDT_INVALID_MINT_ID' }));
+    expect(() => new GraphOrdinal({ kind: 'node', writerId: 'a/b', counter: 1 })).toThrow(expect.objectContaining({ code: 'E_INVALID_WRITER_ID' }));
+    expect(() => new GraphOrdinal({ kind: 'node', writerId: 'alice', counter: 0 })).toThrow(expect.objectContaining({ code: 'E_CRDT_INVALID_COUNTER' }));
   });
 
   it('places an ordinal in a segment with a 32-bit local ordinal and back', () => {
@@ -66,6 +67,6 @@ describe('GraphOrdinal and OrdinalSegment (#815)', () => {
       .toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
     expect(() => new OrdinalSegment({ kind: 'node', writerId: 'w', index: -1 }))
       .toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
-    expect(() => new OrdinalSegment({ kind: 'node', writerId: 'a/b', index: 0 })).toThrow();
+    expect(() => new OrdinalSegment({ kind: 'node', writerId: 'a/b', index: 0 })).toThrow(expect.objectContaining({ code: 'E_INVALID_WRITER_ID' }));
   });
 });

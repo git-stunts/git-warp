@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import ConeBasis from '../../../../src/domain/services/cone/ConeBasis.ts';
 import ConeBasisHead from '../../../../src/domain/services/cone/ConeBasisHead.ts';
 import ConeIngest from '../../../../src/domain/services/cone/ConeIngest.ts';
 import ConeRecordKey from '../../../../src/domain/services/cone/ConeRecordKey.ts';
@@ -147,5 +148,78 @@ describe('retained manifest over the cone basis (#815)', () => {
     const alternate = OrdinalGeometry.of({ version: 2, segmentCapacity: 2 ** 16, pageSpan: 64 });
     await expect(new RetainedGraphManifestReader({ store, geometry: alternate }).open(HEAD))
       .rejects.toMatchObject({ code: 'E_RETAINED_GEOMETRY_UNSUPPORTED' });
+  });
+});
+
+/** The stability guarantee of docs/topics/retained-manifests.md and its exceptions, as characterization tests. */
+describe('ordinal stability across successor manifests (#815; case F-2, F-3, F-4)', () => {
+  it('exception 1: a reused counter resolves under the first manifest and refuses as a duplicate after (W-P-2)', async () => {
+    const store = new InMemoryConeRecordStore();
+    const feed = new MemoryConeFeed(LANE);
+    const ingest = new ConeIngest({ store, feed, scope: new LaneConeScope(LANE) });
+    const reader = new RetainedGraphManifestReader({ store });
+    const resolver = new OrdinalAddressResolver(store);
+    feed.append('w1', [new NodeAdd('a', new Dot('w1', 1))]);
+    await ingest.advance();
+    const first = await reader.open(HEAD);
+    if (first === null) {
+      throw new Error('the fixture published no basis');
+    }
+    expect((await resolver.resolve(first, node('w1', 1))).record.equals(ConeRecordKey.forNode('a'))).toBe(true);
+    feed.append('w1', [new NodeAdd('b', new Dot('w1', 1))]);
+    await ingest.advance();
+    const successor = await reader.open(HEAD);
+    if (successor === null) {
+      throw new Error('the fixture published no successor');
+    }
+    expect(successor.commitment.equals(first.commitment)).toBe(false);
+    await expect(resolver.resolve(successor, node('w1', 1))).rejects.toMatchObject({ code: 'E_RETAINED_ADDRESS_DUPLICATE' });
+    const dictionary = new IdentifierDictionary(store);
+    expect((await dictionary.ordinalsOf(successor, 'node', 'a')).map(String)).toEqual(['node/w1:1']);
+    expect((await dictionary.ordinalsOf(successor, 'node', 'b')).map(String)).toEqual(['node/w1:1']);
+  });
+
+  it('resolution reports which element an add tagged, not liveness: a removed element still resolves (W-P-5)', async () => {
+    const store = new InMemoryConeRecordStore();
+    const feed = new MemoryConeFeed(LANE);
+    feed.append('w1', [new NodeAdd('n', new Dot('w1', 1))]);
+    feed.append('w1', [new NodeRemove('n', ['w1:1'])]);
+    await new ConeIngest({ store, feed, scope: new LaneConeScope(LANE) }).advance();
+    const manifest = await new RetainedGraphManifestReader({ store }).open(HEAD);
+    if (manifest === null) {
+      throw new Error('the fixture published no basis');
+    }
+    const ordinals = await new IdentifierDictionary(store).ordinalsOf(manifest, 'node', 'n');
+    expect(ordinals.map(String)).toEqual(['node/w1:1']);
+    for (const ordinal of ordinals) {
+      expect((await new OrdinalAddressResolver(store).resolve(manifest, ordinal)).record.equals(ConeRecordKey.forNode('n'))).toBe(true);
+    }
+  });
+
+  it('a pin names a writer frontier, not a records root: another root at the same frontier resolves it (W-P-4)', async () => {
+    const store = new InMemoryConeRecordStore();
+    const honestFeed = new MemoryConeFeed(LANE);
+    honestFeed.append('w1', [new NodeAdd('alice', new Dot('w1', 1))]);
+    await new ConeIngest({ store, feed: honestFeed, scope: new LaneConeScope(LANE) }).advance();
+    const otherFeed = new MemoryConeFeed('other');
+    otherFeed.append('w1', [new NodeAdd('mallory', new Dot('w1', 1))]);
+    await new ConeIngest({ store, feed: otherFeed, scope: new LaneConeScope('other') }).advance();
+    const reader = new RetainedGraphManifestReader({ store });
+    const honest = await reader.open(HEAD);
+    const other = await reader.open(ConeBasisHead.forLane('other'));
+    if (honest === null || other === null) {
+      throw new Error('the fixture published no basis');
+    }
+    const foreignRoot = new RetainedGraphManifest({ layout: honest.layout, geometry: honest.geometry, basis: new ConeBasis(other.basis.root, honest.basis.frontier) });
+    expect(foreignRoot.basis.root.equals(honest.basis.root)).toBe(false);
+    expect(foreignRoot.commitment.equals(honest.commitment)).toBe(true);
+    const address = await new OrdinalAddressResolver(store).resolvePinned(foreignRoot, honest.pin(node('w1', 1)));
+    expect(address.record.equals(ConeRecordKey.forNode('mallory'))).toBe(true);
+  });
+
+  it('refuses a dictionary kind outside node and edge with E_CONE_RECORD_INVALID (W-P-7)', async () => {
+    const { store, manifest } = await retainedGraph();
+    // @ts-expect-error -- a runtime kind outside ConeDotSet, as an untyped caller could pass it (case H-A-6).
+    await expect(new IdentifierDictionary(store).ordinalsOf(manifest, 'bogus', 'n1')).rejects.toMatchObject({ code: 'E_CONE_RECORD_INVALID' });
   });
 });
