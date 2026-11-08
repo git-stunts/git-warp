@@ -1,25 +1,32 @@
 import { assertWriterIdentity } from '../domain/api/assertIdentity.ts';
 import type { ContentMetadataInput } from '../domain/api/ContentMetadataInput.ts';
 import type { WriteIntentInput } from '../domain/api/IntentSequence.ts';
+import ObserverIdentity from '../domain/api/ObserverIdentity.ts';
+import type OpticObservation from '../domain/api/OpticObservation.ts';
 import { OPEN_WARP_IDENTITY_FAILURE } from '../domain/api/OpenWarpIdentityFailure.ts';
 import type StagedContent from '../domain/api/StagedContent.ts';
 import type WarpAccessDenied from '../domain/api/WarpAccessDenied.ts';
 import WarpError from '../domain/errors/WarpError.ts';
+import type { ConeReadRequest } from '../domain/services/read/ConeReadExecutor.ts';
 import { textEncode } from '../domain/utils/bytes.ts';
 import WarpAccessPort from '../ports/WarpAccessPort.ts';
 import AuthoredWarp from './AuthoredWarp.ts';
+import ObservedWarp from './ObservedWarp.ts';
 import WarpAddress from './WarpAddress.ts';
 import { composeWarpWrites, type WarpWrites } from './WarpWriteComposition.ts';
 
 /**
- * One opened graph (#1051). Opening grants nothing: the injected access boundary
- * decides each operation. Operations on one Warp run one at a time, so a writer's
- * predecessor cannot move under a write this handle itself queued.
+ * One opened graph (#1051, #1052). Opening grants nothing: the injected access boundary
+ * decides each operation. Writes on one Warp run one at a time, so a writer's
+ * predecessor cannot move under a write this handle itself queued; reads run
+ * concurrently and are tracked so `close()` stops and waits for both.
  */
 export default class Warp {
   readonly #writes: WarpWrites;
   #tail: Promise<void> = Promise.resolve();
   #closing: Promise<void> | null = null;
+  readonly #observations = new Set<OpticObservation>();
+  readonly #starting = new Set<Promise<OpticObservation>>();
 
   private constructor(writes: WarpWrites) {
     this.#writes = writes;
@@ -35,6 +42,14 @@ export default class Warp {
     return new Warp(await composeWarpWrites(address, access));
   }
 
+  /** This Warp as one observer sees it. Each read asks the access boundary, which is what authenticates. */
+  forObserver(observer: ObserverIdentity): ObservedWarp {
+    if (!(observer instanceof ObserverIdentity)) {
+      throw new WarpError('forObserver requires an ObserverIdentity', 'E_WARP_OBSERVER');
+    }
+    return new ObservedWarp(observer, async (request) => await this.#tracked(request));
+  }
+
   as(writer: string): AuthoredWarp {
     assertWriterIdentity(writer, 'writer', OPEN_WARP_IDENTITY_FAILURE);
     return new AuthoredWarp(writer, {
@@ -46,8 +61,51 @@ export default class Warp {
 
   /** Stops admitting operations, waits for those underway, and releases local resources. Published history and retained evidence stay. */
   close(): Promise<void> {
-    this.#closing ??= this.#tail.then(async () => await this.#writes.close());
+    this.#closing ??= this.#stopAll();
     return this.#closing;
+  }
+
+  async #stopAll(): Promise<void> {
+    await Promise.all([...this.#observations].map(async (observation) => await observation.cancel()));
+    await Promise.allSettled([...this.#starting]);
+    await this.#tail;
+    await this.#writes.close();
+  }
+
+  /** A read isn't queued behind writes, but `close` stops it and waits for it. */
+  async #tracked(request: ConeReadRequest): Promise<OpticObservation> {
+    if (this.#closing !== null) {
+      throw new WarpError('This Warp is closed', 'E_WARP_CLOSED');
+    }
+    let tracked: OpticObservation | null = null;
+    let settled = false;
+    const starting = this.#writes.reads.read({
+      ...request,
+      onSettled: () => {
+        settled = true;
+        if (tracked !== null) {
+          this.#observations.delete(tracked);
+        }
+      },
+    });
+    this.#starting.add(starting);
+    try {
+      const observation = await starting;
+      tracked = observation;
+      this.#retainUnsettled(observation, settled);
+      if (this.#closing !== null) {
+        await observation.cancel();
+      }
+      return observation;
+    } finally {
+      this.#starting.delete(starting);
+    }
+  }
+
+  #retainUnsettled(observation: OpticObservation, settled: boolean): void {
+    if (!settled) {
+      this.#observations.add(observation);
+    }
   }
 
   async #staged(writer: string, staged: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent | WarpAccessDenied> {

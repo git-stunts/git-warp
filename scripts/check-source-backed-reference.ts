@@ -264,7 +264,7 @@ function generate(): string {
       ...jsrExports.map((item) => ['JSR export', `\`${item.name}\``, `\`${item.detail}\``, `\`${item.source}\``]),
     ]),
     '',
-    ...exportSurface('Root API export surface', rootSource, 'First-use product API: the `Warp` write surface and its receipts beside the legacy `Runtime` value, plus Lane, Intent, Observer, Observation, Reading, and Receipt types.'),
+    ...exportSurface('Root API export surface', rootSource, 'First-use product API: the `Warp` write and bounded `Optic` read surface with its receipts beside the legacy `Runtime` value, plus Lane, Intent, Observer, Observation, Reading, and Receipt types.'),
     ...exportSurface('Advanced export surface', advancedSource, 'Bounded formal reads and runtime-backed construction for generated SDK infrastructure.'),
     ...exportSurface('Diagnostics export surface', diagnosticsSource, 'Operator inspection helpers that consume public receipt handles.'),
     ...exportSurface('Charts export surface', chartsSource, 'Bounded graph-shaped derived Observers and Reading values.'),
