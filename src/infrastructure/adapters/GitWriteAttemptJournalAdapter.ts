@@ -11,7 +11,11 @@ import type CodecPort from '../../ports/CodecPort.ts';
 import type ObservationCustodyCodecPort from '../../ports/ObservationCustodyCodecPort.ts';
 import WriteAttemptJournalPort from '../../ports/WriteAttemptJournalPort.ts';
 
-const RECORD_VERSION = 1;
+/**
+ * 2: saves `races` (#1072). A version-1 record, which only clones built from `main` before #1072
+ * can hold, saved no races; it is not read as a record with none.
+ */
+const RECORD_VERSION = 2;
 
 const writersSchema = z.array(z.string());
 const overflowSchema = z.number().int().nonnegative();

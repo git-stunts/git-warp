@@ -336,7 +336,7 @@ describe('a saved record that is not a write', () => {
   it('refuses to read an undecodable preparation', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
-      codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', races: [], occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
+      codec: { decode: () => ({ version: 2, preparation: new Uint8Array(), admission: 'derived', races: [], occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
       custodyCodec: { decodePreparation: () => new ObservationDecodeFailure('malformed') } as unknown as ObservationCustodyCodecPort,
       history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
     });
@@ -347,7 +347,7 @@ describe('a saved record that is not a write', () => {
   it('refuses to read it', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
-      codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', races: [], occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
+      codec: { decode: () => ({ version: 2, preparation: new Uint8Array(), admission: 'derived', races: [], occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
       custodyCodec: { decodePreparation: () => new ObservationPreparation(ATTEMPT, bindings(null)) } as unknown as ObservationCustodyCodecPort,
       history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
     });

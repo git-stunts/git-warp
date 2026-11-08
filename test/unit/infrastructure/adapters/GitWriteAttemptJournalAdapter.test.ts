@@ -32,7 +32,7 @@ function stored(): Uint8Array {
     writePremise: new ObservationWritePremise({ intents: DIGEST, writerId: 'alice', predecessor: null }),
   }));
   return codec.encode({
-    version: 1, preparation: custodyCodec.encodePreparation(preparation), admission: 'plural',
+    version: 2, preparation: custodyCodec.encodePreparation(preparation), admission: 'plural',
     races: [['register', 'doc', 'title', ['bob'], 0, 'observed']], occurrences: [], savedAt: 1, reported: false, commit: null,
   });
 }

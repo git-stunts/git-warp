@@ -145,7 +145,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A write receipt rebuilt by `AuthoredWarp.reconcile` after an interrupted write now
   reports the same `outcome.races` as the original receipt, rather than none. Retained
   receipts keep their races as durable evidence. `outcome.races` is now always in one
-  canonical order, on every receipt, and each race names each writer once, sorted
+  canonical order, on every receipt, and each race names each writer once, sorted.
+  The write attempt record and the write receipt core move to layout version 2. A clone
+  built from `main` before this change can hold version-1 write attempt refs under
+  `refs/warp/<graph>/write-attempts/`; they are not read, so delete them
   ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
 
 - Discover every supported test file recursively under `test/unit/` before

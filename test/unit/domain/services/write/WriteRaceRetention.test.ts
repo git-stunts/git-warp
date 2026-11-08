@@ -81,7 +81,7 @@ const PLURAL_CORE = '{"admission":"plural","commit":"ccccccccccccccccccccccccccc
   + '"races":[{"causality":"observed","key":null,"kind":"lifecycle","overflow":0,"subject":"doc","writers":["bob"]},'
   + '{"causality":"underdetermined","key":"body","kind":"register","overflow":2,"subject":"doc","writers":["dave"]},'
   + '{"causality":"observed","key":"title","kind":"register","overflow":0,"subject":"doc","writers":["bob","carol"]}],'
-  + '"version":1,"writer":"alice"}';
+  + '"version":2,"writer":"alice"}';
 
 describe('a write attempt record saves its races before arming', () => {
   it('keeps them in canonical order, each naming its writers once and in order', () => {
@@ -240,6 +240,10 @@ describe('the journal keeps a record\'s races', () => {
 
     const read = await journal(store).read(ATTEMPT);
 
+    const [blob] = [...store.blobs.values()];
+    const stored: { readonly version?: unknown } = codec.decode(blob ?? new Uint8Array());
+
+    expect(stored.version).toBe(2);
     expect(read?.races.map(wire)).toEqual(saved.races.map(wire));
     expect(read === null ? null : publishedWriteCore('g', read, COMMIT).outcome()).toEqual(publishedWriteCore('g', saved, COMMIT).outcome());
   });
@@ -247,7 +251,8 @@ describe('the journal keeps a record\'s races', () => {
   type Stored = { readonly [field: string]: unknown };
   const withRaces = (races: unknown) => (stored: Stored): Stored => ({ ...stored, races });
   const malformed: ReadonlyArray<readonly [string, (stored: Stored) => Stored]> = [
-    ['a record saved before races were saved (no races field)', ({ races: _gone, ...before }) => before],
+    ['a record saved before races were saved (version 1, no races field)', ({ races: _gone, ...before }) => ({ ...before, version: 1 })],
+    ['a version-1 record, even one that names races', (stored) => ({ ...stored, version: 1 })],
     ['an unknown kind', withRaces([['merge', 'doc', 'title', ['bob'], 0, 'observed']])],
     ['a register race with no key', withRaces([['register', 'doc', null, ['bob'], 0, 'observed']])],
     ['a register race with an empty key', withRaces([['register', 'doc', '', ['bob'], 0, 'observed']])],

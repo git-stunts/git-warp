@@ -4,7 +4,11 @@ import { textEncode } from '../../utils/bytes.ts';
 import ObservationReceiptCore from '../custody/ObservationReceiptCore.ts';
 import type WriteAttemptRecord from './WriteAttemptRecord.ts';
 
-const WRITE_CORE_VERSION = 1;
+/**
+ * 2: binds `races` (#1072). A version-1 core, which only clones built from `main` before #1072
+ * can hold, carries no races: a reader must treat its races as unknown, never as `[]`.
+ */
+const WRITE_CORE_VERSION = 2;
 
 type CoreFields = { readonly [field: string]: CanonicalJsonValue };
 
