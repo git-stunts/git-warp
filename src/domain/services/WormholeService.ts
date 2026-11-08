@@ -12,8 +12,9 @@
  *
  * - **Provenance Preservation**: The wormhole contains the full sub-payload,
  *   allowing exact replay of the compressed segment.
- * - **Monoid Composition**: Two consecutive wormholes can be composed by
- *   concatenating their sub-payloads.
+ * - **Payload replay**: `wormhole.payload.replay(state)` replays the segment.
+ *   Composition, a dedicated replay helper and the JSON round trip had no
+ *   callers and were removed in #1079; #207 owns any runtime-backed revival.
  * - **Materialization Equivalence**: A wormhole + remaining patches produces
  *   the same state as materializing all patches.
  *

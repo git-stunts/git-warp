@@ -1,6 +1,4 @@
-import type {
-  CacheAcquisition,
-  } from '@git-stunts/git-cas';
+import type { CacheAcquisition } from '@git-stunts/git-cas';
 import { storageError } from './GitCasMaterializationStoreValidation.ts';
 import type {
   MaterializationCachePut,

@@ -1,5 +1,3 @@
-
-
 const TO_INTERNAL_KEY: Map<string, string> = new Map([
   ['strand', 'strand'],
   ['strandId', 'strandId'],

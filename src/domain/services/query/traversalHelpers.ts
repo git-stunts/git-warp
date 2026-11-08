@@ -6,35 +6,9 @@
  */
 
 import TraversalError from '../../errors/TraversalError.ts';
-import type ORSet from '../../crdt/ORSet.ts';
-import type { Direction, NeighborEdge } from '../../../ports/NeighborProviderPort.ts';
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-/** Validated adjacency snapshot used by LogicalTraversal. */
-export interface AdjacencyMaps {
-  outgoing: Map<string, Array<{ neighborId: string; label: string }>>;
-  incoming: Map<string, Array<{ neighborId: string; label: string }>>;
-}
-
-/** Validated traversal state used by LogicalTraversal. */
-export interface TraversalState {
-  nodeAlive: ORSet;
-}
+import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-/**
- * Returns true when a value is a materialized adjacency record.
- */
-export function isAdjacencyMaps(adjacency: unknown): adjacency is AdjacencyMaps {
-  return (
-    adjacency !== null &&
-    typeof adjacency === 'object' &&
-    (adjacency as Record<string, unknown>)['outgoing'] instanceof Map && // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-    (adjacency as Record<string, unknown>)['incoming'] instanceof Map // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  );
-}
 
 /** Strips `undefined` from every property value type in T. */
 export type WithoutUndefined<T> = {
@@ -105,6 +79,3 @@ export function normalizeLabelFilter(
     context: { receivedType: typeof labelFilter },
   });
 }
-
-// Re-export for convenience of callers that need the edge shape alongside AdjacencyMaps.
-export type { NeighborEdge };
