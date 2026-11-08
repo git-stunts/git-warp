@@ -6,26 +6,39 @@ This roadmap gives the work that remains before the `v21.0.0` release (substrate
 
 ### What v21.0.0 changes
 
-In `v20` and earlier, git-warp answers a query by folding the full history of all writers into one complete graph state in memory. The cost of a read follows the size of the graph and its history, not the size of the question. Large repositories then hit hard limits, for example a 23.9 MB replay value against a 5 MiB decoder limit.
+In `v20` and earlier, git-warp answers a query by replaying the full history of all writers into one complete graph state in memory. The cost of a read follows the size of the graph and its history, not the size of the question. Large repositories then fail: one recorded replay value was 23,995,927 bytes (22.9 MiB), and the production CBOR decoder limit is 5 MiB (5,242,880 bytes). The incident is recorded in [`docs/plans/streaming-indexed-recursive-warp.md`](docs/plans/streaming-indexed-recursive-warp.md).
 
 `v21.0.0` removes that model. After this release:
 
-1. **Reads and writes fold only the causal cone that they touch.** Retained state lives in indexed manifests and pages: retained readings, Roaring selection planes, and streaming causal reduction. A declared budget, not the graph size, controls process memory.
-2. **The public API is observer-bound.** A caller opens a `Warp`, binds an observer, and asks bounded questions through an `Optic` with a purpose and a budget. Each answer carries a receipt with an opaque `Coordinate`. A caller can replay that receipt, or ask a new question at the same basis.
-3. **Strands move to the new substrate.** A strand is a speculative lane that forks from a worldline at a fork anchor. The strand journey (fork from a `Coordinate`, write to an overlay, preview, settle) moves from the legacy `Runtime` API to the cone-based engine without loss.
+1. **Reads and writes replay only the causal cone that they touch.** The causal cone of a value is the set of patches that can change it ([`docs/topics/git-substrate.md`](docs/topics/git-substrate.md)). Retained state is kept in indexed manifests and pages: retained readings and Roaring bitmap selection pages, built by a streaming causal reduction. A declared budget, not the graph size, controls process memory.
+2. **The public API is observer-bound.** A caller opens a `Warp`, binds an observer, and asks bounded questions through an `Optic` (a bounded read handle; see [`docs/topics/optic-reads.md`](docs/topics/optic-reads.md)) with a purpose and a budget. Each answer carries a receipt with an opaque `Coordinate`. A caller can replay that receipt, or ask a new question at the same basis.
+3. **Strands move to the new substrate.** A strand is a speculative lane that forks from a worldline at a fork anchor ([`docs/topics/strands.md`](docs/topics/strands.md)). The strand journey (fork from a `Coordinate`, write to an overlay, preview, settle) moves from the legacy `Runtime` API to the cone-based engine without loss.
 4. **The legacy surfaces are deleted.** `Runtime`, `Lane`, `captureCoordinate`, and the full-state contracts are removed. This is the reason for the major version.
 
 ### How the work fits together
 
-The critical path below is the retained-substrate chain. It starts with the retained graph manifests (`#815`). Next come the attachment references (`#819`), the recursive references across CAS boundaries (`#821`), and the migration into indexed graph roots (`#822`). After that chain, `#814` removes the full-state contracts, and the bounded-memory proof (`#823`) is last. The legacy deletion (`#1054`) waits only for the release reconciliation (`#1079`), and it feeds `#814`. The optic path also feeds `#814`: `#1078`, `#1079`, and `#1080` come before optic reads (`#1052`), then receipt coordinates and strands (`#1053`), then the newcomer path and operator CLI (`#1055`, `#1057`). The write-path hardening (`#1072` to `#1080`) feeds the optic path.
+The critical path below is the retained-substrate chain. It starts with the retained graph manifests (`#815`). Next come the attachment references (`#819`), the recursive references across CAS boundaries (`#821`), and the migration into indexed graph roots (`#822`). After that chain, `#814` removes the full-state contracts, and the bounded-memory proof (`#823`) is last.
+
+The optic path joins that chain:
+
+- The release reconciliation (`#1079`) comes before the legacy deletion (`#1054`).
+- `#1054`, `#1078`, and `#1080` come before optic reads (`#1052`).
+- `#1052` and `#1072` come before receipt coordinates and strands (`#1053`). `#1053` comes before the newcomer path (`#1055`), which also waits for the pack-count bound (`#1041`).
+- `#1052` comes before the operator CLI (`#1057`), and through `#248` it comes before `#814`.
+
+The other write-path issues: `#1074`, `#1075`, `#1078`, and `#1080` come before `#1077`, which comes before the bounded-memory proof (`#823`). `#1073` comes after `#1052`. `#1076` has no edges.
+
+Hand-written. Checked against the GitHub "blocked by" relations on 2026-11-08. When this text and GitHub disagree, GitHub is correct.
 
 ### Out of scope for v21.0.0
 
-Braids (several strands woven over a common basis, judged by a collapse law) and witnessed merge are `v22.0.0` work. Domain-purity debt and capability-port design are `v21.2.0` work. Test, ratchet, and docs-process work is in the `Engineering Hygiene` milestone.
+Braids (several strands combined over a common basis, with a collapse law: the rule that decides the combined result) and witnessed merge are `v22.0.0` work. Domain-purity debt and capability-port design are `v21.2.0` work. Test, ratchet, and docs-process work is in the `Engineering Hygiene` milestone.
 
 ### Source of truth
 
-GitHub is the source of truth. Each task is a GitHub issue whose body follows the house card standard. Each dependency is a GitHub "blocked by" relation. `lock:*` labels give the git-locks keys. The section between the generated markers is compiled from GitHub. Do not edit it by hand.
+GitHub is the source of truth. Each task is a GitHub issue whose body follows the house card standard. Each dependency is a GitHub "blocked by" relation. `lock:*` labels give the git-locks keys.
+
+How to read this file: the executive summary above is hand-written. The section between the generated markers is compiled from GitHub; do not edit it by hand. The branch audit belongs in that section and is generated from `origin` branches and open PRs ([`docs/plans/README.md`](docs/plans/README.md#task-plan-house-format)). The compile below does not emit it yet, so this file has no branch audit; it never has a hand-written one. It is a snapshot, so when it and GitHub differ, GitHub is correct. The status words in it come from the compiler: `in-progress` means `status:active` or an open PR that closes the issue, `open` means no status label that the compiler maps, and `parked` means `status:parked`.
 
 <!-- BEGIN GENERATED ISSUE DAG (issue-dag --emit-roadmap; do not edit by hand) -->
 
@@ -448,24 +461,3 @@ Recorded on GitHub but implied by a longer path (kept there as evidence, omitted
 - #822 → #823 (via #814)
 
 <!-- END GENERATED ISSUE DAG -->
-
-## Audit of Local Worktrees and Unmerged Branches
-
-Hand-maintained. Paths are relative to `~/git`.
-
-| Worktree / Branch | Status | Disposition |
-| --- | --- | --- |
-| `git-warp-w-1052` (`feat/1052-optic-reads`, PR [#1082](https://github.com/git-stunts/git-warp/pull/1082)) | Active | In flight for #1052. |
-| `git-warp-w-1032` (`chore/1032-re-review-accepted-security-risks`) | Parked | Uncommitted edits saved as WIP commit `7fc07da29`; resume for #1032. |
-| `git-warp-w-1070` (`fix/1070-stable-unit-runner-benchmark-filter`) | Parked | Resume for #1070. |
-| `git-warp-w-1078` (`fix/1078-warp-open-and-write-ref-guard`) | Parked | Resume for #1078. |
-| `git-warp-w-1081` (`fix/1081-public-surface-package-dist-race`) | Parked | Resume for #1081. |
-| `git-warp-w-cone` (`feat/cone-bounded-runtime`, PR [#1040](https://github.com/git-stunts/git-warp/pull/1040)) | Source prototype | Extracted across #1052, #1053, #1055, #1057, and #1054; close PR #1040 with #1054. |
-| `git-warp-w-1050` (`fix/1040-main-integration`) | Source | Extract commits `2e43c1526`, `171ef5744`, and `0facc4c3a` in #1054. |
-| `git-warp-w-ckpt` (`design/retained-readings`) | Source | Extract commit `d1a02bd2b` (retained-readings design record) in #1044. |
-| `git-warp-w-coneperf` (`feat/1039-cone-storage-perf`) | Merged | Landed on `main` through #1062 (PR #1064). |
-| `git-warp-w-showcase` (`feat/1039-cone-showcase`) | Source | Extract `examples/annotations/` and `benchmarks/cone-showcase/` in #1055. |
-| `origin/agent/eliminate-full-state-contracts` | Source | Extract commits `82ba46409` and `c937c3c64` in #814. |
-| `origin/feature/optic-only-public-api` | Superseded | By #1049 (PR #1059), #1051 (PR #1071), and #1052 (PR #1082). |
-| `origin/policy/quarantine-evidence` | Optional | `5f031e8e9` landed through #1030 (PR #1033); `1f83f7e08` remains optional tooling work. |
-| `git-warp-w-1031` (`fix/1031-v16-gc-convergence`) | Maintenance | `v16.0.2` line for #1031, independent of v21.0.0. |

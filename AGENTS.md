@@ -129,8 +129,10 @@ DTO and stop there**. Do not hallucinate fake domain models.
   chat.
 - Current public documentation lives in root `README.md`, root
   `ARCHITECTURE.md`, `CHANGELOG.md`, `docs/topics/`, and
-  `docs/operations/`. Release process instructions live in
-  `.github/RELEASE.md`. Do not revive
+  `docs/operations/`. Root `ROADMAP.md` is the compiled milestone view:
+  its generated block is compiled from GitHub, and GitHub is correct when the
+  two differ. Release process instructions live in
+  `.github/RELEASE.md`. Do not revive `docs/ROADMAP.md`,
   `docs/BEARING.md`, `docs/VISION.md`, design packets, retro packets, or
   archive directories; use GitHub Issues, release evidence, and topic pages for
   current status.
@@ -146,9 +148,14 @@ DTO and stop there**. Do not hallucinate fake domain models.
   - `status:*` answers workflow state. Use exactly one of
     `status:available`, `status:blocked`, `status:active`, or
     `status:parked`. `status:available` is the neutral state for open work
-    that is neither blocked nor actively being worked. `status:parked` means
-    work was started and stopped, and a recoverable branch or worktree exists:
-    resume it rather than restart it.
+    that is neither blocked nor actively being worked. `status:blocked`
+    means blocked by something outside GitHub dependencies (an external
+    party, a decision, an outage); write the reason in the issue body.
+    Dependency blocking is computed from the dependency graph and is never
+    labeled: an issue that waits only on other issues stays
+    `status:available`. `status:parked` means work was started and stopped,
+    and its branch is pushed to `origin`, so anyone can resume it rather than
+    restart it. A local-only worktree does not make work parked.
   - `area:*` answers where the work primarily lives. Prefer one of `area:api`,
     `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`,
     `area:testing`, `area:tooling`, `area:release`, or `area:architecture`.
@@ -173,6 +180,13 @@ DTO and stop there**. Do not hallucinate fake domain models.
   | no legacy workflow label | `status:available` |
   | `release-home:vX.Y.Z` / `lane:vX.Y.Z` | GitHub Milestone `vX.Y.Z` |
   | `feature:*` / `legend:*` | One `area:*` label, with doctrine in the body |
+  | `type:enhancement` | `type:feature` |
+  | `type:proof-story` | `type:story` |
+  | `template:*` | The `# <Type>` heading of the issue body |
+
+- `domain:*` and `template:*` labels are not label axes. The planner ignores
+  them. Do not add them to new issues. `.coderabbit.yaml` stops CodeRabbit
+  from applying labels, so the label axes stay under human control.
 
 - Release gates must count GitHub Issues by the simplified labels and
   milestones. Missing required labels or milestones are gate failures, never
@@ -207,27 +221,40 @@ DTO and stop there**. Do not hallucinate fake domain models.
 
 - GitHub is the source of truth for planning. An issue is the task plan; there
   is no local task-file state.
-- New GitHub issues use the house card templates in `.github/ISSUE_TEMPLATE/`:
-  Feature, Bug, Decision, Investigation, Research, Spike, or the generic
-  nine-section card. Blank issues are disabled. Use the web chooser or
-  `gh issue create --template "<Name>"`. Keep the numbered section headings.
-  Write "none" or "not applicable, because X" instead of padding a section.
-  Write in ASD-STE100 Simplified Technical English.
-- Each template presets `priority:later` and `status:available`; the Feature
-  and Bug templates also preset their `type:*`. Correct the priority, add the
+- New GitHub issues use one of the six typed house card templates in
+  `.github/ISSUE_TEMPLATE/`: Feature, Bug, Decision, Investigation,
+  Research, or Spike. Blank issues are disabled. Use the web chooser or
+  `gh issue create --template "<Name>"`. Keep the `# <Type>` heading, the
+  fenced `text` execution prompt, and the numbered `## 1.` to `## 9.`
+  headings: the planner's house-format check requires them. Write "none" or "not applicable,
+  because X" instead of padding a section. Write in ASD-STE100 Simplified
+  Technical English.
+- The ADR 2 readiness review form (`adr-2-readiness-review.yml`) is the one
+  sanctioned non-house form. Its issues do not follow the house format, so a
+  planner run that requires the house format reports them; that report is
+  expected.
+- Each typed template presets `priority:later` and `status:available`; the
+  Feature and Bug templates also preset their `type:*`. `priority:later` is a
+  placeholder, not a triage result: the filer must correct it. Also add the
   `area:*` label and, where the template could not preset it, the `type:*`
   label, and assign the GitHub Milestone.
 - Dependencies are GitHub's native "blocked by" relations: *A blocks B* means
-  A must be merged before B is correct. Labels, milestones, shared files, and
-  containers do not create edges. Record discovered prerequisites on the issue
+  A must be closed (for code work, merged on `main`) before B is correct.
+  Labels, milestones, shared files, and containers do not create edges.
+  Record discovered prerequisites on the issue
   (the `issue-dag` skill's `--add-edge` refuses cycles).
-- `lock:*` labels carry the adjacent git-locks resource keys
-  (`lock:host/heavy-work`, `lock:docs/`, `lock:scripts/`); without one the
-  planner derives a key from `area:*`.
+- `lock:*` labels carry git-locks resource keys (`lock:host/heavy-work`,
+  `lock:docs/`, `lock:scripts/`); without one the planner derives a key from
+  `area:*`. Take `host/*` keys in the workstation store that every
+  repository on the host shares (set `GIT_LOCKS_STORE` to it); take
+  repository paths such as `docs/` and `scripts/` in this repository's
+  default store.
 - `ROADMAP.md` is a rendered view compiled from GitHub (executive summary,
   ranked Open Frontier, sequenced `- [ ]` checklist linking to issues, branch
-  audit, dependency diagram). Wave numbers, unlock lists, and open/blocked
-  state are computed, never hand-maintained. Full format:
+  audit, dependency diagram). Wave numbers, unlock lists, open/blocked state,
+  and the branch audit are computed, never hand-maintained. The branch audit
+  comes from the branches on `origin` and the open PRs; local-only worktrees
+  are out of scope. Full format:
   [`docs/plans/README.md`](docs/plans/README.md#task-plan-house-format).
 
 ## Engineering Doctrine
@@ -301,7 +328,9 @@ DTO and stop there**. Do not hallucinate fake domain models.
 - Follow `.github/RELEASE.md`. Use `scripts/release-preflight.sh`,
   `scripts/release-guard.sh`, `.continuum/release.yml`, package metadata,
   `CHANGELOG.md`, and release evidence generated by the current release task.
-  Do not maintain a separate prose release dashboard.
+  Do not maintain a separate hand-written release dashboard. Root
+  `ROADMAP.md` is not one: its generated block is compiled from GitHub, and
+  its hand-written part is limited to the executive summary.
 - Immediately after a release, run the post-release retrospective described in
   `.github/RELEASE.md` before starting the next planned release train.
 - Every planned, versioned release must have a thesis in its GitHub Milestone

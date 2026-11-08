@@ -26,8 +26,13 @@ Every open issue should carry one label from each axis:
 | --- | --- |
 | Type | `type:bug`, `type:debt`, `type:feature`, `type:docs`, `type:release`, `type:goalpost`, `type:story`, `type:maintenance` |
 | Priority | `priority:asap`, `priority:next`, `priority:later` |
-| Status | `status:available`, `status:blocked`, `status:active` |
+| Status | `status:available`, `status:blocked`, `status:active`, `status:parked` |
 | Area | `area:api`, `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`, `area:testing`, `area:tooling`, `area:release`, `area:architecture` |
+
+`status:blocked` means blocked by something outside the dependency graph (an
+external party, a decision, an outage), with the reason in the issue body.
+Dependency blocking is computed from the graph and is never labeled.
+`status:parked` means started and stopped, with the branch pushed to `origin`.
 
 Use GitHub Milestones for release targeting. Do not create release labels for
 new work.
