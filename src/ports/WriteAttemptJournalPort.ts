@@ -9,7 +9,7 @@ export default abstract class WriteAttemptJournalPort {
 
   /**
    * The record of one attempt, or null when none is saved. A saved record that cannot be read
-   * throws; one with an integer layout version other than 2 throws `UnsupportedWriteAttemptLayoutError`,
+   * throws; one with a non-negative integer layout version other than 2 throws `UnsupportedWriteAttemptLayoutError`,
    * naming its ref, its layout and, while it still names one, its writer.
    */
   abstract read(_attemptId: ObservationAttemptId): Promise<WriteAttemptRecord | null>;

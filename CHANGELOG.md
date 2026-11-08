@@ -190,13 +190,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   receipts keep their races as durable evidence. `outcome.races` is now always in one
   canonical order, on every receipt, and each race names each writer once, sorted
   ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
-- Write attempt refs under `refs/warp/<graph>/write-attempts/` in a layout other than 2 are
-  not read. `AuthoredWarp.reconcile` of such an attempt rejects with code
-  `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, and the error names the ref and the remedy.
+- Write attempt refs under `refs/warp/<graph>/write-attempts/` in a non-negative integer
+  layout version other than 2 are not read. `AuthoredWarp.reconcile` of such an attempt
+  rejects with code `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, and the error names the ref and the
+  remedy. A record whose layout version is not a non-negative integer cannot be decoded: it
+  rejects with `AdapterValidationError`, names no ref, and is kept.
   - Layout 1 came only from clones built from `main` before this fix. Delete only the ref the
-    error names, with `git update-ref -d '<ref>'` in the repository that holds the graph. It
-    holds only that attempt's recovery record, not graph data: a patch the attempt published
-    stays on its writer's chain, and only that attempt's receipt is lost. Do not delete the whole prefix, which can also hold current
+    error names: run the `git update-ref -d` command that the error message prints, in the
+    repository that holds the graph. That command quotes the ref for the shell, so do not
+    retype it from a template. The ref holds only that attempt's recovery record, not graph
+    data: a patch the attempt published stays on its writer's chain, and only that attempt's
+    receipt is lost. Do not delete the whole prefix, which can also hold current
     attempts. Deleting the ref frees nothing in custody; it abandons that attempt's fate,
     which is harmless at the current unlimited retention capacity.
   - A newer layout came from a newer git-warp. Keep the ref and finish the attempt with that
@@ -219,6 +223,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     before: a final outcome such as `evidence-too-large` gives an unretained receipt and removes
     the record, because custody holds no core for those races to disagree with. A `settle`
     conflict is the exception: it answers indeterminate and keeps the record.
+  - After custody reports no settlement, recovery trusts the record's races, because custody
+    holds nothing to compare them with. So a tampered record's races can be retained. The
+    receipt and the retained core then agree, so a rebuilt receipt still never disagrees with
+    the retained core.
 
 - Discover every supported test file recursively under `test/unit/` before
   partitioning the default unit run. New directories no longer need a runner
