@@ -11,7 +11,7 @@
 import computeShardKey from '../../utils/shardKey.ts';
 import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
-import { ShardIdOverflowError } from '../../errors/index.ts';
+import ShardIdOverflowError from '../../errors/ShardIdOverflowError.ts';
 import type { WorkingMetaShard, EdgeShardData } from './types.ts';
 
 /** Maximum local IDs per shard (2^24). */

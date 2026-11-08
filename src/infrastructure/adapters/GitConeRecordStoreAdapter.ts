@@ -1,4 +1,5 @@
 import ConeRecordError from '../../domain/errors/ConeRecordError.ts';
+import WarpError from '../../domain/errors/WarpError.ts';
 import ConeBasis from '../../domain/services/cone/ConeBasis.ts';
 import type ConeBasisHead from '../../domain/services/cone/ConeBasisHead.ts';
 import type { ConeRecord } from '../../domain/services/cone/ConeRecord.ts';
@@ -13,6 +14,7 @@ import ConeRecordStorePort from '../../ports/ConeRecordStorePort.ts';
 import ConeFrontierCborCodec from './ConeFrontierCborCodec.ts';
 import ConeRecordCborCodec from './ConeRecordCborCodec.ts';
 import GitConeRecordTrie from './GitConeRecordTrie.ts';
+import GitConeStoreHost from './GitConeStoreHost.ts';
 import GitFastImportTreeScript from './GitFastImportTreeScript.ts';
 import GitFastImportTreeWriter from './GitFastImportTreeWriter.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
@@ -59,9 +61,11 @@ type BasisLocation = { readonly ref: string; readonly lane: string };
  * blobs named by their full route.
  *
  * Reads walk cached tree objects and read blobs through the history's
- * long-lived object session, so they start no Git process. A write of any
- * number of records, a basis tree and a retained-bases tree are each one
- * `git fast-import` process; untouched subtrees are shared.
+ * long-lived object session, so they start no Git process. A host or Git
+ * process failure beneath any call surfaces as `ConeStoreUnavailableError`
+ * (`GitConeStoreHost`); corruption keeps throwing `ConeRecordError`.
+ * A write of any number of records, a basis tree and a retained-bases tree
+ * are each one `git fast-import` process; untouched subtrees are shared.
  *
  * A basis head (`refs/warp/<lane>/cone/head`, or a strand's
  * `cone/strands/<id>/base` and `cone/strands/<id>/head`) points at a tree of
@@ -83,11 +87,11 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
 
   constructor(options: { readonly history: ConeTrieHistory; readonly codec: CodecPort }) {
     super();
-    this.#history = options.history;
+    this.#history = new GitConeStoreHost(options.history);
     this.#records = new ConeRecordCborCodec(options.codec);
     this.#frontiers = new ConeFrontierCborCodec(options.codec);
     this.#trie = new GitConeRecordTrie(async (treeOid) => await this.#history.readTreeObjectEntries(treeOid));
-    this.#writer = new GitFastImportTreeWriter({ plumbing: options.history.plumbing });
+    this.#writer = new GitFastImportTreeWriter({ plumbing: this.#history.plumbing });
   }
 
   override recordLayout(): string {
@@ -239,7 +243,7 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
   }
 
   #decodeRecord(bytes: Uint8Array, key: ConeRecordKey): ConeRecord {
-    const record = this.#records.decode(bytes);
+    const record = decodedRecord(this.#records, bytes, key);
     if (!record.key().equals(key)) {
       throw new ConeRecordError('Stored cone record does not match its trie path', {
         code: 'E_CONE_RECORD_CORRUPT',
@@ -283,6 +287,20 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
       script.graft(RECORDS_ENTRY, basis.root.revision());
     }
     return await this.#writer.write(script);
+  }
+}
+
+/** A stored record that fails to decode is corruption (#1079); a defect stays a defect. */
+function decodedRecord(codec: ConeRecordCborCodec, bytes: Uint8Array, key: ConeRecordKey): ConeRecord {
+  try {
+    return codec.decode(bytes);
+  } catch (error) {
+    if (error instanceof WarpError && !(error instanceof ConeRecordError)) {
+      throw new ConeRecordError(`Stored cone record does not decode: ${error.message}`, {
+        code: 'E_CONE_RECORD_CORRUPT', context: { key: key.toString(), decodeCode: error.code },
+      });
+    }
+    throw error;
   }
 }
 

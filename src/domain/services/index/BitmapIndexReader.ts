@@ -1,5 +1,7 @@
 import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../storage/BufferedArtifactLimit.ts';
-import { IndexError, ShardLoadError, ShardCorruptionError } from '../../errors/index.ts';
+import IndexError from '../../errors/IndexError.ts';
+import ShardCorruptionError from '../../errors/ShardCorruptionError.ts';
+import ShardLoadError from '../../errors/ShardLoadError.ts';
 import nullLogger from '../../utils/nullLogger.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';

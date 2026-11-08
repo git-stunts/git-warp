@@ -55,7 +55,6 @@ export const SOURCE_SIZE_RELAXATIONS = Object.freeze([
   'test/unit/domain/services/SyncAuthService.test.ts',
   'test/unit/domain/services/SyncController.test.ts',
   'test/unit/domain/services/SyncProtocol.test.ts',
-  'test/unit/domain/services/WormholeService.test.ts',
   'test/unit/domain/services/controllers/ComparisonController.test.ts',
   'test/unit/domain/services/controllers/MaterializeController.test.ts',
   'test/unit/domain/services/controllers/PatchController.test.ts',

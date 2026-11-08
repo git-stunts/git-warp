@@ -3,7 +3,11 @@ import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.
 import { signSyncRequest } from '../../../../src/domain/services/sync/SyncAuthService.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import { createMockCrypto } from '../../../helpers/mockPorts.ts';
+import SeededRandomPort from '../../../helpers/SeededRandomPort.ts';
 import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
+
+/** Deterministic, well-spread nonce entropy shared by this file's signed requests. */
+const NONCE_RANDOM = new SeededRandomPort(184001);
 
 const SECRET = SyncSecret.fromString('test-secret');
 const KEY_ID = 'default';
@@ -35,7 +39,7 @@ async function signedBody(bodyObj) {
   const body = Buffer.from(JSON.stringify(bodyObj));
   const headers = await signSyncRequest(
     { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SECRET, keyId: KEY_ID, lamport: signLamport },
-    { crypto: TEST_CRYPTO },
+    { crypto: TEST_CRYPTO, random: NONCE_RANDOM },
   );
   return { body, headers: { 'content-type': 'application/json', host: '127.0.0.1:9999', ...headers } };
 }
@@ -107,7 +111,7 @@ describe('HttpSyncServer auth integration', () => {
         graph,
         host: '127.0.0.1',
         path: '/sync',
-        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
+        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
       }) as any));
       await server.listen(9999);
       handler = mockPort.getHandler();
@@ -154,7 +158,7 @@ describe('HttpSyncServer auth integration', () => {
       const body = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
       const headers = await signSyncRequest(
         { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SyncSecret.fromString('wrong-secret'), keyId: KEY_ID, lamport: ++signLamport },
-        { crypto: TEST_CRYPTO },
+        { crypto: TEST_CRYPTO, random: NONCE_RANDOM },
       );
       const res = await handler({
         method: 'POST',
@@ -212,7 +216,7 @@ describe('HttpSyncServer auth integration', () => {
       const lowLamportBody = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
       const lowHeaders = await signSyncRequest(
         { method: 'POST', path: '/sync', contentType: 'application/json', body: lowLamportBody, secret: SECRET, keyId: KEY_ID, lamport: 0 },
-        { crypto: TEST_CRYPTO },
+        { crypto: TEST_CRYPTO, random: NONCE_RANDOM },
       );
       const res2 = await handler({
         method: 'POST', url: '/sync',
@@ -226,7 +230,7 @@ describe('HttpSyncServer auth integration', () => {
       const body = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
       const headers = await signSyncRequest(
         { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SECRET, keyId: 'unknown-key', lamport: ++signLamport },
-        { crypto: TEST_CRYPTO },
+        { crypto: TEST_CRYPTO, random: NONCE_RANDOM },
       );
       const res = await handler({
         method: 'POST',
@@ -250,7 +254,7 @@ describe('HttpSyncServer auth integration', () => {
         graph,
         host: '127.0.0.1',
         path: '/sync',
-        auth: { keys: KEYS, mode: 'log-only', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
+        auth: { keys: KEYS, mode: 'log-only', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
       }) as any));
       await server.listen(9999);
       handler = mockPort.getHandler();
@@ -270,7 +274,7 @@ describe('HttpSyncServer auth integration', () => {
       const body = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
       const headers = await signSyncRequest(
         { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SyncSecret.fromString('wrong-secret'), keyId: KEY_ID, lamport: ++signLamport },
-        { crypto: TEST_CRYPTO },
+        { crypto: TEST_CRYPTO, random: NONCE_RANDOM },
       );
       const res = await handler({
         method: 'POST',
@@ -357,7 +361,7 @@ describe('HttpSyncServer auth integration', () => {
         graph,
         host: '127.0.0.1',
         path: '/sync',
-        auth: { keys: KEYS, crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
+        auth: { keys: KEYS, crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
       }) as any));
       await server.listen(9999);
       const noModeHandler = noModeMockPort.getHandler();
@@ -379,7 +383,7 @@ describe('HttpSyncServer auth integration', () => {
         graph,
         host: '127.0.0.1',
         path: '/sync',
-        auth: { keys: KEYS, mode: 'typo', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
+        auth: { keys: KEYS, mode: 'typo', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
       }) as any))).toThrow(/HttpSyncServer config/);
     });
   });
@@ -396,7 +400,7 @@ describe('HttpSyncServer auth integration', () => {
         host: '127.0.0.1',
         path: '/sync',
         maxRequestBytes: 10,
-        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
+        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
       }) as any));
       await server.listen(9999);
       const oversizeHandler = oversizeMockPort.getHandler();
@@ -420,7 +424,7 @@ describe('HttpSyncServer auth integration', () => {
         host: '127.0.0.1',
         path: '/sync',
         maxRequestBytes: 10,
-        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
+        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
       }) as any));
       await server.listen(9999);
       const oversizeHandler = oversizeMockPort.getHandler();
@@ -442,7 +446,7 @@ describe('HttpSyncServer auth integration', () => {
       const server = new HttpSyncServer((({
         httpPort: mock.port,
         graph,
-        auth: { keys: KEYS, mode: 'log-only', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
+        auth: { keys: KEYS, mode: 'log-only', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
         allowedWriters: ['alice'],
       }) as any));
       await server.listen(9999);
@@ -466,7 +470,7 @@ describe('HttpSyncServer auth integration', () => {
       const server = new HttpSyncServer((({
         httpPort: mock.port,
         graph,
-        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection() },
+        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
         allowedWriters: ['alice'],
       }) as any));
       await server.listen(9999);
@@ -496,7 +500,7 @@ describe('HttpSyncServer auth integration', () => {
           keys: KEYS,
           mode: 'enforce',
           crypto: TEST_CRYPTO,
-          replayProtection: new InMemorySyncReplayProtection(),
+          replayProtection: new InMemorySyncReplayProtection(makeManualClock().now),
           rateLimit: {
             capacity: 1,
             refillTokensPerSecond: 1,
@@ -544,7 +548,7 @@ describe('HttpSyncServer auth integration', () => {
           keys: KEYS,
           mode: 'log-only',
           crypto: TEST_CRYPTO,
-          replayProtection: new InMemorySyncReplayProtection(),
+          replayProtection: new InMemorySyncReplayProtection(makeManualClock().now),
           logger,
         },
         allowedWriters: ['alice'],
@@ -558,7 +562,7 @@ describe('HttpSyncServer auth integration', () => {
       const body = Buffer.from(JSON.stringify(bodyObj));
       const headers = await signSyncRequest(
         { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SyncSecret.fromString('wrong-secret'), keyId: KEY_ID, lamport: ++signLamport },
-        { crypto: TEST_CRYPTO },
+        { crypto: TEST_CRYPTO, random: NONCE_RANDOM },
       );
       const res = await handler({
         method: 'POST',

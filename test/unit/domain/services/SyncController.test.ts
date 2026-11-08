@@ -3,6 +3,7 @@ import SyncController from '../../../../src/domain/services/controllers/SyncCont
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
+import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 
 const { timeoutMock, retryMock, httpSyncServerMock } = vi.hoisted(() => {
@@ -66,6 +67,7 @@ function createMockHost(overrides: Record<string, unknown> = {}): any {
     _clock: { now: () => 0 },
     _codec: {},
     _crypto: {},
+    _random: new SequenceRandomPort(),
     _logger: null,
     _patchesSinceCheckpoint: 0,
     _logTiming: vi.fn(),
@@ -988,6 +990,8 @@ describe('SyncController', () => {
       // Auth headers should contain x-warp-* prefixed headers
       const authHeaderKeys = Object.keys(fetchHeaders).filter(k => k.startsWith('x-warp-'));
       expect(authHeaderKeys.length).toBeGreaterThan(0);
+      // The nonce is minted from the host's injected RandomPort (bytes 0x00..0x0f).
+      expect(fetchHeaders['x-warp-nonce']).toBe('00010203-0405-4607-8809-0a0b0c0d0e0f');
     });
   });
 });

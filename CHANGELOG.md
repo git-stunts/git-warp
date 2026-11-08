@@ -12,7 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reserve `write-attempts` as a graph-name segment for clone-local write attempt refs.
   Patch commits made through `Warp` carry an `eg-publication-attempt` trailer; existing
   decoders read only the trailers they know
-  ([#1051](https://github.com/git-stunts/git-warp/issues/1051)).
+  ([#1051](https://github.com/git-stunts/git-warp/issues/1051)). A released v20 reader
+  refuses a v21 repository on its substrate marker (`E_SUBSTRATE_VERSION_UNSUPPORTED`)
+  before it reads any patch; v20's commit message decoder ignores the trailer
+  ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
 - Reserve `cone` as a graph-name segment for clone-local cone basis refs
   ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
 - Give every strand an immutable id and every strand writer its own dots.
@@ -34,6 +37,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `AuthoredWarp.execute()` reports an unavailable store while it fixes the write
+  basis or reads the premise records as an `UnpublishedWriteReceipt`
+  (`write-basis-unavailable`, `write-premise-unavailable`) and does not reject.
+  At those steps, invalid input, a throwing access port, defects, broken
+  invariants and repository corruption reject, and a store failure that the
+  adapter cannot identify as transient rejects. The attempt-journal and
+  custody-support steps still turn any failure into `attempt-journal-unavailable`
+  or `retention-unavailable` until #1109 classifies them by type. Corrupt patch
+  history met while reading the premise rejects as `WriteHistoryCorruptError`
+  instead of a missing-basis refusal. Every failure of the patch feed or the
+  writer's runtime host now rejects too, transient or not, until #1109 classifies
+  them, and so does an error the fast-import writer creates above the store host;
+  on unreleased `main` such a failure returned `write-basis-unavailable`. A held
+  lock during fast-import still gives `write-basis-unavailable`. A git-cas `GIT_OBJECT_NOT_FOUND` read through the
+  history adapter is now typed as `PersistenceError` `E_MISSING_OBJECT`, so on the
+  checkpoint-shard read it becomes `E_OPTIC_NO_BOUNDED_BASIS`
+  (`checkpoint-shard-unavailable`)
+  ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
+- Generated writer ids, default strand names, fork names, index-verification
+  seeds, and sync request nonces now come from the runtime's injected entropy
+  source instead of host crypto globals. Their formats and validation are
+  unchanged. `Runtime.open`, `createRuntimeHarness` and the CLI supply the
+  default entropy source, so code that uses the package entry points needs no
+  change. Only code that imports internal modules directly, such as this
+  repository's scripts and tests, can open a runtime host with its own ports.
+  If such code installs no default ports, it now fails with
+  `E_RANDOM_REQUIRED`. Fix it by passing `random: new HostRandomAdapter()`
+  beside `crypto`, or by calling `installDefaultRuntimeHostNodePorts()` first.
+  The package entry points export neither name
+  ([#184](https://github.com/git-stunts/git-warp/issues/184)).
+- Document garbage collection for repositories that git-warp writes to. The
+  runtime never runs `git gc` and starts no `git gc --auto`. Measured with
+  git-cas 7.2.0 and Git 2.39.5, a retained write adds about 55 loose objects
+  (about 220 KiB on a filesystem with 4 KiB blocks) and one permanent ref.
+  Schedule `git gc --cruft` (Git 2.37 or later), for example daily; on Git
+  2.37 to 2.40 also set `gc.cruftPacks=true`. See
+  [Operations: Garbage collection](docs/operations/README.md#garbage-collection).
+  When #1052 Slice 3b lands, a read will retain, at about 30 objects and one
+  ref, only when its query asks for a Coordinate
+  ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)
   trees instead of 64 ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).

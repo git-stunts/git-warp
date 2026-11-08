@@ -118,6 +118,35 @@ git-warp owns local runtime truth over Git-backed history. Continuum owns the
 shared boundary vocabulary for witnessed history exchange. Use
 [Continuum boundary](continuum-boundary.md) for that relationship.
 
+## Garbage collection
+
+The git-warp runtime writes Git objects only through plumbing commands. These
+never start `git gc --auto`, and the runtime does not run garbage collection
+itself. Measured with git-cas 7.2.0 and Git 2.39.5, a retained write adds
+about 55 loose objects (about 220 KiB on a filesystem with 4 KiB blocks) and
+one permanent ref under `refs/cas/reservation-custody/`.
+
+15 to 21 of those objects are unreachable when the write returns: the three
+reservation-ledger generations that later transitions replace (4 to 6 objects
+each, more as the index gets deeper), the 2 scaffolding commits that
+`git fast-import` needs, and the write's attempt-journal blob. Objects that
+later writes replace, such as the cone head trees, bring the total to about
+26 per write. Each ledger transition writes a new parentless generation. Its
+index gets one level deeper for every sixteenfold increase in records, so the
+count grows slowly with history.
+
+Reads in this release retain nothing. When
+[#1052](https://github.com/git-stunts/git-warp/issues/1052) Slice 3b lands, a
+read will retain only when its query asks for a Coordinate, at a projected
+cost of about 30 objects and one ref.
+
+Operators collect the garbage with a scheduled `git gc --cruft`, which needs
+Git 2.37 or later. On Git 2.37 to 2.40, also set `gc.cruftPacks=true`.
+Otherwise any other full GC writes the cruft pack's garbage back as loose
+objects with reset ages, and the repository can be over `gc.auto` until the
+next `git gc --cruft`. See
+[Operations: Garbage collection](../operations/README.md#garbage-collection).
+
 ## See also
 
 - [Getting started](getting-started.md)
