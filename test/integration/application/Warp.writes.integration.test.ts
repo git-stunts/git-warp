@@ -251,7 +251,7 @@ describe('what a blind write observed', () => {
     const raced = retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' })));
     await warp.close();
 
-    const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
+    const writes = await composeWarpWrites({ address: WarpAddress.of(GitStorage.at(path), GRAPH), access: new TestAccess(), logger: undefined });
     const resolved = await (await writes.custody()).resolve(ObservationCoordinate.parse(raced.coordinate.toString()) as ObservationCoordinate);
     await writes.close();
 
@@ -392,7 +392,7 @@ describe('the write premise is never recaptured', () => {
     const receipt = retained(await warp.as('alice').execute(intent.node.add({ subject: 'alices' })));
     const headAfter = git(path, ['rev-parse', `refs/warp/${GRAPH}/cone/head`]);
     await warp.close();
-    const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
+    const writes = await composeWarpWrites({ address: WarpAddress.of(GitStorage.at(path), GRAPH), access: new TestAccess(), logger: undefined });
     const original = await (await writes.custody()).resolve(ObservationCoordinate.parse(receipt.coordinate.toString()) as ObservationCoordinate) as ResolvedObservation;
     await writes.close();
 

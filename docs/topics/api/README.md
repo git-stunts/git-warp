@@ -184,6 +184,25 @@ Internal architecture keeps those concerns behind semantic ports such as
 `HistoryPort` and `ArtifactPort`. Test-specific dependency injection belongs on
 the testing surface, not in the first-use constructor.
 
+### Warp ports
+
+`Warp.open(address, access, options?)` takes its capabilities as injected ports:
+
+- `access` is a `WarpAccessPort`. It decides each operation. Opening grants
+  nothing and changes nothing in the repository: the write path opens on the
+  first granted write or reconcile.
+- `options.logger` is an optional `LoggerPort` subclass. It receives runtime
+  warnings, for example a node removal under the `warn` policy that leaves
+  attached data. Without a logger, a `Warp` prints nothing. Logging is not part
+  of the access boundary. Any other value for `options` or `logger` is refused
+  with `E_WARP_OPEN_LOGGER`.
+
+```typescript
+import { LoggerPort, Warp, WarpAddress, GitStorage } from '@git-stunts/git-warp';
+
+const warp = await Warp.open(WarpAddress.of(GitStorage.root(), 'todos'), access, { logger });
+```
+
 ### Lifecycle
 
 The introductory contract for `Runtime.close()` is exactly:

@@ -26,6 +26,10 @@ export { default as RetainedWriteReceipt } from './src/domain/api/RetainedWriteR
 export { default as UnretainedWriteReceipt } from './src/domain/api/UnretainedWriteReceipt.ts';
 export { default as UnpublishedWriteReceipt } from './src/domain/api/UnpublishedWriteReceipt.ts';
 export { default as IndeterminateWriteReceipt } from './src/domain/api/IndeterminateWriteReceipt.ts';
+export { default as LoggerPort } from './src/ports/LoggerPort.ts';
+export type { WarpOpenOptions } from './src/application/WarpOpenOptions.ts';
+export type { default as LogFields } from './src/domain/types/log/LogFields.ts';
+export type { default as LogFieldValue } from './src/domain/types/log/LogFieldValue.ts';
 export type { AuthoredWriteReceipt } from './src/domain/api/AuthoredWriteReceipt.ts';
 export type { default as WriteAdmission, WriteAdmissionKind } from './src/domain/api/WriteAdmission.ts';
 export type { default as WriteOccurrence } from './src/domain/api/WriteOccurrence.ts';

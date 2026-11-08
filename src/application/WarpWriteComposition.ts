@@ -48,7 +48,6 @@ export type WarpCompositionOverrides = {
   readonly clock?: () => number;
   readonly wrapCustody?: (custody: ObservationCustodyPort) => ObservationCustodyPort;
   readonly limit?: number;
-  readonly logger?: LoggerPort;
 };
 
 const COMPOSITION_OVERRIDES = new WeakMap<WarpAccessPort, WarpCompositionOverrides>();
@@ -76,25 +75,28 @@ type OpenedPath = { readonly custody: ObservationCustodyService; readonly path: 
  * in it: the cone, custody, the retention policy and the sweep wait for the first granted
  * write or reconcile, and a writer's host for its first granted write or stage (#1078).
  */
-export async function composeWarpWrites(
-  address: WarpAddress,
-  access: WarpAccessPort,
-): Promise<WarpWrites> {
+export async function composeWarpWrites(opening: {
+  readonly address: WarpAddress;
+  readonly access: WarpAccessPort;
+  readonly logger: LoggerPort | undefined;
+}): Promise<WarpWrites> {
+  const { address, access, logger } = opening;
   const overrides = COMPOSITION_OVERRIDES.get(access) ?? {};
-  return composeOverStorage({ address, access, overrides, storage: await GitStorage.open({ cwd: gitStorageLocation(address.storage) }) });
+  return composeOverStorage({ address, access, overrides, logger, storage: await GitStorage.open({ cwd: gitStorageLocation(address.storage) }) });
 }
 
 function composeOverStorage(run: {
   readonly address: WarpAddress;
   readonly access: WarpAccessPort;
   readonly overrides: WarpCompositionOverrides;
+  readonly logger: LoggerPort | undefined;
   readonly storage: GitStorage;
 }): WarpWrites {
-  const { address, access, overrides, storage } = run;
+  const { address, access, overrides, logger, storage } = run;
   const graph = address.name;
   const ports = getDefaultRuntimeHostNodePorts();
   const git = resolveConeWrites(storage);
-  const hosts = writerHosts({ graph, storage, ports, logger: overrides.logger });
+  const hosts = writerHosts({ graph, storage, ports, logger });
   const content = new ContentStagingAuthority();
   const opened = onFirstUse(async () => await openPath({ graph, git, ports, overrides, storage, content, hosts }));
   return {

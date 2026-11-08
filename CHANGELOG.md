@@ -39,8 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   granted write or reconcile, so a deny-all opener or a read-only clone opens, and a failure to
   open them rejects that operation instead. In-flight write attempts move to
   `refs/warp-local/<graph>/write-attempts/`, outside `refs/warp/`, so a lane wildcard fetch no
-  longer copies them, and the `warn` removal policy reaches a logger handed to the write
-  composition ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
+  longer copies them ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)
   trees instead of 64 ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
@@ -82,6 +81,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Warp.open(address, access, { logger })` accepts an optional `LoggerPort`, now exported from
+  the package root with the `LogFields`, `LogFieldValue` and `WarpOpenOptions` types. The `warn`
+  removal policy reports to it. Without a logger, a `Warp` prints nothing. Any other value is
+  refused with `E_WARP_OPEN_LOGGER`
+  ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
   with an injected `WarpAccessPort` and no implicit access. `execute` returns

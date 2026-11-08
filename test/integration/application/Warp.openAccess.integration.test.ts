@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
-import { WarpAccessDenied, WarpAccessPort, type WarpWriteGrant } from '../../../index.ts';
-import type LogFields from '../../../src/domain/types/log/LogFields.ts';
-import LoggerPort from '../../../src/ports/LoggerPort.ts';
+import { GitStorage, LoggerPort, Warp, WarpAccessDenied, WarpAccessPort, WarpAddress, type LogFields, type WarpWriteGrant } from '../../../index.ts';
 import {
+  GRAPH,
+  TestAccess,
   attemptRefs,
   crashingAt,
   disposeWarpFixtures,
@@ -15,6 +15,7 @@ import {
 } from '../../helpers/WarpWriteFixture.ts';
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await disposeWarpFixtures();
 });
 
@@ -109,16 +110,45 @@ describe('write attempts stay with their clone (#1078)', () => {
   });
 });
 
-describe('the removal policy reaches the configured logger (#1078)', () => {
+describe('the removal policy reaches the logger given to Warp.open (#1078)', () => {
+  async function removeAttached(warp: Warp): Promise<void> {
+    retained(await warp.as('alice').execute(intent.entity.add({ subject: 'n', properties: { color: 'red' } })));
+    retained(await warp.as('alice').execute(intent.node.remove({ subject: 'n' })));
+  }
+
   it('warns when a removed node still has attached data', async () => {
     const path = await repository();
     const logger = new RecordingLogger();
-    const warp = await open(path, { logger });
+    const warp = await Warp.open(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess(), { logger });
 
-    retained(await warp.as('alice').execute(intent.entity.add({ subject: 'n', properties: { color: 'red' } })));
-    retained(await warp.as('alice').execute(intent.node.remove({ subject: 'n' })));
+    try {
+      await removeAttached(warp);
+    } finally {
+      await warp.close();
+    }
 
     expect(logger.warnings).toHaveLength(1);
     expect(logger.warnings[0]).toContain("Deleting node 'n' which has attached data");
+  });
+
+  it('prints nothing when no logger is given', async () => {
+    const path = await repository();
+    const printed = [vi.spyOn(console, 'warn'), vi.spyOn(console, 'log'), vi.spyOn(console, 'info'), vi.spyOn(console, 'error')];
+
+    await removeAttached(await open(path));
+
+    for (const print of printed) {
+      expect(print).not.toHaveBeenCalled();
+    }
+  });
+
+  it('refuses a logger that is not a LoggerPort', async () => {
+    const path = await repository();
+    const address = WarpAddress.of(GitStorage.at(path), GRAPH);
+    const notALogger = { warn: (): void => {} };
+
+    await expect(Reflect.apply(Warp.open, Warp, [address, new TestAccess(), { logger: notALogger }])).rejects.toMatchObject({ code: 'E_WARP_OPEN_LOGGER' });
+    await expect(Reflect.apply(Warp.open, Warp, [address, new TestAccess(), null])).rejects.toMatchObject({ code: 'E_WARP_OPEN_LOGGER' });
+    expect(git(path, ['for-each-ref'])).toBe('');
   });
 });

@@ -60,7 +60,7 @@ describe('a retained write survives what the graph does later', () => {
     git(path, ['gc', '--prune=now', '--quiet']);
 
     const access = new TestAccess();
-    const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), access);
+    const writes = await composeWarpWrites({ address: WarpAddress.of(GitStorage.at(path), GRAPH), access, logger: undefined });
     const parsed = ObservationCoordinate.parse(receipt.coordinate.toString());
     const resolved = parsed === null ? null : await (await writes.custody()).resolve(parsed);
     await writes.close();
@@ -83,7 +83,7 @@ describe('a retained write survives what the graph does later', () => {
     retained(await warp.as('bob').execute(intent.node.add({ subject: 'after' })));
     await warp.close();
 
-    const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
+    const writes = await composeWarpWrites({ address: WarpAddress.of(GitStorage.at(path), GRAPH), access: new TestAccess(), logger: undefined });
     const parsed = ObservationCoordinate.parse(receipt.coordinate.toString());
     const resolved = parsed === null ? null : await (await writes.custody()).resolve(parsed);
     await writes.close();
