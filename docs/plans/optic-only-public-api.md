@@ -41,11 +41,11 @@ representations; schema generation belongs at transport boundaries.
 | `WarpAddress` | `of(storage, name)` validates the storage/name pair | Reject malformed or reserved names; contains no writer or observer |
 | `Warp` | `open(address, access)` opens resources; `forObserver(identity)`, `as(writer)`, `close()` | `access` is an injected `WarpAccessPort`; opening does not grant data access |
 | `ObservedWarp` | Returned only by `forObserver`; accepted by `Optic`; `fork(coordinate)` | Binds an observer identity; current rights are checked on execution |
-| `AuthoredWarp` | Returned only by `as`; `execute(intentOrIntents): Promise<WriteReceipt>`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation and returns the write receipt variant specified in section 7 |
+| `AuthoredWarp` | Returned only by `as`; `execute(intentOrIntents): Promise<WriteReceipt>`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation and returns the write receipt variant specified in section 7. A store I/O failure before publication permission returns `UnpublishedWriteReceipt`; only a throwing injected access port rejects (section 11) |
 | `ObserverIdentity` | `of(namespace, subject)` validates a principal name | A name is not an authentication credential or a grant |
-| `Purpose` | `of(namespace, name, version)` validates a registered purpose identifier | Unknown or undeclared purposes are refused by policy |
+| `Purpose` | `of(namespace, name, version)` validates a registered purpose identifier | Unknown or undeclared purposes are refused by policy. Registered purposes are static validated nouns; there is no runtime purpose registry (section 11) |
 | `ReadBudget` | `of(limits)` validates named finite limits for records, emitted bytes, and work | Invalid limits fail construction; execution accounts for aggregate work |
-| `Optic` | `Optic(observedWarpOrStrand)` returns an immutable query builder | An unscoped Warp cannot execute a question |
+| `Optic` | `Optic(observedWarpOrStrand)` returns an immutable query builder | An unscoped Warp cannot execute a question. A store I/O failure before read permission settles the observation to a typed failed receipt; `read()` does not reject for it (section 11) |
 | `Intent` | Existing validated builders or generated SDK constructors | Preserve actual intent/reducer semantics; no arbitrary callback execution |
 | `Observer` | Existing validated/generated query-plan constructors | This names a question plan, not a principal; requires stable identity and version |
 | `Observation` | Resolved by `read()`; async iteration, `receipt: Promise<ObservationReceipt>`, `cancel(): Promise<ObservationReceipt>` | One execution and consumer; cancellation and receipt demand settle to the same terminal receipt |
@@ -453,6 +453,7 @@ that the final public contract is implemented.
 | #1054 | 9 | #1050–#1053 and #1055; remove legacy public capabilities with the export guard and migrated consumers in place |
 | #1055 | 3–4, 8–9 | #1051–#1053; migrate the existing example, newcomer witness, and full read/write/fork/settlement documentation |
 | #1057 | 9 | #1062, #1049, and #1052 for actual Optic probes; retention actions also require the corresponding #1044 capabilities |
+| #1079 | 2, 11 | #1051; payload headroom, the pre-permission I/O outcome, the static purpose decision, and the v20 trailer witness |
 
 These ownership corrections reconcile the live producer issues with the
 maintainer amendment. #1067 precedes both producers because durable observation
@@ -517,3 +518,59 @@ Acceptance evidence must cover:
 
 Review of this document can accept the contract and ownership graph. Completion
 of #1048 requires the executable evidence above, not a checked design document.
+
+## 11. Decisions recorded by #1079
+
+James Ross decided [#1079](https://github.com/git-stunts/git-warp/issues/1079)
+on 2026-11-08 for Option A. These rules bind #1052, #1053, and #1054.
+
+**Package payload.** v21 keeps the 3,300,000-byte unpacked ceiling in
+`scripts/package-payload/PackagePayloadPolicy.ts`. #1079 makes headroom by
+deleting internal code that no package entrypoint, command, or test of other code
+reaches. The budget is not raised. Measured with
+`scripts/package-payload/CheckPackagePayload.ts` after `npm run build`:
+
+| State | Unpacked bytes | Free bytes | Compressed bytes | Entries |
+| --- | ---: | ---: | ---: | ---: |
+| Before #1079 (`origin/main` at d78c33d99) | 3,295,830 | 4,170 | 713,417 | 1,229 |
+| After #1079 | 3,274,390 | 25,610 | 708,946 | 1,219 |
+
+This headroom does not cover a slice as large as #1051, which added about
+323,000 unpacked bytes. A slice that needs more bytes must delete the legacy
+code it replaces, or wait for #1054. A budget change needs its own maintainer
+decision.
+
+**Pre-permission I/O.** A store I/O failure that happens before an operation
+holds its permission gives a typed failure result, not a rejection:
+
+- `AuthoredWarp.execute()` returns `UnpublishedWriteReceipt` when the store fails
+  while it fixes the write basis (`write-basis-unavailable`), reads the premise
+  records (`write-premise-unavailable`), saves the attempt record
+  (`attempt-journal-unavailable`), or answers a custody step
+  (`retention-unavailable`). An expected write refusal met while reading keeps
+  its own cause and repair hints. Nothing was reserved or published, so the
+  receipt is true.
+- An Optic read (#1052) settles its observation to a typed failed receipt when
+  the store fails before read permission or evaluation. `read()` and iteration do
+  not reject for this failure, and the receipt claims no completed classification.
+- The injected `WarpAccessPort` is a caller-owned capability, not a store. If it
+  throws, the operation rejects and publishes nothing.
+- After publication permission, section 7 applies. Its outcomes are
+  indeterminate, unretained, or a settled receipt.
+
+**Purposes.** There is no dynamic purpose registry. Each registered purpose is a
+static validated noun built with `Purpose.of(namespace, name, version)`. Each
+intent's premise question is one versioned constant. Today the only registered
+write purpose is `git-warp:purpose/write-admission/v1` and the only premise
+question is `git-warp:question/write-premise` version 1. A new purpose or
+question is a code change with a new version. Policy refuses unknown or
+undeclared purposes.
+
+**v20 trailer compatibility.** A released v20.0.0 reader ignores the
+`eg-publication-attempt` trailer. The released package is installed from its
+published tarball into `test/fixtures/v20-reader` in the Docker test images.
+`test/integration/compat/V20PublicationAttemptTrailer.integration.test.ts`
+adds the trailer to a v20 patch with this checkout's codec. Then v20 decodes the
+patch, materializes and reads the lane, and extends the writer's chain on top of
+the patch.
+
