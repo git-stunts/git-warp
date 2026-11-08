@@ -180,13 +180,9 @@ DTO and stop there**. Do not hallucinate fake domain models.
   | no legacy workflow label | `status:available` |
   | `release-home:vX.Y.Z` / `lane:vX.Y.Z` | GitHub Milestone `vX.Y.Z` |
   | `feature:*` / `legend:*` | One `area:*` label, with doctrine in the body |
-  | `type:enhancement` | `type:feature` |
-  | `type:proof-story` | `type:story` |
-  | `template:*` | The `# <Type>` heading of the issue body |
 
-- `domain:*` and `template:*` labels are not label axes. The planner ignores
-  them. Do not add them to new issues. `.coderabbit.yaml` stops CodeRabbit
-  from applying labels, so the label axes stay under human control.
+- `.coderabbit.yaml` stops CodeRabbit from applying labels, so issue labels
+  stay under human control.
 
 - Release gates must count GitHub Issues by the simplified labels and
   milestones. Missing required labels or milestones are gate failures, never

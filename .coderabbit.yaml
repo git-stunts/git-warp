@@ -1,9 +1,9 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 #
-# CodeRabbit must not apply labels. The label axes (type:*, priority:*,
-# status:*, area:*) are set by people and read by the planner; AGENTS.md
-# requires exactly one label per axis. CodeRabbit also added template:* and
-# domain:* labels, which are not axes.
+# CodeRabbit must not apply labels. The issue label axes in AGENTS.md are
+# set by people and read by the planner, and AGENTS.md requires exactly one
+# label per axis. CodeRabbit added second labels on axes and labels outside
+# the axes, and it re-added labels that people had removed.
 #
 # `inheritance: true` keeps every other setting from the organization and
 # repository UI configuration; this file overrides only the keys below.
