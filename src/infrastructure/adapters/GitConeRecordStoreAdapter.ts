@@ -93,7 +93,7 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
     this.#history = new GitConeStoreHost(options.history);
     this.#records = new ConeRecordCborCodec(options.codec);
     this.#frontiers = new ConeFrontierCborCodec(options.codec);
-    this.#trie = new GitConeRecordTrie(async (treeOid) => await this.#history.readTreeObjectEntries(treeOid));
+    this.#trie = new GitConeRecordTrie(async (treeOid) => await trieTreeEntries(this.#history, treeOid));
     this.#writer = new GitFastImportTreeWriter({ plumbing: this.#history.plumbing });
   }
 
@@ -220,7 +220,7 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
   /** The family directories of a records root, by name; the empty root has none. */
   async #familiesOf(root: ConeRoot): Promise<Map<string, string>> {
     const families = new Map<string, string>();
-    const entries = root.isEmpty() ? [] : await rootEntries(this.#history, root);
+    const entries = root.isEmpty() ? [] : await trieTreeEntries(this.#history, root.revision());
     for (const entry of entries) {
       if (!ROOT_DIRECTORIES.has(entry.name) || entry.type !== 'tree') {
         throw new ConeRecordError(`Cone records root holds an unknown entry ${entry.name}`, {
@@ -333,14 +333,17 @@ function recordsRoot(entry: GitTreeObjectEntry | undefined, at: BasisLocation): 
   return ConeRoot.at(entry.oid);
 }
 
-/** The entries of a records root; git-cas reports a root that is not a tree as `TREE_PARSE_ERROR`, which is corruption. */
-async function rootEntries(history: ConeTrieHistory, root: ConeRoot): Promise<readonly GitTreeObjectEntry[]> {
+/**
+ * The entries of one tree of the records trie: the records root or any directory below it.
+ * git-cas reports an object that is not a tree as `TREE_PARSE_ERROR`, which is corruption.
+ */
+async function trieTreeEntries(history: ConeTrieHistory, treeOid: string): Promise<readonly GitTreeObjectEntry[]> {
   try {
-    return await history.readTreeObjectEntries(root.revision());
+    return await history.readTreeObjectEntries(treeOid);
   } catch (error) {
     if (readGitCasErrorCode(error) === GIT_CAS_TREE_PARSE_ERROR) {
-      throw new ConeRecordError(`Cone records root ${root.revision()} is not a tree`, {
-        code: 'E_CONE_RECORD_CORRUPT', context: { root: root.revision() },
+      throw new ConeRecordError(`Cone records trie tree ${treeOid} is not a tree`, {
+        code: 'E_CONE_RECORD_CORRUPT', context: { tree: treeOid },
       });
     }
     throw error;

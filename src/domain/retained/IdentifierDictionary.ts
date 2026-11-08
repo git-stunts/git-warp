@@ -3,6 +3,7 @@ import type ConeRecordStorePort from '../../ports/ConeRecordStorePort.ts';
 import ConeRecordKey, { type ConeDotSet } from '../services/cone/ConeRecordKey.ts';
 import { compareStrings } from '../utils/StringComparison.ts';
 import GraphOrdinal from './GraphOrdinal.ts';
+import { requireOrdinalKind } from './OrdinalValidation.ts';
 import type RetainedGraphManifest from './RetainedGraphManifest.ts';
 
 /**
@@ -20,6 +21,7 @@ export default class IdentifierDictionary {
   }
 
   async ordinalsOf(manifest: RetainedGraphManifest, kind: ConeDotSet, identifier: string): Promise<readonly GraphOrdinal[]> {
+    requireOrdinalKind(kind);
     const key = kind === 'node' ? ConeRecordKey.forNode(identifier) : ConeRecordKey.forEdge(identifier);
     const snapshot = await this.#store.readRecords(manifest.basis.root, [key]);
     const record = kind === 'node' ? snapshot.node(identifier) : snapshot.edge(identifier);

@@ -217,9 +217,13 @@ describe('ordinal stability across successor manifests (#815; case F-2, F-3, F-4
     expect(address.record.equals(ConeRecordKey.forNode('mallory'))).toBe(true);
   });
 
-  it('refuses a dictionary kind outside node and edge with E_CONE_RECORD_INVALID (W-P-7)', async () => {
+  it('refuses a dictionary kind outside node and edge before any read, and an edge lookup of a non-edge key (W-P-7; blind pass BA-1)', async () => {
     const { store, manifest } = await retainedGraph();
-    // @ts-expect-error -- a runtime kind outside ConeDotSet, as an untyped caller could pass it (case H-A-6).
-    await expect(new IdentifierDictionary(store).ordinalsOf(manifest, 'bogus', 'n1')).rejects.toMatchObject({ code: 'E_CONE_RECORD_INVALID' });
+    const dictionary = new IdentifierDictionary(store);
+    const before = store.recordReads;
+    // @ts-expect-error -- a runtime kind outside ConeDotSet, as an untyped caller could pass it; the key is a valid edge key with no stored edge.
+    await expect(dictionary.ordinalsOf(manifest, 'bogus', encodeEdgeKey('n1', 'absent', 'links'))).rejects.toMatchObject({ code: 'E_RETAINED_ORDINAL_INVALID' });
+    expect(store.recordReads).toBe(before);
+    await expect(dictionary.ordinalsOf(manifest, 'edge', 'n1')).rejects.toMatchObject({ code: 'E_CONE_RECORD_INVALID' });
   });
 });

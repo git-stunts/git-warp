@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -210,13 +210,61 @@ describe('retained graph manifest over the Git cone record store (#815)', () => 
         const { plumbing, store, manifest } = await retained();
         const root = await wrongKindObject(plumbing, manifest, kind);
         const wrong = new RetainedGraphManifest({ layout: manifest.layout, geometry: manifest.geometry, basis: new ConeBasis(ConeRoot.at(root), manifest.basis.frontier) });
-        const refusal = expect.objectContaining({ code: 'E_CONE_RECORD_CORRUPT', context: expect.objectContaining({ root }) });
+        const refusal = expect.objectContaining({ code: 'E_CONE_RECORD_CORRUPT', context: expect.objectContaining({ tree: root }) });
         await expect(new OrdinalAddressResolver(store).resolve(wrong, new GraphOrdinal({ kind: 'node', writerId: 'w1', counter: 1 }))).rejects.toEqual(refusal);
         await expect(new IdentifierDictionary(store).ordinalsOf(wrong, 'node', 'n1')).rejects.toEqual(refusal);
       });
     }
+
+    it('refuses a records trie whose family or deeper directory names a blob, at resolve and in the dictionary (blind pass BA-4)', async () => {
+      const { plumbing, store, manifest } = await retained();
+      const root = manifest.basis.root.revision();
+      const blob = await wrongKindObject(plumbing, manifest, 'blob');
+      const withBlobAt = async (tree: string, name: string): Promise<string> => await rawTree(plumbing, (await treeEntries(plumbing, tree))
+        .map((entry) => (entry.name === name ? { ...entry, oid: blob } : entry)));
+      const over = (records: string): RetainedGraphManifest => new RetainedGraphManifest({
+        layout: manifest.layout, geometry: manifest.geometry, basis: new ConeBasis(ConeRoot.at(records), manifest.basis.frontier),
+      });
+      const corrupt = (tree: string): unknown => expect.objectContaining({ code: 'E_CONE_RECORD_CORRUPT', context: { tree } });
+      const resolver = new OrdinalAddressResolver(store);
+      const first = new GraphOrdinal({ kind: 'node', writerId: 'w1', counter: 1 });
+      await expect(resolver.resolve(over(await withBlobAt(root, 'd')), first)).rejects.toEqual(corrupt(blob));
+      await expect(new IdentifierDictionary(store).ordinalsOf(over(await withBlobAt(root, 'n')), 'node', 'n1')).rejects.toEqual(corrupt(blob));
+      const nodeFamily = (await treeEntries(plumbing, root)).find((entry) => entry.name === 'n')?.oid ?? '';
+      const deeper = (await treeEntries(plumbing, nodeFamily)).filter((entry) => entry.mode === '40000');
+      expect(deeper.length).toBeGreaterThan(1);
+      const forgedFamily = await rawTree(plumbing, (await treeEntries(plumbing, nodeFamily)).map((entry) => (entry.mode === '40000' ? { ...entry, oid: blob } : entry)));
+      const forgedRoot = await rawTree(plumbing, (await treeEntries(plumbing, root)).map((entry) => (entry.name === 'n' ? { ...entry, oid: forgedFamily } : entry)));
+      await expect(new IdentifierDictionary(store).ordinalsOf(over(forgedRoot), 'node', 'n1')).rejects.toEqual(corrupt(blob));
+    });
   });
 });
+
+/** One raw entry of a Git tree: its octal mode without leading zeros, name and object id. */
+type RawTreeEntry = { readonly mode: string; readonly name: string; readonly oid: string };
+
+async function treeEntries(plumbing: Plumbing, tree: string): Promise<RawTreeEntry[]> {
+  const listing = (await plumbing.execute({ args: ['ls-tree', tree] })).trim().split('\n');
+  return listing.map((line) => {
+    const [meta = '', name = ''] = line.split('\t');
+    const [mode = '', , oid = ''] = meta.split(' ');
+    return { mode: mode.replace(/^0+/u, ''), name, oid };
+  });
+}
+
+/** A tree object written as raw bytes, so an entry may keep tree mode while naming a blob, which `mktree` refuses. */
+async function rawTree(plumbing: Plumbing, entries: readonly RawTreeEntry[]): Promise<string> {
+  const sortKey = (entry: RawTreeEntry): string => (entry.mode === '40000' ? `${entry.name}/` : entry.name);
+  const sorted = [...entries].sort((left, right) => (sortKey(left) < sortKey(right) ? -1 : 1));
+  const encoder = new TextEncoder();
+  const parts = sorted.flatMap((entry) => [encoder.encode(`${entry.mode} ${entry.name}\0`), Uint8Array.from(entry.oid.match(/../gu) ?? [], (pair) => Number.parseInt(pair, 16))]);
+  const bytes = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
+  parts.reduce((offset, part) => { bytes.set(part, offset); return offset + part.length; }, 0);
+  const directory = (await plumbing.execute({ args: ['rev-parse', '--show-toplevel'] })).trim();
+  const file = join(directory, '.git', 'raw-tree');
+  await writeFile(file, bytes);
+  return (await plumbing.execute({ args: ['hash-object', '-t', 'tree', '-w', '--literally', file] })).trim();
+}
 
 /** A blob of the manifest's records, or a commit of its records root: an object that is not a tree. */
 async function wrongKindObject(plumbing: Plumbing, manifest: RetainedGraphManifest, kind: 'blob' | 'commit'): Promise<string> {

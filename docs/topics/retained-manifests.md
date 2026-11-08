@@ -86,7 +86,7 @@ Every refusal is a typed `WarpError`. The codes this contract owns are `Retained
 | `E_RETAINED_ADDRESS_KIND_MISMATCH` | The ordinal and its page or record are of different kinds |
 | `E_RETAINED_MANIFEST_MISMATCH` | A pin was resolved against another manifest. Nothing is read |
 | `E_RETAINED_ORDINAL_OUT_OF_RANGE` | A counter, segment or local ordinal lies outside the geometry |
-| `E_RETAINED_ORDINAL_INVALID` | An ordinal kind is not `node` or `edge`, a segment or pin lacks a valid part, or an ordinal lies outside the page asked |
+| `E_RETAINED_ORDINAL_INVALID` | An ordinal kind, or the kind of an `IdentifierDictionary` lookup, is not `node` or `edge` (the lookup reads nothing); a segment or pin lacks a valid part; or an ordinal lies outside the page asked |
 | `E_RETAINED_GEOMETRY_UNSUPPORTED` | The geometry is not v1, the only one layout 4 stores |
 | `E_RETAINED_GEOMETRY_INVALID` | A geometry has an invalid shape |
 | `E_RETAINED_PAGE_INVALID` | An address page is not a cone dot page |
@@ -95,8 +95,8 @@ Every refusal is a typed `WarpError`. The codes this contract owns are `Retained
 | `E_CRDT_INVALID_MINT_ID` (`CrdtError`) | The ordinal's writer id is not a mint id, for example an empty string |
 | `E_INVALID_WRITER_ID` (`WarpError`) | The ordinal's writer id is not a valid writer chain name, for example one with a `/` |
 | `E_CRDT_INVALID_COUNTER` (`CrdtError`) | The ordinal's counter is not a positive safe integer |
-| `E_CONE_RECORD_CORRUPT` (`ConeRecordError`) | The basis tree's `records` entry is not a tree, the records root is not a tree, or a stored record or page does not decode or does not match its trie path. Opening the manifest refuses the first case. The `cone/retained` ring is read through the same check, so one such entry refuses `retained(lane)` as a whole |
-| `E_CONE_RECORD_INVALID` (`ConeRecordError`) | A kind outside `node` and `edge` reached a record lookup |
+| `E_CONE_RECORD_CORRUPT` (`ConeRecordError`) | The basis tree's `records` entry is not a tree, the records root or a trie directory below it is not a tree, or a stored record or page does not decode or does not match its trie path. Opening the manifest refuses the first case; the others refuse at the first read. The `cone/retained` ring is read through the same check, so one such entry refuses `retained(lane)` as a whole |
+| `E_CONE_RECORD_INVALID` (`ConeRecordError`) | The identifier of an `edge` lookup is not an encoded edge key |
 | `E_CONE_LAYOUT_UNSUPPORTED` (`ConeRecordError`) | The basis head or a retained entry uses an older record-trie layout |
 | `E_CBOR_DECODE_BOUNDS` (`MessageCodecError`) | The basis frontier blob does not decode |
 | `E_CONE_STORE_UNAVAILABLE` (`ConeStoreUnavailableError`) | The store could not be reached. This is not corruption, so the caller may retry |
