@@ -2,8 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
 import { execFileSync } from 'node:child_process';
 import { GitStorage, UnretainedWriteReceipt, WarpAddress, type RetainedWriteReceipt, type Warp } from '../../../index.ts';
-import { getDefaultRuntimeHostNodePorts } from '../../../src/application/RuntimeHostNodeDefaults.ts';
-import { resolveWarpStorage } from '../../../src/application/WarpStorageRegistry.ts';
 import { composeWarpWrites } from '../../../src/application/WarpWriteComposition.ts';
 import type WriteRace from '../../../src/domain/api/WriteRace.ts';
 import WarpError from '../../../src/domain/errors/WarpError.ts';
@@ -12,36 +10,16 @@ import ObservationCoordinate from '../../../src/domain/services/custody/Observat
 import ObservationReceiptCore from '../../../src/domain/services/custody/ObservationReceiptCore.ts';
 import ResolvedObservation from '../../../src/domain/services/custody/ResolvedObservation.ts';
 import { textDecode } from '../../../src/domain/utils/bytes.ts';
-import { openRuntimeHostProduct, type RuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
 import GitWriteAttemptJournalAdapter from '../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import ObservationCustodyCborCodec from '../../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
 import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
-import { GRAPH, TestAccess, attemptRefs, disposeWarpFixtures, git, open, repository, retained } from '../../helpers/WarpWriteFixture.ts';
+import { GRAPH, TestAccess, attemptRefs, disposeWarpFixtures, git, open, repository, retained, unseen } from '../../helpers/WarpWriteFixture.ts';
 
 afterEach(async () => {
   vi.restoreAllMocks();
   await disposeWarpFixtures();
 });
-
-type Patch = Parameters<Parameters<RuntimeHostProduct['patch']>[0]>[0];
-
-/** A write by another writer this Warp never observed, through the legacy patch path, which records no causality. */
-async function unseen(path: string, writer: string, build: (patch: Patch) => void): Promise<void> {
-  const storage = await GitStorage.open({ cwd: path });
-  try {
-    const ports = getDefaultRuntimeHostNodePorts();
-    const binding = resolveWarpStorage(storage);
-    const product = await openRuntimeHostProduct({
-      persistence: binding.history, runtimeStorage: binding.runtimeStorage, graphName: GRAPH, writerId: writer,
-      codec: ports.codec, crypto: ports.crypto, trustCrypto: ports.trustCrypto, commitMessageCodec: ports.commitMessageCodec,
-    });
-    await product.materialize();
-    await product.patch(build);
-  } finally {
-    await storage.close();
-  }
-}
 
 function wire(race: WriteRace): object {
   const { kind, subject, key, writers, overflow, causality } = race;

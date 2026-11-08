@@ -106,6 +106,25 @@ export function attemptRefs(path: string): string[] {
   return listed === '' ? [] : listed.split('\n');
 }
 
+type Patch = Parameters<Parameters<RuntimeHostProduct['patch']>[0]>[0];
+
+/** A write by another writer this Warp never observed, through the legacy patch path, which records no causality. */
+export async function unseen(path: string, writer: string, build: (patch: Patch) => void): Promise<void> {
+  const storage = await GitStorage.open({ cwd: path });
+  try {
+    const ports = getDefaultRuntimeHostNodePorts();
+    const binding = resolveWarpStorage(storage);
+    const product = await openRuntimeHostProduct({
+      persistence: binding.history, runtimeStorage: binding.runtimeStorage, graphName: GRAPH, writerId: writer,
+      codec: ports.codec, crypto: ports.crypto, trustCrypto: ports.trustCrypto, commitMessageCodec: ports.commitMessageCodec,
+    });
+    await product.materialize();
+    await product.patch(build);
+  } finally {
+    await storage.close();
+  }
+}
+
 /** Reads the graph through the legacy whole-state path, which #1052 replaces. */
 async function withReader<T>(path: string, read: (reader: RuntimeHostProduct) => Promise<T>): Promise<T> {
   const storage = await GitStorage.open({ cwd: path });
