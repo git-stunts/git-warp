@@ -186,19 +186,30 @@ GC removes only unreachable objects older than `gc.pruneExpire`, two weeks by
 default. A write's objects become reachable from the writer ref and the
 custody refs under `refs/cas/` as the write completes; the write's attempt
 ref holds only a small journal blob. Under cruft packs (`git gc --cruft`, and
-a plain `git gc` from Git 2.41), `git fast-import` can reuse an old
-unreachable object that is already in a cruft pack without refreshing its
-age. A prune can then delete that object while a write still needs it. This
-is the race that git-gc(1) describes in its NOTES section. Whether git-warp
-can hit it is under investigation in
-[#1110](https://github.com/git-stunts/git-warp/issues/1110).
+a plain `git gc` from Git 2.41 or with `gc.cruftPacks=true`),
+`git fast-import` can reuse an old unreachable object that is already in a
+cruft pack without refreshing its age. A prune can then delete that object
+while a write still needs it. This is the race that git-gc(1) describes in
+its NOTES section. Whether git-warp can hit it is under investigation in
+[#1110](https://github.com/git-stunts/git-warp/issues/1110). By this
+mechanism, the race needs a write in flight during the GC; that is reasoning,
+not a tested result. While #1110 is open, schedule the GC when no git-warp
+process writes to the repository, or accept the risk that this paragraph
+states.
 
-A concurrent GC can make one write return `UnretainedWriteReceipt`, with the
-retention cause `settlement-unacknowledged`. The write is published; only its
-retention was not confirmed. Pass the receipt's `attempt` to
-`warp.as(writer).reconcile(attempt)`, which retries the retention. Ask again
-while it stays unretained. A `null` result means that the attempt was already
-answered or that a sweep finished it, not that the write was lost.
+A concurrent GC holds Git ref locks for a short time. A write that meets one
+of them can return, for example:
+
+- `UnpublishedWriteReceipt`, with a cause such as `write-basis-unavailable`
+  or `retention-unavailable`. It is known not to have published; submitting
+  the intent again is a new attempt.
+- `UnretainedWriteReceipt`, with the retention cause
+  `settlement-unacknowledged`. The write is published; only its retention was
+  not confirmed. Pass the receipt's `attempt` to
+  `warp.as(writer).reconcile(attempt)`, which retries the retention. If it
+  returns `UnretainedWriteReceipt` again, call it again later. A `null` result
+  means that the attempt was already answered or that a sweep finished it,
+  not that the write was lost.
 
 If nothing collects garbage, disk use grows by about 220 KiB for each
 retained write, with no upper limit. The default threshold is passed after
@@ -207,16 +218,32 @@ about 120 retained writes.
 ### Schedule `git gc --cruft`
 
 Run `git gc --cruft` on a schedule, for example once a day from cron. It
-needs Git 2.37 or later; from Git 2.41, a plain `git gc` does the same,
-because `gc.cruftPacks` defaults to `true`. On Git older than 2.37, upgrade
-Git: a plain `git gc` is not enough above about 18 retained writes a day.
-Set `REPOSITORY` to the repository behind `GitStorage.root()`:
+needs Git 2.37 or later. From Git 2.41, `gc.cruftPacks` defaults to `true`,
+so a plain `git gc` does the same. On Git 2.37 to 2.40, also set
+`gc.cruftPacks` to `true` once in the repository. On Git older than 2.37,
+upgrade Git: a plain `git gc` is not enough above about 18 retained writes a
+day. Set `REPOSITORY` to the repository behind `GitStorage.root()`:
 
 ```bash
 REPOSITORY=/path/to/your/repository
 
+# Git 2.37 to 2.40 only, once:
+git -C "$REPOSITORY" config gc.cruftPacks true
+
 git -C "$REPOSITORY" gc --cruft --quiet
 ```
+
+On Git 2.37 to 2.40 without `gc.cruftPacks=true`, every other full GC in the
+repository is not a cruft GC. This includes a `git gc` that you run by hand,
+`git maintenance run --task=gc`, and an automatic `git gc --auto` when the
+repository has more than `gc.autoPackLimit` packs (50 by default). Such a GC
+deletes the cruft pack and writes its garbage back as loose objects, with
+their age reset to the cruft pack's modification time, normally the time of
+the last cruft GC. The repository can then be over `gc.auto` until the next
+`git gc --cruft`. Because the ages were reset, that garbage is also removed
+later. By the same mechanism, a plain GC that keeps happening can keep it
+from ever being removed; that case is reasoned, not tested. With the setting,
+each of these GCs writes a cruft pack and keeps the objects' ages.
 
 `git gc --cruft` packs every reachable object. It puts each unreachable
 object into a cruft pack that keeps the object's age, and it removes the
@@ -227,10 +254,10 @@ schedule `git gc --cruft` more often, for example hourly. Do not
 run `git gc --prune=now` while git-warp writes: an unfinished write can hold
 objects that no ref reaches yet.
 
-On Git older than 2.41 without `--cruft`, a plain `git gc` leaves young
-unreachable objects loose until they are older than `gc.pruneExpire`. At
-steady state that is about 26 loose objects for each retained write in the
-last two weeks. Above about 18 retained writes a day, the repository stays
+On Git older than 2.41 without `--cruft` or `gc.cruftPacks=true`, a plain
+`git gc` leaves young unreachable objects loose until they are older than
+`gc.pruneExpire`. At steady state that is about 26 loose objects for each
+retained write in the last two weeks. Above about 18 retained writes a day, the repository stays
 over `gc.auto`. Your own commands then print "There are too many unreachable
 loose objects" on every run. When that GC runs in the background, which is
 the default, Git also writes `gc.log` and stops automatic GC until `gc.log`
@@ -256,14 +283,16 @@ These figures were measured in Docker on a fresh repository, with git-cas
 7.2.0 and Git 2.39.5
 ([#1080](https://github.com/git-stunts/git-warp/issues/1080)). Object counts
 come from sampled operations. Disk use assumes a filesystem with 4 KiB blocks,
-because each loose object takes at least one block.
+because each loose object takes at least one block. Ranges are the values
+seen in sampled operations over several runs, not bounds: the trie depth
+varies with random attempt ids.
 
 | Measure | Retained write | Retained read (projection) |
 | --- | --- | --- |
-| New loose objects | 48 to 57, average 55.1 over 400 writes | 26 to 32, average 29.9 over 200 reads |
+| New loose objects | 48 to 57, average 55.1 over 400 writes | 26 to 35 in sampled reads (35 once, at read 100), average 29.9 over 200 reads |
 | Loose disk use | about 220 KiB | about 120 KiB |
 | Permanent refs | 1, under `refs/cas/reservation-custody/` | 1, under `refs/cas/reservation-custody/` |
-| Unreachable when the operation returns | 15 to 21 | 8 to 12 |
+| Unreachable when the operation returns | 15 to 21 | 8 to 14 |
 | Unreachable in total, including objects that later operations replace | about 26 | about 16 |
 | Kept after `git gc --prune=now` | 29.4 objects, 5.45 KiB packed | about 14 objects |
 

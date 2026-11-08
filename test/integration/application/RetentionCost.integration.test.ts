@@ -16,9 +16,10 @@ import { disposeWarpFixtures, git, open, repository, retained, tip } from '../..
  * #1080 cost witness: the loose objects and refs one retained operation adds
  * to the user's repository, on git-cas 7.2.0. Measured in Docker by the probe
  * (`RetentionCost.probe.test.ts`): 48 to 57 objects per write over 400 writes,
- * and 26 to 32 per custody read over 200 reads. The count rises slowly with
- * history: each sixteenfold growth in records adds one trie level to each
- * ledger generation, that is up to 4 objects per write and 3 per read.
+ * and 26 to 35 per custody read over 200 reads (35 once, at read 100). The
+ * count rises slowly with history: each sixteenfold growth in records adds one
+ * trie level to each ledger generation, that is up to 4 objects per write and
+ * 3 per read.
  * git-cas 7.1.0 wrote about 301 per write and 214 per read.
  *
  * At this witness's scale of 24 operations, the highest counts seen over
