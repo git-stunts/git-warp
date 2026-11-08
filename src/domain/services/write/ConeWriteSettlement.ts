@@ -3,7 +3,6 @@ import Coordinate from '../../api/Coordinate.ts';
 import RetainedWriteReceipt from '../../api/RetainedWriteReceipt.ts';
 import UnretainedWriteReceipt from '../../api/UnretainedWriteReceipt.ts';
 import WriteAdmission from '../../api/WriteAdmission.ts';
-import type WriteRace from '../../api/WriteRace.ts';
 import WritePublication from '../../api/WritePublication.ts';
 import type ObservationAttempt from '../custody/ObservationAttempt.ts';
 import type ObservationAttemptId from '../custody/ObservationAttemptId.ts';
@@ -21,12 +20,11 @@ const FINAL_UNRETAINED: ReadonlySet<ObservationUnretainedReason> = new Set<Obser
 ]);
 const SETTLEMENT_UNACKNOWLEDGED: ObservationUnretainedReason = 'settlement-unacknowledged';
 
-/** One publication known to have landed. */
+/** One publication known to have landed. Its races are the ones its record saved before arming. */
 export type PublishedAttempt = {
   readonly attempt: ObservationAttempt;
   readonly record: WriteAttemptRecord;
   readonly commit: string;
-  readonly races: readonly WriteRace[];
 };
 
 /** Turns a publication that landed into its Retained or Unretained receipt; it can never be called unapplied. */
@@ -93,7 +91,7 @@ export default class ConeWriteSettlement {
     return new UnretainedWriteReceipt({ ...this.#fields(published), ...why });
   }
 
-  #fields({ record, commit, races }: PublishedAttempt): {
+  #fields({ record, commit }: PublishedAttempt): {
     readonly graph: string;
     readonly writer: string;
     readonly outcome: WriteAdmission;
@@ -103,7 +101,7 @@ export default class ConeWriteSettlement {
     return {
       graph: this.#graph,
       writer: record.premise.writerId,
-      outcome: new WriteAdmission(record.admission, races),
+      outcome: new WriteAdmission(record.admission, record.races),
       occurrences: record.occurrences,
       publication: new WritePublication(commit),
     };

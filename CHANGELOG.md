@@ -142,6 +142,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A plural write's races are now saved in its write attempt record before it arms and
+  bound, in one canonical order, in its retained receipt core. A receipt rebuilt by
+  `AuthoredWarp.reconcile` or a sweep after an interrupted write reports the same races
+  as the original, rather than none
+  ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
+
 - Discover every supported test file recursively under `test/unit/` before
   partitioning the default unit run. New directories no longer need a runner
   allowlist entry. The runner refuses missing, unexpected or duplicate paths

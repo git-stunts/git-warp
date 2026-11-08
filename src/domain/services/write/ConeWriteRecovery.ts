@@ -154,12 +154,12 @@ export default class ConeWriteRecovery {
       return this.#indeterminate(record, RECOVERY_UNAVAILABLE);
     }
     await this.#forget(record);
-    return this.#settlement.retained({ attempt, record, commit, races: [] }, coordinate);
+    return this.#settlement.retained({ attempt, record, commit }, coordinate);
   }
 
   async #fromChain(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<AuthoredWriteReceipt> {
     if (record.commit !== null) {
-      return await this.#settlement.settle({ attempt, record, commit: record.commit, races: [] });
+      return await this.#settlement.settle({ attempt, record, commit: record.commit });
     }
     const found = await this.#probe.locate(record);
     if (found.kind === 'other') {
@@ -167,7 +167,7 @@ export default class ConeWriteRecovery {
     }
     return found.kind === 'none'
       ? this.#indeterminate(record, PUBLICATION_UNRESOLVED)
-      : await this.#settlement.settle({ attempt, record, commit: found.commit, races: [] });
+      : await this.#settlement.settle({ attempt, record, commit: found.commit });
   }
 
   async #forget(record: WriteAttemptRecord): Promise<void> {

@@ -3,6 +3,7 @@ import type ObservationAttemptId from '../../domain/services/custody/Observation
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 import ObservationDecodeFailure from '../../domain/services/custody/ObservationDecodeFailure.ts';
 import WriteOccurrence from '../../domain/api/WriteOccurrence.ts';
+import WriteRace from '../../domain/api/WriteRace.ts';
 import WriteAttemptRecord from '../../domain/services/write/WriteAttemptRecord.ts';
 import { buildWriteAttemptRef, buildWriteAttemptsPrefix } from '../../domain/utils/WriteAttemptRefLayout.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
@@ -11,15 +12,27 @@ import WriteAttemptJournalPort from '../../ports/WriteAttemptJournalPort.ts';
 
 const RECORD_VERSION = 1;
 
+const writersSchema = z.array(z.string());
+const overflowSchema = z.number().int().nonnegative();
+const causalitySchema = z.enum(['observed', 'underdetermined']);
+
+/** A register race names its property; a lifecycle race names none. */
+const storedRaceSchema = z.union([
+  z.tuple([z.literal('register'), z.string(), z.string(), writersSchema, overflowSchema, causalitySchema]),
+  z.tuple([z.literal('lifecycle'), z.string(), z.null(), writersSchema, overflowSchema, causalitySchema]),
+]);
+
+/** Exactly a `plural` write saved a race, as its record requires. */
 const storedRecordSchema = z.object({
   version: z.literal(RECORD_VERSION),
   preparation: z.instanceof(Uint8Array),
   admission: z.enum(['derived', 'plural']),
+  races: z.array(storedRaceSchema),
   occurrences: z.array(z.tuple([z.number(), z.string()])),
   savedAt: z.number(),
   reported: z.boolean(),
   commit: z.string().nullable(),
-});
+}).refine(({ admission, races }) => (admission === 'plural') === (races.length > 0));
 
 /** The Git surface the journal uses: a blob per record, held by one ref each. */
 export type WriteAttemptHistory = {
@@ -61,6 +74,7 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
       version: RECORD_VERSION,
       preparation: this.#custodyCodec.encodePreparation(record.preparation),
       admission: record.admission,
+      races: record.races.map(({ kind, subject, key, writers, overflow, causality }) => [kind, subject, key, writers, overflow, causality]),
       occurrences: record.occurrences.map(({ intentIndex, subject }) => [intentIndex, subject]),
       savedAt: record.savedAt,
       reported: record.reported,
@@ -124,13 +138,14 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     }
   }
 
-  #recordOf({ preparation: bytes, admission, occurrences, savedAt, reported, commit }: z.infer<typeof storedRecordSchema>): WriteAttemptRecord | null {
+  #recordOf({ preparation: bytes, admission, races, occurrences, savedAt, reported, commit }: z.infer<typeof storedRecordSchema>): WriteAttemptRecord | null {
     const preparation = this.#custodyCodec.decodePreparation(bytes);
     if (preparation instanceof ObservationDecodeFailure || preparation.bindings.writePremise === null) {
       return null;
     }
     return new WriteAttemptRecord({
       preparation, admission, savedAt, reported, commit,
+      races: races.map(([kind, subject, key, writers, overflow, causality]) => new WriteRace({ kind, subject, key, writers, overflow, causality })),
       occurrences: occurrences.map(([index, subject]) => new WriteOccurrence(index, subject)),
     });
   }

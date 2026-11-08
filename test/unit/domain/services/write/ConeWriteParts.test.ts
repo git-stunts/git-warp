@@ -53,7 +53,7 @@ function bindings(writePremise: ObservationWritePremise | null): ObservationBind
 function recordOf(predecessor: string | null = PARENT): WriteAttemptRecord {
   return new WriteAttemptRecord({
     preparation: new ObservationPreparation(ATTEMPT, bindings(new ObservationWritePremise({ intents: DIGEST, writerId: 'alice', predecessor }))),
-    admission: 'derived', occurrences: [], savedAt: 1,
+    admission: 'derived', races: [], occurrences: [], savedAt: 1,
   });
 }
 
@@ -98,7 +98,7 @@ describe('writeRaceOf', () => {
 describe('WriteAttemptRecord', () => {
   it('refuses a preparation that is not a write', () => {
     expect(() => new WriteAttemptRecord({
-      preparation: new ObservationPreparation(ATTEMPT, bindings(null)), admission: 'derived', occurrences: [], savedAt: 1,
+      preparation: new ObservationPreparation(ATTEMPT, bindings(null)), admission: 'derived', races: [], occurrences: [], savedAt: 1,
     })).toThrow('write premise');
   });
 });
@@ -151,7 +151,7 @@ describe('ConeWriteSettlement', () => {
 
   it('reports an unretained write however custody fails, keeping a record worth repeating', async () => {
     const { settling, remove } = settlement(() => Promise.reject(new Error('boom')));
-    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID, races: [] });
+    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID });
 
     expect(receipt).toBeInstanceOf(UnretainedWriteReceipt);
     expect(receipt instanceof UnretainedWriteReceipt ? receipt.retention : '').toBe('settlement-unacknowledged');
@@ -160,7 +160,7 @@ describe('ConeWriteSettlement', () => {
 
   it('drops the record when custody can never hold this core, even if removing it fails', async () => {
     const { settling, remove } = settlement(() => Promise.resolve(new ObservationUnretained(attempt, 'settlement-conflict')));
-    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID, races: [] });
+    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID });
 
     expect(receipt instanceof UnretainedWriteReceipt ? receipt.retention : '').toBe('settlement-conflict');
     expect(remove).toHaveBeenCalledOnce();
@@ -168,7 +168,7 @@ describe('ConeWriteSettlement', () => {
 
   it('calls any other settlement answer unacknowledged', async () => {
     const { settling } = settlement(() => Promise.resolve(new ObservationRefused('contention')));
-    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID, races: [] });
+    const receipt = await settling.settle({ attempt, record: recordOf(), commit: OID });
 
     expect(receipt instanceof UnretainedWriteReceipt ? receipt.retention : '').toBe('settlement-unacknowledged');
   });
@@ -176,7 +176,7 @@ describe('ConeWriteSettlement', () => {
   it('refuses a Coordinate whose text custody cannot have issued', () => {
     const { settling } = settlement(() => Promise.resolve({}));
     const coordinate = { toString: () => 'nope' } as ObservationCoordinate;
-    expect(() => settling.retained({ attempt, record: recordOf(), commit: OID, races: [] }, coordinate)).toThrow(WarpError);
+    expect(() => settling.retained({ attempt, record: recordOf(), commit: OID }, coordinate)).toThrow(WarpError);
   });
 });
 
@@ -336,7 +336,7 @@ describe('a saved record that is not a write', () => {
   it('refuses to read an undecodable preparation', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
-      codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
+      codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', races: [], occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
       custodyCodec: { decodePreparation: () => new ObservationDecodeFailure('malformed') } as unknown as ObservationCustodyCodecPort,
       history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
     });
@@ -347,7 +347,7 @@ describe('a saved record that is not a write', () => {
   it('refuses to read it', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
-      codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
+      codec: { decode: () => ({ version: 1, preparation: new Uint8Array(), admission: 'derived', races: [], occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
       custodyCodec: { decodePreparation: () => new ObservationPreparation(ATTEMPT, bindings(null)) } as unknown as ObservationCustodyCodecPort,
       history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
     });
