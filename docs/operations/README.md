@@ -160,6 +160,61 @@ index), upgrade every process that reads or writes a shared clone before any
 version gate for mixed-version clone access; coordinating the rollout across all
 concurrent processes is required.
 
+## Garbage collection
+
+git-warp never runs garbage collection in your repository. Its writes use only
+Git plumbing commands, and plumbing commands never start `git gc --auto`. Only
+porcelain such as `commit`, `merge` or `fetch` does that. So Git's `gc.auto`
+threshold, 6,700 loose objects by default, never takes effect for git-warp
+writes. Nothing packs or prunes the objects until you schedule that work.
+
+Measured cost per retained operation (Docker, fresh repository, git-cas 7.2.0,
+[#1080](https://github.com/git-stunts/git-warp/issues/1080)):
+
+| Measure | Retained write | Retained read |
+| --- | --- | --- |
+| New loose objects | 48 to 57, average 55.0 over 400 writes | 26 to 29, average 29.7 over 200 reads |
+| Loose disk use | about 220 KiB | about 127 KiB |
+| Permanent refs | 1 (`refs/cas/reservation-custody/...`) | 1 |
+| Kept after `git gc --prune=now` | 29.3 objects, 5.45 KiB | not measured per read |
+
+Most of the loose disk use is filesystem blocks: each loose object takes one
+block, 4 KiB on the measured filesystem. The count grows slowly with history,
+because the reservation index gets one level deeper for every sixteenfold
+increase in records. A read without a Coordinate request retains nothing.
+After 400 writes, the measured repository held 22,006 loose objects and no
+packs. Packing reduced the 88,024 KiB of loose objects to a 2,178 KiB pack.
+
+Between 15 and 21 objects from each write, and 8 to 10 from each read, are unreachable as
+soon as the operation returns. These are replaced reservation-ledger
+generations and other temporary objects. Only `git gc` removes them. Retained
+observations stay reachable from their custody refs, so GC keeps them and
+their Coordinates still resolve.
+
+Schedule maintenance for each repository that git-warp writes to:
+
+```bash
+# Pack loose objects in the background on Git's schedule.
+git -C "$REPOSITORY" maintenance start
+
+# Remove unreachable objects too, for example from a daily cron job.
+git -C "$REPOSITORY" gc --auto
+```
+
+`git maintenance start` registers the repository and starts the incremental
+strategy, which packs loose objects but does not remove unreachable ones.
+Run `git gc --auto` on a schedule as well. `git gc --auto` does nothing below
+Git's thresholds. When it runs, it removes only unreachable objects older than
+`gc.pruneExpire` (two weeks by default). Do not run `git gc --prune=now` while
+git-warp processes are writing: a write that is still in progress can hold
+objects that no ref reaches yet.
+
+A future `git warp doctor` check will report the loose-object backlog against
+Git's `gc.auto` threshold
+([#1057](https://github.com/git-stunts/git-warp/issues/1057)). A planned git-cas
+change will write packs instead of loose objects
+([#1101](https://github.com/git-stunts/git-warp/issues/1101)).
+
 ## Storage incidents
 
 Derived materialization repair may remove invalid entries; it cannot recreate

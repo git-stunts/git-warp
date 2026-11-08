@@ -118,6 +118,17 @@ git-warp owns local runtime truth over Git-backed history. Continuum owns the
 shared boundary vocabulary for witnessed history exchange. Use
 [Continuum boundary](continuum-boundary.md) for that relationship.
 
+## Garbage collection
+
+git-warp writes Git objects only through plumbing commands. These never start
+`git gc --auto`, and git-warp never runs garbage collection itself. A retained
+write adds about 55 loose objects (about 220 KiB) and one permanent custody ref.
+A read that asks for a Coordinate adds about 30 loose objects (about 127 KiB)
+and one ref. A read without that request retains nothing. Loose objects
+accumulate until the operator schedules `git maintenance start` and
+`git gc --auto`. See [Operations: Garbage collection](../operations/README.md#garbage-collection)
+for the measured costs and the commands.
+
 ## See also
 
 - [Getting started](getting-started.md)

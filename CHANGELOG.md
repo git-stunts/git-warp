@@ -75,6 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Document that git-warp never runs Git garbage collection in the user's
+  repository, and that its plumbing writes never start `git gc --auto`.
+  A retained write adds about 55 loose objects (about 220 KiB) and one
+  permanent ref. A retained read adds about 30 objects (about 127 KiB) and
+  one ref. Operators schedule `git maintenance start` and `git gc --auto`
+  ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
+
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
   with an injected `WarpAccessPort` and no implicit access. `execute` returns
