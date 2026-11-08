@@ -6,6 +6,8 @@ import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import { intent } from '../../../advanced.ts';
 import { Coordinate, GitStorage, UnretainedWriteReceipt, Warp, WarpAccessDenied, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
 import { composeWarpWrites, overrideWarpComposition } from '../../../src/application/WarpWriteComposition.ts';
+import MessageCodecError from '../../../src/domain/errors/MessageCodecError.ts';
+import PatchError from '../../../src/domain/errors/PatchError.ts';
 import ConeRecordKey from '../../../src/domain/services/cone/ConeRecordKey.ts';
 import ConeWriteBasis from '../../../src/domain/services/cone/ConeWriteBasis.ts';
 import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
@@ -395,6 +397,32 @@ describe('a store that fails before publication is permitted', () => {
     expect(() => git(path, ['cat-file', '-p', records])).toThrow();
 
     await rejectsEveryRetry(path);
+  });
+
+  it('rejects every retry when an observed writer head reads as a non-patch commit (B-11)', async () => {
+    const path = await seeded();
+    const head = git(path, ['rev-parse', buildWriterRef(GRAPH, 'alice')]);
+    const tree = git(path, ['rev-parse', `${head}^{tree}`]);
+    const stranger = execFileSync('git', ['commit-tree', tree, '-m', 'not a warp patch'], { cwd: path, encoding: 'utf8' }).trim();
+    git(path, ['replace', head, stranger]);
+    expect(git(path, ['show', '-s', '--format=%B', head])).toBe('not a warp patch');
+    const warp = await open(path);
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await expect(warp.as('bob').execute(intent.node.add({ subject: 'y' }))).rejects.toThrow();
+    }
+    expect(tip(path, 'bob')).toBeNull();
+    expect(attemptRefs(path)).toEqual([]);
+  });
+
+  it('rejects every retry when the premise read meets corrupt patch history (B-9, B-10)', async () => {
+    for (const corruption of [new PatchError('stored patch is malformed', { code: 'E_PATCH_MALFORMED' }), new MessageCodecError('stored trailer is invalid')]) {
+      const path = await seeded();
+      const capture = vi.spyOn(ConeWriteBasis, 'capture').mockRejectedValue(corruption);
+      await rejectsEveryRetry(path);
+      expect(capture).toHaveBeenCalledTimes(2);
+      capture.mockRestore();
+    }
   });
 
   it('reports a real held cone head lock as write-basis-unavailable, then writes once it is released', async () => {

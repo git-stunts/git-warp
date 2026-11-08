@@ -6,6 +6,9 @@ import WarpWriteGrant from '../../../../../src/domain/api/WarpWriteGrant.ts';
 import { operationalWriteFailure } from '../../../../../src/domain/api/WriteRuntime.ts';
 import DotMint from '../../../../../src/domain/crdt/DotMint.ts';
 import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
+import CrdtError from '../../../../../src/domain/errors/CrdtError.ts';
+import MessageCodecError from '../../../../../src/domain/errors/MessageCodecError.ts';
+import SyncError from '../../../../../src/domain/errors/SyncError.ts';
 import ConeRecordError from '../../../../../src/domain/errors/ConeRecordError.ts';
 import ConeStoreUnavailableError from '../../../../../src/domain/errors/ConeStoreUnavailableError.ts';
 import PatchError from '../../../../../src/domain/errors/PatchError.ts';
@@ -29,6 +32,7 @@ import { createPatchBuilderMockPersistence, RecordingPatchJournal } from '../Pat
 const GRAPH = 'g';
 const GRANT = new WarpWriteGrant({ authority: 'a', budget: { records: 9, bytes: 9999, work: 9 } });
 const request = { writer: 'alice', grant: GRANT, sequence: IntentSequence.from(intent.node.add({ subject: 'x' })) };
+const removal = { writer: 'alice', grant: GRANT, sequence: IntentSequence.from(intent.node.remove({ subject: 'x' })) };
 const unavailable = (): ConeStoreUnavailableError => new ConeStoreUnavailableError('read a blob', new Error('EIO: i/o error'));
 
 type Premise = (published: () => Promise<ConeWritePremise | ConeObstruction>) => Promise<ConeWritePremise | ConeObstruction>;
@@ -43,11 +47,12 @@ function cone(premise: Premise): ConeLaneBasis {
   return new PremiseCone({ store: new InMemoryConeRecordStore(), feed: new MemoryConeFeed(GRAPH), scope: new LaneConeScope(GRAPH) });
 }
 
-/** A real patch builder for the writer. */
-function builder(): PatchBuilder {
+/** A real patch builder for the writer; without a journal it has no history to observe. */
+function builder(options: { readonly journaled: boolean } = { journaled: true }): PatchBuilder {
   const refs = createPatchBuilderMockPersistence();
   return new PatchBuilder({
-    persistence: refs, patchJournal: new RecordingPatchJournal(refs), graphName: GRAPH, writerId: 'alice', lamport: 1,
+    persistence: refs, graphName: GRAPH, writerId: 'alice', lamport: 1,
+    ...(options.journaled ? { patchJournal: new RecordingPatchJournal(refs) } : {}),
     versionVector: VersionVector.empty(), dotMint: DotMint.after('alice', 0), getCurrentState: () => null,
   });
 }
@@ -134,6 +139,35 @@ describe('ConeWriteLowering', () => {
     const lowered = await lowering({ patch: failingPremiseRead(refusal) }).lower(request);
 
     expect(causeOf(lowered)).toBe(operationalWriteFailure(refusal)?.reason.code);
+  });
+
+  it('rejects a corrupt patch history met while reading the premise records, not as a missing basis', async () => {
+    const failures = [
+      new MessageCodecError('stored trailer is invalid'),
+      new CrdtError('stored dot is malformed'),
+      new SyncError('patch history is broken', { code: 'E_SYNC_PATCH_HISTORY' }),
+      new PatchError('stored patch is malformed', { code: 'E_PATCH_MALFORMED' }),
+      new PatchError('stored patch schema is unknown', { code: 'E_PATCH_SCHEMA' }),
+    ];
+    for (const failure of failures) {
+      const rejected = await lowering({ patch: failingPremiseRead(failure) }).lower(request).then(() => null, (error: Error) => error);
+      expect(rejected).toMatchObject({ code: 'E_WRITE_HISTORY_CORRUPT', cause: failure });
+    }
+  });
+
+  it('keeps the missing-basis refusal for a writer with no history to observe', async () => {
+    const lowered = await lowering({ patch: builder({ journaled: false }) }).lower(removal);
+
+    expect(causeOf(lowered)).toBe(operationalWriteFailure(new PatchError('no state', { code: 'E_PATCH_NO_STATE' }))?.reason.code);
+  });
+
+  it('keeps the cause of an expected refusal met while lowering the intents', async () => {
+    const refusal = new WarpError('attached data', 'E_PATCH_DELETE_WITH_DATA');
+    const patch = builder();
+    vi.spyOn(patch, 'prepareConeWriteBasis').mockResolvedValue();
+    vi.spyOn(patch, 'addNode').mockImplementation(() => { throw refusal; });
+
+    expect(causeOf(await lowering({ patch }).lower(request))).toBe(operationalWriteFailure(refusal)?.reason.code);
   });
 
   it('does not hide a lowering failure that is not an expected write refusal', async () => {

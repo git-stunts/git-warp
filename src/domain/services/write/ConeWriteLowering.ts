@@ -7,9 +7,10 @@ import { inspectPublishedIntentSequence } from '../../api/PublishedIntentSequenc
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import type WarpWriteGrant from '../../api/WarpWriteGrant.ts';
 import WriteOccurrence from '../../api/WriteOccurrence.ts';
-import { operationalWriteFailure } from '../../api/WriteRuntime.ts';
+import { invalidObservationMetadata, operationalWriteFailure } from '../../api/WriteRuntime.ts';
 import ConeStoreUnavailableError from '../../errors/ConeStoreUnavailableError.ts';
 import WarpError from '../../errors/WarpError.ts';
+import WriteHistoryCorruptError from '../../errors/WriteHistoryCorruptError.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
 import { textEncode } from '../../utils/bytes.ts';
 import { readPatchBuilderCausalBasis } from '../admission/PatchBuilderCausalBasis.ts';
@@ -140,7 +141,8 @@ export default class ConeWriteLowering {
   /**
    * Reads the premise records from the store (#1079). Nothing is reserved yet, so an
    * unavailable store leaves a write known not to have published. An expected write
-   * refusal keeps its own cause. A defect, a broken invariant or corruption rejects.
+   * refusal keeps its own cause. A defect, a broken invariant or corruption rejects:
+   * corrupt patch history becomes `WriteHistoryCorruptError`, not a missing-basis refusal.
    */
   async #premiseRead(run: {
     readonly writer: string;
@@ -156,12 +158,23 @@ export default class ConeWriteLowering {
       if (error instanceof ConeStoreUnavailableError) {
         return new UnpublishedWriteReceipt({ graph: this.#graph, writer: run.writer, cause: PREMISE_UNAVAILABLE });
       }
-      const refused = error instanceof WarpError ? this.#operational(run.writer, error) : null;
-      if (refused === null) {
+      if (!(error instanceof WarpError)) {
         throw error;
       }
-      return refused;
+      return this.#premiseRefusal(run.writer, error);
     }
+  }
+
+  /** An expected write refusal keeps its own cause; corrupt history and anything else reject. */
+  #premiseRefusal(writer: string, error: WarpError): UnpublishedWriteReceipt {
+    if (invalidObservationMetadata(error)) {
+      throw new WriteHistoryCorruptError(error);
+    }
+    const refused = this.#operational(writer, error);
+    if (refused === null) {
+      throw error;
+    }
+    return refused;
   }
 
   async #bindings(fields: {
