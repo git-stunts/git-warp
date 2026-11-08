@@ -18,10 +18,16 @@ wildcard in either direction:
   have yet, including this clone's unpublished writer chain.
 - A wildcard push publishes refs this clone does not own, such as its derived
   checkpoint head.
-- In-flight `Warp` write attempts live under `refs/warp-local/<graph>/write-attempts/`, outside
-  `refs/warp/`, so a lane wildcard does not copy them. Each names a reservation in its own clone's
-  ledger under `refs/cas/`. Never transfer either: a copied record would be answered against a ledger
-  that never held it.
+- In-flight `Warp` state lives under `refs/warp-local/<graph>/`: write attempts in
+  `write-attempts/` and support under construction in `observations/construction/`.
+  Each names a reservation in this clone's ledger under `refs/cas/`. A `refs/warp/*`
+  lane wildcard does not copy them. A `refs/*` or mirror copy does, with its ledger,
+  and the copy then acts on them as its own clone's. Do not move either between clones.
+- Clones built from `main` before this layout may still hold attempt refs under
+  `refs/warp/<graph>/write-attempts/`. Nothing sweeps them now, and a lane wildcard
+  still copies them. List them with
+  `git for-each-ref --format='%(refname)' refs/warp/ | grep /write-attempts/` (a glob such as
+  `refs/warp/*/write-attempts/` matches nothing) and delete each with `git update-ref -d <ref>`.
 - Never add `+` to a WARP refspec. A forced update can move another writer's
   chain backward.
 

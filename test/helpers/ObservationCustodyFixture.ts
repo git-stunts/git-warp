@@ -27,6 +27,7 @@ import ConeFrontierCborCodec from '../../src/infrastructure/adapters/ConeFrontie
 import EntropyObservationAttemptSource from '../../src/infrastructure/adapters/EntropyObservationAttemptSource.ts';
 import GitCasObservationCustodyAdapter from '../../src/infrastructure/adapters/GitCasObservationCustodyAdapter.ts';
 import GitCasObservationSupportAdapter from '../../src/infrastructure/adapters/GitCasObservationSupportAdapter.ts';
+import { WARP_APPLICATION_REF_PREFIXES } from '../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import ObservationCustodyCborCodec from '../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
@@ -87,7 +88,7 @@ export default class ObservationCustodyFixture {
     readonly wrap?: (custody: ObservationCustodyPort) => ObservationCustodyPort;
   }): Promise<OpenedCustody> {
     const plumbing = await Plumbing.createDefault({ cwd: path });
-    const store = ContentAddressableStore.createCbor({ plumbing, applicationRefPrefixes: ['refs/warp/'] });
+    const store = ContentAddressableStore.createCbor({ plumbing, applicationRefPrefixes: [...WARP_APPLICATION_REF_PREFIXES] });
     this.#stores.add(store);
     const crypto = new NodeCryptoAdapter();
     const custody = await GitCasObservationCustodyAdapter.open({

@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
 import { Coordinate, GitStorage, UnretainedWriteReceipt, Warp, WarpAccessDenied, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
-import { composeWarpWrites, overrideWarpComposition } from '../../../src/application/WarpWriteComposition.ts';
 import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import CustodyRefused from '../../../src/domain/services/custody/CustodyRefused.ts';
 import ObservationCoordinate from '../../../src/domain/services/custody/ObservationCoordinate.ts';
@@ -16,12 +15,14 @@ import {
   GRAPH,
   TestAccess,
   attemptRefs,
+  composed,
   disposeWarpFixtures,
   git,
   indeterminate,
   materialized,
   open,
   openSwept,
+  overrideWithFixedClock,
   repository,
   retained,
   tip,
@@ -60,9 +61,9 @@ describe('a retained write survives what the graph does later', () => {
     git(path, ['gc', '--prune=now', '--quiet']);
 
     const access = new TestAccess();
-    const writes = await composeWarpWrites({ address: WarpAddress.of(GitStorage.at(path), GRAPH), access, logger: undefined });
+    const writes = await composed(path, access);
     const parsed = ObservationCoordinate.parse(receipt.coordinate.toString());
-    const resolved = parsed === null ? null : await (await writes.custody()).resolve(parsed);
+    const resolved = parsed === null ? null : await (await writes.openCustody()).resolve(parsed);
     await writes.close();
 
     expect(resolved).toBeInstanceOf(ResolvedObservation);
@@ -83,9 +84,9 @@ describe('a retained write survives what the graph does later', () => {
     retained(await warp.as('bob').execute(intent.node.add({ subject: 'after' })));
     await warp.close();
 
-    const writes = await composeWarpWrites({ address: WarpAddress.of(GitStorage.at(path), GRAPH), access: new TestAccess(), logger: undefined });
+    const writes = await composed(path);
     const parsed = ObservationCoordinate.parse(receipt.coordinate.toString());
-    const resolved = parsed === null ? null : await (await writes.custody()).resolve(parsed);
+    const resolved = parsed === null ? null : await (await writes.openCustody()).resolve(parsed);
     await writes.close();
 
     expect(resolved instanceof ResolvedObservation ? resolved.preparation.bindings.basis : null).toBe(basisAtWrite);
@@ -370,7 +371,7 @@ describe('a record that outlives its attempt', () => {
 });
 
 describe('composition', () => {
-  it('refuses the first write on a graph whose retention capacity differs, and tries custody again later', async () => {
+  it('refuses each granted operation on a graph whose retention capacity differs', async () => {
     const path = await repository();
     const first = await open(path, { limit: 3 });
     retained(await first.as('alice').execute(intent.node.add({ subject: 'x' })));
@@ -403,12 +404,22 @@ describe('composition', () => {
         return Promise.resolve(new WarpWriteGrant({ authority: 'x', budget: { records: 9, bytes: 9999, work: 9 } }));
       }
     })();
-    overrideWarpComposition(flaky, {});
+    overrideWithFixedClock(flaky);
     const warp = await Warp.open(WarpAddress.of(GitStorage.at(path), GRAPH), flaky);
 
     await expect(warp.as('alice').execute(intent.node.add({ subject: 'x' }))).rejects.toThrow('went away');
     retained(await warp.as('alice').execute(intent.node.add({ subject: 'y' })));
     await Promise.all([warp.close(), warp.close()]);
+    expect((await materialized(path)).nodes).toEqual(['y']);
+  });
+
+  it('opens the write path again after its first opening failed', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    vi.spyOn(GitCasRepositoryAdapter.prototype, 'createRuntimeStorageServices').mockImplementationOnce(() => Promise.reject(new Error('cone store blip')));
+
+    await expect(warp.as('alice').execute(intent.node.add({ subject: 'x' }))).rejects.toThrow('cone store blip');
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'y' })));
     expect((await materialized(path)).nodes).toEqual(['y']);
   });
 

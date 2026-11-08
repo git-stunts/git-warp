@@ -424,7 +424,7 @@ describe('observation host boundaries', () => {
   });
 
   it('names construction refs under the graph and validates it', () => {
-    expect(buildObservationConstructionRef('events', 'abc')).toBe('refs/warp/events/observations/construction/abc');
+    expect(buildObservationConstructionRef('events', 'abc')).toBe('refs/warp-local/events/observations/construction/abc');
     expect(() => buildObservationConstructionRef('../events', 'abc')).toThrow();
     expect(() => buildObservationConstructionRef('events', '../abc')).toThrow(WarpError);
     expect(() => buildObservationConstructionRef('events', '')).toThrow(WarpError);

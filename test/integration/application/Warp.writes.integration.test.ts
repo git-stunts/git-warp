@@ -11,7 +11,7 @@ import {
   WarpAddress,
   WarpWriteGrant,
 } from '../../../index.ts';
-import { composeWarpWrites, type WarpCompositionOverrides } from '../../../src/application/WarpWriteComposition.ts';
+import type { WarpCompositionOverrides } from '../../../src/application/WarpWriteComposition.ts';
 import ObservationCoordinate from '../../../src/domain/services/custody/ObservationCoordinate.ts';
 import type ResolvedObservation from '../../../src/domain/services/custody/ResolvedObservation.ts';
 import WritePublicationProbe from '../../../src/domain/services/write/WritePublicationProbe.ts';
@@ -31,6 +31,7 @@ import {
   GRAPH,
   TestAccess,
   attemptRefs,
+  composed,
   crashingAt,
   disposeWarpFixtures,
   git,
@@ -38,6 +39,7 @@ import {
   materialized,
   nodeProperties,
   open,
+  overrideWithFixedClock,
   repository,
   retained,
   tip,
@@ -147,7 +149,9 @@ describe('the journey as written', () => {
   it('opens the current repository from GitStorage.root', async () => {
     const path = await repository();
     vi.spyOn(process, 'cwd').mockReturnValue(path);
-    const warp = await Warp.open(WarpAddress.of(GitStorage.root(), GRAPH), new TestAccess());
+    const access = new TestAccess();
+    overrideWithFixedClock(access);
+    const warp = await Warp.open(WarpAddress.of(GitStorage.root(), GRAPH), access);
 
     const receipt = retained(await warp.as('alice').execute(intent.node.add({ subject: 'a' })));
     await warp.close();
@@ -251,8 +255,8 @@ describe('what a blind write observed', () => {
     const raced = retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' })));
     await warp.close();
 
-    const writes = await composeWarpWrites({ address: WarpAddress.of(GitStorage.at(path), GRAPH), access: new TestAccess(), logger: undefined });
-    const resolved = await (await writes.custody()).resolve(ObservationCoordinate.parse(raced.coordinate.toString()) as ObservationCoordinate);
+    const writes = await composed(path);
+    const resolved = await (await writes.openCustody()).resolve(ObservationCoordinate.parse(raced.coordinate.toString()) as ObservationCoordinate);
     await writes.close();
 
     const original = resolved as ResolvedObservation;
@@ -327,7 +331,7 @@ describe('refusals before publication', () => {
 
   it('stops admitting operations once closed', async () => {
     const path = await repository();
-    const warp = await Warp.open(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
+    const warp = await open(path);
     const writer = warp.as('alice');
     retained(await writer.execute(intent.node.add({ subject: 'a' })));
 
@@ -392,8 +396,8 @@ describe('the write premise is never recaptured', () => {
     const receipt = retained(await warp.as('alice').execute(intent.node.add({ subject: 'alices' })));
     const headAfter = git(path, ['rev-parse', `refs/warp/${GRAPH}/cone/head`]);
     await warp.close();
-    const writes = await composeWarpWrites({ address: WarpAddress.of(GitStorage.at(path), GRAPH), access: new TestAccess(), logger: undefined });
-    const original = await (await writes.custody()).resolve(ObservationCoordinate.parse(receipt.coordinate.toString()) as ObservationCoordinate) as ResolvedObservation;
+    const writes = await composed(path);
+    const original = await (await writes.openCustody()).resolve(ObservationCoordinate.parse(receipt.coordinate.toString()) as ObservationCoordinate) as ResolvedObservation;
     await writes.close();
 
     expect(original.preparation.bindings.basis).not.toBe(headAfter);

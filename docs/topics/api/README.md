@@ -191,17 +191,44 @@ the testing surface, not in the first-use constructor.
 - `access` is a `WarpAccessPort`. It decides each operation. Opening grants
   nothing and changes nothing in the repository: the write path opens on the
   first granted write or reconcile.
-- `options.logger` is an optional `LoggerPort` subclass. It receives runtime
-  warnings, for example a node removal under the `warn` policy that leaves
-  attached data. Without a logger, a `Warp` prints nothing. Logging is not part
-  of the access boundary. Any other value for `options` or `logger` is refused
-  with `E_WARP_OPEN_LOGGER`.
+- `options.logger` is an optional `LoggerPort`. It receives runtime warnings,
+  for example a node removal under the `warn` policy that leaves attached data.
+  Without a logger, a `Warp` prints nothing. Logging is not part of the access
+  boundary, and a logger cannot affect a write: if a method throws or returns a
+  promise that rejects, the runtime ignores it.
+
+`LoggerPort` is an abstract class. `Warp.open` checks it with `instanceof` and
+checks that its five methods are callable, so an object that only looks like a
+logger, such as `console` or a pino instance, is refused. Extend the class and
+forward to your sink:
 
 ```typescript
-import { LoggerPort, Warp, WarpAddress, GitStorage } from '@git-stunts/git-warp';
+import { GitStorage, LoggerPort, Warp, WarpAddress, type LogFields } from '@git-stunts/git-warp';
 
-const warp = await Warp.open(WarpAddress.of(GitStorage.root(), 'todos'), access, { logger });
+class ConsoleWarpLogger extends LoggerPort {
+  constructor(private readonly base: LogFields = {}) {
+    super();
+  }
+  debug(message: string, context?: LogFields): void { console.debug(message, { ...this.base, ...context }); }
+  info(message: string, context?: LogFields): void { console.info(message, { ...this.base, ...context }); }
+  warn(message: string, context?: LogFields): void { console.warn(message, { ...this.base, ...context }); }
+  error(message: string, context?: LogFields): void { console.error(message, { ...this.base, ...context }); }
+  child(context: LogFields): LoggerPort { return new ConsoleWarpLogger({ ...this.base, ...context }); }
+}
+
+const warp = await Warp.open(WarpAddress.of(GitStorage.root(), 'todos'), access, {
+  logger: new ConsoleWarpLogger(),
+});
 ```
+
+`access` is your `WarpAccessPort`. `LogFields` is a read-only map from field
+names to `LogFieldValue`: strings, numbers, booleans, `null`, `undefined`,
+bigints, arrays and nested `LogFields`. The current warnings send a message
+that starts with `[warp]` and give no context, so `context` can be absent.
+
+`Warp.open` refuses `options` that are not a plain object, or that name an
+option other than `logger`, with `E_WARP_OPEN_OPTIONS`. It refuses a `logger`
+that is not a `LoggerPort` with callable methods with `E_WARP_OPEN_LOGGER`.
 
 ### Lifecycle
 

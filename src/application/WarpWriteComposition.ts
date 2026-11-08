@@ -25,6 +25,7 @@ import type ObservationAttemptSourcePort from '../ports/ObservationAttemptSource
 import type ObservationCustodyPort from '../ports/ObservationCustodyPort.ts';
 import type WarpAccessPort from '../ports/WarpAccessPort.ts';
 import GitStorage from './GitStorage.ts';
+import GuardedLogger from './GuardedLogger.ts';
 import { gitStorageLocation } from './GitStorageLocation.ts';
 import { getDefaultRuntimeHostNodePorts, type RuntimeHostNodePorts } from './RuntimeHostNodeDefaults.ts';
 import type WarpAddress from './WarpAddress.ts';
@@ -60,8 +61,11 @@ export function overrideWarpComposition(access: WarpAccessPort, overrides: WarpC
 /** What a Warp drives. */
 export type WarpWrites = {
   readonly executor: ConeWriteExecutor;
-  /** Opens the write path on first use: marks the substrate, installs the retention policy and sweeps unfinished attempts. */
-  custody(): Promise<ObservationCustodyService>;
+  /**
+   * Opens the write path if no granted operation has yet, which marks the substrate, installs
+   * the retention policy and sweeps unfinished attempts, then returns its custody.
+   */
+  openCustody(): Promise<ObservationCustodyService>;
   stage(writer: string, staged: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent>;
   close(): Promise<void>;
 };
@@ -80,8 +84,9 @@ export async function composeWarpWrites(opening: {
   readonly access: WarpAccessPort;
   readonly logger: LoggerPort | undefined;
 }): Promise<WarpWrites> {
-  const { address, access, logger } = opening;
+  const { address, access } = opening;
   const overrides = COMPOSITION_OVERRIDES.get(access) ?? {};
+  const logger = opening.logger === undefined ? undefined : new GuardedLogger(opening.logger);
   return composeOverStorage({ address, access, overrides, logger, storage: await GitStorage.open({ cwd: gitStorageLocation(address.storage) }) });
 }
 
@@ -100,7 +105,7 @@ function composeOverStorage(run: {
   const content = new ContentStagingAuthority();
   const opened = onFirstUse(async () => await openPath({ graph, git, ports, overrides, storage, content, hosts }));
   return {
-    custody: async () => (await opened()).custody,
+    openCustody: async () => (await opened()).custody,
     executor: new ConeWriteExecutor({ graph, access, path: async () => (await opened()).path }),
     stage: async (writer, staged) => await content.stage({ assetStorage: (await hosts(writer))._assetStorage, content: staged.content, metadata: staged.metadata, slug: `${graph}/${writer}` }),
     close: async () => await storage.close(),

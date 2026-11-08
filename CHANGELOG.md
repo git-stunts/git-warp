@@ -34,12 +34,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `Warp.open` opens the repository and changes nothing in it. The lane's cone and substrate
-  marker, custody, the retention policy and the sweep of unfinished attempts wait for the first
-  granted write or reconcile, so a deny-all opener or a read-only clone opens, and a failure to
-  open them rejects that operation instead. In-flight write attempts move to
-  `refs/warp-local/<graph>/write-attempts/`, outside `refs/warp/`, so a lane wildcard fetch no
-  longer copies them ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
+- `Warp.open` no longer writes to the repository, so a deny-all opener or a read-only clone opens.
+  Errors from opening the write path, such as `E_WARP_RETENTION_OPEN`, now reject the first granted
+  `execute` or `reconcile` instead of `open`. In-flight write attempts and support under construction
+  move to `refs/warp-local/<graph>/`, so a `refs/warp/*` lane fetch no longer copies them
+  ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
+- Operator note: clones built from `main` after #1051 may hold old `refs/warp/<graph>/write-attempts/`
+  refs that nothing sweeps now. List them with
+  `git for-each-ref --format='%(refname)' refs/warp/ | grep /write-attempts/` and delete each with
+  `git update-ref -d <ref>`. No release wrote them, so there is no migration
+  ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)
   trees instead of 64 ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
@@ -83,8 +87,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `Warp.open(address, access, { logger })` accepts an optional `LoggerPort`, now exported from
   the package root with the `LogFields`, `LogFieldValue` and `WarpOpenOptions` types. The `warn`
-  removal policy reports to it. Without a logger, a `Warp` prints nothing. Any other value is
-  refused with `E_WARP_OPEN_LOGGER`
+  removal policy reports to it, and a logger that throws or rejects cannot affect a write. Without a
+  logger, a `Warp` prints nothing. Options that are not a plain object, or that name an unknown
+  option, are refused with `E_WARP_OPEN_OPTIONS`, and a logger that is not a `LoggerPort` with
+  callable methods with `E_WARP_OPEN_LOGGER`
   ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,

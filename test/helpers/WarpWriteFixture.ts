@@ -13,10 +13,10 @@ import {
   WarpAddress,
   WarpWriteGrant,
 } from '../../index.ts';
-import type { AuthoredWriteReceipt, WarpWriteRequest } from '../../index.ts';
+import type { AuthoredWriteReceipt, WarpOpenOptions, WarpWriteRequest } from '../../index.ts';
 import { getDefaultRuntimeHostNodePorts } from '../../src/application/RuntimeHostNodeDefaults.ts';
 import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
-import { overrideWarpComposition, type WarpCompositionOverrides } from '../../src/application/WarpWriteComposition.ts';
+import { composeWarpWrites, overrideWarpComposition, type WarpCompositionOverrides, type WarpWrites } from '../../src/application/WarpWriteComposition.ts';
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';
 import { buildWriteAttemptsPrefix } from '../../src/domain/utils/WriteAttemptRefLayout.ts';
 import EdgeAdd from '../../src/domain/types/ops/EdgeAdd.ts';
@@ -68,15 +68,30 @@ export async function repository(): Promise<string> {
   return path;
 }
 
+/** The instant every fixture Warp reads unless a test injects its own clock, so no test depends on real time. */
+export const FIXED_NOW = 1_000_000;
+
+/** Gives Warps opened with `access` the fixed clock, under any overrides a test supplies. */
+export function overrideWithFixedClock(access: WarpAccessPort, overrides: WarpCompositionOverrides = {}): void {
+  overrideWarpComposition(access, { clock: () => FIXED_NOW, ...overrides });
+}
+
 export async function open(
   path: string,
   overrides: WarpCompositionOverrides = {},
   access: WarpAccessPort = new TestAccess(),
+  options: WarpOpenOptions = {},
 ): Promise<Warp> {
-  overrideWarpComposition(access, overrides);
-  const warp = await Warp.open(WarpAddress.of(GitStorage.at(path), GRAPH), access);
+  overrideWithFixedClock(access, overrides);
+  const warp = await Warp.open(WarpAddress.of(GitStorage.at(path), GRAPH), access, options);
   opened.push(warp);
   return warp;
+}
+
+/** Composes a write path directly, on the fixed clock, for tests that inspect custody. */
+export async function composed(path: string, access: WarpAccessPort = new TestAccess()): Promise<WarpWrites> {
+  overrideWithFixedClock(access);
+  return await composeWarpWrites({ address: WarpAddress.of(GitStorage.at(path), GRAPH), access, logger: undefined });
 }
 
 /** An attempt id no writer has used, so asking about it only opens the write path. */

@@ -1,9 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { intent } from '../../../advanced.ts';
-import { GitStorage, LoggerPort, Warp, WarpAccessDenied, WarpAccessPort, WarpAddress, type LogFields, type WarpWriteGrant } from '../../../index.ts';
+import { WarpAccessDenied, WarpAccessPort, type WarpWriteGrant } from '../../../index.ts';
+import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
 import {
-  GRAPH,
-  TestAccess,
   attemptRefs,
   crashingAt,
   disposeWarpFixtures,
@@ -15,7 +14,6 @@ import {
 } from '../../helpers/WarpWriteFixture.ts';
 
 afterEach(async () => {
-  vi.restoreAllMocks();
   await disposeWarpFixtures();
 });
 
@@ -29,27 +27,33 @@ class DenyAll extends WarpAccessPort {
   }
 }
 
-/** Keeps every warning it is given. */
-class RecordingLogger extends LoggerPort {
-  readonly warnings: string[] = [];
-
-  override debug(): void {}
-  override info(): void {}
-  override error(): void {}
-  override warn(message: string): void {
-    this.warnings.push(message);
-  }
-  override child(_context: LogFields): LoggerPort {
-    return this;
-  }
-}
-
 /** Every ref and the object it names, so any mutation shows. */
 function refs(path: string): string {
   return git(path, ['for-each-ref', '--format=%(refname) %(objectname)']);
 }
 
 const HOUR = 60 * 60 * 1000;
+
+/** Refs a wildcard fetch brought that name in-flight state: attempts or support under construction. */
+function inFlight(path: string): string[] {
+  return git(path, ['for-each-ref', '--format=%(refname)']).split('\n').filter((ref) => ref.includes('write-attempts') || ref.includes('/construction/'));
+}
+
+/** Custody that runs `during` just before it records a preparation, while the write is in flight. */
+function duringPrepare(during: () => void): (custody: ObservationCustodyPort) => ObservationCustodyPort {
+  return (custody) => new Proxy(custody, {
+    get(target: ObservationCustodyPort, name: string | symbol) {
+      if (name === 'prepare') {
+        return async (...args: Parameters<ObservationCustodyPort['prepare']>) => {
+          during();
+          return await target.prepare(...args);
+        };
+      }
+      const value = Reflect.get(target, name) as unknown;
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+}
 
 describe('Warp.open before any access decision (#1078)', () => {
   it('leaves a fresh repository untouched for a deny-all opener', async () => {
@@ -102,53 +106,31 @@ describe('write attempts stay with their clone (#1078)', () => {
     const replica = await repository();
     git(replica, ['fetch', '-q', origin, 'refs/warp/*:refs/warp/*']);
 
-    expect(git(replica, ['for-each-ref', '--format=%(refname)']).split('\n').filter((ref) => ref.includes('write-attempts'))).toEqual([]);
+    expect(inFlight(replica)).toEqual([]);
     const warp = await open(replica);
     retained(await warp.as('bob').execute(intent.node.add({ subject: 'second' })));
     expect(attemptRefs(replica)).toEqual([]);
     expect(attemptRefs(origin)).toHaveLength(1);
   });
-});
 
-describe('the removal policy reaches the logger given to Warp.open (#1078)', () => {
-  async function removeAttached(warp: Warp): Promise<void> {
-    retained(await warp.as('alice').execute(intent.entity.add({ subject: 'n', properties: { color: 'red' } })));
-    retained(await warp.as('alice').execute(intent.node.remove({ subject: 'n' })));
-  }
+  it('copies nothing of a write in flight through a wildcard WARP fetch', async () => {
+    const origin = await repository();
+    const replica = await repository();
+    const first = await open(origin);
+    retained(await first.as('alice').execute(intent.node.add({ subject: 'first' })));
+    await first.close();
+    let local: string[] = [];
+    const warp = await open(origin, {
+      wrapCustody: duringPrepare(() => {
+        local = inFlight(origin);
+        git(replica, ['fetch', '-q', origin, 'refs/warp/*:refs/warp/*']);
+      }),
+    });
 
-  it('warns when a removed node still has attached data', async () => {
-    const path = await repository();
-    const logger = new RecordingLogger();
-    const warp = await Warp.open(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess(), { logger });
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'second' })));
 
-    try {
-      await removeAttached(warp);
-    } finally {
-      await warp.close();
-    }
-
-    expect(logger.warnings).toHaveLength(1);
-    expect(logger.warnings[0]).toContain("Deleting node 'n' which has attached data");
-  });
-
-  it('prints nothing when no logger is given', async () => {
-    const path = await repository();
-    const printed = [vi.spyOn(console, 'warn'), vi.spyOn(console, 'log'), vi.spyOn(console, 'info'), vi.spyOn(console, 'error')];
-
-    await removeAttached(await open(path));
-
-    for (const print of printed) {
-      expect(print).not.toHaveBeenCalled();
-    }
-  });
-
-  it('refuses a logger that is not a LoggerPort', async () => {
-    const path = await repository();
-    const address = WarpAddress.of(GitStorage.at(path), GRAPH);
-    const notALogger = { warn: (): void => {} };
-
-    await expect(Reflect.apply(Warp.open, Warp, [address, new TestAccess(), { logger: notALogger }])).rejects.toMatchObject({ code: 'E_WARP_OPEN_LOGGER' });
-    await expect(Reflect.apply(Warp.open, Warp, [address, new TestAccess(), null])).rejects.toMatchObject({ code: 'E_WARP_OPEN_LOGGER' });
-    expect(git(path, ['for-each-ref'])).toBe('');
+    expect(local.some((ref) => ref.includes('/construction/'))).toBe(true);
+    expect(local.some((ref) => ref.includes('write-attempts'))).toBe(true);
+    expect(inFlight(replica)).toEqual([]);
   });
 });

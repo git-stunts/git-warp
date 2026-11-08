@@ -409,7 +409,7 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   or letting one rise, needs a git-cas change and a new decision. #1052 decides whether reads
   share this namespace.
 - **What is persisted:** `WriteAttemptJournalPort`, one clone-local ref per in-flight attempt
-  under `refs/warp/<graph>/write-attempts/`, saved before reserving and removed once finished.
+  under `refs/warp-local/<graph>/write-attempts/` (moved out of `refs/warp/` by #1078), saved before reserving and removed once finished.
   Each holds the preparation and what the receipt core needs beyond the commit id, so
   the core is reproducible and nothing further is saved between arming and publishing.
 - **Recognising a publication:** a patch commit carries an `eg-publication-attempt` trailer.

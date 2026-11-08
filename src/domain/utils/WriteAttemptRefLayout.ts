@@ -1,14 +1,10 @@
+import { LOCAL_REF_PREFIX } from './LocalRefLayout.ts';
 import { validateGraphName } from './RefLayout.ts';
 
 /**
- * Home of clone-local WARP refs. It sits beside `refs/warp/`, not inside it, so a lane
- * wildcard such as `refs/warp/*` never copies them into another clone (#1078).
- */
-export const LOCAL_REF_PREFIX = 'refs/warp-local';
-
-/**
  * The refs holding a graph's in-flight write attempts (#1051). Each names a reservation in
- * this clone's own ledger, so one is never transferred: a copy elsewhere would have no ledger.
+ * this clone's ledger, so they live under `refs/warp-local/` (#1078): a `refs/warp/*` lane
+ * wildcard does not copy them. A `refs/*` or mirror copy does, with its ledger.
  */
 export function buildWriteAttemptsPrefix(graphName: string): string {
   validateGraphName(graphName);
