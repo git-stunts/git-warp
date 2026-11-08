@@ -22,7 +22,7 @@ function assertDrawnBytes(bytes: Uint8Array, length: number): void {
   }
   const received = bytes instanceof Uint8Array ? bytes.length : null;
   throw new EntropyError(`RandomPort returned ${received ?? 'non-byte'} bytes; expected ${length}`, {
-    code: 'E_ENTROPY_SHORT_READ',
+    code: 'E_ENTROPY_WRONG_LENGTH',
     context: { requested: length, received },
   });
 }
@@ -33,7 +33,7 @@ function assertDrawnBytes(bytes: Uint8Array, length: number): void {
  * A port that returns too few (or too many) bytes would silently weaken a
  * minted identity, so the draw fails closed instead.
  *
- * @throws {EntropyError} `E_ENTROPY_INVALID_LENGTH` or `E_ENTROPY_SHORT_READ`
+ * @throws {EntropyError} `E_ENTROPY_INVALID_LENGTH` or `E_ENTROPY_WRONG_LENGTH`
  */
 export function drawEntropy(random: RandomPort, length: number): Uint8Array {
   assertDrawLength(length);

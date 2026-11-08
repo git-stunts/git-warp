@@ -2,14 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { inspect } from 'node:util';
 
 import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
-import HostRandomAdapter from '../../../../src/infrastructure/adapters/HostRandomAdapter.ts';
+import SeededRandomPort from '../../../helpers/SeededRandomPort.ts';
 import SyncAuthService, {
   signSyncRequest,
 } from '../../../../src/domain/services/sync/SyncAuthService.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
 
-const HOST_RANDOM = new HostRandomAdapter();
+/** Deterministic, well-spread nonce entropy shared by this file's signed requests. */
+/** Fixed replay-window clock; these tests never advance time. */
+const FIXED_CLOCK = (): number => 1_000;
+
+const NONCE_RANDOM = new SeededRandomPort(184003);
 
 describe('SyncSecret', () => {
   it('redacts accidental string, JSON, and inspect output', () => {
@@ -26,7 +30,7 @@ describe('SyncSecret', () => {
     const service = new SyncAuthService({
       keys: { default: secret },
       crypto: defaultCrypto,
-      replayProtection: new InMemorySyncReplayProtection(),
+      replayProtection: new InMemorySyncReplayProtection(FIXED_CLOCK),
     });
     const body = new TextEncoder().encode('verify-me');
     const headers = await signSyncRequest(
@@ -39,7 +43,7 @@ describe('SyncSecret', () => {
         keyId: 'default',
         lamport: 1,
       },
-      { crypto: defaultCrypto, random: HOST_RANDOM },
+      { crypto: defaultCrypto, random: NONCE_RANDOM },
     );
 
     const result = await service.verify({
@@ -57,7 +61,7 @@ describe('SyncSecret', () => {
       // @ts-expect-error Runtime guard mirrors the public type boundary.
       keys: { default: 'test-secret-key-1234567890' },
       crypto: defaultCrypto,
-      replayProtection: new InMemorySyncReplayProtection(),
+      replayProtection: new InMemorySyncReplayProtection(FIXED_CLOCK),
     })).toThrow('SyncAuthService requires SyncSecret values');
   });
 });

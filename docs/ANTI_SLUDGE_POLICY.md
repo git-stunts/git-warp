@@ -387,6 +387,15 @@ Core logic must be deterministic.
 
 Use ports: `ClockPort`, and seeded PRNG or a `RandomPort`.
 
+For randomness, receive `RandomPort` (`src/ports/RandomPort.ts`) through a
+constructor or parameter, and draw only through `drawEntropy`
+(`src/domain/utils/EntropyDraw.ts`). It fails closed with `EntropyError`
+when a port returns the wrong number of bytes. Composition supplies
+`HostRandomAdapter`. Tests inject `test/helpers/SequenceRandomPort.ts` for
+exact bytes or `test/helpers/SeededRandomPort.ts` for spread bytes. The unit
+test setup installs the default runtime ports globally, so a standalone
+runtime opener needs a witness that resets the module registry.
+
 ---
 
 ## 10. Complexity discipline

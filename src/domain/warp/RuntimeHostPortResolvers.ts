@@ -78,7 +78,10 @@ export async function resolveConfiguredRandom(random: RandomPort | undefined): P
     return random;
   }
   if (runtimeHostRandomResolver === null) {
-    throw new WarpError('random is required at the runtime boundary', 'E_RANDOM_REQUIRED');
+    throw new WarpError(
+      'random is required at the runtime boundary: pass a RandomPort as `random` (HostRandomAdapter for host entropy) or install the default runtime ports',
+      'E_RANDOM_REQUIRED',
+    );
   }
   return await runtimeHostRandomResolver();
 }

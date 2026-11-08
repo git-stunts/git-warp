@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
-import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
@@ -234,5 +235,34 @@ describe('MaterializedViewService.verifyIndex', () => {
 
     expect(result.failed).toBeGreaterThan(0);
     expect(result.errors.some((e) => e.nodeId === 'ISO' && e.direction === 'alive')).toBe(true);
+  });
+
+  it('samples nothing at a zero rate or from an empty graph', () => {
+    const service = new MaterializedViewService({ codec: defaultCodec });
+    const state = buildTestState();
+    const { logicalIndex } = service.build(state);
+    const empty = createEmptyState();
+
+    expect(service.verifyIndex({ state, logicalIndex, random: new SequenceRandomPort(), options: { sampleRate: 0, seed: 1 } }))
+      .toMatchObject({ passed: 0, failed: 0 });
+    expect(service.verifyIndex({
+      state: empty, logicalIndex: service.build(empty).logicalIndex, random: new SequenceRandomPort(), options: { sampleRate: 0.5, seed: 1 },
+    })).toMatchObject({ passed: 0, failed: 0 });
+  });
+
+  it('ignores edges to removed nodes and merges labels for one neighbor', () => {
+    const service = new MaterializedViewService({ codec: defaultCodec });
+    const state = buildTestState();
+    const sha = 'b'.repeat(40);
+    applyPatchOp(state, { type: 'EdgeAdd', from: 'A', to: 'B', label: 'reports', dot: Dot.create('w2', 1) }, new EventId(1, 'w2', sha, 0));
+    applyPatchOp(state, { type: 'NodeAdd', node: 'E', dot: Dot.create('w2', 2) }, new EventId(2, 'w2', sha, 1));
+    applyPatchOp(state, { type: 'EdgeAdd', from: 'A', to: 'E', label: 'stale', dot: Dot.create('w2', 3) }, new EventId(3, 'w2', sha, 2));
+    applyPatchOp(state, new NodeRemove('E', [encodeDot(Dot.create('w2', 2))]), new EventId(4, 'w2', sha, 3));
+    const { logicalIndex } = service.build(state);
+
+    const result = service.verifyIndex({ state, logicalIndex, random: new SequenceRandomPort(), options: { sampleRate: 1, seed: 1 } });
+
+    expect(result.failed).toBe(0);
+    expect(result.passed).toBeGreaterThan(0);
   });
 });

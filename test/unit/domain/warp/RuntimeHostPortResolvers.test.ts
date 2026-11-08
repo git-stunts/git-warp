@@ -127,7 +127,14 @@ describe('RuntimeHostPortResolvers', () => {
     });
     await expect(resolvers.resolveConfiguredRandom(undefined)).rejects.toMatchObject({
       code: 'E_RANDOM_REQUIRED',
+      message: expect.stringMatching(/RandomPort.*HostRandomAdapter.*install the default runtime ports/u),
     });
+  });
+
+  it('rejects a missing commit message codec when no resolver is installed', async () => {
+    const resolvers = await loadResolvers();
+
+    await expect(resolvers.resolveConfiguredCommitMessageCodec(undefined)).rejects.toMatchObject({ code: 'E_MESSAGE_CODEC_REQUIRED' });
   });
 
   it('installs host entropy with the node runtime defaults', async () => {

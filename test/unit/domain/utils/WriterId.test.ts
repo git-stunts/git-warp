@@ -14,32 +14,13 @@ import {
 import EntropyError from '../../../../src/domain/errors/EntropyError.ts';
 import type RandomPort from '../../../../src/ports/RandomPort.ts';
 import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
+import SeededRandomPort from '../../../helpers/SeededRandomPort.ts';
 
 const validateWriterIdCanonical = (_validateWriterIdCanonical) as any;
 import { validateWriterId } from '../../../../src/domain/utils/RefLayout.ts';
 
 /** Golden writer id for the byte sequence 0x00..0x0f. */
 const SEQUENCE_WRITER_ID = 'w_000g40r40m30e209185gr38e1w';
-
-/** Deterministic xorshift32 RandomPort for collision and shape tests. */
-class SeededRandomPort implements RandomPort {
-  private x: number;
-
-  constructor(seed = 123456789) {
-    this.x = seed >>> 0;
-  }
-
-  randomBytes(n: number): Uint8Array {
-    const out = new Uint8Array(n);
-    for (let i = 0; i < n; i++) {
-      this.x ^= this.x << 13; this.x >>>= 0;
-      this.x ^= this.x >> 17; this.x >>>= 0;
-      this.x ^= this.x << 5;  this.x >>>= 0;
-      out[i] = this.x & 0xff;
-    }
-    return out;
-  }
-}
 
 class FixedBytesRandomPort implements RandomPort {
   constructor(private readonly bytes: Uint8Array) {}
@@ -82,7 +63,7 @@ describe('WriterId SPEC', () => {
     it('throws if the port returns too few bytes', () => {
       const draw = () => generateWriterId(new FixedBytesRandomPort(new Uint8Array(15)));
       expect(draw).toThrow(EntropyError);
-      expect(draw).toThrow(expect.objectContaining({ code: 'E_ENTROPY_SHORT_READ' }));
+      expect(draw).toThrow(expect.objectContaining({ code: 'E_ENTROPY_WRONG_LENGTH' }));
     });
 
     it('has extremely low collision risk (no duplicates over 10k)', () => {
@@ -293,6 +274,28 @@ describe('WriterId SPEC', () => {
       } catch (/** @type {any} */ e) {
         expect((e as any).cause).toBe(cause);
       }
+    });
+  });
+
+  describe('resolveWriterId with non-Error failures', () => {
+    it('reports CONFIG_READ_FAILED without a cause when configGet throws a non-Error', async () => {
+      await expect(resolveWriterId({
+        random: new SequenceRandomPort(0),
+        graphName: 'g',
+        explicitWriterId: undefined,
+        configGet: async () => { throw 'nope'; },
+        configSet: async () => {},
+      })).rejects.toMatchObject({ code: 'CONFIG_READ_FAILED', cause: undefined });
+    });
+
+    it('reports CONFIG_WRITE_FAILED without a cause when configSet throws a non-Error', async () => {
+      await expect(resolveWriterId({
+        random: new SequenceRandomPort(0),
+        graphName: 'g',
+        explicitWriterId: undefined,
+        configGet: async () => null,
+        configSet: async () => { throw 'read-only'; },
+      })).rejects.toMatchObject({ code: 'CONFIG_WRITE_FAILED', cause: undefined });
     });
   });
 

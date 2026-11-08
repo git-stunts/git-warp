@@ -6,6 +6,12 @@ import { drawEntropy } from '../../../../src/domain/utils/EntropyDraw.ts';
 import type RandomPort from '../../../../src/ports/RandomPort.ts';
 import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
 
+class LongRandomPort implements RandomPort {
+  randomBytes(length: number): Uint8Array {
+    return new Uint8Array(length + 1);
+  }
+}
+
 class ShortRandomPort implements RandomPort {
   randomBytes(length: number): Uint8Array {
     return new Uint8Array(length - 1);
@@ -32,8 +38,15 @@ describe('drawEntropy', () => {
     expect(draw).toThrow(EntropyError);
     expect(draw).toThrow(WarpError);
     expect(draw).toThrow(expect.objectContaining({
-      code: 'E_ENTROPY_SHORT_READ',
+      code: 'E_ENTROPY_WRONG_LENGTH',
       context: { requested: 16, received: 15 },
+    }));
+  });
+
+  it('rejects a port that returns too many bytes', () => {
+    expect(() => drawEntropy(new LongRandomPort(), 16)).toThrow(expect.objectContaining({
+      code: 'E_ENTROPY_WRONG_LENGTH',
+      context: { requested: 16, received: 17 },
     }));
   });
 
@@ -41,7 +54,7 @@ describe('drawEntropy', () => {
     const port = untypedPort({ randomBytes: (length: number) => Array.from({ length }, () => 0) });
 
     expect(() => drawEntropy(port, 4)).toThrow(expect.objectContaining({
-      code: 'E_ENTROPY_SHORT_READ',
+      code: 'E_ENTROPY_WRONG_LENGTH',
       context: { requested: 4, received: null },
     }));
   });

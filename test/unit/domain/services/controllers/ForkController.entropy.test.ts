@@ -22,6 +22,17 @@ class ShortRandomPort implements RandomPort {
   }
 }
 
+/** Serves the fork-name draw, then returns one byte too few for the writer-id draw. */
+class SecondDrawShortRandomPort implements RandomPort {
+  private readonly first = new SequenceRandomPort(0);
+  private draws = 0;
+
+  randomBytes(length: number): Uint8Array {
+    this.draws += 1;
+    return this.draws === 1 ? this.first.randomBytes(length) : new Uint8Array(length - 1);
+  }
+}
+
 function createHost(random: RandomPort) {
   return {
     _graphName: 'test-graph',
@@ -111,5 +122,16 @@ describe('ForkController entropy', () => {
 
     await expect(ctrl.fork({ from: 'alice', at: 'tip-sha' })).rejects.toBeInstanceOf(EntropyError);
     expect(host._persistence.updateRef).not.toHaveBeenCalled();
+  });
+
+  it('fails before preparing or writing anything when the writer-id draw is short', async () => {
+    const host = createHost(new SecondDrawShortRandomPort());
+    const ctrl = controllerFor(host);
+
+    await expect(ctrl.fork({ from: 'alice', at: 'tip-sha' })).rejects.toMatchObject({ code: 'E_ENTROPY_WRONG_LENGTH' });
+    expect(host._persistence.listRefs).toHaveBeenCalledOnce();
+    expect(host._runtimeStorage.prepareFreshTimeline).not.toHaveBeenCalled();
+    expect(host._persistence.updateRef).not.toHaveBeenCalled();
+    expect(mockRuntimeOpen).not.toHaveBeenCalled();
   });
 });
