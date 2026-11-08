@@ -3,24 +3,31 @@ import {
   type SpawnSyncOptionsWithStringEncoding,
   type SpawnSyncReturns,
 } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, readdirSync, rmSync, statSync, symlinkSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const COMMAND_TIMEOUT_MS = 120_000;
-/** Time for the copy and the declaration type check around the two bounded npm commands. */
-const COPY_AND_DECLARATION_CHECK_MARGIN_MS = 60_000;
+/** Time for the copy and the two dist/ snapshots that the build hook does around its two npm commands. */
+const COPY_AND_SNAPSHOT_MARGIN_MS = 60_000;
 /**
- * The private build runs `npm run build` and `npm pack`. Each one is bounded by
- * its own `spawnSync` timeout, and those are the only real bounds. Vitest cannot
- * interrupt this synchronous work; it compares the elapsed time only after the
- * hook returns. So this value is an after-the-fact verdict. It is sized so that
- * a run whose npm commands stayed inside their own timeouts is never failed by
- * the project-wide `testTimeout` (60 s in `vitest.config.ts`).
+ * The `beforeAll` build hook does the copy, `npm run build`, `npm pack` and the
+ * two dist/ snapshots. This explicit value replaces Vitest's default
+ * `hookTimeout` (10 s; `vitest.config.ts` does not set `hookTimeout`), which the
+ * build alone exceeds. Each npm command is bounded by its own `spawnSync`
+ * timeout, and those are the only real bounds. Vitest cannot interrupt this
+ * synchronous work; it compares the elapsed time only after the hook returns.
+ * So this value is an after-the-fact verdict, sized so that a hook whose npm
+ * commands stayed inside their own timeouts never fails on time. The
+ * declaration type check is not in the hook: it runs in its own `it` under the
+ * project `testTimeout` (60 s).
  */
-const ISOLATED_BUILD_TIMEOUT_MS = 2 * COMMAND_TIMEOUT_MS + COPY_AND_DECLARATION_CHECK_MARGIN_MS;
+const ISOLATED_BUILD_TIMEOUT_MS = 2 * COMMAND_TIMEOUT_MS + COPY_AND_SNAPSHOT_MARGIN_MS;
 const V18_TO_V19_PREFIX = 'dist/scripts/v18-to-v19/';
 const V20_TO_V21_PREFIX = 'dist/scripts/v20-to-v21/';
 
@@ -187,31 +194,49 @@ function isSupportedMigrationArtifact(path: string): boolean {
   return relativePath.startsWith('adapters/') || isTopLevelJavaScript(relativePath);
 }
 
-/** Names one entry's inode, size and modification time, so replacing or rewriting it is observable. */
-function fileIdentity(path: string): string {
+/**
+ * Names one entry without reading the clock: a file by its inode, size and a
+ * SHA-256 of its content; a directory by its inode and the sorted names it
+ * holds. Replacing a file changes its inode, and rewriting it changes its
+ * digest, even when the writer keeps the size and restores the mtime.
+ */
+function entryIdentity(path: string): string {
   const stat = statSync(path, { bigint: true });
-  return `${stat.ino}:${stat.size}:${stat.mtimeNs}`;
+  return stat.isDirectory()
+    ? `${stat.ino}:dir:${readdirSync(path).sort().join('/')}`
+    : `${stat.ino}:${stat.size}:${createHash('sha256').update(readFileSync(path)).digest('hex')}`;
+}
+
+/** Lists the precondition paths that the shared dist/ under `root` lacks. */
+function missingSharedDistPaths(root: string): readonly string[] {
+  return SHARED_DIST_PRECONDITION_PATHS.filter((path) => !existsSync(join(root, path)));
 }
 
 /**
  * Snapshots every entry under a directory, the directory included. Over the
  * shared dist/ this covers all that PublicSurfaceScanner reads there: the
  * declaration roots, their `dist/src/**` import closure and the `.js` export
- * targets. An added, removed, replaced or rewritten entry changes the snapshot.
+ * targets. An added, removed, replaced or rewritten entry changes the snapshot;
+ * see `entryIdentity` for what each line records.
  */
 function treeIdentities(directory: string): readonly string[] {
   return ['.', ...readdirSync(directory, { encoding: 'utf8', recursive: true })]
     .sort()
-    .map((entry) => `${entry} ${fileIdentity(join(directory, entry))}`);
+    .map((entry) => `${entry} ${entryIdentity(join(directory, entry))}`);
 }
 
-/** The evidence of one private build and pack, taken around snapshots of the shared dist/. */
+/**
+ * The evidence of one private build and pack, taken around snapshots of the
+ * shared dist/. The record and its arrays are frozen at runtime; the packed
+ * inventory is reachable only through the frozen `entryPaths` and `hasEntry`.
+ */
 class IsolatedPackRun {
   readonly tree: string;
   readonly copiedTestTree: boolean;
   readonly sharedBefore: readonly string[];
   readonly sharedAfter: readonly string[];
-  readonly entries: ReadonlySet<string>;
+  readonly entryPaths: readonly string[];
+  readonly #entrySet: ReadonlySet<string>;
 
   constructor(fields: {
     readonly tree: string;
@@ -222,16 +247,21 @@ class IsolatedPackRun {
   }) {
     this.tree = fields.tree;
     this.copiedTestTree = fields.copiedTestTree;
-    this.sharedBefore = fields.sharedBefore;
-    this.sharedAfter = fields.sharedAfter;
-    this.entries = fields.entries;
+    this.sharedBefore = Object.freeze([...fields.sharedBefore]);
+    this.sharedAfter = Object.freeze([...fields.sharedAfter]);
+    this.entryPaths = Object.freeze([...fields.entries]);
+    this.#entrySet = new Set(this.entryPaths);
     Object.freeze(this);
+  }
+
+  /** Says whether the packed npm inventory holds the path. */
+  hasEntry(path: string): boolean {
+    return this.#entrySet.has(path);
   }
 
   /** Checks the shared dist/ exists, snapshots it, builds and packs in a private copy, and snapshots it again. */
   static execute(): IsolatedPackRun {
-    const missing = SHARED_DIST_PRECONDITION_PATHS.filter((path) => !existsSync(resolve(path)));
-    expect(missing, MISSING_SHARED_DIST).toEqual([]);
+    expect(missingSharedDistPaths(resolve('.')), MISSING_SHARED_DIST).toEqual([]);
     const sharedBefore = treeIdentities(resolve('dist'));
     const tree = isolatedPackageTree();
     const copiedTestTree = existsSync(join(tree, 'test'));
@@ -316,12 +346,29 @@ describe('release artifact command evidence', () => {
     ['dist/scripts/v20-to-v21/migrate.js', true],
     ['dist/scripts/v20-to-v21/nested/migrate.js', false],
     ['dist/scripts/v20-to-v21/migrate.d.ts', false],
+    ['dist/scripts/v20-to-v21/adapters/X.js', false],
     ['dist/scripts/v18-to-v19/adapters/GitAdapter.js', true],
     ['dist/scripts/v18-to-v19/migrate.js', true],
     ['dist/scripts/v18-to-v19/performance/Run.js', false],
+    ['dist/scripts/v18-to-v19/x/adapters/Y.js', false],
     ['dist/scripts/other/migrate.js', false],
   ])('admits %s as a packed migration module: %s', (path, admitted) => {
     expect(isSupportedMigrationArtifact(path)).toBe(admitted);
+  });
+});
+
+describe('shared dist/ precondition', () => {
+  it('lists each precondition path that the shared dist/ lacks', () => {
+    const root = mkdtempSync(join(tmpdir(), 'git-warp-dist-precondition-'));
+    isolatedTrees.push(root);
+    mkdirSync(join(root, 'dist'));
+    writeFileSync(join(root, 'dist/index.d.ts'), 'export {};\n');
+    expect(missingSharedDistPaths(root))
+      .toEqual(['dist/advanced.d.ts', 'dist/diagnostics.d.ts', 'dist/charts.d.ts', 'dist/testing.d.ts']);
+  });
+
+  afterAll(() => {
+    for (const tree of isolatedTrees.splice(0)) rmSync(tree, { recursive: true, force: true });
   });
 });
 
@@ -343,7 +390,7 @@ describe('isolated release build (#1081)', () => {
   });
 
   it('dry-runs the packed npm artifact and exposes the compiled public surface', () => {
-    const { tree, entries } = run;
+    const { tree, entryPaths: entries } = run;
     const roots = DECLARATION_ROOTS.map((name) => resolve(tree, `dist/${name}.d.ts`));
     const declarations = ts.createProgram(roots, {
       module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext,
@@ -353,17 +400,17 @@ describe('isolated release build (#1081)', () => {
     const requiredDeclarations = declarations.getSourceFiles()
       .map((file) => relative(tree, file.fileName).split('\\').join('/'))
       .filter((path) => path.startsWith('dist/'));
-    expect([...entries].filter((path) => path.endsWith('.d.ts')).sort())
+    expect(entries.filter((path) => path.endsWith('.d.ts')).sort())
       .toEqual(requiredDeclarations.sort());
 
-    const compiledTests = [...entries].filter((entry) => entry.startsWith('dist/test/'));
-    const withheldDocumentation = [...entries].filter(
+    const compiledTests = entries.filter((entry) => entry.startsWith('dist/test/'));
+    const withheldDocumentation = entries.filter(
       (entry) =>
         entry === 'CHANGELOG.md' ||
         entry.startsWith('docs/topics/') ||
         entry.startsWith('docs/operations/')
     );
-    const unrelatedCompiledScripts = [...entries].filter(
+    const unrelatedCompiledScripts = entries.filter(
       (entry) =>
         entry.startsWith('dist/scripts/') &&
         !isSupportedMigrationArtifact(entry) &&
@@ -371,46 +418,46 @@ describe('isolated release build (#1081)', () => {
         entry !== 'dist/scripts/formatFailure.js' &&
         entry !== 'dist/scripts/upgrade-v16-to-v17.js'
     );
-    const implementationNonJavaScript = [...entries].filter(
+    const implementationNonJavaScript = entries.filter(
       (entry) =>
         (entry.startsWith('dist/bin/') || entry.startsWith('dist/scripts/')) &&
         !entry.endsWith('.js')
     );
 
-    expect(entries.has('dist/index.js')).toBe(true);
-    expect(entries.has('dist/index.d.ts')).toBe(true);
-    expect(entries.has('dist/scripts/upgrade-v16-to-v17.js')).toBe(true);
-    expect(entries.has('dist/scripts/upgrade-v16-to-v17.d.ts')).toBe(false);
-    expect(entries.has('dist/scripts/v18-to-v19/migrate.js')).toBe(true);
-    expect(entries.has('dist/scripts/v18-to-v19/migrate.d.ts')).toBe(false);
-    expect(entries.has('dist/scripts/v20-to-v21/migrate.js')).toBe(true);
-    expect(entries.has('dist/bin/git-warp.d.ts')).toBe(false);
+    expect(run.hasEntry('dist/index.js')).toBe(true);
+    expect(run.hasEntry('dist/index.d.ts')).toBe(true);
+    expect(run.hasEntry('dist/scripts/upgrade-v16-to-v17.js')).toBe(true);
+    expect(run.hasEntry('dist/scripts/upgrade-v16-to-v17.d.ts')).toBe(false);
+    expect(run.hasEntry('dist/scripts/v18-to-v19/migrate.js')).toBe(true);
+    expect(run.hasEntry('dist/scripts/v18-to-v19/migrate.d.ts')).toBe(false);
+    expect(run.hasEntry('dist/scripts/v20-to-v21/migrate.js')).toBe(true);
+    expect(run.hasEntry('dist/bin/git-warp.d.ts')).toBe(false);
     expect(implementationNonJavaScript).toEqual([]);
-    expect(entries.has('dist/browser.js')).toBe(false);
-    expect(entries.has('dist/browser.d.ts')).toBe(false);
-    expect(entries.has('dist/legacy.js')).toBe(false);
-    expect(entries.has('dist/legacy.d.ts')).toBe(false);
-    expect(entries.has('dist/rootCompatibility.js')).toBe(false);
-    expect(entries.has('dist/rootCompatibility.d.ts')).toBe(false);
-    expect(entries.has('dist/bin/git-warp.js')).toBe(true);
-    expect(entries.has('bin/git-warp')).toBe(true);
-    expect(entries.has('dist/bin/warp-graph.js')).toBe(false);
-    expect(entries.has('README.md')).toBe(true);
-    expect(entries.has('docs/migrations/v19/README.md')).toBe(true);
-    expect(entries.has('docs/migrations/v21/README.md')).toBe(true);
-    expect(entries.has('docs/READINGS_AND_OPTICS.md')).toBe(true);
-    expect(entries.has('LICENSE')).toBe(true);
-    expect(entries.has('NOTICE')).toBe(true);
+    expect(run.hasEntry('dist/browser.js')).toBe(false);
+    expect(run.hasEntry('dist/browser.d.ts')).toBe(false);
+    expect(run.hasEntry('dist/legacy.js')).toBe(false);
+    expect(run.hasEntry('dist/legacy.d.ts')).toBe(false);
+    expect(run.hasEntry('dist/rootCompatibility.js')).toBe(false);
+    expect(run.hasEntry('dist/rootCompatibility.d.ts')).toBe(false);
+    expect(run.hasEntry('dist/bin/git-warp.js')).toBe(true);
+    expect(run.hasEntry('bin/git-warp')).toBe(true);
+    expect(run.hasEntry('dist/bin/warp-graph.js')).toBe(false);
+    expect(run.hasEntry('README.md')).toBe(true);
+    expect(run.hasEntry('docs/migrations/v19/README.md')).toBe(true);
+    expect(run.hasEntry('docs/migrations/v21/README.md')).toBe(true);
+    expect(run.hasEntry('docs/READINGS_AND_OPTICS.md')).toBe(true);
+    expect(run.hasEntry('LICENSE')).toBe(true);
+    expect(run.hasEntry('NOTICE')).toBe(true);
     expect(withheldDocumentation).toEqual([]);
-    expect(entries.has('CHANGELOG.md')).toBe(false);
-    expect(entries.has('docs/topics/README.md')).toBe(false);
-    expect(entries.has('docs/operations/package-payload.md')).toBe(false);
+    expect(run.hasEntry('CHANGELOG.md')).toBe(false);
+    expect(run.hasEntry('docs/topics/README.md')).toBe(false);
+    expect(run.hasEntry('docs/operations/package-payload.md')).toBe(false);
     expect(compiledTests).toEqual([]);
     expect(unrelatedCompiledScripts).toEqual([]);
-    expect(entries.has('docs/ANTI_SLUDGE_POLICY.md')).toBe(false);
-    expect(entries.has('docs/plans/streaming-indexed-recursive-warp.md')).toBe(false);
-    expect(entries.has('docs/GUIDE.md')).toBe(false);
-    expect(entries.has('src/domain/RuntimeHost.ts')).toBe(false);
-    expect(entries.has('.github/maintainers')).toBe(false);
+    expect(run.hasEntry('docs/ANTI_SLUDGE_POLICY.md')).toBe(false);
+    expect(run.hasEntry('docs/plans/streaming-indexed-recursive-warp.md')).toBe(false);
+    expect(run.hasEntry('docs/GUIDE.md')).toBe(false);
+    expect(run.hasEntry('src/domain/RuntimeHost.ts')).toBe(false);
+    expect(run.hasEntry('.github/maintainers')).toBe(false);
   });
 });
