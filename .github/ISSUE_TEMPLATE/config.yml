@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Task plan house format
+    url: https://github.com/git-stunts/git-warp/blob/main/docs/plans/README.md
+    about: How a docs/plans/<milestone>/tasks/*.md task plan is laid out (frontmatter, type heading, LLM execution prompt, then the matching card template).

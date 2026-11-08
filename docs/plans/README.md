@@ -59,3 +59,45 @@ The [public surface guard plan](./public-surface-guard.md), tracked by
 [#1050](https://github.com/git-stunts/git-warp/issues/1050), specifies an export-map
 driven capability check and shrinking legacy inventory for the accepted Optic
 contract. It does not remove existing APIs.
+
+## Task plan house format
+
+A milestone plan (`ROADMAP.md` or `docs/plans/<milestone>/README.md`) describes all remaining work for that milestone. It starts with an executive summary that says which features are missing or unfinished, how they fit together, and why they complete the milestone. It continues with a sequenced `- [ ]` checklist of tasks. Each task is one atomic, independently mergeable slice. Each checklist item is a hyperlink to that task's plan document.
+
+A task plan document lives at `docs/plans/<milestone>/tasks/<slug>.md` and uses the house card templates in [`.github/ISSUE_TEMPLATE/`](../../.github/ISSUE_TEMPLATE/) (Feature, Bug, Decision, Investigation, Research, Spike, or the generic nine-section card). The same templates are the GitHub issue forms, so an issue and its task plan have the same sections. Write everything in ASD-STE100 Simplified Technical English.
+
+Every task plan document has this order:
+
+1. YAML frontmatter that identifies the task: `id`, `issue`, `slug`, `title`, `type`, `wave`, `workstream`, `status`, `prerequisites`, `unlocks`, and optionally `resources` (git-locks keys). `wave`, `unlocks`, and the `open-frontier`/`blocked` value of `status` are derived from the prerequisite DAG and are validated against it; do not hand-edit them to disagree with the graph.
+2. A level-one heading that names the card type: `# Feature`, `# Bug`, or `# Decision` (or Investigation, Research, Spike).
+3. A fenced ```` ```text ```` block with the LLM prompt that executes the task and satisfies every completion criterion.
+4. The rest of the matching card template, with its numbered sections.
+
+Skeleton:
+
+````markdown
+---
+id: "#1234"
+issue: "#1234"
+slug: "1234-short-slug"
+title: "One-line title"
+type: "Feature"
+wave: 0
+workstream: "W1"
+status: "open-frontier"
+prerequisites: ["#1200 (merged)"]
+unlocks: ["#1240"]
+---
+
+# Feature
+
+```text
+Execute task #1234 (...) in repository ~/git/git-warp.
+1. ...
+```
+
+## 1. Background Context
+...
+````
+
+Prerequisite edges mean "must be merged on `main` before this task is correct"; see the planning rules above. Never write machine-local absolute paths in a task plan; use `~` or repository-relative paths.

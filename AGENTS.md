@@ -201,6 +201,29 @@ DTO and stop there**. Do not hallucinate fake domain models.
   - `🐇 [#N](url)` when waiting for Code Rabbit.
   - `🧪 [#N](url)` when CI is not finished yet.
 
+## Issue and Task Plan House Format
+
+- New GitHub issues use the house card templates in `.github/ISSUE_TEMPLATE/`:
+  Feature, Bug, Decision, Investigation, Research, Spike, or the generic
+  nine-section card. Blank issues are disabled. Use the web chooser or
+  `gh issue create --template "<Name>"`. Keep the numbered section headings.
+  Write "none" or "not applicable, because X" instead of padding a section.
+  Write in ASD-STE100 Simplified Technical English.
+- Each template presets `priority:later` and `status:available`; the Feature
+  and Bug templates also preset their `type:*`. Correct the priority, add the
+  `area:*` label and, where the template could not preset it, the `type:*`
+  label, and assign the GitHub Milestone.
+- Task plan documents live at `docs/plans/<milestone>/tasks/<slug>.md`. Each
+  starts with YAML frontmatter (`id`, `issue`, `slug`, `title`, `type`, `wave`,
+  `workstream`, `status`, `prerequisites`, `unlocks`), then a `# <Type>`
+  heading, then a fenced ```` ```text ```` block holding the LLM prompt that
+  executes the task, then the matching card template body. `wave`, `unlocks`,
+  and the `open-frontier`/`blocked` status are derived from the prerequisite
+  DAG; do not hand-edit them against the graph. Full format:
+  [`docs/plans/README.md`](docs/plans/README.md#task-plan-house-format).
+- A milestone plan is an executive summary followed by a sequenced `- [ ]`
+  checklist of atomic slices, each hyperlinked to its task plan document.
+
 ## Engineering Doctrine
 
 - Read [`docs/ANTI_SLUDGE_POLICY.md`](docs/ANTI_SLUDGE_POLICY.md) and `docs/SYSTEMS_STYLE_TYPESCRIPT.md` (SSTS) before making design-level changes.
