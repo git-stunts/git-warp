@@ -1,5 +1,5 @@
 import type WriteAttemptJournalPort from '../../../ports/WriteAttemptJournalPort.ts';
-import type { AuthoredWriteReceipt } from '../../api/AuthoredWriteReceipt.ts';
+import type { WriteReceipt } from '../../api/WriteReceipt.ts';
 import IndeterminateWriteReceipt from '../../api/IndeterminateWriteReceipt.ts';
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import ObservationAdmitted from '../custody/ObservationAdmitted.ts';
@@ -90,12 +90,12 @@ export default class ConeWriteRecovery {
   }
 
   /** The current receipt of one writer's attempt, or null if it has no record: already answered, or never this writer's. */
-  async reconcile(writer: string, attemptText: string): Promise<AuthoredWriteReceipt | null> {
+  async reconcile(writer: string, attemptText: string): Promise<WriteReceipt | null> {
     const record = await this.#journal.read(new ObservationAttemptId(attemptText));
     return record?.premise.writerId === writer ? await this.#recover(record) : null;
   }
 
-  async #recover(record: WriteAttemptRecord): Promise<AuthoredWriteReceipt> {
+  async #recover(record: WriteAttemptRecord): Promise<WriteReceipt> {
     const admitted = await this.#custody.resume(record.attemptId, record.bindings);
     if (admitted instanceof ObservationAdmitted) {
       return await this.#recoverAdmitted(record, admitted);
@@ -105,7 +105,7 @@ export default class ConeWriteRecovery {
       : this.#indeterminate(record, RECOVERY_UNAVAILABLE);
   }
 
-  async #recoverAdmitted(record: WriteAttemptRecord, admitted: ObservationAdmitted): Promise<AuthoredWriteReceipt> {
+  async #recoverAdmitted(record: WriteAttemptRecord, admitted: ObservationAdmitted): Promise<WriteReceipt> {
     const { attempt, phase } = admitted;
     if (phase === 'reserved' || phase === 'prepared') {
       return await this.#recoverUnarmed(record, attempt);
@@ -124,7 +124,7 @@ export default class ConeWriteRecovery {
    * fact: a record or chain naming a commit outranks it. Otherwise only its age says
    * whether its owner might still try.
    */
-  async #recoverUnarmed(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<AuthoredWriteReceipt> {
+  async #recoverUnarmed(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<WriteReceipt> {
     if (await this.#provesPublication(record)) {
       return this.#indeterminate(record, RECOVERY_UNAVAILABLE);
     }
@@ -146,7 +146,7 @@ export default class ConeWriteRecovery {
     readonly record: WriteAttemptRecord;
     readonly attempt: ObservationAttempt;
     readonly coordinate: ObservationCoordinate;
-  }): Promise<AuthoredWriteReceipt> {
+  }): Promise<WriteReceipt> {
     const { record, attempt, coordinate } = run;
     const resolved = await this.#custody.resolve(coordinate);
     const commit = resolved instanceof ResolvedObservation ? resolved.record.publication?.commit : undefined;
@@ -157,7 +157,7 @@ export default class ConeWriteRecovery {
     return this.#settlement.retained({ attempt, record, commit, races: [] }, coordinate);
   }
 
-  async #fromChain(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<AuthoredWriteReceipt> {
+  async #fromChain(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<WriteReceipt> {
     if (record.commit !== null) {
       return await this.#settlement.settle({ attempt, record, commit: record.commit, races: [] });
     }

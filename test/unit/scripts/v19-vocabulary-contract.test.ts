@@ -48,7 +48,6 @@ const CANONICAL_NOUNS = [
   'Observation',
   'Reading',
   'Receipt',
-  'Settlement',
 ] as const;
 
 afterEach(() => {

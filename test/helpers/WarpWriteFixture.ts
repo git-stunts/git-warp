@@ -13,7 +13,7 @@ import {
   WarpAddress,
   WarpWriteGrant,
 } from '../../index.ts';
-import type { AuthoredWriteReceipt, WarpWriteRequest } from '../../index.ts';
+import type { WriteReceipt, WarpWriteRequest } from '../../index.ts';
 import { getDefaultRuntimeHostNodePorts } from '../../src/application/RuntimeHostNodeDefaults.ts';
 import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
 import { overrideWarpComposition, type WarpCompositionOverrides } from '../../src/application/WarpWriteComposition.ts';
@@ -77,22 +77,22 @@ export async function open(
   return warp;
 }
 
-function narrowed<T extends object>(receipt: AuthoredWriteReceipt | null, type: new (...args: never[]) => T): T {
+function narrowed<T extends object>(receipt: WriteReceipt | null, type: new (...args: never[]) => T): T {
   if (!(receipt instanceof type)) {
     throw new Error(`Expected ${type.name}, got ${JSON.stringify(receipt)}`);
   }
   return receipt;
 }
 
-export function retained(receipt: AuthoredWriteReceipt | null): RetainedWriteReceipt {
+export function retained(receipt: WriteReceipt | null): RetainedWriteReceipt {
   return narrowed(receipt, RetainedWriteReceipt);
 }
 
-export function unpublished(receipt: AuthoredWriteReceipt | null): UnpublishedWriteReceipt {
+export function unpublished(receipt: WriteReceipt | null): UnpublishedWriteReceipt {
   return narrowed(receipt, UnpublishedWriteReceipt);
 }
 
-export function indeterminate(receipt: AuthoredWriteReceipt | null): IndeterminateWriteReceipt {
+export function indeterminate(receipt: WriteReceipt | null): IndeterminateWriteReceipt {
   return narrowed(receipt, IndeterminateWriteReceipt);
 }
 

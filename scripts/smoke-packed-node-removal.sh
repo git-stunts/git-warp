@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Invoked inside the isolated consumer; all writes/reads use its installed CLI.
+# Invoked inside the isolated consumer: writes use its installed Warp, reads its installed CLI.
 set -euo pipefail
 
 DOCKER_TEST_ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -9,6 +9,7 @@ PACKAGE_DIR=$2
 REPO=$3
 CHECK="$ROOT/scripts/package-payload/CheckPackedArtifact.ts"
 mkdir -p removal-evidence
+cp "$ROOT/test/fixtures/packed-warp-write.mjs" ./packed-warp-write.mjs
 git init -q "$REPO"
 git -C "$REPO" config user.name "packed lifecycle smoke"
 git -C "$REPO" config user.email "packed-smoke@example.invalid"
@@ -16,7 +17,7 @@ write() {
   local writer=$1
   local request=$2
   local result="removal-evidence/$writer.json"
-  npx --no-install git-warp --repo "$REPO" --lane events --writer "$writer" --json write --intent "$request" > "$result"
+  node packed-warp-write.mjs "$REPO" events "$writer" "$request" > "$result"
   node "$CHECK" derived "$result"
 }
 observe() {
@@ -41,7 +42,7 @@ git init -q "$OTHER"
 git -C "$OTHER" config user.name "packed replica smoke"
 git -C "$OTHER" config user.email "packed-smoke@example.invalid"
 git -C "$OTHER" fetch -q "$REPO" 'refs/warp/*:refs/warp/*'
-npx --no-install git-warp --repo "$OTHER" --lane events --writer bob --json write --intent '{"kind":"node.add","subject":"n"}' > removal-evidence/bob.json
+node packed-warp-write.mjs "$OTHER" events bob '{"kind":"node.add","subject":"n"}' > removal-evidence/bob.json
 node "$CHECK" derived removal-evidence/bob.json
 write isolated-remover '{"kind":"node.remove","subject":"n"}'
 node "$CHECK" removal "$PACKAGE_DIR" "$REPO" isolated-remover alice:2

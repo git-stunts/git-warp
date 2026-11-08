@@ -10,18 +10,12 @@ import {
 } from '../../../../bin/cli/commands/mcp/McpProtocol.ts';
 import McpRuntimeSession
   from '../../../../bin/cli/commands/mcp/McpRuntimeSession.ts';
-import { Runtime } from '../../../../index.ts';
-import Intent from '../../../../src/domain/api/Intent.ts';
 
 const EXPECTED_TOOLS = [
-  'warp_lane_describe',
-  'warp_intent_write',
   'warp_observation_start',
   'warp_observation_read',
   'warp_observation_cancel',
   'warp_receipt_get',
-  'warp_settlement_preview',
-  'warp_settlement_apply',
   'warp_doctor',
   'warp_repair',
   'warp_audit',
@@ -110,7 +104,7 @@ describe('MCP command protocol', () => {
         id: 'invalid',
         method: 'tools/call',
         params: {
-          name: 'warp_lane_describe',
+          name: 'warp_observation_start',
           arguments: {},
         },
       },
@@ -172,103 +166,6 @@ describe('MCP command protocol', () => {
     });
   });
 
-  it('re-previews and applies a retained plan across Runtime calls', async () => {
-    await seedSettlement(repository);
-
-    const preview = await callTool(1, 'warp_settlement_preview', {
-      sourceLane: 'users',
-      sourceStrand: 'review',
-      targetLane: 'users',
-    });
-    expect(preview).toMatchObject({
-      jsonrpc: '2.0',
-      id: 1,
-      result: {
-        structuredContent: {
-          type: 'SettlementPreview',
-          planRef: 'plan-1',
-          outcome: { kind: 'derived' },
-        },
-      },
-    });
-
-    const applied = await callTool(2, 'warp_settlement_apply', {
-      planRef: 'plan-1',
-    });
-    expect(applied).toMatchObject({
-      jsonrpc: '2.0',
-      id: 2,
-      result: {
-        structuredContent: {
-          receiptRef: 'receipt-1',
-          receipt: {
-            type: 'Receipt',
-            operation: 'settle',
-            outcome: { kind: 'derived' },
-          },
-        },
-      },
-    });
-
-    const observation = await callTool(3, 'warp_observation_start', {
-      lane: 'users',
-      observerId: 'users.role',
-      reading: {
-        kind: 'property.get',
-        subject: 'user:alice',
-        key: 'role',
-      },
-    });
-    expect(observation).toMatchObject({
-      jsonrpc: '2.0',
-      id: 3,
-      result: {
-        structuredContent: { observationId: 'observation-1' },
-      },
-    });
-    expect(await callTool(4, 'warp_observation_read', {
-      observationId: 'observation-1',
-    })).toMatchObject({
-      jsonrpc: '2.0',
-      id: 4,
-      result: {
-        structuredContent: {
-          readings: [{ type: 'Reading', value: 'admin' }],
-          terminal: true,
-        },
-      },
-    });
-  });
-
-  it('rejects a retained plan when the target changed after preview', async () => {
-    await seedSettlement(repository);
-    await callTool(1, 'warp_settlement_preview', {
-      sourceLane: 'users',
-      sourceStrand: 'review',
-      targetLane: 'users',
-    });
-    await callTool(2, 'warp_intent_write', {
-      lane: 'users',
-      intent: {
-        kind: 'property.set',
-        subject: 'user:alice',
-        key: 'role',
-        value: 'owner',
-      },
-    });
-
-    expect(await callTool(3, 'warp_settlement_apply', {
-      planRef: 'plan-1',
-    })).toMatchObject({
-      jsonrpc: '2.0',
-      id: 3,
-      error: {
-        code: -32000,
-        message: 'Reviewed Settlement plan no longer matches the current Runtime preview',
-      },
-    });
-  });
-
   async function callTool(
     id: number,
     name: string,
@@ -286,22 +183,3 @@ describe('MCP command protocol', () => {
     );
   }
 });
-
-async function seedSettlement(repository: string): Promise<void> {
-  const runtime = await Runtime.open({
-    at: repository,
-    writer: 'mcp-test',
-  });
-  try {
-    const users = await runtime.lane('users');
-    await users.write(Intent.addNode({ subject: 'user:alice' }));
-    const review = await runtime.fork(users, { name: 'review' });
-    await review.write(Intent.setProperty({
-      subject: 'user:alice',
-      key: 'role',
-      value: 'admin',
-    }));
-  } finally {
-    await runtime.close();
-  }
-}

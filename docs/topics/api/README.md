@@ -856,16 +856,20 @@ The checkpoint is implemented only when executable evidence proves all of the
 following:
 
 1. Root runtime values contain exactly `Runtime`.
-2. Ordinary open, close, lane, write, observe, and receipt workflows compile
-   without importing Git, storage, graph, or formal nouns.
-3. Lane kinds are mutually exclusive runtime truths.
+2. Ordinary open, close, lane, observe, and receipt workflows compile
+   without importing Git, storage, graph, or formal nouns. In v21, writes go
+   through `Warp.as(writer).execute(intent)`
+   ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
+3. A `Lane` is a read-only worldline handle: v21 removed its writes, staging,
+   identity members, and strand kind.
 4. Generated Intent and Observer values are validated domain objects.
 5. `Lane.observe()` is synchronous and all demand paths share one execution.
 6. Awaiting a Receipt drains without materializing Reading streams.
 7. `Reading.value` is canonical across SDK, CLI JSON, MCP, fixtures, and
    serialized envelopes.
 8. Outcome and support algebras cannot alias one another.
-9. Settlement accepts only immutable validated plans and revalidates them.
+9. Settlement is removed from the v21 `Runtime`, which keeps only its read
+   path until [#1052](https://github.com/git-stunts/git-warp/issues/1052).
 10. `/graph` is absent and `/charts` is tested as a derived-view surface.
 11. CLI and MCP capability names conform to the same vocabulary.
 12. Legacy vocabulary is rejected from public surfaces with explicit migration
