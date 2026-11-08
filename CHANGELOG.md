@@ -44,9 +44,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   invariants and repository corruption reject, and a store failure that the
   adapter cannot identify as transient rejects. The attempt-journal and
   custody-support steps still turn any failure into `attempt-journal-unavailable`
-  or `retention-unavailable` until #1109 classifies them by type. An untyped
-  failure of the patch feed or of the writer's runtime host now rejects too; on
-  unreleased `main` it returned `write-basis-unavailable`
+  or `retention-unavailable` until #1109 classifies them by type. Corrupt patch
+  history met while reading the premise rejects as `WriteHistoryCorruptError`
+  instead of a missing-basis refusal. Every failure of the patch feed, the
+  writer's runtime host or the fast-import writer now rejects too, transient or
+  not, until #1109 classifies them; on unreleased `main` such a failure returned
+  `write-basis-unavailable`. A git-cas `GIT_OBJECT_NOT_FOUND` read through the
+  history adapter is now typed as `PersistenceError` `E_MISSING_OBJECT`, so on the
+  checkpoint-shard read it becomes `E_OPTIC_NO_BOUNDED_BASIS`
+  (`checkpoint-shard-unavailable`)
   ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)
