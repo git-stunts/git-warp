@@ -544,10 +544,10 @@ code reached only by its own tests. The budget is not raised. Measured with
 | State | Unpacked bytes | Free bytes | Compressed bytes | Entries |
 | --- | ---: | ---: | ---: | ---: |
 | Before #1079 (`origin/main` at d78c33d99) | 3,295,830 | 4,170 | 713,417 | 1,229 |
-| After #1079 | 3,279,294 | 20,706 | 710,172 | 1,222 |
+| After #1079 | 3,282,914 | 17,086 | 711,234 | 1,225 |
 
 #1052 is expected to be close to #1051 in size, and #1051 added about 323,000
-unpacked bytes. 20,706 free bytes do not cover that. **Decided (2026-11-08):**
+unpacked bytes. 17,086 free bytes do not cover that. **Decided (2026-11-08):**
 #1054 runs before #1052 and is recorded as a GitHub dependency, so #1052 starts
 with the bytes the legacy deletion frees. Measure again after #1054. If #1052
 still needs more, it deletes the legacy code it replaces in its own PR, or it gets
