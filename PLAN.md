@@ -168,7 +168,7 @@ flowchart TD
     M1051["#1051 Warp Cone Writes"]
   end
 
-  subgraph Wave0["Antichain 0: Immediate Unblockers (Ready Now)"]
+  subgraph Wave0["Antichain 0: Open Root Nodes (Zero Incomplete Parents)"]
     W0_1082["PR #1082 (#1052 Slice 3a: Node/Prop Optic Reads)"]
     W0_Test["#1081 & #1070 Script/Runner Test Fixes"]
     W0_1080["#1080 Loose-Object Attribution & Read Retention Rule"]
@@ -178,34 +178,36 @@ flowchart TD
     W0_1075["#1075 Bound Publication Probe & Writer Limit"]
     W0_1076["#1076 Typed Write Causes & Unforgeable Receipts"]
     W0_1079["#1079 Payload Headroom & Contract Reconciliation"]
+    W0_1041["#1041 Bound Repository Pack Count"]
     W0_1032["#1032 Security Risk Re-Review"]
     W0_815["#815 Retained Manifests & Address Pages"]
     W0_192["#192 IncrementalIndexUpdater Boundary"]
-    W0_819["#819 Typed Recursive Graph Refs"]
-    W0_917["#917 Bounded Atomic Bulk Ingestion"]
+    W0_811["#811 Canonical Migration Guidance Contract"]
+    W0_1044S1["#1044 Slice 1: Retained-Readings Design & Record Digests"]
   end
 
-  subgraph Wave1["Antichain 1: Complete Optic Reads & Selection Plane"]
+  subgraph Wave1["Antichain 1: Complete Optic Reads & Selection/Reference Roots"]
     W1_1052B["#1052 Slice 3b: Edges, Neighbourhood, Inventory, Strands, Plurality"]
     W1_1073["#1073 Honest Cross-Process derived via Read Knowledge"]
     W1_1077["#1077 Multi-Process Crash & Durability Witnesses"]
-    W1_1041["#1041 Bound Repository Pack Count"]
     W1_816["#816 Roaring Selection Plane"]
     W1_228["#228 MaterializedViewService Index Decoupling"]
-    W1_820["#820 Cycle-Safe Recursive Traversal"]
+    W1_819["#819 Typed Recursive Graph Refs"]
   end
 
   subgraph Wave2["Antichain 2: Historical Coordinates, Strands & Operator CLI"]
     W2_1053["#1053 Coordinate Replay, Re-Ask, Fork & Strand Settlement (#968-#970)"]
     W2_1057["#1057 CLI doctor & repair Cone/Optic Rewrite"]
     W2_817["#817 Stream Causal Reduction & Root Commitments"]
+    W2_820["#820 Cycle-Safe Recursive Traversal"]
     W2_821["#821 Recursive CAS Retention & Diagnostics"]
   end
 
-  subgraph Wave3["Antichain 3: Newcomer Scaffold & Substrate Migration"]
+  subgraph Wave3["Antichain 3: Newcomer Scaffold, Bulk Stream & Substrate Migration"]
     W3_1055["#1055 Newcomer Path, Annotations Scaffold & Showcase Witness (#1045, #979)"]
     W3_248["#248 Remove _materializeGraph Runtime Consumers"]
-    W3_822["#822 & #811 Migrate Substrates to Indexed Roots"]
+    W3_917["#917 Bounded Atomic Bulk Ingestion"]
+    W3_822["#822 Migrate Substrates to Indexed Roots"]
   end
 
   subgraph Wave4["Antichain 4: Breaking Cutover & Full-State Deletion"]
@@ -230,20 +232,28 @@ flowchart TD
   W0_1078 --> W1_1077
   W0_1080 --> W1_1077
   W0_815 --> W1_816
+  W0_192 --> W1_816
   W0_192 --> W1_228
-  W0_819 --> W1_820
+  W0_815 --> W1_819
 
   W1_1052B --> W2_1053
   W0_1072 --> W2_1053
   W1_1052B --> W2_1057
   W1_816 --> W2_817
-  W1_820 --> W2_821
+  W1_816 --> W2_820
+  W1_819 --> W2_820
+  W1_819 --> W2_821
 
   W2_1053 --> W3_1055
+  W0_1041 --> W3_1055
   W2_817 --> W3_248
   W1_228 --> W3_248
   W1_1052B --> W3_248
+  W2_817 --> W3_917
   W2_817 --> W3_822
+  W0_811 --> W3_822
+  W2_820 --> W3_822
+  W2_821 --> W3_822
 
   W3_1055 --> W4_1054
   W0_1076 --> W4_1054
@@ -251,11 +261,12 @@ flowchart TD
   W3_248 --> W4_814
   W3_822 --> W4_814
   W4_1054 --> W4_814
+  W0_1044S1 --> W4_814
 
   W4_814 --> W5_823
   W2_821 --> W5_823
   W3_822 --> W5_823
-  W0_917 --> W5_823
+  W3_917 --> W5_823
   W5_823 --> W5_Rel
   W0_1032 --> W5_Rel
   W1_1077 --> W5_Rel
@@ -297,24 +308,24 @@ flowchart TD
 
 ### D. Step-by-Step Antichain Execution Checklist (Order of Attack)
 
-- [ ] **Wave 0 (Immediate Parallel Unblockers — No Unmerged Prerequisites):**
+- [ ] **Wave 0 (Open Root Nodes — Zero Incomplete Parent Tasks):**
   - [ ] **0.1:** Push & merge PR [#1082](https://github.com/git-stunts/git-warp/pull/1082) (`#1052` Slice 3a: core `Optic` node & property reads).
   - [ ] **0.2:** Fix CI/script test hygiene bugs [#1081](https://github.com/git-stunts/git-warp/issues/1081) (`public-surface-package` `dist/` race) and [#1070](https://github.com/git-stunts/git-warp/issues/1070) (stable unit runner `.benchmark.` filter).
   - [ ] **0.3:** Resolve [#1080](https://github.com/git-stunts/git-warp/issues/1080) (attribute ~300 loose objects per retained observation & settle read retention policy) and [#1079](https://github.com/git-stunts/git-warp/issues/1079) (payload headroom & contract reconciliation).
-  - [ ] **0.4:** Land write-path foundations: [#1078](https://github.com/git-stunts/git-warp/issues/1078) (`Warp.open` pre-access & clone-local ref guard), [#1072](https://github.com/git-stunts/git-warp/issues/1072) (write races in receipt core), [#1074](https://github.com/git-stunts/git-warp/issues/1074) (attempt crash recovery), [#1075](https://github.com/git-stunts/git-warp/issues/1075) (bounded probe & writer limit), and [#1076](https://github.com/git-stunts/git-warp/issues/1076) (typed causes & unforgeable receipts).
+  - [ ] **0.4:** Land write-path & storage foundations: [#1078](https://github.com/git-stunts/git-warp/issues/1078) (`Warp.open` pre-access & clone-local ref guard), [#1072](https://github.com/git-stunts/git-warp/issues/1072) (write races in receipt core), [#1074](https://github.com/git-stunts/git-warp/issues/1074) (attempt crash recovery), [#1075](https://github.com/git-stunts/git-warp/issues/1075) (bounded probe & writer limit), [#1076](https://github.com/git-stunts/git-warp/issues/1076) (typed causes & unforgeable receipts), and [#1041](https://github.com/git-stunts/git-warp/issues/1041) (bound repository pack count).
   - [ ] **0.5:** Complete [#1032](https://github.com/git-stunts/git-warp/issues/1032) (re-review 4 expired security risks in `.github/SECURITY.md`).
-  - [ ] **0.6:** Start independent stream roots: [#815](https://github.com/git-stunts/git-warp/issues/815), [#192](https://github.com/git-stunts/git-warp/issues/192), [#819](https://github.com/git-stunts/git-warp/issues/819), [#917](https://github.com/git-stunts/git-warp/issues/917).
-- [ ] **Wave 1 (Complete Optic Read Surface & Write Witnesses):**
+  - [ ] **0.6:** Start global selection, migration, and retained-reading root fronts: [#815](https://github.com/git-stunts/git-warp/issues/815) (retained manifests & address pages), [#192](https://github.com/git-stunts/git-warp/issues/192) (`IncrementalIndexUpdater` boundary), [#811](https://github.com/git-stunts/git-warp/issues/811) (canonical migration guidance contract), and [#1044](https://github.com/git-stunts/git-warp/issues/1044) Design Record & Slice 1 (`design/retained-readings` `d1a02bd2b`).
+- [ ] **Wave 1 (Complete Optic Read Surface, Selection Plane & Typed Recursive Refs):**
   - [ ] **1.1:** Extract & land [#1052](https://github.com/git-stunts/git-warp/issues/1052) Slice 3b (edges, `edgesAround`, traversal, content, paged inventory, `Optic(observedStrand)`, plurality, Wesley observers, read retention, `#1045` read pins).
-  - [ ] **1.2:** Land [#1073](https://github.com/git-stunts/git-warp/issues/1073) (honest cross-process `derived` fed by `#1052` reads), [#1077](https://github.com/git-stunts/git-warp/issues/1077) (multi-process crash/durability witnesses), and [#1041](https://github.com/git-stunts/git-warp/issues/1041) (pack count bound).
-  - [ ] **1.3:** Advance selection & recursion streams: [#816](https://github.com/git-stunts/git-warp/issues/816), [#228](https://github.com/git-stunts/git-warp/issues/228), [#820](https://github.com/git-stunts/git-warp/issues/820).
-- [ ] **Wave 2 (Coordinates, Strands, Operator CLI & Root Commitments):**
+  - [ ] **1.2:** Land [#1073](https://github.com/git-stunts/git-warp/issues/1073) (honest cross-process `derived` fed by `#1052` reads) and [#1077](https://github.com/git-stunts/git-warp/issues/1077) (multi-process crash/durability witnesses).
+  - [ ] **1.3:** Advance selection & reference roots: [#816](https://github.com/git-stunts/git-warp/issues/816) (requires `#815` + `#192`), [#228](https://github.com/git-stunts/git-warp/issues/228) (requires `#192`), and [#819](https://github.com/git-stunts/git-warp/issues/819) (requires `#815` + closed `#903`).
+- [ ] **Wave 2 (Coordinates, Strands, Operator CLI, Root Commitments & Recursive Traversal):**
   - [ ] **2.1:** Extract & land [#1053](https://github.com/git-stunts/git-warp/issues/1053) (receipt-derived `Coordinate`, `replay`, `at`, fork from `Coordinate`, strand overlays & settlement [#968](https://github.com/git-stunts/git-warp/issues/968)–[#970](https://github.com/git-stunts/git-warp/issues/970)).
   - [ ] **2.2:** Extract & land [#1057](https://github.com/git-stunts/git-warp/issues/1057) (CLI `doctor` and `repair` cone/optic rewrite).
-  - [ ] **2.3:** Advance [#817](https://github.com/git-stunts/git-warp/issues/817), [#821](https://github.com/git-stunts/git-warp/issues/821), and [#1044](https://github.com/git-stunts/git-warp/issues/1044) Slices 1–6.
-- [ ] **Wave 3 (Newcomer Scaffold, Showcase Witness & Runtime/Substrate Migration):**
+  - [ ] **2.3:** Advance [#817](https://github.com/git-stunts/git-warp/issues/817) (requires `#816`), [#820](https://github.com/git-stunts/git-warp/issues/820) (requires `#816` + `#819`), [#821](https://github.com/git-stunts/git-warp/issues/821) (requires `#819`), and [#1044](https://github.com/git-stunts/git-warp/issues/1044) Slices 2–6.
+- [ ] **Wave 3 (Newcomer Scaffold, Bulk Ingestion & Runtime/Substrate Migration):**
   - [ ] **3.1:** Extract & land [#1055](https://github.com/git-stunts/git-warp/issues/1055) (`examples/annotations`, `benchmarks/cone-showcase`, newcomer witness `#1045` full flip, `WarpAccessPort` guide, [#979](https://github.com/git-stunts/git-warp/issues/979)).
-  - [ ] **3.2:** Land [#248](https://github.com/git-stunts/git-warp/issues/248) (`_materializeGraph` consumer migration) and [#822](https://github.com/git-stunts/git-warp/issues/822) / [#811](https://github.com/git-stunts/git-warp/issues/811) (substrate migration).
+  - [ ] **3.2:** Land [#248](https://github.com/git-stunts/git-warp/issues/248) (`_materializeGraph` consumer migration), [#917](https://github.com/git-stunts/git-warp/issues/917) (bounded atomic bulk ingestion, requires `#817` + closed `#916`), and [#822](https://github.com/git-stunts/git-warp/issues/822) (substrate migration, requires `#811` + `#817` + `#819`–`#821`).
 - [ ] **Wave 4 (Direct Breaking Cutover & Whole-State Deletion):**
   - [ ] **4.1:** Land [#1054](https://github.com/git-stunts/git-warp/issues/1054) (delete legacy `Runtime`, `Lane`, `captureCoordinate`, empty `#1050` ratchet, include `git-warp-w-1050` iterator commits, write v20 $\to$ v21 migration guide) and close prototype PR [#1040](https://github.com/git-stunts/git-warp/pull/1040).
   - [ ] **4.2:** Land [#814](https://github.com/git-stunts/git-warp/issues/814) and [#1044](https://github.com/git-stunts/git-warp/issues/1044) Slice 7 (delete full-state codecs/contracts & whole-state checkpoint system).
