@@ -11,6 +11,7 @@ import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { createMockPersistence } from '../../../helpers/warpGraphTestUtils.ts';
 import { createMemoryRuntimeStorage } from '../../../helpers/MemoryRuntimeHost.ts';
+import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
 
 describe('WarpOpenOptions', () => {
   it('freezes required runtime open options without resolving default ports', () => {
@@ -28,6 +29,7 @@ describe('WarpOpenOptions', () => {
     expect(options.gcPolicy).toEqual({});
     expect(options.codec).toBeUndefined();
     expect(options.crypto).toBeUndefined();
+    expect(options.random).toBeUndefined();
     // Ports stay unresolved, but the checkpoint cadence is a policy rather than
     // a port: omitting it must not silently disable compaction.
     expect(options.checkpointPolicy).toEqual(DEFAULT_CHECKPOINT_POLICY);
@@ -135,5 +137,23 @@ describe('WarpOpenOptions', () => {
     await expect(resolveRuntimeHostConstructionOptions(options)).rejects.toMatchObject({
       code: 'E_RUNTIME_STORAGE_REQUIRED',
     });
+  });
+
+  it('keeps an explicit random port on the frozen options', () => {
+    const random = new SequenceRandomPort();
+    const options = new WarpOpenOptions({
+      persistence: createMockPersistence(), graphName: 'random-options', writerId: 'writer-1', random,
+    });
+
+    expect(options.random).toBe(random);
+  });
+
+  it.each([null, undefined])('rejects JavaScript %s persistence before boot', (persistence) => {
+    expect(() => new WarpOpenOptions({
+      // @ts-expect-error exercising runtime validation for JavaScript callers
+      persistence,
+      graphName: 'no-persistence',
+      writerId: 'writer-1',
+    })).toThrow(expect.objectContaining({ code: 'E_INVALID_ARG' }));
   });
 });

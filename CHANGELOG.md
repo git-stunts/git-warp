@@ -34,6 +34,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Generated writer ids, default strand names, fork names, index-verification
+  seeds, and sync request nonces now come from the runtime's injected entropy
+  source instead of host crypto globals. Their formats and validation are
+  unchanged. `Runtime.open`, `createRuntimeHarness` and the CLI supply the
+  default entropy source, so code that uses the package entry points needs no
+  change. Only code that imports internal modules directly, such as this
+  repository's scripts and tests, can open a runtime host with its own ports.
+  If such code installs no default ports, it now fails with
+  `E_RANDOM_REQUIRED`. Fix it by passing `random: new HostRandomAdapter()`
+  beside `crypto`, or by calling `installDefaultRuntimeHostNodePorts()` first.
+  The package entry points export neither name
+  ([#184](https://github.com/git-stunts/git-warp/issues/184)).
 - Move incremental index shard encoding behind `IndexStorePort`. The new
   `IndexStorePort.openShardTree()` opens a synchronous typed view over an
   in-memory index tree; `IncrementalIndexUpdater` now reads and returns
