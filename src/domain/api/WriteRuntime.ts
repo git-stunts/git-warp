@@ -345,7 +345,8 @@ const INVALID_PATCH_METADATA_CODES: ReadonlySet<string> = new Set([
   'E_PATCH_OPS', 'E_PATCH_METADATA_ENTRY', 'E_PATCH_METADATA_TYPE',
 ]);
 
-function invalidObservationMetadata(error: WarpError): boolean {
+/** Patch history that does not decode or is malformed, as a write observation meets it. */
+export function invalidObservationMetadata(error: WarpError): boolean {
   if (error instanceof MessageCodecError || error instanceof CrdtError) { return true; }
   if (error instanceof SyncError) { return error.code === 'E_SYNC_PATCH_HISTORY'; }
   return error instanceof PatchError && INVALID_PATCH_METADATA_CODES.has(error.code);

@@ -9,7 +9,9 @@
  */
 
 import WarpError from '../errors/WarpError.ts';
+import { drawEntropy } from './EntropyDraw.ts';
 import { validateWriterId } from './RefLayout.ts';
+import type RandomPort from '../../ports/RandomPort.ts';
 
 /**
  * Typed error for WriterId generation and resolution failures.
@@ -63,19 +65,8 @@ export function validateWriterIdCanonical(id: string): void {
   }
 }
 
-/**
- * Default random bytes generator using Web Crypto API.
- *
- * @throws {WriterIdError} If no secure random generator is available
- */
-function defaultRandomBytes(n: number): Uint8Array {
-  if (typeof globalThis?.crypto?.getRandomValues === 'function') {
-    const out = new Uint8Array(n);
-    globalThis.crypto.getRandomValues(out);
-    return out;
-  }
-  throw new WriterIdError('CSPRNG_UNAVAILABLE', 'No secure random generator available');
-}
+/** Entropy behind one canonical writer id: 128 bits. */
+const WRITER_ID_ENTROPY_BYTES = 16;
 
 /**
  * Encodes bytes as Crockford Base32 (lowercase).
@@ -104,33 +95,25 @@ function crockfordBase32(bytes: Uint8Array): string {
 }
 
 /**
- * Generates a new canonical writer ID.
+ * Generates a new canonical writer ID from injected entropy.
  *
- * Uses 128 bits of entropy (16 bytes) encoded as Crockford Base32.
- * The result is prefixed with `w_` for a total length of 28 characters.
+ * Draws 128 bits (16 bytes) from `random` and encodes them as Crockford
+ * Base32. The result is prefixed with `w_` for a total length of 28
+ * characters. The same entropy always yields the same id.
  *
- * @throws {WriterIdError} If RNG is unavailable or returns wrong shape
- *
- * @example
- * const id = generateWriterId();
- * // => 'w_abc123...' (26 random chars after prefix)
+ * @throws {EntropyError} If the port does not return exactly 16 bytes
  *
  * @example
- * // With custom RNG for deterministic testing
- * const id = generateWriterId({ randomBytes: mySeededRng });
+ * const id = generateWriterId(random);
+ * // => 'w_abc123...' (26 chars after prefix)
  */
-export function generateWriterId(options?: { randomBytes?: (n: number) => Uint8Array }): string {
-  const rb = options?.randomBytes ?? defaultRandomBytes;
-  const bytes = rb(16); // 128-bit
-
-  if (!(bytes instanceof Uint8Array) || bytes.length !== 16) {
-    throw new WriterIdError('CSPRNG_UNAVAILABLE', 'randomBytes() must return Uint8Array(16)');
-  }
-
-  return `w_${crockfordBase32(bytes).toLowerCase()}`;
+export function generateWriterId(random: RandomPort): string {
+  const bytes = drawEntropy(random, WRITER_ID_ENTROPY_BYTES);
+  return `w_${crockfordBase32(bytes)}`;
 }
 
 interface ResolveWriterIdArgs {
+  readonly random: RandomPort;
   readonly graphName: string;
   readonly explicitWriterId: string | null | undefined;
   readonly configGet: (key: string) => Promise<string | null>;
@@ -149,13 +132,14 @@ interface ResolveWriterIdArgs {
  *
  * @example
  * const writerId = await resolveWriterId({
+ *   random,
  *   graphName: 'events',
  *   explicitWriterId: undefined,
  *   configGet: async (key) => git.config.get(key),
  *   configSet: async (key, val) => git.config.set(key, val),
  * });
  */
-export async function resolveWriterId({ graphName, explicitWriterId, configGet, configSet }: ResolveWriterIdArgs): Promise<string> {
+export async function resolveWriterId({ random, graphName, explicitWriterId, configGet, configSet }: ResolveWriterIdArgs): Promise<string> {
   if (explicitWriterId !== null && explicitWriterId !== undefined) {
     assertOrdinaryWriterId(explicitWriterId);
     return explicitWriterId;
@@ -167,7 +151,7 @@ export async function resolveWriterId({ graphName, explicitWriterId, configGet, 
     return fromConfig;
   }
 
-  return await generateAndPersist(configSet, key);
+  return await generateAndPersist(configSet, key, random);
 }
 
 /**
@@ -208,8 +192,12 @@ function tryValidateWriterId(id: string): boolean {
 /**
  * Generates a fresh writer ID and persists it to config.
  */
-async function generateAndPersist(configSet: (key: string, value: string) => Promise<void>, key: string): Promise<string> {
-  const fresh = generateWriterId();
+async function generateAndPersist(
+  configSet: (key: string, value: string) => Promise<void>,
+  key: string,
+  random: RandomPort,
+): Promise<string> {
+  const fresh = generateWriterId(random);
   validateWriterId(fresh);
   validateWriterIdCanonical(fresh);
 

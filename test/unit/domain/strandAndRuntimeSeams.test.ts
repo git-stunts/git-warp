@@ -20,6 +20,7 @@ import type {
   DetachedOpenOptions,
 } from '../../../src/domain/services/controllers/detachedOpen.ts';
 import type { DetachedGraphInternalReadSurface } from '../../../src/domain/capabilities/DetachedGraphFactory.ts';
+import SequenceRandomPort from '../../helpers/SequenceRandomPort.ts';
 
 describe('strand and runtime host seams', () => {
   it('uses StrandError as the public speculative-lane error noun', () => {
@@ -166,6 +167,7 @@ function createDetachedHost(): DetachedOpenHost {
     _trustConfig: { mode: 'off', pin: null },
     _onDeleteWithData: 'reject',
     _crypto: defaultCrypto,
+    _random: new SequenceRandomPort(),
     _codec: defaultCodec,
   };
 }

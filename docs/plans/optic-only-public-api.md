@@ -41,18 +41,18 @@ representations; schema generation belongs at transport boundaries.
 | `WarpAddress` | `of(storage, name)` validates the storage/name pair | Reject malformed or reserved names; contains no writer or observer |
 | `Warp` | `open(address, access)` opens resources; `forObserver(identity)`, `as(writer)`, `close()` | `access` is an injected `WarpAccessPort`; opening does not grant data access |
 | `ObservedWarp` | Returned only by `forObserver`; accepted by `Optic`; `fork(coordinate)` | Binds an observer identity; current rights are checked on execution |
-| `AuthoredWarp` | Returned only by `as`; `execute(intentOrIntents): Promise<WriteReceipt>`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation and returns the write receipt variant specified in section 7 |
+| `AuthoredWarp` | Returned only by `as`; `execute(intentOrIntents): Promise<WriteReceipt>`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation and returns the write receipt variant specified in section 7. While it fixes the basis or reads the premise records, an unavailable store returns `UnpublishedWriteReceipt`, and invalid input, a throwing injected access port, a defect, a broken invariant, corruption or a store failure the adapter cannot identify as transient rejects. The attempt-journal and custody-support steps are not yet classified by type (#1109) (section 11) |
 | `ObserverIdentity` | `of(namespace, subject)` validates a principal name | A name is not an authentication credential or a grant |
-| `Purpose` | `of(namespace, name, version)` validates a registered purpose identifier | Unknown or undeclared purposes are refused by policy |
+| `Purpose` | `of(namespace, name, version)` will validate a registered purpose identifier (#1052) | Will refuse unknown or undeclared purposes by policy. There is no runtime purpose registry; the runtime-backed `Purpose` class arrives with caller-supplied purposes in #1052 (section 11) |
 | `ReadBudget` | `of(limits)` validates named finite limits for records, emitted bytes, and work | Invalid limits fail construction; execution accounts for aggregate work |
-| `Optic` | `Optic(observedWarpOrStrand)` returns an immutable query builder | An unscoped Warp cannot execute a question |
+| `Optic` | `Optic(observedWarpOrStrand)` returns an immutable query builder | An unscoped Warp cannot execute a question. #1052 must make an unavailable store before read permission settle the observation to a typed failed receipt; `read()` will not reject for it (section 11) |
 | `Intent` | Existing validated builders or generated SDK constructors | Preserve actual intent/reducer semantics; no arbitrary callback execution |
 | `Observer` | Existing validated/generated query-plan constructors | This names a question plan, not a principal; requires stable identity and version |
 | `Observation` | Resolved by `read()`; async iteration, `receipt: Promise<ObservationReceipt>`, `cancel(): Promise<ObservationReceipt>` | One execution and consumer; cancellation and receipt demand settle to the same terminal receipt |
 | `Reading` | Emitted only by an Observation | Validated value plus scoped evidence; never a whole-state object |
 | `PageSize` / `PageContinuation` | `PageSize.of(records)` requires a positive safe integer, rejecting fractions, non-positive values, and non-finite or unsafe numbers; continuation is returned only by `ContinuedCoverage` | Continuation is opaque, bound to one live pagination session, and consumed by `query.resume(continuation).read()` |
 | `CompleteCoverage` / `ContinuedCoverage` | Returned in a completed observation receipt's `coverage`; only `ContinuedCoverage` has `continuation` | A completed page is not a complete answer; only `CompleteCoverage` attests exhaustion of the underlying question |
-| `Receipt` variants | Returned by writes, observations, forks, replay, and settlement; `CompletedObservationReceipt` carries a durable Coordinate | Describe the actual operation and its outcome; no caller-created success evidence |
+| `Receipt` variants | Returned by writes, observations, forks, replay, and settlement; `CompletedObservationReceipt` carries a durable Coordinate when the query asked for one | Describe the actual operation and its outcome; no caller-created success evidence |
 | `WriteReceipt` variants | Returned only by `execute`; `RetainedWriteReceipt`, `UnretainedWriteReceipt`, `UnpublishedWriteReceipt`, or `IndeterminateWriteReceipt` | Section 7 defines which variant establishes publication, admission, retention, and a usable `coordinate` |
 | `Coordinate` | Obtained from a retained receipt; `parse(text)` and `toString()` | Parsing validates syntax only; resolution and authority checks occur at use |
 | `Strand` | Returned by `observedWarp.fork(coordinate)` or `observedStrand.fork(coordinate)` | Fork authorization and retained origin are required; no fork from a raw cut |
@@ -128,13 +128,17 @@ A live Optic without
 `at` captures the replica's admitted basis when `read()` starts execution. Building
 the query does not silently freeze a moving history.
 
-Reads never append writer patches. Every successful completed observation,
-including a completed page, must retain its observation evidence through the
-separate retention path before returning `CompletedObservationReceipt` and its
-durable Coordinate. There is no non-durable completed receipt in this target API.
-Retention denial or failure yields a typed non-completed terminal receipt even
-if some readings were already delivered; streamed values alone do not prove
-durability or completion. Cancelled/refused/failed attempts need not invent a
+Reads never append writer patches. A read retains only when its query asks
+for a Coordinate (decided 2026-11-06, #1080). Retention costs objects and a
+permanent ref per observation, and a read that nobody can cite again gains
+nothing from paying it. Without that request, a completed read returns
+`CompletedObservationReceipt` with no Coordinate: it states what was read and
+at which basis, but it cannot be replayed or forked from. With the request,
+the observation, including a completed page, must retain its evidence through
+the separate retention path before returning the receipt and its durable
+Coordinate. Retention denial or failure then yields a typed non-completed
+terminal receipt even if some readings were already delivered; streamed values
+alone do not prove durability or completion. Cancelled/refused/failed attempts need not invent a
 Coordinate. Retention's storage cost and disclosure policy are explicit; it
 cannot become an ambient writer identity merely to reuse a write API.
 
@@ -450,19 +454,27 @@ that the final public contract is implemented.
 | #1062 | Private cone foundation | Independently tested records, ingest and basis services; no final public API |
 | #1067 | Shared identity and custody in 7 | #1049, integrated #1062, and released git-cas #157; private canonical identity, Coordinate codec, durable admission and exact retained evidence |
 | #1051 | 2–3, write premise capture in 5–7 | #1049, #1062 and #1067; Warp composition, authority boundary, cone writes and all four final write-receipt variants |
-| #1052 | 3–6 | #1049, #1062, #1067 and shared Warp composition from #1051; bounded Optic execution and final observation receipts |
+| #1052 | 3–6 | #1049, #1054, #1062, #1067 and shared Warp composition from #1051; bounded Optic execution and final observation receipts; deletes the legacy read path in the same PR that adds the Optic read |
 | #1053 | Historical operations in 7–8 | #1049, #1067 and #1052; replay, re-ask, forks, and the Strand preview/settlement journey |
-| #1054 | 9 | #1050–#1053 and #1055; remove legacy public capabilities with the export guard and migrated consumers in place |
+| #1054 | 9 | #1050, #1051 and #1079 (GitHub dependencies; #1054 precedes #1052 by the #1079 decision of 2026-11-08); remove each legacy public capability with its tests, examples and CLI paths in the same PR, behind the export guard. The read path (`Runtime.open()`, `runtime.lane()`, `Lane.observe` and the legacy `Optic` read) and its consumers stay until #1052 deletes it and #1055 moves the examples |
 | #1055 | 3–4, 8–9 | #1051–#1053; migrate the existing example, newcomer witness, and full read/write/fork/settlement documentation |
 | #1057 | 9 | #1062, #1049, and #1052 for actual Optic probes; retention actions also require the corresponding #1044 capabilities |
+| #1079 | 2, 11 | #1051; payload headroom, the pre-permission I/O outcome, the static purpose decision, and the v20 trailer witness |
 
 These ownership corrections reconcile the live producer issues with the
 maintainer amendment. #1067 precedes both producers because durable observation
 identity and custody are shared prerequisites; public historical operations are
 not a prerequisite for producing a receipt. #1051 precedes #1052 because it owns
 shared Warp composition and access. #1053 precedes #1055 because the existing newcomer journey includes forks
-and settlement. #1050 and #1055 precede #1054 so removal is checked and existing
-documentation/examples keep working. #1052 precedes #1057 because an actual Optic
+and settlement. #1050 precedes #1054 so removal is checked. #1054 precedes #1052,
+by the #1079 decision of 2026-11-08, so #1052 starts with the bytes the legacy
+deletion frees. Every merge leaves `main` working, so #1054 deletes every legacy
+public surface except the read path: `Runtime.open()`, `runtime.lane()`,
+`Lane.observe` and the legacy `Optic` read, and nothing else. It keeps the
+documentation and examples that read through that path working. #1052
+deletes that legacy read path in the same PR that adds the Optic read, so `main`
+always has a public read path. #1055 later moves the examples onto the full
+read/write/fork/settlement journey. #1052 precedes #1057 because an actual Optic
 probe cannot be replaced by a parallel readiness approximation. The #1044
 retention work remains an explicit external prerequisite for its corresponding
 operator actions, not an assertion that those capabilities already exist.
@@ -519,3 +531,116 @@ Acceptance evidence must cover:
 
 Review of this document can accept the contract and ownership graph. Completion
 of #1048 requires the executable evidence above, not a checked design document.
+
+## 11. Decisions recorded by #1079
+
+James Ross decided [#1079](https://github.com/git-stunts/git-warp/issues/1079)
+on 2026-11-08 for Option A. These rules bind #1052, #1053, and #1054.
+
+**Package payload.** v21 keeps the 3,300,000-byte unpacked ceiling in
+`scripts/package-payload/PackagePayloadPolicy.ts`. #1079 makes headroom by
+deleting internal code that no package entrypoint or command reaches, including
+code reached only by its own tests. The budget is not raised. Measured with
+`scripts/package-payload/CheckPackagePayload.ts` after `npm run build`:
+
+| State | Unpacked bytes | Free bytes | Compressed bytes | Entries |
+| --- | ---: | ---: | ---: | ---: |
+| Before #1079 (`origin/main` at d78c33d99) | 3,295,830 | 4,170 | 713,417 | 1,229 |
+| After #1079 | 3,282,914 | 17,086 | 711,234 | 1,225 |
+
+#1052 is expected to be close to #1051 in size, and #1051 added about 323,000
+unpacked bytes. 17,086 free bytes do not cover that. **Decided (2026-11-08):**
+#1054 runs before #1052 and is recorded as a GitHub dependency, so #1052 starts
+with the bytes the legacy deletion frees. Measure again after #1054. If #1052
+still needs more, it deletes the legacy code it replaces in its own PR, or it gets
+a separate budget decision.
+
+**Pre-permission I/O.** At the basis-open and premise-read steps, only an
+unavailable store gives a typed failure result instead of a rejection. The
+attempt-journal and custody-support steps are not yet classified by type (#1109).
+"Unavailable" is a positive verdict: the cone store adapter (`GitConeStoreHost`)
+gives it only to a failure it can identify as transient, as its real producer
+throws it, and nothing else. The list (`TRANSIENT_PERSISTENCE_CODES` and
+`TRANSIENT_HOST_ERRORS` in that file) is exactly:
+
+- `PersistenceError` `E_REF_IO`, a ref the history adapter cannot lock or read for
+  permission (decided 2026-11-08, since a retry can clear it);
+- `GitRepositoryLockedError`, which plumbing's own classifier throws when a Git
+  command meets a held lock file, and which reaches the adapter unwrapped.
+
+The list applies to failures the cone store host sees, beneath the cone record
+store adapter, including the plumbing calls fast-import makes through the host: a
+held lock during fast-import gives `write-basis-unavailable`. The host turns those
+into `ConeStoreUnavailableError`, which carries the failure as its `cause`. An error
+that `GitFastImportTreeWriter` creates above the host is not on the list and rejects,
+for example an `E_REF_IO` it re-types from an exit-128 failure. Every failure from
+the patch feed or the writer's runtime host rejects, transient or not. Classifying
+those sources is #1109. Domain code dispatches on that class with `instanceof`, never on a
+message. The cause stays on the error and off the public receipt, whose `cause` is a
+policy-safe string (decided 2026-11-08). #1107 will report the underlying cause
+through the injected logger; until then the underlying host failure is not recorded.
+A `GitProtocolError` rejects (decided 2026-11-08, option A): a crashed `git` process
+and a truncated object look the same, git-cas has already retried it once on the
+object-session path, and on other paths it cannot be identified as transient.
+
+- `AuthoredWarp.execute()` returns `UnpublishedWriteReceipt` with
+  `write-basis-unavailable` when the store is unavailable while it fixes the write
+  basis, and with `write-premise-unavailable` while it reads the premise records.
+  Nothing was reserved or published at either step, so the receipt is true. An
+  expected write refusal met while reading keeps its own cause and repair hints.
+- The attempt-journal and custody-support steps still give
+  `attempt-journal-unavailable` or `retention-unavailable` for any failure, defects
+  included, until #1109 classifies them by type. Nothing was published at those
+  steps either, but a `retention-unavailable` attempt can keep its saved attempt
+  record, and a reserved retention slot, until the recovery sweep finishes it.
+- **Corruption rejects** (decided 2026-11-08). At the basis-open and premise-read
+  steps, every store failure the adapter cannot identify as transient rejects,
+  having published nothing. That includes a `ConeRecordError` (a stored record that
+  does not decode is one), a `PersistenceError` such as `E_MISSING_OBJECT` (git-cas's
+  own `GIT_OBJECT_NOT_FOUND` is typed as one), every other git-cas code (for example
+  `TREE_PARSE_ERROR`, `GIT_ERROR`, `INTEGRITY_ERROR`, `RESTORE_TOO_LARGE`,
+  `INVALID_OPTIONS`, `RESOURCE_CLOSED`), a `GitProtocolError`, any other plumbing
+  failure, and a bare error. A caller that retried those would retry forever against
+  a broken repository. Defects (`TypeError`, `RangeError`), broken invariants
+  (`PatchError`) and invalid input also reject. So does corrupt patch history met
+  while reading the premise (`MessageCodecError`, `CrdtError`, `SyncError`
+  `E_SYNC_PATCH_HISTORY`, a malformed or schema `PatchError`): it rejects as
+  `WriteHistoryCorruptError`, not as a missing-basis refusal, because materializing
+  cannot repair it. Only a writer with no history to observe (`E_PATCH_NO_STATE`)
+  keeps the missing-basis refusal. Every failure from the patch feed or the writer's
+  runtime host also rejects at those steps, transient or not, until #1109 classifies
+  them, and so does an error that `GitFastImportTreeWriter` creates above the host.
+- The injected `WarpAccessPort` is a caller-owned capability, not a store. If it
+  throws, the operation rejects and publishes nothing.
+- #1052 must give an Optic read the same rule: an unavailable store before read
+  permission or evaluation settles the observation to a typed failed receipt.
+  `read()` and iteration will not reject for that failure, and the receipt claims
+  no completed classification.
+- After publication permission, section 7 applies. Its outcomes are
+  indeterminate, unretained, or a settled receipt. `AuthoredWarp.reconcile()`
+  reads after an attempt exists, so section 7 governs it too; it rejects if a
+  store read fails.
+
+**Purposes.** No dynamic purpose registry will be built (decided). Today the only
+write purpose is the string constant `WRITE_PURPOSE`
+(`git-warp:purpose/write-admission/v1`), and the only premise question is
+`git-warp:question/write-premise` version 1. No class validates the purpose, and
+no caller can supply one, so no path refuses an unknown purpose yet. The
+runtime-backed `Purpose` value class, `Purpose.of(namespace, name, version)` in
+section 2, is built in #1052, where caller-supplied purposes first appear. A new
+purpose or question is a code change with a new version.
+
+**v20 compatibility.** The released v20.0.0 package is installed from its
+published tarball into `test/fixtures/v20-reader` in the Docker test images, and
+`test/integration/compat/V20PublicationAttemptTrailer.integration.test.ts` states
+two facts:
+
+- A v20 reader refuses a repository that v21 `Warp` wrote, on its substrate marker
+  (`E_SUBSTRATE_VERSION_UNSUPPORTED`), before it reads any patch, and changes no
+  ref. This is the case users meet: a v20 clone does not coexist with v21 history.
+  The premise of #1079 step 8, that a v20 reader would meet the trailer, was wrong.
+- v20's commit message decoder and patch reader ignore the
+  `eg-publication-attempt` trailer. The witness adds the trailer, in the format
+  `Warp` writes, to a patch that v20 wrote; v20 then decodes it as before,
+  materializes and reads the lane, and extends the writer's chain on top. This
+  matters only to code that decodes commit messages without the substrate gate.

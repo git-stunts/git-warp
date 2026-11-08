@@ -1,7 +1,15 @@
+import { execFileSync } from 'node:child_process';
+import { chmodSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import { intent } from '../../../advanced.ts';
 import { Coordinate, GitStorage, UnretainedWriteReceipt, Warp, WarpAccessDenied, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
 import { composeWarpWrites, overrideWarpComposition } from '../../../src/application/WarpWriteComposition.ts';
+import MessageCodecError from '../../../src/domain/errors/MessageCodecError.ts';
+import PatchError from '../../../src/domain/errors/PatchError.ts';
+import ConeRecordKey from '../../../src/domain/services/cone/ConeRecordKey.ts';
+import ConeWriteBasis from '../../../src/domain/services/cone/ConeWriteBasis.ts';
 import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import CustodyRefused from '../../../src/domain/services/custody/CustodyRefused.ts';
 import ObservationCoordinate from '../../../src/domain/services/custody/ObservationCoordinate.ts';
@@ -10,6 +18,7 @@ import ObservationAttemptId from '../../../src/domain/services/custody/Observati
 import { textDecode } from '../../../src/domain/utils/bytes.ts';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import GitTimelineHistoryAdapter from '../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import GitWriteAttemptJournalAdapter from '../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
 import {
@@ -258,6 +267,207 @@ describe('custody that cannot answer', () => {
   });
 });
 
+describe('a store that fails before publication is permitted', () => {
+  /** The blob id of the cone record that stores node `subject`, found through Git, not through the adapter. */
+  function recordBlob(path: string, subject: string): string {
+    const route = ConeRecordKey.forNode(subject).route;
+    const line = git(path, ['ls-tree', '-r', `refs/warp/${GRAPH}/cone/head`]).split('\n').find((entry) => entry.endsWith(`/${route}`));
+    return line?.split(/\s+/u)[2] ?? '';
+  }
+
+  it('returns an unpublished receipt, not a rejection, when the host fails beneath the premise record read', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
+    const before = tip(path, 'alice');
+    const blob = recordBlob(path, 'x');
+    expect(blob).toMatch(/^[0-9a-f]{40}$/u);
+    const readBlob = GitTimelineHistoryAdapter.prototype.readBlob;
+    let failed = 0;
+    vi.spyOn(GitTimelineHistoryAdapter.prototype, 'readBlob').mockImplementation(async function (this: GitTimelineHistoryAdapter, oid: string) {
+      if (oid === blob && failed === 0) {
+        failed += 1;
+        throw new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: 'fatal: Unable to create objects/info/alternates.lock' });
+      }
+      return await readBlob.call(this, oid);
+    });
+
+    const receipt = unpublished(await warp.as('alice').execute(intent.node.remove({ subject: 'x' })));
+
+    expect(failed).toBe(1);
+    expect(receipt.cause).toBe('write-premise-unavailable');
+    expect(tip(path, 'alice')).toBe(before);
+    expect(attemptRefs(path)).toEqual([]);
+    retained(await warp.as('alice').execute(intent.node.remove({ subject: 'x' })));
+    expect((await materialized(path)).nodes).toEqual([]);
+  });
+
+  /** Moves every pack aside and unpacks it, so each object is a loose file a test can damage. */
+  function loosen(path: string): void {
+    const packs = join(path, '.git', 'objects', 'pack');
+    const held = join(path, 'held-packs');
+    mkdirSync(held);
+    for (const name of readdirSync(packs)) {
+      renameSync(join(packs, name), join(held, name));
+    }
+    for (const name of readdirSync(held).filter((file) => file.endsWith('.pack'))) {
+      execFileSync('git', ['unpack-objects', '-q'], { cwd: path, input: readFileSync(join(held, name)) });
+    }
+  }
+
+  /** Overwrites one loose object with bytes Git cannot read. */
+  function ruin(path: string, oid: string): void {
+    const file = join(path, '.git', 'objects', oid.slice(0, 2), oid.slice(2));
+    chmodSync(file, 0o644);
+    writeFileSync(file, 'ruin');
+  }
+
+  it('rejects a corrupt records tree read through git-cas, on every retry, publishing nothing', async () => {
+    const path = await repository();
+    const first = await open(path);
+    retained(await first.as('alice').execute(intent.node.add({ subject: 'x' })));
+    await first.close();
+    loosen(path);
+    ruin(path, git(path, ['rev-parse', `refs/warp/${GRAPH}/cone/head:records`]));
+    const before = tip(path, 'alice');
+    const warp = await open(path);
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await expect(warp.as('alice').execute(intent.node.remove({ subject: 'x' }))).rejects.toMatchObject({ code: 'E_MISSING_OBJECT' });
+    }
+    expect(tip(path, 'alice')).toBe(before);
+    expect(attemptRefs(path)).toEqual([]);
+  });
+
+  /** Runs the same removal twice; both must reject, publishing nothing and leaving no attempt. */
+  async function rejectsEveryRetry(path: string): Promise<void> {
+    const before = tip(path, 'alice');
+    const warp = await open(path);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await expect(warp.as('alice').execute(intent.node.remove({ subject: 'x' }))).rejects.toThrow();
+    }
+    expect(tip(path, 'alice')).toBe(before);
+    expect(attemptRefs(path)).toEqual([]);
+  }
+
+  async function seeded(): Promise<string> {
+    const path = await repository();
+    const first = await open(path);
+    retained(await first.as('alice').execute(intent.node.add({ subject: 'x' })));
+    await first.close();
+    return path;
+  }
+
+  /** Writes an object of `type` holding `bytes` exactly, valid or not. */
+  function literal(path: string, type: string, bytes: string): string {
+    return execFileSync('git', ['hash-object', '-t', type, '--literally', '-w', '--stdin'], { cwd: path, input: bytes, encoding: 'utf8' }).trim();
+  }
+
+  const CONE_HEAD = `refs/warp/${GRAPH}/cone/head`;
+
+  it('rejects every retry when the cone head names a blob, not a basis tree (W-P-1)', async () => {
+    const path = await seeded();
+    git(path, ['update-ref', CONE_HEAD, literal(path, 'blob', 'not a basis tree')]);
+    expect(git(path, ['cat-file', '-t', CONE_HEAD])).toBe('blob');
+
+    await rejectsEveryRetry(path);
+  });
+
+  it('rejects every retry when the basis names a malformed records tree (W-P-2)', async () => {
+    const path = await seeded();
+    const malformed = literal(path, 'tree', 'garbage records tree');
+    const basis = git(path, ['ls-tree', CONE_HEAD]).split('\n')
+      .map((line) => (line.endsWith('\trecords') ? `040000 tree ${malformed}\trecords` : line)).join('\n');
+    const forged = execFileSync('git', ['mktree'], { cwd: path, input: `${basis}\n`, encoding: 'utf8' }).trim();
+    git(path, ['update-ref', CONE_HEAD, forged]);
+    expect(git(path, ['rev-parse', `${CONE_HEAD}:records`])).toBe(malformed);
+    expect(() => git(path, ['ls-tree', malformed])).toThrow();
+
+    await rejectsEveryRetry(path);
+  });
+
+  it('rejects every retry when the loose records tree is truncated (W-P-5)', async () => {
+    const path = await seeded();
+    loosen(path);
+    const records = git(path, ['rev-parse', `${CONE_HEAD}:records`]);
+    const file = join(path, '.git', 'objects', records.slice(0, 2), records.slice(2));
+    const whole = readFileSync(file);
+    chmodSync(file, 0o644);
+    writeFileSync(file, whole.subarray(0, Math.max(4, Math.floor(whole.length / 2))));
+    expect(() => git(path, ['cat-file', '-p', records])).toThrow();
+
+    await rejectsEveryRetry(path);
+  });
+
+  it('rejects every retry when an observed writer head reads as a non-patch commit (B-11)', async () => {
+    const path = await seeded();
+    const head = git(path, ['rev-parse', buildWriterRef(GRAPH, 'alice')]);
+    const tree = git(path, ['rev-parse', `${head}^{tree}`]);
+    const stranger = execFileSync('git', ['commit-tree', tree, '-m', 'not a warp patch'], { cwd: path, encoding: 'utf8' }).trim();
+    git(path, ['replace', head, stranger]);
+    expect(git(path, ['show', '-s', '--format=%B', head])).toBe('not a warp patch');
+    const warp = await open(path);
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await expect(warp.as('bob').execute(intent.node.add({ subject: 'y' }))).rejects.toThrow();
+    }
+    expect(tip(path, 'bob')).toBeNull();
+    expect(attemptRefs(path)).toEqual([]);
+  });
+
+  it('rejects every retry when the premise read meets corrupt patch history (B-9, B-10)', async () => {
+    for (const corruption of [new PatchError('stored patch is malformed', { code: 'E_PATCH_MALFORMED' }), new MessageCodecError('stored trailer is invalid')]) {
+      const path = await seeded();
+      const capture = vi.spyOn(ConeWriteBasis, 'capture').mockRejectedValue(corruption);
+      await rejectsEveryRetry(path);
+      expect(capture).toHaveBeenCalledTimes(2);
+      capture.mockRestore();
+    }
+  });
+
+  it('reports a real held cone head lock as write-basis-unavailable, then writes once it is released', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    const directory = join(path, '.git', 'refs', 'warp', GRAPH, 'cone');
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, 'head.lock'), '');
+
+    expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toBe('write-basis-unavailable');
+    expect(tip(path, 'alice')).toBeNull();
+
+    unlinkSync(join(directory, 'head.lock'));
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
+  });
+
+  it('rejects a stored cone record that does not decode as corruption, not as a missing basis', async () => {
+    const path = await repository();
+    const first = await open(path);
+    retained(await first.as('alice').execute(intent.node.add({ subject: 'x' })));
+    await first.close();
+    loosen(path);
+    ruin(path, recordBlob(path, 'x'));
+    const warp = await open(path);
+
+    await expect(warp.as('alice').execute(intent.node.remove({ subject: 'x' }))).rejects.toMatchObject({ name: 'ConeRecordError', code: 'E_CONE_RECORD_CORRUPT' });
+    expect(attemptRefs(path)).toEqual([]);
+  });
+
+  it('rejects, publishing nothing, when a defect throws while reading the premise records', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
+    const before = tip(path, 'alice');
+    const defect = new TypeError("Cannot read properties of undefined (reading 'root')");
+    vi.spyOn(ConeWriteBasis, 'capture').mockRejectedValueOnce(defect);
+
+    await expect(warp.as('alice').execute(intent.node.remove({ subject: 'x' }))).rejects.toBe(defect);
+
+    expect(tip(path, 'alice')).toBe(before);
+    expect(attemptRefs(path)).toEqual([]);
+    retained(await warp.as('alice').execute(intent.node.remove({ subject: 'x' })));
+  });
+});
+
 describe('a record that outlives its attempt', () => {
   it('rebuilds an unretained write, with the entity it admitted, from its saved record', async () => {
     const path = await repository();
@@ -407,12 +617,13 @@ describe('composition', () => {
     expect((await materialized(path)).nodes).toEqual(['y']);
   });
 
-  it('tries again to open a writer whose first open failed', async () => {
+  it('rejects an untyped failure opening a writer, then tries that writer again', async () => {
     const path = await repository();
     const warp = await open(path);
     vi.spyOn(GitCasRepositoryAdapter.prototype, 'createRuntimeStorageServices').mockImplementationOnce(() => Promise.reject(new Error('blip')));
 
-    expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toBe('write-basis-unavailable');
+    await expect(warp.as('alice').execute(intent.node.add({ subject: 'x' }))).rejects.toThrow('blip');
+    expect(tip(path, 'alice')).toBeNull();
     retained(await warp.as('alice').execute(intent.node.add({ subject: 'y' })));
   });
 

@@ -8,8 +8,10 @@
  */
 
 import { decodeEdgeKey } from './KeyCodec.ts';
+import { drawEntropy } from '../utils/EntropyDraw.ts';
 import type WarpState from './state/WarpState.ts';
 import type { LogicalIndex } from './index/logicalIndexHelpers.ts';
+import type RandomPort from '../../ports/RandomPort.ts';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -195,12 +197,13 @@ function verifySampledNodes(
   return acc;
 }
 
-// ── Crypto-grade seed ─────────────────────────────────────────────────────
+// ── Injected-entropy seed ─────────────────────────────────────────────────
 
-/** Generates a 31-bit unsigned seed from crypto-grade randomness. */
-function cryptoSeed(): number {
-  const buf = new Uint8Array(4);
-  globalThis.crypto.getRandomValues(buf);
+const SEED_ENTROPY_BYTES = 4;
+
+/** Derives a 31-bit unsigned sampling seed from injected entropy. */
+function entropySeed(random: RandomPort): number {
+  const buf = drawEntropy(random, SEED_ENTROPY_BYTES);
   return ((buf[0]! << 24) | (buf[1]! << 16) | (buf[2]! << 8) | buf[3]!) >>> 1;
 }
 
@@ -209,6 +212,8 @@ function cryptoSeed(): number {
 export interface VerifyIndexParams {
   state: WarpState;
   logicalIndex: LogicalIndex;
+  /** Entropy for the sampling seed; drawn only when `options.seed` is absent. */
+  random: RandomPort;
   options?: { seed?: number; sampleRate?: number };
 }
 
@@ -216,8 +221,8 @@ export interface VerifyIndexParams {
  * Verifies index integrity by sampling alive nodes and comparing
  * bitmap neighbor queries against adjacency-based ground truth.
  */
-export function verifyIndex({ state, logicalIndex, options = {} }: VerifyIndexParams): VerifyResult {
-  const seed = options.seed ?? cryptoSeed();
+export function verifyIndex({ state, logicalIndex, random, options = {} }: VerifyIndexParams): VerifyResult {
+  const seed = options.seed ?? entropySeed(random);
   const sampleRate = options.sampleRate ?? 0.1;
   const allNodes = [...state.nodeAlive.elements()].sort();
   const sampled = sampleNodes(allNodes, sampleRate, seed);
