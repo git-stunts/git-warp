@@ -61,6 +61,7 @@ function runStableUnitTests(options: {
   readonly args?: readonly string[];
   readonly freeMib?: string;
   readonly maxWorkers?: string;
+  readonly minFreeMib?: string;
   readonly realRun?: boolean;
   readonly unset?: readonly string[];
   readonly vitestListEntry?: string;
@@ -73,7 +74,7 @@ function runStableUnitTests(options: {
     WARP_TEST_FAKE_FREE_MB: options.freeMib ?? '2048',
     WARP_TEST_FAKE_TOTAL_MB: '16384',
     WARP_TEST_MAX_WORKERS: options.maxWorkers ?? '3',
-    WARP_TEST_MIN_FREE_MB: '512',
+    WARP_TEST_MIN_FREE_MB: options.minFreeMib ?? '512',
     ...(options.vitestListEntry === undefined ? {} : { WARP_TEST_FAKE_VITEST_LIST_ENTRY: options.vitestListEntry }),
   };
   const result = spawnSync(process.execPath, [scriptPath, ...(options.args ?? [])], {
@@ -221,7 +222,8 @@ describe('scripts/run-stable-unit-tests.ts', () => {
     const good = writeFixture(directory, 'Good.test.ts');
     const folder = relative(repoRoot, directory).split(sep).join('/');
     const name = folder.split('/').at(-1) ?? '';
-    for (const filter of [`${folder}/good.test.ts`, `${name}/../${name}/Good.test.ts`, './Good.test.ts']) {
+    const backslashed = `${folder}/Good.test.ts`.replaceAll('/', '\\');
+    for (const filter of [`${folder}/good.test.ts`, `${name}/../${name}/Good.test.ts`, './Good.test.ts', backslashed]) {
       const result = runStableUnitTests({ args: [good, filter] });
       expect(result.status, `${filter}\n${result.output}`).toBe(0);
     }
@@ -280,6 +282,24 @@ describe('scripts/run-stable-unit-tests.ts', () => {
     expect(result.status).toBe(0);
     expect(result.output).toContain('max workers: 4');
     expect(result.output).toContain('minimum free memory: 512 MiB');
+    const empty = runStableUnitTests({ maxWorkers: '' });
+    expect(empty.output).toContain('max workers: 4');
+    const boundary = runStableUnitTests({ maxWorkers: '1', minFreeMib: '0' });
+    expect(boundary.status).toBe(0);
+    expect(boundary.output).toContain('max workers: 1');
+  });
+
+  it('reads real memory in MiB when the memory overrides are unset', () => {
+    const unset = ['WARP_TEST_FAKE_FREE_MB', 'WARP_TEST_FAKE_TOTAL_MB'];
+    const facts = runStableUnitTests({ unset });
+    const free = Number(/free memory: (\d+) MiB/.exec(facts.output)?.[1]);
+    const total = Number(/total memory: (\d+) MiB/.exec(facts.output)?.[1]);
+    expect(free).toBeGreaterThan(0);
+    expect(free).toBeLessThanOrEqual(total);
+    expect(total).toBeLessThan(16 * 1024 * 1024);
+    const blocked = runStableUnitTests({ unset, minFreeMib: '999999999' });
+    expect(blocked.status).toBe(1);
+    expect(blocked.output).toContain('not enough free memory to spawn Vitest workers');
   });
 
   it('rejects malformed numeric overrides', () => {

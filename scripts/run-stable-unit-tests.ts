@@ -43,7 +43,7 @@ function listRecursiveTestFiles(relativeDirectory: string): string[] {
   return files.sort();
 }
 
-/** Reads an integer override with `Number.parseInt` (leading digits); no digits, or a value below `minimum`, stops the runner. */
+/** Reads an integer override with `Number.parseInt` (leading digits); unset or blank falls back, else NaN or < `minimum` stops. */
 function readIntAtLeast(name: string, fallback: number, minimum: number): number {
   const raw = process.env[name];
   if (raw === undefined || raw.trim() === '') {
@@ -205,7 +205,7 @@ function assertRunnerSelectsRunnables(resolved: ReadonlySet<string>, selected: R
     ]);
 }
 
-/** Mirrors Vitest's `filterFiles`: a lower-cased substring of a listed path, as typed or normalized from the root. */
+/** Mirrors Vitest's internal `filterFiles` rule: a case-insensitive substring of a listed path, as typed or root-normalized. */
 function isUnmatchedTestName(filter: string, resolved: ReadonlySet<string>): boolean {
   const needles = [filter, relative(ROOT, resolve(ROOT, filter))].map((needle) => needle.toLowerCase());
   return isTestFile(basename(filter))
@@ -218,7 +218,8 @@ async function assertVitestRunsTargets(args: readonly string[], resolved: Readon
   blockOnFiles((count) => `${count} ${count === 1 ? 'argument' : 'arguments'} after \`--\`, which Vitest does not use as a file filter:`,
     tail, ['Put each file or filter before `--`; with nothing before it, Vitest runs the whole suite.']);
   const { parseCLI } = await import('vitest/node');
-  const filters = parseCLI(['vitest', 'run', ...args]).filter.map((filter) => ({
+  // Vitest normalizes filters with `pathe`, which turns every `\` into `/` on every platform.
+  const filters = parseCLI(['vitest', 'run', ...args]).filter.map((raw) => raw.replaceAll('\\', '/')).map((filter) => ({
     filter, path: resolve(ROOT, filter), isFile: statSync(resolve(ROOT, filter), { throwIfNoEntry: false })?.isFile(),
   }));
   const unmatched = filters.filter((target) => target.isFile === undefined && isUnmatchedTestName(target.filter, resolved));
