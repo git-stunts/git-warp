@@ -30,6 +30,7 @@ import type SubscriptionCapability from './capabilities/SubscriptionCapability.t
 import type { CorePersistence } from './types/WarpPersistence.ts';
 import type LoggerPort from '../ports/LoggerPort.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
+import type RandomPort from '../ports/RandomPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
 import type CommitMessageCodecPort from '../ports/CommitMessageCodecPort.ts';
 import type EffectSinkPort from '../ports/EffectSinkPort.ts';
@@ -129,7 +130,7 @@ type TrustMode = 'off' | 'log-only' | 'enforce';
  * - persistence substrate (GraphPersistencePort)
  * - identity (graphName, writerId)
  * - governing policy (trust, GC, checkpoint, onDeleteWithData)
- * - witness infrastructure (crypto, codec, audit)
+ * - witness infrastructure (crypto, entropy, codec, audit)
  * - revelation regime (logger, effectSinks, externalizationPolicy)
  * - one coherent semantic storage provider
  */
@@ -151,6 +152,7 @@ export interface WarpGraphDeps {
 
   // Witness infrastructure
   readonly crypto?: CryptoPort;
+  readonly random?: RandomPort;
   readonly codec?: CodecPort;
   readonly trustCrypto?: TrustCryptoPort;
   readonly commitMessageCodec?: CommitMessageCodecPort;

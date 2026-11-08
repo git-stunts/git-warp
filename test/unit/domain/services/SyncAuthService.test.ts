@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
+import SeededRandomPort from '../../../helpers/SeededRandomPort.ts';
 import SyncAuthService, {
   signSyncRequest,
   canonicalizePath,
@@ -10,6 +11,9 @@ import SyncAuthService, {
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
 import { createMockLogger } from '../../../helpers/mockPorts.ts';
+
+/** Deterministic, well-spread nonce entropy shared by this file's signed requests. */
+const NONCE_RANDOM = new SeededRandomPort(184002);
 
 const SECRET_VALUE = 'test-secret-key-1234567890';
 const SECRET = SyncSecret.fromString(SECRET_VALUE);
@@ -27,6 +31,13 @@ function syncKeys(values: Record<string, string>): Record<string, SyncSecret> {
  * within a single service lifetime.
  */
 let lamportCounter = 100;
+let nonceCounter = 0;
+
+/** Mints a distinct, deterministic v4-shaped nonce for manually signed requests. */
+function nextNonce(): string {
+  nonceCounter += 1;
+  return `00000000-0000-4000-8000-${nonceCounter.toString(16).padStart(12, '0')}`;
+}
 
 /**
  * Builds a manually-signed request with a fresh monotonically-increasing lamport.
@@ -35,7 +46,7 @@ async function buildSignedRequest(overrides: Record<string, string> = {}) {
   const body = Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} }));
   lamportCounter += 1;
   const timestamp = String(lamportCounter);
-  const nonce = globalThis.crypto.randomUUID();
+  const nonce = nextNonce();
   const contentType = 'application/json';
   const bodySha256 = await defaultCrypto.hash('sha256', body);
   const canonical = buildCanonicalPayload({
@@ -68,7 +79,7 @@ async function buildSignedRequest(overrides: Record<string, string> = {}) {
 
 function createService(options: Record<string, unknown> | undefined): SyncAuthService {
   return new SyncAuthService({
-    replayProtection: new InMemorySyncReplayProtection(),
+    replayProtection: new InMemorySyncReplayProtection(makeManualClock().now),
     ...options,
   } as unknown as ConstructorParameters<typeof SyncAuthService>[0]);
 }
@@ -179,7 +190,7 @@ describe('signSyncRequest', () => {
     const body = Buffer.from('hello');
     const headers = await signSyncRequest(
       { method: 'POST', path: '/sync', contentType: 'text/plain', body, secret: SECRET, keyId: KEY_ID, lamport: 1 },
-      { crypto: defaultCrypto },
+      { crypto: defaultCrypto, random: NONCE_RANDOM },
     );
     expect(Object.keys(headers)).toHaveLength(6);
     expect(headers).toHaveProperty('x-warp-auth-scheme', 'shared-secret-hmac-sha256');
@@ -194,11 +205,11 @@ describe('signSyncRequest', () => {
     const body = Buffer.from('');
     const h1 = await signSyncRequest(
       { method: 'POST', path: '/', contentType: '', body, secret: SECRET, keyId: KEY_ID, lamport: 1 },
-      { crypto: defaultCrypto },
+      { crypto: defaultCrypto, random: NONCE_RANDOM },
     );
     const h2 = await signSyncRequest(
       { method: 'POST', path: '/', contentType: '', body, secret: SECRET, keyId: KEY_ID, lamport: 2 },
-      { crypto: defaultCrypto },
+      { crypto: defaultCrypto, random: NONCE_RANDOM },
     );
     expect(h1['x-warp-nonce']).not.toBe(h2['x-warp-nonce']);
   });
@@ -211,7 +222,7 @@ describe('signSyncRequest', () => {
     const body = Buffer.from('verify-me');
     const headers = await signSyncRequest(
       { method: 'POST', path: '/sync', contentType: 'text/plain', body, secret: SECRET, keyId: KEY_ID, lamport: 42 },
-      { crypto: defaultCrypto },
+      { crypto: defaultCrypto, random: NONCE_RANDOM },
     );
     const req = {
       method: 'POST',
@@ -227,7 +238,7 @@ describe('signSyncRequest', () => {
     const body = Buffer.from('');
     const headers = await signSyncRequest(
       { method: 'POST', path: '/', contentType: '', body, secret: SECRET, keyId: 'custom-key', lamport: 1 },
-      { crypto: defaultCrypto },
+      { crypto: defaultCrypto, random: NONCE_RANDOM },
     );
     expect(headers['x-warp-key-id']).toBe('custom-key');
   });
@@ -333,7 +344,7 @@ describe('verify() reject paths', () => {
     const req1 = await buildSignedRequest({ 'x-warp-timestamp': '1000' });
     // Re-sign with correct timestamp in signature
     const body1 = req1.body;
-    const nonce1 = globalThis.crypto.randomUUID();
+    const nonce1 = nextNonce();
     const bodySha1 = await defaultCrypto.hash('sha256', body1);
     const canonical1 = buildCanonicalPayload({
       keyId: KEY_ID, method: 'POST', path: '/sync',
@@ -355,7 +366,7 @@ describe('verify() reject paths', () => {
     expect(first.ok).toBe(true);
 
     // Second request with equal lamport -> STALE_LAMPORT
-    const nonce2 = globalThis.crypto.randomUUID();
+    const nonce2 = nextNonce();
     const canonical2 = buildCanonicalPayload({
       keyId: KEY_ID, method: 'POST', path: '/sync',
       timestamp: '1000', nonce: nonce2,
@@ -381,7 +392,7 @@ describe('verify() reject paths', () => {
     const svc = makeService();
     // Very large lamport should still be accepted (no wall-clock skew in v2)
     const body = Buffer.from('{}');
-    const nonce = globalThis.crypto.randomUUID();
+    const nonce = nextNonce();
     const bodySha = await defaultCrypto.hash('sha256', body);
     const canonical = buildCanonicalPayload({
       keyId: KEY_ID, method: 'POST', path: '/sync',
@@ -409,7 +420,7 @@ describe('verify() reject paths', () => {
     const svc = makeService();
     const body = Buffer.from('{}');
     const bodySha256 = await defaultCrypto.hash('sha256', body);
-    const nonce = globalThis.crypto.randomUUID();
+    const nonce = nextNonce();
     const timestamp = '42';
     const canonical = buildCanonicalPayload({
       keyId: KEY_ID, method: 'POST', path: '/sync',
@@ -484,7 +495,7 @@ describe('verify() reject paths', () => {
     const unknownKeyId = 'unknown-key';
     const unknownSecret = 'other-secret';
     const timestamp = '50';
-    const nonce = globalThis.crypto.randomUUID();
+    const nonce = nextNonce();
     const bodySha256 = await defaultCrypto.hash('sha256', body);
     const canonical = buildCanonicalPayload({
       keyId: unknownKeyId,
@@ -519,7 +530,7 @@ describe('verify() reject paths', () => {
     const svc = makeService();
     const body = Buffer.from('{}');
     const timestamp = '60';
-    const nonce = globalThis.crypto.randomUUID();
+    const nonce = nextNonce();
     const bodySha256 = await defaultCrypto.hash('sha256', body);
     const canonical = buildCanonicalPayload({
       keyId: KEY_ID,
@@ -574,7 +585,7 @@ describe('verify() happy paths', () => {
     const svc = makeService();
     const body = Buffer.alloc(0);
     const timestamp = '70';
-    const nonce = globalThis.crypto.randomUUID();
+    const nonce = nextNonce();
     const bodySha256 = await defaultCrypto.hash('sha256', body);
     const canonical = buildCanonicalPayload({
       keyId: KEY_ID,
@@ -610,7 +621,7 @@ describe('verify() happy paths', () => {
 
     const body = Buffer.from('multi-key test');
     const timestamp = '80';
-    const nonce = globalThis.crypto.randomUUID();
+    const nonce = nextNonce();
     const bodySha256 = await defaultCrypto.hash('sha256', body);
     const canonical = buildCanonicalPayload({
       keyId: keyId2,
@@ -732,7 +743,7 @@ describe('Metrics', () => {
     const svc = makeService();
     // First request at lamport 500 succeeds
     const body = Buffer.from('{}');
-    const nonce1 = globalThis.crypto.randomUUID();
+    const nonce1 = nextNonce();
     const bodySha = await defaultCrypto.hash('sha256', body);
     const can1 = buildCanonicalPayload({ keyId: KEY_ID, method: 'POST', path: '/sync', timestamp: '500', nonce: nonce1, contentType: 'application/json', bodySha256: bodySha });
     const hmac1 = await defaultCrypto.hmac('sha256', SECRET_VALUE, can1);
@@ -744,7 +755,7 @@ describe('Metrics', () => {
     });
 
     // Second request at lamport 400 (< 500) -> STALE_LAMPORT
-    const nonce2 = globalThis.crypto.randomUUID();
+    const nonce2 = nextNonce();
     const can2 = buildCanonicalPayload({ keyId: KEY_ID, method: 'POST', path: '/sync', timestamp: '400', nonce: nonce2, contentType: 'application/json', bodySha256: bodySha });
     const hmac2 = await defaultCrypto.hmac('sha256', SECRET_VALUE, can2);
     const sig2 = Buffer.from(hmac2).toString('hex');
@@ -884,7 +895,7 @@ describe('verify() nonce ordering', () => {
 
 describe('durable replay authority', () => {
   it('retains an admitted nonce across service restart', async () => {
-    const replayProtection = new InMemorySyncReplayProtection();
+    const replayProtection = new InMemorySyncReplayProtection(makeManualClock().now);
     const request = await buildSignedRequest();
     const first = makeService({ replayProtection });
     const restarted = makeService({ replayProtection });
@@ -898,7 +909,7 @@ describe('durable replay authority', () => {
   });
 
   it('gives concurrent duplicate admission exactly one winner', async () => {
-    const replayProtection = new InMemorySyncReplayProtection();
+    const replayProtection = new InMemorySyncReplayProtection(makeManualClock().now);
     const request = await buildSignedRequest();
     const left = makeService({ replayProtection });
     const right = makeService({ replayProtection });

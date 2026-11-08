@@ -131,7 +131,7 @@ async function signForRequest(
       lamport: auth.lamport,
       authScheme: auth.scheme,
     },
-    { crypto: auth.crypto },
+    { crypto: auth.crypto, random: auth.random },
   );
 }
 
