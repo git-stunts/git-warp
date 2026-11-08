@@ -1,6 +1,6 @@
 # v19 Public Vocabulary Checkpoint
 
-> **Status:** Historical checkpoint: current in `v20.0.0`; introduced in `v19.0.0`.
+> **Status:** Current in `v20.0.0`; introduced in `v19.0.0`. Historical for v21.
 >
 > **v21 removed part of this surface**
 > ([#1054](https://github.com/git-stunts/git-warp/issues/1054)): `Lane.write`,
