@@ -90,6 +90,10 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
     this.#writer = new GitFastImportTreeWriter({ plumbing: options.history.plumbing });
   }
 
+  override recordLayout(): string {
+    return CONE_TRIE_LAYOUT;
+  }
+
   override async readRecords(root: ConeRoot, keys: readonly ConeRecordKey[]): Promise<ConeRecordSnapshot> {
     const families = await this.#familiesOf(root);
     const records: ConeRecord[] = [];

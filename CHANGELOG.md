@@ -75,6 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the internal retained graph manifest over the cone basis: a schema-1
+  commitment over the record-trie layout, ordinal geometry, record root and
+  writer frontier, plus graph-local ordinals (one dot of the node or edge
+  OR-Set) that resolve through one bounded 256-counter dot page each. A
+  retained checkpoint and the live head of the same basis are one manifest.
+  No persisted record or basis format changes
+  ([#815](https://github.com/git-stunts/git-warp/issues/815)).
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
   with an injected `WarpAccessPort` and no implicit access. `execute` returns
@@ -142,6 +149,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Classify an absent object reported by git-cas persistence
+  (`GIT_OBJECT_NOT_FOUND`) as a typed `E_MISSING_OBJECT` persistence error
+  instead of letting the untyped git-cas failure escape
+  ([#815](https://github.com/git-stunts/git-warp/issues/815)).
 - Discover every supported test file recursively under `test/unit/` before
   partitioning the default unit run. New directories no longer need a runner
   allowlist entry. The runner refuses missing, unexpected or duplicate paths
