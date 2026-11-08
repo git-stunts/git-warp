@@ -108,6 +108,11 @@ export default class RepositoryObjectCensus {
     return `${short} ${type} ${size}B ${head}`;
   }
 
+  /** Objects that no ref reaches, by `git fsck --unreachable --no-reflogs`. */
+  unreachableCount(): number {
+    return lines(git(this.#path, ['fsck', '--unreachable', '--no-reflogs', '--no-progress'])).filter((line) => line.startsWith('unreachable ')).length;
+  }
+
   refCount(): number {
     return lines(git(this.#path, ['for-each-ref', '--format=%(refname)'])).length;
   }

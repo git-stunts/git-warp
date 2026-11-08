@@ -1,4 +1,3 @@
-import { performance } from 'node:perf_hooks';
 import { afterEach, describe, expect, it } from 'vitest';
 import { intent } from '../../../advanced.ts';
 import ObservationAdmitted from '../../../src/domain/services/custody/ObservationAdmitted.ts';
@@ -21,6 +20,8 @@ const WRITES = Number(process.env['GIT_WARP_RETENTION_PROBE_WRITES'] ?? '400');
 const READS = Number(process.env['GIT_WARP_RETENTION_PROBE_READS'] ?? '200');
 const SAMPLES = new Set([1, 2, 3, 50, 100, 200, 400]);
 const TIMEOUT_MS = 1_800_000;
+/** A fixed clock: the probe counts objects and never depends on elapsed time. */
+const FIXED_TIME_MS = 1_700_000_000_000;
 const DETAIL = process.env['GIT_WARP_RETENTION_PROBE_DETAIL'] === '1';
 
 const fixture = new ObservationCustodyFixture();
@@ -116,20 +117,17 @@ describe.skipIf(!ENABLED)('#1080 retained operation cost attribution', () => {
     const path = await repository();
     const census = new RepositoryObjectCensus(path);
     const attribution = new Attribution(census);
-    const warp = await open(path, { wrapCustody: (custody) => new MeteredObservationCustody(custody, (transition, side) => { attribution.mark(transition, side); }) });
+    const warp = await open(path, { clock: () => FIXED_TIME_MS, wrapCustody: (custody) => new MeteredObservationCustody(custody, (transition, side) => { attribution.mark(transition, side); }) });
     const writer = warp.as('alice');
     console.log(`gc.auto=${git(path, ['config', '--default', 'unset', 'gc.auto'])} git=${git(path, ['--version'])}`);
     let previous = census.counts();
-    let elapsed = 0;
     let gcSeen = false;
     for (let index = 1; index <= WRITES; index++) {
       const sampled = SAMPLES.has(index);
       if (sampled) {
         attribution.start();
       }
-      const began = performance.now();
       retained(await writer.execute(intent.node.add({ subject: `node:${index}` })));
-      elapsed += performance.now() - began;
       const counts = census.counts();
       gcSeen ||= counts.loose < previous.loose || counts.packs > 0;
       if (sampled) {
@@ -140,10 +138,11 @@ describe.skipIf(!ENABLED)('#1080 retained operation cost attribution', () => {
       previous = counts;
     }
     const before = census.counts();
-    console.log(`after ${WRITES} writes: loose=${before.loose} looseKiB=${before.looseKiB} perWrite=${(before.loose / WRITES).toFixed(1)} objects ${(before.looseKiB / WRITES).toFixed(1)} KiB refs=${census.refCount()} msPerWrite=${(elapsed / WRITES).toFixed(1)} autoGcObserved=${String(gcSeen || census.autoGcEvidence())}`);
+    console.log(`after ${WRITES} writes: loose=${before.loose} looseKiB=${before.looseKiB} perWrite=${(before.loose / WRITES).toFixed(1)} objects ${(before.looseKiB / WRITES).toFixed(1)} KiB refs=${census.refCount()} autoGcObserved=${String(gcSeen || census.autoGcEvidence())}`);
     collectGarbage(path);
     const after = census.counts();
     console.log(`after gc --prune=now: packed=${after.packed} packKiB=${after.packKiB} loose=${after.loose} survivorsPerWrite=${(after.packed / WRITES).toFixed(1)} objects ${(after.packKiB / WRITES).toFixed(2)} KiB`);
+    console.log(`garbage per write, superseded objects included: ${((before.loose - after.packed) / WRITES).toFixed(1)} objects`);
     expect(before.loose).toBeGreaterThan(0);
   }, TIMEOUT_MS);
 
@@ -156,8 +155,8 @@ describe.skipIf(!ENABLED)('#1080 retained operation cost attribution', () => {
       wrap: (custody) => new MeteredObservationCustody(custody, (transition, side) => { attribution.mark(transition, side); }),
     });
     const heads = writerCommits(path, 3);
-    let elapsed = 0;
     let created = 0;
+    let createdKiB = 0;
     for (let index = 1; index <= READS; index++) {
       const basis = basisTree(path, `read ${index}`, heads);
       const sampled = SAMPLES.has(index);
@@ -165,13 +164,12 @@ describe.skipIf(!ENABLED)('#1080 retained operation cost attribution', () => {
       if (sampled) {
         attribution.start();
       }
-      const began = performance.now();
       const attempt = narrowed(await opened.service.begin(readBindings(basis)), ObservationAdmitted).attempt;
       narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
       narrowed(await opened.service.settle(attempt, { core: readCore(`read ${index}`), publication: null }), RetainedObservation);
-      elapsed += performance.now() - began;
       const counts = census.counts();
       created += counts.loose - start.loose;
+      createdKiB += counts.looseKiB - start.looseKiB;
       if (sampled) {
         console.log(`read ${index}: loose +${counts.loose - start.loose} (${counts.loose} total, ${counts.looseKiB} KiB) refs=${census.refCount()}`);
         console.log(attribution.finish(['refs/warp/', 'refs/cas/']));
@@ -179,10 +177,12 @@ describe.skipIf(!ENABLED)('#1080 retained operation cost attribution', () => {
       }
     }
     const before = census.counts();
-    console.log(`after ${READS} reads: perRead=${(created / READS).toFixed(1)} objects (excluding fixture basis trees) looseKiB=${before.looseKiB} refs=${census.refCount()} msPerRead=${(elapsed / READS).toFixed(1)}`);
+    console.log(`after ${READS} reads: perRead=${(created / READS).toFixed(1)} objects ${(createdKiB / READS).toFixed(1)} KiB (fixture objects excluded) looseKiB=${before.looseKiB} refs=${census.refCount()}`);
+    const fixtureObjects = before.loose - created;
     collectGarbage(path);
     const after = census.counts();
-    console.log(`after gc --prune=now: packed=${after.packed} packKiB=${after.packKiB}`);
+    const kept = after.packed - fixtureObjects;
+    console.log(`after gc --prune=now: packed=${after.packed} packKiB=${after.packKiB} fixtureObjects=${fixtureObjects} survivorsPerRead=${(kept / READS).toFixed(1)} garbagePerRead=${((created - kept) / READS).toFixed(1)}`);
     expect(created).toBeGreaterThan(0);
   }, TIMEOUT_MS);
 });

@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Document garbage collection for repositories that git-warp writes to. The
+  runtime never runs `git gc` and starts no `git gc --auto`. On git-cas
+  7.2.0, a retained write adds about 55 loose objects (about 220 KiB on a
+  filesystem with 4 KiB blocks) and one permanent ref. Schedule a plain
+  `git gc`, for example daily. When #1052 Slice 3b lands, a read will retain,
+  at about 30 objects and one ref, only when its query asks for a Coordinate
+  ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)
   trees instead of 64 ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
@@ -74,13 +81,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#1042](https://github.com/git-stunts/git-warp/issues/1042)).
 
 ### Added
-
-- Document that git-warp never runs Git garbage collection in the user's
-  repository, and that its plumbing writes never start `git gc --auto`.
-  A retained write adds about 55 loose objects (about 220 KiB) and one
-  permanent ref. A retained read adds about 30 objects (about 127 KiB) and
-  one ref. Operators schedule `git maintenance start` and `git gc --auto`
-  ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
 
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,

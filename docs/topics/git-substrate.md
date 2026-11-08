@@ -120,14 +120,25 @@ shared boundary vocabulary for witnessed history exchange. Use
 
 ## Garbage collection
 
-git-warp writes Git objects only through plumbing commands. These never start
-`git gc --auto`, and git-warp never runs garbage collection itself. A retained
-write adds about 55 loose objects (about 220 KiB) and one permanent custody ref.
-A read that asks for a Coordinate adds about 30 loose objects (about 127 KiB)
-and one ref. A read without that request retains nothing. Loose objects
-accumulate until the operator schedules `git maintenance start` and
-`git gc --auto`. See [Operations: Garbage collection](../operations/README.md#garbage-collection)
-for the measured costs and the commands.
+The git-warp runtime writes Git objects only through plumbing commands. These
+never start `git gc --auto`, and the runtime does not run garbage collection
+itself. On git-cas 7.2.0, a retained write adds about 55 loose objects (about
+220 KiB on a filesystem with 4 KiB blocks) and one permanent ref under
+`refs/cas/reservation-custody/`.
+
+About 26 of those objects become unreachable: replaced reservation-ledger
+generations, the scaffolding commits that `git fast-import` needs, and the
+write's attempt-journal blob. Each ledger transition writes a new parentless
+generation. Its index gets one level deeper for every sixteenfold increase in
+records, so the count grows slowly with history.
+
+Reads in this release retain nothing. When
+[#1052](https://github.com/git-stunts/git-warp/issues/1052) Slice 3b lands, a
+read will retain only when its query asks for a Coordinate, at a projected
+cost of about 30 objects and one ref.
+
+Operators collect the garbage with a scheduled plain `git gc`. See
+[Operations: Garbage collection](../operations/README.md#garbage-collection).
 
 ## See also
 

@@ -162,58 +162,85 @@ concurrent processes is required.
 
 ## Garbage collection
 
-git-warp never runs garbage collection in your repository. Its writes use only
-Git plumbing commands, and plumbing commands never start `git gc --auto`. Only
-porcelain such as `commit`, `merge` or `fetch` does that. So Git's `gc.auto`
-threshold, 6,700 loose objects by default, never takes effect for git-warp
-writes. Nothing packs or prunes the objects until you schedule that work.
+git-warp stores its graph in the repository that `GitStorage.root()` names,
+which is normally your own source repository. The git-warp runtime does not
+run garbage collection there. Its read and write paths use only Git plumbing
+commands, and plumbing commands never start `git gc --auto`. The one
+exception is the one-off `git-warp-v18-to-v19` migrator: its `git fetch` can
+start Git's automatic maintenance, as any fetch can.
 
-Measured cost per retained operation (Docker, fresh repository, git-cas 7.2.0,
-[#1080](https://github.com/git-stunts/git-warp/issues/1080)):
+Other Git commands in the same repository can collect git-warp's objects.
+Your own porcelain commands, such as `git commit`, `git merge` and
+`git fetch`, run `git gc --auto` when the repository is over Git's `gc.auto`
+threshold (6,700 loose objects by default). By default that GC runs in the
+background while git-warp may be writing. This is safe: GC removes only
+unreachable objects older than `gc.pruneExpire`, two weeks by default. The
+objects of an unfinished write are younger than that, or its attempt refs
+keep them reachable. If `gc.auto` is `0`,
+`git gc --auto` does nothing.
 
-| Measure | Retained write | Retained read |
-| --- | --- | --- |
-| New loose objects | 48 to 57, average 55.0 over 400 writes | 26 to 29, average 29.7 over 200 reads |
-| Loose disk use | about 220 KiB | about 127 KiB |
-| Permanent refs | 1 (`refs/cas/reservation-custody/...`) | 1 |
-| Kept after `git gc --prune=now` | 29.3 objects, 5.45 KiB | not measured per read |
+If nothing collects garbage, disk use grows by about 220 KiB for each
+retained write, with no upper limit. The default threshold is passed after
+about 120 retained writes.
 
-Most of the loose disk use is filesystem blocks: each loose object takes one
-block, 4 KiB on the measured filesystem. The count grows slowly with history,
-because the reservation index gets one level deeper for every sixteenfold
-increase in records. A read without a Coordinate request retains nothing.
-After 400 writes, the measured repository held 22,006 loose objects and no
-packs. Packing reduced the 88,024 KiB of loose objects to a 2,178 KiB pack.
+### Schedule a plain `git gc`
 
-Between 15 and 21 objects from each write, and 8 to 10 from each read, are unreachable as
-soon as the operation returns. These are replaced reservation-ledger
-generations and other temporary objects. Only `git gc` removes them. Retained
-observations stay reachable from their custody refs, so GC keeps them and
-their Coordinates still resolve.
-
-Schedule maintenance for each repository that git-warp writes to:
+Run a plain `git gc` (without `--auto`) on a schedule, for example once a day
+from cron. Set `REPOSITORY` to the repository behind `GitStorage.root()`:
 
 ```bash
-# Pack loose objects in the background on Git's schedule.
-git -C "$REPOSITORY" maintenance start
+REPOSITORY=/path/to/your/repository
 
-# Remove unreachable objects too, for example from a daily cron job.
-git -C "$REPOSITORY" gc --auto
+git -C "$REPOSITORY" gc --quiet
 ```
 
-`git maintenance start` registers the repository and starts the incremental
-strategy, which packs loose objects but does not remove unreachable ones.
-Run `git gc --auto` on a schedule as well. `git gc --auto` does nothing below
-Git's thresholds. When it runs, it removes only unreachable objects older than
-`gc.pruneExpire` (two weeks by default). Do not run `git gc --prune=now` while
-git-warp processes are writing: a write that is still in progress can hold
-objects that no ref reaches yet.
+A plain `git gc` packs all objects and removes the unreachable objects that
+are older than `gc.pruneExpire`. It is safe to run while git-warp writes,
+for the reason given above. Do not run `git gc --prune=now` while git-warp
+writes: an unfinished write can hold objects that no ref reaches yet.
 
-A future `git warp doctor` check will report the loose-object backlog against
-Git's `gc.auto` threshold
-([#1057](https://github.com/git-stunts/git-warp/issues/1057)). A planned git-cas
-change will write packs instead of loose objects
-([#1101](https://github.com/git-stunts/git-warp/issues/1101)).
+Do not use `git maintenance start` for this. Its default incremental schedule
+packs loose objects, including unreachable ones, and never removes them. After
+it runs, the loose-object count stays low, so `git gc --auto` does not start
+either. git-maintenance(1) advises against enabling both the `loose-objects`
+and `gc` tasks at the same time.
+
+### Measured cost
+
+These figures were measured in Docker on a fresh repository, with git-cas
+7.2.0 and Git 2.39.5
+([#1080](https://github.com/git-stunts/git-warp/issues/1080)). Object counts
+come from sampled operations. Disk use assumes a filesystem with 4 KiB blocks,
+because each loose object takes at least one block.
+
+| Measure | Retained write | Retained read (projection) |
+| --- | --- | --- |
+| New loose objects | 48 to 57, average 55.1 over 400 writes | 26 to 32, average 29.9 over 200 reads |
+| Loose disk use | about 220 KiB | about 120 KiB |
+| Permanent refs | 1, under `refs/cas/reservation-custody/` | 1, under `refs/cas/reservation-custody/` |
+| Unreachable when the operation returns | 15 to 21 | 8 to 12 |
+| Unreachable in total, including objects that later operations replace | about 26 | about 16 |
+| Kept after GC | 29.4 objects, 5.45 KiB packed | about 14 objects |
+
+- After 400 writes, the repository held 22,026 loose objects (88,104 KiB) and
+  no packs. GC packed them into 2,181 KiB.
+- The cost grows slowly as history grows.
+- Unreachable objects are temporary bookkeeping objects. Retained data stays
+  reachable from its refs, so GC keeps it.
+- The read column is a projection, not shipped behavior. Reads in this
+  release do not retain anything. When
+  [#1052](https://github.com/git-stunts/git-warp/issues/1052) Slice 3b lands,
+  a read will retain only when its query asks for a Coordinate. The read
+  figures come from calling observation custody directly, without the
+  objects of the test fixture.
+
+A `git warp doctor` check for unremoved garbage is planned in
+[#1057](https://github.com/git-stunts/git-warp/issues/1057). A git-cas change
+that writes packs instead of loose objects is planned in
+[#1101](https://github.com/git-stunts/git-warp/issues/1101). The garbage
+collection rule on this page was decided on 2026-11-08 under the maintainer's
+delegation; the read retention rule was decided by the maintainer on
+2026-11-06. Both are recorded on #1080.
 
 ## Storage incidents
 
