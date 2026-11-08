@@ -2,9 +2,10 @@ name: ADR 2 readiness review
 description: Review whether ADR 2 may be implemented or activated under ADR 3
 title: "[ADR2] Readiness review: "
 labels:
-  - adr
-  - adr-2
-  - readiness-review
+  - type:docs
+  - priority:next
+  - status:available
+  - area:architecture
 body:
   - type: markdown
     attributes:
