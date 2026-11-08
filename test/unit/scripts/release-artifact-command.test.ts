@@ -5,7 +5,8 @@ import {
 } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
-  cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync,
+  cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, symlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
@@ -69,8 +70,12 @@ const MISSING_SHARED_DIST = 'the shared dist/ lacks the listed paths, so the gua
  */
 const UNCOPIED_ROOT_ENTRIES: ReadonlySet<string> = new Set(['node_modules', 'dist', 'test', '.git', 'coverage']);
 
-/** Private trees made by this file; `afterAll` removes them, also after a failed copy or build. */
+/** Temporary trees made by this file; the one file-level `afterAll` removes them, also after a failed copy or build. */
 const isolatedTrees: string[] = [];
+
+afterAll(() => {
+  for (const tree of isolatedTrees.splice(0)) rmSync(tree, { recursive: true, force: true });
+});
 
 type CommandRunner = (
   command: string,
@@ -195,16 +200,21 @@ function isSupportedMigrationArtifact(path: string): boolean {
 }
 
 /**
- * Names one entry without reading the clock: a file by its inode, size and a
- * SHA-256 of its content; a directory by its inode and the sorted names it
- * holds. Replacing a file changes its inode, and rewriting it changes its
- * digest, even when the writer keeps the size and restores the mtime.
+ * Names one entry without reading the clock: a regular file by its inode, size
+ * and a SHA-256 of its content; a directory by its inode and the sorted names
+ * it holds; any other kind (for example a FIFO, which a read would block on) by
+ * its inode and mode only. Replacing a file changes its inode, and rewriting it
+ * changes its digest, even when the writer keeps the size and restores the mtime.
  */
 function entryIdentity(path: string): string {
   const stat = statSync(path, { bigint: true });
-  return stat.isDirectory()
-    ? `${stat.ino}:dir:${readdirSync(path).sort().join('/')}`
-    : `${stat.ino}:${stat.size}:${createHash('sha256').update(readFileSync(path)).digest('hex')}`;
+  if (stat.isDirectory()) {
+    return `${stat.ino}:dir:${readdirSync(path).sort().join('/')}`;
+  }
+  if (!stat.isFile()) {
+    return `${stat.ino}:special:${stat.mode}`;
+  }
+  return `${stat.ino}:${stat.size}:${createHash('sha256').update(readFileSync(path)).digest('hex')}`;
 }
 
 /** Lists the precondition paths that the shared dist/ under `root` lacks. */
@@ -216,8 +226,10 @@ function missingSharedDistPaths(root: string): readonly string[] {
  * Snapshots every entry under a directory, the directory included. Over the
  * shared dist/ this covers all that PublicSurfaceScanner reads there: the
  * declaration roots, their `dist/src/**` import closure and the `.js` export
- * targets. An added, removed, replaced or rewritten entry changes the snapshot;
- * see `entryIdentity` for what each line records.
+ * targets. Two snapshots differ when an entry was added, removed, replaced or
+ * rewritten between them. They see only the net change between the two
+ * snapshots: a change that is undone before the second snapshot leaves no
+ * trace. See `entryIdentity` for what each line records.
  */
 function treeIdentities(directory: string): readonly string[] {
   return ['.', ...readdirSync(directory, { encoding: 'utf8', recursive: true })]
@@ -243,13 +255,13 @@ class IsolatedPackRun {
     readonly copiedTestTree: boolean;
     readonly sharedBefore: readonly string[];
     readonly sharedAfter: readonly string[];
-    readonly entries: ReadonlySet<string>;
+    readonly entryPaths: Iterable<string>;
   }) {
     this.tree = fields.tree;
     this.copiedTestTree = fields.copiedTestTree;
     this.sharedBefore = Object.freeze([...fields.sharedBefore]);
     this.sharedAfter = Object.freeze([...fields.sharedAfter]);
-    this.entryPaths = Object.freeze([...fields.entries]);
+    this.entryPaths = Object.freeze([...fields.entryPaths]);
     this.#entrySet = new Set(this.entryPaths);
     Object.freeze(this);
   }
@@ -265,8 +277,9 @@ class IsolatedPackRun {
     const sharedBefore = treeIdentities(resolve('dist'));
     const tree = isolatedPackageTree();
     const copiedTestTree = existsSync(join(tree, 'test'));
-    const entries = packEntries(runNpmPackDryRun(tree));
-    return new IsolatedPackRun({ tree, copiedTestTree, sharedBefore, sharedAfter: treeIdentities(resolve('dist')), entries });
+    const entryPaths = packEntries(runNpmPackDryRun(tree));
+    const sharedAfter = treeIdentities(resolve('dist'));
+    return new IsolatedPackRun({ tree, copiedTestTree, sharedBefore, sharedAfter, entryPaths });
   }
 }
 
@@ -357,7 +370,7 @@ describe('release artifact command evidence', () => {
   });
 });
 
-describe('shared dist/ precondition', () => {
+describe('shared dist/ guard helpers', () => {
   it('lists each precondition path that the shared dist/ lacks', () => {
     const root = mkdtempSync(join(tmpdir(), 'git-warp-dist-precondition-'));
     isolatedTrees.push(root);
@@ -367,8 +380,19 @@ describe('shared dist/ precondition', () => {
       .toEqual(['dist/advanced.d.ts', 'dist/diagnostics.d.ts', 'dist/charts.d.ts', 'dist/testing.d.ts']);
   });
 
-  afterAll(() => {
-    for (const tree of isolatedTrees.splice(0)) rmSync(tree, { recursive: true, force: true });
+  it('changes the snapshot for a same-size in-place rewrite and the directory identity for a child rename', () => {
+    const root = mkdtempSync(join(tmpdir(), 'git-warp-tree-identities-'));
+    isolatedTrees.push(root);
+    mkdirSync(join(root, 'sub'));
+    writeFileSync(join(root, 'a.txt'), 'abc');
+    writeFileSync(join(root, 'sub/b.txt'), 'xyz');
+    const before = treeIdentities(root);
+    writeFileSync(join(root, 'a.txt'), 'abd');
+    expect(treeIdentities(root), 'a same-size rewrite must change the snapshot').not.toEqual(before);
+    const directoryBefore = entryIdentity(join(root, 'sub'));
+    renameSync(join(root, 'sub/b.txt'), join(root, 'sub/c.txt'));
+    expect(entryIdentity(join(root, 'sub')), 'a child rename must change the directory identity')
+      .not.toBe(directoryBefore);
   });
 });
 
@@ -379,10 +403,6 @@ describe('isolated release build (#1081)', () => {
     run = IsolatedPackRun.execute();
   }, ISOLATED_BUILD_TIMEOUT_MS);
 
-  afterAll(() => {
-    for (const tree of isolatedTrees.splice(0)) rmSync(tree, { recursive: true, force: true });
-  });
-
   it('#1081: builds in a private copy without test/ and leaves every entry of the shared dist/ unchanged', () => {
     expect(run.copiedTestTree, 'the private copy must leave out the churned test/ tree').toBe(false);
     expect(run.sharedAfter, 'the build must not add, remove, replace or rewrite any entry of the shared dist/ '
@@ -390,7 +410,7 @@ describe('isolated release build (#1081)', () => {
   });
 
   it('dry-runs the packed npm artifact and exposes the compiled public surface', () => {
-    const { tree, entryPaths: entries } = run;
+    const { tree, entryPaths } = run;
     const roots = DECLARATION_ROOTS.map((name) => resolve(tree, `dist/${name}.d.ts`));
     const declarations = ts.createProgram(roots, {
       module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext,
@@ -400,17 +420,17 @@ describe('isolated release build (#1081)', () => {
     const requiredDeclarations = declarations.getSourceFiles()
       .map((file) => relative(tree, file.fileName).split('\\').join('/'))
       .filter((path) => path.startsWith('dist/'));
-    expect(entries.filter((path) => path.endsWith('.d.ts')).sort())
+    expect(entryPaths.filter((path) => path.endsWith('.d.ts')).sort())
       .toEqual(requiredDeclarations.sort());
 
-    const compiledTests = entries.filter((entry) => entry.startsWith('dist/test/'));
-    const withheldDocumentation = entries.filter(
+    const compiledTests = entryPaths.filter((entry) => entry.startsWith('dist/test/'));
+    const withheldDocumentation = entryPaths.filter(
       (entry) =>
         entry === 'CHANGELOG.md' ||
         entry.startsWith('docs/topics/') ||
         entry.startsWith('docs/operations/')
     );
-    const unrelatedCompiledScripts = entries.filter(
+    const unrelatedCompiledScripts = entryPaths.filter(
       (entry) =>
         entry.startsWith('dist/scripts/') &&
         !isSupportedMigrationArtifact(entry) &&
@@ -418,7 +438,7 @@ describe('isolated release build (#1081)', () => {
         entry !== 'dist/scripts/formatFailure.js' &&
         entry !== 'dist/scripts/upgrade-v16-to-v17.js'
     );
-    const implementationNonJavaScript = entries.filter(
+    const implementationNonJavaScript = entryPaths.filter(
       (entry) =>
         (entry.startsWith('dist/bin/') || entry.startsWith('dist/scripts/')) &&
         !entry.endsWith('.js')
