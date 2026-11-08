@@ -12,6 +12,7 @@ import type ObservationCustodyService from '../../../../../src/domain/services/c
 import ObservationDependencyClaim from '../../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDigest from '../../../../../src/domain/services/custody/ObservationDigest.ts';
 import ObservationPreparation from '../../../../../src/domain/services/custody/ObservationPreparation.ts';
+import ObservationIndeterminate from '../../../../../src/domain/services/custody/ObservationIndeterminate.ts';
 import ObservationQuestion from '../../../../../src/domain/services/custody/ObservationQuestion.ts';
 import ObservationRefused from '../../../../../src/domain/services/custody/ObservationRefused.ts';
 import ObservationUnretained from '../../../../../src/domain/services/custody/ObservationUnretained.ts';
@@ -261,6 +262,23 @@ describe('ConeWriteRecovery', () => {
     }).reconcile('alice', ATTEMPT.value);
 
     expect(answer).toBeInstanceOf(IndeterminateWriteReceipt);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    new ObservationRefused('cancelled'), new ObservationRefused('not-reserved'), new ObservationRefused('contention'),
+    new ObservationRefused('not-prepared'), new ObservationIndeterminate('settlement', new Error('gone')),
+  ])('answers indeterminate and keeps the record when custody answers %o, not not-settled', async (answer) => {
+    const remove = vi.fn();
+    const settled = await recovery({
+      custody: {
+        resume: () => Promise.resolve(new ObservationAdmitted({ identity: {} } as ObservationAttempt, 'armed')),
+        recoverCoordinate: () => Promise.resolve(answer),
+      },
+      journal: { read: () => Promise.resolve(recordOf().asReported(OID)), remove },
+    }).reconcile('alice', ATTEMPT.value);
+
+    expect(settled).toBeInstanceOf(IndeterminateWriteReceipt);
     expect(remove).not.toHaveBeenCalled();
   });
 
