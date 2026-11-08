@@ -567,11 +567,13 @@ throws it, and nothing else. The list (`TRANSIENT_PERSISTENCE_CODES` and
   command meets a held lock file, and which reaches the adapter unwrapped.
 
 The list applies to failures the cone store host sees, beneath the cone record
-store adapter. The host turns those into `ConeStoreUnavailableError`, which carries
-the failure as its `cause`. A failure produced above the host is not on the list: an
-`E_REF_IO` that `GitFastImportTreeWriter` makes from a failed fast-import rejects, and
-so does every failure from the patch feed or the writer's runtime host, transient or
-not. Classifying those sources is #1109. Domain code dispatches on that class with `instanceof`, never on a
+store adapter, including the plumbing calls fast-import makes through the host: a
+held lock during fast-import gives `write-basis-unavailable`. The host turns those
+into `ConeStoreUnavailableError`, which carries the failure as its `cause`. An error
+that `GitFastImportTreeWriter` creates above the host is not on the list and rejects,
+for example an `E_REF_IO` it re-types from an exit-128 failure. Every failure from
+the patch feed or the writer's runtime host rejects, transient or not. Classifying
+those sources is #1109. Domain code dispatches on that class with `instanceof`, never on a
 message. The cause stays on the error and off the public receipt, whose `cause` is a
 policy-safe string (decided 2026-11-08). #1107 will report the underlying cause
 through the injected logger; until then the underlying host failure is not recorded.
@@ -603,9 +605,9 @@ object-session path, and on other paths it cannot be identified as transient.
   `E_SYNC_PATCH_HISTORY`, a malformed or schema `PatchError`): it rejects as
   `WriteHistoryCorruptError`, not as a missing-basis refusal, because materializing
   cannot repair it. Only a writer with no history to observe (`E_PATCH_NO_STATE`)
-  keeps the missing-basis refusal. Every failure from the patch feed, the writer's
-  runtime host or the fast-import writer also rejects at those steps, transient or
-  not, until #1109 classifies them.
+  keeps the missing-basis refusal. Every failure from the patch feed or the writer's
+  runtime host also rejects at those steps, transient or not, until #1109 classifies
+  them, and so does an error that `GitFastImportTreeWriter` creates above the host.
 - The injected `WarpAccessPort` is a caller-owned capability, not a store. If it
   throws, the operation rejects and publishes nothing.
 - #1052 must give an Optic read the same rule: an unavailable store before read
