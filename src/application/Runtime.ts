@@ -17,9 +17,9 @@ export type RuntimeOpenOptions = {
   readonly writer: string;
 };
 
-/**
- * The legacy read path, kept until #1052 replaces it with the Optic read: open, take a
- * Lane, observe it, close. Writes go through `Warp.as(writer).execute(intent)`.
+/** Production composition root for the legacy read path, kept until #1052 adds the Optic read.
+ *
+ * Open, take a Lane, observe it, close. Writes go through `Warp.as(writer).execute(intent)`.
  */
 export default class Runtime {
   readonly #activity: RuntimeActivity;
