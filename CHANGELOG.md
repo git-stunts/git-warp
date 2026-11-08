@@ -37,11 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `AuthoredWarp.execute()` reports an unavailable store before publication as an
-  `UnpublishedWriteReceipt` (`write-basis-unavailable`,
-  `write-premise-unavailable`, `attempt-journal-unavailable`,
-  `retention-unavailable`) and does not reject. Invalid input, a throwing access
-  port, defects, broken invariants and repository corruption reject. An untyped
+- `AuthoredWarp.execute()` reports an unavailable store while it fixes the write
+  basis or reads the premise records as an `UnpublishedWriteReceipt`
+  (`write-basis-unavailable`, `write-premise-unavailable`) and does not reject.
+  At those steps, invalid input, a throwing access port, defects, broken
+  invariants and repository corruption reject. The attempt-journal and
+  custody-support steps still turn any failure into `attempt-journal-unavailable`
+  or `retention-unavailable` until #1109 classifies them by type. An untyped
   failure of the patch feed or of the writer's runtime host now rejects too; on
   unreleased `main` it returned `write-basis-unavailable`
   ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).

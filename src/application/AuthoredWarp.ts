@@ -27,11 +27,12 @@ export default class AuthoredWarp {
 
   /**
    * Executes an intent or an atomic intent sequence, publishing at most once. It is never
-   * retried for you. An unavailable store before publication is permitted, whether fixing the
-   * basis or reading its records, returns an unpublished receipt. Before publication it rejects,
-   * having published nothing, when the input is not a valid intent sequence, when the injected
-   * access port throws, or when the failure is a defect, a broken invariant or corruption rather
-   * than an unavailable store.
+   * retried for you. An unavailable store while it fixes the basis or reads its records
+   * returns an unpublished receipt. At those steps it rejects, having published nothing, when
+   * the input is not a valid intent sequence, when the injected access port throws, or when the
+   * failure is a defect, a broken invariant or corruption rather than an unavailable store. The
+   * attempt-journal and custody-support steps still give an unpublished receipt for any failure,
+   * until #1109 classifies them by type.
    * A process that dies here leaves no receipt, and no way yet to ask what became of the write.
    */
   async execute(input: WriteIntentInput): Promise<AuthoredWriteReceipt> {

@@ -7,9 +7,10 @@ export default class UnpublishedWriteReceipt {
   readonly writer: string;
   /**
    * The policy-safe reason, such as `stale-predecessor`. A denial reads `access-denied: <its cause>`.
-   * An unavailable store before publication permission reads `write-basis-unavailable`,
-   * `write-premise-unavailable`, `attempt-journal-unavailable` or `retention-unavailable`
-   * (contract section 11 of `docs/plans/optic-only-public-api.md`).
+   * An unavailable store before publication permission reads `write-basis-unavailable` or
+   * `write-premise-unavailable`; a failed attempt-journal or custody-support step reads
+   * `attempt-journal-unavailable` or `retention-unavailable` (contract section 11 of
+   * `docs/plans/optic-only-public-api.md`).
    */
   readonly cause: string;
   readonly repairHints: readonly RepairHint[];
