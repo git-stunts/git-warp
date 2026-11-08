@@ -209,23 +209,29 @@ DTO and stop there**. Do not hallucinate fake domain models.
 These rules apply to every agent that a session dispatches. Briefs add the task;
 they do not repeat these rules.
 
-- Never run `rm` or `rmdir` on the host. Put scratch data in the session
+- Never run `rm` or `rmdir` on the host yourself. Put scratch data in the session
   scratchpad or inside containers. Report leftover files and worktrees; do not
-  delete them.
-- Link `node_modules` in a worktree with a relative symlink
-  (`ln -s ../git-warp/node_modules node_modules`). The path lint refuses an
-  absolute link.
+  delete them. Repository tooling that cleans up its own temporary files (for
+  example `scripts/run-in-docker.sh` and the Git hooks) is allowed.
+- Link `node_modules` in a worktree with a relative symlink to the main
+  checkout's `node_modules`, for example `ln -s ../git-warp/node_modules
+  node_modules` for a worktree next to the main checkout. The path lint refuses
+  an absolute link.
 - The host has no `timeout` command. Bound each run inside the container.
 - Implementing and reviewing agents do not hold delegated decision authority.
   At a Decision card, a design fork the issue does not settle, or a format or
   compatibility question, stop and report the options with evidence. The
   orchestrating session or the maintainer decides and records it on GitHub.
-- Before you push for review, merge `origin/main` into the branch with a merge
-  commit. Report the conflicts and how you resolved them.
-- Locks: use `git locks` only for a shared worktree, a shared container, or a
-  resource with exclusive access or a capacity. A separate worktree and a
-  per-run Docker container need no lock. Worktree creation and removal change
-  shared Git metadata, so take the `.git/` key for them.
+- Before you push for review, run `git fetch origin` and merge `origin/main`
+  into the branch with a merge commit. Report the conflicts and how you resolved
+  them.
+- Locks follow the maintainer's global rule (`~/.claude/CLAUDE.md`, "Shared
+  resources"). Locks protect scoped assets only. Work in your own isolated
+  worktree needs no lock. Take a lock when you share a worktree or a Docker
+  container with other agents, or when you use a shared resource that has
+  exclusive access or a capacity. That rule still names `host/heavy-work` for
+  expensive builds and test campaigns, and `.git/` for shared Git metadata
+  changes, such as worktree creation and removal.
 
 ### Scope and review size
 
@@ -234,7 +240,8 @@ they do not repeat these rules.
   the PR under review until the design is measured and decided.
 - Size the review to the risk. A docs-only or test-only PR needs a Baker Street
   triage case. A PR that changes runtime semantics, persistence, the wire
-  format, the public surface, or security needs a standard case. The merge gate
+  format, the public surface, or security needs a standard case. A PR that
+  changes only tooling, CI, or scripts needs a focused case. The merge gate
   is the case decision READY, with CI green at the exact head.
 
 ## Engineering Doctrine
@@ -272,9 +279,11 @@ they do not repeat these rules.
     import or a comment, or deletes a branch, guard, call, or export that
     remaining code depended on. A file that only loses unused code, or only
     changes imports or comments, does not count.
-  - Measure with `npm run test:coverage`, which runs the unit tests.
-    Integration-only coverage does not count. List each counted file and its
-    numbers in the PR body.
+  - Measure with `npm run test:coverage` (the unit suite, plus the few
+    integration files it names). Coverage that only the full integration suite
+    gives does not count. Map each touched line from `git diff -U0 origin/main`
+    onto `coverage/clover.xml`. List each counted file and its numbers in the PR
+    body.
   - The gate covers touched lines. Older uncovered lines in a counted file go to
     a debt issue, not into the slice.
 - Run an SSJS scorecard on every slice. Until an automated scorecard exists, use a manual checklist and require all green on touched files:
@@ -309,12 +318,13 @@ they do not repeat these rules.
   - `npm run typecheck`
 - Coverage ratchet policy:
   - Only `npm run test:coverage` is allowed to update coverage thresholds.
-  - Targeted or ad hoc coverage runs must not rewrite `vitest.config.js`.
+  - Targeted or ad hoc coverage runs must not rewrite `vitest.config.ts`.
 - Critical multi-writer regression suite: `test/unit/domain/WarpGraph.noCoordination.test.js`.
-- Package payload: the unpacked limit (`scripts/package-payload/PackagePayloadPolicy.ts`)
-  is a budget that every PR shares. Before you open a PR, run
-  `npm run check:package-payload` in Docker and state the byte delta in the PR
-  body. PR CI fails over the limit (`preflight`, `type-firewall-packed-consumer`,
+- Package payload: the limits in `scripts/package-payload/PackagePayloadPolicy.ts`
+  (unpacked bytes, packed bytes, and entry count) are a budget that every PR
+  shares. Before you open a PR, run
+  `bash scripts/run-in-docker.sh npm run check:package-payload` and state the
+  deltas in the PR body. PR CI fails over the limit (`preflight`, `type-firewall-packed-consumer`,
   and the BATS cases in `test-node (22)`). Do not raise the limit. A PR that does
   not fit waits for headroom or frees bytes itself.
 
