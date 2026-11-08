@@ -19,7 +19,10 @@ export default class WriteAttemptRecord {
   readonly preparation: ObservationPreparation;
   readonly premise: ObservationWritePremise;
   readonly admission: WriteAdmissionKind;
-  /** In canonical order: a `plural` write has at least one, a `derived` write none. */
+  /**
+   * In the order `canonicalWriteRaces` defines, at most one per kind, subject and key:
+   * a `plural` write has at least one, a `derived` write none.
+   */
   readonly races: readonly WriteRace[];
   readonly occurrences: readonly WriteOccurrence[];
   /** Host time when saved; only ages an attempt nothing has armed. */
@@ -45,10 +48,11 @@ export default class WriteAttemptRecord {
     if ((fields.admission === 'plural') !== (fields.races.length > 0)) {
       throw new WarpError('A write is plural exactly when it saved a race', 'E_WRITE_ATTEMPT_RECORD');
     }
+    this.races = canonicalWriteRaces(fields.races);
+    requireOneRacePerProperty(this.races);
     this.premise = writePremise;
     this.preparation = fields.preparation;
     this.admission = fields.admission;
-    this.races = canonicalWriteRaces(fields.races);
     this.occurrences = Object.freeze([...fields.occurrences]);
     this.savedAt = fields.savedAt;
     this.reported = fields.reported ?? false;
@@ -68,4 +72,18 @@ export default class WriteAttemptRecord {
   get bindings(): ObservationBindings {
     return this.preparation.bindings;
   }
+}
+
+/** Races arrive sorted, so two on one kind, subject and key sit side by side. */
+function requireOneRacePerProperty(races: readonly WriteRace[]): void {
+  for (const [index, race] of races.entries()) {
+    const previous = races[index - 1];
+    if (previous !== undefined && sameProperty(race, previous)) {
+      throw new WarpError('A write saves at most one race per subject and key', 'E_WRITE_ATTEMPT_RECORD');
+    }
+  }
+}
+
+function sameProperty(race: WriteRace, previous: WriteRace): boolean {
+  return race.kind === previous.kind && race.subject === previous.subject && race.key === previous.key;
 }

@@ -10,7 +10,8 @@ type CoreFields = { readonly [field: string]: CanonicalJsonValue };
 
 /**
  * The canonical core of a write that published `commit`, reproducible from its record on any retry.
- * It binds the races the write was admitted with, in their canonical order; a `derived` write binds none.
+ * It binds the races the write was admitted with, in the order `canonicalWriteRaces` defines; a `derived`
+ * write binds `races: []`.
  */
 export function publishedWriteCore(graph: string, record: WriteAttemptRecord, commit: string): ObservationReceiptCore {
   return coreOf('published', {
@@ -19,7 +20,10 @@ export function publishedWriteCore(graph: string, record: WriteAttemptRecord, co
   });
 }
 
-/** The canonical core of an armed write whose one publication definitely did not happen. */
+/**
+ * The canonical core of an armed write whose one publication definitely did not happen. An
+ * unpublished core has no admission outcome, so it binds no `races` field at all.
+ */
 export function failedWriteCore(graph: string, record: WriteAttemptRecord, cause: string): ObservationReceiptCore {
   return coreOf('unpublished', { ...premiseFields(graph, record), cause });
 }

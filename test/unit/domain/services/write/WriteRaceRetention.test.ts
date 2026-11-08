@@ -45,7 +45,8 @@ const COMMIT = 'c'.repeat(40);
 const PARENT = 'd'.repeat(40);
 const custodyCodec = new ObservationCustodyCborCodec(codec);
 
-const BOB_TITLE = new WriteRace({ kind: 'register', subject: 'doc', key: 'title', writers: ['carol', 'bob'], overflow: 0, causality: 'observed' });
+/** Writers deliberately unsorted; causalities mixed only to exercise ordering. */
+const TITLE_RACE = new WriteRace({ kind: 'register', subject: 'doc', key: 'title', writers: ['carol', 'bob'], overflow: 0, causality: 'observed' });
 const DAVE_BODY = new WriteRace({ kind: 'register', subject: 'doc', key: 'body', writers: ['dave'], overflow: 2, causality: 'underdetermined' });
 const BOB_REMOVED = new WriteRace({ kind: 'lifecycle', subject: 'doc', key: null, writers: ['bob'], overflow: 0, causality: 'observed' });
 
@@ -58,7 +59,7 @@ function preparation(): ObservationPreparation {
   }));
 }
 
-function record(races: readonly WriteRace[] = [BOB_TITLE, BOB_REMOVED, DAVE_BODY]): WriteAttemptRecord {
+function record(races: readonly WriteRace[] = [TITLE_RACE, BOB_REMOVED, DAVE_BODY]): WriteAttemptRecord {
   return new WriteAttemptRecord({
     preparation: preparation(), admission: races.length === 0 ? 'derived' : 'plural', races, occurrences: [], savedAt: 1,
   });
@@ -86,33 +87,34 @@ describe('a write attempt record saves its races before arming', () => {
   it('keeps them in canonical order, each naming its writers once and in order', () => {
     const saved = record();
 
-    expect(saved.races.map(wire)).toEqual([wire(BOB_REMOVED), wire(DAVE_BODY), { ...wire(BOB_TITLE), writers: ['bob', 'carol'] }]);
-    expect(record([DAVE_BODY, BOB_REMOVED, BOB_TITLE]).races.map(wire)).toEqual(saved.races.map(wire));
+    expect(saved.races.map(wire)).toEqual([wire(BOB_REMOVED), wire(DAVE_BODY), { ...wire(TITLE_RACE), writers: ['bob', 'carol'] }]);
+    expect(record([DAVE_BODY, BOB_REMOVED, TITLE_RACE]).races.map(wire)).toEqual(saved.races.map(wire));
     expect(Object.isFrozen(saved.races)).toBe(true);
     expect(saved.asReported(COMMIT).races).toEqual(saved.races);
   });
 
-  it('orders races that differ only past their subject, and keeps duplicate writers out', () => {
-    const twice = new WriteRace({ ...BOB_TITLE, writers: ['bob', 'bob'] });
-    const later = new WriteRace({ ...BOB_TITLE, subject: 'doc2' });
-    const sameKey = [new WriteRace({ ...DAVE_BODY, writers: ['erin'] }), DAVE_BODY, new WriteRace({ ...DAVE_BODY, overflow: 1 }), new WriteRace({ ...DAVE_BODY, causality: 'observed' })];
+  it('names each writer of a race once', () => {
+    expect(record([new WriteRace({ ...TITLE_RACE, writers: ['bob', 'bob'] })]).races[0]?.writers).toEqual(['bob']);
+  });
 
-    const removals = [new WriteRace({ ...BOB_REMOVED, writers: ['bob', 'carol'] }), BOB_REMOVED, BOB_REMOVED];
-    expect(record(removals).races.map(({ writers }) => writers)).toEqual([['bob'], ['bob'], ['bob', 'carol']]);
-    expect(record([later, twice]).races.map(({ subject, writers }) => [subject, writers])).toEqual([['doc', ['bob']], ['doc2', ['bob', 'carol']]]);
-    expect(record(sameKey).races.map(({ writers, overflow, causality }) => [writers[0], overflow, causality]))
-      .toEqual([['dave', 1, 'underdetermined'], ['dave', 2, 'observed'], ['dave', 2, 'underdetermined'], ['erin', 2, 'underdetermined']]);
+  it('refuses two races on one subject and key, so its races are a set', () => {
+    const fields = { preparation: preparation(), admission: 'plural' as const, occurrences: [], savedAt: 1 };
+    for (const twin of [TITLE_RACE, new WriteRace({ ...TITLE_RACE, writers: ['erin'] }), new WriteRace({ ...TITLE_RACE, overflow: 3 })]) {
+      expect(() => new WriteAttemptRecord({ ...fields, races: [TITLE_RACE, DAVE_BODY, twin] })).toThrow('at most one race per subject and key');
+    }
+    expect(() => new WriteAttemptRecord({ ...fields, races: [BOB_REMOVED, new WriteRace({ ...BOB_REMOVED, causality: 'underdetermined' })] })).toThrow(WarpError);
+    expect(record([TITLE_RACE, new WriteRace({ ...TITLE_RACE, subject: 'doc2' }), BOB_REMOVED]).races).toHaveLength(3);
   });
 
   it('refuses a plural attempt with no race, and a derived one with any', () => {
     const fields = { preparation: preparation(), occurrences: [], savedAt: 1 };
     expect(() => new WriteAttemptRecord({ ...fields, admission: 'plural', races: [] })).toThrow(WarpError);
-    expect(() => new WriteAttemptRecord({ ...fields, admission: 'derived', races: [BOB_TITLE] })).toThrow(WarpError);
+    expect(() => new WriteAttemptRecord({ ...fields, admission: 'derived', races: [TITLE_RACE] })).toThrow(WarpError);
   });
 });
 
 describe('a plural write saves its races before it arms', () => {
-  it('journals the canonical races before custody is asked to arm, and cancels nothing that published', async () => {
+  it('journals the canonical races before custody is asked to arm', async () => {
     const steps: string[] = [];
     const saved: WriteAttemptRecord[] = [];
     const attempt = { identity: {} } as ObservationAttempt;
@@ -133,7 +135,7 @@ describe('a plural write saves its races before it arms', () => {
       settlement: {} as ConeWriteSettlement,
     });
     const lowered = new LoweredConeWrite({
-      writer: 'alice', bindings: preparation().bindings, admission: 'plural', races: [DAVE_BODY, BOB_TITLE, BOB_REMOVED], occurrences: [],
+      writer: 'alice', bindings: preparation().bindings, admission: 'plural', races: [DAVE_BODY, TITLE_RACE, BOB_REMOVED], occurrences: [],
       builder: {} as PatchBuilder, fold: {} as PatchEntryFold,
     });
 
@@ -150,7 +152,7 @@ describe('the canonical write receipt core', () => {
     const core = publishedWriteCore('g', record(), COMMIT);
 
     expect(textDecode(core.outcome())).toBe(PLURAL_CORE);
-    expect(publishedWriteCore('g', record([DAVE_BODY, BOB_TITLE, BOB_REMOVED]), COMMIT).outcome()).toEqual(core.outcome());
+    expect(publishedWriteCore('g', record([DAVE_BODY, TITLE_RACE, BOB_REMOVED]), COMMIT).outcome()).toEqual(core.outcome());
   });
 
   it('binds an empty race list for a derived write, and none for a write that never published', () => {
@@ -242,25 +244,30 @@ describe('the journal keeps a record\'s races', () => {
     expect(read === null ? null : publishedWriteCore('g', read, COMMIT).outcome()).toEqual(publishedWriteCore('g', saved, COMMIT).outcome());
   });
 
-  const malformed: ReadonlyArray<readonly [string, unknown]> = [
-    ['an unknown kind', [['merge', 'doc', 'title', ['bob'], 0, 'observed']]],
-    ['a register race with no key', [['register', 'doc', null, ['bob'], 0, 'observed']]],
-    ['a lifecycle race with a key', [['lifecycle', 'doc', 'title', ['bob'], 0, 'observed']]],
-    ['a negative overflow', [['register', 'doc', 'title', ['bob'], -1, 'observed']]],
-    ['a fractional overflow', [['register', 'doc', 'title', ['bob'], 0.5, 'observed']]],
-    ['an unknown causality', [['register', 'doc', 'title', ['bob'], 0, 'guessed']]],
-    ['a non-text writer', [['register', 'doc', 'title', [7], 0, 'observed']]],
-    ['a short entry', [['register', 'doc', 'title']]],
-    ['a non-list', 'races'],
-    ['a plural write with no races', []],
+  type Stored = { readonly [field: string]: unknown };
+  const withRaces = (races: unknown) => (stored: Stored): Stored => ({ ...stored, races });
+  const malformed: ReadonlyArray<readonly [string, (stored: Stored) => Stored]> = [
+    ['a record saved before races were saved (no races field)', ({ races: _gone, ...before }) => before],
+    ['an unknown kind', withRaces([['merge', 'doc', 'title', ['bob'], 0, 'observed']])],
+    ['a register race with no key', withRaces([['register', 'doc', null, ['bob'], 0, 'observed']])],
+    ['a register race with an empty key', withRaces([['register', 'doc', '', ['bob'], 0, 'observed']])],
+    ['a lifecycle race with a key', withRaces([['lifecycle', 'doc', 'title', ['bob'], 0, 'observed']])],
+    ['a negative overflow', withRaces([['register', 'doc', 'title', ['bob'], -1, 'observed']])],
+    ['a fractional overflow', withRaces([['register', 'doc', 'title', ['bob'], 0.5, 'observed']])],
+    ['an unknown causality', withRaces([['register', 'doc', 'title', ['bob'], 0, 'guessed']])],
+    ['a non-text writer', withRaces([['register', 'doc', 'title', [7], 0, 'observed']])],
+    ['a short entry', withRaces([['register', 'doc', 'title']])],
+    ['a non-list', withRaces('races')],
+    ['a plural write with no races', withRaces([])],
+    ['two races on one subject and key', withRaces([['register', 'doc', 'title', ['bob'], 0, 'observed'], ['register', 'doc', 'title', ['carol'], 0, 'observed']])],
   ];
 
-  it.each(malformed)('fails closed on %s, with a typed error on read and a skip in a listing', async (_name, races) => {
+  it.each(malformed)('fails closed on %s, with a typed error on read and a skip in a listing', async (_name, corrupt) => {
     const store = history();
     await journal(store).save(record());
     const [oid] = [...store.blobs.keys()];
-    const stored: { readonly [key: string]: unknown } = codec.decode(store.blobs.get(oid ?? '') ?? new Uint8Array());
-    store.blobs.set(oid ?? '', codec.encode({ ...stored, races }));
+    const stored: Stored = codec.decode(store.blobs.get(oid ?? '') ?? new Uint8Array());
+    store.blobs.set(oid ?? '', codec.encode(corrupt(stored)));
 
     await expect(journal(store).read(ATTEMPT)).rejects.toThrow(AdapterValidationError);
     await expect(journal(store).list(4)).resolves.toEqual([]);

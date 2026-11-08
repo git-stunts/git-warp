@@ -75,7 +75,10 @@ const settleUnavailable = (custody: ObservationCustodyPort): ObservationCustodyP
   },
 });
 
+/** `underdetermined`: the rival writes through the legacy patch path (see `unseen`), which records no causality. */
 const BOB_TITLE = { kind: 'register', subject: 'doc', key: 'title', writers: ['bob'], overflow: 0, causality: 'underdetermined' };
+const CAROL_TITLE = { ...BOB_TITLE, writers: ['carol'] };
+const BOB_REMOVED = { kind: 'lifecycle', subject: 'doc', key: null, writers: ['bob'], overflow: 0, causality: 'underdetermined' };
 
 describe('a retained write keeps the races it was admitted with', () => {
   it('binds the exact race of two writers on one property in its core (golden)', async () => {
@@ -145,11 +148,9 @@ describe('a retained write keeps the races it was admitted with', () => {
     await unseen(path, 'carol', (patch) => { patch.setProperty('doc', 'title', 'carols'); });
 
     const raced = retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' })));
-    const races = raced.outcome.races.map(wire);
 
-    expect(races).toContainEqual({ kind: 'lifecycle', subject: 'doc', key: null, writers: ['bob'], overflow: 0, causality: 'underdetermined' });
-    expect(races).toContainEqual({ ...BOB_TITLE, writers: ['carol'] });
-    expect(await coreRaces(path, raced)).toEqual(races);
+    expect(raced.outcome.races.map(wire)).toEqual([BOB_REMOVED, CAROL_TITLE]);
+    expect(await coreRaces(path, raced)).toEqual([BOB_REMOVED, CAROL_TITLE]);
   });
 });
 
@@ -163,24 +164,45 @@ describe('races under randomized interleavings', () => {
     };
   }
 
-  it.each([1, 7, 42])('reports outer races equal to the decoded core races (seed %i)', async (seed) => {
+  /**
+   * What the receipt should report, worked out apart from the code under test: Alice's Warp never
+   * reads, so every value another writer set on a key after Alice began writing stays unobserved,
+   * and each such key races once, naming those writers.
+   */
+  function expectedRaces(unobserved: ReadonlyMap<string, ReadonlySet<string>>, keys: readonly string[]): object[] {
+    return [...keys].sort().flatMap((key) => {
+      const writers = [...(unobserved.get(key) ?? [])].sort();
+      return writers.length === 0 ? [] : [{ kind: 'register', subject: 'doc', key, writers, overflow: 0, causality: 'underdetermined' }];
+    });
+  }
+
+  it.each([1, 7, 42])('reports the races an independent oracle expects, and binds them in the core (seed %i)', async (seed) => {
     const next = generator(seed);
     const path = await repository();
     const warp = await open(path);
     const keys = ['title', 'body', 'tag'];
+    const unobserved = new Map<string, Set<string>>(keys.map((key) => [key, new Set<string>()]));
     retained(await warp.as('alice').execute([intent.node.add({ subject: 'doc' }), ...keys.map((key) => intent.property.set({ subject: 'doc', key, value: 'start' }))]));
+    let plurals = 0;
     for (let round = 0; round < 4; round += 1) {
       for (const writer of ['bob', 'carol', 'dave']) {
         if (next() < 0.6) {
           const key = keys[Math.floor(next() * keys.length)] ?? 'title';
           await unseen(path, writer, (patch) => { patch.setProperty('doc', key, `${writer}-${String(round)}`); });
+          unobserved.get(key)?.add(writer);
         }
       }
-      const key = keys[Math.floor(next() * keys.length)] ?? 'title';
-      const receipt = retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key, value: `alice-${String(round)}` })));
+      const skipped = keys[Math.floor(next() * keys.length)] ?? 'tag';
+      const written = keys.filter((key) => key !== skipped);
+      const receipt = retained(await warp.as('alice').execute(written.map((key) => intent.property.set({ subject: 'doc', key, value: `alice-${String(round)}` }))));
+      const expected = expectedRaces(unobserved, written);
 
-      expect(receipt.outcome.kind).toBe(receipt.outcome.races.length === 0 ? 'derived' : 'plural');
-      expect(await coreRaces(path, receipt)).toEqual(receipt.outcome.races.map(wire));
+      expect(receipt.outcome.races.map(wire)).toEqual(expected);
+      expect(receipt.outcome.kind).toBe(expected.length === 0 ? 'derived' : 'plural');
+      expect(await coreRaces(path, receipt)).toEqual(expected);
+      plurals += expected.length === 0 ? 0 : 1;
     }
+
+    expect(plurals).toBeGreaterThan(0);
   });
 });

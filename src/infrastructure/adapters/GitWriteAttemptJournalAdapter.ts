@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type ObservationAttemptId from '../../domain/services/custody/ObservationAttemptId.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
+import WarpError from '../../domain/errors/WarpError.ts';
 import ObservationDecodeFailure from '../../domain/services/custody/ObservationDecodeFailure.ts';
 import WriteOccurrence from '../../domain/api/WriteOccurrence.ts';
 import WriteRace from '../../domain/api/WriteRace.ts';
@@ -143,10 +144,22 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     if (preparation instanceof ObservationDecodeFailure || preparation.bindings.writePremise === null) {
       return null;
     }
-    return new WriteAttemptRecord({
-      preparation, admission, savedAt, reported, commit,
-      races: races.map(([kind, subject, key, writers, overflow, causality]) => new WriteRace({ kind, subject, key, writers, overflow, causality })),
-      occurrences: occurrences.map(([index, subject]) => new WriteOccurrence(index, subject)),
-    });
+    try {
+      return new WriteAttemptRecord({
+        preparation, admission, savedAt, reported, commit,
+        races: races.map(([kind, subject, key, writers, overflow, causality]) => new WriteRace({ kind, subject, key, writers, overflow, causality })),
+        occurrences: occurrences.map(([index, subject]) => new WriteOccurrence(index, subject)),
+      });
+    } catch (error) {
+      return refusedRecord(error);
+    }
   }
+}
+
+/** A record the domain refuses to hold, such as two races on one key, is no record; any other failure is not ours to hide. */
+function refusedRecord(error: unknown): null {
+  if (error instanceof WarpError) {
+    return null;
+  }
+  throw error;
 }

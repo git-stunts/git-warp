@@ -142,10 +142,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A plural write's races are now saved in its write attempt record before it arms and
-  bound, in one canonical order, in its retained receipt core. A receipt rebuilt by
-  `AuthoredWarp.reconcile` or a sweep after an interrupted write reports the same races
-  as the original, rather than none
+- A write receipt rebuilt by `AuthoredWarp.reconcile` after an interrupted write now
+  reports the same `outcome.races` as the original receipt, rather than none. Retained
+  receipts keep their races as durable evidence. `outcome.races` is now always in one
+  canonical order, on every receipt, and each race names each writer once, sorted
   ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
 
 - Discover every supported test file recursively under `test/unit/` before
