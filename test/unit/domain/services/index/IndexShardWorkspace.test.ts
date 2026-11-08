@@ -33,6 +33,13 @@ describe('IndexShardWorkspace', () => {
     ]);
   });
 
+  it('starts an empty alive bitmap for a stored meta shard without alive bits', () => {
+    const workspace = workspaceOver({ shardKey: 'aa', nodeToGlobal: [['A', 7]], nextLocalId: 1, alive: new Uint8Array(0) }, null);
+
+    expect(workspace.meta('aa').aliveBitmap.size).toBe(0);
+    expect(workspace.meta('aa').nodeToGlobalMap.get('A')).toBe(7);
+  });
+
   it('starts an absent meta shard empty', () => {
     const meta = workspaceOver(null, null).meta('bb');
 

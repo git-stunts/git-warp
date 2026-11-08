@@ -159,7 +159,8 @@ function inflateLabels(shard: LabelShard | null): Record<string, number> {
 }
 
 function deflateLabels(labels: Record<string, number>): LabelShard {
-  const entries = Object.entries(labels).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  // Label names are unique registry keys, so two entries never compare equal.
+  const entries = Object.entries(labels).sort(([a], [b]) => (a < b ? -1 : 1));
   return new LabelShard({ labels: entries });
 }
 

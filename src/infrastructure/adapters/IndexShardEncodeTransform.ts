@@ -147,6 +147,7 @@ function propertyShardPayload(
   };
 }
 
+/** Orders the keys of one property bag; keys are unique, so two never compare equal. */
 function compareStrings(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
+  return left < right ? -1 : 1;
 }

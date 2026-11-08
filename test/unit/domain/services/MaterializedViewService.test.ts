@@ -98,6 +98,20 @@ describe('MaterializedViewService', () => {
     expect(result.tree['labels.cbor']).toBe(tree['labels.cbor']);
   });
 
+  it('requires a codec when constructed without options', () => {
+    expect(() => new MaterializedViewService()).toThrow(expect.objectContaining({ code: 'E_CODEC_REQUIRED' }));
+  });
+
+  it('returns an empty receipt for an incremental tree without a receipt shard', () => {
+    const service = new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
+    const { tree } = service.build(buildTestState());
+    const { 'receipt.cbor': _receipt, ...withoutReceipt } = tree;
+
+    const result = service.applyDiff({ existingTree: withoutReceipt, diff: createEmptyDiff(), state: buildTestState() });
+
+    expect(result.receipt).toEqual({});
+  });
+
   it('does not expose physical persistence methods', () => {
     const service = new MaterializedViewService({ codec: defaultCodec });
 

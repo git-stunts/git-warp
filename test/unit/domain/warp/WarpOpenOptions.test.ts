@@ -64,6 +64,15 @@ describe('WarpOpenOptions', () => {
     expect(Object.isFrozen(options.gcPolicy)).toBe(true);
   });
 
+  it('requires persistence before any other open option is read', () => {
+    expect(() => new WarpOpenOptions({
+      // @ts-expect-error Runtime guard for JavaScript callers.
+      persistence: null,
+      graphName: 'no-persistence',
+      writerId: 'writer-1',
+    })).toThrow(expect.objectContaining({ code: 'E_INVALID_ARG', message: 'persistence is required' }));
+  });
+
   it('rejects invalid checkpointPolicy values before async boot resolution', () => {
     expect(() => new WarpOpenOptions({
       persistence: createMockPersistence(),
