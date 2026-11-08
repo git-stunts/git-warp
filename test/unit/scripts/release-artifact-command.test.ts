@@ -3,11 +3,24 @@ import {
   type SpawnSyncOptionsWithStringEncoding,
   type SpawnSyncReturns,
 } from 'node:child_process';
-import { relative, resolve } from 'node:path';
+import { cpSync, mkdtempSync, rmSync, statSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 const COMMAND_TIMEOUT_MS = 120_000;
+const V18_TO_V19_PREFIX = 'dist/scripts/v18-to-v19/';
+const V20_TO_V21_PREFIX = 'dist/scripts/v20-to-v21/';
+
+/** Top-level entries that the isolated build links, regenerates or never reads. */
+const UNCOPIED_ROOT_ENTRIES: ReadonlySet<string> = new Set(['node_modules', 'dist', '.git', 'coverage']);
+
+const isolatedTrees: string[] = [];
+
+afterEach(() => {
+  for (const tree of isolatedTrees.splice(0)) rmSync(tree, { recursive: true, force: true });
+});
 
 type CommandRunner = (
   command: string,
@@ -31,9 +44,11 @@ const defaultCommandRunner: CommandRunner = (command, args, options) =>
 /** Runs a bounded npm command and requires successful process completion. */
 function runNpmCommand(
   args: readonly string[],
+  cwd: string,
   runner: CommandRunner = defaultCommandRunner
 ): string {
   const result = runner('npm', [...args], {
+    cwd,
     encoding: 'utf8',
     timeout: COMMAND_TIMEOUT_MS,
     killSignal: 'SIGKILL',
@@ -43,33 +58,40 @@ function runNpmCommand(
   return `${result.stdout}\n${result.stderr}`;
 }
 
+/**
+ * Copies the package sources into a private directory. The build removes and
+ * rewrites dist/, and sibling tests read the shared dist/ in parallel workers.
+ */
+function isolatedPackageTree(): string {
+  const root = resolve('.');
+  const tree = mkdtempSync(join(tmpdir(), 'git-warp-release-artifact-'));
+  isolatedTrees.push(tree);
+  cpSync(root, tree, {
+    recursive: true,
+    verbatimSymlinks: true,
+    filter: (source) => !UNCOPIED_ROOT_ENTRIES.has(relative(root, source)),
+  });
+  symlinkSync(join(root, 'node_modules'), join(tree, 'node_modules'), 'dir');
+  return tree;
+}
+
 /** Builds a clean publish tree before inspecting npm’s dry-run inventory. */
-function runNpmPackDryRun(): string {
-  runNpmCommand(['run', 'build', '--silent']);
-  return runNpmCommand(['pack', '--dry-run', '--ignore-scripts', '--no-json']);
+function runNpmPackDryRun(tree: string): string {
+  runNpmCommand(['run', 'build', '--silent'], tree);
+  return runNpmCommand(['pack', '--dry-run', '--ignore-scripts', '--no-json'], tree);
 }
 
 /** Extracts only file paths from the npm tarball-contents section. */
 function packEntries(output: string): ReadonlySet<string> {
-  const entries = new Set<string>();
-  let inContents = false;
-  for (const line of output.split('\n')) {
-    if (isPackSectionHeader(line, 'Tarball Contents')) {
-      inContents = true;
-      continue;
-    }
-    if (isPackSectionHeader(line, 'Tarball Details')) {
-      break;
-    }
-    if (!inContents) {
-      continue;
-    }
-    const entry = packEntryPath(line);
-    if (entry !== null) {
-      entries.add(entry);
-    }
+  const lines = output.split('\n');
+  const start = lines.findIndex((line) => isPackSectionHeader(line, 'Tarball Contents'));
+  if (start < 0) {
+    return new Set();
   }
-  return entries;
+  const following = lines.slice(start + 1);
+  const end = following.findIndex((line) => isPackSectionHeader(line, 'Tarball Details'));
+  const contents = end < 0 ? following : following.slice(0, end);
+  return new Set(contents.flatMap(packEntryPaths));
 }
 
 /** Recognizes both plain and decorated npm notice section headers. */
@@ -78,26 +100,33 @@ function isPackSectionHeader(line: string, sectionName: PackSectionName): boolea
   return line.includes(sectionName) && normalizedHeader === `npm notice ${sectionName}`;
 }
 
-/** Reads one npm inventory row without interpreting unrelated output. */
-function packEntryPath(line: string): string | null {
-  const match = /^npm notice\s+\S+\s+(.+)$/u.exec(line);
-  return match?.[1] ?? null;
+/** Reads one npm inventory row as zero or one paths, ignoring unrelated output. */
+function packEntryPaths(line: string): readonly string[] {
+  const entry = /^npm notice\s+\S+\s+(.+)$/u.exec(line)?.[1];
+  return entry === undefined ? [] : [entry];
+}
+
+/** Admits only JavaScript modules that sit directly in a migration directory. */
+function isTopLevelJavaScript(relativePath: string): boolean {
+  return !relativePath.includes('/') && relativePath.endsWith('.js');
 }
 
 /** Admits migration entry modules and the v18-to-v19 adapter subtree. */
 function isSupportedV18ToV19Artifact(path: string): boolean {
-  const prefix = 'dist/scripts/v18-to-v19/';
-  if (path.startsWith('dist/scripts/v20-to-v21/')) {
-    return !path.slice('dist/scripts/v20-to-v21/'.length).includes('/') && path.endsWith('.js');
+  if (path.startsWith(V20_TO_V21_PREFIX)) {
+    return isTopLevelJavaScript(path.slice(V20_TO_V21_PREFIX.length));
   }
-  if (!path.startsWith(prefix)) {
+  if (!path.startsWith(V18_TO_V19_PREFIX)) {
     return false;
   }
-  const relativePath = path.slice(prefix.length);
-  return (
-    relativePath.startsWith('adapters/') ||
-    (!relativePath.includes('/') && relativePath.endsWith('.js'))
-  );
+  const relativePath = path.slice(V18_TO_V19_PREFIX.length);
+  return relativePath.startsWith('adapters/') || isTopLevelJavaScript(relativePath);
+}
+
+/** Names one file's inode and modification time, so replacing the file is observable. */
+function fileIdentity(path: string): string {
+  const stat = statSync(path, { bigint: true });
+  return `${stat.ino}:${stat.mtimeNs}`;
 }
 
 /** Creates a completed process result for the command timeout regression. */
@@ -125,7 +154,7 @@ describe('release artifact command evidence', () => {
       return successfulSpawnResult('10.0.0\n');
     };
 
-    runNpmCommand(['--version'], recordingRunner);
+    runNpmCommand(['--version'], resolve('.'), recordingRunner);
 
     expect(calls).toEqual([
       {
@@ -150,17 +179,28 @@ describe('release artifact command evidence', () => {
     expect(entries).toEqual(new Set(['dist/index.js']));
   });
 
+  it('reads no rows before the contents header and every row when details are absent', () => {
+    expect(packEntries('npm notice 1.2kB dist/index.js')).toEqual(new Set());
+    expect(packEntries('npm notice Tarball Contents\nnpm notice\nnpm notice 1.2kB dist/index.js'))
+      .toEqual(new Set(['dist/index.js']));
+  });
+
   it('dry-runs the packed npm artifact and exposes the compiled public surface', () => {
-    const entries = packEntries(runNpmPackDryRun());
+    const sharedDeclaration = resolve('dist/index.d.ts');
+    const sharedIdentity = fileIdentity(sharedDeclaration);
+    const tree = isolatedPackageTree();
+    const entries = packEntries(runNpmPackDryRun(tree));
+    expect(fileIdentity(sharedDeclaration), 'the build must not replace the shared dist/ that sibling tests read')
+      .toBe(sharedIdentity);
     const roots = ['index', 'advanced', 'diagnostics', 'charts', 'testing']
-      .map((name) => resolve(`dist/${name}.d.ts`));
+      .map((name) => resolve(tree, `dist/${name}.d.ts`));
     const declarations = ts.createProgram(roots, {
       module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext,
       skipLibCheck: false, noEmit: true, target: ts.ScriptTarget.ESNext, strict: true,
     });
     expect(ts.getPreEmitDiagnostics(declarations)).toEqual([]);
     const requiredDeclarations = declarations.getSourceFiles()
-      .map((file) => relative(resolve('.'), file.fileName).split('\\').join('/'))
+      .map((file) => relative(tree, file.fileName).split('\\').join('/'))
       .filter((path) => path.startsWith('dist/'));
     expect([...entries].filter((path) => path.endsWith('.d.ts')).sort())
       .toEqual(requiredDeclarations.sort());
