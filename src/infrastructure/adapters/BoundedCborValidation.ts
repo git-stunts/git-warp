@@ -15,6 +15,9 @@ type CborStructureReaderOptions = {
   readonly malformed: CborValidationErrorFactory;
 };
 
+export const CBOR_TAG_REFUSED_REASON = 'tag is not in the allowed tag set';
+export const CBOR_TAG_CONTENT_REFUSED_REASON = 'tag content has a refused major type';
+
 const ARGUMENT_WIDTHS = new Map<number, number>([
   [24, 1],
   [25, 2],
