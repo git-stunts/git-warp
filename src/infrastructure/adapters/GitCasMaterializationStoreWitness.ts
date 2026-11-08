@@ -1,8 +1,6 @@
 import type {
   CacheAcquisition,
-  WorkspaceRetainedBundle,
-  WorkspaceRetainedPage,
-} from '@git-stunts/git-cas';
+  } from '@git-stunts/git-cas';
 import { storageError } from './GitCasMaterializationStoreValidation.ts';
 import type {
   MaterializationCachePut,
@@ -15,22 +13,6 @@ export async function releaseCacheAcquisitionAfterFailure(
     await acquisition.release();
   } catch {
     // git-cas doctor owns abandoned-acquisition diagnostics; preserve the primary failure.
-  }
-}
-
-export function requireWorkspaceStage(
-  staged: WorkspaceRetainedPage | WorkspaceRetainedBundle,
-): void {
-  const valid = [
-    staged.state === 'retained',
-    staged.retention.policy === 'evictable',
-    staged.retention.reachability === 'anchored',
-    staged.retention.protection === 'workspace',
-    staged.witness.handle.toString() === staged.handle.toString(),
-    staged.witness.root.kind === 'root-set',
-  ];
-  if (valid.includes(false)) {
-    throw storageError('git-cas did not retain a staged materialization artifact');
   }
 }
 

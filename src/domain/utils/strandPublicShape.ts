@@ -1,18 +1,9 @@
-const TO_PUBLIC_KEY: Map<string, string> = new Map([
-  ['strand', 'strand'],
-  ['strandId', 'strandId'],
-  ['braidedStrandIds', 'braidedStrandIds'],
-]);
+
 
 const TO_INTERNAL_KEY: Map<string, string> = new Map([
   ['strand', 'strand'],
   ['strandId', 'strandId'],
   ['braidedStrandIds', 'braidedStrandIds'],
-]);
-
-const TO_PUBLIC_KIND: Map<string, string> = new Map([
-  ['strand', 'strand'],
-  ['strand_base', 'strand_base'],
 ]);
 
 const TO_INTERNAL_KIND: Map<string, string> = new Map([
@@ -83,12 +74,4 @@ function transform(value: unknown, keyMap: Map<string, string>, kindMap: Map<str
  */
 export function toInternalStrandShape<T>(value: T): T {
   return transform(value, TO_INTERNAL_KEY, TO_INTERNAL_KIND) as T;
-}
-
-/**
- * Converts an internal strand-shaped object into the public strand-shaped
- * equivalent. Intended for API outputs only.
- */
-export function toPublicStrandShape<T>(value: T): T {
-  return transform(value, TO_PUBLIC_KEY, TO_PUBLIC_KIND) as T;
 }

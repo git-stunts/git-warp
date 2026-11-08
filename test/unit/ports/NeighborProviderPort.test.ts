@@ -3,7 +3,6 @@ import NeighborProviderPort, {
   NeighborEdge,
   type Direction,
   type NeighborOptions,
-  isDirection,
 } from '../../../src/ports/NeighborProviderPort.ts';
 
 describe('NeighborProviderPort', () => {
@@ -19,13 +18,6 @@ describe('NeighborProviderPort', () => {
     }
     const provider = new TestProvider();
     expect(provider.latencyClass).toBe('async-local');
-  });
-
-  it('validates direction values', () => {
-    expect(isDirection('out')).toBe(true);
-    expect(isDirection('in')).toBe(true);
-    expect(isDirection('both')).toBe(true);
-    expect(isDirection('sideways')).toBe(false);
   });
 
   it('constructs immutable neighbor edge values', () => {

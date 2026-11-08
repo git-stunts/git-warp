@@ -10,12 +10,6 @@ import NeighborProviderError from '../domain/errors/NeighborProviderError.ts';
 
 export type Direction = 'out' | 'in' | 'both';
 
-const VALID_DIRECTIONS = new Set<string>(['out', 'in', 'both']);
-
-export function isDirection(value: string): value is Direction {
-  return VALID_DIRECTIONS.has(value);
-}
-
 export interface NeighborOptions {
   labels?: Set<string>;
 }
