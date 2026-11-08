@@ -144,9 +144,11 @@ DTO and stop there**. Do not hallucinate fake domain models.
   - `priority:*` answers when it should be handled. Use exactly one of
     `priority:asap`, `priority:next`, or `priority:later`.
   - `status:*` answers workflow state. Use exactly one of
-    `status:available`, `status:blocked`, or `status:active`.
-    `status:available` is the neutral state for open work that is neither
-    blocked nor actively being worked.
+    `status:available`, `status:blocked`, `status:active`, or
+    `status:parked`. `status:available` is the neutral state for open work
+    that is neither blocked nor actively being worked. `status:parked` means
+    work was started and stopped, and a recoverable branch or worktree exists:
+    resume it rather than restart it.
   - `area:*` answers where the work primarily lives. Prefer one of `area:api`,
     `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`,
     `area:testing`, `area:tooling`, `area:release`, or `area:architecture`.
