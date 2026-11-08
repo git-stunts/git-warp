@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import { intent } from '../../../advanced.ts';
 import { Coordinate, GitStorage, UnretainedWriteReceipt, Warp, WarpAccessDenied, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
 import { composeWarpWrites, overrideWarpComposition } from '../../../src/application/WarpWriteComposition.ts';
@@ -284,7 +285,7 @@ describe('a store that fails before publication is permitted', () => {
     vi.spyOn(GitTimelineHistoryAdapter.prototype, 'readBlob').mockImplementation(async function (this: GitTimelineHistoryAdapter, oid: string) {
       if (oid === blob && failed === 0) {
         failed += 1;
-        throw new Error('EIO: i/o error, read');
+        throw new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: 'fatal: Unable to create objects/info/alternates.lock' });
       }
       return await readBlob.call(this, oid);
     });
@@ -334,6 +335,80 @@ describe('a store that fails before publication is permitted', () => {
     }
     expect(tip(path, 'alice')).toBe(before);
     expect(attemptRefs(path)).toEqual([]);
+  });
+
+  /** Runs the same removal twice; both must reject, publishing nothing and leaving no attempt. */
+  async function rejectsEveryRetry(path: string): Promise<void> {
+    const before = tip(path, 'alice');
+    const warp = await open(path);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await expect(warp.as('alice').execute(intent.node.remove({ subject: 'x' }))).rejects.toThrow();
+    }
+    expect(tip(path, 'alice')).toBe(before);
+    expect(attemptRefs(path)).toEqual([]);
+  }
+
+  async function seeded(): Promise<string> {
+    const path = await repository();
+    const first = await open(path);
+    retained(await first.as('alice').execute(intent.node.add({ subject: 'x' })));
+    await first.close();
+    return path;
+  }
+
+  /** Writes an object of `type` holding `bytes` exactly, valid or not. */
+  function literal(path: string, type: string, bytes: string): string {
+    return execFileSync('git', ['hash-object', '-t', type, '--literally', '-w', '--stdin'], { cwd: path, input: bytes, encoding: 'utf8' }).trim();
+  }
+
+  const CONE_HEAD = `refs/warp/${GRAPH}/cone/head`;
+
+  it('rejects every retry when the cone head names a blob, not a basis tree (W-P-1)', async () => {
+    const path = await seeded();
+    git(path, ['update-ref', CONE_HEAD, literal(path, 'blob', 'not a basis tree')]);
+    expect(git(path, ['cat-file', '-t', CONE_HEAD])).toBe('blob');
+
+    await rejectsEveryRetry(path);
+  });
+
+  it('rejects every retry when the basis names a malformed records tree (W-P-2)', async () => {
+    const path = await seeded();
+    const malformed = literal(path, 'tree', 'garbage records tree');
+    const basis = git(path, ['ls-tree', CONE_HEAD]).split('\n')
+      .map((line) => (line.endsWith('\trecords') ? `040000 tree ${malformed}\trecords` : line)).join('\n');
+    const forged = execFileSync('git', ['mktree'], { cwd: path, input: `${basis}\n`, encoding: 'utf8' }).trim();
+    git(path, ['update-ref', CONE_HEAD, forged]);
+    expect(git(path, ['rev-parse', `${CONE_HEAD}:records`])).toBe(malformed);
+    expect(() => git(path, ['ls-tree', malformed])).toThrow();
+
+    await rejectsEveryRetry(path);
+  });
+
+  it('rejects every retry when the loose records tree is truncated (W-P-5)', async () => {
+    const path = await seeded();
+    loosen(path);
+    const records = git(path, ['rev-parse', `${CONE_HEAD}:records`]);
+    const file = join(path, '.git', 'objects', records.slice(0, 2), records.slice(2));
+    const whole = readFileSync(file);
+    chmodSync(file, 0o644);
+    writeFileSync(file, whole.subarray(0, Math.max(4, Math.floor(whole.length / 2))));
+    expect(() => git(path, ['cat-file', '-p', records])).toThrow();
+
+    await rejectsEveryRetry(path);
+  });
+
+  it('reports a real held cone head lock as write-basis-unavailable, then writes once it is released', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    const directory = join(path, '.git', 'refs', 'warp', GRAPH, 'cone');
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, 'head.lock'), '');
+
+    expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toBe('write-basis-unavailable');
+    expect(tip(path, 'alice')).toBeNull();
+
+    unlinkSync(join(directory, 'head.lock'));
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
   });
 
   it('rejects a stored cone record that does not decode as corruption, not as a missing basis', async () => {

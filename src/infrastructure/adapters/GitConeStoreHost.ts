@@ -1,3 +1,4 @@
+import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import ConeStoreUnavailableError from '../../domain/errors/ConeStoreUnavailableError.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
@@ -5,16 +6,22 @@ import type { ConeTrieHistory } from './GitConeRecordStoreAdapter.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
 import type { GitTreeObjectEntry } from './GitTreeObjectEntry.ts';
 
-/** Errors a defect throws, which no retry can mend. */
-const DEFECTS = Object.freeze([TypeError, RangeError, ReferenceError, SyntaxError]);
+/**
+ * The failures a retry can clear, as their real producers throw them (#1079). The
+ * history adapter types a ref it cannot lock or read for permission as
+ * `PersistenceError` `E_REF_IO`; plumbing's own classifier throws a held lock file as
+ * `GitRepositoryLockedError`, which reaches this host unwrapped. Nothing else counts.
+ */
+const TRANSIENT_PERSISTENCE_CODES: ReadonlySet<string> = Object.freeze(new Set([PersistenceError.E_REF_IO]));
+const TRANSIENT_HOST_ERRORS = Object.freeze([GitRepositoryLockedError]);
 
 /**
  * The cone record store's view of its Git history (#1079). Every call goes to the
- * history unchanged. An untyped failure of the host or of a Git process beneath it,
- * or a ref that cannot be locked or read for permission (`E_REF_IO`), becomes a
- * `ConeStoreUnavailableError` carrying that failure: a retry can clear it. Other
- * typed failures (corruption, a missing object) and defects pass through as they
- * are, so they still reject.
+ * history unchanged. Only a failure this host can identify as transient
+ * (`TRANSIENT_PERSISTENCE_CODES`, `TRANSIENT_HOST_ERRORS`) becomes a
+ * `ConeStoreUnavailableError` carrying that failure. Every other failure passes
+ * through as it is and rejects: corruption, every git-cas code, a `GitProtocolError`,
+ * any other plumbing failure, a defect, and an error it cannot identify.
  */
 export default class GitConeStoreHost implements ConeTrieHistory {
   readonly plumbing: Pick<GitPlumbing, 'execute'>;
@@ -59,24 +66,20 @@ async function hostCall<T>(operation: string, call: () => Promise<T>): Promise<T
 }
 
 /**
- * An untyped host error or a ref I/O failure is an unavailable store. The history
- * adapter already turns a thrown non-error into a typed failure (`toGitError`), so
- * the non-error branch guards only another history implementation.
+ * Unavailable is a positive verdict: only a listed transient failure earns it. The
+ * history adapter already turns a thrown non-error into a typed failure
+ * (`toGitError`), so the non-error branch guards only another history implementation.
  */
 function classified(operation: string, error: unknown): Error {
   if (!(error instanceof Error)) {
     return new WarpError(`The cone store host threw a non-error value while trying to ${operation}`, 'E_CONE_STORE_HOST_DEFECT');
   }
-  if (isRefIo(error) || !isTypedOrDefect(error)) {
-    return new ConeStoreUnavailableError(operation, error);
+  return isTransient(error) ? new ConeStoreUnavailableError(operation, error) : error;
+}
+
+function isTransient(error: Error): boolean {
+  if (error instanceof PersistenceError) {
+    return TRANSIENT_PERSISTENCE_CODES.has(error.code);
   }
-  return error;
-}
-
-function isRefIo(error: Error): boolean {
-  return error instanceof PersistenceError && error.code === PersistenceError.E_REF_IO;
-}
-
-function isTypedOrDefect(error: Error): boolean {
-  return error instanceof WarpError || DEFECTS.some((defect) => error instanceof defect);
+  return TRANSIENT_HOST_ERRORS.some((transient) => error instanceof transient);
 }

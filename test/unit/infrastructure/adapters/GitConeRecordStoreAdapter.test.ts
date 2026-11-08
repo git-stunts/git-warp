@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Plumbing from '@git-stunts/plumbing';
+import { GitPlumbingError, GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import ConeStoreUnavailableError from '../../../../src/domain/errors/ConeStoreUnavailableError.ts';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 import ConeBasis from '../../../../src/domain/services/cone/ConeBasis.ts';
@@ -21,6 +22,13 @@ import ConeBasisHead from '../../../../src/domain/services/cone/ConeBasisHead.ts
 import StoredConeBasis from '../../../../src/domain/services/cone/StoredConeBasis.ts';
 
 const LANE = 'events';
+
+/** The envelope plumbing's own classifier throws when a Git command meets a held lock file. */
+function locked(): GitRepositoryLockedError {
+  return new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', {
+    code: 128, stderr: "fatal: cannot lock ref 'refs/warp/events/cone/head': Unable to create 'refs/warp/events/cone/head.lock': File exists.",
+  });
+}
 const HEAD_OF_LANE = ConeBasisHead.forLane(LANE);
 const HEAD = `refs/warp/${LANE}/cone/head`;
 const directories: string[] = [];
@@ -205,7 +213,7 @@ describe('GitConeRecordStoreAdapter', () => {
 
   it('refuses heads of an unknown layout or without a frontier, and surfaces ref failures', async () => {
     const { history, store } = await fixture();
-    const failure = vi.spyOn(history, 'compareAndSwapRef').mockRejectedValueOnce(new Error('disk full'));
+    const failure = vi.spyOn(history, 'compareAndSwapRef').mockRejectedValueOnce(locked());
     await expect(store.publishBasis(HEAD_OF_LANE, ConeBasis.empty(), null)).rejects.toThrow(ConeStoreUnavailableError);
     failure.mockRestore();
     await history.updateRef(HEAD, await history.writeTree([]));
@@ -349,13 +357,13 @@ describe('GitConeRecordStoreAdapter host failures (#1079)', () => {
     expect(rejected).toMatchObject({ code: 'E_CONE_STORE_UNAVAILABLE', cause: failure });
   }
 
-  it('reports a failing host beneath a record or basis read as an unavailable store, keeping its cause', async () => {
+  it('reports a held lock beneath a record or basis read as an unavailable store, keeping its cause', async () => {
     const { history, store } = await fixture();
     const root = await store.writeRecords(ConeRoot.empty(), [node('a')]);
-    const blob = new Error('EIO: i/o error, read');
+    const blob = locked();
     vi.spyOn(history, 'readBlob').mockRejectedValueOnce(blob);
     await unavailability(store.readRecords(root, [ConeRecordKey.forNode('a')]), blob);
-    const ref = new Error('EMFILE: too many open files');
+    const ref = locked();
     vi.spyOn(history, 'readRef').mockRejectedValueOnce(ref);
     await unavailability(store.readBasis(HEAD_OF_LANE), ref);
   });
@@ -370,7 +378,7 @@ describe('GitConeRecordStoreAdapter host failures (#1079)', () => {
   it('reports a host failure deleting a basis head as an unavailable store', async () => {
     const { history, store } = await fixture();
     await store.publishBasis(HEAD_OF_LANE, ConeBasis.empty(), null);
-    const busy = new Error('EBUSY: resource busy');
+    const busy = locked();
     vi.spyOn(history, 'deleteRef').mockRejectedValueOnce(busy);
     await unavailability(store.dropBasis(HEAD_OF_LANE).then(() => null), busy);
   });
@@ -386,11 +394,16 @@ describe('GitConeRecordStoreAdapter host failures (#1079)', () => {
     await expect(store.readRecords(forged, [ConeRecordKey.forNode('b')])).rejects.toBe(defect);
   });
 
-  it('reports a failing Git process beneath a write as an unavailable store', async () => {
+  it('reports a held lock beneath a write as unavailable, and rejects a Git process failure it cannot identify', async () => {
     const { history, store } = await fixture();
-    const spawn = new Error('spawn git EAGAIN');
-    vi.spyOn(history.plumbing, 'execute').mockRejectedValueOnce(spawn);
-    await unavailability(store.writeRecords(ConeRoot.empty(), [node('a')]), spawn);
+    const held = locked();
+    const execute = vi.spyOn(history.plumbing, 'execute').mockRejectedValueOnce(held);
+    await unavailability(store.writeRecords(ConeRoot.empty(), [node('a')]), held);
+    const spawn = new GitPlumbingError('spawn git EAGAIN', 'ExecutionOrchestrator.orchestrate', {
+      originalError: Object.assign(new Error('spawn git EAGAIN'), { code: 'EAGAIN' }),
+    });
+    execute.mockRejectedValueOnce(spawn);
+    await expect(store.writeRecords(ConeRoot.empty(), [node('a')])).rejects.toBe(spawn);
   });
 
   it('passes typed failures and defects through unchanged, and refuses a thrown non-error as a defect', async () => {
