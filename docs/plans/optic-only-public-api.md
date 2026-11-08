@@ -41,11 +41,11 @@ representations; schema generation belongs at transport boundaries.
 | `WarpAddress` | `of(storage, name)` validates the storage/name pair | Reject malformed or reserved names; contains no writer or observer |
 | `Warp` | `open(address, access)` opens resources; `forObserver(identity)`, `as(writer)`, `close()` | `access` is an injected `WarpAccessPort`; opening does not grant data access |
 | `ObservedWarp` | Returned only by `forObserver`; accepted by `Optic`; `fork(coordinate)` | Binds an observer identity; current rights are checked on execution |
-| `AuthoredWarp` | Returned only by `as`; `execute(intentOrIntents): Promise<WriteReceipt>`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation and returns the write receipt variant specified in section 7. A store I/O failure before publication permission returns `UnpublishedWriteReceipt`; only a throwing injected access port rejects (section 11) |
+| `AuthoredWarp` | Returned only by `as`; `execute(intentOrIntents): Promise<WriteReceipt>`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation and returns the write receipt variant specified in section 7. An unavailable store before publication permission returns `UnpublishedWriteReceipt`; invalid input, a throwing injected access port, a defect, a broken invariant or corruption rejects (section 11) |
 | `ObserverIdentity` | `of(namespace, subject)` validates a principal name | A name is not an authentication credential or a grant |
-| `Purpose` | `of(namespace, name, version)` validates a registered purpose identifier | Unknown or undeclared purposes are refused by policy. Registered purposes are static validated nouns; there is no runtime purpose registry (section 11) |
+| `Purpose` | `of(namespace, name, version)` will validate a registered purpose identifier (#1052) | Will refuse unknown or undeclared purposes by policy. There is no runtime purpose registry; the runtime-backed `Purpose` class arrives with caller-supplied purposes in #1052 (section 11) |
 | `ReadBudget` | `of(limits)` validates named finite limits for records, emitted bytes, and work | Invalid limits fail construction; execution accounts for aggregate work |
-| `Optic` | `Optic(observedWarpOrStrand)` returns an immutable query builder | An unscoped Warp cannot execute a question. A store I/O failure before read permission settles the observation to a typed failed receipt; `read()` does not reject for it (section 11) |
+| `Optic` | `Optic(observedWarpOrStrand)` returns an immutable query builder | An unscoped Warp cannot execute a question. #1052 must make an unavailable store before read permission settle the observation to a typed failed receipt; `read()` will not reject for it (section 11) |
 | `Intent` | Existing validated builders or generated SDK constructors | Preserve actual intent/reducer semantics; no arbitrary callback execution |
 | `Observer` | Existing validated/generated query-plan constructors | This names a question plan, not a principal; requires stable identity and version |
 | `Observation` | Resolved by `read()`; async iteration, `receipt: Promise<ObservationReceipt>`, `cancel(): Promise<ObservationReceipt>` | One execution and consumer; cancellation and receipt demand settle to the same terminal receipt |
@@ -450,7 +450,7 @@ that the final public contract is implemented.
 | #1051 | 2–3, write premise capture in 5–7 | #1049, #1062 and #1067; Warp composition, authority boundary, cone writes and all four final write-receipt variants |
 | #1052 | 3–6 | #1049, #1062, #1067 and shared Warp composition from #1051; bounded Optic execution and final observation receipts |
 | #1053 | Historical operations in 7–8 | #1049, #1067 and #1052; replay, re-ask, forks, and the Strand preview/settlement journey |
-| #1054 | 9 | #1050–#1053 and #1055; remove legacy public capabilities with the export guard and migrated consumers in place |
+| #1054 | 9 | #1050, #1051 and #1079 (GitHub dependencies; #1054 precedes #1052 by the #1079 decision of 2026-11-08); remove legacy public capabilities with the export guard and migrated consumers in place |
 | #1055 | 3–4, 8–9 | #1051–#1053; migrate the existing example, newcomer witness, and full read/write/fork/settlement documentation |
 | #1057 | 9 | #1062, #1049, and #1052 for actual Optic probes; retention actions also require the corresponding #1044 capabilities |
 | #1079 | 2, 11 | #1051; payload headroom, the pre-permission I/O outcome, the static purpose decision, and the v20 trailer witness |
@@ -460,8 +460,11 @@ maintainer amendment. #1067 precedes both producers because durable observation
 identity and custody are shared prerequisites; public historical operations are
 not a prerequisite for producing a receipt. #1051 precedes #1052 because it owns
 shared Warp composition and access. #1053 precedes #1055 because the existing newcomer journey includes forks
-and settlement. #1050 and #1055 precede #1054 so removal is checked and existing
-documentation/examples keep working. #1052 precedes #1057 because an actual Optic
+and settlement. #1050 precedes #1054 so removal is checked. #1054 precedes #1052,
+by the #1079 decision of 2026-11-08, so #1052 starts with the bytes the legacy
+deletion frees; #1054 therefore migrates, in the same merge, the existing
+documentation and examples it would break, and #1055 later moves them onto the
+full read/write/fork/settlement journey. #1052 precedes #1057 because an actual Optic
 probe cannot be replaced by a parallel readiness approximation. The #1044
 retention work remains an explicit external prerequisite for its corresponding
 operator actions, not an assertion that those capabilities already exist.
@@ -526,51 +529,71 @@ on 2026-11-08 for Option A. These rules bind #1052, #1053, and #1054.
 
 **Package payload.** v21 keeps the 3,300,000-byte unpacked ceiling in
 `scripts/package-payload/PackagePayloadPolicy.ts`. #1079 makes headroom by
-deleting internal code that no package entrypoint, command, or test of other code
-reaches. The budget is not raised. Measured with
+deleting internal code that no package entrypoint or command reaches, including
+code reached only by its own tests. The budget is not raised. Measured with
 `scripts/package-payload/CheckPackagePayload.ts` after `npm run build`:
 
 | State | Unpacked bytes | Free bytes | Compressed bytes | Entries |
 | --- | ---: | ---: | ---: | ---: |
 | Before #1079 (`origin/main` at d78c33d99) | 3,295,830 | 4,170 | 713,417 | 1,229 |
-| After #1079 | 3,274,390 | 25,610 | 708,946 | 1,219 |
+| After #1079 | 3,277,387 | 22,613 | 709,717 | 1,221 |
 
-This headroom does not cover a slice as large as #1051, which added about
-323,000 unpacked bytes. A slice that needs more bytes must delete the legacy
-code it replaces, or wait for #1054. A budget change needs its own maintainer
-decision.
+#1052 is expected to be close to #1051 in size, and #1051 added about 323,000
+unpacked bytes. 22,613 free bytes do not cover that. **Decided (2026-11-08):**
+#1054 runs before #1052 and is recorded as a GitHub dependency, so #1052 starts
+with the bytes the legacy deletion frees. Measure again after #1054. If #1052
+still needs more, it deletes the legacy code it replaces in its own PR, or it gets
+a separate budget decision.
 
-**Pre-permission I/O.** A store I/O failure that happens before an operation
-holds its permission gives a typed failure result, not a rejection:
+**Pre-permission I/O.** Only an unavailable store before an operation holds its
+permission gives a typed failure result instead of a rejection. The cone store
+adapter (`GitConeStoreHost`) turns an untyped host or Git process failure into
+`ConeStoreUnavailableError`, which carries that failure as its `cause`. Domain code
+dispatches on that class with `instanceof`, never on a message:
 
-- `AuthoredWarp.execute()` returns `UnpublishedWriteReceipt` when the store fails
-  while it fixes the write basis (`write-basis-unavailable`), reads the premise
-  records (`write-premise-unavailable`), saves the attempt record
+- `AuthoredWarp.execute()` returns `UnpublishedWriteReceipt` when the store is
+  unavailable while it fixes the write basis (`write-basis-unavailable`), reads the premise records
+  (`write-premise-unavailable`), saves the attempt record
   (`attempt-journal-unavailable`), or answers a custody step
-  (`retention-unavailable`). An expected write refusal met while reading keeps
-  its own cause and repair hints. Nothing was reserved or published, so the
-  receipt is true.
-- An Optic read (#1052) settles its observation to a typed failed receipt when
-  the store fails before read permission or evaluation. `read()` and iteration do
-  not reject for this failure, and the receipt claims no completed classification.
+  (`retention-unavailable`). An expected write refusal met while reading keeps its
+  own cause and repair hints. Nothing was reserved or published, so the receipt is
+  true.
+- **Corruption rejects** (decided 2026-11-08). A `ConeRecordError`, or a
+  `PersistenceError` such as `E_MISSING_OBJECT`, is not "unavailable": a caller
+  that retried would retry forever against a broken repository. Defects
+  (`TypeError`, `RangeError`), broken invariants (`PatchError`), invalid input,
+  and any other untyped failure also reject, having published nothing.
 - The injected `WarpAccessPort` is a caller-owned capability, not a store. If it
   throws, the operation rejects and publishes nothing.
+- #1052 must give an Optic read the same rule: an unavailable store before read
+  permission or evaluation settles the observation to a typed failed receipt.
+  `read()` and iteration will not reject for that failure, and the receipt claims
+  no completed classification.
 - After publication permission, section 7 applies. Its outcomes are
-  indeterminate, unretained, or a settled receipt.
+  indeterminate, unretained, or a settled receipt. `AuthoredWarp.reconcile()`
+  reads after an attempt exists, so section 7 governs it too; it rejects if a
+  store read fails.
 
-**Purposes.** There is no dynamic purpose registry. Each registered purpose is a
-static validated noun built with `Purpose.of(namespace, name, version)`. Each
-intent's premise question is one versioned constant. Today the only registered
-write purpose is `git-warp:purpose/write-admission/v1` and the only premise
-question is `git-warp:question/write-premise` version 1. A new purpose or
-question is a code change with a new version. Policy refuses unknown or
-undeclared purposes.
+**Purposes.** No dynamic purpose registry will be built (decided). Today the only
+write purpose is the string constant `WRITE_PURPOSE`
+(`git-warp:purpose/write-admission/v1`), and the only premise question is
+`git-warp:question/write-premise` version 1. No class validates the purpose, and
+no caller can supply one, so no path refuses an unknown purpose yet. The
+runtime-backed `Purpose` value class, `Purpose.of(namespace, name, version)` in
+section 2, is built in #1052, where caller-supplied purposes first appear. A new
+purpose or question is a code change with a new version.
 
-**v20 trailer compatibility.** A released v20.0.0 reader ignores the
-`eg-publication-attempt` trailer. The released package is installed from its
-published tarball into `test/fixtures/v20-reader` in the Docker test images.
-`test/integration/compat/V20PublicationAttemptTrailer.integration.test.ts`
-adds the trailer to a v20 patch with this checkout's codec. Then v20 decodes the
-patch, materializes and reads the lane, and extends the writer's chain on top of
-the patch.
+**v20 compatibility.** The released v20.0.0 package is installed from its
+published tarball into `test/fixtures/v20-reader` in the Docker test images, and
+`test/integration/compat/V20PublicationAttemptTrailer.integration.test.ts` states
+two facts:
 
+- A v20 reader refuses a repository that v21 `Warp` wrote, on its substrate marker
+  (`E_SUBSTRATE_VERSION_UNSUPPORTED`), before it reads any patch, and changes no
+  ref. This is the case users meet: a v20 clone does not coexist with v21 history.
+  The premise of #1079 step 8, that a v20 reader would meet the trailer, was wrong.
+- v20's commit message decoder and patch reader ignore the
+  `eg-publication-attempt` trailer. The witness adds the trailer, in the format
+  `Warp` writes, to a patch that v20 wrote; v20 then decodes it as before,
+  materializes and reads the lane, and extends the writer's chain on top. This
+  matters only to code that decodes commit messages without the substrate gate.

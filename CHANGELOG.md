@@ -12,7 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reserve `write-attempts` as a graph-name segment for clone-local write attempt refs.
   Patch commits made through `Warp` carry an `eg-publication-attempt` trailer; existing
   decoders read only the trailers they know
-  ([#1051](https://github.com/git-stunts/git-warp/issues/1051)).
+  ([#1051](https://github.com/git-stunts/git-warp/issues/1051)). A released v20 reader
+  refuses a v21 repository on its substrate marker (`E_SUBSTRATE_VERSION_UNSUPPORTED`)
+  before it reads any patch; v20's commit message decoder ignores the trailer
+  ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
 - Reserve `cone` as a graph-name segment for clone-local cone basis refs
   ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
 - Give every strand an immutable id and every strand writer its own dots.
@@ -34,15 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `AuthoredWarp.execute()` returns an `UnpublishedWriteReceipt` with cause
-  `write-premise-unavailable` when the store fails while it reads a write's
-  premise records. Before, it rejected. Only a throwing access port now rejects
-  `execute()` before publication. The Optic contract records the same rule for
-  Optic reads, and three more decisions: the payload ceiling, static purposes,
-  and v20 trailer compatibility. Dead internal code is deleted from the package,
-  which gives 25,610 free bytes under the 3.3 MB unpacked ceiling. A Docker
-  witness shows that a released v20 reader ignores the `eg-publication-attempt`
-  trailer ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
+- `AuthoredWarp.execute()` reports an unavailable store before publication as an
+  `UnpublishedWriteReceipt` (`write-basis-unavailable`,
+  `write-premise-unavailable`, `attempt-journal-unavailable`,
+  `retention-unavailable`) and does not reject. Invalid input, a throwing access
+  port, defects, broken invariants and repository corruption reject
+  ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)
   trees instead of 64 ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
