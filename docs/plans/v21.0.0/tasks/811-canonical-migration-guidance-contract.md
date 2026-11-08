@@ -76,7 +76,7 @@ Must not reintroduce retired docs paths forbidden by scripts/check-docs-topology
 
 ## 7. Definition of Done
 
-Documentation and CLI --help tests pass in Docker and #811 closes.
+- [ ] Documentation and CLI --help tests pass in Docker and #811 closes.
 
 ## 8. Stakeholders
 

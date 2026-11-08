@@ -72,7 +72,7 @@ Updating test/unit/scripts/run-stable-unit-tests.test.ts fixtures must preserve 
 
 ## 7. Definition of Done
 
-Selecting a file that Vitest ignores fails the runner, and a non-dry-run regression test verifies the failure in Docker.
+- [ ] Selecting a file that Vitest ignores fails the runner, and a non-dry-run regression test verifies the failure in Docker.
 
 ## 8. Stakeholders
 

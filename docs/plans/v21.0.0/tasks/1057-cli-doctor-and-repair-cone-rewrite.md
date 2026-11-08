@@ -80,7 +80,7 @@ Do not report #1044 compaction/retire-legacy capabilities ready until their back
 
 ## 7. Definition of Done
 
-BATS and unit suites pass in Docker with 100% coverage on touched CLI files.
+- [ ] BATS and unit suites pass in Docker with 100% coverage on touched CLI files.
 
 ## 8. Stakeholders
 

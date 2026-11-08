@@ -76,7 +76,7 @@ Updating public receipt properties touches test/type-check/ consumer tests and p
 
 ## 7. Definition of Done
 
-100% coverage on touched receipt/cause classes, consumer typecheck passes, and #1076 closes.
+- [ ] 100% coverage on touched receipt/cause classes, consumer typecheck passes, and #1076 closes.
 
 ## 8. Stakeholders
 

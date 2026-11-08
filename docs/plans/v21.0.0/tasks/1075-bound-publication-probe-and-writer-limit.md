@@ -72,7 +72,7 @@ Raising writer limits must keep custody reservation pages within git-cas 7.2.0 b
 
 ## 7. Definition of Done
 
-Boundary witness tests verify bounded git command counts on deep chains and safe handling past 4,096 writers.
+- [ ] Boundary witness tests verify bounded git command counts on deep chains and safe handling past 4,096 writers.
 
 ## 8. Stakeholders
 

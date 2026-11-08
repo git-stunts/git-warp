@@ -77,7 +77,7 @@ Retaining reported attempt records longer requires bounded page rotation so the 
 
 ## 7. Definition of Done
 
-All four M-3/M-7 failure modes have deterministic RED-to-GREEN unit and integration tests in Docker.
+- [ ] All four M-3/M-7 failure modes have deterministic RED-to-GREEN unit and integration tests in Docker.
 
 ## 8. Stakeholders
 

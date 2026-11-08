@@ -75,7 +75,7 @@ Unconditional per-read retention without object reduction fills 855 MB per 1,000
 
 ## 7. Definition of Done
 
-Object attribution is recorded, avoidable loose objects are eliminated, and docs/plans/optic-only-public-api.md records the settled read-retention rule.
+- [ ] Object attribution is recorded, avoidable loose objects are eliminated, and docs/plans/optic-only-public-api.md records the settled read-retention rule.
 
 ## 8. Stakeholders
 

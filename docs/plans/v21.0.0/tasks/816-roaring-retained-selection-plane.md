@@ -8,7 +8,7 @@ wave: 1
 workstream: "W3"
 status: "blocked"
 prerequisites: ["#815", "#192"]
-unlocks: ["#817", "#820", "#814"]
+unlocks: ["#817", "#820"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
 
@@ -76,7 +76,7 @@ Enforce roaring-wasm memory and deserialization guards.
 
 ## 7. Definition of Done
 
-100% coverage on new selection-plane modules and green Docker test suite.
+- [ ] 100% coverage on new selection-plane modules and green Docker test suite.
 
 ## 8. Stakeholders
 
@@ -85,4 +85,4 @@ James Ross (maintainer and acceptance owner); `@git-stunts/git-warp` contributor
 ## 9. Related Issues
 
 - Issue: [#816](https://github.com/git-stunts/git-warp/issues/816)
-- Directly unlocks: `#817`, `#820`, `#814`
+- Directly unlocks: `#817`, `#820`

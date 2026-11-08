@@ -8,7 +8,7 @@ wave: 0
 workstream: "W3"
 status: "open-frontier"
 prerequisites: ["#1062 (merged)", "#1067 (merged)"]
-unlocks: ["#1044-S2..S6", "#814"]
+unlocks: ["#1044-S2..S6"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
 
@@ -77,7 +77,7 @@ Keep docs/design/ absent so scripts/check-docs-topology.sh stays green.
 
 ## 7. Definition of Done
 
-Join equivalence oracle and unit tests reach 100% coverage in Docker.
+- [ ] Join equivalence oracle and unit tests reach 100% coverage in Docker.
 
 ## 8. Stakeholders
 
@@ -86,4 +86,4 @@ James Ross (maintainer and acceptance owner); `@git-stunts/git-warp` contributor
 ## 9. Related Issues
 
 - Issue: [#1044](https://github.com/git-stunts/git-warp/issues/1044)
-- Directly unlocks: `#1044-S2..S6`, `#814`
+- Directly unlocks: `#1044-S2..S6`

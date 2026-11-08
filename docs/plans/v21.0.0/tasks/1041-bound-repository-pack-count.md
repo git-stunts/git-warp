@@ -75,7 +75,7 @@ Synchronous repack inside a write path could spike tail latency if not geometric
 
 ## 7. Definition of Done
 
-20k-thread witness records bounded pack count and flat save cost in Docker.
+- [ ] 20k-thread witness records bounded pack count and flat save cost in Docker.
 
 ## 8. Stakeholders
 

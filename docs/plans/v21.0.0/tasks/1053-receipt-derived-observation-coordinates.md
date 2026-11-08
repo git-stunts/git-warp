@@ -8,7 +8,7 @@ wave: 2
 workstream: "W1"
 status: "blocked"
 prerequisites: ["#1052-3b", "#1072", "#1049 (merged)", "#1067 (merged)"]
-unlocks: ["#1055", "#1054"]
+unlocks: ["#1055"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
 
@@ -79,7 +79,7 @@ Replay must never re-execute a write intent or recapture a newer frontier.
 
 ## 7. Definition of Done
 
-All #1053, #968, #969, and #970 acceptance checks pass with 100% coverage on touched files.
+- [ ] All #1053, #968, #969, and #970 acceptance checks pass with 100% coverage on touched files.
 
 ## 8. Stakeholders
 
@@ -88,4 +88,4 @@ James Ross (maintainer and acceptance owner); `@git-stunts/git-warp` contributor
 ## 9. Related Issues
 
 - Issue: [#1053](https://github.com/git-stunts/git-warp/issues/1053)
-- Directly unlocks: `#1055`, `#1054`
+- Directly unlocks: `#1055`

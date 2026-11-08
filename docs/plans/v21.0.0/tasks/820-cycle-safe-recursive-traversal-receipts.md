@@ -8,7 +8,7 @@ wave: 2
 workstream: "W4"
 status: "blocked"
 prerequisites: ["#816", "#819", "#903 (merged)"]
-unlocks: ["#822", "#823"]
+unlocks: ["#822"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
 
@@ -78,7 +78,7 @@ Ensure observer rights and purpose are checked at each child graph boundary.
 
 ## 7. Definition of Done
 
-100% coverage on recursive traversal modules and green Docker suite.
+- [ ] 100% coverage on recursive traversal modules and green Docker suite.
 
 ## 8. Stakeholders
 
@@ -87,4 +87,4 @@ James Ross (maintainer and acceptance owner); `@git-stunts/git-warp` contributor
 ## 9. Related Issues
 
 - Issue: [#820](https://github.com/git-stunts/git-warp/issues/820)
-- Directly unlocks: `#822`, `#823`
+- Directly unlocks: `#822`

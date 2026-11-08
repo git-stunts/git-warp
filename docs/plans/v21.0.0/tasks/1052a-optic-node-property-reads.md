@@ -82,7 +82,7 @@ Merging before #1080 settles read retention means completed receipts in Slice 3a
 
 ## 7. Definition of Done
 
-PR #1082 passes CI and merges into main, and the integration commit is linked on #1052.
+- [ ] PR #1082 passes CI and merges into main, and the integration commit is linked on #1052.
 
 ## 8. Stakeholders
 

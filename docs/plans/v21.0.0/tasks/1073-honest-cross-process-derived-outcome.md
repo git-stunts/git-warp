@@ -72,7 +72,7 @@ Ensure a single writer's own sequential writes across process restarts still cou
 
 ## 7. Definition of Done
 
-Two-process blind overwrite experiment fails before the fix and reports 'plural' after the fix.
+- [ ] Two-process blind overwrite experiment fails before the fix and reports 'plural' after the fix.
 
 ## 8. Stakeholders
 

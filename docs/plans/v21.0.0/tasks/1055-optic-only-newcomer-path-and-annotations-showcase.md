@@ -7,7 +7,7 @@ type: "Feature"
 wave: 3
 workstream: "W1"
 status: "blocked"
-prerequisites: ["#1051 (merged)", "#1052-3b", "#1053", "#1041"]
+prerequisites: ["#1051 (merged)", "#1053", "#1041"]
 unlocks: ["#1054"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
@@ -17,7 +17,7 @@ ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ```text
 Execute task #1055 (#1055: Optic-only newcomer path, Rust-free annotations scaffold, and cone cost witness migration) in repository ~/git/git-warp.
 1. Read this task plan, AGENTS.md, docs/ANTI_SLUDGE_POLICY.md, and docs/SYSTEMS_STYLE_TYPESCRIPT.md.
-2. Verify that all prerequisites (#1051 (merged), #1052-3b, #1053, #1041) are merged on main.
+2. Verify that all prerequisites (#1051 (merged), #1053, #1041) are merged on main.
 3. Follow strict RED-to-GREEN TDD inside Docker (scripts/run-in-docker.sh) under git-locks coordination.
 4. Implement only the in-scope changes (examples/annotations/, benchmarks/cone-showcase/, test/integration/ newcomer witness (#1045), README.md, and docs/topics/ guides.) and exclude out-of-scope work (Deleting legacy Runtime and Lane source files (#1054).).
 5. Enforce 100% test coverage on touched files, max function complexity <= 5, zero anti-sludge violations, and green lint/typecheck gates.
@@ -60,7 +60,6 @@ Fuzz and stress: Multi-writer annotation corpus benchmark across 200, 2,000, and
 ## 3. Prerequisites
 
 - [x] `#1051 (merged)`
-- [ ] `#1052-3b`
 - [ ] `#1053`
 - [ ] `#1041`
 
@@ -80,7 +79,7 @@ Keep tracked benchmark results and .d.ts files within repository size and payloa
 
 ## 7. Definition of Done
 
-All docs gates, newcomer witness cases, and showcase benchmarks pass in Docker, closing #1055 and #979.
+- [ ] All docs gates, newcomer witness cases, and showcase benchmarks pass in Docker, closing #1055 and #979.
 
 ## 8. Stakeholders
 

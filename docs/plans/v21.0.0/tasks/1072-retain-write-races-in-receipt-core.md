@@ -77,7 +77,7 @@ Changes canonical receipt-core CBOR layout; update test vectors and schema guard
 
 ## 7. Definition of Done
 
-100% test coverage on touched custody/write files, all Docker unit tests pass, and #1072 closes.
+- [ ] 100% test coverage on touched custody/write files, all Docker unit tests pass, and #1072 closes.
 
 ## 8. Stakeholders
 

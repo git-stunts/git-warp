@@ -78,7 +78,7 @@ CI's check-storage-ownership.ts gate must stay green (git-cas owns cache residen
 
 ## 7. Definition of Done
 
-All #1044 Slice 2-6 oracle and retention tests pass with 100% coverage on touched files.
+- [ ] All #1044 Slice 2-6 oracle and retention tests pass with 100% coverage on touched files.
 
 ## 8. Stakeholders
 

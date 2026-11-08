@@ -72,7 +72,7 @@ Changing write-attempt ref namespace or lazy initialization must preserve existi
 
 ## 7. Definition of Done
 
-Regression tests prove deny-all openers do not mutate custody/write refs, wildcard lane fetches do not import foreign write attempts, and logger warnings fire.
+- [ ] Regression tests prove deny-all openers do not mutate custody/write refs, wildcard lane fetches do not import foreign write attempts, and logger warnings fire.
 
 ## 8. Stakeholders
 

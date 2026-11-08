@@ -73,7 +73,7 @@ Stale mitigation claims in .github/SECURITY.md that do not match current source 
 
 ## 7. Definition of Done
 
-Zero rows in .github/SECURITY.md are marked expired, and every row cites exact current source files and mitigations.
+- [ ] Zero rows in .github/SECURITY.md are marked expired, and every row cites exact current source files and mitigations.
 
 ## 8. Stakeholders
 

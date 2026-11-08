@@ -72,7 +72,7 @@ Building dist/ inside every test could slow the shard if not cached or isolated 
 
 ## 7. Definition of Done
 
-A regression test or isolated fixture ensures scripts/run-in-docker.sh npx vitest run test/unit/scripts passes three times in a row.
+- [ ] A regression test or isolated fixture ensures scripts/run-in-docker.sh npx vitest run test/unit/scripts passes three times in a row.
 
 ## 8. Stakeholders
 

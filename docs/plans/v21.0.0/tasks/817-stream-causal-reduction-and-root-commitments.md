@@ -8,7 +8,7 @@ wave: 2
 workstream: "W3"
 status: "blocked"
 prerequisites: ["#816"]
-unlocks: ["#248", "#822", "#917", "#814", "#823"]
+unlocks: ["#248", "#822", "#917"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
 
@@ -75,7 +75,7 @@ Must preserve causal semantics across reopen, comparison, and BTR.
 
 ## 7. Definition of Done
 
-100% coverage on new reduction/commitment modules and green Docker suite.
+- [ ] 100% coverage on new reduction/commitment modules and green Docker suite.
 
 ## 8. Stakeholders
 
@@ -84,4 +84,4 @@ James Ross (maintainer and acceptance owner); `@git-stunts/git-warp` contributor
 ## 9. Related Issues
 
 - Issue: [#817](https://github.com/git-stunts/git-warp/issues/817)
-- Directly unlocks: `#248`, `#822`, `#917`, `#814`, `#823`
+- Directly unlocks: `#248`, `#822`, `#917`

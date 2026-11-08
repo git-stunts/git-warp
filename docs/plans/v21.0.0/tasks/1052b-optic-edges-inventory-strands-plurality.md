@@ -8,7 +8,7 @@ wave: 1
 workstream: "W1"
 status: "blocked"
 prerequisites: ["PR #1082", "#1080", "#1078", "#1079"]
-unlocks: ["#1053", "#1057", "#1055", "#248", "#1054"]
+unlocks: ["#1044-S2..S6", "#1053", "#1057", "#248"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
 
@@ -80,7 +80,7 @@ Keep unpacked package size within the #1079 ceiling.
 
 ## 7. Definition of Done
 
-All #1052 acceptance criteria pass with 100% coverage on touched files and #1052 closes.
+- [ ] All #1052 acceptance criteria pass with 100% coverage on touched files and #1052 closes.
 
 ## 8. Stakeholders
 
@@ -89,4 +89,4 @@ James Ross (maintainer and acceptance owner); `@git-stunts/git-warp` contributor
 ## 9. Related Issues
 
 - Issue: [#1052](https://github.com/git-stunts/git-warp/issues/1052)
-- Directly unlocks: `#1053`, `#1057`, `#1055`, `#248`, `#1054`
+- Directly unlocks: `#1044-S2..S6`, `#1053`, `#1057`, `#248`

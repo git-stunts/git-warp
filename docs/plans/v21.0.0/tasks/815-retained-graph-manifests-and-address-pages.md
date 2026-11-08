@@ -8,7 +8,7 @@ wave: 0
 workstream: "W3"
 status: "open-frontier"
 prerequisites: []
-unlocks: ["#816", "#819", "#814"]
+unlocks: ["#816", "#819"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
 
@@ -77,7 +77,7 @@ Must align cleanly with the cone record keys and digests landed in #1062 and pla
 
 ## 7. Definition of Done
 
-100% unit test coverage on new manifest/page classes and green Docker suite.
+- [ ] 100% unit test coverage on new manifest/page classes and green Docker suite.
 
 ## 8. Stakeholders
 
@@ -86,4 +86,4 @@ James Ross (maintainer and acceptance owner); `@git-stunts/git-warp` contributor
 ## 9. Related Issues
 
 - Issue: [#815](https://github.com/git-stunts/git-warp/issues/815)
-- Directly unlocks: `#816`, `#819`, `#814`
+- Directly unlocks: `#816`, `#819`

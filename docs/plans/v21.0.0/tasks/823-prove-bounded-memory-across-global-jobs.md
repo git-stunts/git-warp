@@ -7,7 +7,7 @@ type: "Feature"
 wave: 6
 workstream: "W4"
 status: "blocked"
-prerequisites: ["#814", "#817", "#818 (merged)", "#820", "#821", "#822", "#916 (merged)", "#917", "#1032", "#1077"]
+prerequisites: ["#814", "#818 (merged)", "#916 (merged)", "#917", "#1032", "#1077"]
 unlocks: []
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
@@ -17,7 +17,7 @@ ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ```text
 Execute task #823 (#823: Prove bounded process memory across global jobs, attachments, migration, and recursion, and run v21.0.0 release preflight) in repository ~/git/git-warp.
 1. Read this task plan, AGENTS.md, docs/ANTI_SLUDGE_POLICY.md, and docs/SYSTEMS_STYLE_TYPESCRIPT.md.
-2. Verify that all prerequisites (#814, #817, #818 (merged), #820, #821, #822, #916 (merged), #917, #1032, #1077) are merged on main.
+2. Verify that all prerequisites (#814, #818 (merged), #916 (merged), #917, #1032, #1077) are merged on main.
 3. Follow strict RED-to-GREEN TDD inside Docker (scripts/run-in-docker.sh) under git-locks coordination.
 4. Implement only the in-scope changes (#823 memory proof suite, closure verification for #1034-#1038, version bump to 21.0.0, CHANGELOG/README release notes, and release preflight.) and exclude out-of-scope work (Post-v21.0.0 features (v21.1.0 / v22.0.0).).
 5. Enforce 100% test coverage on touched files, max function complexity <= 5, zero anti-sludge violations, and green lint/typecheck gates.
@@ -60,11 +60,7 @@ Fuzz and stress: Sustained mixed read/write/bulk/traversal workload under bounde
 ## 3. Prerequisites
 
 - [ ] `#814`
-- [ ] `#817`
 - [x] `#818 (merged)`
-- [ ] `#820`
-- [ ] `#821`
-- [ ] `#822`
 - [x] `#916 (merged)`
 - [ ] `#917`
 - [ ] `#1032`
@@ -86,7 +82,7 @@ All Docker resource budgets (<=20 GiB build cache, <=4 GiB runtime test data, >=
 
 ## 7. Definition of Done
 
-All #823 witnesses and release:preflight gates pass in Docker, and v21.0.0 is ready to tag.
+- [ ] All #823 witnesses and release:preflight gates pass in Docker, and v21.0.0 is ready to tag.
 
 ## 8. Stakeholders
 

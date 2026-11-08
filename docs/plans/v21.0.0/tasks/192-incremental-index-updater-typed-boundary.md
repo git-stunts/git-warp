@@ -76,7 +76,7 @@ Touching quarantined files triggers quarantine-graduate-check; all sludge in tou
 
 ## 7. Definition of Done
 
-100% test coverage on touched files, quarantine-graduate-check passes, and #192 closes.
+- [ ] 100% test coverage on touched files, quarantine-graduate-check passes, and #192 closes.
 
 ## 8. Stakeholders
 

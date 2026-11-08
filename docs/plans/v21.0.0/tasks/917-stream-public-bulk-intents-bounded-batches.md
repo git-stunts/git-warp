@@ -77,7 +77,7 @@ Ensure each batch updates cone/retained roots incrementally without accumulating
 
 ## 7. Definition of Done
 
-100% coverage on bulk ingestion modules and #917 closes.
+- [ ] 100% coverage on bulk ingestion modules and #917 closes.
 
 ## 8. Stakeholders
 

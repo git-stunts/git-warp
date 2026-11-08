@@ -77,7 +77,7 @@ Preserve operator migration/export paths behind explicit bounded or migration-on
 
 ## 7. Definition of Done
 
-100% coverage on touched controller paths and #248 closes.
+- [ ] 100% coverage on touched controller paths and #248 closes.
 
 ## 8. Stakeholders
 

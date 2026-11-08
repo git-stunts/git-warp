@@ -80,7 +80,7 @@ Keep runtime data and logs within the 4 GiB project test-data budget in Docker.
 
 ## 7. Definition of Done
 
-All multi-process witnesses pass in Docker and #1077 closes.
+- [ ] All multi-process witnesses pass in Docker and #1077 closes.
 
 ## 8. Stakeholders
 

@@ -7,7 +7,7 @@ type: "Feature"
 wave: 5
 workstream: "W3"
 status: "blocked"
-prerequisites: ["#815", "#816", "#817", "#248", "#822", "#1054", "#1044-S1", "#1044-S2..S6"]
+prerequisites: ["#248", "#822", "#1054", "#1044-S2..S6"]
 unlocks: ["#823"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
@@ -17,7 +17,7 @@ ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ```text
 Execute task #814 (#814: Delete production full-state materialization contracts and whole-state checkpoint system) in repository ~/git/git-warp.
 1. Read this task plan, AGENTS.md, docs/ANTI_SLUDGE_POLICY.md, and docs/SYSTEMS_STYLE_TYPESCRIPT.md.
-2. Verify that all prerequisites (#815, #816, #817, #248, #822, #1054, #1044-S1, #1044-S2..S6) are merged on main.
+2. Verify that all prerequisites (#248, #822, #1054, #1044-S2..S6) are merged on main.
 3. Follow strict RED-to-GREEN TDD inside Docker (scripts/run-in-docker.sh) under git-locks coordination.
 4. Implement only the in-scope changes (Deletion of production full-state codecs, replay basis ports/adapters, _materializeGraph, and whole-state checkpoint classes; full-state-contract-ratchet.test.ts.) and exclude out-of-scope work (Aggregate memory proof matrix (#823).).
 5. Enforce 100% test coverage on touched files, max function complexity <= 5, zero anti-sludge violations, and green lint/typecheck gates.
@@ -57,13 +57,9 @@ Fuzz and stress: Full oracle suite verifying zero regressions after deleting the
 
 ## 3. Prerequisites
 
-- [ ] `#815`
-- [ ] `#816`
-- [ ] `#817`
 - [ ] `#248`
 - [ ] `#822`
 - [ ] `#1054`
-- [ ] `#1044-S1`
 - [ ] `#1044-S2..S6`
 
 ## 4. Scope
@@ -82,7 +78,7 @@ Delete in #1044's exact 7-step dependency order so every commit compiles and pas
 
 ## 7. Definition of Done
 
-full-state-contract-ratchet.test.ts is green, all suites pass in Docker, and #814 and #1044 close.
+- [ ] full-state-contract-ratchet.test.ts is green, all suites pass in Docker, and #814 and #1044 close.
 
 ## 8. Stakeholders
 

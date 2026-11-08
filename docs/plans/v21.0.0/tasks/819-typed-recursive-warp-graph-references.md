@@ -8,7 +8,7 @@ wave: 1
 workstream: "W4"
 status: "blocked"
 prerequisites: ["#815", "#903 (merged)"]
-unlocks: ["#820", "#821", "#822"]
+unlocks: ["#820", "#821"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
 
@@ -76,7 +76,7 @@ Must respect the public-surface guard (#1050) and Optic read model.
 
 ## 7. Definition of Done
 
-100% coverage on new reference classes and #819 closes.
+- [ ] 100% coverage on new reference classes and #819 closes.
 
 ## 8. Stakeholders
 
@@ -85,4 +85,4 @@ James Ross (maintainer and acceptance owner); `@git-stunts/git-warp` contributor
 ## 9. Related Issues
 
 - Issue: [#819](https://github.com/git-stunts/git-warp/issues/819)
-- Directly unlocks: `#820`, `#821`, `#822`
+- Directly unlocks: `#820`, `#821`

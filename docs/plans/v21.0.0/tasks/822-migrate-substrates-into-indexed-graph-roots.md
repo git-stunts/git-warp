@@ -7,8 +7,8 @@ type: "Feature"
 wave: 3
 workstream: "W3"
 status: "blocked"
-prerequisites: ["#811", "#817", "#818 (merged)", "#819", "#820", "#821"]
-unlocks: ["#814", "#823"]
+prerequisites: ["#811", "#817", "#818 (merged)", "#820", "#821"]
+unlocks: ["#814"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
 
@@ -17,7 +17,7 @@ ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ```text
 Execute task #822 (#822: Migrate retained substrates directly into indexed graph roots with verified promotion) in repository ~/git/git-warp.
 1. Read this task plan, AGENTS.md, docs/ANTI_SLUDGE_POLICY.md, and docs/SYSTEMS_STYLE_TYPESCRIPT.md.
-2. Verify that all prerequisites (#811, #817, #818 (merged), #819, #820, #821) are merged on main.
+2. Verify that all prerequisites (#811, #817, #818 (merged), #820, #821) are merged on main.
 3. Follow strict RED-to-GREEN TDD inside Docker (scripts/run-in-docker.sh) under git-locks coordination.
 4. Implement only the in-scope changes (scripts/v20-to-v21/ migrator, scratch verifier, CAS promoter, and docs/migrations/v21/README.md.) and exclude out-of-scope work (Deleting legacy full-state decoders from production runtime (#814 isolates legacy decoding in migration scripts only).).
 5. Enforce 100% test coverage on touched files, max function complexity <= 5, zero anti-sludge violations, and green lint/typecheck gates.
@@ -61,7 +61,6 @@ Fuzz and stress: Fault-injected migrations across deep/wide repositories under a
 - [ ] `#811`
 - [ ] `#817`
 - [x] `#818 (merged)`
-- [ ] `#819`
 - [ ] `#820`
 - [ ] `#821`
 
@@ -81,7 +80,7 @@ Legacy full-state decoding if needed for old checkpoints must stay strictly isol
 
 ## 7. Definition of Done
 
-100% coverage on touched migration modules and #822 closes.
+- [ ] 100% coverage on touched migration modules and #822 closes.
 
 ## 8. Stakeholders
 
@@ -90,4 +89,4 @@ James Ross (maintainer and acceptance owner); `@git-stunts/git-warp` contributor
 ## 9. Related Issues
 
 - Issue: [#822](https://github.com/git-stunts/git-warp/issues/822)
-- Directly unlocks: `#814`, `#823`
+- Directly unlocks: `#814`

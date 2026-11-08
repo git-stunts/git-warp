@@ -7,7 +7,7 @@ type: "Feature"
 wave: 4
 workstream: "W1"
 status: "blocked"
-prerequisites: ["#1050 (merged)", "#1051 (merged)", "#1052-3b", "#1053", "#1055", "#1076"]
+prerequisites: ["#1050 (merged)", "#1051 (merged)", "#1055", "#1076"]
 unlocks: ["#814"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
@@ -17,7 +17,7 @@ ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ```text
 Execute task #1054 (#1054: Direct breaking cutover: remove legacy Runtime, Lane, captureCoordinate, and checkpoint surfaces) in repository ~/git/git-warp.
 1. Read this task plan, AGENTS.md, docs/ANTI_SLUDGE_POLICY.md, and docs/SYSTEMS_STYLE_TYPESCRIPT.md.
-2. Verify that all prerequisites (#1050 (merged), #1051 (merged), #1052-3b, #1053, #1055, #1076) are merged on main.
+2. Verify that all prerequisites (#1050 (merged), #1051 (merged), #1055, #1076) are merged on main.
 3. Follow strict RED-to-GREEN TDD inside Docker (scripts/run-in-docker.sh) under git-locks coordination.
 4. Implement only the in-scope changes (index.ts, advanced.ts, diagnostics.ts, src/application/Runtime.ts, Lane.ts, policy/public-surface-ratchet.txt, CHANGELOG.md, docs/migrations/v21/README.md, and closing prototype PR #1040.) and exclude out-of-scope work (Internal full-state CBOR codec deletion (#814).).
 5. Enforce 100% test coverage on touched files, max function complexity <= 5, zero anti-sludge violations, and green lint/typecheck gates.
@@ -61,8 +61,6 @@ Fuzz and stress: AST reachability scanner across all package entry points.
 
 - [x] `#1050 (merged)`
 - [x] `#1051 (merged)`
-- [ ] `#1052-3b`
-- [ ] `#1053`
 - [ ] `#1055`
 - [ ] `#1076`
 
@@ -82,7 +80,7 @@ Coordinate carefully with CLI/MCP/SDK internal imports so no supported binary br
 
 ## 7. Definition of Done
 
-Zero entries in policy/public-surface-ratchet.txt, all gates green in Docker, prototype PR #1040 closed, and #1054 closes.
+- [ ] Zero entries in policy/public-surface-ratchet.txt, all gates green in Docker, prototype PR #1040 closed, and #1054 closes.
 
 ## 8. Stakeholders
 

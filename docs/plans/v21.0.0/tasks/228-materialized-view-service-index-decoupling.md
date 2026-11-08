@@ -75,7 +75,7 @@ Ensure no external caller imports the deleted bridge helper.
 
 ## 7. Definition of Done
 
-100% coverage on touched lines in MaterializedViewService and #228 closes.
+- [ ] 100% coverage on touched lines in MaterializedViewService and #228 closes.
 
 ## 8. Stakeholders
 

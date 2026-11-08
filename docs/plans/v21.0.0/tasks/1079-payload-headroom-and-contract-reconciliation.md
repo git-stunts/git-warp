@@ -8,7 +8,7 @@ wave: 0
 workstream: "W5"
 status: "open-frontier"
 prerequisites: ["#1051 (merged)"]
-unlocks: ["#1052-3b", "#1054"]
+unlocks: ["#1052-3b"]
 ste100_edition: "ASD-STE100 Issue 9 (unverified draft)"
 ---
 
@@ -73,7 +73,7 @@ Leaving pre-permission I/O behavior ambiguous causes inconsistent behavior betwe
 
 ## 7. Definition of Done
 
-Decisions are recorded in docs/plans/optic-only-public-api.md, v20 trailer compatibility is proven by an automated test, and check:package-payload passes.
+- [ ] Decisions are recorded in docs/plans/optic-only-public-api.md, v20 trailer compatibility is proven by an automated test, and check:package-payload passes.
 
 ## 8. Stakeholders
 
@@ -82,4 +82,4 @@ James Ross (maintainer and decision owner); `@git-stunts/git-warp` contributors 
 ## 9. Related Issues
 
 - Issue: [#1079](https://github.com/git-stunts/git-warp/issues/1079)
-- Directly unlocks: `#1052-3b`, `#1054`
+- Directly unlocks: `#1052-3b`
