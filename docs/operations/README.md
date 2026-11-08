@@ -125,29 +125,16 @@ replay or grant trust to a writer.
 git warp receipt show --input receipt.json
 ```
 
-The CLI uses the same canonical Receipt renderer as write and observe. Keep the
+The CLI uses the same canonical Receipt renderer as observe. Keep the
 machine envelope when a later incident may need exact operation, outcome,
 support, or repair evidence.
 
 ## Review and Settlement
 
-Always separate preview from apply:
-
-```bash
-git warp settle preview \
-  --repo ./team-repo \
-  --source users \
-  --strand review-auth \
-  --target users \
-  --out settlement.json
-
-git warp settle apply \
-  --repo ./team-repo \
-  --plan settlement.json
-```
-
-The apply step revalidates a fresh Runtime-owned plan. A moved source or target
-requires a new preview and review.
+v21 removed the CLI `fork` and `settle` commands with `Runtime.fork` and
+settlement ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
+[#1053](https://github.com/git-stunts/git-warp/issues/1053) brings strands and
+settlement back as Coordinate-derived handles.
 
 ## Substrate and git-cas rollout coordination
 

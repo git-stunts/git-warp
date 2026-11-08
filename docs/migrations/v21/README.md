@@ -122,3 +122,72 @@ Repeating it, even after a crash between the two, returns that record instead
 of minting again. A collision that is visible only inside a
 strand cannot be repaired from the lane, because the strand's base is pinned.
 It stays guarded.
+
+## API changes
+
+v21 removes the v20 write, strand and settlement capabilities of `Runtime`
+and `Lane` ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
+Writes go through `Warp`. Until [#1052](https://github.com/git-stunts/git-warp/issues/1052)
+adds the Optic read, reads keep `Runtime.open()`, `runtime.lane()`,
+`Lane.observe()`, the legacy `Optic` read, and `close()`.
+
+| v20 | v21 |
+| --- | --- |
+| `lane.write(intent)` | `warp.as(writer).execute(intent)` |
+| `lane.stageContent(text)` | `warp.as(writer).stage(text)` (text only) |
+| `lane.name`, `kind`, `descriptor`, `reference`, `writer` | The name you passed to `runtime.lane()` |
+| `runtime.writer` | The writer you pass to `warp.as()` |
+| `Runtime.fork`, `Runtime.strand` | Removed; #1053 adds Coordinate-derived strands |
+| `Runtime.previewSettlement`, `Runtime.settle` | Removed; #1053 adds strand settlement |
+| `AuthoredWriteReceipt` | `WriteReceipt` |
+| v20 `WriteReceipt`, `AdmissionOutcome`, `EntityOccurrence` | `RetainedWriteReceipt` and its siblings, `WriteAdmission`, `WriteOccurrence` |
+| `SettlementPreview`, `SettlementPlan`, `SettlementReceipt`, `Runtime*Options` but `RuntimeOpenOptions` | Removed |
+| `LaneDescriptor`, `LaneKind`, `LaneReference`, `CoordinateReference`, `ContentInput` | Removed |
+| `git warp write`, `fork`, `settle`, `--strand` | Removed; write through `Warp` |
+| MCP `warp_lane_describe`, `warp_intent_write`, `warp_settlement_*` | Removed |
+
+`Warp.open` takes a `WarpAccessPort` that you implement. This example is
+executed by `test/integration/application/V21MigrationExample.integration.test.ts`:
+
+<!-- v21-migration-example -->
+```ts
+import {
+  GitStorage, RetainedWriteReceipt, Runtime, Warp, WarpAccessPort, WarpAddress, WarpWriteGrant,
+} from '@git-stunts/git-warp';
+import type { WarpWriteRequest } from '@git-stunts/git-warp';
+import { createEntityAdmissionInventoryObserver, intent } from '@git-stunts/git-warp/advanced';
+
+class LocalAccess extends WarpAccessPort {
+  override authorizeWrite(request: WarpWriteRequest): Promise<WarpWriteGrant> {
+    return Promise.resolve(new WarpWriteGrant({
+      authority: `local:${request.writer}`,
+      budget: { records: 256, bytes: 1_048_576, work: 10_000 },
+    }));
+  }
+}
+
+export async function addAndListTodos(at: string): Promise<string[]> {
+  const warp = await Warp.open(WarpAddress.of(GitStorage.at(at), 'todos'), new LocalAccess());
+  try {
+    const receipt = await warp.as('alice').execute(
+      intent.entity.addAuto({ namespace: 'todo', properties: { title: 'buy milk' } }),
+    );
+    if (!(receipt instanceof RetainedWriteReceipt)) {
+      throw new Error(`write not retained: ${receipt.constructor.name}`);
+    }
+  } finally {
+    await warp.close();
+  }
+  const runtime = await Runtime.open({ at, writer: 'reader' });
+  try {
+    const lane = await runtime.lane('todos');
+    const subjects: string[] = [];
+    for await (const reading of lane.observe(createEntityAdmissionInventoryObserver('todos'))) {
+      subjects.push(reading.value.representation.subject);
+    }
+    return subjects;
+  } finally {
+    await runtime.close();
+  }
+}
+```

@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- Remove the legacy write, strand and settlement capabilities of `Runtime` and `Lane`
+  ([#1054](https://github.com/git-stunts/git-warp/issues/1054)). Write with
+  `warp.as(writer).execute(intent)`. `Runtime` keeps only the read path until #1052 adds
+  the Optic read: `Runtime.open()`, `runtime.lane()`, `Lane.observe()`, the legacy
+  `Optic` read through `captureCoordinate`, and `close()`. Removed: `Lane.write`,
+  `Lane.stageContent` (`AuthoredWarp.stage` stages text), the `Lane` identity getters,
+  `Runtime.writer`, `Runtime.fork`, `Runtime.strand`, `Runtime.previewSettlement`,
+  `Runtime.settle`, the v20 `WriteReceipt`, `AdmissionOutcome`, `EntityOccurrence`,
+  `EntityCausalRelation`, `ContentInput`, the `Lane` descriptor and reference types, the
+  settlement types and the fork, strand and settlement options. `AuthoredWriteReceipt` is
+  renamed `WriteReceipt`. The CLI loses `write`, `fork`, `settle` and `--strand`; MCP
+  loses `warp_lane_describe`, `warp_intent_write`, `warp_settlement_preview` and
+  `warp_settlement_apply`. Iterator and content stream signatures declare their
+  completion types. See [the v21 migration guide](docs/migrations/v21/README.md#api-changes).
 - Reserve `write-attempts` as a graph-name segment for clone-local write attempt refs.
   Patch commits made through `Warp` carry an `eg-publication-attempt` trailer; existing
   decoders read only the trailers they know

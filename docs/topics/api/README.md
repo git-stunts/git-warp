@@ -1,6 +1,15 @@
 # v19 Public Vocabulary Checkpoint
 
-> **Status:** Current in `v20.0.0`; introduced in `v19.0.0`.
+> **Status:** Historical checkpoint: current in `v20.0.0`; introduced in `v19.0.0`.
+>
+> **v21 removed part of this surface**
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)): `Lane.write`,
+> `Lane.stageContent`, the `Lane` identity getters, `Runtime.fork`,
+> `Runtime.strand`, settlement, and the CLI `write`, `fork`, `settle` and
+> `--strand`. Writes go through `warp.as(writer).execute(intent)`. Reads keep
+> `Runtime.open()`, `runtime.lane()` and `Lane.observe()` until
+> [#1052](https://github.com/git-stunts/git-warp/issues/1052). See the
+> [v21 migration guide](../../migrations/v21/README.md#api-changes).
 >
 > This document is the normative product vocabulary and public-surface design.
 > The Runtime, Lane, Intent, Observer, streaming Observation, Reading, Receipt,
@@ -197,6 +206,10 @@ state, and releases process-owned resources. Repeated close requests are
 idempotent.
 
 ## Lanes
+
+> **v21:** A Lane is now a read-only worldline handle with only `observe()`.
+> v21 removed Lane writes, strands and forks
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
 
 `Lane` replaces `Timeline` in public vocabulary. A timeline suggests a total
 order. A lane permits independent progression, concurrency, strands, and
@@ -433,6 +446,10 @@ transport framing.
 
 ## Admission Outcomes, Evidence, And Receipts
 
+> **v21:** `Lane.write()` and its v20 `WriteReceipt` are removed. `execute`
+> returns the v21 `WriteReceipt` variants
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
+
 `Lane.write()` accepts either one validated Intent or one non-empty ordered
 array of validated Intents. An array is one admission request:
 
@@ -604,6 +621,9 @@ machine-readable envelopes.
 
 ## Settlement
 
+> **v21:** This section describes the v19/v20 surface. v21 removed it
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
+
 Admission and settlement are different phases. Admission classifies how
 histories meet. Settlement is the later, law-governed promotion of a plural or
 resolved coordinate into a canonical shared Lane. A `conflict` has not settled,
@@ -725,6 +745,9 @@ conformance evidence exist.
 
 ## CLI Grammar
 
+> **v21:** This section describes the v19/v20 surface. v21 removed it
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
+
 The CLI follows the same verbs and nouns:
 
 ```text
@@ -762,6 +785,10 @@ emits one canonical envelope; streaming commands support `--jsonl` without
 renaming transport batches as pages.
 
 ## MCP Grammar
+
+> **v21:** `warp_lane_describe`, `warp_intent_write`,
+> `warp_settlement_preview` and `warp_settlement_apply` are removed
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
 
 MCP exposes the same model through tools and resources rather than inventing a
 second ontology. The shipped capability families are:

@@ -26,34 +26,40 @@ Content attachments are useful when a node or edge needs associated bytes that
 should not be modeled as scalar properties. The graph stores the causal fact
 that content is attached; blob storage stores the bytes.
 
-The `v20.0.0` API supports Runtime/Lane staging, node and edge attachment intents, metadata observations, and stream reads through supported package exports. Installed source-built tarball checks exercise these operations. The `v19.1.0` package does not provide this restored API. The eager `getContent` and `getEdgeContent` facades are retired. Application bytes are `Uint8Array`; host streams, filesystem details and `Buffer` stay at adapters.
+The `v20.0.0` API supported Runtime/Lane staging; v21 stages text through `AuthoredWarp.stage` ([#1054](https://github.com/git-stunts/git-warp/issues/1054)). It supports node and edge attachment intents, metadata observations, and stream reads through supported package exports. Installed source-built tarball checks exercise these operations. The `v19.1.0` package does not provide this restored API. The eager `getContent` and `getEdgeContent` facades are retired. Application bytes are `Uint8Array`; host streams, filesystem details and `Buffer` stay at adapters.
 
 ## Bytes, references and structural ownership
 
 | Payload | Meaning | Mutation and retention |
 | --- | --- | --- |
 | Node/edge property | Inline graph data; a string containing an identifier remains ordinary data | Follows property and owner lifecycle; nested binary writes have the inline budget below |
-| Managed byte attachment | An opaque immutable asset staged by this Runtime and associated with an existing node or edge | Attach replaces, clear removes the current association; publication/history determine retention |
+| Managed byte attachment | An opaque immutable asset staged by a Warp and associated with an existing node or edge | Attach replaces, clear removes the current association; publication/history determine retention |
 | External or live graph reference | Names separately governed state; a live reference requires a captured resolution coordinate | Does not own descendants, grant mutation authority, or establish recursive retention; reference networks may contain cycles |
 | Finite structural attachment | An owned graph occurrence admitted with complete finite, acyclic containment and distinct lineage | Protected descendants require one injective preserved image; implicit delete/detach/whole-subtree replacement/copy is refused by the intended contract |
 
 The [structural ownership contract](structural-attachments.md) defines the last two distinctions from pinned Paper I/II sources and test-only reference witnesses. The source attachment API handles opaque bytes; storing graph identifiers in properties or assets does not implement that ownership contract. Reference encoding [#819](https://github.com/git-stunts/git-warp/issues/819), bounded traversal [#820](https://github.com/git-stunts/git-warp/issues/820), and retention/doctor enforcement [#821](https://github.com/git-stunts/git-warp/issues/821) remain separate implementation work. Byte lifecycle tests and convergent CRDT patches do not establish Paper II DPOI or tick guarantees.
 
-## Declared-size staging contract
+## Staging contract
 
-`Lane.stageContent(source, { mime, size })` accepts text, `Uint8Array`, `ReadableStream<Uint8Array>` or `AsyncIterable<Uint8Array>`. Both metadata fields are optional; `size` declares the expected plaintext byte count. The immutable result exposes `id`, `mime` and the measured `size`, without retaining the input bytes.
+`warp.as(writer).stage(text, { mime })` stages text and returns an immutable
+`StagedContent`, or a `WarpAccessDenied` when the injected `WarpAccessPort`
+refuses it. The result exposes `id`, `mime` and the measured `size`, without
+retaining the input bytes. v21 removed `Lane.stageContent` and binary or
+streamed staging ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
 
-Staging is owned by the Runtime and works on worldline and strand lanes. Closing the Runtime waits for active staging to finish and refuses new staging work. A staging or producer failure publishes no graph patch. The returned value records staging provenance; copied metadata cannot substitute for that value. It does not establish durable retention or constitute a node/edge attachment by itself.
+A staging failure publishes no graph patch. The returned value records staging
+provenance; copied metadata cannot substitute for that value. It does not
+establish durable retention or constitute a node/edge attachment by itself.
 
 ## Staging is not a graph causal event
 
-`Lane.stageContent()` performs storage I/O, but does not publish a graph patch,
-advance the lane's causal frontier, or return a graph write receipt. Its result
-identifies stored bytes and records Runtime provenance; it is not evidence of
+`AuthoredWarp.stage()` performs storage I/O, but does not publish a graph patch,
+advance the graph's causal frontier, or return a graph write receipt. Its result
+identifies stored bytes and records Warp provenance; it is not evidence of
 an admitted graph event. No node or edge target is required during staging.
 
 The causal fact is established by a subsequent admitted attachment intent through
-`Lane.write()`: this owner is associated with this content. Graph history records
+`warp.as(writer).execute()`: this owner is associated with this content. Graph history records
 that association, not when the upload began, its progress, or when staging
 completed. Graph observers cannot reconstruct those upload events from the
 attachment write.
@@ -75,7 +81,7 @@ completion and event publication remains an application concern.
 
 ## Attachment writes
 
-Stage through `lane.stageContent(...)`, then pass that exact staged value to `intent.node.attachContent({ subject, content })` or `intent.edge.attachContent({ from, to, label, content })` from `@git-stunts/git-warp/advanced`. Submit the resulting intents through `lane.write(...)`. The [runnable lifecycle example](../../examples/attachments.mjs) creates both owners and attaches the same immutable asset in one ordered array write.
+Stage through `warp.as(writer).stage(...)`, then pass that exact staged value to `intent.node.attachContent({ subject, content })` or `intent.edge.attachContent({ from, to, label, content })` from `@git-stunts/git-warp/advanced`. Submit the resulting intents through `warp.as(writer).execute(...)` on the same Warp. The [runnable lifecycle example](../../examples/attachments.mjs) creates both owners and attaches the same immutable asset in one ordered array write.
 
 Each node or edge has one current attachment association, not a collection of
 attachment slots. Independently staged assets may target different nodes or
@@ -86,7 +92,7 @@ Attaching again replaces that owner's attachment. `intent.node.clearContent({ su
 and `intent.edge.clearContent({ from, to, label })` remove the current association;
 historical attachment facts remain part of causal history. Check the write receipt:
 an absent owner produces an obstruction, and a failure in one array member publishes
-none of the array. A staged value from another Runtime is refused, even if it uses
+none of the array. A staged value from another Warp is refused, even if it uses
 the same repository. Staging that becomes unavailable before publication also fails
 without advancing the graph's publication ref.
 
@@ -108,7 +114,7 @@ bounded full-history scan, not an indexed checkpoint-tail lookup. Its refusal pr
 is 1,024 writers, 10,000 patches, 50,000 operations, 50,000 retained text entries and
 8 Mi UTF-16 text units; artifact decoding also has the existing 64 MiB bound.
 An exceeded profile or unavailable history yields an obstructed observation,
-not a claim of absent content. Strands use their pinned parent and overlay heads.
+not a claim of absent content.
 
 An unused reading or unused `open()` iterable holds no activity lease. Consumption
 acquires a lease; Runtime close waits for active consumption to finish. Breaking
@@ -118,17 +124,17 @@ stop consuming before awaiting Runtime close; close does not forcibly abort it.
 
 ## Concurrency, failure and retention
 
-Each `lane.write([...])` is one admitted patch and one receipt: the whole ordered array publishes, or none of its graph edits does. Separate writes remain separate admissions. Staging may leave unreferenced storage objects after failure, but it cannot publish a prefix of an attachment write. Validate the receipt's outcome rather than treating a resolved write promise as unconditional success.
+Each `execute([...])` is one admitted patch and one receipt: the whole ordered array publishes, or none of its graph edits does. Separate writes remain separate admissions. Staging may leave unreferenced storage objects after failure, but it cannot publish a prefix of an attachment write. Validate the receipt's outcome rather than treating a resolved write promise as unconditional success.
 
 Concurrent writers may propose different assets for the same owner. Causal materialization selects the winning content register deterministically and takes MIME and size from that winning content's lineage; it does not combine metadata from a losing asset. This is CRDT conflict resolution, not the structural reference scheduler. Separate observations capture their heads separately, so observing a node and edge in separate calls does not promise one cross-owner snapshot while writers continue changing them.
 
-A missing write owner is an obstruction and preserves the other array members' prior values. A missing observation association emits `null` only when the bounded history establishes that absence. Unavailable/truncated history or an exceeded observation budget obstructs the observation. Missing payload storage can instead fail when an already captured attachment is opened; metadata alone does not prove current byte availability. Invalid or copied staging metadata, foreign Runtime provenance, producer failure and declared-size mismatch are failures, not admitted writes.
+A missing write owner is an obstruction and preserves the other array members' prior values. A missing observation association emits `null` only when the bounded history establishes that absence. Unavailable/truncated history or an exceeded observation budget obstructs the observation. Missing payload storage can instead fail when an already captured attachment is opened; metadata alone does not prove current byte availability. Invalid or copied staging metadata and foreign Warp provenance are failures, not admitted writes.
 
-Durable attachment publication retains its asset with owner metadata; staging alone does not. Clearing, replacing, or removing an owner does not rewrite historical facts or promise immediate physical collection. The installed-package witnesses retain a fork/checkpoint, close, run Git collection in their disposable repository, and reopen both current and historical assets. That is evidence for retained-history roots, not permission to prune arbitrary repositories or a promise that an attachment stays available after its Runtime or required storage/history is gone. No recursive ownership retention follows from a byte asset.
+Durable attachment publication retains its asset with owner metadata; staging alone does not. Clearing, replacing, or removing an owner does not rewrite historical facts or promise immediate physical collection. Retained history is not permission to prune arbitrary repositories or a promise that an attachment stays available after its Runtime or required storage/history is gone. No recursive ownership retention follows from a byte asset.
 
 ## Run the installed-package example
 
-The reusable [example](../../examples/attachments.mjs) is the consumer recipe owned by [#902](https://github.com/git-stunts/git-warp/issues/902). It imports only the root package, the advanced subpath and Node builtins. It asserts node and edge attach/replace/clear, metadata, captured historical bytes, early stream termination and reopening. Its CLI accepts a disposable Git repository and closes the Runtime in `finally`.
+The reusable [example](../../examples/attachments.mjs) is the consumer recipe owned by [#902](https://github.com/git-stunts/git-warp/issues/902). It imports only the root package, the advanced subpath and Node builtins. It asserts node and edge attach/replace/clear, metadata, captured historical bytes, early stream termination and reopening. Its CLI accepts a disposable Git repository, writes through a `Warp`, reads through a `Runtime`, and closes both in `finally`.
 
 Run its existing acceptance harness from a source checkout:
 
@@ -136,17 +142,16 @@ Run its existing acceptance harness from a source checkout:
 bash scripts/run-in-docker.sh bash scripts/smoke-packed-artifact.sh
 ```
 
-The COPY-only gate builds and installs the actual npm tarball into a fresh consumer outside the source checkout, checks supported import syntax, typechecks the example under NodeNext and Bundler resolution, and executes it with the packed fixtures. No private implementation import or host repository mount is needed. This validates the source-built artifact; installing a released version with the same numeric source metadata is not a substitute.
+The COPY-only gate builds and installs the actual npm tarball into a fresh consumer outside the source checkout, checks supported import syntax, typechecks the example under NodeNext and Bundler resolution, and executes it. No private implementation import or host repository mount is needed. This validates the source-built artifact; installing a released version with the same numeric source metadata is not a substitute.
 
 | Established behavior | Executable evidence |
 | --- | --- |
 | Both owners attach, replace, clear, expose metadata and preserve captured bytes | [Reusable lifecycle example](../../examples/attachments.mjs) |
-| Generated 64 MiB streaming, producer failure, early termination, close refusal and retained reopen | [Packed public lifecycle fixture](../../test/fixtures/packed-content.mjs) |
-| Concurrent writers converge with matching winning MIME/size, foreign/copied values and missing owners refuse without partial writes, size/cancellation failures preserve refs, missing bytes fail, retained snapshot survives reopen | [Packed consumer fixture](../../test/fixtures/packed-content-consumer.mjs) |
+| Concurrent writers converge with matching winning metadata; replacement and clearing keep captured bytes | [Content read integration tests](../../test/integration/application/Runtime.contentRead.integration.test.ts) |
 | Observation obstruction and unexpected failure propagation; active-stream lease cleanup and cancellation | [Runtime content observation tests](../../test/unit/application/RuntimeContentObservation.test.ts), [reading tests](../../test/unit/application/RuntimeContentReading.test.ts) |
 | Bounded projection, causal metadata compatibility and node/edge removal parity | [Projection tests](../../test/unit/domain/services/ContentReadProjection.test.ts), [removal parity tests](../../test/unit/domain/services/ContentReadRemovalParity.test.ts) |
 
-The 64 MiB generated payload is a streaming witness, not an attachment-size ceiling. The eager artifact decoding limits below govern different inputs.
+v21 removed the packed 64 MiB streaming-staging witnesses with `Lane.stageContent` (#1054). The eager artifact decoding limits below govern different inputs.
 
 ## Storage size validation
 
@@ -201,7 +206,7 @@ The checked-in `npm run test:attachment-memory` runner stages and drains plain a
 The runner uses COPY-based images with no host repository mounts and writes ignored evidence to `.ratchet/attachment-memory/`.
 This witness covers framed encryption and node attachments; it does not establish whole-object encryption memory bounds or supported package API reachability.
 Issues #646 and #737 are already closed; their storage-plane and semantic-port outcomes remain compatibility constraints, not proof that the remaining eager readers are safe.
-The installed-package gate above separately establishes the restored Runtime/Lane consumer route. A storage-only memory witness does not substitute for that route, and the public 64 MiB witness does not prove every storage scheme or producer allocation is bounded.
+The installed-package gate above separately establishes the public Warp write and Runtime read route. A storage-only memory witness does not substitute for that route.
 
 ## Encryption policy
 

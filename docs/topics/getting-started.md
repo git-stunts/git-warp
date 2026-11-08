@@ -24,77 +24,63 @@ explains what Wesley owns, installs the pinned compiler, shows the exact
 two-stage generation scripts and expected files, and runs the small executable
 `users` reference.
 
-## Open a Runtime and Lane
+## Open a Warp and write
+
+v21 writes go through `Warp`
+([#1054](https://github.com/git-stunts/git-warp/issues/1054)). `Warp.open`
+requires a `WarpAccessPort` that your application implements. Opening a Warp
+grants nothing: the port decides each write.
 
 ```typescript
-import { Runtime } from '@git-stunts/git-warp';
+import {
+  GitStorage, RetainedWriteReceipt, Warp, WarpAccessPort, WarpAddress, WarpWriteGrant,
+} from '@git-stunts/git-warp';
+import type { WarpWriteRequest } from '@git-stunts/git-warp';
 import { users } from './users.generated.js';
 
-const runtime = await Runtime.open({
-  at: './application-repo',
-  writer: 'local',
-});
+class LocalAccess extends WarpAccessPort {
+  override authorizeWrite(request: WarpWriteRequest): Promise<WarpWriteGrant> {
+    return Promise.resolve(new WarpWriteGrant({
+      authority: `local:${request.writer}`,
+      budget: { records: 256, bytes: 1_048_576, work: 10_000 },
+    }));
+  }
+}
 
+const warp = await Warp.open(
+  WarpAddress.of(GitStorage.at('./application-repo'), 'users'),
+  new LocalAccess(),
+);
 try {
-  const lane = await runtime.lane('users');
-
-  const writeReceipt = await lane.write(
+  const receipt = await warp.as('local').execute([
     users.intents.registerUser({ subject: 'user:alice' }),
-  );
-
-  console.log(writeReceipt.outcome.kind);
+    users.intents.assignRole({ subject: 'user:alice', role: 'admin' }),
+  ]);
+  console.log(receipt instanceof RetainedWriteReceipt);
 } finally {
-  await runtime.close();
+  await warp.close();
 }
 ```
 
 Use a stable writer identity for each independent clone or process that writes
-to the same Lane.
+to the same graph.
 
-## Write Intents
+`execute` accepts one Intent or one non-empty ordered array. The array lowers
+through one patch publication: either all of its edits become visible, or none
+do. Atomicity never crosses graphs or separate `execute` calls.
 
-`lane.write(intent)` admits one validated Intent. To make several generated
-graph edits visible together, pass one non-empty ordered array:
-
-```typescript
-const receipt = await lane.write([
-  users.intents.registerUser({ subject: 'user:alice' }),
-  users.intents.assignRole({
-    subject: 'user:alice',
-    role: 'admin',
-  }),
-]);
-```
-
-The complete array lowers through one patch publication and returns one
-`WriteReceipt`, one admission outcome, and one target-ref advancement. If any
-member is invalid or cannot lower, the patch is not published and none of its
-edits become visible. Array order is deterministic lowering order; it does not
-turn application order into a claim about independent historical events.
-
-The array must contain at least one Intent. One write accepts at most 50,000
-Intents, a 16 MiB canonical descriptor, and 50,000 lowered patch operations.
-These are admission bounds, not a long-lived transaction or a physical
-publication-window API. Atomicity never crosses Lanes or separate
-`lane.write()` calls.
-
-Every write returns a `WriteReceipt`. The closed admission outcomes are:
-
-- `derived`
-- `plural`
-- `conflict`
-- `obstruction`
-
-Operational outcomes and epistemic support are separate. Do not infer that an
-accepted write has settled a strand.
-
-`receipt.intents` always contains the ordered normalized members. Entity births
-produce an ordered `receipt.occurrences` entry per `entity.add`. The legacy
-`receipt.occurrence` convenience is present only when the write produced
-exactly one entity occurrence; graph subjects and causal occurrence identities
-remain distinct.
+`execute` returns one `WriteReceipt`: a `RetainedWriteReceipt`,
+`UnretainedWriteReceipt`, `UnpublishedWriteReceipt` or
+`IndeterminateWriteReceipt`. Narrow the variant with `instanceof` before you
+read its fields. Only `RetainedWriteReceipt` carries a `Coordinate`. Its
+`outcome.kind` is `derived` or `plural`, and its `occurrences` list the
+subject of each `entity.add` by intent position.
 
 ## Observe bounded values
+
+Until [#1052](https://github.com/git-stunts/git-warp/issues/1052) adds the
+Optic read, reads use `Runtime.open()`, `runtime.lane()` and `lane.observe()`.
+A Lane has no writes.
 
 Prepare a missing local basis explicitly:
 
@@ -152,8 +138,7 @@ console.log((await observation.receipt).status);
 
 ## Keep Receipts
 
-Receipts are the stable operational record of writes, observations, and
-settlements. Application code should retain them when it needs auditability,
+Receipts are the stable operational record of writes and observations. Application code should retain them when it needs auditability,
 support evidence, or a later diagnostic handoff.
 
 ## Next steps
