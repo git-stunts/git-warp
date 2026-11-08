@@ -29,6 +29,12 @@ import { createRng } from '../../../helpers/seededRng.ts';
 
 /** Fixed fast-check seed: every run checks the same histories; a failure prints its history seed. */
 const PROPERTY_SEED = 815;
+/**
+ * Fold orders sampled per history. The comparison covers the ordinal index
+ * (the dot pages) and resolutions, not the record-trie root: adjacency pages
+ * keep arrival order until #1044 slice 1, so the root may differ across fold
+ * orders. The manifest commitment does not bind the root for that reason.
+ */
 const INTERLEAVINGS = 3;
 const SHAPE = { writers: 4, patches: 60, nodes: 6, maxOps: 4, syncChance: 0.4 };
 const codec = new ConeRecordCborCodec(new CborCodec());
@@ -112,7 +118,7 @@ async function checkHistory(seed: number): Promise<number> {
 }
 
 describe('retained ordinal index properties (#815)', () => {
-  it('builds byte-identical address pages and identical resolutions under every fold interleaving', async () => {
+  it('builds byte-identical address pages and identical resolutions under sampled fold interleavings', async () => {
     let resolved = 0;
     await fc.assert(
       fc.asyncProperty(fc.integer({ min: 1, max: 0x7fffffff }), async (seed) => { resolved += await checkHistory(seed); }),

@@ -21,6 +21,11 @@ export type OrdinalGeometryFields = {
  * widening any global limit. Its address page is
  * `floor(counter / pageSpan)`, the cone dot page that names the element the
  * dot added. Version 1 is the only geometry the layout-4 record trie stores.
+ *
+ * Counters start at 1, so local ordinal 0 of segment 0 is never used and
+ * segment 0 holds 2^32 − 1 ordinals. Segments exist per writer and per kind.
+ * Node and edge ordinals share one writer's counter sequence (one counter per
+ * operation), so each kind's segment has gaps.
  */
 export default class OrdinalGeometry {
   readonly version: number;
@@ -39,7 +44,10 @@ export default class OrdinalGeometry {
     return new OrdinalGeometry({ version: 1, segmentCapacity: ORDINAL_SEGMENT_CAPACITY, pageSpan: CONE_DOT_PAGE_SPAN });
   }
 
-  /** Any geometry of a valid shape, such as an alternate one a manifest must refuse. */
+  /**
+   * Any geometry of a valid shape. Only {@link dotPages} is stored today; this
+   * exists so a future layout can declare another and so refusals are testable.
+   */
   static of(fields: OrdinalGeometryFields): OrdinalGeometry {
     return new OrdinalGeometry(fields);
   }

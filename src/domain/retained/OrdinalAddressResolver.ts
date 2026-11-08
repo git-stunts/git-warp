@@ -9,8 +9,10 @@ import type RetainedGraphManifest from './RetainedGraphManifest.ts';
 /**
  * Resolves graph-local ordinals to typed record addresses under a retained
  * manifest (#815). Each resolution reads exactly one record, the ordinal's
- * address page, and no sibling page or element record. An ordinal outside
- * the manifest reads nothing and fails closed.
+ * address page, and no sibling page or element record. In the Git store that
+ * one record costs the records root, one tree per trie directory on its path
+ * and its blob. An ordinal whose writer the manifest does not fold reads
+ * nothing and fails closed.
  */
 export default class OrdinalAddressResolver {
   readonly #store: ConeRecordStorePort;
@@ -21,7 +23,7 @@ export default class OrdinalAddressResolver {
 
   /** The address page holding `ordinal` under `manifest`. */
   async openPage(manifest: RetainedGraphManifest, ordinal: GraphOrdinal): Promise<OrdinalAddressPage> {
-    manifest.requireOrdinal(ordinal);
+    manifest.requireFoldedWriter(ordinal);
     const snapshot = await this.#store.readRecords(manifest.basis.root, [OrdinalAddressPage.keyOf(ordinal, manifest.geometry)]);
     const page = snapshot.dotPage(ordinal.kind, ordinal.writerId, manifest.geometry.pageIndexOf(ordinal.counter));
     return new OrdinalAddressPage(manifest.geometry, page);

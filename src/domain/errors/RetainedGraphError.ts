@@ -8,6 +8,8 @@ export type RetainedGraphErrorCode =
   | 'E_RETAINED_GEOMETRY_UNSUPPORTED'
   | 'E_RETAINED_ORDINAL_INVALID'
   | 'E_RETAINED_ORDINAL_OUT_OF_RANGE'
+  | 'E_RETAINED_WRITER_NOT_FOLDED'
+  | 'E_RETAINED_PAGE_INVALID'
   | 'E_RETAINED_ADDRESS_MISSING'
   | 'E_RETAINED_ADDRESS_DUPLICATE'
   | 'E_RETAINED_ADDRESS_KIND_MISMATCH';
@@ -24,8 +26,10 @@ export type RetainedGraphErrorCode =
  * | `E_RETAINED_GEOMETRY_INVALID` | An ordinal geometry violates its shape invariants |
  * | `E_RETAINED_GEOMETRY_UNSUPPORTED` | The record layout does not store pages of this geometry |
  * | `E_RETAINED_ORDINAL_INVALID` | An ordinal or segment violates its invariants, or lies outside the page asked |
- * | `E_RETAINED_ORDINAL_OUT_OF_RANGE` | An ordinal lies outside the geometry or the manifest's writer chains |
- * | `E_RETAINED_ADDRESS_MISSING` | No element added under the ordinal |
+ * | `E_RETAINED_ORDINAL_OUT_OF_RANGE` | A counter, segment or local ordinal lies outside the geometry |
+ * | `E_RETAINED_WRITER_NOT_FOLDED` | An ordinal names a writer chain the manifest does not fold |
+ * | `E_RETAINED_PAGE_INVALID` | An address page is not a cone dot page |
+ * | `E_RETAINED_ADDRESS_MISSING` | No element was added under the ordinal, including a counter past the folded prefix |
  * | `E_RETAINED_ADDRESS_DUPLICATE` | More than one element added under the ordinal |
  * | `E_RETAINED_ADDRESS_KIND_MISMATCH` | The ordinal and the addressed record are of different kinds |
  */

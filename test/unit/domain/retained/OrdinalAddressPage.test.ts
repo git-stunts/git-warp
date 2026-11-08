@@ -71,9 +71,25 @@ describe('OrdinalAddressPage (#815)', () => {
     expect(() => page.resolve(nodeOrdinal(256))).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
   });
 
+  it('enumerates only owned ordinals: a removed-only claim is not an address (S4)', () => {
+    const page = nodePage(0, [[1, owned('a')], [2, ConeDotClaim.none().withRemover('c')], [3, owned('b')]]);
+    expect(page.addresses().map((address) => address.ordinal.counter)).toEqual([1, 3]);
+  });
+
+  it('refuses anything but a cone dot page (D6)', () => {
+    expect(() => new OrdinalAddressPage(GEOMETRY, untyped<ConeDotPage>('{"set":"node","writerId":"w1","pageIndex":0}')))
+      .toThrow(expect.objectContaining({ code: 'E_RETAINED_PAGE_INVALID' }));
+  });
+
   it('refuses a page whose span differs from the geometry', () => {
     const alternate = OrdinalGeometry.of({ version: 2, segmentCapacity: 2 ** 16, pageSpan: 64 });
     expect(() => new OrdinalAddressPage(alternate, ConeDotPage.empty('node', 'w1', 0)))
       .toThrow(expect.objectContaining({ code: 'E_RETAINED_GEOMETRY_UNSUPPORTED' }));
   });
 });
+
+/** A value whose runtime shape contradicts its static type, as a corrupt decode would produce. */
+function untyped<T>(json: string): T {
+  const value: T = JSON.parse(json);
+  return value;
+}

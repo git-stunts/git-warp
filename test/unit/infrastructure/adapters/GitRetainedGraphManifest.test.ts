@@ -11,13 +11,15 @@ import ConeIngest from '../../../../src/domain/services/cone/ConeIngest.ts';
 import ConeRecordKey from '../../../../src/domain/services/cone/ConeRecordKey.ts';
 import ConeRoot from '../../../../src/domain/services/cone/ConeRoot.ts';
 import LaneConeScope from '../../../../src/domain/services/cone/LaneConeScope.ts';
+import { encodeEdgeKey } from '../../../../src/domain/services/KeyCodec.ts';
 import EdgeAdd from '../../../../src/domain/types/ops/EdgeAdd.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import GraphOrdinal from '../../../../src/domain/retained/GraphOrdinal.ts';
 import OrdinalAddressResolver from '../../../../src/domain/retained/OrdinalAddressResolver.ts';
 import RetainedGraphManifest from '../../../../src/domain/retained/RetainedGraphManifest.ts';
+import OrdinalAddressPage from '../../../../src/domain/retained/OrdinalAddressPage.ts';
 import RetainedGraphManifestReader from '../../../../src/domain/retained/RetainedGraphManifestReader.ts';
-import GitConeRecordStoreAdapter, { CONE_TRIE_LAYOUT } from '../../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
+import GitConeRecordStoreAdapter, { CONE_TRIE_LAYOUT, type ConeTrieHistory } from '../../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MemoryConeFeed from '../../../helpers/MemoryConeFeed.ts';
@@ -37,14 +39,38 @@ afterEach(async () => {
   }
 });
 
-async function repository(): Promise<{ plumbing: Plumbing; store: GitConeRecordStoreAdapter }> {
+/** Git object reads the cone store makes through its history, counted per kind. */
+type ObjectReads = { trees: number; blobs: number };
+
+/** The history the store reads through, counting tree and blob reads. */
+function countingHistory(history: GitTimelineHistoryAdapter, reads: ObjectReads): ConeTrieHistory {
+  return {
+    plumbing: history.plumbing,
+    readBlob: async (oid) => { reads.blobs += 1; return await history.readBlob(oid); },
+    readTreeObjectEntries: async (treeOid) => { reads.trees += 1; return await history.readTreeObjectEntries(treeOid); },
+    readRef: async (ref) => await history.readRef(ref),
+    compareAndSwapRef: async (ref, newOid, expectedOid) => { await history.compareAndSwapRef(ref, newOid, expectedOid); },
+    deleteRef: async (ref) => { await history.deleteRef(ref); },
+  };
+}
+
+async function repository(): Promise<{ plumbing: Plumbing; store: GitConeRecordStoreAdapter; reads: ObjectReads }> {
   const directory = await mkdtemp(join(tmpdir(), 'retained-manifest-'));
   directories.push(directory);
   const plumbing = await Plumbing.createDefault({ cwd: directory });
   await plumbing.execute({ args: ['init', '--quiet'] });
   const history = new GitTimelineHistoryAdapter({ plumbing });
   histories.push(history);
-  return { plumbing, store: new GitConeRecordStoreAdapter({ history, codec: new CborCodec() }) };
+  const reads: ObjectReads = { trees: 0, blobs: 0 };
+  return { plumbing, store: new GitConeRecordStoreAdapter({ history: countingHistory(history, reads), codec: new CborCodec() }), reads };
+}
+
+/** Moriarty's arrival-order case: two writers that each add an edge from the shared node x. */
+function edgeWriters(feed: MemoryConeFeed): { readonly appendWb: () => void; readonly appendWa: () => void } {
+  return {
+    appendWb: () => { feed.append('wb', [new NodeAdd('x', new Dot('wb', 1)), new NodeAdd('y', new Dot('wb', 2)), new EdgeAdd({ from: 'x', to: 'y', label: 'l', dot: new Dot('wb', 3) })]); },
+    appendWa: () => { feed.append('wa', [new NodeAdd('x', new Dot('wa', 1)), new NodeAdd('z', new Dot('wa', 2)), new EdgeAdd({ from: 'x', to: 'z', label: 'l', dot: new Dot('wa', 3) })]); },
+  };
 }
 
 /** The same two writer chains in every repository: three address pages of one writer plus an edge. */
@@ -57,14 +83,14 @@ function feed(): MemoryConeFeed {
   return chains;
 }
 
-async function retained(): Promise<{ plumbing: Plumbing; store: GitConeRecordStoreAdapter; manifest: RetainedGraphManifest }> {
-  const { plumbing, store } = await repository();
+async function retained(): Promise<{ plumbing: Plumbing; store: GitConeRecordStoreAdapter; reads: ObjectReads; manifest: RetainedGraphManifest }> {
+  const { plumbing, store, reads } = await repository();
   await new ConeIngest({ store, feed: feed(), scope: new LaneConeScope(LANE) }).advance();
   const manifest = await new RetainedGraphManifestReader({ store }).open(HEAD);
   if (manifest === null) {
     throw new Error('the fixture published no basis');
   }
-  return { plumbing, store, manifest };
+  return { plumbing, store, reads, manifest };
 }
 
 describe('retained graph manifest over the Git cone record store (#815)', () => {
@@ -115,4 +141,53 @@ describe('retained graph manifest over the Git cone record store (#815)', () => 
     expect(outcome).toBeInstanceOf(WarpError);
     expect(outcome instanceof WarpError ? outcome.code : null).toBe('E_MISSING_OBJECT');
   });
+  it('gives a live, incremental clone and a one-pass rebuild at the same frontier one commitment (S1)', async () => {
+    const live = await repository();
+    const liveFeed = new MemoryConeFeed(LANE);
+    const liveIngest = new ConeIngest({ store: live.store, feed: liveFeed, scope: new LaneConeScope(LANE) });
+    edgeWriters(liveFeed).appendWb();
+    await liveIngest.advance();
+    edgeWriters(liveFeed).appendWa();
+    await liveIngest.advance();
+    const rebuilt = await repository();
+    const rebuiltFeed = new MemoryConeFeed(LANE);
+    const writers = edgeWriters(rebuiltFeed);
+    writers.appendWb();
+    writers.appendWa();
+    await new ConeIngest({ store: rebuilt.store, feed: rebuiltFeed, scope: new LaneConeScope(LANE) }).advance();
+    const liveManifest = await new RetainedGraphManifestReader({ store: live.store }).open(HEAD);
+    const rebuiltManifest = await new RetainedGraphManifestReader({ store: rebuilt.store }).open(HEAD);
+    if (liveManifest === null || rebuiltManifest === null) {
+      throw new Error('a clone published no basis');
+    }
+    expect(rebuiltManifest.basis.frontier.equals(liveManifest.basis.frontier)).toBe(true);
+    expect(rebuiltManifest.commitment.toString()).toBe(liveManifest.commitment.toString());
+    const pinned = liveManifest.pin(new GraphOrdinal({ kind: 'edge', writerId: 'wa', counter: 3 }));
+    const address = await new OrdinalAddressResolver(rebuilt.store).resolvePinned(rebuiltManifest, pinned);
+    expect(address.record.equals(ConeRecordKey.forEdge(encodeEdgeKey('x', 'z', 'l')))).toBe(true);
+  });
+
+  it('reads one record per resolution: the records root, one tree per trie directory on its path, and its blob (S5)', async () => {
+    const { plumbing, store, reads, manifest } = await retained();
+    for (const counter of [1, 300, 519]) {
+      const ordinal = new GraphOrdinal({ kind: 'node', writerId: 'w1', counter });
+      reads.trees = 0;
+      reads.blobs = 0;
+      await new OrdinalAddressResolver(store).resolve(manifest, ordinal);
+      const directoriesOnPath = await trieDirectoriesOf(plumbing, manifest, OrdinalAddressPage.keyOf(ordinal, manifest.geometry));
+      expect(reads.blobs).toBe(1);
+      expect(reads.trees).toBe(1 + directoriesOnPath);
+      expect(reads.trees + reads.blobs).toBe(2 + directoriesOnPath);
+    }
+  });
 });
+
+/** How many trie directories (the family directory included) lie on `key`'s path under the manifest's records root. */
+async function trieDirectoriesOf(plumbing: Plumbing, manifest: RetainedGraphManifest, key: ConeRecordKey): Promise<number> {
+  const listing = await plumbing.execute({ args: ['ls-tree', '-r', '--name-only', manifest.basis.root.revision()] });
+  const path = listing.trim().split('\n').find((line) => line.endsWith(`/${key.route}`));
+  if (path === undefined) {
+    throw new Error(`no record ${key.toString()}`);
+  }
+  return path.split('/').length - 1;
+}

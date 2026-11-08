@@ -5,7 +5,8 @@ import GraphOrdinal from './GraphOrdinal.ts';
 /**
  * A typed payload reference (#815): the element record an ordinal addresses.
  * A node ordinal addresses a node record and an edge ordinal an edge record;
- * any other pairing fails closed. Resolving an address opens nothing.
+ * any other pairing fails closed. Constructing an address reads nothing;
+ * the record is opened only by a caller that asks for it.
  */
 export default class OrdinalAddress {
   readonly ordinal: GraphOrdinal;

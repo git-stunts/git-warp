@@ -85,13 +85,26 @@ describe('retained manifest over the cone basis (#815)', () => {
     }
   });
 
+  it('orders an identifier\'s ordinals writer first, then by counter, whatever order they arrived in (S3)', async () => {
+    const store = new InMemoryConeRecordStore();
+    const feed = new MemoryConeFeed(LANE);
+    feed.append('wb', [new NodeAdd('q', new Dot('wb', 4))]);
+    feed.append('wa', [new NodeAdd('q', new Dot('wa', 9))]);
+    feed.append('wa', [new NodeAdd('q', new Dot('wa', 3))]);
+    await new ConeIngest({ store, feed, scope: new LaneConeScope(LANE) }).advance();
+    const manifest = await new RetainedGraphManifestReader({ store }).open(HEAD);
+    const ordinals = manifest === null ? [] : await new IdentifierDictionary(store).ordinalsOf(manifest, 'node', 'q');
+    expect(ordinals.map((ordinal) => ordinal.toString())).toEqual(['node/wa:3', 'node/wa:9', 'node/wb:4']);
+  });
+
   it('fails closed with typed errors for out-of-range, missing and wrong-kind ordinals', async () => {
     const { store, manifest } = await retainedGraph();
     const resolver = new OrdinalAddressResolver(store);
     const before = store.recordReads;
-    await expect(resolver.resolve(manifest, node('w9', 1))).rejects.toMatchObject({ code: 'E_RETAINED_ORDINAL_OUT_OF_RANGE' });
+    await expect(resolver.resolve(manifest, node('w9', 1))).rejects.toMatchObject({ code: 'E_RETAINED_WRITER_NOT_FOLDED' });
     expect(store.recordReads).toBe(before);
     await expect(resolver.resolve(manifest, node('w1', NODES + 1))).rejects.toMatchObject({ code: 'E_RETAINED_ADDRESS_MISSING' });
+    await expect(resolver.resolvePinned(manifest, manifest.pin(node('w1', NODES * 1000)))).rejects.toMatchObject({ code: 'E_RETAINED_ADDRESS_MISSING' });
     await expect(resolver.resolve(manifest, node('w2', 2))).rejects.toMatchObject({ code: 'E_RETAINED_ADDRESS_MISSING' });
     await expect(resolver.resolve(manifest, new GraphOrdinal({ kind: 'edge', writerId: 'w2', counter: 1 })))
       .rejects.toMatchObject({ code: 'E_RETAINED_ADDRESS_MISSING' });

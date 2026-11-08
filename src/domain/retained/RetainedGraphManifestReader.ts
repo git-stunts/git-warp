@@ -13,6 +13,7 @@ export default class RetainedGraphManifestReader {
   readonly #store: ConeRecordStorePort;
   readonly #geometry: OrdinalGeometry;
 
+  /** `geometry` defaults to the one the layout stores; any other fails closed when a manifest opens. */
   constructor(options: { readonly store: ConeRecordStorePort; readonly geometry?: OrdinalGeometry }) {
     this.#store = options.store;
     this.#geometry = options.geometry ?? OrdinalGeometry.dotPages();

@@ -1,6 +1,6 @@
 import RetainedGraphError from '../errors/RetainedGraphError.ts';
 import type ConeDotClaim from '../services/cone/ConeDotClaim.ts';
-import type ConeDotPage from '../services/cone/ConeDotPage.ts';
+import ConeDotPage from '../services/cone/ConeDotPage.ts';
 import ConeRecordKey from '../services/cone/ConeRecordKey.ts';
 import GraphOrdinal from './GraphOrdinal.ts';
 import OrdinalAddress from './OrdinalAddress.ts';
@@ -14,13 +14,16 @@ import { requireStoredGeometry } from './OrdinalValidation.ts';
  * {@link OrdinalGeometry.pageSpan} consecutive counters in one OR-Set. The
  * owner a dot's add named is the element the ordinal addresses. A page holds
  * at most `pageSpan` ordinals however large the graph grows, so resolving
- * one ordinal opens exactly one page and no sibling.
+ * one ordinal reads exactly one record, this page, and no sibling.
  */
 export default class OrdinalAddressPage {
   readonly geometry: OrdinalGeometry;
   readonly page: ConeDotPage;
 
   constructor(geometry: OrdinalGeometry, page: ConeDotPage) {
+    if (!(page instanceof ConeDotPage)) {
+      throw new RetainedGraphError('An ordinal address page must be a cone dot page', 'E_RETAINED_PAGE_INVALID');
+    }
     this.geometry = requireStoredGeometry(geometry);
     this.page = page;
     Object.freeze(this);
@@ -51,7 +54,7 @@ export default class OrdinalAddressPage {
     return addressOf(ordinal, this.page.claim(ordinal.counter));
   }
 
-  /** Every address on the page, in counter order; fails closed on any duplicated ordinal. */
+  /** Every owned address on the page, in counter order; removed-only claims are skipped; fails closed on any duplicated ordinal. */
   addresses(): readonly OrdinalAddress[] {
     const counters = [...this.page.claims].filter(([, claim]) => claim.owners.size > 0).map(([counter]) => counter).sort((left, right) => left - right);
     return counters.map((counter) => this.resolve(new GraphOrdinal({ kind: this.page.set, writerId: this.page.writerId, counter })));

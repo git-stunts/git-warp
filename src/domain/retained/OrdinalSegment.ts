@@ -15,7 +15,8 @@ export type OrdinalSegmentFields = {
  * One 32-bit ordinal namespace (#815): a writer chain's dots of one kind
  * whose counters share a segment index. A selection bitmap holds local
  * ordinals of exactly one segment; a writer that exhausts a segment
- * continues in the next.
+ * continues in the next. A whole-graph selection is the union over every
+ * writer × kind × segment. Local ordinal 0 of segment 0 is never used.
  */
 export default class OrdinalSegment {
   readonly kind: ConeDotSet;

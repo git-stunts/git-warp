@@ -18,10 +18,10 @@ const manifestOf = (basis: ConeBasis = BASIS, layout: string = LAYOUT): Retained
   new RetainedGraphManifest({ layout, geometry: OrdinalGeometry.dotPages(), basis });
 
 /** The schema-1 commitment of {@link BASIS} under {@link LAYOUT}: a persisted identity, pinned byte for byte. */
-const GOLDEN_COMMITMENT = 'ebec3e464858ed0466fef238457c5f1195b1110e0b67314bac55d403d2452082';
+const GOLDEN_COMMITMENT = '8effa309a54cbdc83c0cec6934205ff43597ac57bf24e510fa790295bd6d4550';
 
 describe('RetainedGraphManifest (#815)', () => {
-  it('binds schema, layout, geometry, record-trie root and frontier under one deterministic commitment', () => {
+  it('binds schema, layout, geometry and writer frontier under one deterministic commitment', () => {
     const manifest = manifestOf();
     expect(RETAINED_GRAPH_MANIFEST_SCHEMA).toBe(1);
     expect(manifest.schema).toBe(1);
@@ -39,12 +39,10 @@ describe('RetainedGraphManifest (#815)', () => {
     expect(manifestOf(reordered).equals(manifestOf())).toBe(true);
   });
 
-  it('changes its commitment when any bound part changes', () => {
+  it('changes its commitment when the layout or the frontier changes', () => {
     const base = manifestOf().commitment;
     const variants = [
       manifestOf(BASIS, 'other layout\n'),
-      manifestOf(new ConeBasis(ConeRoot.at('c'.repeat(40)), BASIS.frontier)),
-      manifestOf(new ConeBasis(ConeRoot.empty(), BASIS.frontier)),
       manifestOf(new ConeBasis(ROOT, BASIS.frontier.advanced('w2', position('3', 6)))),
       manifestOf(new ConeBasis(ROOT, BASIS.frontier.advanced('w3', position('3', 1)))),
       manifestOf(new ConeBasis(ROOT, frontier([['w1', position('1', 3)]]))),
@@ -54,25 +52,36 @@ describe('RetainedGraphManifest (#815)', () => {
     expect(variants.every((variant) => !variant.equals(manifestOf()))).toBe(true);
   });
 
-  it('keeps field boundaries in the commitment: a layout cannot absorb the root', () => {
-    const left = manifestOf(new ConeBasis(ROOT, ConeFrontier.empty()), 'ab');
-    const right = manifestOf(new ConeBasis(ROOT, ConeFrontier.empty()), 'a');
+  it('keeps one commitment whatever record-trie root folded the frontier: the root is a physical artifact of fold order', () => {
+    const base = manifestOf().commitment;
+    expect(manifestOf(new ConeBasis(ConeRoot.at('c'.repeat(40)), BASIS.frontier)).commitment.equals(base)).toBe(true);
+    expect(manifestOf(new ConeBasis(ConeRoot.empty(), BASIS.frontier)).commitment.equals(base)).toBe(true);
+  });
+
+  it('keeps field boundaries in the commitment: a writer id cannot absorb the start of its sha', () => {
+    const left = manifestOf(new ConeBasis(ROOT, frontier([['w1a', new ConeWriterPosition('a'.repeat(40), 3)]])));
+    const right = manifestOf(new ConeBasis(ROOT, frontier([['w1', new ConeWriterPosition('a'.repeat(41), 3)]])));
     expect(left.commitment.equals(right.commitment)).toBe(false);
   });
 
   it('gives an ordinal meaning only for the writer chains it folds, and pins it to the manifest', () => {
     const manifest = manifestOf();
     const ordinal = new GraphOrdinal({ kind: 'node', writerId: 'w1', counter: 9 });
-    expect(manifest.contains(ordinal)).toBe(true);
+    expect(manifest.foldsWriter('w1')).toBe(true);
     const stranger = new GraphOrdinal({ kind: 'node', writerId: 'w9', counter: 1 });
-    expect(manifest.contains(stranger)).toBe(false);
-    expect(() => manifest.requireOrdinal(stranger)).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_OUT_OF_RANGE' }));
+    expect(manifest.foldsWriter('w9')).toBe(false);
+    expect(() => manifest.requireFoldedWriter(stranger)).toThrow(expect.objectContaining({ code: 'E_RETAINED_WRITER_NOT_FOLDED' }));
     const pinned = manifest.pin(ordinal);
     expect(pinned).toBeInstanceOf(ManifestOrdinal);
     expect(pinned.commitment.equals(manifest.commitment)).toBe(true);
     expect(pinned.ordinal.equals(ordinal)).toBe(true);
     expect(Object.isFrozen(pinned)).toBe(true);
-    expect(() => manifest.pin(stranger)).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_OUT_OF_RANGE' }));
+    expect(() => manifest.pin(stranger)).toThrow(expect.objectContaining({ code: 'E_RETAINED_WRITER_NOT_FOLDED' }));
+  });
+
+  it('checks writer membership only: the frontier carries no counter high-water, so a counter past it pins and resolves as missing', () => {
+    const beyond = new GraphOrdinal({ kind: 'node', writerId: 'w1', counter: Number.MAX_SAFE_INTEGER });
+    expect(manifestOf().pin(beyond).ordinal.equals(beyond)).toBe(true);
   });
 
   it('refuses incomplete parts and geometries the record layout does not store', () => {
