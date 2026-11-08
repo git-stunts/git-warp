@@ -76,7 +76,11 @@ The full-history CI lane also runs
 `node --experimental-strip-types scripts/public-surface/check-history.ts`.
 It compares complete allowance rows with `git merge-base --all origin/main HEAD`,
 so growth hidden in an earlier branch commit still fails. Removed rows are
-permitted; changed removal owners are additions. Missing/shallow/ambiguous
+permitted; changed removal owners are additions. The scanner records each type once, so removing one
+route can record a remaining exposure under another route.
+`policy/public-surface-route-changes.txt` lists such moves as `<new key><TAB><old key>`.
+A listed row is admitted only when both keys share subpath, export and rule, the old row
+was in the merge base, and it is gone now. #1054 uses it for 11 rows. Missing/shallow/ambiguous
 history refuses the check. The first introduction is allowed only when neither
 guard nor baseline exists anywhere in the comparison base's history. Deleting
 them cannot reset this condition. The bootstrap check uses `git log --full-history`

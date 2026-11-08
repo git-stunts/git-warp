@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import ts from 'typescript';
 import SurfaceRatchet, { PUBLIC_SURFACE_RATCHET_PATH } from './SurfaceRatchet.ts';
 import SurfaceRefusal from './SurfaceRefusal.ts';
+import SurfaceRouteChange, { PUBLIC_SURFACE_ROUTE_CHANGES_PATH } from './SurfaceRouteChange.ts';
 
 const GUARD_DIRECTORY = 'scripts/public-surface/';
 const GIT_TIMEOUT_MS = 10_000;
@@ -25,7 +26,14 @@ export default class SurfaceRatchetHistory {
     const previous = this.previous(base);
     if (previous instanceof SurfaceRefusal) return previous;
     if (previous === null) return Object.freeze([]);
-    return current.additionsSince(previous);
+    return this.withoutListedMoves(previous, current);
+  }
+
+  private withoutListedMoves(previous: SurfaceRatchet, current: SurfaceRatchet): readonly string[] | SurfaceRefusal {
+    const text = ts.sys.readFile(resolve(this.root, PUBLIC_SURFACE_ROUTE_CHANGES_PATH));
+    const changes = text === undefined ? Object.freeze([]) : SurfaceRouteChange.parseAll(text);
+    if (changes instanceof SurfaceRefusal) return changes;
+    return SurfaceRouteChange.admit(current.additionsSince(previous), { changes, previous, current });
   }
 
   private previous(base: string): SurfaceRatchet | SurfaceRefusal | null {
@@ -72,3 +80,4 @@ export default class SurfaceRatchetHistory {
     return result.stdout;
   }
 }
+
