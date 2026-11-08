@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A new `lint:source-reachability` gate fails on any `src/` file that no package entry point
   reaches; the 242 existing ones are listed with their owning issue in
   `policy/unreachable-source-allowlist.txt`, and the list can only shrink. The package entry
-  ceiling falls from 1,300 to 1,250.
+  ceiling falls (see Packaging).
 - Reserve `write-attempts` as a graph-name segment for clone-local write attempt refs.
   Patch commits made through `Warp` carry an `eg-publication-attempt` trailer; existing
   decoders read only the trailers they know
@@ -382,8 +382,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Packaging
 
-- The published root now reaches `Warp` as well as `Runtime`, so the entry ceiling rises. The
-  ceilings are 760,000 compressed bytes, 3,300,000 unpacked bytes and 1,300 entries.
+- The published root reaches `Warp` as well as `Runtime`. After #1054 removed the legacy write,
+  strand and settlement surface, the ceilings are 760,000 compressed bytes, 3,300,000 unpacked
+  bytes and 1,250 entries.
 
 ## [20.0.0] - 2026-10-03
 

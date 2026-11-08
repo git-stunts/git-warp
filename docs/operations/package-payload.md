@@ -68,7 +68,7 @@ The resulting artifact contains 993 files, 716,164 compressed bytes, and
 | ---------------- | --------- | ----------------------------------- |
 | Compressed bytes | 760,000   | 43,836 bytes (6.1%)                 |
 | Unpacked bytes   | 3,300,000 | 156,428 bytes (5.0%)                |
-| Entries          | 1,300     | 307 entries (30.9%)                 |
+| Entries          | 1,250     | 48 entries (3.8%) at #1054          |
 
 By October 2026 source growth had used that headroom: the artifact measured
 756,533 compressed and 3,297,802 unpacked bytes, and a single new source file
