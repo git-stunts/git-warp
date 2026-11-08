@@ -41,7 +41,7 @@ representations; schema generation belongs at transport boundaries.
 | `WarpAddress` | `of(storage, name)` validates the storage/name pair | Reject malformed or reserved names; contains no writer or observer |
 | `Warp` | `open(address, access)` opens resources; `forObserver(identity)`, `as(writer)`, `close()` | `access` is an injected `WarpAccessPort`; opening does not grant data access |
 | `ObservedWarp` | Returned only by `forObserver`; accepted by `Optic`; `fork(coordinate)` | Binds an observer identity; current rights are checked on execution |
-| `AuthoredWarp` | Returned only by `as`; `execute(intentOrIntents): Promise<WriteReceipt>`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation and returns the write receipt variant specified in section 7. An unavailable store before publication permission returns `UnpublishedWriteReceipt`; invalid input, a throwing injected access port, a defect, a broken invariant or corruption rejects (section 11) |
+| `AuthoredWarp` | Returned only by `as`; `execute(intentOrIntents): Promise<WriteReceipt>`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation and returns the write receipt variant specified in section 7. While it fixes the basis or reads the premise records, an unavailable store returns `UnpublishedWriteReceipt`, and invalid input, a throwing injected access port, a defect, a broken invariant, corruption or a store failure the adapter cannot identify as transient rejects. The attempt-journal and custody-support steps are not yet classified by type (#1109) (section 11) |
 | `ObserverIdentity` | `of(namespace, subject)` validates a principal name | A name is not an authentication credential or a grant |
 | `Purpose` | `of(namespace, name, version)` will validate a registered purpose identifier (#1052) | Will refuse unknown or undeclared purposes by policy. There is no runtime purpose registry; the runtime-backed `Purpose` class arrives with caller-supplied purposes in #1052 (section 11) |
 | `ReadBudget` | `of(limits)` validates named finite limits for records, emitted bytes, and work | Invalid limits fail construction; execution accounts for aggregate work |
@@ -450,7 +450,7 @@ that the final public contract is implemented.
 | #1051 | 2–3, write premise capture in 5–7 | #1049, #1062 and #1067; Warp composition, authority boundary, cone writes and all four final write-receipt variants |
 | #1052 | 3–6 | #1049, #1054, #1062, #1067 and shared Warp composition from #1051; bounded Optic execution and final observation receipts; deletes the legacy read path in the same PR that adds the Optic read |
 | #1053 | Historical operations in 7–8 | #1049, #1067 and #1052; replay, re-ask, forks, and the Strand preview/settlement journey |
-| #1054 | 9 | #1050, #1051 and #1079 (GitHub dependencies; #1054 precedes #1052 by the #1079 decision of 2026-11-08); remove legacy public capabilities with the export guard and migrated consumers in place |
+| #1054 | 9 | #1050, #1051 and #1079 (GitHub dependencies; #1054 precedes #1052 by the #1079 decision of 2026-11-08); remove each legacy public capability with its tests, examples and CLI paths in the same PR, behind the export guard. The read path (`Runtime.open()`, `runtime.lane()`, `Lane.observe` and the legacy `Optic` read) and its consumers stay until #1052 deletes it and #1055 moves the examples |
 | #1055 | 3–4, 8–9 | #1051–#1053; migrate the existing example, newcomer witness, and full read/write/fork/settlement documentation |
 | #1057 | 9 | #1062, #1049, and #1052 for actual Optic probes; retention actions also require the corresponding #1044 capabilities |
 | #1079 | 2, 11 | #1051; payload headroom, the pre-permission I/O outcome, the static purpose decision, and the v20 trailer witness |
@@ -463,8 +463,9 @@ shared Warp composition and access. #1053 precedes #1055 because the existing ne
 and settlement. #1050 precedes #1054 so removal is checked. #1054 precedes #1052,
 by the #1079 decision of 2026-11-08, so #1052 starts with the bytes the legacy
 deletion frees. Every merge leaves `main` working, so #1054 deletes every legacy
-public surface except the read path (`Lane.observe` and the legacy `Optic` read),
-and keeps the documentation and examples that read through it working. #1052
+public surface except the read path: `Runtime.open()`, `runtime.lane()`,
+`Lane.observe` and the legacy `Optic` read, and nothing else. It keeps the
+documentation and examples that read through that path working. #1052
 deletes that legacy read path in the same PR that adds the Optic read, so `main`
 always has a public read path. #1055 later moves the examples onto the full
 read/write/fork/settlement journey. #1052 precedes #1057 because an actual Optic
@@ -548,38 +549,50 @@ with the bytes the legacy deletion frees. Measure again after #1054. If #1052
 still needs more, it deletes the legacy code it replaces in its own PR, or it gets
 a separate budget decision.
 
-**Pre-permission I/O.** Only an unavailable store before an operation holds its
-permission gives a typed failure result instead of a rejection. The cone store
-adapter (`GitConeStoreHost`) turns an untyped host or Git process failure, or a ref
-that cannot be locked or read for permission (`PersistenceError` `E_REF_IO`; decided
-2026-11-08, since a retry can clear it), into `ConeStoreUnavailableError`, which
-carries that failure as its `cause`. Domain code dispatches on that class with
-`instanceof`, never on a message. The cause stays on the error and off the public
-receipt, whose `cause` is a policy-safe string (decided 2026-11-08). #1107 will
-report the underlying cause through the injected logger; until then the
-underlying host failure is not recorded.
+**Pre-permission I/O.** At the basis-open and premise-read steps, only an
+unavailable store gives a typed failure result instead of a rejection. The
+attempt-journal and custody-support steps are not yet classified by type (#1109).
+"Unavailable" is a positive verdict: the cone store adapter (`GitConeStoreHost`)
+gives it only to a failure it can identify as transient, as its real producer
+throws it, and nothing else. The list (`TRANSIENT_PERSISTENCE_CODES` and
+`TRANSIENT_HOST_ERRORS` in that file) is exactly:
+
+- `PersistenceError` `E_REF_IO`, a ref the history adapter cannot lock or read for
+  permission (decided 2026-11-08, since a retry can clear it);
+- `GitRepositoryLockedError`, which plumbing's own classifier throws when a Git
+  command meets a held lock file, and which reaches the adapter unwrapped.
+
+The adapter turns those into `ConeStoreUnavailableError`, which carries the failure
+as its `cause`. Domain code dispatches on that class with `instanceof`, never on a
+message. The cause stays on the error and off the public receipt, whose `cause` is a
+policy-safe string (decided 2026-11-08). #1107 will report the underlying cause
+through the injected logger; until then the underlying host failure is not recorded.
+A `GitProtocolError` rejects (decided 2026-11-08, option A): a crashed `git` process
+and a truncated object look the same, git-cas has already retried it once on the
+object-session path, and on other paths it cannot be identified as transient.
 
 - `AuthoredWarp.execute()` returns `UnpublishedWriteReceipt` with
   `write-basis-unavailable` when the store is unavailable while it fixes the write
   basis, and with `write-premise-unavailable` while it reads the premise records.
-  These two steps are classified by type today. Nothing was reserved or published
-  at either step, so the receipt is true. An expected write refusal met while
-  reading keeps its own cause and repair hints.
-- The attempt-journal and custody-support steps are not classified by type yet:
-  any failure there still gives `attempt-journal-unavailable` or
-  `retention-unavailable`, defects included. #1109 owns classifying them. Nothing
-  was published at those steps either, but a `retention-unavailable` attempt can
-  keep its saved attempt record, and a reserved retention slot, until the recovery
-  sweep finishes it.
-- **Corruption rejects** (decided 2026-11-08). A `ConeRecordError` (a stored record
-  that does not decode is one), or a `PersistenceError` such as `E_MISSING_OBJECT`
-  (git-cas's own `GIT_OBJECT_NOT_FOUND` is typed as one), is not "unavailable": a
-  caller that retried would retry forever against a broken repository. Defects
-  (`TypeError`, `RangeError`), broken invariants (`PatchError`), invalid input,
-  and any other untyped failure also reject at the basis and premise steps, having
-  published nothing. This includes an untyped failure of the patch feed or of the
-  writer's runtime host: only the cone record store adapter classifies host
-  failures today.
+  Nothing was reserved or published at either step, so the receipt is true. An
+  expected write refusal met while reading keeps its own cause and repair hints.
+- The attempt-journal and custody-support steps still give
+  `attempt-journal-unavailable` or `retention-unavailable` for any failure, defects
+  included, until #1109 classifies them by type. Nothing was published at those
+  steps either, but a `retention-unavailable` attempt can keep its saved attempt
+  record, and a reserved retention slot, until the recovery sweep finishes it.
+- **Corruption rejects** (decided 2026-11-08). At the basis-open and premise-read
+  steps, every store failure the adapter cannot identify as transient rejects,
+  having published nothing. That includes a `ConeRecordError` (a stored record that
+  does not decode is one), a `PersistenceError` such as `E_MISSING_OBJECT` (git-cas's
+  own `GIT_OBJECT_NOT_FOUND` is typed as one), every other git-cas code (for example
+  `TREE_PARSE_ERROR`, `GIT_ERROR`, `INTEGRITY_ERROR`, `RESTORE_TOO_LARGE`,
+  `INVALID_OPTIONS`, `RESOURCE_CLOSED`), a `GitProtocolError`, any other plumbing
+  failure, and a bare error. A caller that retried those would retry forever against
+  a broken repository. Defects (`TypeError`, `RangeError`), broken invariants
+  (`PatchError`) and invalid input also reject. So does an untyped failure outside the
+  cone record store adapter at those steps (the patch feed, the writer's runtime
+  host).
 - The injected `WarpAccessPort` is a caller-owned capability, not a store. If it
   throws, the operation rejects and publishes nothing.
 - #1052 must give an Optic read the same rule: an unavailable store before read

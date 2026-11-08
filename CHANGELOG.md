@@ -41,7 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   basis or reads the premise records as an `UnpublishedWriteReceipt`
   (`write-basis-unavailable`, `write-premise-unavailable`) and does not reject.
   At those steps, invalid input, a throwing access port, defects, broken
-  invariants and repository corruption reject. The attempt-journal and
+  invariants and repository corruption reject, and a store failure that the
+  adapter cannot identify as transient rejects. The attempt-journal and
   custody-support steps still turn any failure into `attempt-journal-unavailable`
   or `retention-unavailable` until #1109 classifies them by type. An untyped
   failure of the patch feed or of the writer's runtime host now rejects too; on
