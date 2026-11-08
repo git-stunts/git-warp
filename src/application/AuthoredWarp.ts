@@ -27,8 +27,12 @@ export default class AuthoredWarp {
 
   /**
    * Executes an intent or an atomic intent sequence, publishing at most once. It is never
-   * retried for you. A store failure fixing the basis returns an unpublished receipt. It
-   * rejects, having published nothing, if the access port throws or a store fails reading records.
+   * retried for you. An unavailable store while it fixes the basis or reads its records
+   * returns an unpublished receipt. At those steps it rejects, having published nothing, when
+   * the input is not a valid intent sequence, when the injected access port throws, or when the
+   * failure is a defect, a broken invariant or corruption rather than an unavailable store. The
+   * attempt-journal and custody-support steps still give an unpublished receipt for any failure,
+   * until #1109 classifies them by type.
    * A process that dies here leaves no receipt, and no way yet to ask what became of the write.
    */
   async execute(input: WriteIntentInput): Promise<AuthoredWriteReceipt> {
@@ -39,7 +43,8 @@ export default class AuthoredWarp {
    * Asks again what became of an indeterminate or unretained write's `attempt`. Ask again
    * while it stays so; a final answer is given once. Null means it was already answered, was
    * never this writer's, this writer is denied now, or a sweep finished it first. It does not
-   * mean the write did not land. It rejects if a store read fails.
+   * mean the write did not land. It rejects if a store read fails: it reads after an attempt
+   * exists, so contract section 7 governs it, not the pre-permission rule.
    */
   async reconcile(attempt: string): Promise<AuthoredWriteReceipt | null> {
     return await this.#backend.reconcile(this.writer, attempt);

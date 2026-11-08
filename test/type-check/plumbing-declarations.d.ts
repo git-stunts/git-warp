@@ -22,3 +22,15 @@ declare module '@git-stunts/plumbing' {
     executeStream(options: { readonly args: string[] }): Promise<CollectableGitStream>;
   }
 }
+
+declare module '@git-stunts/plumbing/errors' {
+  export class GitPlumbingError extends Error {
+    constructor(_message: string, _operation: string, _details?: object);
+    readonly operation: string;
+    readonly details: object;
+  }
+
+  export class GitRepositoryLockedError extends GitPlumbingError {}
+
+  export class GitProtocolError extends GitPlumbingError {}
+}

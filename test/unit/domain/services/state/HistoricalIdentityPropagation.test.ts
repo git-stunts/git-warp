@@ -12,7 +12,7 @@ import { decodeWarpFullState, encodeWarpFullState } from '../../../../../src/inf
 import { deserializeFullState, serializeFullState } from '../../../../../src/domain/services/state/CheckpointSerializer.ts';
 import CborFullStateLifecycleDecoder from '../../../../../src/infrastructure/adapters/CborFullStateLifecycleDecoder.ts';
 import LegacyEventId from '../../../../../src/domain/utils/LegacyEventId.ts';
-import { EventId, compareEventIds, isGreater } from '../../../../../src/domain/utils/EventId.ts';
+import { EventId, compareEventIds } from '../../../../../src/domain/utils/EventId.ts';
 import codec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 
 const EDGE = 'n\0m\0link';
@@ -51,7 +51,7 @@ it('compares historical and modern identities without altering modern constructo
   const old = new LegacyEventId(7);
   const modern = new EventId(7, 'A', 'aaaa', 0);
   expect(compareEventIds(old, modern)).toBeLessThan(0);
-  expect(isGreater(modern, old)).toBe(true);
+  expect(compareEventIds(modern, old)).toBeGreaterThan(0);
   expect(() => new EventId(old.lamport, old.writerId, old.patchSha, old.opIndex)).toThrow();
 });
 
