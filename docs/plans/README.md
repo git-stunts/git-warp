@@ -62,42 +62,12 @@ contract. It does not remove existing APIs.
 
 ## Task plan house format
 
-A milestone plan (`ROADMAP.md` or `docs/plans/<milestone>/README.md`) describes all remaining work for that milestone. It starts with an executive summary that says which features are missing or unfinished, how they fit together, and why they complete the milestone. It continues with a sequenced `- [ ]` checklist of tasks. Each task is one atomic, independently mergeable slice. Each checklist item is a hyperlink to that task's plan document.
+GitHub is the source of truth for planning. An issue is the task plan. Its body uses one of the house card templates in [`.github/ISSUE_TEMPLATE/`](../../.github/ISSUE_TEMPLATE/) (Feature, Bug, Decision, Investigation, Research, Spike, or the generic nine-section card), written in ASD-STE100 Simplified Technical English. Blank issues are disabled.
 
-A task plan document lives at `docs/plans/<milestone>/tasks/<slug>.md` and uses the house card templates in [`.github/ISSUE_TEMPLATE/`](../../.github/ISSUE_TEMPLATE/) (Feature, Bug, Decision, Investigation, Research, Spike, or the generic nine-section card). The same templates are the GitHub issue forms, so an issue and its task plan have the same sections. Write everything in ASD-STE100 Simplified Technical English.
+Dependencies are GitHub's native issue dependencies ("blocked by" / "blocking"), never prose or checklists. An edge *A blocks B* means "A must be closed (merged on `main`) before B is correct". Workstreams, parent/child containers, shared files, and similar topics do not create edges. Record a newly discovered prerequisite on the issue; the `issue-dag` skill's `--add-edge` does this and refuses an edge that would create a cycle.
 
-Every task plan document has this order:
+The adjacent git-locks resource catalog lives in `lock:*` labels (`lock:host/heavy-work`, `lock:docs/`, `lock:scripts/`, `lock:host/docker/<worker>/`). Without one, the planner derives a key from `area:*` and says so.
 
-1. YAML frontmatter that identifies the task: `id`, `issue`, `slug`, `title`, `type`, `wave`, `workstream`, `status`, `prerequisites`, `unlocks`, and optionally `resources` (git-locks keys). `wave`, `unlocks`, and the `open-frontier`/`blocked` value of `status` are derived from the prerequisite DAG and are validated against it; do not hand-edit them to disagree with the graph.
-2. A level-one heading that names the card type: `# Feature`, `# Bug`, or `# Decision` (or Investigation, Research, Spike).
-3. A fenced ```` ```text ```` block with the LLM prompt that executes the task and satisfies every completion criterion.
-4. The rest of the matching card template, with its numbered sections.
+A milestone plan (`ROADMAP.md`) is a rendered view compiled from GitHub, not a second tracker: an executive summary of what is missing and why it completes the milestone, the ranked Open Frontier table, a sequenced `- [ ]` checklist of atomic slices by wave and workstream with each item linking to its issue, the worktree and branch audit, and the dependency diagram. Wave numbers, unlock lists, and open/blocked state are computed on every run and are never hand-maintained in files.
 
-Skeleton:
-
-````markdown
----
-id: "#1234"
-issue: "#1234"
-slug: "1234-short-slug"
-title: "One-line title"
-type: "Feature"
-wave: 0
-workstream: "W1"
-status: "open-frontier"
-prerequisites: ["#1200 (merged)"]
-unlocks: ["#1240"]
----
-
-# Feature
-
-```text
-Execute task #1234 (...) in repository ~/git/git-warp.
-1. ...
-```
-
-## 1. Background Context
-...
-````
-
-Prerequisite edges mean "must be merged on `main` before this task is correct"; see the planning rules above. Never write machine-local absolute paths in a task plan; use `~` or repository-relative paths.
+Executing agents receive the issue body as the task: a level-one heading naming the card type, a fenced ```` ```text ```` block holding the LLM prompt that executes the task and satisfies every completion criterion, then the card's numbered sections. Never write machine-local absolute paths in an issue; use `~` or repository-relative paths.

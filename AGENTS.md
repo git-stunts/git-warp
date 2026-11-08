@@ -203,6 +203,8 @@ DTO and stop there**. Do not hallucinate fake domain models.
 
 ## Issue and Task Plan House Format
 
+- GitHub is the source of truth for planning. An issue is the task plan; there
+  is no local task-file state.
 - New GitHub issues use the house card templates in `.github/ISSUE_TEMPLATE/`:
   Feature, Bug, Decision, Investigation, Research, Spike, or the generic
   nine-section card. Blank issues are disabled. Use the web chooser or
@@ -213,16 +215,18 @@ DTO and stop there**. Do not hallucinate fake domain models.
   and Bug templates also preset their `type:*`. Correct the priority, add the
   `area:*` label and, where the template could not preset it, the `type:*`
   label, and assign the GitHub Milestone.
-- Task plan documents live at `docs/plans/<milestone>/tasks/<slug>.md`. Each
-  starts with YAML frontmatter (`id`, `issue`, `slug`, `title`, `type`, `wave`,
-  `workstream`, `status`, `prerequisites`, `unlocks`), then a `# <Type>`
-  heading, then a fenced ```` ```text ```` block holding the LLM prompt that
-  executes the task, then the matching card template body. `wave`, `unlocks`,
-  and the `open-frontier`/`blocked` status are derived from the prerequisite
-  DAG; do not hand-edit them against the graph. Full format:
+- Dependencies are GitHub's native "blocked by" relations: *A blocks B* means
+  A must be merged before B is correct. Labels, milestones, shared files, and
+  containers do not create edges. Record discovered prerequisites on the issue
+  (the `issue-dag` skill's `--add-edge` refuses cycles).
+- `lock:*` labels carry the adjacent git-locks resource keys
+  (`lock:host/heavy-work`, `lock:docs/`, `lock:scripts/`); without one the
+  planner derives a key from `area:*`.
+- `ROADMAP.md` is a rendered view compiled from GitHub (executive summary,
+  ranked Open Frontier, sequenced `- [ ]` checklist linking to issues, branch
+  audit, dependency diagram). Wave numbers, unlock lists, and open/blocked
+  state are computed, never hand-maintained. Full format:
   [`docs/plans/README.md`](docs/plans/README.md#task-plan-house-format).
-- A milestone plan is an executive summary followed by a sequenced `- [ ]`
-  checklist of atomic slices, each hyperlinked to its task plan document.
 
 ## Engineering Doctrine
 
