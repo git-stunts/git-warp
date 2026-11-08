@@ -1,4 +1,4 @@
-import WarpError from '../errors/WarpError.ts';
+import OpticError from '../errors/OpticError.ts';
 import type OpticReading from './OpticReading.ts';
 import type OpticReceipt from './OpticReceipt.ts';
 
@@ -41,7 +41,9 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
 
   [Symbol.asyncIterator](): AsyncIterator<OpticReading, undefined, undefined> {
     if (this.#consumed) {
-      throw new WarpError('An observation has one consumer, and this one already has it', 'E_OBSERVATION_CONSUMED');
+      throw new OpticError('An observation has one consumer, and this one already has it', {
+        code: 'E_OBSERVATION_CONSUMED',
+      });
     }
     this.#consumed = true;
     return this.#iterate();

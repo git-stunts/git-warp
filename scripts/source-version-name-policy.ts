@@ -76,6 +76,7 @@ const sourceVersionNameExceptions: readonly SourceVersionNameException[] = Objec
       '|(?:whole|framed|convergent)-v[0-9]+',
       '|wesley\\.realization\\.manifest\\.v[0-9]+',
       '|property-target-key:length-prefixed-v[0-9]+',
+      '|node\\.(?:presence|property)/v[0-9]+',
       '|effect-emission-v[0-9]+',
       '|PATCH_STORAGE_FORMAT',
       '|CHECKPOINT_STORAGE_FORMAT',

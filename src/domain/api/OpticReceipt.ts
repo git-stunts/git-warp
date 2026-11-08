@@ -1,6 +1,38 @@
+import OpticError from '../errors/OpticError.ts';
 import { freezeRepairHints, type RepairHint } from './ReceiptSupport.ts';
 
 export type OpticReceiptStatus = 'completed' | 'cancelled' | 'refused' | 'failed' | 'budget-exhausted';
+
+const VALID_STATUSES: ReadonlySet<string> = new Set<OpticReceiptStatus>([
+  'completed',
+  'cancelled',
+  'refused',
+  'failed',
+  'budget-exhausted',
+]);
+
+type OpticReceiptFields = {
+  readonly status: OpticReceiptStatus;
+  readonly graph: string;
+  readonly observer: string;
+  readonly purpose: string;
+  readonly question: string;
+  readonly cause: string | null;
+  readonly repairHints?: readonly RepairHint[];
+  readonly records: number;
+};
+
+function validateStatus(status: OpticReceiptStatus): void {
+  if (!VALID_STATUSES.has(status)) {
+    throw new OpticError(`Invalid optic receipt status: ${String(status)}`);
+  }
+}
+
+function validateRecords(records: number): void {
+  if (!Number.isSafeInteger(records) || records < 0) {
+    throw new OpticError('An optic receipt needs a non-negative integer record count');
+  }
+}
 
 /**
  * How one read ended. Exactly one terminal result wins, and later cancellation
@@ -20,16 +52,9 @@ export default class OpticReceipt {
   /** Records read before it ended. */
   readonly records: number;
 
-  constructor(fields: {
-    readonly status: OpticReceiptStatus;
-    readonly graph: string;
-    readonly observer: string;
-    readonly purpose: string;
-    readonly question: string;
-    readonly cause: string | null;
-    readonly repairHints?: readonly RepairHint[];
-    readonly records: number;
-  }) {
+  constructor(fields: OpticReceiptFields) {
+    validateStatus(fields.status);
+    validateRecords(fields.records);
     this.status = fields.status;
     this.graph = fields.graph;
     this.observer = fields.observer;

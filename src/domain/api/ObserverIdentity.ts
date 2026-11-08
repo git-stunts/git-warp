@@ -1,4 +1,4 @@
-import WarpError from '../errors/WarpError.ts';
+import ObserverIdentityError from '../errors/ObserverIdentityError.ts';
 
 /** Who a read answers to. A name, not a credential: the access boundary authenticates. */
 export default class ObserverIdentity {
@@ -13,7 +13,7 @@ export default class ObserverIdentity {
 
   static of(namespace: string, subject: string): ObserverIdentity {
     if (!isName(namespace) || !isName(subject)) {
-      throw new WarpError('An observer identity needs a namespace and a subject', 'E_OBSERVER_IDENTITY');
+      throw new ObserverIdentityError('An observer identity needs a namespace and a subject');
     }
     return new ObserverIdentity(namespace, subject);
   }

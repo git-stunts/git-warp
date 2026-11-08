@@ -1,7 +1,7 @@
 import type OpticObservation from '../domain/api/OpticObservation.ts';
 import type Purpose from '../domain/api/Purpose.ts';
 import type ReadBudget from '../domain/api/ReadBudget.ts';
-import WarpError from '../domain/errors/WarpError.ts';
+import OpticError from '../domain/errors/OpticError.ts';
 import type ObservedWarp from './ObservedWarp.ts';
 
 type QueryFields = {
@@ -38,7 +38,9 @@ export default class OpticQuery {
   prop(key: string): OpticQuery {
     requireName(key, 'A property question needs a key');
     if (this.#fields.subject === null) {
-      throw new WarpError('Ask about a node before one of its properties', 'E_OPTIC_QUESTION');
+      throw new OpticError('Ask about a node before one of its properties', {
+        code: 'E_OPTIC_QUESTION',
+      });
     }
     return new OpticQuery({ ...this.#fields, key });
   }
@@ -46,10 +48,14 @@ export default class OpticQuery {
   async read(): Promise<OpticObservation> {
     const { view, purpose, budget, subject, key } = this.#fields;
     if (purpose === null) {
-      throw new WarpError('A read needs a purpose: call forPurpose', 'E_OPTIC_PURPOSE');
+      throw new OpticError('A read needs a purpose: call forPurpose', {
+        code: 'E_OPTIC_PURPOSE',
+      });
     }
     if (subject === null) {
-      throw new WarpError('A read needs a question', 'E_OPTIC_QUESTION');
+      throw new OpticError('A read needs a question', {
+        code: 'E_OPTIC_QUESTION',
+      });
     }
     return await view.run({ purpose, budget, question: { subject, key } });
   }
@@ -57,6 +63,6 @@ export default class OpticQuery {
 
 function requireName(value: string, message: string): void {
   if (typeof value !== 'string' || value.length === 0) {
-    throw new WarpError(message, 'E_OPTIC_QUESTION');
+    throw new OpticError(message, { code: 'E_OPTIC_QUESTION' });
   }
 }
