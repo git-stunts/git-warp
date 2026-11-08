@@ -34,7 +34,7 @@ A selection plane can key to ordinals on this basis.
 - it can change from resolved to `E_RETAINED_ADDRESS_DUPLICATE` at a successor in which *Y* mints that counter;
 - when *Y* is not folded, `IdentifierDictionary` can return *Y*'s ordinal, and the same manifest refuses it with `E_RETAINED_WRITER_NOT_FOLDED`.
 
-Only a crafted or corrupt commit carries such a dot. Every patch builder in this library mints only its own chain's dots (`DotMint`). Sync joins remote patches in memory and writes no commits. A forked lane's writer ref starts at the parent writer's commit, and the cone feed refuses that history with `E_SYNC_PATCH_HISTORY`. The cone feed checks each commit's writer, but not the dot writers inside its ops, so it folds a crafted commit unchanged. This contract does not refuse such adds at fold time.
+Only a crafted or corrupt commit carries such a dot. Every patch builder in this library mints only its own chain's dots (`DotMint`). Sync joins remote patches in memory and writes no commits. A forked lane's writer ref starts at the parent writer's commit, and the cone feed refuses that history with `E_SYNC_PATCH_HISTORY`. The cone feed checks each commit's writer, but not the dot writers inside its ops, so it folds a crafted commit unchanged. This contract does not refuse such adds at fold time; [#1132](https://github.com/git-stunts/git-warp/issues/1132) tracks that refusal.
 
 Each exception gives a typed refusal or a resolution that does not change for that frontier. No exception makes a resolution depend on fold order.
 
