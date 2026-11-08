@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
 import { Coordinate, GitStorage, UnretainedWriteReceipt, Warp, WarpAccessDenied, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
 import { composeWarpWrites, overrideWarpComposition } from '../../../src/application/WarpWriteComposition.ts';
+import ConeRecordKey from '../../../src/domain/services/cone/ConeRecordKey.ts';
+import ConeWriteBasis from '../../../src/domain/services/cone/ConeWriteBasis.ts';
 import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import CustodyRefused from '../../../src/domain/services/custody/CustodyRefused.ts';
 import ObservationCoordinate from '../../../src/domain/services/custody/ObservationCoordinate.ts';
@@ -10,7 +12,7 @@ import ObservationAttemptId from '../../../src/domain/services/custody/Observati
 import { textDecode } from '../../../src/domain/utils/bytes.ts';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
-import GitConeRecordStoreAdapter from '../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
+import GitTimelineHistoryAdapter from '../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import GitWriteAttemptJournalAdapter from '../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
 import {
@@ -260,20 +262,53 @@ describe('custody that cannot answer', () => {
 });
 
 describe('a store that fails before publication is permitted', () => {
-  it('returns an unpublished receipt, not a rejection, when the premise records cannot be read', async () => {
+  /** The blob id of the cone record that stores node `subject`, found through Git, not through the adapter. */
+  function recordBlob(path: string, subject: string): string {
+    const route = ConeRecordKey.forNode(subject).route;
+    const line = git(path, ['ls-tree', '-r', `refs/warp/${GRAPH}/cone/head`]).split('\n').find((entry) => entry.endsWith(`/${route}`));
+    return line?.split(/\s+/u)[2] ?? '';
+  }
+
+  it('returns an unpublished receipt, not a rejection, when the host fails beneath the premise record read', async () => {
     const path = await repository();
     const warp = await open(path);
     retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
     const before = tip(path, 'alice');
-    vi.spyOn(GitConeRecordStoreAdapter.prototype, 'readRecords').mockRejectedValueOnce(new Error('disk went away'));
+    const blob = recordBlob(path, 'x');
+    expect(blob).toMatch(/^[0-9a-f]{40}$/u);
+    const readBlob = GitTimelineHistoryAdapter.prototype.readBlob;
+    let failed = 0;
+    vi.spyOn(GitTimelineHistoryAdapter.prototype, 'readBlob').mockImplementation(async function (this: GitTimelineHistoryAdapter, oid: string) {
+      if (oid === blob && failed === 0) {
+        failed += 1;
+        throw new Error('EIO: i/o error, read');
+      }
+      return await readBlob.call(this, oid);
+    });
 
     const receipt = unpublished(await warp.as('alice').execute(intent.node.remove({ subject: 'x' })));
 
+    expect(failed).toBe(1);
     expect(receipt.cause).toBe('write-premise-unavailable');
     expect(tip(path, 'alice')).toBe(before);
     expect(attemptRefs(path)).toEqual([]);
     retained(await warp.as('alice').execute(intent.node.remove({ subject: 'x' })));
     expect((await materialized(path)).nodes).toEqual([]);
+  });
+
+  it('rejects, publishing nothing, when a defect throws while reading the premise records', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
+    const before = tip(path, 'alice');
+    const defect = new TypeError("Cannot read properties of undefined (reading 'root')");
+    vi.spyOn(ConeWriteBasis, 'capture').mockRejectedValueOnce(defect);
+
+    await expect(warp.as('alice').execute(intent.node.remove({ subject: 'x' }))).rejects.toBe(defect);
+
+    expect(tip(path, 'alice')).toBe(before);
+    expect(attemptRefs(path)).toEqual([]);
+    retained(await warp.as('alice').execute(intent.node.remove({ subject: 'x' })));
   });
 });
 
@@ -426,12 +461,13 @@ describe('composition', () => {
     expect((await materialized(path)).nodes).toEqual(['y']);
   });
 
-  it('tries again to open a writer whose first open failed', async () => {
+  it('rejects an untyped failure opening a writer, then tries that writer again', async () => {
     const path = await repository();
     const warp = await open(path);
     vi.spyOn(GitCasRepositoryAdapter.prototype, 'createRuntimeStorageServices').mockImplementationOnce(() => Promise.reject(new Error('blip')));
 
-    expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toBe('write-basis-unavailable');
+    await expect(warp.as('alice').execute(intent.node.add({ subject: 'x' }))).rejects.toThrow('blip');
+    expect(tip(path, 'alice')).toBeNull();
     retained(await warp.as('alice').execute(intent.node.add({ subject: 'y' })));
   });
 

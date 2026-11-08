@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Plumbing from '@git-stunts/plumbing';
+import ConeStoreUnavailableError from '../../../../src/domain/errors/ConeStoreUnavailableError.ts';
+import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 import ConeBasis from '../../../../src/domain/services/cone/ConeBasis.ts';
 import ConeEdgeRecord from '../../../../src/domain/services/cone/ConeEdgeRecord.ts';
 import ConeFrontier from '../../../../src/domain/services/cone/ConeFrontier.ts';
@@ -204,7 +206,7 @@ describe('GitConeRecordStoreAdapter', () => {
   it('refuses heads of an unknown layout or without a frontier, and surfaces ref failures', async () => {
     const { history, store } = await fixture();
     const failure = vi.spyOn(history, 'compareAndSwapRef').mockRejectedValueOnce(new Error('disk full'));
-    await expect(store.publishBasis(HEAD_OF_LANE, ConeBasis.empty(), null)).rejects.toThrow('disk full');
+    await expect(store.publishBasis(HEAD_OF_LANE, ConeBasis.empty(), null)).rejects.toThrow(ConeStoreUnavailableError);
     failure.mockRestore();
     await history.updateRef(HEAD, await history.writeTree([]));
     await expect(store.readBasis(HEAD_OF_LANE)).rejects.toMatchObject({ code: 'E_CONE_LAYOUT_UNSUPPORTED', context: { layout: '(unmarked)' } });
@@ -337,5 +339,44 @@ describe('GitConeRecordStoreAdapter strand heads, retained bases and dropped hea
     await store.dropBasis(head);
     expect(await history.readRef(head.ref())).toBeNull();
     expect(await store.readBasis(head)).toBeNull();
+  });
+});
+
+describe('GitConeRecordStoreAdapter host failures (#1079)', () => {
+  async function unavailability(read: Promise<object | null>, failure: Error): Promise<void> {
+    const rejected = await read.then(() => null, (error: Error) => error);
+    expect(rejected).toBeInstanceOf(ConeStoreUnavailableError);
+    expect(rejected).toMatchObject({ code: 'E_CONE_STORE_UNAVAILABLE', cause: failure });
+  }
+
+  it('reports a failing host beneath a record or basis read as an unavailable store, keeping its cause', async () => {
+    const { history, store } = await fixture();
+    const root = await store.writeRecords(ConeRoot.empty(), [node('a')]);
+    const blob = new Error('EIO: i/o error, read');
+    vi.spyOn(history, 'readBlob').mockRejectedValueOnce(blob);
+    await unavailability(store.readRecords(root, [ConeRecordKey.forNode('a')]), blob);
+    const ref = new Error('EMFILE: too many open files');
+    vi.spyOn(history, 'readRef').mockRejectedValueOnce(ref);
+    await unavailability(store.readBasis(HEAD_OF_LANE), ref);
+  });
+
+  it('reports a failing Git process beneath a write as an unavailable store', async () => {
+    const { history, store } = await fixture();
+    const spawn = new Error('spawn git EAGAIN');
+    vi.spyOn(history.plumbing, 'execute').mockRejectedValueOnce(spawn);
+    await unavailability(store.writeRecords(ConeRoot.empty(), [node('a')]), spawn);
+  });
+
+  it('passes typed failures and defects through unchanged, and refuses a thrown non-error as a defect', async () => {
+    const { history, store } = await fixture();
+    const root = await store.writeRecords(ConeRoot.empty(), [node('a')]);
+    const missing = new PersistenceError('object missing', PersistenceError.E_MISSING_OBJECT);
+    const reads = vi.spyOn(history, 'readTreeObjectEntries').mockRejectedValueOnce(missing);
+    await expect(store.readRecords(root, [ConeRecordKey.forNode('a')])).rejects.toBe(missing);
+    const defect = new RangeError('a defect');
+    reads.mockRejectedValueOnce(defect);
+    await expect(store.readRecords(root, [ConeRecordKey.forNode('a')])).rejects.toBe(defect);
+    reads.mockImplementationOnce(() => { throw 'not an error'; });
+    await expect(store.readRecords(root, [ConeRecordKey.forNode('a')])).rejects.toMatchObject({ code: 'E_CONE_STORE_HOST_DEFECT' });
   });
 });

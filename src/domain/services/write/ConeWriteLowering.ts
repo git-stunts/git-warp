@@ -8,6 +8,7 @@ import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import type WarpWriteGrant from '../../api/WarpWriteGrant.ts';
 import WriteOccurrence from '../../api/WriteOccurrence.ts';
 import { operationalWriteFailure } from '../../api/WriteRuntime.ts';
+import ConeStoreUnavailableError from '../../errors/ConeStoreUnavailableError.ts';
 import WarpError from '../../errors/WarpError.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
 import { textEncode } from '../../utils/bytes.ts';
@@ -35,6 +36,7 @@ import { writeRaceOf } from './writeRaceOf.ts';
 export const WRITE_PURPOSE = 'git-warp:purpose/write-admission/v1';
 const WRITE_QUESTION = new ObservationQuestion('git-warp:question/write-premise', 1);
 const WRITE_LAW = 'git-warp:admission-law/cone-write/v1';
+const BASIS_UNAVAILABLE = 'write-basis-unavailable';
 const PREMISE_UNAVAILABLE = 'write-premise-unavailable';
 
 type LoweringRequest = {
@@ -45,7 +47,7 @@ type LoweringRequest = {
 
 /**
  * Reads a write's premises from one fixed cone basis and lowers its intents
- * (#1051). Nothing here reserves or publishes, so every failure is known unpublished.
+ * (#1051). Nothing here reserves or publishes, so a receipt it returns is known unpublished.
  */
 export default class ConeWriteLowering {
   readonly #graph: string;
@@ -90,14 +92,20 @@ export default class ConeWriteLowering {
     }
   }
 
-  /** Nothing has been reserved, so a store that fails here leaves a write known not to have published. */
+  /**
+   * Nothing has been reserved, so an unavailable store here leaves a write known not to
+   * have published (#1079). Any other failure, a defect or corruption, rejects.
+   */
   async #opened(writer: string): Promise<{ readonly builder: PatchBuilder; readonly premise: ConeWritePremise } | UnpublishedWriteReceipt> {
     try {
       const builder = await this.#openPatch(writer);
       const premise = await this.#cone.writePremise();
       return premise instanceof ConeObstruction ? this.#unpublished(writer, coneObstructionFailure(premise)) : { builder, premise };
-    } catch {
-      return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: 'write-basis-unavailable' });
+    } catch (error) {
+      if (error instanceof ConeStoreUnavailableError) {
+        return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: BASIS_UNAVAILABLE });
+      }
+      throw error;
     }
   }
 
@@ -130,9 +138,9 @@ export default class ConeWriteLowering {
   }
 
   /**
-   * Reads the premise records from the store (#1079). Nothing is reserved yet, so a store
-   * that fails here, whatever it throws, leaves a write known not to have published. An
-   * expected write refusal keeps its own cause.
+   * Reads the premise records from the store (#1079). Nothing is reserved yet, so an
+   * unavailable store leaves a write known not to have published. An expected write
+   * refusal keeps its own cause. A defect, a broken invariant or corruption rejects.
    */
   async #premiseRead(run: {
     readonly writer: string;
@@ -145,8 +153,14 @@ export default class ConeWriteLowering {
       await run.builder.prepareConeWriteBasis(run.targets, run.premise, run.observed);
       return null;
     } catch (error) {
+      if (error instanceof ConeStoreUnavailableError) {
+        return new UnpublishedWriteReceipt({ graph: this.#graph, writer: run.writer, cause: PREMISE_UNAVAILABLE });
+      }
       const refused = error instanceof WarpError ? this.#operational(run.writer, error) : null;
-      return refused ?? new UnpublishedWriteReceipt({ graph: this.#graph, writer: run.writer, cause: PREMISE_UNAVAILABLE });
+      if (refused === null) {
+        throw error;
+      }
+      return refused;
     }
   }
 
