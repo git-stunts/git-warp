@@ -64,7 +64,7 @@ afterEach(async () => {
 });
 
 describe('standalone runtime openers without installed resolvers', () => {
-  it('Runtime.open writes through openWarp and the write composition', async () => {
+  it('Runtime.open writes through openWarp', async () => {
     const repo = await initRepository('runtime-opener-');
     await expectNoRandomResolver();
     const { Runtime } = await import('../../../index.ts');
@@ -76,6 +76,22 @@ describe('standalone runtime openers without installed resolvers', () => {
       expect(receipt.outcome.kind).toBe('derived');
     } finally {
       await runtime.close();
+    }
+  });
+
+  it('Warp writes open their writer hosts through the write composition', async () => {
+    await expectNoRandomResolver();
+    const fixture = await import('../../helpers/WarpWriteFixture.ts');
+    const { intent } = await import('../../../advanced.ts');
+    try {
+      const path = await fixture.repository();
+      const warp = await fixture.open(path, { clock: () => 1_000 });
+
+      fixture.retained(await warp.as('alice').execute(intent.node.add({ subject: 'n' })));
+
+      expect(fixture.tip(path, 'alice')).not.toBeNull();
+    } finally {
+      await fixture.disposeWarpFixtures();
     }
   });
 
