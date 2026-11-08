@@ -3,41 +3,67 @@ import {
   type SpawnSyncOptionsWithStringEncoding,
   type SpawnSyncReturns,
 } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, rmSync, statSync, symlinkSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readdirSync, rmSync, statSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const COMMAND_TIMEOUT_MS = 120_000;
-/** Time for the declaration type check that follows the two bounded npm commands. */
-const DECLARATION_CHECK_MARGIN_MS = 60_000;
-/** The dry-run test runs `npm run build` and `npm pack`; each can use its full command timeout. */
-const PACK_DRY_RUN_TEST_TIMEOUT_MS = 2 * COMMAND_TIMEOUT_MS + DECLARATION_CHECK_MARGIN_MS;
+/** Time for the copy and the declaration type check around the two bounded npm commands. */
+const COPY_AND_DECLARATION_CHECK_MARGIN_MS = 60_000;
+/**
+ * The private build runs `npm run build` and `npm pack`. Each one is bounded by
+ * its own `spawnSync` timeout, and those are the only real bounds. Vitest cannot
+ * interrupt this synchronous work; it compares the elapsed time only after the
+ * hook returns. So this value is an after-the-fact verdict. It is sized so that
+ * a run whose npm commands stayed inside their own timeouts is never failed by
+ * the project-wide `testTimeout` (60 s in `vitest.config.ts`).
+ */
+const ISOLATED_BUILD_TIMEOUT_MS = 2 * COMMAND_TIMEOUT_MS + COPY_AND_DECLARATION_CHECK_MARGIN_MS;
 const V18_TO_V19_PREFIX = 'dist/scripts/v18-to-v19/';
 const V20_TO_V21_PREFIX = 'dist/scripts/v20-to-v21/';
 
-/** The package entry points whose declarations PublicSurfaceScanner reads from the shared dist/. */
+/** The package entry points whose declarations PublicSurfaceScanner reads first from the shared dist/. */
 const DECLARATION_ROOTS: readonly string[] = ['index', 'advanced', 'diagnostics', 'charts', 'testing'];
-/** The shared dist/ directory and the declaration roots; the isolated build must leave all of them unchanged. */
-const SHARED_SURFACE_PATHS: readonly string[] = ['dist', ...DECLARATION_ROOTS.map((name) => `dist/${name}.d.ts`)];
+/** The shared dist/ entries that must exist before the guard can take its snapshot. */
+const SHARED_DIST_PRECONDITION_PATHS: readonly string[] = [
+  'dist',
+  ...DECLARATION_ROOTS.map((name) => `dist/${name}.d.ts`),
+];
+const MISSING_SHARED_DIST = 'the shared dist/ lacks the listed paths, so the guard has no surface to protect. '
+  + 'The test image builds it (docker/Dockerfile.node22-slim: RUN npm run build --silent); '
+  + 'run this file through scripts/run-in-docker.sh';
 
 /**
- * Top-level names (only) that the private copy leaves out:
+ * Top-level names (only) that the private copy leaves out. Nested names with
+ * the same spelling are copied; the test image has no nested `node_modules` or
+ * `dist` under the copied sources.
  * - `node_modules`: linked back to the shared install, not copied.
  * - `dist`: the private build deletes and rebuilds it.
- * - `test`: `tsconfig.publish.json` excludes it from the build, and sibling tests
- *   (for example `run-stable-unit-tests.test.ts`) create and delete fixture
- *   directories under it while this copy runs.
+ * - `test`: sibling tests (for example `run-stable-unit-tests.test.ts`) create
+ *   and delete fixture directories under it while this copy runs. A Docker pilot
+ *   in #1094 had 10 of 30 whole-tree copies fail with ENOENT under that churn,
+ *   and 0 of 30 with `test` left out. `tsconfig.publish.json` does not include
+ *   `test`, but its `exclude` only trims the `include` globs. If production code
+ *   ever imports test code, the build in the copy fails with a module-resolution
+ *   error from `npm run build`, instead of a `dist/test/` entry in the packed
+ *   inventory check.
  * - `.git` and `coverage`: the build and the pack never read them.
+ *
+ * What the build and pack need from the copy: `package.json`, the `tsconfig.*.json`
+ * files, the entry `.ts` files, `src/`, `bin/`, `scripts/` (which holds the
+ * package-payload prune steps), the `packages/` workspaces, and the `files`
+ * entries of `package.json` (`README.md`, `LICENSE`, `NOTICE`, `docs/migrations/`
+ * and `docs/READINGS_AND_OPTICS.md`). Everything else is copied only because a
+ * denylist is simpler than keeping an allowlist in step with `package.json`.
+ * The copy is about 15 MB and takes well under a second in the test image;
+ * the tsc compile takes most of this test's time.
  */
 const UNCOPIED_ROOT_ENTRIES: ReadonlySet<string> = new Set(['node_modules', 'dist', 'test', '.git', 'coverage']);
 
+/** Private trees made by this file; `afterAll` removes them, also after a failed copy or build. */
 const isolatedTrees: string[] = [];
-
-afterEach(() => {
-  for (const tree of isolatedTrees.splice(0)) rmSync(tree, { recursive: true, force: true });
-});
 
 type CommandRunner = (
   command: string,
@@ -83,9 +109,15 @@ function runNpmCommand(
  * never the repository root, to the build, the declaration roots and the
  * relative paths.
  *
- * The `node_modules` link is read-only for this test: tsc resolves it to the
- * shared install's real paths, which fall outside `tree` and so outside the
- * `dist/` filter below, and npm pack never packs `node_modules`.
+ * `verbatimSymlinks` keeps each symlink in the sources as a symlink with its
+ * original target. Without it, `cpSync` rewrites relative targets to absolute
+ * paths into the shared tree.
+ *
+ * The build and the pack must not write under `node_modules`. The link is not
+ * write-protected, so such a write would reach the shared install. Reads through
+ * it are safe: tsc resolves the link to the shared install's real paths, which
+ * fall outside `tree`, so the dry-run test's `startsWith('dist/')` filter on
+ * declaration source files drops them; and npm pack never packs `node_modules`.
  */
 function isolatedPackageTree(): string {
   const root = resolve('.');
@@ -106,17 +138,21 @@ function runNpmPackDryRun(tree: string): string {
   return runNpmCommand(['pack', '--dry-run', '--ignore-scripts', '--no-json'], tree);
 }
 
-/** Extracts only file paths from the npm tarball-contents section. */
+/**
+ * Extracts only file paths from the npm tarball-contents section: the rows after
+ * the first contents header and before the first details header, without any
+ * repeated contents header.
+ */
 function packEntries(output: string): ReadonlySet<string> {
   const lines = output.split('\n');
-  const start = lines.findIndex((line) => isPackSectionHeader(line, 'Tarball Contents'));
+  const end = lines.findIndex((line) => isPackSectionHeader(line, 'Tarball Details'));
+  const beforeDetails = end < 0 ? lines : lines.slice(0, end);
+  const start = beforeDetails.findIndex((line) => isPackSectionHeader(line, 'Tarball Contents'));
   if (start < 0) {
     return new Set();
   }
-  const following = lines.slice(start + 1);
-  const end = following.findIndex((line) => isPackSectionHeader(line, 'Tarball Details'));
-  const contents = end < 0 ? following : following.slice(0, end);
-  return new Set(contents.flatMap(packEntryPaths));
+  const rows = beforeDetails.slice(start + 1).filter((line) => !isPackSectionHeader(line, 'Tarball Contents'));
+  return new Set(rows.flatMap(packEntryPaths));
 }
 
 /** Recognizes both plain and decorated npm notice section headers. */
@@ -151,10 +187,57 @@ function isSupportedMigrationArtifact(path: string): boolean {
   return relativePath.startsWith('adapters/') || isTopLevelJavaScript(relativePath);
 }
 
-/** Names one file's inode and modification time, so replacing the file is observable. */
+/** Names one entry's inode, size and modification time, so replacing or rewriting it is observable. */
 function fileIdentity(path: string): string {
   const stat = statSync(path, { bigint: true });
-  return `${stat.ino}:${stat.mtimeNs}`;
+  return `${stat.ino}:${stat.size}:${stat.mtimeNs}`;
+}
+
+/**
+ * Snapshots every entry under a directory, the directory included. Over the
+ * shared dist/ this covers all that PublicSurfaceScanner reads there: the
+ * declaration roots, their `dist/src/**` import closure and the `.js` export
+ * targets. An added, removed, replaced or rewritten entry changes the snapshot.
+ */
+function treeIdentities(directory: string): readonly string[] {
+  return ['.', ...readdirSync(directory, { encoding: 'utf8', recursive: true })]
+    .sort()
+    .map((entry) => `${entry} ${fileIdentity(join(directory, entry))}`);
+}
+
+/** The evidence of one private build and pack, taken around snapshots of the shared dist/. */
+class IsolatedPackRun {
+  readonly tree: string;
+  readonly copiedTestTree: boolean;
+  readonly sharedBefore: readonly string[];
+  readonly sharedAfter: readonly string[];
+  readonly entries: ReadonlySet<string>;
+
+  constructor(fields: {
+    readonly tree: string;
+    readonly copiedTestTree: boolean;
+    readonly sharedBefore: readonly string[];
+    readonly sharedAfter: readonly string[];
+    readonly entries: ReadonlySet<string>;
+  }) {
+    this.tree = fields.tree;
+    this.copiedTestTree = fields.copiedTestTree;
+    this.sharedBefore = fields.sharedBefore;
+    this.sharedAfter = fields.sharedAfter;
+    this.entries = fields.entries;
+    Object.freeze(this);
+  }
+
+  /** Checks the shared dist/ exists, snapshots it, builds and packs in a private copy, and snapshots it again. */
+  static execute(): IsolatedPackRun {
+    const missing = SHARED_DIST_PRECONDITION_PATHS.filter((path) => !existsSync(resolve(path)));
+    expect(missing, MISSING_SHARED_DIST).toEqual([]);
+    const sharedBefore = treeIdentities(resolve('dist'));
+    const tree = isolatedPackageTree();
+    const copiedTestTree = existsSync(join(tree, 'test'));
+    const entries = packEntries(runNpmPackDryRun(tree));
+    return new IsolatedPackRun({ tree, copiedTestTree, sharedBefore, sharedAfter: treeIdentities(resolve('dist')), entries });
+  }
 }
 
 /** Creates a completed process result for the command timeout regression. */
@@ -216,15 +299,51 @@ describe('release artifact command evidence', () => {
       .toEqual(new Set(['dist/index.js']));
   });
 
+  it('stops at the first details header even when it comes before the contents header', () => {
+    expect(packEntries('npm notice Tarball Details\nnpm notice Tarball Contents\nnpm notice 1.2kB dist/index.js'))
+      .toEqual(new Set());
+  });
+
+  it('skips a repeated contents header instead of reading it as a row', () => {
+    expect(packEntries([
+      'npm notice === Tarball Contents ===',
+      'npm notice === Tarball Contents ===',
+      'npm notice 1.2kB dist/index.js',
+    ].join('\n'))).toEqual(new Set(['dist/index.js']));
+  });
+
+  it.each([
+    ['dist/scripts/v20-to-v21/migrate.js', true],
+    ['dist/scripts/v20-to-v21/nested/migrate.js', false],
+    ['dist/scripts/v20-to-v21/migrate.d.ts', false],
+    ['dist/scripts/v18-to-v19/adapters/GitAdapter.js', true],
+    ['dist/scripts/v18-to-v19/migrate.js', true],
+    ['dist/scripts/v18-to-v19/performance/Run.js', false],
+    ['dist/scripts/other/migrate.js', false],
+  ])('admits %s as a packed migration module: %s', (path, admitted) => {
+    expect(isSupportedMigrationArtifact(path)).toBe(admitted);
+  });
+});
+
+describe('isolated release build (#1081)', () => {
+  let run: IsolatedPackRun;
+
+  beforeAll(() => {
+    run = IsolatedPackRun.execute();
+  }, ISOLATED_BUILD_TIMEOUT_MS);
+
+  afterAll(() => {
+    for (const tree of isolatedTrees.splice(0)) rmSync(tree, { recursive: true, force: true });
+  });
+
+  it('#1081: builds in a private copy without test/ and leaves every entry of the shared dist/ unchanged', () => {
+    expect(run.copiedTestTree, 'the private copy must leave out the churned test/ tree').toBe(false);
+    expect(run.sharedAfter, 'the build must not add, remove, replace or rewrite any entry of the shared dist/ '
+      + 'that PublicSurfaceScanner reads').toEqual(run.sharedBefore);
+  });
+
   it('dry-runs the packed npm artifact and exposes the compiled public surface', () => {
-    expect(existsSync(resolve('dist/index.d.ts')), 'docker/Dockerfile.node22-slim builds the shared dist/ this guard reads')
-      .toBe(true);
-    const sharedIdentities = SHARED_SURFACE_PATHS.map((path) => fileIdentity(resolve(path)));
-    const tree = isolatedPackageTree();
-    expect(existsSync(join(tree, 'test')), 'the private copy must leave out the churned test/ tree').toBe(false);
-    const entries = packEntries(runNpmPackDryRun(tree));
-    expect(SHARED_SURFACE_PATHS.map((path) => fileIdentity(resolve(path))),
-      'the build must not replace the shared dist/ that sibling tests read').toEqual(sharedIdentities);
+    const { tree, entries } = run;
     const roots = DECLARATION_ROOTS.map((name) => resolve(tree, `dist/${name}.d.ts`));
     const declarations = ts.createProgram(roots, {
       module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext,
@@ -293,5 +412,5 @@ describe('release artifact command evidence', () => {
     expect(entries.has('docs/GUIDE.md')).toBe(false);
     expect(entries.has('src/domain/RuntimeHost.ts')).toBe(false);
     expect(entries.has('.github/maintainers')).toBe(false);
-  }, PACK_DRY_RUN_TEST_TIMEOUT_MS);
+  });
 });
