@@ -11,6 +11,7 @@ import ConeWritePublisher from '../domain/services/write/ConeWritePublisher.ts';
 import ConeWriteRecovery from '../domain/services/write/ConeWriteRecovery.ts';
 import ConeWriteSettlement from '../domain/services/write/ConeWriteSettlement.ts';
 import WritePublicationProbe from '../domain/services/write/WritePublicationProbe.ts';
+import WriterFrontierLimit from '../domain/services/write/WriterFrontierLimit.ts';
 import { openRuntimeHostProduct, type RuntimeHostProduct } from '../domain/warp/RuntimeHostProduct.ts';
 import EntropyObservationAttemptSource from '../infrastructure/adapters/EntropyObservationAttemptSource.ts';
 import GitCasObservationCustodyAdapter from '../infrastructure/adapters/GitCasObservationCustodyAdapter.ts';
@@ -18,6 +19,7 @@ import GitCasObservationSupportAdapter from '../infrastructure/adapters/GitCasOb
 import GitConePatchFeedAdapter from '../infrastructure/adapters/GitConePatchFeedAdapter.ts';
 import GitConeRecordStoreAdapter from '../infrastructure/adapters/GitConeRecordStoreAdapter.ts';
 import GitWriteAttemptJournalAdapter from '../infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
+import GitWritePublicationHistoryAdapter from '../infrastructure/adapters/GitWritePublicationHistoryAdapter.ts';
 import ObservationCustodyCborCodec from '../infrastructure/adapters/ObservationCustodyCborCodec.ts';
 import type ObservationAttemptSourcePort from '../ports/ObservationAttemptSourcePort.ts';
 import type ObservationCustodyPort from '../ports/ObservationCustodyPort.ts';
@@ -36,7 +38,12 @@ import { resolveConeWrites, resolveWarpStorage, type WarpConeWriteStorage } from
  */
 export const WARP_RETENTION_SLOTS = Number.MAX_SAFE_INTEGER;
 
-/** Support limits. Lowering one strands Coordinates that crossed it, so treat them as raise-only. */
+/**
+ * Support limits. Lowering one strands Coordinates that crossed it, so treat them as raise-only.
+ * Every write retains each writer head in its frontier, one carrier commit per 63 heads, so
+ * `writers` bounds what one write costs. A new writer past it is refused with a repair rather
+ * than admitted into a frontier no write could then retain (#1075).
+ */
 export const WARP_SUPPORT_LIMITS = new ObservationSupportLimits({
   writers: 4096, dependencies: 4096, frontierBytes: 4 * 1024 * 1024, work: 1_000_000,
 });
@@ -96,7 +103,7 @@ async function composeOverStorage(run: {
   const hosts = writerHosts({ graph, storage, ports });
   const custody = await openCustodyService({ graph, git, ports, overrides });
   const journal = new GitWriteAttemptJournalAdapter({ graph, history: git.history, codec: ports.codec, custodyCodec: new ObservationCustodyCborCodec(ports.codec) });
-  const probe = new WritePublicationProbe({ graph, history: git.history, messages: ports.commitMessageCodec });
+  const probe = new WritePublicationProbe({ graph, history: new GitWritePublicationHistoryAdapter(git.history), messages: ports.commitMessageCodec });
   const settlement = new ConeWriteSettlement({ graph, custody, journal });
   const clock = overrides.clock ?? (() => Date.now());
   const content = new ContentStagingAuthority();
@@ -105,7 +112,7 @@ async function composeOverStorage(run: {
     custody, recovery,
     executor: new ConeWriteExecutor({
       graph, access, recovery,
-      lowering: new ConeWriteLowering({ graph, cone: await openCone({ graph, git, ports, storage }), content, crypto: ports.crypto, openPatch: async (writer) => await (await hosts(writer)).createPatch() }),
+      lowering: new ConeWriteLowering({ graph, cone: await openCone({ graph, git, ports, storage }), content, crypto: ports.crypto, writers: new WriterFrontierLimit(WARP_SUPPORT_LIMITS.writers), openPatch: async (writer) => await (await hosts(writer)).createPatch() }),
       publisher: new ConeWritePublisher({ graph, custody, journal, probe, settlement, clock, attempts: overrides.attempts ?? new EntropyObservationAttemptSource() }),
     }),
     stage: async (writer, staged) => await content.stage({ assetStorage: (await hosts(writer))._assetStorage, content: staged.content, metadata: staged.metadata, slug: `${graph}/${writer}` }),

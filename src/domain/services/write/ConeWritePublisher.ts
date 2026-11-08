@@ -2,6 +2,7 @@ import type ObservationAttemptSourcePort from '../../../ports/ObservationAttempt
 import type WriteAttemptJournalPort from '../../../ports/WriteAttemptJournalPort.ts';
 import type { AuthoredWriteReceipt } from '../../api/AuthoredWriteReceipt.ts';
 import IndeterminateWriteReceipt from '../../api/IndeterminateWriteReceipt.ts';
+import type { RepairHint } from '../../api/ReceiptSupport.ts';
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import UnretainedWriteReceipt from '../../api/UnretainedWriteReceipt.ts';
 import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
@@ -29,6 +30,15 @@ const CAPACITY_REPAIR = Object.freeze([Object.freeze({
   code: 'retention_capacity_exhausted',
   message: 'This graph has used every retention slot it was opened with, and the limit cannot be raised yet.',
 })]);
+/** A frontier already past the writer limit, which only concurrent first writes by new writers can reach (#1075). */
+const WRITER_FRONTIER_REPAIR = Object.freeze([Object.freeze({
+  code: 'compact_writer_frontier',
+  message: 'This graph\'s frontier holds more writers than one write can retain, so no write is retained until retired writers are compacted.',
+})]);
+const REPAIRS: ReadonlyMap<string, readonly RepairHint[]> = new Map<string, readonly RepairHint[]>([
+  ['retention-capacity-exhausted', CAPACITY_REPAIR],
+  ['retention-refused-writer-limit', WRITER_FRONTIER_REPAIR],
+]);
 
 /** How the one publication went: landed, definitely did not, or cannot be told. */
 type PublicationFate =
@@ -259,7 +269,7 @@ export default class ConeWritePublisher {
   #unpublished(record: WriteAttemptRecord, cause: string): UnpublishedWriteReceipt {
     return new UnpublishedWriteReceipt({
       graph: this.#graph, writer: record.premise.writerId, cause,
-      ...(cause === 'retention-capacity-exhausted' ? { repairHints: CAPACITY_REPAIR } : {}),
+      repairHints: REPAIRS.get(cause) ?? [],
     });
   }
 }

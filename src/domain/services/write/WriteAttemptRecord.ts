@@ -18,7 +18,10 @@ export default class WriteAttemptRecord {
   readonly occurrences: readonly WriteOccurrence[];
   /** Host time when saved; only ages an attempt nothing has armed. */
   readonly savedAt: number;
-  /** A receipt told a caller to ask again, so only that caller's `reconcile` may finish this record. */
+  /**
+   * Only a `reconcile` may finish this record: a receipt told a caller to ask again, or a
+   * sweep found its predecessor further back than a probe reads, and no sweep reads for it again.
+   */
   readonly reported: boolean;
   /** The commit a receipt already reported as published, which nothing may later contradict. */
   readonly commit: string | null;

@@ -14,14 +14,18 @@ import RetainedObservation from '../custody/RetainedObservation.ts';
 import ObservationAttemptId from '../custody/ObservationAttemptId.ts';
 import type ConeWriteSettlement from './ConeWriteSettlement.ts';
 import type WriteAttemptRecord from './WriteAttemptRecord.ts';
-import type WritePublicationProbe from './WritePublicationProbe.ts';
+import { PUBLICATION_PROBE_READS, type default as WritePublicationProbe } from './WritePublicationProbe.ts';
+import WriteReadBudget from './WriteReadBudget.ts';
 
 /** How old an unarmed attempt must be before a sweep assumes its owner is gone. A live owner that loses this race only refuses. */
 export const UNARMED_ATTEMPT_GRACE_MS = 60 * 60 * 1000;
 /** Records one sweep looks at, so opening a Warp stays bounded after many crashes; later opens see the rest. */
 export const SWEEP_LIMIT = 64;
+/** Commits one sweep's probes may read: four probes that each find a predecessor out of reach (#1075). */
+export const SWEEP_READ_BUDGET = 4 * PUBLICATION_PROBE_READS;
 const ATTEMPT_UNOWNED_YET = 'attempt-in-progress';
 const PUBLICATION_UNRESOLVED = 'publication-unresolved';
+const PUBLICATION_OUT_OF_REACH = 'publication-walk-exhausted';
 const RECOVERY_UNAVAILABLE = 'retention-unavailable';
 const STALE_PREDECESSOR = 'stale-predecessor';
 const CANCELLED = 'attempt-cancelled';
@@ -35,7 +39,10 @@ const FINISHED_REFUSALS: ReadonlySet<ObservationRefusalReason> = new Set<Observa
  * an intent. An armed attempt stays charged, and with no finding stays unresolved until
  * its writer's next patch shows the attempt can no longer land.
  */
+type ConeWriteRecoveryFields = ConstructorParameters<typeof ConeWriteRecovery>[0];
+
 export default class ConeWriteRecovery {
+  readonly #fields: ConeWriteRecoveryFields;
   readonly #graph: string;
   readonly #custody: ObservationCustodyService;
   readonly #journal: WriteAttemptJournalPort;
@@ -51,6 +58,7 @@ export default class ConeWriteRecovery {
     readonly settlement: ConeWriteSettlement;
     readonly clock: () => number;
   }) {
+    this.#fields = fields;
     this.#graph = fields.graph;
     this.#custody = fields.custody;
     this.#journal = fields.journal;
@@ -63,11 +71,17 @@ export default class ConeWriteRecovery {
   /**
    * Resolves what it can of a bounded page of attempts nobody holds a receipt for: a
    * reported one waits for its owner's `reconcile`, or its only answer would be lost.
-   * A failure on one record, or the listing, only leaves work for a later sweep.
+   * A failure on one record, or the listing, only leaves work for a later sweep. So does
+   * a spent read budget: a sweep stops once it could not afford another full probe.
    */
   async sweep(): Promise<void> {
+    const budget = new WriteReadBudget(SWEEP_READ_BUDGET);
+    const sweeping = new ConeWriteRecovery({ ...this.#fields, probe: this.#probe.within(budget) });
     for (const record of await this.#listed()) {
-      await this.#swept(record);
+      if (!budget.affords(PUBLICATION_PROBE_READS)) {
+        return;
+      }
+      await sweeping.#swept(record);
     }
   }
 
@@ -165,9 +179,27 @@ export default class ConeWriteRecovery {
     if (found.kind === 'other') {
       return await this.#finishedUnpublished(record, STALE_PREDECESSOR);
     }
+    if (found.kind === 'exhausted') {
+      return await this.#outOfReach(record);
+    }
     return found.kind === 'none'
       ? this.#indeterminate(record, PUBLICATION_UNRESOLVED)
       : await this.#settlement.settle({ attempt, record, commit: found.commit, races: [] });
+  }
+
+  /**
+   * Its fate is fixed, since its writer's chain has moved on, but it lies further back than a
+   * probe reads. Saved as reported, it is left to `reconcile`, so no later sweep reads for it again.
+   */
+  async #outOfReach(record: WriteAttemptRecord): Promise<IndeterminateWriteReceipt> {
+    try {
+      if (!record.reported) {
+        await this.#journal.save(record.asReported(null));
+      }
+    } catch {
+      // The next sweep finds it out of reach again, and tries again to save that.
+    }
+    return this.#indeterminate(record, PUBLICATION_OUT_OF_REACH);
   }
 
   async #forget(record: WriteAttemptRecord): Promise<void> {

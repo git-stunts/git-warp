@@ -5,6 +5,11 @@ import UnpublishedWriteReceipt from '../../../../../src/domain/api/UnpublishedWr
 import WarpWriteGrant from '../../../../../src/domain/api/WarpWriteGrant.ts';
 import WarpError from '../../../../../src/domain/errors/WarpError.ts';
 import ConeBasis from '../../../../../src/domain/services/cone/ConeBasis.ts';
+import ConeFrontier from '../../../../../src/domain/services/cone/ConeFrontier.ts';
+import ConeRoot from '../../../../../src/domain/services/cone/ConeRoot.ts';
+import ConeWriterPosition from '../../../../../src/domain/services/cone/ConeWriterPosition.ts';
+import WriterFrontierLimit from '../../../../../src/domain/services/write/WriterFrontierLimit.ts';
+import { WARP_SUPPORT_LIMITS } from '../../../../../src/application/WarpWriteComposition.ts';
 import { EventId } from '../../../../../src/domain/utils/EventId.ts';
 import ConeRecoveryObstruction from '../../../../../src/domain/services/cone/ConeRecoveryObstruction.ts';
 import ConeContendedObstruction from '../../../../../src/domain/services/cone/ConeContendedObstruction.ts';
@@ -19,6 +24,7 @@ const GRANT = new WarpWriteGrant({ authority: 'a', budget: { records: 9, bytes: 
 function lowering(fields: { readonly premise: () => Promise<object>; readonly prepare?: () => Promise<void> }): ConeWriteLowering {
   return new ConeWriteLowering({
     graph: 'g',
+    writers: new WriterFrontierLimit(WARP_SUPPORT_LIMITS.writers),
     cone: { writePremise: fields.premise } as unknown as ConeLaneBasis,
     content: new ContentStagingAuthority(),
     crypto: {} as CryptoPort,
@@ -56,5 +62,38 @@ describe('ConeWriteLowering', () => {
   it('does not hide a failure that is not an expected write refusal', async () => {
     await expect(lowering({ premise, prepare: () => Promise.reject(new Error('boom')) }).lower(request)).rejects.toThrow('boom');
     await expect(lowering({ premise, prepare: () => Promise.reject(new WarpError('odd', 'E_ODD')) }).lower(request)).rejects.toThrow('odd');
+  });
+});
+
+/** A basis whose frontier holds `count` writer chains, `w0` to `w<count - 1>`. */
+function basisOf(count: number): ConeBasis {
+  const position = new ConeWriterPosition('e'.repeat(40), 1);
+  return new ConeBasis(ConeRoot.empty(), new ConeFrontier(new Map(Array.from({ length: count }, (_, index) => [`w${index}`, position]))));
+}
+
+describe('ConeWriteLowering at the writer limit (#1075)', () => {
+  const reachedPrepare = (): Promise<void> => Promise.reject(new Error('reached prepare'));
+  const onto = (basis: ConeBasis) => (): Promise<object> => Promise.resolve({ basis, from: basis });
+
+  it('holds 4,096 writers, so one write retains every head', () => {
+    expect(WARP_SUPPORT_LIMITS.writers).toBe(4096);
+  });
+
+  it('admits the 4,096th writer and keeps every writer already in a full frontier writing', async () => {
+    await expect(lowering({ premise: onto(basisOf(4095)), prepare: reachedPrepare }).lower({ ...request, writer: 'newcomer' })).rejects.toThrow('reached prepare');
+    await expect(lowering({ premise: onto(basisOf(4096)), prepare: reachedPrepare }).lower({ ...request, writer: 'w4095' })).rejects.toThrow('reached prepare');
+  });
+
+  it('refuses the 4,097th writer before anything is reserved, with the repair', async () => {
+    const lowered = await lowering({ premise: onto(basisOf(4096)), prepare: reachedPrepare }).lower({ ...request, writer: 'newcomer' });
+
+    expect(lowered).toBeInstanceOf(UnpublishedWriteReceipt);
+    expect(lowered instanceof UnpublishedWriteReceipt ? lowered.cause : '').toBe('writer-limit-reached');
+    expect(lowered instanceof UnpublishedWriteReceipt ? lowered.repairHints.map((hint) => hint.code) : []).toEqual(['reuse_writer_id']);
+  });
+
+  it('refuses a limit that is not a count', () => {
+    expect(() => new WriterFrontierLimit(-1)).toThrow('count');
+    expect(() => new WriterFrontierLimit(0.5)).toThrow('count');
   });
 });

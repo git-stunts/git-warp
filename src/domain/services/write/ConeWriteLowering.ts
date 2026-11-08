@@ -29,12 +29,21 @@ import type { PatchBuilder } from '../PatchBuilder.ts';
 import ConeWriteKnowledge from './ConeWriteKnowledge.ts';
 import LoweredConeWrite from './LoweredConeWrite.ts';
 import PatchEntryFold from './PatchEntryFold.ts';
+import type WriterFrontierLimit from './WriterFrontierLimit.ts';
 import { writeRaceOf } from './writeRaceOf.ts';
 
 /** The registered purpose every write's premises are read under. */
 export const WRITE_PURPOSE = 'git-warp:purpose/write-admission/v1';
 const WRITE_QUESTION = new ObservationQuestion('git-warp:question/write-premise', 1);
 const WRITE_LAW = 'git-warp:admission-law/cone-write/v1';
+const WRITER_LIMIT_REACHED = 'writer-limit-reached';
+const WRITER_LIMIT_REPAIR = Object.freeze([Object.freeze({
+  code: 'reuse_writer_id',
+  message: 'This graph already has as many writers as one write can retain; write as one of its existing writer IDs, such as one of a bounded pool that users share.',
+})]);
+
+/** A write's patch builder and the basis its premises are read from. */
+type OpenedWrite = { readonly builder: PatchBuilder; readonly premise: ConeWritePremise };
 
 type LoweringRequest = {
   readonly writer: string;
@@ -52,6 +61,7 @@ export default class ConeWriteLowering {
   readonly #openPatch: (writer: string) => Promise<PatchBuilder>;
   readonly #content: ContentStagingAuthority;
   readonly #crypto: CryptoPort;
+  readonly #writers: WriterFrontierLimit;
   readonly #knowledge = new ConeWriteKnowledge();
 
   constructor(fields: {
@@ -60,12 +70,14 @@ export default class ConeWriteLowering {
     readonly openPatch: (writer: string) => Promise<PatchBuilder>;
     readonly content: ContentStagingAuthority;
     readonly crypto: CryptoPort;
+    readonly writers: WriterFrontierLimit;
   }) {
     this.#graph = fields.graph;
     this.#cone = fields.cone;
     this.#openPatch = fields.openPatch;
     this.#content = fields.content;
     this.#crypto = fields.crypto;
+    this.#writers = fields.writers;
     Object.freeze(this);
   }
 
@@ -90,14 +102,21 @@ export default class ConeWriteLowering {
   }
 
   /** Nothing has been reserved, so a store that fails here leaves a write known not to have published. */
-  async #opened(writer: string): Promise<{ readonly builder: PatchBuilder; readonly premise: ConeWritePremise } | UnpublishedWriteReceipt> {
+  async #opened(writer: string): Promise<OpenedWrite | UnpublishedWriteReceipt> {
     try {
       const builder = await this.#openPatch(writer);
       const premise = await this.#cone.writePremise();
-      return premise instanceof ConeObstruction ? this.#unpublished(writer, coneObstructionFailure(premise)) : { builder, premise };
+      return premise instanceof ConeObstruction ? this.#unpublished(writer, coneObstructionFailure(premise)) : this.#admitted(writer, { builder, premise });
     } catch {
       return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: 'write-basis-unavailable' });
     }
+  }
+
+  /** A writer new to a frontier already at the limit is refused before anything is reserved (#1075). */
+  #admitted(writer: string, opened: OpenedWrite): OpenedWrite | UnpublishedWriteReceipt {
+    return this.#writers.admits(writer, opened.premise.basis)
+      ? opened
+      : new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: WRITER_LIMIT_REACHED, repairHints: WRITER_LIMIT_REPAIR });
   }
 
   async #loweredOnto(run: {

@@ -34,6 +34,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bound crash recovery's publication probe and the writer frontier
+  ([#1075](https://github.com/git-stunts/git-warp/issues/1075)). The probe
+  reads a writer chain in one `git log` (three Git processes a probe, however
+  deep the chain), and one `Warp.open` sweep reads at most 16,388 commits. An
+  unresolved attempt whose predecessor lies more than 4,096 commits behind
+  its writer's tip answers `publication-walk-exhausted` and is left to
+  `reconcile`, so later opens do not read for it again. A new writer on a
+  graph whose frontier already holds 4,096 writers is refused before anything
+  is reserved, with cause `writer-limit-reached` and repair `reuse_writer_id`;
+  writers already in the frontier keep writing. A frontier already past the
+  limit reports `retention-refused-writer-limit` with repair
+  `compact_writer_frontier`.
 - Document garbage collection for repositories that git-warp writes to. The
   runtime never runs `git gc` and starts no `git gc --auto`. Measured with
   git-cas 7.2.0 and Git 2.39.5, a retained write adds about 55 loose objects

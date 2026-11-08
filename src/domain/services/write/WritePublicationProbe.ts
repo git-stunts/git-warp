@@ -3,41 +3,68 @@ import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.t
 import MessageCodecError from '../../errors/MessageCodecError.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import type WriteAttemptRecord from './WriteAttemptRecord.ts';
+import type WriteReadBudget from './WriteReadBudget.ts';
 
-/** Commits walked back from a writer's tip before a crash recovery stops looking. */
-const MAX_WALK = 4096;
+/** First-parent commits back from a writer's tip that one probe may search for an attempt's predecessor. */
+export const PUBLICATION_PROBE_WINDOW = 4096;
+/** The most commits one probe lists: its window, and one more that shows the predecessor lies beyond it. */
+export const PUBLICATION_PROBE_READS = PUBLICATION_PROBE_WINDOW + 1;
 
 /** The history surface a probe reads. */
 export type WritePublicationHistory = {
   readRef(ref: string): Promise<string | null>;
   getNodeInfo(sha: string): Promise<NodeInfo>;
+  /**
+   * In one read, up to `limit` commits of `stopAt..tip` along first parents, newest first.
+   * A null `stopAt` lists back to the root.
+   */
+  firstParentsSince(range: { readonly tip: string; readonly stopAt: string | null; readonly limit: number }): Promise<readonly string[]>;
 };
 
-/** What the writer's chain says about one attempt: its commit, another patch in its place, or nothing yet. */
+/**
+ * What the writer's chain says about one attempt: its commit, another patch in its place,
+ * nothing yet, or a predecessor further back than one probe reads. The chain only grows,
+ * so an `exhausted` attempt can never come back into reach.
+ */
 export type WritePublicationFinding =
   | { readonly kind: 'own'; readonly commit: string }
   | { readonly kind: 'other' }
-  | { readonly kind: 'none' };
+  | { readonly kind: 'none' }
+  | { readonly kind: 'exhausted' };
 
 const OTHER: WritePublicationFinding = Object.freeze({ kind: 'other' });
 const NONE: WritePublicationFinding = Object.freeze({ kind: 'none' });
+const EXHAUSTED: WritePublicationFinding = Object.freeze({ kind: 'exhausted' });
 
 /**
  * Reads the writer's chain, the only thing that can prove an attempt's publication.
  * A patch commit names the attempt that published it, and at most one commit can
  * follow a predecessor on a compare-and-swapped chain: if that commit names this
  * attempt it published, and if it names anything else this attempt never can.
+ * One probe costs three Git reads however deep the chain is (#1075).
  */
 export default class WritePublicationProbe {
   readonly #graph: string;
   readonly #history: WritePublicationHistory;
   readonly #messages: CommitMessageCodecPort;
+  readonly #budget: WriteReadBudget | null;
 
-  constructor(fields: { readonly graph: string; readonly history: WritePublicationHistory; readonly messages: CommitMessageCodecPort }) {
+  constructor(fields: {
+    readonly graph: string;
+    readonly history: WritePublicationHistory;
+    readonly messages: CommitMessageCodecPort;
+    readonly budget?: WriteReadBudget;
+  }) {
     this.#graph = fields.graph;
     this.#history = fields.history;
     this.#messages = fields.messages;
+    this.#budget = fields.budget ?? null;
     Object.freeze(this);
+  }
+
+  /** This probe, charging every commit it lists to `budget`. */
+  within(budget: WriteReadBudget): WritePublicationProbe {
+    return new WritePublicationProbe({ graph: this.#graph, history: this.#history, messages: this.#messages, budget });
   }
 
   /** Whether `commit` is the attempt's own: its writer, its attempt and its predecessor as parent. */
@@ -49,20 +76,26 @@ export default class WritePublicationProbe {
   async locate(record: WriteAttemptRecord): Promise<WritePublicationFinding> {
     const { writerId, predecessor } = record.premise;
     const tip = await this.#history.readRef(buildWriterRef(this.#graph, writerId));
-    return tip === null || tip === predecessor ? NONE : await this.#walkBack(tip, record);
+    return tip === null || tip === predecessor ? NONE : await this.#successor(tip, record);
   }
 
-  async #walkBack(tip: string, record: WriteAttemptRecord): Promise<WritePublicationFinding> {
-    let current: string | null = tip;
-    for (let walked = 0; current !== null && walked < MAX_WALK; walked += 1) {
-      const info: NodeInfo = await this.#history.getNodeInfo(current);
-      const parent = firstParent(info);
-      if (parent === record.premise.predecessor) {
-        return this.#isOwn(info, record) ? { kind: 'own', commit: current } : OTHER;
-      }
-      current = parent;
+  /** The oldest commit listed is the predecessor's successor, if the chain holds the predecessor at all. */
+  async #successor(tip: string, record: WriteAttemptRecord): Promise<WritePublicationFinding> {
+    const listed = await this.#history.firstParentsSince({ tip, stopAt: record.premise.predecessor, limit: PUBLICATION_PROBE_READS });
+    this.#budget?.spend(listed.length);
+    const oldest = listed.at(-1);
+    if (oldest === undefined) {
+      return NONE;
     }
-    return NONE;
+    return listed.length > PUBLICATION_PROBE_WINDOW ? EXHAUSTED : await this.#findingAt(oldest, record);
+  }
+
+  async #findingAt(commit: string, record: WriteAttemptRecord): Promise<WritePublicationFinding> {
+    const info = await this.#history.getNodeInfo(commit);
+    if (firstParent(info) !== record.premise.predecessor) {
+      return NONE;
+    }
+    return this.#isOwn(info, record) ? { kind: 'own', commit } : OTHER;
   }
 
   #isOwn(info: NodeInfo, record: WriteAttemptRecord): boolean {

@@ -69,6 +69,7 @@ function probe(fields: {
     history: {
       readRef: () => Promise.resolve(fields.tip === undefined ? OID : fields.tip),
       getNodeInfo: (sha) => Promise.resolve({ sha, message: 'm', author: 'a', date: 'd', parents: [...(fields.parents ?? [PARENT])] }),
+      firstParentsSince: () => Promise.resolve([OID]),
     },
   });
 }
@@ -212,7 +213,7 @@ describe('ConeWriteRecovery', () => {
       graph: 'g', clock: () => 1,
       custody: fields.custody as ObservationCustodyService,
       journal: fields.journal as WriteAttemptJournalPort,
-      probe: {} as WritePublicationProbe,
+      probe: probe({}),
       settlement: {} as ConeWriteSettlement,
     });
   }
