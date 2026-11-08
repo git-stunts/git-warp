@@ -387,6 +387,22 @@ Core logic must be deterministic.
 
 Use ports: `ClockPort`, and seeded PRNG or a `RandomPort`.
 
+For randomness, receive `RandomPort` (`src/ports/RandomPort.ts`) through a
+constructor or parameter, and draw only through `drawEntropy`
+(`src/domain/utils/EntropyDraw.ts`). It fails closed with `EntropyError`
+when a port returns the wrong number of bytes. Three older host-entropy reads
+do not follow this rule yet: `EntropyObservationAttemptSource.ts:9`
+(observation attempt ids), `ReceiptProvenanceRegistry.ts:47` (receipt recovery
+nonces) and `GitWriteAttemptJournalAdapter.ts:83` (the write-attempt sweep
+start). [#1114](https://github.com/git-stunts/git-warp/issues/1114) tracks
+them. Do not copy these patterns. Composition supplies `HostRandomAdapter`.
+Tests inject `test/helpers/SequenceRandomPort.ts` for exact bytes or
+`test/helpers/SeededRandomPort.ts` for spread bytes. The unit test setup
+installs the default runtime ports globally, which hides an opener that forgets
+a port. Add each standalone runtime opener to
+`test/unit/scripts/StandaloneRuntimeOpeners.test.ts`. That file resets the
+module registry and opens through the real opener with no installed resolver.
+
 ---
 
 ## 10. Complexity discipline
