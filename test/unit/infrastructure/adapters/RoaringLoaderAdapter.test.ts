@@ -3,6 +3,7 @@ import type {
   RoaringBitmap32Constructor,
   RoaringBitmapSubset,
 } from '../../../../src/domain/utils/roaring.ts';
+import { encodePortableShard } from '../../../helpers/PortableRoaringShardFixture.ts';
 
 async function importFreshAdapter(): Promise<
   typeof import('../../../../src/infrastructure/adapters/RoaringLoaderAdapter.ts')
@@ -163,4 +164,61 @@ describe('RoaringLoaderAdapter', () => {
     await expect(adapter.initRoaring()).rejects.toThrow(AggregateError);
     expect(adapter.getNativeRoaringAvailable()).toBe(false);
   });
+
+  it('validates every shard before the injected library deserializes it', async () => {
+    const adapter = await importFreshAdapter();
+    const bitmap = createBitmapConstructor({ label: 'SpiedBitmap' });
+    const deserialize = vi.spyOn(bitmap, 'deserialize');
+    await adapter.initRoaring({ RoaringBitmap32: bitmap });
+    const Bounded = adapter.getRoaringBitmap32();
+    const { default: RoaringShardRejectedError } = await import(
+      '../../../../src/domain/errors/RoaringShardRejectedError.ts'
+    );
+    const valid = encodePortableShard([{ kind: 'array', key: 0, values: [1, 2, 3] }]);
+
+    expect(() => Bounded.deserialize(valid.subarray(0, valid.length - 1), true))
+      .toThrow(RoaringShardRejectedError);
+    expect(() => Bounded.deserialize(valid, false)).toThrow(expect.objectContaining({
+      code: 'E_ROARING_SHARD_FORMAT',
+    }));
+    expect(deserialize).not.toHaveBeenCalled();
+
+    Bounded.deserialize(valid, true);
+    expect(deserialize).toHaveBeenCalledExactlyOnceWith(valid, true);
+  });
+
+  it('keeps construction and native availability on the bounded constructor', async () => {
+    const adapter = await importFreshAdapter();
+    const bitmap = createBitmapConstructor({ label: 'ConstructedBitmap', nativeAvailability: true });
+    await adapter.initRoaring({ RoaringBitmap32: bitmap });
+    const Bounded = adapter.getRoaringBitmap32();
+
+    expect(new Bounded([3, 1]).toArray()).toEqual([1, 3]);
+    expect(new Bounded()).toBeInstanceOf(bitmap);
+    expect(adapter.getNativeRoaringAvailable()).toBe(true);
+  });
+
+  it('treats a module without a usable constructor as unavailable', async () => {
+    const adapter = await importFreshAdapter();
+
+    await adapter.initRoaring(() => undefined);
+    expect(adapter.getNativeRoaringAvailable()).toBe(false);
+    await adapter.initRoaring({ default: {} });
+    expect(adapter.getNativeRoaringAvailable()).toBe(false);
+    expect(adapter.getNativeRoaringAvailable()).toBe(false);
+  });
+
+  it('reports a WASM module that does not expose RoaringBitmap32', async () => {
+    vi.doMock('roaring-wasm', () => ({
+      RoaringBitmap32: undefined,
+      default: {},
+      isNativelyInstalled: undefined,
+      roaringLibraryInitialize: undefined,
+    }));
+    const adapter = await importFreshAdapter();
+
+    await expect(adapter.initRoaring()).rejects.toThrow(AggregateError);
+    expect(() => adapter.getRoaringBitmap32()).toThrow(/did not expose RoaringBitmap32|not loaded/u);
+  });
 });
+

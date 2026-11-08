@@ -1,5 +1,7 @@
 import WarpError from '../../domain/errors/WarpError.ts';
 import type { RoaringBitmap32Constructor, RoaringModuleInput } from '../../domain/utils/roaring.ts';
+import boundRoaringConstructor from './BoundedRoaringConstructor.ts';
+import RoaringShardBounds from './RoaringShardBounds.ts';
 
 type RoaringModule = {
   readonly RoaringBitmap32: RoaringBitmap32Constructor;
@@ -30,10 +32,7 @@ function normalizeRoaringModule(value: unknown): RoaringModule | null {
   }
   const directCtor = value['RoaringBitmap32'];
   if (isRoaringBitmap32Constructor(directCtor)) {
-    const directIsNativelyInstalled = normalizeIsNativelyInstalled(value['isNativelyInstalled']);
-    return directIsNativelyInstalled === undefined
-      ? { RoaringBitmap32: directCtor }
-      : { RoaringBitmap32: directCtor, isNativelyInstalled: directIsNativelyInstalled };
+    return boundedModule(directCtor, value['isNativelyInstalled']);
   }
   const defaultValue = value['default'];
   if (!isObjectRecord(defaultValue)) {
@@ -43,10 +42,14 @@ function normalizeRoaringModule(value: unknown): RoaringModule | null {
   if (!isRoaringBitmap32Constructor(wrappedCtor)) {
     return null;
   }
-  const wrappedIsNativelyInstalled = normalizeIsNativelyInstalled(value['isNativelyInstalled']);
-  return wrappedIsNativelyInstalled === undefined
-    ? { RoaringBitmap32: wrappedCtor }
-    : { RoaringBitmap32: wrappedCtor, isNativelyInstalled: wrappedIsNativelyInstalled };
+  return boundedModule(wrappedCtor, value['isNativelyInstalled']);
+}
+
+/** Every loaded library deserializes only shards that pass the shard boundary. */
+function boundedModule(library: RoaringBitmap32Constructor, isNativelyInstalled: unknown): RoaringModule {
+  const RoaringBitmap32 = boundRoaringConstructor(library, RoaringShardBounds.standard());
+  const native = normalizeIsNativelyInstalled(isNativelyInstalled);
+  return native === undefined ? { RoaringBitmap32 } : { RoaringBitmap32, isNativelyInstalled: native };
 }
 
 function requireRoaringModule(): RoaringModule {

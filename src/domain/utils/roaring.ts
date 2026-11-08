@@ -16,7 +16,7 @@ export type RoaringBitmapSubset = {
 
 export type RoaringBitmap32Constructor = {
   new(values?: Iterable<number>): RoaringBitmapSubset;
-  deserialize(data: Uint8Array | ArrayLike<number>, portable: boolean): RoaringBitmapSubset;
+  deserialize(data: Uint8Array, portable: boolean): RoaringBitmapSubset;
   isNativelyInstalled?: () => boolean;
 };
 

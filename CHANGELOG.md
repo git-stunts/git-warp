@@ -37,6 +37,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Validate every serialized Roaring bitmap shard before the bitmap library
+  reads it. A malformed shard (truncated bytes, unknown cookie, unordered
+  keys, wrong offsets, unordered array values, bitmap or run contents that
+  disagree with the header, or trailing bytes) throws
+  `RoaringShardRejectedError` with `E_ROARING_SHARD_MALFORMED`. A shard above
+  2^24 values (`E_ROARING_SHARD_CARDINALITY`) or above 34,086,920 bytes
+  (`E_ROARING_SHARD_TOO_LARGE`) is rejected before it is loaded. Only the
+  portable format is accepted (`E_ROARING_SHARD_FORMAT`)
+  ([#1087](https://github.com/git-stunts/git-warp/issues/1087)).
 - `AuthoredWarp.execute()` reports an unavailable store while it fixes the write
   basis or reads the premise records as an `UnpublishedWriteReceipt`
   (`write-basis-unavailable`, `write-premise-unavailable`) and does not reject.

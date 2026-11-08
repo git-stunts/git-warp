@@ -138,7 +138,7 @@ describe('initRoaring', () => {
       default: { RoaringBitmap32: innerBitmap },
     });
 
-    expect(getRoaringBitmap32()).toBe(innerBitmap);
+    expect(Object.getPrototypeOf(getRoaringBitmap32())).toBe(innerBitmap);
   });
 
   it('falls through require failure into the WASM fallback', async () => {
@@ -152,6 +152,7 @@ describe('initRoaring', () => {
     }));
     vi.doMock('roaring-wasm', () => ({
       RoaringBitmap32: createBitmapConstructor({ label: 'WasmBitmap' }),
+      isNativelyInstalled: undefined,
       roaringLibraryInitialize: vi.fn(async () => {}),
     }));
 
@@ -180,7 +181,7 @@ describe('initRoaring', () => {
     expect(roaringMod.getNativeRoaringAvailable()).toBe(false);
     await roaringMod.initRoaring({ RoaringBitmap32: injectedBitmap });
 
-    expect(roaringMod.getRoaringBitmap32()).toBe(injectedBitmap);
+    expect(Object.getPrototypeOf(roaringMod.getRoaringBitmap32())).toBe(injectedBitmap);
     expect(roaringMod.getNativeRoaringAvailable()).toBe(false);
   });
 
@@ -191,7 +192,7 @@ describe('initRoaring', () => {
     await roaringMod.initRoaring({ RoaringBitmap32: bitmap });
     await expect(roaringMod.initRoaring()).resolves.toBeUndefined();
 
-    expect(roaringMod.getRoaringBitmap32()).toBe(bitmap);
+    expect(Object.getPrototypeOf(roaringMod.getRoaringBitmap32())).toBe(bitmap);
   });
 });
 
@@ -222,3 +223,18 @@ describe('getNativeRoaringAvailable', () => {
     expect(roaringMod.getNativeRoaringAvailable()).toBe(false);
   });
 });
+
+describe('roaring without its loader adapter', () => {
+  it('reports the loader failure and no native availability', async () => {
+    vi.doMock('../../../../src/infrastructure/adapters/RoaringLoaderAdapter.ts', () => {
+      throw new Error('adapter import failed');
+    });
+    const roaringMod = await importFreshRoaring();
+
+    expect(() => roaringMod.getRoaringBitmap32()).toThrow(/Roaring loader adapter not available\. Caused by: /u);
+    await expect(roaringMod.initRoaring()).rejects.toThrow(/Roaring loader adapter not available/u);
+    expect(roaringMod.getNativeRoaringAvailable()).toBe(false);
+    vi.doUnmock('../../../../src/infrastructure/adapters/RoaringLoaderAdapter.ts');
+  });
+});
+

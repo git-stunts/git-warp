@@ -23,6 +23,7 @@ The `GitGraphAdapter` validates all ref arguments to prevent injection attacks:
 
 - **Streaming-First**: Large graph traversals use async generators to prevent OOM
 - **Bitmap Indexing**: Sharded Roaring Bitmap indexes enable O(1) lookups without loading entire graphs
+- **Bitmap Shard Validation**: Every serialized Roaring bitmap shard is validated before the bitmap library reads it. The boundary checks the portable format structure, container headers, offsets, and container contents, and rejects a shard above 2^24 values or 34,086,920 bytes with `RoaringShardRejectedError`
 - **Delimiter Safety**: Uses ASCII Record Separator (`\x1E`) to prevent message collision
 
 ## Sync Authentication (SHIELD)
