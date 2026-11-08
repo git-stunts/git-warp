@@ -13,6 +13,8 @@ import MemoryRuntimeStorageAdapter from '../../../../test/helpers/MemoryRuntimeS
 import { createFakeCodecPort, createMockCrypto } from '../../../helpers/mockPorts.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
+import HostRandomAdapter from '../../../../src/infrastructure/adapters/HostRandomAdapter.ts';
+import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
 
 import type { NormalizedTrustConfig } from '../../../../src/domain/runtimeHelpers.ts';
 
@@ -106,6 +108,8 @@ describe('RuntimeHostPortResolvers', () => {
       .resolves.toBe(commitMessageCodec);
     await expect(resolvers.resolveConfiguredCodec(codec)).resolves.toBe(codec);
     await expect(resolvers.resolveConfiguredCrypto(crypto)).resolves.toBe(crypto);
+    const random = new SequenceRandomPort();
+    await expect(resolvers.resolveConfiguredRandom(random)).resolves.toBe(random);
     await expect(resolvers.resolveConfiguredTrustCrypto(trustCrypto, TRUST_ENFORCE))
       .resolves.toBe(trustCrypto);
     await expect(resolvers.resolveConfiguredRuntimeStorage(runtimeStorage))
@@ -121,6 +125,29 @@ describe('RuntimeHostPortResolvers', () => {
     await expect(resolvers.resolveConfiguredCrypto(undefined)).rejects.toMatchObject({
       code: 'E_CRYPTO_REQUIRED',
     });
+    await expect(resolvers.resolveConfiguredRandom(undefined)).rejects.toMatchObject({
+      code: 'E_RANDOM_REQUIRED',
+      message: expect.stringMatching(/RandomPort.*HostRandomAdapter.*install the default runtime ports/u),
+    });
+  });
+
+  it('rejects a missing commit message codec when no resolver is installed', async () => {
+    const resolvers = await loadResolvers();
+
+    await expect(resolvers.resolveConfiguredCommitMessageCodec(undefined)).rejects.toMatchObject({ code: 'E_MESSAGE_CODEC_REQUIRED' });
+  });
+
+  it('installs host entropy with the node runtime defaults', async () => {
+    const resolvers = await loadResolvers();
+    const { installDefaultRuntimeHostNodePorts } = await import(
+      '../../../../src/application/RuntimeHostNodeDefaults.ts'
+    );
+
+    installDefaultRuntimeHostNodePorts();
+
+    const random = await resolvers.resolveConfiguredRandom(undefined);
+    expect(random.constructor.name).toBe(HostRandomAdapter.name);
+    expect(random.randomBytes(8)).toHaveLength(8);
   });
 
   it.each([undefined, null])('rejects missing runtime storage %s', async (runtimeStorage) => {
@@ -141,6 +168,7 @@ describe('RuntimeHostPortResolvers', () => {
 
     await expect(resolvers.resolveConfiguredCodec(undefined)).resolves.toBeDefined();
     await expect(resolvers.resolveConfiguredCrypto(undefined)).resolves.toBeDefined();
+    await expect(resolvers.resolveConfiguredRandom(undefined)).resolves.toBeDefined();
     await expect(
       resolvers.resolveConfiguredRuntimeStorage(undefined),
     ).rejects.toMatchObject({ code: 'E_RUNTIME_STORAGE_REQUIRED' });
