@@ -1,10 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   createWormhole as createWormholeWithCodec,
-  composeWormholes,
-  replayWormhole,
-  serializeWormhole,
-  deserializeWormhole,
 } from '../../../../src/domain/services/WormholeService.ts';
 import ProvenancePayload from '../../../../src/domain/services/provenance/ProvenancePayload.ts';
 import WormholeError from '../../../../src/domain/errors/WormholeError.ts';
@@ -396,7 +392,7 @@ describe('WormholeService', () => {
     });
   });
 
-  describe('replayWormhole', () => {
+  describe('replaying a wormhole payload', () => {
     it('replays a wormhole to produce correct state', async () => {
       const patch1 = createPatch({
         writer: 'alice',
@@ -431,7 +427,7 @@ describe('WormholeService', () => {
         toSha: getSha(3),
       });
 
-      const state = replayWormhole(wormhole);
+      const state = wormhole.payload.replay();
 
       // Verify nodes
       expect(state.nodeAlive.contains('node-a')).toBe(true);
@@ -478,296 +474,11 @@ describe('WormholeService', () => {
         toSha: getSha(1),
       });
 
-      const state = replayWormhole(wormhole, initialState);
+      const state = wormhole.payload.replay(initialState);
 
       // Both nodes should exist
       expect(state.nodeAlive.contains('initial-node')).toBe(true);
       expect(state.nodeAlive.contains('node-a')).toBe(true);
-    });
-  });
-
-  describe('composeWormholes', () => {
-    it('composes two consecutive wormholes', async () => {
-      const patch1 = createPatch({
-        writer: 'alice',
-        lamport: 1,
-        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
-      });
-      const patch2 = createPatch({
-        writer: 'alice',
-        lamport: 2,
-        ops: [createNodeAddV2('node-b', Dot.create('alice', 2))],
-      });
-      const patch3 = createPatch({
-        writer: 'alice',
-        lamport: 3,
-        ops: [createNodeAddV2('node-c', Dot.create('alice', 3))],
-      });
-      const patch4 = createPatch({
-        writer: 'alice',
-        lamport: 4,
-        ops: [createNodeAddV2('node-d', Dot.create('alice', 4))],
-      });
-
-      const commits = [
-        { index: 1, patch: patch1, parentIndex: null, writerId: 'alice', lamport: 1 },
-        { index: 2, patch: patch2, parentIndex: 1, writerId: 'alice', lamport: 2 },
-        { index: 3, patch: patch3, parentIndex: 2, writerId: 'alice', lamport: 3 },
-        { index: 4, patch: patch4, parentIndex: 3, writerId: 'alice', lamport: 4 },
-      ];
-
-      const { persistence, getSha } = createMockPersistence(commits);
-
-      // Create two wormholes
-      const wormhole1 = await createWormhole({
-        persistence,
-        graphName: 'test-graph',
-        fromSha: getSha(1),
-        toSha: getSha(2),
-      });
-
-      const wormhole2 = await createWormhole({
-        persistence,
-        graphName: 'test-graph',
-        fromSha: getSha(3),
-        toSha: getSha(4),
-      });
-
-      // Compose them
-      const composed = await composeWormholes(wormhole1, wormhole2, { persistence });
-
-      expect(composed.fromSha).toBe(getSha(1));
-      expect(composed.toSha).toBe(getSha(4));
-      expect(composed.writerId).toBe('alice');
-      expect(composed.patchCount).toBe(4);
-      expect(composed.payload.length).toBe(4);
-
-      // Verify replay produces correct state
-      const state = replayWormhole(composed);
-      expect(state.nodeAlive.contains('node-a')).toBe(true);
-      expect(state.nodeAlive.contains('node-b')).toBe(true);
-      expect(state.nodeAlive.contains('node-c')).toBe(true);
-      expect(state.nodeAlive.contains('node-d')).toBe(true);
-    });
-
-    it('throws E_WORMHOLE_MULTI_WRITER for different writers', async () => {
-      // Create mock wormholes with different writers
-      const wormhole1 = {
-        fromSha: generateOid(1000),
-        toSha: generateOid(2000),
-        writerId: 'alice',
-        patchCount: 2,
-        payload: new ProvenancePayload([]),
-      };
-
-      const wormhole2 = {
-        fromSha: generateOid(3000),
-        toSha: generateOid(4000),
-        writerId: 'bob',
-        patchCount: 2,
-        payload: new ProvenancePayload([]),
-      };
-
-      await expect(composeWormholes(wormhole1, wormhole2)).rejects.toMatchObject({
-        code: 'E_WORMHOLE_MULTI_WRITER',
-      });
-    });
-
-    it('throws E_WORMHOLE_INVALID_RANGE when persistence proves wormholes are not consecutive', async () => {
-      const wormhole1 = {
-        fromSha: generateOid(9000),
-        toSha: generateOid(9001),
-        writerId: 'alice',
-        patchCount: 1,
-        payload: new ProvenancePayload([]),
-      };
-      const wormhole2 = {
-        fromSha: generateOid(9002),
-        toSha: generateOid(9003),
-        writerId: 'alice',
-        patchCount: 1,
-        payload: new ProvenancePayload([]),
-      };
-      const persistence = {
-        getNodeInfo: vi.fn(async () => ({ parents: [generateOid(9999)] })),
-      };
-
-      await expect(composeWormholes(
-        (wormhole1 as any),
-        (wormhole2 as any),
-        { persistence: (persistence as any) },
-      )).rejects.toMatchObject({
-        code: 'E_WORMHOLE_INVALID_RANGE',
-        context: {
-          firstToSha: wormhole1.toSha,
-          secondFromSha: wormhole2.fromSha,
-        },
-      });
-    });
-
-    it('composition is associative (monoid property)', async () => {
-      const patches: any[] = [];
-      for (let i = 1; i <= 6; i++) {
-        patches.push(createPatch({
-          writer: 'alice',
-          lamport: i,
-          ops: [createNodeAddV2(`node-${i}`, Dot.create('alice', i))],
-        }));
-      }
-
-      const commits = patches.map((patch, i) => ({
-        index: i + 1,
-        patch,
-        parentIndex: i > 0 ? i : null,
-        writerId: 'alice',
-        lamport: i + 1,
-      }));
-
-      const { persistence, getSha } = createMockPersistence(commits);
-
-      // Create three wormholes
-      const w1 = await createWormhole({
-        persistence,
-        graphName: 'test-graph',
-        fromSha: getSha(1),
-        toSha: getSha(2),
-      });
-
-      const w2 = await createWormhole({
-        persistence,
-        graphName: 'test-graph',
-        fromSha: getSha(3),
-        toSha: getSha(4),
-      });
-
-      const w3 = await createWormhole({
-        persistence,
-        graphName: 'test-graph',
-        fromSha: getSha(5),
-        toSha: getSha(6),
-      });
-
-      // Test associativity: (w1 . w2) . w3 === w1 . (w2 . w3)
-      const leftAssoc = await composeWormholes(await composeWormholes(w1, w2, { persistence }), w3, { persistence });
-      const rightAssoc = await composeWormholes(w1, await composeWormholes(w2, w3, { persistence }), { persistence });
-
-      // Both should have same properties
-      expect(leftAssoc.fromSha).toBe(rightAssoc.fromSha);
-      expect(leftAssoc.toSha).toBe(rightAssoc.toSha);
-      expect(leftAssoc.patchCount).toBe(rightAssoc.patchCount);
-
-      // Both should produce same state
-      const stateLeft = replayWormhole(leftAssoc);
-      const stateRight = replayWormhole(rightAssoc);
-
-      for (let i = 1; i <= 6; i++) {
-        expect(stateLeft.nodeAlive.contains(`node-${i}`)).toBe(
-          stateRight.nodeAlive.contains(`node-${i}`)
-        );
-      }
-    });
-  });
-
-  describe('serialization', () => {
-    it('roundtrips correctly', async () => {
-      const patch1 = createPatch({
-        writer: 'alice',
-        lamport: 1,
-        ops: [createNodeAddV2('node-a', Dot.create('alice', 1))],
-      });
-      const patch2 = createPatch({
-        writer: 'alice',
-        lamport: 2,
-        ops: [
-          createNodeAddV2('node-b', Dot.create('alice', 2)),
-          createPropSetV2('node-a', 'val', createInlineValue(42)),
-        ],
-      });
-
-      const commits = [
-        { index: 1, patch: patch1, parentIndex: null, writerId: 'alice', lamport: 1 },
-        { index: 2, patch: patch2, parentIndex: 1, writerId: 'alice', lamport: 2 },
-      ];
-
-      const { persistence, getSha } = createMockPersistence(commits);
-      const original = await createWormhole({
-        persistence,
-        graphName: 'test-graph',
-        fromSha: getSha(1),
-        toSha: getSha(2),
-      });
-
-      // Serialize and deserialize
-      const json = serializeWormhole(original);
-      const restored = deserializeWormhole(json);
-
-      expect(restored.fromSha).toBe(original.fromSha);
-      expect(restored.toSha).toBe(original.toSha);
-      expect(restored.writerId).toBe(original.writerId);
-      expect(restored.patchCount).toBe(original.patchCount);
-      expect(restored.payload.length).toBe(original.payload.length);
-
-      // Replaying both should produce same state
-      const stateOriginal = replayWormhole(original);
-      const stateRestored = replayWormhole(restored);
-
-      expect(stateOriginal.nodeAlive.contains('node-a')).toBe(
-        stateRestored.nodeAlive.contains('node-a')
-      );
-      expect(stateOriginal.nodeAlive.contains('node-b')).toBe(
-        stateRestored.nodeAlive.contains('node-b')
-      );
-    });
-
-    it('throws on null/undefined input', () => {
-      expect(() => deserializeWormhole((null as any))).toThrow(WormholeError);
-      expect(() => deserializeWormhole((null as any))).toThrow('expected object');
-      expect(() => deserializeWormhole((undefined as any))).toThrow(WormholeError);
-    });
-
-    it('throws on missing required fields', () => {
-      const validBase = {
-        fromSha: 'abc123',
-        toSha: 'def456',
-        writerId: 'alice',
-        patchCount: 2,
-        payload: { version: 1, patches: [] },
-      };
-
-      // Test each required field
-      for (const field of ['fromSha', 'toSha', 'writerId', 'patchCount', 'payload']) {
-        const incomplete: any = { ...validBase };
-        delete incomplete[field];
-        expect(() => deserializeWormhole(incomplete)).toThrow(`missing required field '${field}'`);
-      }
-    });
-
-    it('throws on invalid patchCount', () => {
-      expect(() => deserializeWormhole({
-        fromSha: 'abc123',
-        toSha: 'def456',
-        writerId: 'alice',
-        patchCount: -1,
-        payload: { version: 1, patches: [] },
-      })).toThrow('patchCount must be a non-negative number');
-
-      expect(() => deserializeWormhole({
-        fromSha: 'abc123',
-        toSha: 'def456',
-        writerId: 'alice',
-        patchCount: 'two',
-        payload: { version: 1, patches: [] },
-      })).toThrow('patchCount must be a non-negative number');
-    });
-
-    it('throws when fromSha is not a string', () => {
-      expect(() => deserializeWormhole({
-        fromSha: 123,
-        toSha: 'def456',
-        writerId: 'alice',
-        patchCount: 1,
-        payload: { version: 1, patches: [] },
-      })).toThrow("fromSha' must be a string");
     });
   });
 
@@ -805,7 +516,7 @@ describe('WormholeService', () => {
       });
 
       // Replay wormhole, then apply remaining patches
-      const wormholeState = replayWormhole(wormhole);
+      const wormholeState = wormhole.payload.replay();
       const remainingPatches = patches.slice(5).map((patch, i) => ({
         patch,
         sha: getSha(i + 6),
@@ -875,15 +586,8 @@ describe('WormholeService', () => {
         toSha: getSha(15),
       });
 
-      // Compose all three
-      const composed = await composeWormholes(
-        await composeWormholes(w1, w2, { persistence }),
-        w3,
-        { persistence }
-      );
-
-      // Replay composed wormhole + remaining patches (16-20)
-      const wormholeState = replayWormhole(composed);
+      // Replay the three wormholes in order, then the remaining patches (16-20)
+      const wormholeState = w3.payload.replay(w2.payload.replay(w1.payload.replay()));
       const remainingPatches = patches.slice(15).map((patch, i) => ({
         patch,
         sha: getSha(i + 16),
@@ -928,7 +632,7 @@ describe('WormholeService', () => {
       });
 
       expect(wormhole.patchCount).toBe(1);
-      const state = replayWormhole(wormhole);
+      const state = wormhole.payload.replay();
       expect(state.nodeAlive.contains('root')).toBe(true);
     });
 
@@ -959,7 +663,7 @@ describe('WormholeService', () => {
         toSha: getSha(1),
       });
 
-      const state = replayWormhole(wormhole);
+      const state = wormhole.payload.replay();
 
       expect(state.nodeAlive.contains('a')).toBe(true);
       expect(state.nodeAlive.contains('b')).toBe(true);

@@ -16,7 +16,7 @@
 
 import computeShardKey from '../../utils/shardKey.ts';
 import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roaring.ts';
-import { ShardIdOverflowError } from '../../errors/index.ts';
+import ShardIdOverflowError from '../../errors/ShardIdOverflowError.ts';
 import { MetaShard } from '../../artifacts/MetaShard.ts';
 import { EdgeShard } from '../../artifacts/EdgeShard.ts';
 import { LabelShard } from '../../artifacts/LabelShard.ts';

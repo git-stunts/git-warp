@@ -7,8 +7,10 @@ import { inspectPublishedIntentSequence } from '../../api/PublishedIntentSequenc
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import type WarpWriteGrant from '../../api/WarpWriteGrant.ts';
 import WriteOccurrence from '../../api/WriteOccurrence.ts';
-import { operationalWriteFailure } from '../../api/WriteRuntime.ts';
+import { invalidObservationMetadata, operationalWriteFailure } from '../../api/WriteRuntime.ts';
+import ConeStoreUnavailableError from '../../errors/ConeStoreUnavailableError.ts';
 import WarpError from '../../errors/WarpError.ts';
+import WriteHistoryCorruptError from '../../errors/WriteHistoryCorruptError.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
 import { textEncode } from '../../utils/bytes.ts';
 import { readPatchBuilderCausalBasis } from '../admission/PatchBuilderCausalBasis.ts';
@@ -36,6 +38,8 @@ import { writeRaceOf } from './writeRaceOf.ts';
 export const WRITE_PURPOSE = 'git-warp:purpose/write-admission/v1';
 const WRITE_QUESTION = new ObservationQuestion('git-warp:question/write-premise', 1);
 const WRITE_LAW = 'git-warp:admission-law/cone-write/v1';
+const BASIS_UNAVAILABLE = 'write-basis-unavailable';
+const PREMISE_UNAVAILABLE = 'write-premise-unavailable';
 const WRITER_LIMIT_REACHED = 'writer-limit-reached';
 const WRITER_LIMIT_REPAIR = Object.freeze([Object.freeze({
   code: 'reuse_writer_id',
@@ -53,7 +57,7 @@ type LoweringRequest = {
 
 /**
  * Reads a write's premises from one fixed cone basis and lowers its intents
- * (#1051). Nothing here reserves or publishes, so every failure is known unpublished.
+ * (#1051). Nothing here reserves or publishes, so a receipt it returns is known unpublished.
  */
 export default class ConeWriteLowering {
   readonly #graph: string;
@@ -101,14 +105,20 @@ export default class ConeWriteLowering {
     }
   }
 
-  /** Nothing has been reserved, so a store that fails here leaves a write known not to have published. */
+  /**
+   * Nothing has been reserved, so an unavailable store here leaves a write known not to
+   * have published (#1079). Any other failure, a defect or corruption, rejects.
+   */
   async #opened(writer: string): Promise<OpenedWrite | UnpublishedWriteReceipt> {
     try {
       const builder = await this.#openPatch(writer);
       const premise = await this.#cone.writePremise();
       return premise instanceof ConeObstruction ? this.#unpublished(writer, coneObstructionFailure(premise)) : this.#admitted(writer, { builder, premise });
-    } catch {
-      return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: 'write-basis-unavailable' });
+    } catch (error) {
+      if (error instanceof ConeStoreUnavailableError) {
+        return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: BASIS_UNAVAILABLE });
+      }
+      throw error;
     }
   }
 
@@ -128,7 +138,10 @@ export default class ConeWriteLowering {
     const targets = coneWriteTargets(request.sequence);
     const seen = this.#knowledge.seen(premise.from);
     const observed = targets.readsRecords() ? premise.basis : seen;
-    await builder.prepareConeWriteBasis(targets, premise, observed);
+    const unread = await this.#premiseRead({ writer: request.writer, builder, targets, premise, observed });
+    if (unread !== null) {
+      return unread;
+    }
     applyIntentSequenceToPatch(request.sequence, builder, this.#content);
     if (builder.ops.length > request.grant.budget.work) {
       return new UnpublishedWriteReceipt({ graph: this.#graph, writer: request.writer, cause: 'budget-exhausted' });
@@ -142,6 +155,45 @@ export default class ConeWriteLowering {
       occurrences: occurrencesOf(request.sequence, builder),
       fold: new PatchEntryFold(this.#cone, predecessor),
     });
+  }
+
+  /**
+   * Reads the premise records from the store (#1079). Nothing is reserved yet, so an
+   * unavailable store leaves a write known not to have published. An expected write
+   * refusal keeps its own cause. A defect, a broken invariant or corruption rejects:
+   * corrupt patch history becomes `WriteHistoryCorruptError`, not a missing-basis refusal.
+   */
+  async #premiseRead(run: {
+    readonly writer: string;
+    readonly builder: PatchBuilder;
+    readonly targets: ConeWriteTargets;
+    readonly premise: ConeWritePremise;
+    readonly observed: ConeBasis;
+  }): Promise<UnpublishedWriteReceipt | null> {
+    try {
+      await run.builder.prepareConeWriteBasis(run.targets, run.premise, run.observed);
+      return null;
+    } catch (error) {
+      if (error instanceof ConeStoreUnavailableError) {
+        return new UnpublishedWriteReceipt({ graph: this.#graph, writer: run.writer, cause: PREMISE_UNAVAILABLE });
+      }
+      if (!(error instanceof WarpError)) {
+        throw error;
+      }
+      return this.#premiseRefusal(run.writer, error);
+    }
+  }
+
+  /** An expected write refusal keeps its own cause; corrupt history and anything else reject. */
+  #premiseRefusal(writer: string, error: WarpError): UnpublishedWriteReceipt {
+    if (invalidObservationMetadata(error)) {
+      throw new WriteHistoryCorruptError(error);
+    }
+    const refused = this.#operational(writer, error);
+    if (refused === null) {
+      throw error;
+    }
+    return refused;
   }
 
   async #bindings(fields: {
@@ -179,11 +231,19 @@ export default class ConeWriteLowering {
   }
 
   #loweringFailure(writer: string, error: WarpError): UnpublishedWriteReceipt {
-    const failure = operationalWriteFailure(error);
-    if (failure === null) {
+    const refused = this.#operational(writer, error);
+    if (refused === null) {
       throw error;
     }
-    return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: failure.reason.code, repairHints: failure.repairHints });
+    return refused;
+  }
+
+  /** An expected write refusal, with its own cause and repair; null for any other failure. */
+  #operational(writer: string, error: WarpError): UnpublishedWriteReceipt | null {
+    const failure = operationalWriteFailure(error);
+    return failure === null
+      ? null
+      : new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: failure.reason.code, repairHints: failure.repairHints });
   }
 
   #unpublished(writer: string, failure: ReturnType<typeof coneObstructionFailure>): UnpublishedWriteReceipt {

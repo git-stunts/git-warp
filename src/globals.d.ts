@@ -74,6 +74,20 @@ declare var Deno: typeof Deno | undefined;
 /*  Untyped substrate packages                                        */
 /* ------------------------------------------------------------------ */
 
+declare module '@git-stunts/plumbing/errors' {
+  export class GitPlumbingError extends Error {
+    constructor(_message: string, _operation: string, _details?: object);
+    readonly operation: string;
+    readonly details: object;
+  }
+
+  /** Thrown by plumbing's own classifier when a Git command fails on a held lock file. */
+  export class GitRepositoryLockedError extends GitPlumbingError {}
+
+  /** Thrown when a long-lived Git process ends or answers out of protocol. */
+  export class GitProtocolError extends GitPlumbingError {}
+}
+
 declare module '@git-stunts/plumbing' {
   export type GitObjectInfo = Readonly<{
     oid: string;
