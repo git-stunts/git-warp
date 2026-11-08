@@ -6,7 +6,7 @@
  * not pass through that boundary, so without this step a `Patch` built at
  * sync ingress would hold raw wire records, and its constructor checks
  * (such as the same-patch remove ownership check) could not see them.
- * Unknown op types stay raw, so `applySyncResponse` can still refuse them
+ * Unrecognised op types stay raw, so `applySyncResponse` can still refuse them
  * with `SchemaUnsupportedError`.
  *
  * @module domain/services/sync/SyncIngressOps
@@ -31,7 +31,7 @@ function isRuntimePatchOp(op: object): op is PatchOp {
   return RUNTIME_OP_CLASSES.some((OpClass) => op instanceof OpClass);
 }
 
-/** Hydrates known ops into runtime classes; unknown op types pass through unchanged. */
+/** Hydrates recognised ops into runtime classes; other op types pass through unchanged. */
 export default function hydrateSyncIngressOps(ops: readonly PatchOp[]): PatchOp[] {
   return ops.map((op) => {
     const hydrated = hydrateDecodedOp(op);
