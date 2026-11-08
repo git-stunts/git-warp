@@ -229,9 +229,10 @@ they do not repeat these rules.
   resources"). Locks protect scoped assets only. Work in your own isolated
   worktree needs no lock. Take a lock when you share a worktree or a Docker
   container with other agents, or when you use a shared resource that has
-  exclusive access or a capacity. That rule still names `host/heavy-work` for
-  expensive builds and test campaigns, and `.git/` for shared Git metadata
-  changes, such as worktree creation and removal.
+  exclusive access or a capacity. `host/heavy-work` is for long, machine-scale
+  campaigns (multi-hour fuzz, benchmark or soak runs), not for a bounded check
+  in a per-run container. Take `.git/` for worktree creation, moves and removal.
+  Commits, fetches and merges in your own worktree need no lock.
 
 ### Scope and review size
 
