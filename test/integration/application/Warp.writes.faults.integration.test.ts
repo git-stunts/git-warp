@@ -10,6 +10,7 @@ import ObservationAttemptId from '../../../src/domain/services/custody/Observati
 import { textDecode } from '../../../src/domain/utils/bytes.ts';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import GitConeRecordStoreAdapter from '../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
 import GitWriteAttemptJournalAdapter from '../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
 import {
@@ -255,6 +256,24 @@ describe('custody that cannot answer', () => {
 
     retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
     expect(contended).toBe(0);
+  });
+});
+
+describe('a store that fails before publication is permitted', () => {
+  it('returns an unpublished receipt, not a rejection, when the premise records cannot be read', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
+    const before = tip(path, 'alice');
+    vi.spyOn(GitConeRecordStoreAdapter.prototype, 'readRecords').mockRejectedValueOnce(new Error('disk went away'));
+
+    const receipt = unpublished(await warp.as('alice').execute(intent.node.remove({ subject: 'x' })));
+
+    expect(receipt.cause).toBe('write-premise-unavailable');
+    expect(tip(path, 'alice')).toBe(before);
+    expect(attemptRefs(path)).toEqual([]);
+    retained(await warp.as('alice').execute(intent.node.remove({ subject: 'x' })));
+    expect((await materialized(path)).nodes).toEqual([]);
   });
 });
 

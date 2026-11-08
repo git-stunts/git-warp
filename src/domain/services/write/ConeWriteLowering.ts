@@ -35,6 +35,7 @@ import { writeRaceOf } from './writeRaceOf.ts';
 export const WRITE_PURPOSE = 'git-warp:purpose/write-admission/v1';
 const WRITE_QUESTION = new ObservationQuestion('git-warp:question/write-premise', 1);
 const WRITE_LAW = 'git-warp:admission-law/cone-write/v1';
+const PREMISE_UNAVAILABLE = 'write-premise-unavailable';
 
 type LoweringRequest = {
   readonly writer: string;
@@ -109,7 +110,10 @@ export default class ConeWriteLowering {
     const targets = coneWriteTargets(request.sequence);
     const seen = this.#knowledge.seen(premise.from);
     const observed = targets.readsRecords() ? premise.basis : seen;
-    await builder.prepareConeWriteBasis(targets, premise, observed);
+    const unread = await this.#premiseRead({ writer: request.writer, builder, targets, premise, observed });
+    if (unread !== null) {
+      return unread;
+    }
     applyIntentSequenceToPatch(request.sequence, builder, this.#content);
     if (builder.ops.length > request.grant.budget.work) {
       return new UnpublishedWriteReceipt({ graph: this.#graph, writer: request.writer, cause: 'budget-exhausted' });
@@ -123,6 +127,27 @@ export default class ConeWriteLowering {
       occurrences: occurrencesOf(request.sequence, builder),
       fold: new PatchEntryFold(this.#cone, predecessor),
     });
+  }
+
+  /**
+   * Reads the premise records from the store (#1079). Nothing is reserved yet, so a store
+   * that fails here, whatever it throws, leaves a write known not to have published. An
+   * expected write refusal keeps its own cause.
+   */
+  async #premiseRead(run: {
+    readonly writer: string;
+    readonly builder: PatchBuilder;
+    readonly targets: ConeWriteTargets;
+    readonly premise: ConeWritePremise;
+    readonly observed: ConeBasis;
+  }): Promise<UnpublishedWriteReceipt | null> {
+    try {
+      await run.builder.prepareConeWriteBasis(run.targets, run.premise, run.observed);
+      return null;
+    } catch (error) {
+      const refused = error instanceof WarpError ? this.#operational(run.writer, error) : null;
+      return refused ?? new UnpublishedWriteReceipt({ graph: this.#graph, writer: run.writer, cause: PREMISE_UNAVAILABLE });
+    }
   }
 
   async #bindings(fields: {
@@ -160,11 +185,19 @@ export default class ConeWriteLowering {
   }
 
   #loweringFailure(writer: string, error: WarpError): UnpublishedWriteReceipt {
-    const failure = operationalWriteFailure(error);
-    if (failure === null) {
+    const refused = this.#operational(writer, error);
+    if (refused === null) {
       throw error;
     }
-    return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: failure.reason.code, repairHints: failure.repairHints });
+    return refused;
+  }
+
+  /** An expected write refusal, with its own cause and repair; null for any other failure. */
+  #operational(writer: string, error: WarpError): UnpublishedWriteReceipt | null {
+    const failure = operationalWriteFailure(error);
+    return failure === null
+      ? null
+      : new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: failure.reason.code, repairHints: failure.repairHints });
   }
 
   #unpublished(writer: string, failure: ReturnType<typeof coneObstructionFailure>): UnpublishedWriteReceipt {
