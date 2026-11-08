@@ -37,6 +37,8 @@ import WriteAttemptRecord from '../../../../../src/domain/services/write/WriteAt
 import type WritePublicationProbe from '../../../../../src/domain/services/write/WritePublicationProbe.ts';
 import { failedWriteCore, publishedWriteCore } from '../../../../../src/domain/services/write/writeReceiptCore.ts';
 import { textDecode } from '../../../../../src/domain/utils/bytes.ts';
+import { canonicalStringify } from '../../../../../src/domain/utils/canonicalStringify.ts';
+import { boundRaces } from '../../../../helpers/WarpWriteFixture.ts';
 import GitWriteAttemptJournalAdapter, { type WriteAttemptHistory } from '../../../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import ObservationCustodyCborCodec from '../../../../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
 import codec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -74,12 +76,6 @@ function record(races: readonly WriteRace[] = [TITLE_RACE, BOB_REMOVED, DAVE_BOD
 function wire(race: WriteRace): object {
   const { kind, subject, key, writers, overflow, causality } = race;
   return { kind, subject, key, writers: [...writers], overflow, causality };
-}
-
-/** Decoded here only to compare: nothing in core reads a core back yet (#1053). */
-function coreRaces(core: ObservationReceiptCore): object {
-  const outcome: { readonly races?: unknown } = JSON.parse(textDecode(core.outcome()));
-  return outcome.races ?? 'no races bound';
 }
 
 const PLURAL_CORE = '{"admission":"plural","commit":"cccccccccccccccccccccccccccccccccccccccc","graph":"g","intents":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","occurrences":[],"predecessor":"dddddddddddddddddddddddddddddddddddddddd",'
@@ -161,8 +157,8 @@ describe('the canonical write receipt core', () => {
   });
 
   it('binds an empty race list for a derived write, and none for a write that never published', () => {
-    expect(coreRaces(publishedWriteCore('g', record([]), COMMIT))).toEqual([]);
-    expect(coreRaces(failedWriteCore('g', record(), 'stale-predecessor'))).toBe('no races bound');
+    expect(boundRaces(publishedWriteCore('g', record([]), COMMIT))).toBe('[]');
+    expect(boundRaces(failedWriteCore('g', record(), 'stale-predecessor'))).toBe('no races bound');
   });
 
   it('round-trips through the custody codec byte for byte', () => {
@@ -189,7 +185,7 @@ describe('a settled write reports the races its core binds', () => {
 
     expect(receipt).toBeInstanceOf(UnretainedWriteReceipt);
     expect(receipt.outcome.kind).toBe('plural');
-    expect(receipt.outcome.races.map(wire)).toEqual(core === undefined ? null : coreRaces(core));
+    expect(core === undefined ? null : boundRaces(core)).toBe(canonicalStringify(receipt.outcome.races.map(wire)));
   });
 
   /** Recovery over custody that settled `retained`, the exact core bytes custody would have kept, for the record `saved`. */
@@ -224,7 +220,7 @@ describe('a settled write reports the races its core binds', () => {
     const rebuilt = await recovery.reconcile('alice', ATTEMPT.value);
 
     expect(rebuilt).toBeInstanceOf(RetainedWriteReceipt);
-    expect(rebuilt instanceof RetainedWriteReceipt ? rebuilt.outcome.races.map(wire) : null).toEqual(coreRaces(core));
+    expect(canonicalStringify(rebuilt instanceof RetainedWriteReceipt ? rebuilt.outcome.races.map(wire) : null)).toBe(boundRaces(core));
     expect(remove).toHaveBeenCalledOnce();
   });
 

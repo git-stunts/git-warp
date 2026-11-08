@@ -19,6 +19,8 @@ import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts
 import { overrideWarpComposition, type WarpCompositionOverrides } from '../../src/application/WarpWriteComposition.ts';
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';
 import { buildWriteAttemptsPrefix } from '../../src/domain/utils/WriteAttemptRefLayout.ts';
+import type ObservationReceiptCore from '../../src/domain/services/custody/ObservationReceiptCore.ts';
+import { textDecode } from '../../src/domain/utils/bytes.ts';
 import EdgeAdd from '../../src/domain/types/ops/EdgeAdd.ts';
 import NodeAdd from '../../src/domain/types/ops/NodeAdd.ts';
 import { openRuntimeHostProduct, type RuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
@@ -173,3 +175,14 @@ export async function addDots(path: string, writers: readonly string[]): Promise
     return dots;
   });
 }
+
+/**
+ * The `races` text a receipt core binds, cut from its canonical outcome without decoding it:
+ * outcome keys are sorted, so `races` is followed by `version`.
+ */
+export function boundRaces(core: ObservationReceiptCore): string {
+  const text = textDecode(core.outcome());
+  const start = text.indexOf('"races":');
+  return start === -1 ? 'no races bound' : text.slice(start + '"races":'.length, text.indexOf(',"version":', start));
+}
+

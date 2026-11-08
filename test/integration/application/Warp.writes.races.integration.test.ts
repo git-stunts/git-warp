@@ -9,12 +9,12 @@ import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIn
 import ObservationCoordinate from '../../../src/domain/services/custody/ObservationCoordinate.ts';
 import ObservationReceiptCore from '../../../src/domain/services/custody/ObservationReceiptCore.ts';
 import ResolvedObservation from '../../../src/domain/services/custody/ResolvedObservation.ts';
-import { textDecode } from '../../../src/domain/utils/bytes.ts';
+import { canonicalStringify } from '../../../src/domain/utils/canonicalStringify.ts';
 import GitWriteAttemptJournalAdapter from '../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import ObservationCustodyCborCodec from '../../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
 import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
-import { GRAPH, TestAccess, attemptRefs, disposeWarpFixtures, git, open, repository, retained, unseen } from '../../helpers/WarpWriteFixture.ts';
+import { GRAPH, TestAccess, attemptRefs, disposeWarpFixtures, git, open, repository, retained, unseen, boundRaces } from '../../helpers/WarpWriteFixture.ts';
 
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -27,7 +27,7 @@ function wire(race: WriteRace): object {
 }
 
 /** The races bound in a retained receipt's canonical core, read back from custody. */
-async function coreRaces(path: string, receipt: RetainedWriteReceipt): Promise<unknown> {
+async function coreRaces(path: string, receipt: RetainedWriteReceipt): Promise<string> {
   const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
   try {
     const coordinate = ObservationCoordinate.parse(receipt.coordinate.toString());
@@ -39,8 +39,7 @@ async function coreRaces(path: string, receipt: RetainedWriteReceipt): Promise<u
     if (!(core instanceof ObservationReceiptCore)) {
       throw new Error('Expected a decodable receipt core');
     }
-    const outcome: { readonly races?: unknown } = JSON.parse(textDecode(core.outcome()));
-    return outcome.races;
+    return boundRaces(core);
   } finally {
     await writes.close();
   }
@@ -72,7 +71,7 @@ describe('a retained write keeps the races it was admitted with', () => {
 
     expect(raced.outcome.kind).toBe('plural');
     expect(raced.outcome.races.map(wire)).toEqual([BOB_TITLE]);
-    expect(await coreRaces(path, raced)).toEqual([BOB_TITLE]);
+    expect(await coreRaces(path, raced)).toBe(canonicalStringify([BOB_TITLE]));
   });
 
   it('rebuilds the exact race set after an interrupted settlement', async () => {
@@ -93,7 +92,7 @@ describe('a retained write keeps the races it was admitted with', () => {
     expect(interrupted.outcome.races.map(wire)).toEqual([BOB_TITLE]);
     expect(rebuilt.outcome.kind).toBe('plural');
     expect(rebuilt.outcome.races.map(wire)).toEqual([BOB_TITLE]);
-    expect(await coreRaces(path, rebuilt)).toEqual([BOB_TITLE]);
+    expect(await coreRaces(path, rebuilt)).toBe(canonicalStringify([BOB_TITLE]));
     expect(attemptRefs(path)).toEqual([]);
   });
 
@@ -104,7 +103,7 @@ describe('a retained write keeps the races it was admitted with', () => {
     const derived = retained(await warp.as('alice').execute(intent.node.add({ subject: 'doc' })));
 
     expect(derived.outcome.kind).toBe('derived');
-    expect(await coreRaces(path, derived)).toEqual([]);
+    expect(await coreRaces(path, derived)).toBe(canonicalStringify([]));
   });
 
   it('names every concurrent sibling writer of one register once', async () => {
@@ -118,7 +117,7 @@ describe('a retained write keeps the races it was admitted with', () => {
     const expected = [{ ...BOB_TITLE, writers: ['bob', 'carol'] }];
 
     expect(raced.outcome.races.map(wire)).toEqual(expected);
-    expect(await coreRaces(path, raced)).toEqual(expected);
+    expect(await coreRaces(path, raced)).toBe(canonicalStringify(expected));
   });
 
   it('keeps a node lifecycle race apart from a property register race', async () => {
@@ -131,7 +130,7 @@ describe('a retained write keeps the races it was admitted with', () => {
     const raced = retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' })));
 
     expect(raced.outcome.races.map(wire)).toEqual([BOB_REMOVED, CAROL_TITLE]);
-    expect(await coreRaces(path, raced)).toEqual([BOB_REMOVED, CAROL_TITLE]);
+    expect(await coreRaces(path, raced)).toBe(canonicalStringify([BOB_REMOVED, CAROL_TITLE]));
   });
 });
 
@@ -216,7 +215,7 @@ describe('races under randomized interleavings', () => {
 
       expect(receipt.outcome.races.map(wire)).toEqual(expected);
       expect(receipt.outcome.kind).toBe(expected.length === 0 ? 'derived' : 'plural');
-      expect(await coreRaces(path, receipt)).toEqual(expected);
+      expect(await coreRaces(path, receipt)).toBe(canonicalStringify(expected));
       plurals += expected.length === 0 ? 0 : 1;
     }
 
