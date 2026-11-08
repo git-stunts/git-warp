@@ -31,8 +31,10 @@ export type RetainedGraphManifestFields = {
  * the root, because resolution reads records under it.
  *
  * It copies no state: a live head and a retained checkpoint of the same basis
- * are the same manifest. An ordinal is stable across every manifest; a
- * {@link ManifestOrdinal} pin is bound to one commitment.
+ * are the same manifest. An ordinal's successful resolution is stable across
+ * successor manifests, with two stated exceptions (a reused counter, #1022;
+ * another writer's dot). A {@link ManifestOrdinal} pin is bound to one
+ * commitment, which names a writer frontier, not a records root.
  */
 export default class RetainedGraphManifest {
   readonly schema: number;

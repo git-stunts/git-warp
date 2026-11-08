@@ -3,9 +3,12 @@ import GraphOrdinal from './GraphOrdinal.ts';
 import ManifestCommitment from './ManifestCommitment.ts';
 
 /**
- * A graph ordinal pinned to the manifest that gives it meaning (#815). A
- * reference that carries an ordinal carries this, so resolving it against any
- * other manifest fails closed instead of naming an unrelated element.
+ * A graph ordinal pinned to the manifest commitment that gives it meaning
+ * (#815). A reference that carries an ordinal carries this, so resolving it
+ * against a manifest of another commitment fails closed instead of naming an
+ * unrelated element. A schema-1 commitment names a writer frontier, not a
+ * records root: a manifest at the same frontier over another root resolves
+ * the pin (see `docs/topics/retained-manifests.md`, "Upgrade and recovery").
  */
 export default class ManifestOrdinal {
   readonly commitment: ManifestCommitment;

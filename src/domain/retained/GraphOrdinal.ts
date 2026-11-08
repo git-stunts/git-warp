@@ -13,12 +13,15 @@ export type GraphOrdinalFields = {
 
 /**
  * A graph-local ordinal (#815): one dot `(writer, counter)` of the node or
- * edge OR-Set. A writer mints its counters in its own chain order, so an
- * ordinal depends only on that chain, never on fold or arrival order, and it
- * stays stable across every successor manifest. A selection plane keys to the
- * ordinal; a reference that must name one basis keys to a
- * {@link ManifestOrdinal} pin instead, which only its own manifest resolves.
- * An ordinal is meaningful only with a manifest that folds its writer chain.
+ * edge OR-Set. A writer mints its counters in its own chain order, so its
+ * resolution does not depend on fold or arrival order. A resolution that
+ * succeeds stays the same across successor manifests, except for a reused
+ * counter (#1022) or another writer's dot. See
+ * `docs/topics/retained-manifests.md`, "Ordinals and pins". A selection plane
+ * keys to the ordinal; a reference that must name one logical state (one
+ * writer frontier) keys to a {@link ManifestOrdinal} pin instead, which only a
+ * manifest of the same commitment resolves. An ordinal is meaningful only with
+ * a manifest that folds its writer chain.
  */
 export default class GraphOrdinal {
   readonly kind: ConeDotSet;
