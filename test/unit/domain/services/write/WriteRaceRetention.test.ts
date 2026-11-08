@@ -287,6 +287,8 @@ describe('the journal keeps a record\'s races', () => {
     ['a fractional overflow', withRaces([['register', 'doc', 'title', ['bob'], 0.5, 'observed']])],
     ['an unknown causality', withRaces([['register', 'doc', 'title', ['bob'], 0, 'guessed']])],
     ['a non-text writer', withRaces([['register', 'doc', 'title', [7], 0, 'observed']])],
+    ['an empty writer id', withRaces([['register', 'doc', 'title', [''], 0, 'observed']])],
+    ['a writer id that is not ref-safe', withRaces([['register', 'doc', 'title', ['a/b'], 0, 'observed']])],
     ['a short entry', withRaces([['register', 'doc', 'title']])],
     ['a non-list', withRaces('races')],
     ['a plural write with no races', withRaces([])],

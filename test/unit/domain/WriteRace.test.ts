@@ -34,4 +34,8 @@ describe('WriteRace', () => {
   ])('refuses %s with a typed error', (_name, build) => {
     expect(refusal(build)?.code).toBe('E_WRITE_RACE');
   });
+
+  it.each(['', 'a/b', 'x'.repeat(65)])('refuses the writer id %j by the writer-id rule', (writer) => {
+    expect(() => new WriteRace({ ...REGISTER, writers: ['bob', writer] })).toThrow(expect.objectContaining({ code: 'E_INVALID_WRITER_ID' }));
+  });
 });
