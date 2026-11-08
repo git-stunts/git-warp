@@ -806,7 +806,7 @@ describe('KILLER TEST 3: Concurrent Add/Remove Resurrection (semantic change)', 
         writer: 'B',
         lamport: 10,
         context: (VersionVector.empty() as any),
-        ops: [({ type: 'EdgeRemove', observedDots: new Set() })],
+        ops: [new EdgeRemove({ from: 'from', to: 'to', label: 'link', observedDots: [] })],
       }),
       sha: 'edbb0011',
     };

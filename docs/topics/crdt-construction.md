@@ -10,6 +10,22 @@ Construction copies the outer map, every nested dot set and the tombstone set. L
 
 Empty string elements and empty dot collections remain admissible. Floating tombstones remain valid even when their additions have not arrived. A later matching add stays removed; constructor validation must not discard that causal evidence.
 
+## Remove operations and empty observed dots
+
+This law is the decision for [#193](https://github.com/git-stunts/git-warp/issues/193). A `NodeRemove` or `EdgeRemove` deletes only the add dots that it lists in `observedDots`. The law has three rules:
+
+1. A remove must name its owner. A `NodeRemove` without `node`, or an `EdgeRemove` without `from`, `to` and `label`, is malformed. Every reducer path refuses it with `PatchError` (`E_PATCH_MALFORMED`). The persisted-patch decode boundary already refused these shapes, and the patch builder cannot write them, so the rule does not make a readable history unreadable.
+2. A remove that names its owner and lists no dots is a lawful explicit no-op. This is true when the owner is absent and when the owner is alive. The receipt reports `redundant` for the named owner. The remove does not advance the owner's lifecycle: node properties stay visible, and no edge-remove event is recorded.
+3. A remove never deletes an add that it did not observe. A concurrent add stays present in every join order, whether the remove lists dots or not.
+
+Rejected alternatives:
+
+- Refuse every remove that lists no dots. A writer can lawfully remove an element that it sees as absent, and its patch must stay replayable. History that is readable now would become unreadable, and an empty-dot remove can never change membership, so refusal gives no safety.
+- Keep the earlier reducer behavior, which skipped ownerless removes without validation or a receipt entry. That hides malformed input, and it disagrees with the decode boundary. Before the April 2026 op-class refactor, the same shape with dots deleted membership; after it, the shape was dropped without a sign.
+- Log a warning for empty removes. Core has no logger port on this path, and the receipt already reports the no-op honestly.
+
+The witnesses are in `test/unit/domain/services/JoinReducer.emptyRemoveLaw.test.ts`.
+
 ## Register identities
 
 `LWWRegister` requires an actual validated `EventId` or the explicit historical checkpoint identity described below. A plain object with matching fields is not sufficient. The register is frozen and retains its admitted event and payload identity; payload deep freezing is not part of this constructor contract.
