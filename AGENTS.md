@@ -175,7 +175,10 @@ DTO and stop there**. Do not hallucinate fake domain models.
 - Release gates must count GitHub Issues by the simplified labels and
   milestones. Missing required labels or milestones are gate failures, never
   proof that the count is zero.
-- End every turn with the compact progress footer:
+- End every turn that changed the work state with the compact progress footer.
+  A change is a commit, a push, a PR state change, a merge, a review decision,
+  or a filed or closed issue. A turn that only reports that work is still
+  running does not need the footer:
 
   ```text
   ═══ ⋆★⋆ Progress Report ⋆★⋆ ═══
@@ -200,6 +203,39 @@ DTO and stop there**. Do not hallucinate fake domain models.
   - `🏁 [#N](url)` when a PR was merged.
   - `🐇 [#N](url)` when waiting for Code Rabbit.
   - `🧪 [#N](url)` when CI is not finished yet.
+
+## Delegated Agents
+
+These rules apply to every agent that a session dispatches. Briefs add the task;
+they do not repeat these rules.
+
+- Never run `rm` or `rmdir` on the host. Put scratch data in the session
+  scratchpad or inside containers. Report leftover files and worktrees; do not
+  delete them.
+- Link `node_modules` in a worktree with a relative symlink
+  (`ln -s ../git-warp/node_modules node_modules`). The path lint refuses an
+  absolute link.
+- The host has no `timeout` command. Bound each run inside the container.
+- Implementing and reviewing agents do not hold delegated decision authority.
+  At a Decision card, a design fork the issue does not settle, or a format or
+  compatibility question, stop and report the options with evidence. The
+  orchestrating session or the maintainer decides and records it on GitHub.
+- Before you push for review, merge `origin/main` into the branch with a merge
+  commit. Report the conflicts and how you resolved them.
+- Locks: use `git locks` only for a shared worktree, a shared container, or a
+  resource with exclusive access or a capacity. A separate worktree and a
+  per-run Docker container need no lock. Worktree creation and removal change
+  shared Git metadata, so take the `.git/` key for them.
+
+### Scope and review size
+
+- A defect found while a PR is under review gets its own issue. If its fix needs
+  a design choice, a time-boxed Spike measures the options first. Do not widen
+  the PR under review until the design is measured and decided.
+- Size the review to the risk. A docs-only or test-only PR needs a Baker Street
+  triage case. A PR that changes runtime semantics, persistence, the wire
+  format, the public surface, or security needs a standard case. The merge gate
+  is the case decision READY, with CI green at the exact head.
 
 ## Engineering Doctrine
 
@@ -232,6 +268,15 @@ DTO and stop there**. Do not hallucinate fake domain models.
 ## Refactor Gates
 
 - For any refactor slice, touched code must reach `100%` test coverage before the slice is considered done.
+  - A file counts as touched if its diff adds or changes a line that is not an
+    import or a comment, or deletes a branch, guard, call, or export that
+    remaining code depended on. A file that only loses unused code, or only
+    changes imports or comments, does not count.
+  - Measure with `npm run test:coverage`, which runs the unit tests.
+    Integration-only coverage does not count. List each counted file and its
+    numbers in the PR body.
+  - The gate covers touched lines. Older uncovered lines in a counted file go to
+    a debt issue, not into the slice.
 - Run an SSJS scorecard on every slice. Until an automated scorecard exists, use a manual checklist and require all green on touched files:
   - runtime-backed forms for new concepts
   - boundary validation stays at boundaries
@@ -266,6 +311,12 @@ DTO and stop there**. Do not hallucinate fake domain models.
   - Only `npm run test:coverage` is allowed to update coverage thresholds.
   - Targeted or ad hoc coverage runs must not rewrite `vitest.config.js`.
 - Critical multi-writer regression suite: `test/unit/domain/WarpGraph.noCoordination.test.js`.
+- Package payload: the unpacked limit (`scripts/package-payload/PackagePayloadPolicy.ts`)
+  is a budget that every PR shares. Before you open a PR, run
+  `npm run check:package-payload` in Docker and state the byte delta in the PR
+  body. PR CI fails over the limit (`preflight`, `type-firewall-packed-consumer`,
+  and the BATS cases in `test-node (22)`). Do not raise the limit. A PR that does
+  not fit waits for headroom or frees bytes itself.
 
 ## Release Hygiene
 
