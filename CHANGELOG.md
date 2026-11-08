@@ -38,8 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runtime never runs `git gc` and starts no `git gc --auto`. Measured with
   git-cas 7.2.0 and Git 2.39.5, a retained write adds about 55 loose objects
   (about 220 KiB on a filesystem with 4 KiB blocks) and one permanent ref.
-  Schedule `git gc --cruft` (Git 2.37 or later), for example daily. When #1052 Slice 3b lands, a read will retain,
-  at about 30 objects and one ref, only when its query asks for a Coordinate
+  Schedule `git gc --cruft` (Git 2.37 or later), for example daily. When
+  #1052 Slice 3b lands, a read will retain, at about 30 objects and one ref,
+  only when its query asks for a Coordinate
   ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)

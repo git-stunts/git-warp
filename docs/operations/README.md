@@ -181,17 +181,24 @@ Other Git commands in the same repository can collect git-warp's objects:
   `maintenance.auto=false`. That setting stays after `git maintenance
   unregister`, so porcelain no longer starts automatic GC in that repository.
 
-The risk of a GC that runs alongside git-warp writes is low. GC removes only
-unreachable objects older than `gc.pruneExpire`, two weeks by default, and
-git-gc(1) describes the remaining risk in its NOTES section. An unfinished
-write's objects are either reachable from the writer ref and the custody refs
-under `refs/cas/`, or younger than that window. The write's attempt ref holds
-only a small journal blob.
+The risk of a GC that runs alongside git-warp writes is low, but not zero.
+GC removes only unreachable objects older than `gc.pruneExpire`, two weeks by
+default. A write's objects become reachable from the writer ref and the
+custody refs under `refs/cas/` as the write completes; the write's attempt
+ref holds only a small journal blob. Under cruft packs (`git gc --cruft`, and
+a plain `git gc` from Git 2.41), `git fast-import` can reuse an old
+unreachable object that is already in a cruft pack without refreshing its
+age. A prune can then delete that object while a write still needs it. This
+is the race that git-gc(1) describes in its NOTES section. Whether git-warp
+can hit it is under investigation in
+[#1110](https://github.com/git-stunts/git-warp/issues/1110).
 
 A concurrent GC can make one write return `UnretainedWriteReceipt`, with the
 retention cause `settlement-unacknowledged`. The write is published; only its
 retention was not confirmed. Pass the receipt's `attempt` to
-`warp.as(writer).reconcile(attempt)`, which completes the retention. The receipt never claims that the write was not applied.
+`warp.as(writer).reconcile(attempt)`, which retries the retention. Ask again
+while it stays unretained. A `null` result means that the attempt was already
+answered or that a sweep finished it, not that the write was lost.
 
 If nothing collects garbage, disk use grows by about 220 KiB for each
 retained write, with no upper limit. The default threshold is passed after
@@ -200,9 +207,10 @@ about 120 retained writes.
 ### Schedule `git gc --cruft`
 
 Run `git gc --cruft` on a schedule, for example once a day from cron. It
-needs Git 2.37 or later; from Git 2.40, a plain `git gc` does the same,
-because `gc.cruftPacks` defaults to `true`. Set `REPOSITORY` to the repository
-behind `GitStorage.root()`:
+needs Git 2.37 or later; from Git 2.41, a plain `git gc` does the same,
+because `gc.cruftPacks` defaults to `true`. On Git older than 2.37, upgrade
+Git: a plain `git gc` is not enough above about 18 retained writes a day.
+Set `REPOSITORY` to the repository behind `GitStorage.root()`:
 
 ```bash
 REPOSITORY=/path/to/your/repository
@@ -212,12 +220,14 @@ git -C "$REPOSITORY" gc --cruft --quiet
 
 `git gc --cruft` packs every reachable object. It puts each unreachable
 object into a cruft pack that keeps the object's age, and it removes the
-unreachable objects older than `gc.pruneExpire`. Nothing stays loose, so the
-loose count stays below `gc.auto` and your own commands stay quiet. Do not
+unreachable objects older than `gc.pruneExpire`. Between runs, an automatic
+`git gc --auto` from your own commands can still leave young garbage loose.
+If more than about 250 retained writes happen between runs (6,700 ÷ 26),
+schedule `git gc --cruft` more often, for example hourly. Do not
 run `git gc --prune=now` while git-warp writes: an unfinished write can hold
 objects that no ref reaches yet.
 
-On Git older than 2.40 without `--cruft`, a plain `git gc` leaves young
+On Git older than 2.41 without `--cruft`, a plain `git gc` leaves young
 unreachable objects loose until they are older than `gc.pruneExpire`. At
 steady state that is about 26 loose objects for each retained write in the
 last two weeks. Above about 18 retained writes a day, the repository stays
@@ -233,8 +243,10 @@ If the repository is already registered with `git maintenance`, run
 git -C "$REPOSITORY" config maintenance.loose-objects.enabled false
 ```
 
-Otherwise the daily `loose-objects` task packs unreachable objects with the
-live ones, and they are not removed unless a GC runs at least as often.
+With a plain `git gc` before Git 2.41, the daily `loose-objects` task
+re-packs young garbage with the live objects, and it is never removed unless
+a GC runs at least daily. With `git gc --cruft`, it is removed one GC cycle
+later than it would be otherwise.
 git-maintenance(1) advises against enabling both its `loose-objects` and
 `gc` tasks; that caution is about maintenance's own tasks.
 

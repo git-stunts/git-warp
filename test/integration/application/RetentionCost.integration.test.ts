@@ -123,6 +123,8 @@ describe('retained operation cost (#1080)', () => {
     const inWindow = await idleCopy(path);
     const expired = await idleCopy(path);
     for (const copy of [inWindow, expired]) {
+      // Only loose objects carry a stamped age, so the check needs every object loose before GC.
+      expect(new RepositoryObjectCensus(copy).counts().packs).toBe(0);
       new RepositoryObjectCensus(copy).stampLoose(OBJECT_MTIME_SECONDS);
     }
     const garbage = new RepositoryObjectCensus(inWindow).unreachableCount();
