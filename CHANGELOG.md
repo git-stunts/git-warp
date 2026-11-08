@@ -34,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Move incremental index shard encoding behind `IndexStorePort`. The new
+  `IndexStorePort.openShardTree()` opens a synchronous typed view over an
+  in-memory index tree; `IncrementalIndexUpdater` now reads and returns
+  `MetaShard`, `EdgeShard`, `LabelShard`, and `PropertyShard` values and
+  never encodes or decodes shard bytes. The adapter refuses a malformed meta,
+  edge, or label shard with `E_INDEX_SHARD_MALFORMED`. Rewritten index trees
+  stay byte-identical. `IndexStorePort` implementations must add
+  `openShardTree()`, and `MaterializedViewService.applyDiff()` requires the
+  `indexStore` option ([#192](https://github.com/git-stunts/git-warp/issues/192)).
 - Document garbage collection for repositories that git-warp writes to. The
   runtime never runs `git gc` and starts no `git gc --auto`. Measured with
   git-cas 7.2.0 and Git 2.39.5, a retained write adds about 55 loose objects

@@ -10,16 +10,15 @@
  * @module domain/services/index/IndexPropertyUpdater
  */
 
-import type CodecPort from '../../../ports/CodecPort.ts';
+import { PropertyShard } from '../../artifacts/PropertyShard.ts';
 import type { PropDiffEntry } from '../../types/PatchDiff.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import type WarpState from '../state/WarpState.ts';
 import type { PropValue } from '../../types/PropValue.ts';
-import { decodePropertyShard } from './PropertyIndexReader.ts';
+import type IndexShardTreePort from '../../../ports/IndexShardTreePort.ts';
 
 type PropertyBag = Record<string, PropValue>;
-type PropertyShard = Map<string, PropertyBag>;
-type ShardLoader = (path: string) => Uint8Array | undefined;
+type WorkingPropertyShard = Map<string, PropertyBag>;
 
 /** Inputs for one property-shard update. */
 export type PropertyShardUpdate = {
@@ -37,58 +36,42 @@ function nullProtoBag(source: PropertyBag): PropertyBag {
   return Object.assign(base, source);
 }
 
-function propertyShardPath(shardKey: string): string {
-  return `props_${shardKey}.cbor`;
-}
-
 /**
  * Handles property-level index mutations for one diff.
  */
 export default class IndexPropertyUpdater {
-  private readonly _codec: CodecPort;
-
-  constructor(codec: CodecPort) {
-    this._codec = codec;
+  constructor() {
     Object.freeze(this);
   }
 
-  /** Returns the rewritten property shards, keyed by path. */
-  computeDirtyPropertyShards(update: PropertyShardUpdate, loadShard: ShardLoader): Record<string, Uint8Array> {
-    const shards = new Map<string, PropertyShard>();
-    const shardFor = (nodeId: string): PropertyShard => this._shardFor(shards, computeShardKey(nodeId), loadShard);
+  /** Returns the rewritten property shards. */
+  computeDirtyPropertyShards(update: PropertyShardUpdate, shards: IndexShardTreePort): PropertyShard[] {
+    const working = new Map<string, WorkingPropertyShard>();
+    const shardFor = (nodeId: string): WorkingPropertyShard => loadShard(working, computeShardKey(nodeId), shards);
     for (const prop of update.propsChanged) {
       applyChangedProperty(shardFor(prop.nodeId), prop, update.state);
     }
     for (const nodeId of update.nodesCleared) {
       dropHiddenProperties(shardFor(nodeId), nodeId, update.state);
     }
-    const out: Record<string, Uint8Array> = {};
-    for (const [shardKey, shard] of shards) {
-      out[propertyShardPath(shardKey)] = this._codec.encode([...shard.entries()]).slice();
-    }
-    return out;
+    return Array.from(working, ([shardKey, shard]) => new PropertyShard({ shardKey, entries: [...shard.entries()] }));
   }
+}
 
-  private _shardFor(shards: Map<string, PropertyShard>, shardKey: string, loadShard: ShardLoader): PropertyShard {
-    let shard = shards.get(shardKey);
-    if (shard === undefined) {
-      const path = propertyShardPath(shardKey);
-      shard = this._loadShard(loadShard(path), path);
-      shards.set(shardKey, shard);
-    }
-    return shard;
-  }
-
-  private _loadShard(buf: Uint8Array | undefined, path: string): PropertyShard {
-    const shard: PropertyShard = new Map();
-    if (buf === undefined) {
-      return shard;
-    }
-    for (const [nodeId, props] of decodePropertyShard(this._codec.decode(buf), path)) {
+function loadShard(
+  working: Map<string, WorkingPropertyShard>,
+  shardKey: string,
+  shards: IndexShardTreePort,
+): WorkingPropertyShard {
+  let shard = working.get(shardKey);
+  if (shard === undefined) {
+    shard = new Map();
+    for (const [nodeId, props] of shards.readProperties(shardKey) ?? []) {
       shard.set(nodeId, nullProtoBag(props));
     }
-    return shard;
+    working.set(shardKey, shard);
   }
+  return shard;
 }
 
 /** True when the node's current register for `key` is hidden by the lifecycle rule. */
@@ -97,7 +80,7 @@ function isHiddenProperty(state: WarpState, nodeId: string, key: string): boolea
   return register !== undefined && state.isStaleNodeRegister(nodeId, register);
 }
 
-function applyChangedProperty(shard: PropertyShard, prop: PropDiffEntry, state: WarpState): void {
+function applyChangedProperty(shard: WorkingPropertyShard, prop: PropDiffEntry, state: WarpState): void {
   if (prop.value === undefined || isHiddenProperty(state, prop.nodeId, prop.key)) {
     deleteProperty(shard, prop.nodeId, prop.key);
     return;
@@ -110,7 +93,7 @@ function applyChangedProperty(shard: PropertyShard, prop: PropDiffEntry, state: 
   bag[prop.key] = prop.value;
 }
 
-function dropHiddenProperties(shard: PropertyShard, nodeId: string, state: WarpState): void {
+function dropHiddenProperties(shard: WorkingPropertyShard, nodeId: string, state: WarpState): void {
   for (const key of Object.keys(shard.get(nodeId) ?? {})) {
     if (isHiddenProperty(state, nodeId, key)) {
       deleteProperty(shard, nodeId, key);
@@ -119,7 +102,7 @@ function dropHiddenProperties(shard: PropertyShard, nodeId: string, state: WarpS
 }
 
 /** Deletes one property, and the node's bag once it is empty, as a full rebuild would omit it. */
-function deleteProperty(shard: PropertyShard, nodeId: string, key: string): void {
+function deleteProperty(shard: WorkingPropertyShard, nodeId: string, key: string): void {
   const bag = shard.get(nodeId);
   if (bag === undefined) {
     return;
