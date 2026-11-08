@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readdirSync, existsSync } from 'node:fs';
+import { existsSync, readdirSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 
 const LOOSE_FANOUT = /^[0-9a-f]{2}$/u;
@@ -106,6 +106,19 @@ export default class RepositoryObjectCensus {
     const size = git(this.#path, ['cat-file', '-s', oid]);
     const head = execFileSync('git', ['cat-file', 'blob', oid], { cwd: this.#path }).subarray(0, 48).toString('latin1').replace(/[^\x20-\x7e]/gu, '.');
     return `${short} ${type} ${size}B ${head}`;
+  }
+
+  /** Sets every loose object's mtime to `seconds` since the epoch, so prune decisions never read the wall clock. */
+  stampLoose(seconds: number): void {
+    for (const oid of this.loose()) {
+      const file = join(this.#objects, oid.slice(0, 2), oid.slice(2));
+      utimesSync(file, seconds, seconds);
+    }
+  }
+
+  /** Cruft packs, which keep unreachable objects with their mtimes (`git gc --cruft`). */
+  cruftPacks(): number {
+    return readdirSync(join(this.#objects, 'pack')).filter((name) => name.endsWith('.mtimes')).length;
   }
 
   /** Objects that no ref reaches, by `git fsck --unreachable --no-reflogs`. */

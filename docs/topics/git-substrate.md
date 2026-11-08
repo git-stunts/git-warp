@@ -122,9 +122,9 @@ shared boundary vocabulary for witnessed history exchange. Use
 
 The git-warp runtime writes Git objects only through plumbing commands. These
 never start `git gc --auto`, and the runtime does not run garbage collection
-itself. On git-cas 7.2.0, a retained write adds about 55 loose objects (about
-220 KiB on a filesystem with 4 KiB blocks) and one permanent ref under
-`refs/cas/reservation-custody/`.
+itself. Measured with git-cas 7.2.0 and Git 2.39.5, a retained write adds
+about 55 loose objects (about 220 KiB on a filesystem with 4 KiB blocks) and
+one permanent ref under `refs/cas/reservation-custody/`.
 
 About 26 of those objects become unreachable: replaced reservation-ledger
 generations, the scaffolding commits that `git fast-import` needs, and the
@@ -137,7 +137,8 @@ Reads in this release retain nothing. When
 read will retain only when its query asks for a Coordinate, at a projected
 cost of about 30 objects and one ref.
 
-Operators collect the garbage with a scheduled plain `git gc`. See
+Operators collect the garbage with a scheduled `git gc --cruft`, which needs
+Git 2.37 or later. See
 [Operations: Garbage collection](../operations/README.md#garbage-collection).
 
 ## See also

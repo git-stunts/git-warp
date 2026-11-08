@@ -21,9 +21,11 @@ import { disposeWarpFixtures, git, open, repository, retained, tip } from '../..
  * ledger generation, that is up to 4 objects per write and 3 per read.
  * git-cas 7.1.0 wrote about 301 per write and 214 per read.
  *
- * The ceilings hold at this witness's scale of 24 operations, where the
- * counts are at most 53 and 29, and with margin up to about 400 writes and
- * 200 reads. They fail far below the 7.1.0 counts.
+ * At this witness's scale of 24 operations, the highest counts seen over
+ * several runs were 56 per write and 32 per read; they vary between runs
+ * because random attempt ids change the trie depth. The ceilings leave a
+ * margin of 8 over those maxima, hold up to about 400 writes and 200 reads,
+ * and fail far below the 7.1.0 counts.
  */
 const WRITE_OBJECT_CEILING = 64;
 const READ_OBJECT_CEILING = 40;
@@ -35,6 +37,14 @@ const WARM_UP = 1;
 /** Writes before the garbage collection check; each leaves at least this much garbage. */
 const GC_WRITES = 24;
 const GARBAGE_PER_WRITE_FLOOR = 15;
+/**
+ * Fixed object ages and absolute prune dates stand in for elapsed time, so no
+ * check reads the wall clock: every loose object is stamped 2026-01-01, then
+ * pruned against a date before it (inside the window) or after it (outside).
+ */
+const OBJECT_MTIME_SECONDS = 1_767_225_600;
+const EXPIRY_BEFORE_MTIME = '2025-12-18 00:00:00 +0000';
+const EXPIRY_AFTER_MTIME = '2026-01-15 00:00:00 +0000';
 const CASE_TIMEOUT_MS = 300_000;
 /** A fixed clock: these checks count objects and never depend on elapsed time. */
 const FIXED_CLOCK = { clock: (): number => 1_700_000_000_000 };
@@ -103,29 +113,36 @@ describe('retained operation cost (#1080)', () => {
     expect(measured.map((cost) => cost.refs)).toEqual(measured.map(() => REFS_PER_OPERATION));
   }, CASE_TIMEOUT_MS);
 
-  it('leaves garbage that a plain git gc keeps inside gc.pruneExpire and removes outside it', async () => {
+  it('packs garbage into a cruft pack inside gc.pruneExpire and removes it outside, under git gc --cruft', async () => {
     const path = await repository();
     const warp = await open(path, FIXED_CLOCK);
     for (let index = 1; index <= GC_WRITES; index++) {
       retained(await warp.as('alice').execute(intent.node.add({ subject: `node:${index}` })));
     }
     await warp.close();
-    const young = await idleCopy(path);
+    const inWindow = await idleCopy(path);
     const expired = await idleCopy(path);
-    const garbage = new RepositoryObjectCensus(young).unreachableCount();
-    const refs = new RepositoryObjectCensus(young).refCount();
+    for (const copy of [inWindow, expired]) {
+      new RepositoryObjectCensus(copy).stampLoose(OBJECT_MTIME_SECONDS);
+    }
+    const garbage = new RepositoryObjectCensus(inWindow).unreachableCount();
+    const refs = new RepositoryObjectCensus(inWindow).refCount();
 
-    // Test-only prune windows stand in for elapsed time: `never` keeps garbage of any age, `now` prunes all of it.
-    git(young, ['-c', 'gc.pruneExpire=never', 'gc', '--quiet']);
-    git(expired, ['-c', 'gc.pruneExpire=now', 'gc', '--quiet']);
+    git(inWindow, ['-c', `gc.pruneExpire=${EXPIRY_BEFORE_MTIME}`, 'gc', '--cruft', '--quiet']);
+    git(expired, ['-c', `gc.pruneExpire=${EXPIRY_AFTER_MTIME}`, 'gc', '--cruft', '--quiet']);
 
     expect(garbage).toBeGreaterThanOrEqual(GARBAGE_PER_WRITE_FLOOR * GC_WRITES);
-    expect(new RepositoryObjectCensus(young).unreachableCount()).toBe(garbage);
+    const kept = new RepositoryObjectCensus(inWindow);
+    expect(kept.counts().loose).toBe(0);
+    expect(kept.cruftPacks()).toBe(1);
+    expect(kept.unreachableCount()).toBe(garbage);
     const pruned = new RepositoryObjectCensus(expired);
-    expect(pruned.unreachableCount()).toBe(0);
     expect(pruned.counts().loose).toBe(0);
-    expect(pruned.refCount()).toBe(refs);
-    expect(git(expired, ['fsck', '--connectivity-only', '--no-progress'])).toBe('');
-    expect(git(expired, ['cat-file', '-t', tip(path, 'alice') ?? ''])).toBe('commit');
+    expect(pruned.unreachableCount()).toBe(0);
+    for (const copy of [inWindow, expired]) {
+      expect(new RepositoryObjectCensus(copy).refCount()).toBe(refs);
+      expect(git(copy, ['fsck', '--connectivity-only', '--no-dangling', '--no-progress'])).toBe('');
+      expect(git(copy, ['cat-file', '-t', tip(path, 'alice') ?? ''])).toBe('commit');
+    }
   }, CASE_TIMEOUT_MS);
 });

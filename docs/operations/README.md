@@ -169,41 +169,74 @@ commands, and plumbing commands never start `git gc --auto`. The one
 exception is the one-off `git-warp-v18-to-v19` migrator: its `git fetch` can
 start Git's automatic maintenance, as any fetch can.
 
-Other Git commands in the same repository can collect git-warp's objects.
-Your own porcelain commands, such as `git commit`, `git merge` and
-`git fetch`, run `git gc --auto` when the repository is over Git's `gc.auto`
-threshold (6,700 loose objects by default). By default that GC runs in the
-background while git-warp may be writing. This is safe: GC removes only
-unreachable objects older than `gc.pruneExpire`, two weeks by default. The
-objects of an unfinished write are younger than that, or its attempt refs
-keep them reachable. If `gc.auto` is `0`,
-`git gc --auto` does nothing.
+Other Git commands in the same repository can collect git-warp's objects:
+
+- **Your own porcelain commands.** `git commit`, `git merge` and `git fetch`
+  run `git gc --auto` when the repository is over Git's `gc.auto` threshold,
+  which is 6,700 loose objects by default. By default that GC runs in the
+  background, at the same time as git-warp writes.
+- **When this does not happen.** If `gc.auto` is `0`, `git gc --auto` does
+  nothing, and the scheduled `git gc --cruft` below is the only collector.
+  `git maintenance register` and `git maintenance start` set
+  `maintenance.auto=false`. That setting stays after `git maintenance
+  unregister`, so porcelain no longer starts automatic GC in that repository.
+
+The risk of a GC that runs alongside git-warp writes is low. GC removes only
+unreachable objects older than `gc.pruneExpire`, two weeks by default, and
+git-gc(1) describes the remaining risk in its NOTES section. An unfinished
+write's objects are either reachable from the writer ref and the custody refs
+under `refs/cas/`, or younger than that window. The write's attempt ref holds
+only a small journal blob.
+
+A concurrent GC can make one write return `UnretainedWriteReceipt`, with the
+retention cause `settlement-unacknowledged`. The write is published; only its
+retention was not confirmed. Pass the receipt's `attempt` to
+`warp.as(writer).reconcile(attempt)`, which completes the retention. The receipt never claims that the write was not applied.
 
 If nothing collects garbage, disk use grows by about 220 KiB for each
 retained write, with no upper limit. The default threshold is passed after
 about 120 retained writes.
 
-### Schedule a plain `git gc`
+### Schedule `git gc --cruft`
 
-Run a plain `git gc` (without `--auto`) on a schedule, for example once a day
-from cron. Set `REPOSITORY` to the repository behind `GitStorage.root()`:
+Run `git gc --cruft` on a schedule, for example once a day from cron. It
+needs Git 2.37 or later; from Git 2.40, a plain `git gc` does the same,
+because `gc.cruftPacks` defaults to `true`. Set `REPOSITORY` to the repository
+behind `GitStorage.root()`:
 
 ```bash
 REPOSITORY=/path/to/your/repository
 
-git -C "$REPOSITORY" gc --quiet
+git -C "$REPOSITORY" gc --cruft --quiet
 ```
 
-A plain `git gc` packs all objects and removes the unreachable objects that
-are older than `gc.pruneExpire`. It is safe to run while git-warp writes,
-for the reason given above. Do not run `git gc --prune=now` while git-warp
-writes: an unfinished write can hold objects that no ref reaches yet.
+`git gc --cruft` packs every reachable object. It puts each unreachable
+object into a cruft pack that keeps the object's age, and it removes the
+unreachable objects older than `gc.pruneExpire`. Nothing stays loose, so the
+loose count stays below `gc.auto` and your own commands stay quiet. Do not
+run `git gc --prune=now` while git-warp writes: an unfinished write can hold
+objects that no ref reaches yet.
 
-Do not use `git maintenance start` for this. Its default incremental schedule
-packs loose objects, including unreachable ones, and never removes them. After
-it runs, the loose-object count stays low, so `git gc --auto` does not start
-either. git-maintenance(1) advises against enabling both the `loose-objects`
-and `gc` tasks at the same time.
+On Git older than 2.40 without `--cruft`, a plain `git gc` leaves young
+unreachable objects loose until they are older than `gc.pruneExpire`. At
+steady state that is about 26 loose objects for each retained write in the
+last two weeks. Above about 18 retained writes a day, the repository stays
+over `gc.auto`. Your own commands then print "There are too many unreachable
+loose objects" on every run. When that GC runs in the background, which is
+the default, Git also writes `gc.log` and stops automatic GC until `gc.log`
+is older than `gc.logExpire` (one day by default).
+
+If the repository is already registered with `git maintenance`, run
+`git maintenance unregister`, or turn off its `loose-objects` task:
+
+```bash
+git -C "$REPOSITORY" config maintenance.loose-objects.enabled false
+```
+
+Otherwise the daily `loose-objects` task packs unreachable objects with the
+live ones, and they are not removed unless a GC runs at least as often.
+git-maintenance(1) advises against enabling both its `loose-objects` and
+`gc` tasks; that caution is about maintenance's own tasks.
 
 ### Measured cost
 
@@ -220,10 +253,12 @@ because each loose object takes at least one block.
 | Permanent refs | 1, under `refs/cas/reservation-custody/` | 1, under `refs/cas/reservation-custody/` |
 | Unreachable when the operation returns | 15 to 21 | 8 to 12 |
 | Unreachable in total, including objects that later operations replace | about 26 | about 16 |
-| Kept after GC | 29.4 objects, 5.45 KiB packed | about 14 objects |
+| Kept after `git gc --prune=now` | 29.4 objects, 5.45 KiB packed | about 14 objects |
 
 - After 400 writes, the repository held 22,026 loose objects (88,104 KiB) and
-  no packs. GC packed them into 2,181 KiB.
+  no packs. `git gc --prune=now` packed them into 2,181 KiB. A scheduled
+  `git gc --cruft` reaches the same result once the garbage is older than
+  `gc.pruneExpire`.
 - The cost grows slowly as history grows.
 - Unreachable objects are temporary bookkeeping objects. Retained data stays
   reachable from its refs, so GC keeps it.
