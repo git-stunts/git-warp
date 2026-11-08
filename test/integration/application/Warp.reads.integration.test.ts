@@ -69,6 +69,24 @@ describe('a fresh repository reads its own writes', () => {
     expect((await drained(await Optic(view).forPurpose(DISPLAY).node('gone').prop('title').read())).readings[0]?.present).toBe(false);
   });
 
+  it('distinguishes an explicitly null property from an absent or prototype property on a live node', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    retained(await warp.as('alice').execute([
+      intent.node.add({ subject: 'todo' }),
+      intent.property.set({ subject: 'todo', key: 'cleared', value: null }),
+    ]));
+    const view = warp.forObserver(READER);
+
+    const nullProp = await drained(await Optic(view).forPurpose(DISPLAY).node('todo').prop('cleared').read());
+    expect(nullProp.readings).toEqual([expect.objectContaining({ subject: 'todo', key: 'cleared', present: true, value: null })]);
+
+    for (const key of ['__proto__', 'toString', 'constructor']) {
+      const protoProp = await drained(await Optic(view).forPurpose(DISPLAY).node('todo').prop(key).read());
+      expect(protoProp.readings).toEqual([expect.objectContaining({ subject: 'todo', key, present: false, value: null })]);
+    }
+  });
+
   it('reads no whole state and one record', async () => {
     const path = await repository();
     const warp = await open(path);
@@ -168,6 +186,12 @@ describe('one execution, one consumer, one terminal result', () => {
     const finished = (await observation()).observed;
     const receipt = await finished.receipt;
     expect(await finished.cancel()).toBe(receipt);
+
+    const deniedPath = await repository();
+    const deniedWarp = await open(deniedPath, {}, new TestAccess(['reader']));
+    const deniedObs = await Optic(deniedWarp.forObserver(READER)).forPurpose(DISPLAY).node('a').read();
+    expect((await deniedObs.cancel()).status).toBe('refused');
+    expect((await deniedObs.receipt).status).toBe('refused');
   });
 
   it('close stops an unfinished observation, leaves a finished one, and refuses new reads', async () => {

@@ -14,13 +14,27 @@ function validateSubject(subject: string): void {
   }
 }
 
-function validateKeyAndPresence(key: string | null, present: boolean): void {
-  if (key !== null && typeof key !== 'string') {
-    throw new OpticError('An optic reading key must be a string or null');
+function validateKey(key: string | null): void {
+  if (key !== null && !isNonEmptyString(key)) {
+    throw new OpticError('An optic reading key must be a non-empty string or null');
   }
-  if (typeof present !== 'boolean') {
+}
+
+function validatePresenceAndValue(fields: OpticReadingFields): void {
+  if (typeof fields.present !== 'boolean') {
     throw new OpticError('An optic reading present indicator must be a boolean');
   }
+  if (requiresNullValue(fields) && fields.value !== null) {
+    throw new OpticError('An optic reading for a node or absent property must have a null value');
+  }
+}
+
+function requiresNullValue(fields: OpticReadingFields): boolean {
+  return fields.key === null || !fields.present;
+}
+
+function isNonEmptyString(value: string): boolean {
+  return typeof value === 'string' && value.length > 0;
 }
 
 /** One answer an Optic emitted: whether its subject is present, and the value when it is a property. */
@@ -33,7 +47,8 @@ export default class OpticReading {
 
   constructor(fields: OpticReadingFields) {
     validateSubject(fields.subject);
-    validateKeyAndPresence(fields.key, fields.present);
+    validateKey(fields.key);
+    validatePresenceAndValue(fields);
     this.subject = fields.subject;
     this.key = fields.key;
     this.present = fields.present;

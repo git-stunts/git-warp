@@ -103,16 +103,20 @@ for await (const reading of observation) {
   display(reading);
 }
 const receipt = await observation.receipt;
-if (receipt instanceof CompletedObservationReceipt) {
-  saveToken(receipt.coordinate.toString());
+if (receipt.status === 'completed') {
+  recordObservation(receipt);
 }
 await warp.close();
 ```
 
-The example's successful receipt has a Coordinate. A typed failure before an
+In the initial read slice (`#1052`), `observation.receipt` resolves to an
+`OpticReceipt` whose `status` is `'completed'`, `'cancelled'`, `'refused'`,
+`'failed'`, or `'budget-exhausted'` without a `Coordinate`. When a read explicitly
+requests Coordinate retention (`#1080` and the follow-on `#1052` slice), a
+retained completed receipt carries a `Coordinate`; a typed failure before an
 observation can be established need not fabricate one. Application branching
-uses the validated outcome variant before accessing success-only fields;
-`display` and `saveToken` are application-owned presentation and persistence.
+uses the validated outcome before accessing status-specific fields;
+`display` and `recordObservation` are application-owned presentation and persistence.
 Expected denials and operational failures are returned as validated variants;
 exceptions are reserved for programmer misuse or broken runtime invariants.
 Closing a Warp closes its owned live handles and streams, not the persisted

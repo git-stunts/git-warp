@@ -41,4 +41,12 @@ describe('OpticReading', () => {
     // @ts-expect-error Invalid present
     expect(() => new OpticReading({ subject: 'node-1', key: null, present: 'yes', value: null })).toThrow(OpticError);
   });
+
+  it('refuses empty or invalid key and enforces value===null when key===null or present===false', () => {
+    expect(() => new OpticReading({ subject: 'node-1', key: '', present: false, value: null })).toThrow(OpticError);
+    // @ts-expect-error Invalid key type
+    expect(() => new OpticReading({ subject: 'node-1', key: 123, present: false, value: null })).toThrow(OpticError);
+    expect(() => new OpticReading({ subject: 'node-1', key: null, present: true, value: 'unexpected' })).toThrow(OpticError);
+    expect(() => new OpticReading({ subject: 'node-1', key: 'color', present: false, value: 'unexpected' })).toThrow(OpticError);
+  });
 });

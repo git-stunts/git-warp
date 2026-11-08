@@ -1,6 +1,6 @@
 import type OpticObservation from '../domain/api/OpticObservation.ts';
-import type Purpose from '../domain/api/Purpose.ts';
-import type ReadBudget from '../domain/api/ReadBudget.ts';
+import Purpose from '../domain/api/Purpose.ts';
+import ReadBudget from '../domain/api/ReadBudget.ts';
 import OpticError from '../domain/errors/OpticError.ts';
 import type ObservedWarp from './ObservedWarp.ts';
 
@@ -22,11 +22,21 @@ export default class OpticQuery {
   }
 
   forPurpose(purpose: Purpose): OpticQuery {
+    if (!(purpose instanceof Purpose)) {
+      throw new OpticError('forPurpose requires a Purpose instance', {
+        code: 'E_OPTIC_PURPOSE',
+      });
+    }
     return new OpticQuery({ ...this.#fields, purpose });
   }
 
   /** Asks for a budget instead of the observer's default. Policy may still refuse it. */
   withBudget(budget: ReadBudget): OpticQuery {
+    if (!(budget instanceof ReadBudget)) {
+      throw new OpticError('withBudget requires a ReadBudget instance', {
+        code: 'E_OPTIC_BUDGET',
+      });
+    }
     return new OpticQuery({ ...this.#fields, budget });
   }
 

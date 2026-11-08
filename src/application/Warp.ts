@@ -16,9 +16,10 @@ import WarpAddress from './WarpAddress.ts';
 import { composeWarpWrites, type WarpWrites } from './WarpWriteComposition.ts';
 
 /**
- * One opened graph (#1051). Opening grants nothing: the injected access boundary
- * decides each operation. Operations on one Warp run one at a time, so a writer's
- * predecessor cannot move under a write this handle itself queued.
+ * One opened graph (#1051, #1052). Opening grants nothing: the injected access boundary
+ * decides each operation. Writes on one Warp run one at a time, so a writer's
+ * predecessor cannot move under a write this handle itself queued; reads run
+ * concurrently and are tracked so `close()` stops and waits for both.
  */
 export default class Warp {
   readonly #writes: WarpWrites;
@@ -76,17 +77,34 @@ export default class Warp {
     if (this.#closing !== null) {
       throw new WarpError('This Warp is closed', 'E_WARP_CLOSED');
     }
-    const starting = this.#writes.reads.read(request);
+    let tracked: OpticObservation | null = null;
+    let settled = false;
+    const starting = this.#writes.reads.read({
+      ...request,
+      onSettled: () => {
+        settled = true;
+        if (tracked !== null) {
+          this.#observations.delete(tracked);
+        }
+      },
+    });
     this.#starting.add(starting);
     try {
       const observation = await starting;
-      this.#observations.add(observation);
+      tracked = observation;
+      this.#retainUnsettled(observation, settled);
       if (this.#closing !== null) {
         await observation.cancel();
       }
       return observation;
     } finally {
       this.#starting.delete(starting);
+    }
+  }
+
+  #retainUnsettled(observation: OpticObservation, settled: boolean): void {
+    if (!settled) {
+      this.#observations.add(observation);
     }
   }
 

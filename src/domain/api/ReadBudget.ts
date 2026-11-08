@@ -7,6 +7,9 @@ export default class ReadBudget {
   readonly work: number;
 
   private constructor(limits: { readonly records: number; readonly bytes: number; readonly work: number }) {
+    if (!isValidLimits(limits)) {
+      throw new ReadBudgetError('A read budget needs finite positive limits');
+    }
     this.records = limits.records;
     this.bytes = limits.bytes;
     this.work = limits.work;
@@ -14,10 +17,14 @@ export default class ReadBudget {
   }
 
   static of(limits: { readonly records: number; readonly bytes: number; readonly work: number }): ReadBudget {
-    if (![limits.records, limits.bytes, limits.work].every((limit) => Number.isSafeInteger(limit) && limit > 0)) {
-      throw new ReadBudgetError('A read budget needs finite positive limits');
-    }
     return new ReadBudget(limits);
   }
+}
+
+function isValidLimits(limits: { readonly records: number; readonly bytes: number; readonly work: number }): boolean {
+  if (typeof limits !== 'object' || limits === null) {
+    return false;
+  }
+  return [limits.records, limits.bytes, limits.work].every((limit) => Number.isSafeInteger(limit) && limit > 0);
 }
 

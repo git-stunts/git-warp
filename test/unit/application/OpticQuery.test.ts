@@ -37,6 +37,15 @@ describe('OpticQuery', () => {
     expect(() => query.node(null)).toThrow(OpticError);
   });
 
+  it('refuses invalid purpose in forPurpose() and invalid budget in withBudget() immediately', () => {
+    const view = createView();
+    const query = new OpticQuery({ view, purpose: null, budget: null, subject: null, key: null });
+    const fakePurpose: Purpose = { namespace: 'a', name: 'b', version: 1 };
+    const fakeBudget: ReadBudget = { records: 1, bytes: 1, work: 1 };
+    expect(() => query.forPurpose(fakePurpose)).toThrow(OpticError);
+    expect(() => query.withBudget(fakeBudget)).toThrow(OpticError);
+  });
+
   it('refuses prop() before node() with OpticError (E_OPTIC_QUESTION)', () => {
     const view = createView();
     const query = new OpticQuery({ view, purpose: null, budget: null, subject: null, key: null });
@@ -45,7 +54,9 @@ describe('OpticQuery', () => {
       query.prop('title');
     } catch (err) {
       expect(err).toBeInstanceOf(OpticError);
-      expect((err as OpticError).code).toBe('E_OPTIC_QUESTION');
+      if (err instanceof OpticError) {
+        expect(err.code).toBe('E_OPTIC_QUESTION');
+      }
     }
   });
 
@@ -65,7 +76,9 @@ describe('OpticQuery', () => {
       await query.read();
     } catch (err) {
       expect(err).toBeInstanceOf(OpticError);
-      expect((err as OpticError).code).toBe('E_OPTIC_PURPOSE');
+      if (err instanceof OpticError) {
+        expect(err.code).toBe('E_OPTIC_PURPOSE');
+      }
     }
   });
 
@@ -77,7 +90,9 @@ describe('OpticQuery', () => {
       await query.read();
     } catch (err) {
       expect(err).toBeInstanceOf(OpticError);
-      expect((err as OpticError).code).toBe('E_OPTIC_QUESTION');
+      if (err instanceof OpticError) {
+        expect(err.code).toBe('E_OPTIC_QUESTION');
+      }
     }
   });
 

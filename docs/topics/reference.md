@@ -25,7 +25,7 @@ public API export, CLI command, package entrypoint, or public error class.
 
 ## Root API export surface
 
-First-use product API: the `Warp` write surface and its receipts beside the legacy `Runtime` value, plus Lane, Intent, Observer, Observation, Reading, and Receipt types.
+First-use product API: the `Warp` write and bounded `Optic` read surface with its receipts beside the legacy `Runtime` value, plus Lane, Intent, Observer, Observation, Reading, and Receipt types.
 
 ### Value exports
 

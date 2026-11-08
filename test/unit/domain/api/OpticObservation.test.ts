@@ -5,14 +5,14 @@ import OpticReceipt from '../../../../src/domain/api/OpticReceipt.ts';
 import OpticError from '../../../../src/domain/errors/OpticError.ts';
 
 describe('OpticObservation', () => {
-  function makeReceipt(status: 'completed' | 'cancelled' = 'completed'): OpticReceipt {
+  function makeReceipt(status: 'completed' | 'cancelled' | 'failed' = 'completed', cause: string | null = status === 'completed' ? null : status): OpticReceipt {
     return new OpticReceipt({
       status,
       graph: 'graph-1',
       observer: 'audit:agent-1',
-      purpose: 'audit:investigation:1',
+      purpose: 'audit:investigation/v1',
       question: 'node.property/v1',
-      cause: null,
+      cause,
       records: 1,
     });
   }
@@ -30,6 +30,11 @@ describe('OpticObservation', () => {
       },
     };
   }
+
+  it('is frozen upon construction', () => {
+    const obs = new OpticObservation(makeExecution([]));
+    expect(Object.isFrozen(obs)).toBe(true);
+  });
 
   it('yields readings and settles receipt upon iteration completion', async () => {
     const reading = new OpticReading({
@@ -67,6 +72,36 @@ describe('OpticObservation', () => {
     expect(await obs.receipt).toBe(receipt);
   });
 
+  it('settles a failed receipt when readings() throws an unexpected error during iteration or receipt drain', async () => {
+    const failingExecution: OpticExecution = {
+      // eslint-disable-next-line require-yield -- Throws before yielding
+      async *readings() {
+        await Promise.resolve();
+        throw new Error('storage-io-error');
+      },
+      cancelled() {
+        return makeReceipt('cancelled');
+      },
+      failed(cause: string) {
+        return makeReceipt('failed', cause);
+      },
+    };
+    const obs1 = new OpticObservation(failingExecution);
+    await expect(async () => {
+      for await (const _r of obs1) {
+        // should throw
+      }
+    }).rejects.toThrow('storage-io-error');
+    const receipt1 = await obs1.receipt;
+    expect(receipt1.status).toBe('failed');
+    expect(receipt1.cause).toBe('storage-io-error');
+
+    const obs2 = new OpticObservation(failingExecution);
+    const receipt2 = await obs2.receipt;
+    expect(receipt2.status).toBe('failed');
+    expect(receipt2.cause).toBe('storage-io-error');
+  });
+
   it('refuses multiple consumers with OpticError (E_OBSERVATION_CONSUMED)', async () => {
     const obs = new OpticObservation(makeExecution([]));
     const iterator = obs[Symbol.asyncIterator]();
@@ -77,7 +112,9 @@ describe('OpticObservation', () => {
       obs[Symbol.asyncIterator]();
     } catch (err) {
       expect(err).toBeInstanceOf(OpticError);
-      expect((err as OpticError).code).toBe('E_OBSERVATION_CONSUMED');
+      if (err instanceof OpticError) {
+        expect(err.code).toBe('E_OBSERVATION_CONSUMED');
+      }
     }
   });
 });

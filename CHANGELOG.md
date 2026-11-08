@@ -75,14 +75,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Bounded optic reads over causal history through `Optic(warp.forObserver(observer))`.
-  Reads require a declared `Purpose` and respect an approved `ReadBudget`, asking the
-  injected `WarpAccessPort` before the basis is touched and reading only the subject's
-  record without repair, checkpoint, incidental fork, or whole-state fallback.
-  Each read executes as an `OpticObservation` streaming `OpticReading` values and
-  settling to an `OpticReceipt`. Runtime invariants and access refusals use dedicated
-  domain error classes (`OpticError`, `ObserverIdentityError`, `PurposeError`,
-  `ReadBudgetError`, `WarpReadGrantError`, `WarpReadRequestError`)
+- Bounded optic reads over causal history through `Optic(warp.forObserver(observer))`
+  for node presence (`node(subject)`) and single property lookup
+  (`node(subject).prop(key)`). Reads require a declared `Purpose` and respect an
+  approved `ReadBudget`, asking the injected `WarpAccessPort` before the basis is
+  touched and reading only the subject's record without repair, checkpoint,
+  incidental fork, or whole-state fallback. Each read executes as an
+  `OpticObservation` streaming `OpticReading` values and settling to an
+  `OpticReceipt` (`status: 'refused'` when access is denied, without Coordinate
+  retention in this slice). Constructor and query invariant violations throw
+  dedicated domain error classes (`OpticError`, `ObserverIdentityError`,
+  `PurposeError`, `ReadBudgetError`, `WarpReadGrantError`, `WarpReadRequestError`)
   ([#1052](https://github.com/git-stunts/git-warp/issues/1052)).
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
@@ -90,8 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `RetainedWriteReceipt`, `UnretainedWriteReceipt`, `UnpublishedWriteReceipt` or
   `IndeterminateWriteReceipt`; only the retained one has a `Coordinate`.
   `AuthoredWarp.reconcile` asks again after an indeterminate or unretained write, and
-  `AuthoredWarp.stage` stages text. `Warp` has no reads until
-  [#1052](https://github.com/git-stunts/git-warp/issues/1052)
+  `AuthoredWarp.stage` stages text
   ([#1051](https://github.com/git-stunts/git-warp/issues/1051)).
 - Add the private causal-cone engine foundation: validated records, incremental
   folding and ingest, admission indexes, concurrency/plurality, scoped bases,

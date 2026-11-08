@@ -24,13 +24,23 @@ describe('Purpose', () => {
   });
 
   it('refuses non-string namespace or name', () => {
-    expect(() => Purpose.of(null as unknown as string, 'query', 1)).toThrow(PurposeError);
-    expect(() => Purpose.of('lens', 123 as unknown as string, 1)).toThrow(PurposeError);
+    // @ts-expect-error Runtime check for non-string namespace
+    expect(() => Purpose.of(null, 'query', 1)).toThrow(PurposeError);
+    // @ts-expect-error Runtime check for non-string name
+    expect(() => Purpose.of('lens', 123, 1)).toThrow(PurposeError);
   });
 
   it('refuses ill-formed strings', () => {
     expect(() => Purpose.of('lens', '\uD800', 1)).toThrow(PurposeError);
     expect(() => Purpose.of('\uD800', 'query', 1)).toThrow(PurposeError);
+  });
+
+  it('refuses colon or slash delimiters in namespace or name and validates in constructor', () => {
+    expect(() => Purpose.of('lens:sub', 'query', 1)).toThrow(PurposeError);
+    expect(() => Purpose.of('lens/sub', 'query', 1)).toThrow(PurposeError);
+    expect(() => Purpose.of('lens', 'query:1', 1)).toThrow(PurposeError);
+    expect(() => Purpose.of('lens', 'query/v2', 1)).toThrow(PurposeError);
+    expect(() => Reflect.construct(Purpose, ['', 'query', 1])).toThrow(PurposeError);
   });
 
   it('refuses non-positive versions', () => {

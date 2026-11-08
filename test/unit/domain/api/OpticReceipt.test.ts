@@ -77,4 +77,46 @@ describe('OpticReceipt', () => {
       records: 1.5,
     })).toThrow(OpticError);
   });
+
+  it('refuses empty identity fields or inconsistent status/cause combinations', () => {
+    expect(() => new OpticReceipt({
+      status: 'completed',
+      graph: '',
+      observer: 'audit:agent-1',
+      purpose: 'audit:investigation/v1',
+      question: 'node.property/v1',
+      cause: null,
+      records: 1,
+    })).toThrow(OpticError);
+
+    expect(() => new OpticReceipt({
+      status: 'completed',
+      graph: 'graph-1',
+      observer: 'audit:agent-1',
+      purpose: 'audit:investigation/v1',
+      question: 'node.property/v1',
+      cause: 'should-be-null',
+      records: 1,
+    })).toThrow(OpticError);
+
+    expect(() => new OpticReceipt({
+      status: 'refused',
+      graph: 'graph-1',
+      observer: 'audit:agent-1',
+      purpose: 'audit:investigation/v1',
+      question: 'node.property/v1',
+      cause: null,
+      records: 0,
+    })).toThrow(OpticError);
+
+    expect(() => new OpticReceipt({
+      status: 'refused',
+      graph: 'graph-1',
+      observer: 'audit:agent-1',
+      purpose: 'audit:investigation/v1',
+      question: 'node.property/v1',
+      cause: '',
+      records: 0,
+    })).toThrow(OpticError);
+  });
 });

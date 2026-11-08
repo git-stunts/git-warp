@@ -30,4 +30,10 @@ describe('ReadBudget', () => {
     expect(() => ReadBudget.of({ records: 10, bytes: Infinity, work: 100 })).toThrow(ReadBudgetError);
     expect(() => ReadBudget.of({ records: 10, bytes: 100, work: Number.MAX_SAFE_INTEGER + 1 })).toThrow(ReadBudgetError);
   });
+
+  it('refuses non-object limits and validates in constructor', () => {
+    // @ts-expect-error Runtime check for null limits
+    expect(() => ReadBudget.of(null)).toThrow(ReadBudgetError);
+    expect(() => Reflect.construct(ReadBudget, [{ records: 0, bytes: 1, work: 1 }])).toThrow(ReadBudgetError);
+  });
 });

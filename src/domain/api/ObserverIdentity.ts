@@ -6,15 +6,15 @@ export default class ObserverIdentity {
   readonly subject: string;
 
   private constructor(namespace: string, subject: string) {
+    if (!isName(namespace) || !isName(subject)) {
+      throw new ObserverIdentityError('An observer identity needs a namespace and a subject');
+    }
     this.namespace = namespace;
     this.subject = subject;
     Object.freeze(this);
   }
 
   static of(namespace: string, subject: string): ObserverIdentity {
-    if (!isName(namespace) || !isName(subject)) {
-      throw new ObserverIdentityError('An observer identity needs a namespace and a subject');
-    }
     return new ObserverIdentity(namespace, subject);
   }
 
@@ -24,5 +24,5 @@ export default class ObserverIdentity {
 }
 
 function isName(value: string): boolean {
-  return typeof value === 'string' && value.length > 0 && value.isWellFormed();
+  return typeof value === 'string' && value.length > 0 && value.isWellFormed() && !value.includes(':');
 }

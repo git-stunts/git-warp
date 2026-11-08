@@ -1,47 +1,56 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import ObserverIdentity from '../../../../../src/domain/api/ObserverIdentity.ts';
 import type OpticReading from '../../../../../src/domain/api/OpticReading.ts';
 import Purpose from '../../../../../src/domain/api/Purpose.ts';
 import ReadBudget from '../../../../../src/domain/api/ReadBudget.ts';
 import WarpAccessDenied from '../../../../../src/domain/api/WarpAccessDenied.ts';
 import WarpReadGrant from '../../../../../src/domain/api/WarpReadGrant.ts';
-import { LWWRegister } from '../../../../../src/domain/crdt/LWW.ts';
-import ConeBasis from '../../../../../src/domain/services/cone/ConeBasis.ts';
-import ConeContendedObstruction from '../../../../../src/domain/services/cone/ConeContendedObstruction.ts';
-import type ConeLaneBasis from '../../../../../src/domain/services/cone/ConeLaneBasis.ts';
-import ConeNodeRecord from '../../../../../src/domain/services/cone/ConeNodeRecord.ts';
+import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
+import ConeLaneBasis from '../../../../../src/domain/services/cone/ConeLaneBasis.ts';
 import ConeReadExecutor from '../../../../../src/domain/services/read/ConeReadExecutor.ts';
-import { EventId } from '../../../../../src/domain/utils/EventId.ts';
-import type WarpAccessPort from '../../../../../src/ports/WarpAccessPort.ts';
+import ImmutableBytes from '../../../../../src/domain/services/snapshot/ImmutableBytes.ts';
+import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
+import NodePropSet from '../../../../../src/domain/types/ops/NodePropSet.ts';
+import WarpAccessPort from '../../../../../src/ports/WarpAccessPort.ts';
+import InMemoryConeRecordStore from '../../../../helpers/InMemoryConeRecordStore.ts';
+import MemoryConeFeed from '../../../../helpers/MemoryConeFeed.ts';
+
+const LANE = 'main';
+
+class StaticReadAccess extends WarpAccessPort {
+  readonly #decision: WarpReadGrant | WarpAccessDenied;
+
+  constructor(decision: WarpReadGrant | WarpAccessDenied) {
+    super();
+    this.#decision = decision;
+  }
+
+  override authorizeRead(): Promise<WarpReadGrant | WarpAccessDenied> {
+    return Promise.resolve(this.#decision);
+  }
+
+  override authorizeWrite(): Promise<WarpAccessDenied> {
+    return Promise.resolve(new WarpAccessDenied('read-only'));
+  }
+}
+
+function createFixture(decision: WarpReadGrant | WarpAccessDenied) {
+  const store = new InMemoryConeRecordStore();
+  const feed = new MemoryConeFeed(LANE);
+  const cone = ConeLaneBasis.ofLane({ store, feed, lane: LANE });
+  const access = new StaticReadAccess(decision);
+  const executor = new ConeReadExecutor({ graph: 'graph-1', access, cone });
+  return { store, feed, cone, access, executor };
+}
 
 describe('ConeReadExecutor', () => {
   const observer = ObserverIdentity.of('audit', 'agent-1');
   const purpose = Purpose.of('audit', 'investigation', 1);
   const defaultBudget = ReadBudget.of({ records: 5, bytes: 4096, work: 10 });
   const grant = new WarpReadGrant({ authority: 'auth-1', budget: defaultBudget });
-  const eventId = new EventId(1, 'alice', 'deadbeef00000000000000000000000000000000', 0);
-
-  function makeMockAccess(decision: WarpReadGrant | WarpAccessDenied): WarpAccessPort {
-    return {
-      authorizeRead: vi.fn().mockResolvedValue(decision),
-      authorizeWrite: vi.fn(),
-    };
-  }
-
-  function makeMockCone(basisOrObstruction: ConeBasis | ConeContendedObstruction, nodeRecord = ConeNodeRecord.empty('item-1')): ConeLaneBasis {
-    return {
-      lane: 'main',
-      advance: vi.fn().mockResolvedValue(basisOrObstruction),
-      reader: {
-        node: vi.fn().mockResolvedValue(nodeRecord),
-      },
-    } as unknown as ConeLaneBasis;
-  }
 
   it('reports refused when access is denied by WarpAccessDenied', async () => {
-    const access = makeMockAccess(new WarpAccessDenied('unauthorized'));
-    const cone = makeMockCone(ConeBasis.empty());
-    const executor = new ConeReadExecutor({ graph: 'graph-1', access, cone });
+    const { executor } = createFixture(new WarpAccessDenied('unauthorized'));
 
     const observation = await executor.read({
       observer,
@@ -56,13 +65,21 @@ describe('ConeReadExecutor', () => {
     expect(receipt.records).toBe(0);
   });
 
-  it('reports refused when access boundary gives an unexpected response', async () => {
-    const access = {
-      authorizeRead: vi.fn().mockResolvedValue({ notAGrant: true }),
-      authorizeWrite: vi.fn(),
-    } as unknown as WarpAccessPort;
-    const cone = makeMockCone(ConeBasis.empty());
-    const executor = new ConeReadExecutor({ graph: 'graph-1', access, cone });
+  it('reports refused when access boundary returns a non-grant value at runtime', async () => {
+    const malformedAccess = new (class extends WarpAccessPort {
+      override authorizeRead(): Promise<WarpReadGrant> {
+        // @ts-expect-error Exercising runtime defense when a JS caller returns a non-grant object
+        return Promise.resolve({ notAGrant: true });
+      }
+
+      override authorizeWrite(): Promise<WarpAccessDenied> {
+        return Promise.resolve(new WarpAccessDenied('read-only'));
+      }
+    })();
+    const store = new InMemoryConeRecordStore();
+    const feed = new MemoryConeFeed(LANE);
+    const cone = ConeLaneBasis.ofLane({ store, feed, lane: LANE });
+    const executor = new ConeReadExecutor({ graph: 'graph-1', access: malformedAccess, cone });
 
     const observation = await executor.read({
       observer,
@@ -76,30 +93,10 @@ describe('ConeReadExecutor', () => {
     expect(receipt.cause).toBe('access-denied: the access boundary gave no grant');
   });
 
-  it('reports budget-exhausted when granted record limit is less than 1', async () => {
-    const zeroRecordGrant = Object.create(WarpReadGrant.prototype) as WarpReadGrant;
-    Object.assign(zeroRecordGrant, { authority: 'auth-1', budget: { records: 0, bytes: 1024, work: 10 } });
-    const access = makeMockAccess(zeroRecordGrant);
-    const cone = makeMockCone(ConeBasis.empty());
-    const executor = new ConeReadExecutor({ graph: 'graph-1', access, cone });
-
-    const observation = await executor.read({
-      observer,
-      purpose,
-      budget: null,
-      question: { subject: 'item-1', key: null },
-    });
-
-    const receipt = await observation.receipt;
-    expect(receipt.status).toBe('budget-exhausted');
-    expect(receipt.records).toBe(0);
-  });
-
   it('reports failed with repair hints when cone basis is obstructed', async () => {
-    const access = makeMockAccess(grant);
-    const obstruction = new ConeContendedObstruction('main', 3);
-    const cone = makeMockCone(obstruction);
-    const executor = new ConeReadExecutor({ graph: 'graph-1', access, cone });
+    const { feed, executor } = createFixture(grant);
+    feed.append('alice', [new NodeAdd('item-1', new Dot('alice', 1))]);
+    feed.diverged.add('alice');
 
     const observation = await executor.read({
       observer,
@@ -110,25 +107,13 @@ describe('ConeReadExecutor', () => {
 
     const receipt = await observation.receipt;
     expect(receipt.status).toBe('failed');
-    expect(receipt.cause).toBe('cone_contended');
+    expect(receipt.cause).toBe('cone_writer_diverged');
     expect(receipt.repairHints.length).toBeGreaterThan(0);
-    expect(receipt.repairHints[0]?.code).toBe('retry_cone_advance');
   });
 
   it('answers node presence question for an alive node and dead node', async () => {
-    const access = makeMockAccess(grant);
-    const liveRecord = new ConeNodeRecord({
-      nodeId: 'item-1',
-      addDots: new Set(['alice:1']),
-      tombstones: new Set(),
-      birth: eventId,
-      clear: null,
-      props: new Map(),
-      outDegree: 0,
-      inDegree: 0,
-    });
-    const cone = makeMockCone(ConeBasis.empty(), liveRecord);
-    const executor = new ConeReadExecutor({ graph: 'graph-1', access, cone });
+    const { feed, executor } = createFixture(grant);
+    feed.append('alice', [new NodeAdd('item-1', new Dot('alice', 1))]);
 
     const liveObs = await executor.read({
       observer,
@@ -148,14 +133,11 @@ describe('ConeReadExecutor', () => {
     expect(liveReceipt.question).toBe('node.presence/v1');
     expect(liveReceipt.records).toBe(1);
 
-    // Test dead node
-    const deadCone = makeMockCone(ConeBasis.empty(), ConeNodeRecord.empty('item-1'));
-    const deadExecutor = new ConeReadExecutor({ graph: 'graph-1', access, cone: deadCone });
-    const deadObs = await deadExecutor.read({
+    const deadObs = await executor.read({
       observer,
       purpose,
       budget: null,
-      question: { subject: 'item-1', key: null },
+      question: { subject: 'missing-node', key: null },
     });
     const deadReadings: OpticReading[] = [];
     for await (const r of deadObs) {
@@ -163,26 +145,16 @@ describe('ConeReadExecutor', () => {
     }
     expect(deadReadings).toHaveLength(1);
     expect(deadReadings[0]?.present).toBe(false);
+    expect(deadReadings[0]?.value).toBeNull();
   });
 
   it('answers property presence question for alive node and dead node', async () => {
-    const access = makeMockAccess(grant);
-    const liveRecordWithProp = new ConeNodeRecord({
-      nodeId: 'item-1',
-      addDots: new Set(['alice:1']),
-      tombstones: new Set(),
-      birth: eventId,
-      clear: null,
-      props: new Map([
-        ['color', new LWWRegister(eventId, 'green')],
-      ]),
-      outDegree: 0,
-      inDegree: 0,
-    });
-    const cone = makeMockCone(ConeBasis.empty(), liveRecordWithProp);
-    const executor = new ConeReadExecutor({ graph: 'graph-1', access, cone });
+    const { feed, executor } = createFixture(grant);
+    feed.append('alice', [
+      new NodeAdd('item-1', new Dot('alice', 1)),
+      new NodePropSet('item-1', 'color', 'green'),
+    ]);
 
-    // Existing property
     const propObs = await executor.read({
       observer,
       purpose,
@@ -196,7 +168,6 @@ describe('ConeReadExecutor', () => {
     expect(readings[0]?.present).toBe(true);
     expect(readings[0]?.value).toBe('green');
 
-    // Missing property on live node
     const missingPropObs = await executor.read({
       observer,
       purpose,
@@ -210,14 +181,11 @@ describe('ConeReadExecutor', () => {
     expect(missingReadings[0]?.present).toBe(false);
     expect(missingReadings[0]?.value).toBeNull();
 
-    // Property on dead node
-    const deadCone = makeMockCone(ConeBasis.empty(), ConeNodeRecord.empty('item-1'));
-    const deadExecutor = new ConeReadExecutor({ graph: 'graph-1', access, cone: deadCone });
-    const deadPropObs = await deadExecutor.read({
+    const deadPropObs = await executor.read({
       observer,
       purpose,
       budget: null,
-      question: { subject: 'item-1', key: 'color' },
+      question: { subject: 'missing-node', key: 'color' },
     });
     const deadReadings: OpticReading[] = [];
     for await (const r of deadPropObs) {
@@ -230,21 +198,11 @@ describe('ConeReadExecutor', () => {
   it('reports budget-exhausted when encoded byte size exceeds budget.bytes', async () => {
     const tinyBudget = ReadBudget.of({ records: 5, bytes: 2, work: 10 });
     const tinyGrant = new WarpReadGrant({ authority: 'auth-1', budget: tinyBudget });
-    const access = makeMockAccess(tinyGrant);
-    const liveRecordWithProp = new ConeNodeRecord({
-      nodeId: 'item-1',
-      addDots: new Set(['alice:1']),
-      tombstones: new Set(),
-      birth: eventId,
-      clear: null,
-      props: new Map([
-        ['title', new LWWRegister(eventId, 'very large text that exceeds byte limit')],
-      ]),
-      outDegree: 0,
-      inDegree: 0,
-    });
-    const cone = makeMockCone(ConeBasis.empty(), liveRecordWithProp);
-    const executor = new ConeReadExecutor({ graph: 'graph-1', access, cone });
+    const { feed, executor } = createFixture(tinyGrant);
+    feed.append('alice', [
+      new NodeAdd('item-1', new Dot('alice', 1)),
+      new NodePropSet('item-1', 'title', 'very large text that exceeds byte limit'),
+    ]);
 
     const observation = await executor.read({
       observer,
@@ -264,9 +222,7 @@ describe('ConeReadExecutor', () => {
   });
 
   it('reports cancelled when cancel() is called on an active observation', async () => {
-    const access = makeMockAccess(grant);
-    const cone = makeMockCone(ConeBasis.empty());
-    const executor = new ConeReadExecutor({ graph: 'graph-1', access, cone });
+    const { executor } = createFixture(grant);
 
     const observation = await executor.read({
       observer,
@@ -280,10 +236,8 @@ describe('ConeReadExecutor', () => {
     expect(receipt.cause).toBe('cancelled');
   });
 
-  it('ended observation preserves terminal status once drained', async () => {
-    const access = makeMockAccess(new WarpAccessDenied('denied'));
-    const cone = makeMockCone(ConeBasis.empty());
-    const executor = new ConeReadExecutor({ graph: 'graph-1', access, cone });
+  it('ended observation preserves terminal status even if cancel() is called before draining', async () => {
+    const { executor } = createFixture(new WarpAccessDenied('denied'));
 
     const observation = await executor.read({
       observer,
@@ -292,9 +246,86 @@ describe('ConeReadExecutor', () => {
       question: { subject: 'item-1', key: null },
     });
 
-    const receipt = await observation.receipt;
-    expect(receipt.status).toBe('refused');
     const cancelReceipt = await observation.cancel();
     expect(cancelReceipt.status).toBe('refused');
+    const receipt = await observation.receipt;
+    expect(receipt.status).toBe('refused');
+  });
+
+  it('does not leak Object.prototype properties and preserves explicit null property values', async () => {
+    const { feed, executor } = createFixture(grant);
+    feed.append('alice', [
+      new NodeAdd('item-1', new Dot('alice', 1)),
+      new NodePropSet('item-1', 'nullable', null),
+    ]);
+
+    for (const protoKey of ['__proto__', 'toString', 'constructor', 'valueOf']) {
+      const protoObs = await executor.read({
+        observer,
+        purpose,
+        budget: null,
+        question: { subject: 'item-1', key: protoKey },
+      });
+      const protoReadings: OpticReading[] = [];
+      for await (const r of protoObs) {
+        protoReadings.push(r);
+      }
+      expect(protoReadings[0]?.present).toBe(false);
+      expect(protoReadings[0]?.value).toBeNull();
+    }
+
+    const nullPropObs = await executor.read({
+      observer,
+      purpose,
+      budget: null,
+      question: { subject: 'item-1', key: 'nullable' },
+    });
+    const nullReadings: OpticReading[] = [];
+    for await (const r of nullPropObs) {
+      nullReadings.push(r);
+    }
+    expect(nullReadings[0]?.present).toBe(true);
+    expect(nullReadings[0]?.value).toBeNull();
+  });
+
+  it('charges actual byte length for ImmutableBytes, arrays, and objects, and 0 bytes for node presence or absent properties', async () => {
+    const smallBudget = ReadBudget.of({ records: 1, bytes: 16, work: 1 });
+    const smallGrant = new WarpReadGrant({ authority: 'auth-1', budget: smallBudget });
+    const { feed, cone, executor } = createFixture(smallGrant);
+    feed.append('alice', [
+      new NodeAdd('item-1', new Dot('alice', 1)),
+      new NodePropSet('item-1', 'blob', new Uint8Array(64)),
+      new NodePropSet('item-1', 'nested', { items: ['a', 'b'], emptyArr: [], emptyObj: {} }),
+    ]);
+
+    const blobObs = await executor.read({
+      observer,
+      purpose,
+      budget: null,
+      question: { subject: 'item-1', key: 'blob' },
+    });
+    const blobReceipt = await blobObs.receipt;
+    expect(blobReceipt.status).toBe('budget-exhausted');
+
+    const nestedAccess = new StaticReadAccess(new WarpReadGrant({ authority: 'auth-1', budget: ReadBudget.of({ records: 1, bytes: 1024, work: 1 }) }));
+    const nestedExecutor = new ConeReadExecutor({ graph: 'graph-1', access: nestedAccess, cone });
+    const nestedObs = await nestedExecutor.read({
+      observer,
+      purpose,
+      budget: null,
+      question: { subject: 'item-1', key: 'nested' },
+    });
+    expect((await nestedObs.receipt).status).toBe('completed');
+
+    const oneByteBudget = ReadBudget.of({ records: 1, bytes: 1, work: 1 });
+    const oneByteAccess = new StaticReadAccess(new WarpReadGrant({ authority: 'auth-1', budget: oneByteBudget }));
+    const oneByteExecutor = new ConeReadExecutor({ graph: 'graph-1', access: oneByteAccess, cone });
+    const presenceObs = await oneByteExecutor.read({
+      observer,
+      purpose,
+      budget: null,
+      question: { subject: 'item-1', key: null },
+    });
+    expect((await presenceObs.receipt).status).toBe('completed');
   });
 });

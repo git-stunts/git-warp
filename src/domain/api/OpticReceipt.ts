@@ -28,6 +28,27 @@ function validateStatus(status: OpticReceiptStatus): void {
   }
 }
 
+function validateCause(status: OpticReceiptStatus, cause: string | null): void {
+  if (status === 'completed') {
+    if (cause !== null) {
+      throw new OpticError('A completed optic receipt must have a null cause');
+    }
+    return;
+  }
+  if (typeof cause !== 'string' || cause.length === 0) {
+    throw new OpticError('A non-completed optic receipt needs a non-empty cause');
+  }
+}
+
+function validateIdentityFields(fields: OpticReceiptFields): void {
+  const valid = [fields.graph, fields.observer, fields.purpose, fields.question].every(
+    (part) => typeof part === 'string' && part.length > 0,
+  );
+  if (!valid) {
+    throw new OpticError('An optic receipt needs non-empty graph, observer, purpose and question fields');
+  }
+}
+
 function validateRecords(records: number): void {
   if (!Number.isSafeInteger(records) || records < 0) {
     throw new OpticError('An optic receipt needs a non-negative integer record count');
@@ -54,6 +75,8 @@ export default class OpticReceipt {
 
   constructor(fields: OpticReceiptFields) {
     validateStatus(fields.status);
+    validateCause(fields.status, fields.cause);
+    validateIdentityFields(fields);
     validateRecords(fields.records);
     this.status = fields.status;
     this.graph = fields.graph;

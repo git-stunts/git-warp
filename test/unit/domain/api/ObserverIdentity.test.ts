@@ -26,12 +26,20 @@ describe('ObserverIdentity', () => {
   });
 
   it('refuses non-string values', () => {
-    expect(() => ObserverIdentity.of(null as unknown as string, 'alice')).toThrow(ObserverIdentityError);
-    expect(() => ObserverIdentity.of('tenant', 123 as unknown as string)).toThrow(ObserverIdentityError);
+    // @ts-expect-error Runtime check for non-string namespace
+    expect(() => ObserverIdentity.of(null, 'alice')).toThrow(ObserverIdentityError);
+    // @ts-expect-error Runtime check for non-string subject
+    expect(() => ObserverIdentity.of('tenant', 123)).toThrow(ObserverIdentityError);
   });
 
   it('refuses ill-formed strings with unpaired surrogates', () => {
     expect(() => ObserverIdentity.of('tenant', '\uD800')).toThrow(ObserverIdentityError);
     expect(() => ObserverIdentity.of('\uD800', 'alice')).toThrow(ObserverIdentityError);
+  });
+
+  it('refuses colon delimiter in namespace or subject and enforces validation in constructor', () => {
+    expect(() => ObserverIdentity.of('tenant:sub', 'alice')).toThrow(ObserverIdentityError);
+    expect(() => ObserverIdentity.of('tenant', 'alice:1')).toThrow(ObserverIdentityError);
+    expect(() => Reflect.construct(ObserverIdentity, ['', 'alice'])).toThrow(ObserverIdentityError);
   });
 });
