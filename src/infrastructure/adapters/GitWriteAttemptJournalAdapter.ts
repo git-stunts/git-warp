@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type ObservationAttemptId from '../../domain/services/custody/ObservationAttemptId.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
-import RetiredWriteAttemptError from '../../domain/errors/RetiredWriteAttemptError.ts';
+import UnsupportedWriteAttemptLayoutError from '../../domain/errors/UnsupportedWriteAttemptLayoutError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import ObservationDecodeFailure from '../../domain/services/custody/ObservationDecodeFailure.ts';
 import WriteOccurrence from '../../domain/api/WriteOccurrence.ts';
@@ -14,17 +14,26 @@ import type ObservationCustodyCodecPort from '../../ports/ObservationCustodyCode
 import WriteAttemptJournalPort from '../../ports/WriteAttemptJournalPort.ts';
 
 /**
- * 2: saves `races` (#1072). A version-1 record, which only clones built from `main` before #1072
- * can hold, saved no races; it is not read as a record with none.
+ * 2: saves `races` (#1072). A well-formed record in any other layout is refused by its ref,
+ * never read: version 1 came only from clones of unreleased `main` and saved no races.
  */
 const RECORD_VERSION = 2;
-/** The layout before #1072. Only clones of unreleased `main` wrote it, so it is refused by name, never read. */
-const RETIRED_RECORD_VERSION = 1;
-const retiredRecordSchema = z.object({ version: z.literal(RETIRED_RECORD_VERSION) });
+const otherLayoutSchema = z.object({
+  version: z.number().int().nonnegative().refine((version) => version !== RECORD_VERSION),
+  preparation: z.instanceof(Uint8Array),
+});
 
-/** A saved blob that holds a version-1 record: not unreadable, and not a record either. */
-class RetiredRecord {}
-const RETIRED = Object.freeze(new RetiredRecord());
+/** A well-formed record in a layout this build does not read, known only by its layout and writer. */
+class OtherLayoutRecord {
+  readonly version: number;
+  readonly writer: string;
+
+  constructor(version: number, writer: string) {
+    this.version = version;
+    this.writer = writer;
+    Object.freeze(this);
+  }
+}
 
 const writersSchema = z.array(z.string());
 const overflowSchema = z.number().int().nonnegative();
@@ -107,28 +116,31 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     await this.#history.deleteRef(buildWriteAttemptRef(this.#graph, attemptId.value));
   }
 
+  /** An other-layout record is reported by its ref and does not count against `limit`. */
   override async list(limit: number): Promise<WriteAttemptListing> {
     const targets = [...(await this.#history.readRefTargets(buildWriteAttemptsPrefix(this.#graph))).entries()];
     const start = Math.floor(Math.random() * targets.length);
     const records: WriteAttemptRecord[] = [];
-    const retiredRefs: string[] = [];
-    for (const [ref, oid] of [...targets.slice(start), ...targets.slice(0, start)].slice(0, limit)) {
-      const record = await this.#readRecord(oid);
-      if (record instanceof RetiredRecord) {
-        retiredRefs.push(ref);
-      } else if (record !== null) {
-        records.push(record);
+    const unsupportedRefs: string[] = [];
+    let examined = 0;
+    for (const [ref, oid] of [...targets.slice(start), ...targets.slice(0, start)]) {
+      if (examined >= limit) {
+        break;
       }
+      const record = await this.#readRecord(oid);
+      examined += record instanceof OtherLayoutRecord ? 0 : 1;
+      collect(record, { ref, records, unsupportedRefs });
     }
-    return new WriteAttemptListing({ records, retiredRefs });
+    return new WriteAttemptListing({ records, unsupportedRefs });
   }
 
   /** A blob that does not decode is not a record, however it came to be there. */
-  #decoded(bytes: Uint8Array): z.infer<typeof storedRecordSchema> | RetiredRecord | null {
+  #decoded(bytes: Uint8Array): z.infer<typeof storedRecordSchema> | OtherLayoutRecord | null {
     try {
       const value = this.#codec.decode(bytes);
-      if (retiredRecordSchema.safeParse(value).success) {
-        return RETIRED;
+      const other = otherLayoutSchema.safeParse(value);
+      if (other.success) {
+        return this.#otherLayout(other.data.version, other.data.preparation);
       }
       const parsed = storedRecordSchema.safeParse(value);
       return parsed.success ? parsed.data : null;
@@ -137,14 +149,21 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     }
   }
 
+  /** Well formed means its preparation still names the writer it belongs to. */
+  #otherLayout(version: number, bytes: Uint8Array): OtherLayoutRecord | null {
+    const preparation = this.#custodyCodec.decodePreparation(bytes);
+    const writer = preparation instanceof ObservationDecodeFailure ? undefined : preparation.bindings.writePremise?.writerId;
+    return writer === undefined ? null : new OtherLayoutRecord(version, writer);
+  }
+
   /**
    * A record that exists but cannot be read is not an absent one: a caller told null may discard the attempt.
-   * A retired one names its ref, so an operator can delete it.
+   * One in another layout names its ref, layout and writer.
    */
   #requireRecord(bytes: Uint8Array, ref: string): WriteAttemptRecord {
     const record = this.#decodedRecord(bytes);
-    if (record instanceof RetiredRecord) {
-      throw new RetiredWriteAttemptError(ref);
+    if (record instanceof OtherLayoutRecord) {
+      throw new UnsupportedWriteAttemptLayoutError({ ref, version: record.version, writer: record.writer });
     }
     if (record === null) {
       throw new AdapterValidationError('A saved write attempt record could not be decoded');
@@ -152,16 +171,16 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     return record;
   }
 
-  #decodedRecord(bytes: Uint8Array): WriteAttemptRecord | RetiredRecord | null {
+  #decodedRecord(bytes: Uint8Array): WriteAttemptRecord | OtherLayoutRecord | null {
     const decoded = this.#decoded(bytes);
-    if (decoded instanceof RetiredRecord) {
+    if (decoded instanceof OtherLayoutRecord) {
       return decoded;
     }
     return decoded === null ? null : this.#recordOf(decoded);
   }
 
   /** For a listing: one unreadable blob must not stop the rest. */
-  async #readRecord(oid: string): Promise<WriteAttemptRecord | RetiredRecord | null> {
+  async #readRecord(oid: string): Promise<WriteAttemptRecord | OtherLayoutRecord | null> {
     try {
       return this.#decodedRecord(await this.#history.readBlob(oid));
     } catch {
@@ -183,6 +202,19 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     } catch (error) {
       return refusedRecord(error);
     }
+  }
+}
+
+/** Sorts one listed blob into the page: a record, an other-layout ref, or nothing. */
+function collect(record: WriteAttemptRecord | OtherLayoutRecord | null, into: {
+  readonly ref: string;
+  readonly records: WriteAttemptRecord[];
+  readonly unsupportedRefs: string[];
+}): void {
+  if (record instanceof OtherLayoutRecord) {
+    into.unsupportedRefs.push(into.ref);
+  } else if (record !== null) {
+    into.records.push(record);
   }
 }
 

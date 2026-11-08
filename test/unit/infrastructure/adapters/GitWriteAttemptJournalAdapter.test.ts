@@ -7,6 +7,7 @@ import ObservationDigest from '../../../../src/domain/services/custody/Observati
 import ObservationPreparation from '../../../../src/domain/services/custody/ObservationPreparation.ts';
 import ObservationQuestion from '../../../../src/domain/services/custody/ObservationQuestion.ts';
 import ObservationWritePremise from '../../../../src/domain/services/custody/ObservationWritePremise.ts';
+import WriteAttemptListing from '../../../../src/domain/services/write/WriteAttemptListing.ts';
 import GitWriteAttemptJournalAdapter, { type WriteAttemptHistory } from '../../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import ObservationCustodyCborCodec from '../../../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
 import codec from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -51,6 +52,6 @@ describe('GitWriteAttemptJournalAdapter', () => {
     const journal = new GitWriteAttemptJournalAdapter({ graph: 'g', history, codec, custodyCodec });
 
     await expect(journal.read(ATTEMPT)).rejects.toThrow(RangeError);
-    expect((await journal.list(4)).records).toEqual([]);
+    expect(await journal.list(4)).toEqual(new WriteAttemptListing({ records: [], unsupportedRefs: [] }));
   });
 });

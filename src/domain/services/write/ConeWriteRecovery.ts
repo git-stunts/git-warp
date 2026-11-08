@@ -13,7 +13,10 @@ import ResolvedObservation from '../custody/ResolvedObservation.ts';
 import RetainedObservation from '../custody/RetainedObservation.ts';
 import ObservationAttemptId from '../custody/ObservationAttemptId.ts';
 import type ConeWriteSettlement from './ConeWriteSettlement.ts';
+import RetainedWriteCoreMismatchError from '../../errors/RetainedWriteCoreMismatchError.ts';
+import UnsupportedWriteAttemptLayoutError from '../../errors/UnsupportedWriteAttemptLayoutError.ts';
 import WriteAttemptListing from './WriteAttemptListing.ts';
+import { publishedWriteCore } from './writeReceiptCore.ts';
 import type WriteAttemptRecord from './WriteAttemptRecord.ts';
 import type WritePublicationProbe from './WritePublicationProbe.ts';
 
@@ -90,10 +93,24 @@ export default class ConeWriteRecovery {
     }
   }
 
-  /** The current receipt of one writer's attempt, or null if it has no record: already answered, or never this writer's. */
+  /**
+   * The current receipt of one writer's attempt, or null if it has no record: already answered, or never this writer's.
+   * Ownership is checked before any refusal, so another writer's record in an unreadable layout also answers null.
+   */
   async reconcile(writer: string, attemptText: string): Promise<AuthoredWriteReceipt | null> {
-    const record = await this.#journal.read(new ObservationAttemptId(attemptText));
-    return record?.premise.writerId === writer ? await this.#recover(record) : null;
+    const record = await this.#ownRecord(writer, new ObservationAttemptId(attemptText));
+    return record === null ? null : await this.#recover(record);
+  }
+
+  async #ownRecord(writer: string, attemptId: ObservationAttemptId): Promise<WriteAttemptRecord | null> {
+    try {
+      return ownedBy(await this.#journal.read(attemptId), writer);
+    } catch (error) {
+      if (error instanceof UnsupportedWriteAttemptLayoutError && error.writer !== writer) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async #recover(record: WriteAttemptRecord): Promise<AuthoredWriteReceipt> {
@@ -142,17 +159,31 @@ export default class ConeWriteRecovery {
     return record.commit !== null || (await this.#probe.locate(record)).kind === 'own';
   }
 
-  /** Custody settled a publication, and that outranks whatever the chain says now. */
+  /**
+   * Custody settled a publication, and that outranks whatever the chain says now. The record must
+   * rebuild exactly the core custody retained, or the receipt would contradict its own Coordinate.
+   */
   async #fromCustody(run: {
     readonly record: WriteAttemptRecord;
     readonly attempt: ObservationAttempt;
     readonly coordinate: ObservationCoordinate;
   }): Promise<AuthoredWriteReceipt> {
+    const resolved = await this.#custody.resolve(run.coordinate);
+    return resolved instanceof ResolvedObservation ? await this.#fromResolved(resolved, run) : this.#indeterminate(run.record, RECOVERY_UNAVAILABLE);
+  }
+
+  async #fromResolved(resolved: ResolvedObservation, run: {
+    readonly record: WriteAttemptRecord;
+    readonly attempt: ObservationAttempt;
+    readonly coordinate: ObservationCoordinate;
+  }): Promise<AuthoredWriteReceipt> {
     const { record, attempt, coordinate } = run;
-    const resolved = await this.#custody.resolve(coordinate);
-    const commit = resolved instanceof ResolvedObservation ? resolved.record.publication?.commit : undefined;
+    const commit = resolved.record.publication?.commit;
     if (commit === undefined) {
       return this.#indeterminate(record, RECOVERY_UNAVAILABLE);
+    }
+    if (!this.#custody.holdsCore(resolved, publishedWriteCore(this.#graph, record, commit))) {
+      throw new RetainedWriteCoreMismatchError(record.attemptId.value);
     }
     await this.#forget(record);
     return this.#settlement.retained({ attempt, record, commit }, coordinate);
@@ -189,4 +220,8 @@ export default class ConeWriteRecovery {
       graph: this.#graph, writer: record.premise.writerId, attempt: record.attemptId.value, requirement,
     });
   }
+}
+
+function ownedBy(record: WriteAttemptRecord | null, writer: string): WriteAttemptRecord | null {
+  return record?.premise.writerId === writer ? record : null;
 }

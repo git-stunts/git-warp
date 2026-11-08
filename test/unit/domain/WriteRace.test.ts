@@ -18,6 +18,7 @@ describe('WriteRace', () => {
   it('holds a register race on one property and a lifecycle race on none', () => {
     expect(new WriteRace({ ...REGISTER, overflow: Number.MAX_SAFE_INTEGER })).toMatchObject({ key: 'title', overflow: Number.MAX_SAFE_INTEGER });
     expect(new WriteRace(LIFECYCLE).key).toBeNull();
+    expect(new WriteRace({ ...REGISTER, writers: [], overflow: 1 }).writers).toEqual([]);
   });
 
   it.each([
@@ -28,6 +29,8 @@ describe('WriteRace', () => {
     ['a fractional overflow', () => new WriteRace({ ...REGISTER, overflow: 0.5 })],
     ['an overflow past the safe integers', () => new WriteRace({ ...REGISTER, overflow: 2 ** 53 })],
     ['a non-number overflow', () => new WriteRace({ ...REGISTER, overflow: Number.NaN })],
+    ['a race with no writer and no overflow', () => new WriteRace({ ...REGISTER, writers: [] })],
+    ['a race on no subject', () => new WriteRace({ ...LIFECYCLE, subject: '' })],
   ])('refuses %s with a typed error', (_name, build) => {
     expect(refusal(build)?.code).toBe('E_WRITE_RACE');
   });

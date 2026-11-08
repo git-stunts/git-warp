@@ -1,20 +1,23 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
-import { GitStorage, UnretainedWriteReceipt, WarpAddress, type RetainedWriteReceipt } from '../../../index.ts';
+import { execFileSync } from 'node:child_process';
+import { GitStorage, UnretainedWriteReceipt, WarpAddress, type RetainedWriteReceipt, type Warp } from '../../../index.ts';
 import { getDefaultRuntimeHostNodePorts } from '../../../src/application/RuntimeHostNodeDefaults.ts';
 import { resolveWarpStorage } from '../../../src/application/WarpStorageRegistry.ts';
 import { composeWarpWrites } from '../../../src/application/WarpWriteComposition.ts';
 import type WriteRace from '../../../src/domain/api/WriteRace.ts';
+import WarpError from '../../../src/domain/errors/WarpError.ts';
 import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import ObservationCoordinate from '../../../src/domain/services/custody/ObservationCoordinate.ts';
 import ObservationReceiptCore from '../../../src/domain/services/custody/ObservationReceiptCore.ts';
 import ResolvedObservation from '../../../src/domain/services/custody/ResolvedObservation.ts';
 import { textDecode } from '../../../src/domain/utils/bytes.ts';
 import { openRuntimeHostProduct, type RuntimeHostProduct } from '../../../src/domain/warp/RuntimeHostProduct.ts';
+import GitWriteAttemptJournalAdapter from '../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import ObservationCustodyCborCodec from '../../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
 import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
-import { GRAPH, TestAccess, attemptRefs, disposeWarpFixtures, open, repository, retained } from '../../helpers/WarpWriteFixture.ts';
+import { GRAPH, TestAccess, attemptRefs, disposeWarpFixtures, git, open, repository, retained } from '../../helpers/WarpWriteFixture.ts';
 
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -151,6 +154,42 @@ describe('a retained write keeps the races it was admitted with', () => {
 
     expect(raced.outcome.races.map(wire)).toEqual([BOB_REMOVED, CAROL_TITLE]);
     expect(await coreRaces(path, raced)).toEqual([BOB_REMOVED, CAROL_TITLE]);
+  });
+});
+
+describe('a receipt rebuilt from custody', () => {
+  /** A plural write whose record outlived its settlement, as after a crash before the record was removed. */
+  async function settledWithRecord(path: string): Promise<{ readonly warp: Warp; readonly receipt: RetainedWriteReceipt; readonly ref: string }> {
+    const warp = await open(path);
+    retained(await warp.as('alice').execute([intent.node.add({ subject: 'doc' }), intent.property.set({ subject: 'doc', key: 'title', value: 'one' })]));
+    await unseen(path, 'bob', (patch) => { patch.setProperty('doc', 'title', 'unseen'); });
+    vi.spyOn(GitWriteAttemptJournalAdapter.prototype, 'remove').mockRejectedValueOnce(new Error('ref store went away'));
+    const receipt = retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' })));
+    const [ref = ''] = attemptRefs(path);
+    return { warp, receipt, ref };
+  }
+
+  it('reports the races its retained core binds', async () => {
+    const path = await repository();
+    const { warp, receipt, ref } = await settledWithRecord(path);
+
+    const rebuilt = retained(await warp.as('alice').reconcile(ref.split('/').at(-1) ?? ''));
+
+    expect(rebuilt.coordinate.toString()).toBe(receipt.coordinate.toString());
+    expect(rebuilt.outcome.races.map(wire)).toEqual([BOB_TITLE]);
+  });
+
+  it('refuses a record whose races differ from its retained core, and keeps it', async () => {
+    const path = await repository();
+    const { warp, ref } = await settledWithRecord(path);
+    const stored: { readonly [field: string]: unknown } = codec.decode(execFileSync('git', ['cat-file', 'blob', git(path, ['rev-parse', ref])], { cwd: path }));
+    const altered = execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: path, input: codec.encode({ ...stored, races: [['register', 'doc', 'title', ['mallory'], 0, 'underdetermined']] }) });
+    git(path, ['update-ref', ref, altered.toString().trim()]);
+
+    const refused = await warp.as('alice').reconcile(ref.split('/').at(-1) ?? '').then(() => null, (error: Error) => error);
+
+    expect(refused instanceof WarpError ? refused.code : refused).toBe('E_WRITE_CORE_MISMATCH');
+    expect(attemptRefs(path)).toEqual([ref]);
   });
 });
 

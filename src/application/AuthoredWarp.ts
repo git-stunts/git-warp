@@ -39,7 +39,9 @@ export default class AuthoredWarp {
    * Asks again what became of an indeterminate or unretained write's `attempt`. Ask again
    * while it stays so; a final answer is given once. Null means it was already answered, was
    * never this writer's, this writer is denied now, or a sweep finished it first. It does not
-   * mean the write did not land. It rejects if a store read fails.
+   * mean the write did not land. It rejects if a store read fails. It also rejects, with code
+   * `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, when this writer's saved record uses a layout this
+   * git-warp does not read; the error names the ref. Another writer's such record answers null.
    */
   async reconcile(attempt: string): Promise<AuthoredWriteReceipt | null> {
     return await this.#backend.reconcile(this.writer, attempt);

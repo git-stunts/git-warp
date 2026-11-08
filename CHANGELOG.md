@@ -145,13 +145,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A write receipt rebuilt by `AuthoredWarp.reconcile` after an interrupted write now
   reports the same `outcome.races` as the original receipt, rather than none. Retained
   receipts keep their races as durable evidence. `outcome.races` is now always in one
-  canonical order, on every receipt, and each race names each writer once, sorted.
-  The write attempt record and the write receipt core move to layout version 2. A clone
-  built from `main` before this change can hold version-1 write attempt refs under
-  `refs/warp/<graph>/write-attempts/`. Reading one, for example through
-  `AuthoredWarp.reconcile`, throws an error with code `E_WRITE_ATTEMPT_RETIRED` that
-  names the ref to delete. The journal listing the recovery sweep reads skips it and
-  reports its ref, rather than dropping it silently
+  canonical order, on every receipt, and each race names each writer once, sorted
+  ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
+- A clone built from `main` before #1072 can hold write attempt refs in an older layout
+  under `refs/warp/<graph>/write-attempts/`. This version does not read them.
+  `AuthoredWarp.reconcile` of such an attempt rejects with code
+  `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, and the error names the ref. Delete only the refs
+  such errors name, with `git update-ref -d <ref>`. Each one holds only that attempt's
+  recovery record, not graph data: a patch the attempt published stays on its writer's
+  chain, and only that attempt's receipt is lost. Do not delete the whole prefix, which can
+  also hold current attempts. Deleting the ref frees nothing in custody; it abandons that
+  attempt's fate, which is harmless at the current unlimited retention capacity. The
+  recovery sweep passes over these refs without counting them against its page, but does
+  not report them yet ([#1107](https://github.com/git-stunts/git-warp/issues/1107))
   ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
 
 - Discover every supported test file recursively under `test/unit/` before

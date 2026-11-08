@@ -6,7 +6,8 @@ import type WriteAttemptRecord from './WriteAttemptRecord.ts';
 
 /**
  * 2: binds `races` (#1072). A version-1 core, which only clones built from `main` before #1072
- * can hold, carries no races: a reader must treat its races as unknown, never as `[]`.
+ * can hold, binds no races: it is unsupported, and a reader refuses it and never reads its
+ * missing races as `[]`.
  */
 const WRITE_CORE_VERSION = 2;
 

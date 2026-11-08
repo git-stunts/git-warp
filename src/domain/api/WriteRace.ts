@@ -29,6 +29,7 @@ export default class WriteRace {
   }) {
     WriteRace.#requireKey(fields.kind, fields.key);
     WriteRace.#requireOverflow(fields.overflow);
+    WriteRace.#requireParticipants(fields);
     this.kind = fields.kind;
     this.subject = fields.subject;
     this.key = fields.key;
@@ -42,6 +43,13 @@ export default class WriteRace {
     const named = kind === 'register' ? key !== null && key.length > 0 : key === null;
     if (!named) {
       throw new WriteRaceError('A register race names one property, and a lifecycle race names none');
+    }
+  }
+
+  /** A race is on something, and someone raced: a named writer, or at least one overflowed event. */
+  static #requireParticipants(fields: { readonly subject: string; readonly writers: readonly string[]; readonly overflow: number }): void {
+    if (fields.subject.length === 0 || fields.writers.length + fields.overflow === 0) {
+      throw new WriteRaceError('A race names its subject, and at least one writer or overflowed event');
     }
   }
 

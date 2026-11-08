@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
+import IndeterminateWriteReceipt from '../../../../../src/domain/api/IndeterminateWriteReceipt.ts';
 import RetainedWriteReceipt from '../../../../../src/domain/api/RetainedWriteReceipt.ts';
 import UnretainedWriteReceipt from '../../../../../src/domain/api/UnretainedWriteReceipt.ts';
 import WriteRace from '../../../../../src/domain/api/WriteRace.ts';
 import AdapterValidationError from '../../../../../src/domain/errors/AdapterValidationError.ts';
+import RetainedWriteCoreMismatchError from '../../../../../src/domain/errors/RetainedWriteCoreMismatchError.ts';
 import WarpError from '../../../../../src/domain/errors/WarpError.ts';
 import ObservationKnownUnpublished from '../../../../../src/domain/services/custody/ObservationKnownUnpublished.ts';
 import ObservationPrepared from '../../../../../src/domain/services/custody/ObservationPrepared.ts';
+import { bytesEqual } from '../../../../../src/domain/services/custody/observationCustodyOutcomes.ts';
 import ObservationAdmitted from '../../../../../src/domain/services/custody/ObservationAdmitted.ts';
 import type ObservationAttempt from '../../../../../src/domain/services/custody/ObservationAttempt.ts';
 import ObservationAttemptId from '../../../../../src/domain/services/custody/ObservationAttemptId.ts';
@@ -29,6 +32,7 @@ import ConeWriteRecovery from '../../../../../src/domain/services/write/ConeWrit
 import ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
 import LoweredConeWrite from '../../../../../src/domain/services/write/LoweredConeWrite.ts';
 import type PatchEntryFold from '../../../../../src/domain/services/write/PatchEntryFold.ts';
+import WriteAttemptListing from '../../../../../src/domain/services/write/WriteAttemptListing.ts';
 import WriteAttemptRecord from '../../../../../src/domain/services/write/WriteAttemptRecord.ts';
 import type WritePublicationProbe from '../../../../../src/domain/services/write/WritePublicationProbe.ts';
 import { failedWriteCore, publishedWriteCore } from '../../../../../src/domain/services/write/writeReceiptCore.ts';
@@ -44,6 +48,7 @@ const DIGEST = new ObservationDigest('b'.repeat(64));
 const COMMIT = 'c'.repeat(40);
 const PARENT = 'd'.repeat(40);
 const custodyCodec = new ObservationCustodyCborCodec(codec);
+const NOTHING_LISTED = new WriteAttemptListing({ records: [], unsupportedRefs: [] });
 
 /** Writers deliberately unsorted; causalities mixed only to exercise ordering. */
 const TITLE_RACE = new WriteRace({ kind: 'register', subject: 'doc', key: 'title', writers: ['carol', 'bob'], overflow: 0, causality: 'observed' });
@@ -187,30 +192,57 @@ describe('a settled write reports the races its core binds', () => {
     expect(receipt.outcome.races.map(wire)).toEqual(core === undefined ? null : coreRaces(core));
   });
 
-  it('rebuilds a settled receipt from its record with the exact race set', async () => {
-    const saved = record();
-    const core = publishedWriteCore('g', saved, COMMIT);
+  /** Recovery over custody that settled `retained`, the exact core bytes custody would have kept, for the record `saved`. */
+  function rebuilding(saved: WriteAttemptRecord, retained: ObservationReceiptCore, publication: ObservationPublicationEvidence | null = new ObservationPublicationEvidence('alice', COMMIT)): { readonly recovery: ConeWriteRecovery; readonly remove: ReturnType<typeof vi.fn> } {
+    const held = custodyCodec.encodeCore(retained);
     const resolved = new ResolvedObservation({
       preparation: saved.preparation,
-      record: new ObservationRecord({ preparation: DIGEST, support: DIGEST, core: DIGEST, publication: new ObservationPublicationEvidence('alice', COMMIT) }),
-      core: core.outcome(),
+      record: new ObservationRecord({ preparation: DIGEST, support: DIGEST, core: DIGEST, publication }),
+      core: held,
     });
+    const remove = vi.fn(() => Promise.resolve());
     const settlement = new ConeWriteSettlement({ graph: 'g', custody: {} as ObservationCustodyService, journal: {} as WriteAttemptJournalPort });
     const recovery = new ConeWriteRecovery({
       graph: 'g', clock: () => 1, settlement,
       custody: {
         resume: () => Promise.resolve(new ObservationAdmitted(attempt, 'settled')),
-        recoverCoordinate: () => Promise.resolve(new RetainedObservation(new ObservationCoordinate({ attemptId: ATTEMPT, binding: DIGEST, record: DIGEST }), new Uint8Array())),
+        recoverCoordinate: () => Promise.resolve(new RetainedObservation(new ObservationCoordinate({ attemptId: ATTEMPT, binding: DIGEST, record: DIGEST }), held)),
         resolve: () => Promise.resolve(resolved),
+        holdsCore: (evidence: ResolvedObservation, core: ObservationReceiptCore) => bytesEqual(evidence.core(), custodyCodec.encodeCore(core)),
       } as unknown as ObservationCustodyService,
-      journal: { read: () => Promise.resolve(saved), remove: () => Promise.resolve() } as unknown as WriteAttemptJournalPort,
+      journal: { read: () => Promise.resolve(saved), remove } as unknown as WriteAttemptJournalPort,
       probe: {} as WritePublicationProbe,
     });
+    return { recovery, remove };
+  }
+
+  it('rebuilds a settled receipt from its record with the exact race set its retained core binds', async () => {
+    const saved = record();
+    const core = publishedWriteCore('g', saved, COMMIT);
+    const { recovery, remove } = rebuilding(saved, core);
 
     const rebuilt = await recovery.reconcile('alice', ATTEMPT.value);
 
     expect(rebuilt).toBeInstanceOf(RetainedWriteReceipt);
     expect(rebuilt instanceof RetainedWriteReceipt ? rebuilt.outcome.races.map(wire) : null).toEqual(coreRaces(core));
+    expect(remove).toHaveBeenCalledOnce();
+  });
+
+  it('stays indeterminate when the retained evidence names no publication', async () => {
+    const { recovery, remove } = rebuilding(record(), publishedWriteCore('g', record(), COMMIT), null);
+
+    expect(await recovery.reconcile('alice', ATTEMPT.value)).toBeInstanceOf(IndeterminateWriteReceipt);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('refuses to rebuild a receipt whose record names other races than its retained core, keeping the record', async () => {
+    const { recovery, remove } = rebuilding(record([DAVE_BODY]), publishedWriteCore('g', record(), COMMIT));
+
+    const refused = await recovery.reconcile('alice', ATTEMPT.value).then(() => null, (error: Error) => error);
+
+    expect(refused).toBeInstanceOf(RetainedWriteCoreMismatchError);
+    expect(refused instanceof RetainedWriteCoreMismatchError ? refused.code : null).toBe('E_WRITE_CORE_MISMATCH');
+    expect(remove).not.toHaveBeenCalled();
   });
 });
 
@@ -251,7 +283,6 @@ describe('the journal keeps a record\'s races', () => {
   type Stored = { readonly [field: string]: unknown };
   const withRaces = (races: unknown) => (stored: Stored): Stored => ({ ...stored, races });
   const malformed: ReadonlyArray<readonly [string, (stored: Stored) => Stored]> = [
-    ['an unknown layout version', (stored) => ({ ...stored, version: 99 })],
     ['an unknown kind', withRaces([['merge', 'doc', 'title', ['bob'], 0, 'observed']])],
     ['a register race with no key', withRaces([['register', 'doc', null, ['bob'], 0, 'observed']])],
     ['a register race with an empty key', withRaces([['register', 'doc', '', ['bob'], 0, 'observed']])],
@@ -274,7 +305,7 @@ describe('the journal keeps a record\'s races', () => {
     store.blobs.set(oid ?? '', codec.encode(corrupt(stored)));
 
     await expect(journal(store).read(ATTEMPT)).rejects.toThrow(AdapterValidationError);
-    expect((await journal(store).list(4)).records).toEqual([]);
+    expect(await journal(store).list(4)).toEqual(NOTHING_LISTED);
   });
 
   it('fails closed on a derived write that names a race', async () => {
@@ -285,5 +316,6 @@ describe('the journal keeps a record\'s races', () => {
     store.blobs.set(oid ?? '', codec.encode({ ...stored, admission: 'derived' }));
 
     await expect(journal(store).read(ATTEMPT)).rejects.toThrow(AdapterValidationError);
+    expect(await journal(store).list(4)).toEqual(NOTHING_LISTED);
   });
 });

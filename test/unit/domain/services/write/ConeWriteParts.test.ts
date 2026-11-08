@@ -221,7 +221,7 @@ describe('ConeWriteRecovery', () => {
   it('survives a listing that fails, and one record that throws', async () => {
     await expect(recovery({ journal: { list: () => Promise.reject(new Error('no refs')) } }).sweep()).resolves.toBeUndefined();
     const resume = vi.fn(() => Promise.reject(new Error('bad')));
-    await expect(recovery({ custody: { resume }, journal: { list: () => Promise.resolve(new WriteAttemptListing({ records: [recordOf(), recordOf()], retiredRefs: [] })) } }).sweep()).resolves.toBeUndefined();
+    await expect(recovery({ custody: { resume }, journal: { list: () => Promise.resolve(new WriteAttemptListing({ records: [recordOf(), recordOf()], unsupportedRefs: [] })) } }).sweep()).resolves.toBeUndefined();
     expect(resume).toHaveBeenCalledTimes(2);
   });
 
@@ -285,7 +285,7 @@ describe('ConeWriteRecovery', () => {
 
   it('leaves a reported attempt for its caller', async () => {
     const resume = vi.fn();
-    await recovery({ custody: { resume }, journal: { list: () => Promise.resolve(new WriteAttemptListing({ records: [recordOf().asReported(null)], retiredRefs: [] })) } }).sweep();
+    await recovery({ custody: { resume }, journal: { list: () => Promise.resolve(new WriteAttemptListing({ records: [recordOf().asReported(null)], unsupportedRefs: [] })) } }).sweep();
     expect(resume).not.toHaveBeenCalled();
   });
 
@@ -319,7 +319,7 @@ describe('a saved record that is not a write', () => {
       } as unknown as WriteAttemptHistory,
     });
 
-    expect((await journal.list(4)).records).toEqual([]);
+    expect(await journal.list(4)).toEqual(new WriteAttemptListing({ records: [], unsupportedRefs: [] }));
     await expect(journal.read(ATTEMPT)).rejects.toThrow('missing object');
   });
 
