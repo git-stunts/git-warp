@@ -19,6 +19,8 @@ import OrdinalAddressResolver from '../../../../src/domain/retained/OrdinalAddre
 import RetainedGraphManifest from '../../../../src/domain/retained/RetainedGraphManifest.ts';
 import OrdinalAddressPage from '../../../../src/domain/retained/OrdinalAddressPage.ts';
 import RetainedGraphManifestReader from '../../../../src/domain/retained/RetainedGraphManifestReader.ts';
+import IdentifierDictionary from '../../../../src/domain/retained/IdentifierDictionary.ts';
+import StoredConeBasis from '../../../../src/domain/services/cone/StoredConeBasis.ts';
 import GitConeRecordStoreAdapter, { CONE_TRIE_LAYOUT, type ConeTrieHistory } from '../../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -180,7 +182,61 @@ describe('retained graph manifest over the Git cone record store (#815)', () => 
       expect(reads.trees + reads.blobs).toBe(2 + directoriesOnPath);
     }
   });
+
+  describe('a records root that is not a tree (#815 AC 4; case H-F-1, M-F-3)', () => {
+    for (const kind of ['blob', 'commit'] as const) {
+      it(`refuses a basis head whose records entry is a ${kind} at open, and in the retained ring`, async () => {
+        const { plumbing, store, manifest } = await retained();
+        const stored = await store.readBasis(HEAD);
+        if (stored === null) {
+          throw new Error('no basis');
+        }
+        const forged = await forgedBasisTree(plumbing, stored.revision, await wrongKindObject(plumbing, manifest, kind));
+        await plumbing.execute({ args: ['update-ref', HEAD.ref(), forged.tree] });
+        const refusal = expect.objectContaining({
+          code: 'E_CONE_RECORD_CORRUPT',
+          context: { lane: LANE, ref: HEAD.ref(), type: kind, oid: forged.records },
+        });
+        await expect(new RetainedGraphManifestReader({ store }).open(HEAD)).rejects.toEqual(refusal);
+        await expect(new RetainedGraphManifestReader({ store }).open(HEAD)).rejects.toBeInstanceOf(WarpError);
+        await store.retainBasis(LANE, new StoredConeBasis(stored.basis, forged.tree));
+        await expect(new RetainedGraphManifestReader({ store }).retained(LANE)).rejects.toEqual(expect.objectContaining({
+          code: 'E_CONE_RECORD_CORRUPT',
+          context: { lane: LANE, ref: `refs/warp/${LANE}/cone/retained`, type: kind, oid: forged.records },
+        }));
+      });
+
+      it(`refuses a hand-built manifest whose records root is a ${kind} at resolve and in the dictionary (W-R-11)`, async () => {
+        const { plumbing, store, manifest } = await retained();
+        const root = await wrongKindObject(plumbing, manifest, kind);
+        const wrong = new RetainedGraphManifest({ layout: manifest.layout, geometry: manifest.geometry, basis: new ConeBasis(ConeRoot.at(root), manifest.basis.frontier) });
+        const refusal = expect.objectContaining({ code: 'E_CONE_RECORD_CORRUPT', context: expect.objectContaining({ root }) });
+        await expect(new OrdinalAddressResolver(store).resolve(wrong, new GraphOrdinal({ kind: 'node', writerId: 'w1', counter: 1 }))).rejects.toEqual(refusal);
+        await expect(new IdentifierDictionary(store).ordinalsOf(wrong, 'node', 'n1')).rejects.toEqual(refusal);
+      });
+    }
+  });
 });
+
+/** A blob of the manifest's records, or a commit of its records root: an object that is not a tree. */
+async function wrongKindObject(plumbing: Plumbing, manifest: RetainedGraphManifest, kind: 'blob' | 'commit'): Promise<string> {
+  if (kind === 'blob') {
+    const listing = await plumbing.execute({ args: ['ls-tree', '-r', manifest.basis.root.revision()] });
+    return listing.trim().split('\n')[0]?.split(/\s+/u)[2] ?? '';
+  }
+  await plumbing.execute({ args: ['config', 'user.name', 'Retained manifest fixture'] });
+  await plumbing.execute({ args: ['config', 'user.email', 'fixture@example.invalid'] });
+  return (await plumbing.execute({ args: ['commit-tree', manifest.basis.root.revision(), '-m', 'not a records tree'] })).trim();
+}
+
+/** The basis tree `revision` with its `records` entry replaced by `records`, which is not a tree. */
+async function forgedBasisTree(plumbing: Plumbing, revision: string, records: string): Promise<{ readonly tree: string; readonly records: string }> {
+  const type = (await plumbing.execute({ args: ['cat-file', '-t', records] })).trim();
+  const mode = type === 'commit' ? '160000' : '100644';
+  const entries = (await plumbing.execute({ args: ['ls-tree', revision] })).trim().split('\n');
+  const input = `${entries.map((line) => (line.endsWith('\trecords') ? `${mode} ${type} ${records}\trecords` : line)).join('\n')}\n`;
+  return { tree: (await plumbing.execute({ args: ['mktree'], input })).trim(), records };
+}
 
 /** How many trie directories (the family directory included) lie on `key`'s path under the manifest's records root. */
 async function trieDirectoriesOf(plumbing: Plumbing, manifest: RetainedGraphManifest, key: ConeRecordKey): Promise<number> {
