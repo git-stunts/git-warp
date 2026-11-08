@@ -41,7 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `UnpublishedWriteReceipt` (`write-basis-unavailable`,
   `write-premise-unavailable`, `attempt-journal-unavailable`,
   `retention-unavailable`) and does not reject. Invalid input, a throwing access
-  port, defects, broken invariants and repository corruption reject
+  port, defects, broken invariants and repository corruption reject. An untyped
+  failure of the patch feed or of the writer's runtime host now rejects too; on
+  unreleased `main` it returned `write-basis-unavailable`
   ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)

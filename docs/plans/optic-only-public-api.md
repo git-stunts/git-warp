@@ -549,7 +549,9 @@ a separate budget decision.
 permission gives a typed failure result instead of a rejection. The cone store
 adapter (`GitConeStoreHost`) turns an untyped host or Git process failure into
 `ConeStoreUnavailableError`, which carries that failure as its `cause`. Domain code
-dispatches on that class with `instanceof`, never on a message:
+dispatches on that class with `instanceof`, never on a message. The cause stays on
+the error and off the public receipt, whose `cause` is a policy-safe string (decided
+2026-11-08); #1107 reports the underlying cause through the injected logger:
 
 - `AuthoredWarp.execute()` returns `UnpublishedWriteReceipt` when the store is
   unavailable while it fixes the write basis (`write-basis-unavailable`), reads the premise records
@@ -562,7 +564,9 @@ dispatches on that class with `instanceof`, never on a message:
   `PersistenceError` such as `E_MISSING_OBJECT`, is not "unavailable": a caller
   that retried would retry forever against a broken repository. Defects
   (`TypeError`, `RangeError`), broken invariants (`PatchError`), invalid input,
-  and any other untyped failure also reject, having published nothing.
+  and any other untyped failure also reject, having published nothing. This
+  includes an untyped failure of the patch feed or of the writer's runtime host:
+  only the cone record store adapter classifies host failures today.
 - The injected `WarpAccessPort` is a caller-owned capability, not a store. If it
   throws, the operation rejects and publishes nothing.
 - #1052 must give an Optic read the same rule: an unavailable store before read
