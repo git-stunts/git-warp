@@ -293,7 +293,12 @@ they do not repeat these rules.
     code, including runtime code in ports, scripts or test support, use a
     separate Docker coverage report from the same unit harness with explicit
     include and exclude patterns. Map its touched lines and record its command
-    and report path. Do not change the ratchet for this report. For declarations
+    and report path. Vitest excludes registered setup files even when coverage
+    patterns include them. For this separate report, replace each affected
+    setup-file registration with a wrapper that imports the original file;
+    preserve setup order and behavior, include the original file in coverage,
+    and verify that its executable lines appear in the report. Do not change
+    the ratchet for this report. For declarations
     with no executable lines, record coverage as not applicable and cite the
     relevant type checks. For test assertions, record the intended behavior,
     diagnostic assertion failure and passing run; do not claim that execution
