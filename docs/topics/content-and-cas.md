@@ -65,13 +65,13 @@ completed. Graph observers cannot reconstruct those upload events from the
 attachment write.
 
 This separation lets callers stage content before choosing an owner, reuse one
-asset across owners, and stream several assets concurrently before attaching
+asset across owners, and stage several text assets concurrently before attaching
 them in one atomic write. Staging completion order is not an ordering of graph
 events. The atomic boundary covers the graph edits, not the preceding storage
 operations: failed staging or an obstructed write can leave unreferenced storage
 objects. Staging alone provides no durable retention guarantee, and a failed
 write does not promise immediate deletion of staged bytes. `Promise.all` rejects
-when one staging operation fails but does not cancel the other streams.
+when one staging operation fails but does not cancel the other staging operations.
 
 Applications that require a causal audit trail of upload start, completion, or
 failure must explicitly model and publish those facts through graph writes.
@@ -189,7 +189,8 @@ ReadableStream adaptation cancels unfinished consumption and releases its reader
 ## Inline binary write budget
 
 New intent and patch property writes permit at most 64 KiB of aggregate binary data per property value, counting every nested binary occurrence before copying its bytes into a defensive snapshot.
-An oversized value fails with `E_INLINE_BINARY_LIMIT` and directs the caller to a streaming content asset.
+An oversized value fails with `E_INLINE_BINARY_LIMIT`.
+The v21 public staging API accepts text only; it provides no binary or streamed staging workaround for this limit.
 The limit applies to node, edge and entity initial properties through their shared validation boundaries; it does not retroactively truncate historical property reads.
 Strings and other nonbinary property data are outside this binary-specific budget.
 
