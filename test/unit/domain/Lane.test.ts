@@ -1,22 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { createEntityAdmissionInventoryObserver } from '../../../advanced.ts';
 import Lane from '../../../src/domain/api/Lane.ts';
-import Observer from '../../../src/domain/api/Observer.ts';
 
 const startObserver = vi.fn();
-
-function roleObserver(): Observer<string> {
-  return new Observer<string>({
-    cardinality: 'exactly-one',
-    decode: (value) => {
-      if (typeof value !== 'string') {
-        throw new TypeError('users.role-of expected a string');
-      }
-      return value;
-    },
-    id: 'users.role-of',
-  });
-}
 
 describe('Lane', () => {
   beforeEach(() => {
@@ -46,7 +33,7 @@ describe('Lane', () => {
 
   it('constructs an Observation without starting runtime work', () => {
     const lane = new Lane({ startObserver });
-    const observer = roleObserver();
+    const observer = createEntityAdmissionInventoryObserver('users');
 
     const observation = lane.observe(observer);
 
@@ -56,16 +43,14 @@ describe('Lane', () => {
 
   it('starts its observer when the observation is consumed', async () => {
     const lane = new Lane({ startObserver });
-    const observer = roleObserver();
+    const observer = createEntityAdmissionInventoryObserver('users');
     startObserver.mockResolvedValue({
       readings: (async function* () {})(),
       receipt: Promise.resolve('receipt'),
     });
 
     const observation = lane.observe(observer);
-    for await (const reading of observation) {
-      expect(reading).toBeUndefined();
-    }
+    expect(await Array.fromAsync(observation)).toEqual([]);
 
     expect(startObserver).toHaveBeenCalledWith(observer);
   });

@@ -73,9 +73,7 @@ describe('standalone runtime openers without installed resolvers', () => {
     const runtime = await Runtime.open({ at: repo, writer: 'alice' });
     try {
       const observation = (await runtime.lane('events')).observe(createEntityAdmissionInventoryObserver('opener-inventory'));
-      for await (const reading of observation) {
-        expect(reading).toBeUndefined();
-      }
+      expect(await Array.fromAsync(observation)).toEqual([]);
       expect((await observation.receipt).status).toBe('completed');
     } finally {
       await runtime.close();
