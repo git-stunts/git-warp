@@ -1,14 +1,10 @@
 # Getting Started
 
-git-warp's reads and writes go through one root runtime value. `Warp` is its write-only
-replacement while [#1048](https://github.com/git-stunts/git-warp/issues/1048) lands:
-
-```text
-Runtime
-```
-
-Applications write validated Intents to Lanes, run generated Observers, consume
-Readings, and retain Receipts.
+Applications write validated Intents through `Warp`, consume Readings from
+generated Observers, and retain Receipts. Reads use the retained `Runtime` and
+`Lane.observe()` path until
+[#1052](https://github.com/git-stunts/git-warp/issues/1052) adds Optic reads.
+Lanes are read-only.
 
 ## Install
 
@@ -33,7 +29,8 @@ grants nothing: the port decides each write.
 
 ```typescript
 import {
-  GitStorage, RetainedWriteReceipt, Warp, WarpAccessPort, WarpAddress, WarpWriteGrant,
+  GitStorage, RetainedWriteReceipt, Runtime, Warp, WarpAccessPort,
+  WarpAddress, WarpWriteGrant,
 } from '@git-stunts/git-warp';
 import type { WarpWriteRequest } from '@git-stunts/git-warp';
 import { users } from './users.generated.js';

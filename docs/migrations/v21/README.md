@@ -71,7 +71,9 @@ could not be converted) is **blocked**: it stays on its legacy refs, is listed
 in the report, and is unavailable in v21. The rest of the graph migrates.
 
 Legacy refs (`strands/<name>`, `strand-overlays/*`, `strand-braids/*`) are
-left in place. Remove them yourself once you have verified the result.
+left in place. Keep them with your backup until you have verified the result,
+checked for late writes, and resolved any blocked strands or reported late
+strand writes.
 
 ## After you migrate
 
@@ -86,7 +88,13 @@ npx git-warp-v20-to-v21 --repo ./team-repo --check
   that reuse a counter at or below the recorded floor are flagged: that writer
   still mints from an unsafe seed. A v21 writer always mints above them.
 - **Late strand writes** land on legacy strand refs, which v21 never reads.
-  They are listed so you can re-apply them on the converted strand.
+  The check reports them; it does not replay them. The current public API has
+  no write selector for a converted strand. Keep the legacy refs, backup and
+  report, stop all v20 writers, and obtain an explicit reconciliation procedure
+  before you remove legacy refs. Rerunning a completed migration returns
+  `already-migrated`; it does not apply these late writes. The planned strand
+  API in [#1053](https://github.com/git-stunts/git-warp/issues/1053) is not a
+  recovery procedure for this data.
 
 A fresh v20.0.0 open of a migrated graph is refused with
 `E_SUBSTRATE_VERSION_UNSUPPORTED`.
@@ -135,8 +143,9 @@ adds the Optic read, reads keep `Runtime.open()`, `runtime.lane()`,
 | --- | --- |
 | `lane.write(intent)` | `warp.as(writer).execute(intent)` |
 | `lane.stageContent(text)` | `warp.as(writer).stage(text)` (text only) |
-| `lane.name`, `kind`, `descriptor`, `reference`, `writer` | The name you passed to `runtime.lane()` |
-| `runtime.writer` | The writer you pass to `warp.as()` |
+| `lane.name` | The graph name you passed to `runtime.lane()` |
+| `lane.writer`, `runtime.writer` | The writer identity you pass to `warp.as(writer)` |
+| `lane.kind`, `lane.descriptor`, `lane.reference` | Removed; no direct replacement |
 | `Runtime.fork`, `Runtime.strand` | Removed; #1053 adds Coordinate-derived strands |
 | `Runtime.previewSettlement`, `Runtime.settle` | Removed; #1053 adds strand settlement |
 | `AuthoredWriteReceipt` | `WriteReceipt` |
