@@ -222,9 +222,10 @@ they do not repeat these rules.
   At a Decision card, a design fork the issue does not settle, or a format or
   compatibility question, stop and report the options with evidence. The
   orchestrating session or the maintainer decides and records it on GitHub.
-- Before you push for review, run `git fetch origin` and merge `origin/main`
-  into the branch with a merge commit. Report the conflicts and how you resolved
-  them.
+- Before you push for review, run `git fetch origin`. If `origin/main` has
+  commits that the branch does not contain, merge it into the branch with a
+  merge commit. If `origin/main` is already an ancestor, no merge is needed.
+  Report any conflicts and how you resolved them.
 - Locks follow the maintainer's global rule (`~/.claude/CLAUDE.md`, "Shared
   resources"). Locks protect scoped assets only. Work in your own isolated
   worktree needs no lock. Take a lock when you share a worktree or a Docker
@@ -243,7 +244,8 @@ they do not repeat these rules.
   triage case. A PR that changes runtime semantics, persistence, the wire
   format, the public surface, or security needs a standard case. A PR that
   changes only tooling, CI, or scripts needs a focused case. The merge gate
-  is the case decision READY, with CI green at the exact head.
+  requires a current case decision READY and green CI for the exact head to be
+  merged. After new commits, reassess the case and record which head it covers.
 
 ## Engineering Doctrine
 
@@ -285,6 +287,18 @@ they do not repeat these rules.
     gives does not count. Map each touched line from `git diff -U0 origin/main`
     onto `coverage/clover.xml`. List each counted file and its numbers in the PR
     body.
+  - The default report includes `src/**/*.ts`, but excludes `src/ports/**/*.ts`
+    and `src/**/*.d.ts`. Scripts and tests are outside its include pattern.
+    List excluded touched files and their evidence in the PR body. For executable
+    code, including runtime code in ports, scripts or test support, use a
+    separate Docker coverage report from the same unit harness with explicit
+    include and exclude patterns. Map its touched lines and record its command
+    and report path. Do not change the ratchet for this report. For declarations
+    with no executable lines, record coverage as not applicable and cite the
+    relevant type checks. For test assertions, record the intended behavior,
+    diagnostic assertion failure and passing run; do not claim that execution
+    of an assertion proves its oracle. Full-integration-only coverage still
+    does not count. Missing instrumentation leaves the coverage gate unmet.
   - The gate covers touched lines. Older uncovered lines in a counted file go to
     a debt issue, not into the slice.
 - Run an SSJS scorecard on every slice. Until an automated scorecard exists, use a manual checklist and require all green on touched files:
