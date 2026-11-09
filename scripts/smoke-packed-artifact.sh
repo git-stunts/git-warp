@@ -251,9 +251,9 @@ warp() {
   npx --no-install git-warp --repo "$REPO" --lane events --writer smoke --json "$@"
 }
 cp "$ROOT/test/fixtures/packed-warp-write.mjs" ./packed-warp-write.mjs
-node packed-warp-write.mjs "$REPO" events smoke '{"kind":"node.add","subject":"user:alice"}' > /dev/null
+node packed-warp-write.mjs "$REPO" events smoke node.add user:alice > /dev/null
 node packed-warp-write.mjs "$REPO" events smoke \
-  '{"kind":"property.set","subject":"user:alice","key":"role","value":"admin"}' > write.json
+  property.set user:alice role admin > write.json
 warp repair --action materialization > /dev/null
 warp observe --observer role \
   --reading '{"kind":"property.get","subject":"user:alice","key":"role"}' > observe.json

@@ -22,8 +22,9 @@ async function publishedExample(): Promise<string> {
   expect(start).toBeGreaterThan(-1);
   const body = guide.slice(start + MARKER.length, guide.indexOf('\n```', start + MARKER.length));
   return body
-    .replaceAll("'@git-stunts/git-warp/advanced'", JSON.stringify(pathToFileURL(ADVANCED_ENTRY).href))
-    .replaceAll("'@git-stunts/git-warp'", JSON.stringify(pathToFileURL(ROOT_ENTRY).href));
+    // File URLs percent-encode double quotes, backslashes and line breaks.
+    .replaceAll("'@git-stunts/git-warp/advanced'", `"${pathToFileURL(ADVANCED_ENTRY).href}"`)
+    .replaceAll("'@git-stunts/git-warp'", `"${pathToFileURL(ROOT_ENTRY).href}"`);
 }
 
 it('runs the published v20-to-v21 migration example against a fresh repository', async () => {

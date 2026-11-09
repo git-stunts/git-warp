@@ -15,23 +15,29 @@ class SmokeAccess extends WarpAccessPort {
   }
 }
 
-function intentFrom(request) {
-  switch (request.kind) {
-    case 'entity.add': return intent.entity.add({ subject: request.subject, properties: request.properties });
-    case 'node.add': return intent.node.add({ subject: request.subject });
-    case 'node.remove': return intent.node.remove({ subject: request.subject });
-    case 'property.set': return intent.property.set({ subject: request.subject, key: request.key, value: request.value });
-    default: throw new Error(`unsupported smoke intent: ${request.kind}`);
+function intentFrom(kind, subject, key, value) {
+  switch (kind) {
+    case 'entity.add':
+      assert.ok(key && value, 'entity.add needs one property key and string value');
+      return intent.entity.add({ subject, properties: { [key]: value } });
+    case 'node.add': return intent.node.add({ subject });
+    case 'node.remove': return intent.node.remove({ subject });
+    case 'property.set':
+      assert.ok(key && value, 'property.set needs a key and string value');
+      return intent.property.set({ subject, key, value });
+    default: throw new Error(`unsupported smoke intent: ${kind}`);
   }
 }
 
-const [repository, graph, writer, request] = process.argv.slice(2);
-assert.ok(repository && graph && writer && request, 'Usage: node packed-warp-write.mjs <repo> <graph> <writer> <intent-json>');
+const [repository, graph, writer, kind, subject, key, value] = process.argv.slice(2);
+assert.ok(repository && graph && writer && kind && subject,
+  'Usage: node packed-warp-write.mjs <repo> <graph> <writer> <kind> <subject> [key value]');
 const warp = await Warp.open(WarpAddress.of(GitStorage.at(repository), graph), new SmokeAccess());
 try {
-  const receipt = await warp.as(writer).execute(intentFrom(JSON.parse(request)));
+  const receipt = await warp.as(writer).execute(intentFrom(kind, subject, key, value));
   assert.ok(receipt instanceof RetainedWriteReceipt, `write was not retained: ${receipt.constructor.name}`);
-  process.stdout.write(`${JSON.stringify({ outcome: { kind: receipt.outcome.kind } })}\n`);
+  assert.equal(receipt.outcome.kind, 'derived');
+  process.stdout.write('{"outcome":{"kind":"derived"}}\n');
 } finally {
   await warp.close();
 }

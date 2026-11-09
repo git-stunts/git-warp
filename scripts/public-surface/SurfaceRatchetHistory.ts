@@ -80,4 +80,3 @@ export default class SurfaceRatchetHistory {
     return result.stdout;
   }
 }
-

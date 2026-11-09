@@ -17,10 +17,10 @@ function write(root: string, path: string, text: string): void {
 function fixture(): string {
   const root = mkdtempSync(join(tmpdir(), 'source-reachability-'));
   roots.push(root);
-  write(root, 'package.json', JSON.stringify({
-    exports: { '.': { types: './dist/index.d.ts', import: './dist/index.js', default: './dist/index.js' } },
-    bin: { tool: './dist/bin/tool.js' },
-  }));
+  write(root, 'package.json', `{
+    "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js" } },
+    "bin": { "tool": "./dist/bin/tool.js" }
+  }`);
   write(root, 'index.ts', "export { used } from './src/used.ts';\nexport type { Shape } from './src/shape.js';\n");
   write(root, 'bin/tool.ts', "await import('../src/lazy.ts');\n");
   write(root, 'src/used.ts', "import './nested';\nexport const used = 1;\n");
