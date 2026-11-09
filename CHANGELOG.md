@@ -197,6 +197,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Run the installed `npm run upgrade` command directly from its compiled
+  entry, without rebuilding or deleting the package's `dist` directory.
+  Source-checkout operators must run `npm run build` first. The packed smoke
+  now covers the npm command and verifies that help and dry-run preserve the
+  installed package ([#1136](https://github.com/git-stunts/git-warp/issues/1136)).
+
 - Discover every supported test file recursively under `test/unit/` before
   partitioning the default unit run. New directories no longer need a runner
   allowlist entry. The runner refuses missing, unexpected or duplicate paths
