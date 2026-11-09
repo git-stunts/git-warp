@@ -297,13 +297,22 @@ they do not repeat these rules.
     patterns include them. For this separate report, replace each affected
     setup-file registration with a wrapper that imports the original file;
     preserve setup order and behavior, include the original file in coverage,
-    and verify that its executable lines appear in the report. Do not change
-    the ratchet for this report. For declarations
-    with no executable lines, record coverage as not applicable and cite the
-    relevant type checks. For test assertions, record the intended behavior,
-    diagnostic assertion failure and passing run; do not claim that execution
-    of an assertion proves its oracle. Full-integration-only coverage still
-    does not count. Missing instrumentation leaves the coverage gate unmet.
+    and verify that its executable lines appear in the report. Registered test
+    files are also excluded. To measure one, make a temporary byte-identical
+    copy beside it with a name outside the test include patterns. Select only
+    a temporary registered test wrapper that imports that copy. Include the
+    copy in coverage, verify its executable lines, and map them back by line
+    number and source hash. Preserve relative imports, setup, test selection,
+    and behavior; this method is invalid if the changed file identity changes
+    behavior. Otherwise move executable helpers to an ordinary module and
+    measure that module. Remove temporary copies and wrappers after the run.
+    Do not change the ratchet for these reports. For declarations with no
+    executable lines, record coverage as not applicable and cite the relevant
+    type checks. For test assertions, also record the intended behavior,
+    diagnostic assertion failure and passing run. This oracle evidence does
+    not replace executable-line coverage, and assertion execution does not
+    prove its oracle. Full-integration-only coverage still does not count.
+    Missing instrumentation leaves the coverage gate unmet.
   - The gate covers touched lines. Older uncovered lines in a counted file go to
     a debt issue, not into the slice.
 - Run an SSJS scorecard on every slice. Until an automated scorecard exists, use a manual checklist and require all green on touched files:
