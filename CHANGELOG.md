@@ -118,6 +118,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the internal retained graph manifest over the cone basis: a schema-1
+  commitment over the record-trie layout, ordinal geometry and writer frontier,
+  equal for every fold order that reaches that frontier, plus graph-local
+  ordinals (one dot of the node or edge OR-Set) that resolve through one
+  bounded 256-counter dot page each. A retained checkpoint and the live head of
+  the same basis are one manifest. No persisted record or basis format changes.
+  A cone basis whose `records` entry is not a tree now refuses with
+  `ConeRecordError` `E_CONE_RECORD_CORRUPT` when it opens. A records root or
+  trie directory whose object is not a tree refuses with the same code at the
+  first read. Both used to fail with an untyped git-cas error.
+  See [Retained graph manifests](docs/topics/retained-manifests.md)
+  ([#815](https://github.com/git-stunts/git-warp/issues/815)).
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
   with an injected `WarpAccessPort` and no implicit access. `execute` returns

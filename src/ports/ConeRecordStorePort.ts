@@ -16,6 +16,13 @@ import type StoredConeBasis from '../domain/services/cone/StoredConeBasis.ts';
  * clone-local derived state and never transferred.
  */
 export default abstract class ConeRecordStorePort {
+  /**
+   * The marker of the record-trie layout this store reads and writes. A
+   * retained graph manifest binds it, because the trie root's identity
+   * depends on the layout (#815).
+   */
+  abstract recordLayout(): string;
+
   /** Reads the records stored at `keys` under `root`; absent keys are simply missing. */
   abstract readRecords(_root: ConeRoot, _keys: readonly ConeRecordKey[]): Promise<ConeRecordSnapshot>;
 
