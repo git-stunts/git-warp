@@ -17,6 +17,7 @@ import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import NodePropSet from '../../../../src/domain/types/ops/NodePropSet.ts';
 import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.ts';
 import type { PatchOp } from '../../../../src/domain/types/ops/unions.ts';
+import { ACCEPTED_DUPLICATE_DOTS, CONFLICTING_REMOVE_OWNERS } from '../../../helpers/SamePatchRemoveOwnershipCases.ts';
 
 const D1 = new Dot('w', 1);
 const D2 = new Dot('w', 2);
@@ -81,5 +82,19 @@ describe('same-patch remove ownership', () => {
         { type: 'NodeRemove', node: 'b', observedDots: ['w:1'] },
       ],
     }, undefined)).toThrow(CrossOwnerRemoveError);
+  });
+
+  // Small: exact refusal oracle from the adopted same-patch ownership law.
+  it.each(CONFLICTING_REMOVE_OWNERS)('decode refuses $name', ({ ops }) => {
+    const error = refusal(() => hydrateDecodedPatch({
+      schema: 2, writer: 'peer', lamport: 1, context: {}, ops,
+    }, undefined));
+    expect(error).toBeInstanceOf(PatchError);
+    expect(error.code).toBe('E_PATCH_CROSS_OWNER_REMOVE');
+  });
+
+  it.each(ACCEPTED_DUPLICATE_DOTS)('decode preserves acceptance: $name', ({ ops }) => {
+    const patch = hydrateDecodedPatch({ schema: 2, writer: 'peer', lamport: 1, context: {}, ops }, undefined);
+    expect(patch.ops).toHaveLength(ops.length);
   });
 });

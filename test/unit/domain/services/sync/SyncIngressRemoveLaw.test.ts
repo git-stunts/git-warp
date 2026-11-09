@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { applySyncResponse } from '../../../../../src/domain/services/sync/SyncProtocol.ts';
-import { createEmptyState, reducePatches } from '../../../../../src/domain/services/JoinReducer.ts';
+import { cloneState, createEmptyState, reducePatches } from '../../../../../src/domain/services/JoinReducer.ts';
 import { createFrontier } from '../../../../../src/domain/services/Frontier.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import CrossOwnerRemoveError from '../../../../../src/domain/errors/CrossOwnerRemoveError.ts';
@@ -19,6 +19,7 @@ import Patch from '../../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
 import type { SyncResponse } from '../../../../../src/domain/capabilities/SyncCapability.ts';
 import type { DecodedPatch } from '../../../../../src/domain/services/sync/syncPatchLoader.ts';
+import { ACCEPTED_DUPLICATE_DOTS, CONFLICTING_REMOVE_OWNERS } from '../../../../helpers/SamePatchRemoveOwnershipCases.ts';
 
 const SHA = 'a'.repeat(40);
 
@@ -92,5 +93,35 @@ describe('sync ingress refuses malformed removes', () => {
     expect(() => applySyncResponse(response(wirePatch([
       { type: 'FutureOp', node: 'a' },
     ])), createEmptyState(), createFrontier())).toThrow(SchemaUnsupportedError);
+  });
+
+  // Small: refusal is response-wide, including when an earlier patch is valid.
+  it.each(CONFLICTING_REMOVE_OWNERS)('sync refuses $name without changing caller state', ({ ops }) => {
+    const state = seededState();
+    const before = cloneState(state);
+    const frontier = new Map([['local', 'b'.repeat(40)]]);
+    const incoming: SyncResponse = {
+      ...response(wirePatch(ops)),
+      patches: [
+        { writerId: 'peer', sha: 'c'.repeat(40), patch: wirePatch([
+          { type: 'NodeAdd', node: 'transient', dot: { writerId: 'peer', counter: 1 } },
+          { type: 'NodeRemove', node: 'kept', observedDots: ['local:1'] },
+        ]) },
+        { writerId: 'peer', sha: SHA, patch: wirePatch(ops) },
+      ],
+    };
+    const error = captureError(() => applySyncResponse(incoming, state, frontier));
+    expect(error).toBeInstanceOf(CrossOwnerRemoveError);
+    expect(error).toMatchObject({ code: 'E_PATCH_CROSS_OWNER_REMOVE' });
+    expect(state).toEqual(before);
+    expect([...frontier]).toEqual([['local', 'b'.repeat(40)]]);
+  });
+
+  it.each(ACCEPTED_DUPLICATE_DOTS)('sync preserves acceptance: $name', ({ ops, liveNodes, liveEdges }) => {
+    const result = applySyncResponse(response(wirePatch(ops)), createEmptyState(), createFrontier());
+    expect(result.applied).toBe(1);
+    expect([...result.state.nodeAlive.elements()].sort()).toEqual(liveNodes);
+    expect([...result.state.edgeAlive.elements()].sort()).toEqual(liveEdges);
+    expect([...result.frontier]).toEqual([['peer', SHA]]);
   });
 });

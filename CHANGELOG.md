@@ -215,9 +215,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   receipts in writer order, so such an early remove still reports
   `redundant`, but the element is now removed. Earlier versions can have
   stored that wrong state in the checkpoint and in retained
-  materializations, and the fix does not repair them. On an affected Git
-  repository, delete `refs/warp/<graph>/checkpoints/head` and
-  `refs/cas/caches/git-warp/materializations`, then materialize again
+  materializations, and the fix does not repair them. On an affected
+  repository using the default Git storage configuration, close all runtime
+  hosts and their backing storage instances. Delete
+  `refs/warp/<graph>/checkpoints/head` and
+  `refs/cas/caches/git-warp/materializations`, then reopen and materialize
+  from history. A still-open host can retain the wrong state after both refs
+  are deleted. The materializations cache ref is shared across graphs;
+  preserve all writer refs and history, and close all runtimes using the
+  repository. This procedure does not cover custom state-snapshot caches
   ([#1119](https://github.com/git-stunts/git-warp/issues/1119)).
 - Refuse a patch in which a remove lists an observed dot that the same patch
   adds to a different element, with `CrossOwnerRemoveError`

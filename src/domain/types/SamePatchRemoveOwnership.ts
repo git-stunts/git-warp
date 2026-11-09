@@ -33,13 +33,23 @@ function nodeOwner(op: NodeAdd | NodeRemove): string {
   return ['node', op.node].join(OWNER_SEPARATOR);
 }
 
-function addedDotOwners(ops: readonly PatchOp[]): Map<string, string> {
-  const owners = new Map<string, string>();
+function addDotOwner(owners: Map<string, Set<string>>, dot: Dot, owner: string): void {
+  const encoded = Dot.encode(dot);
+  const dotOwners = owners.get(encoded);
+  if (dotOwners === undefined) {
+    owners.set(encoded, new Set([owner]));
+  } else {
+    dotOwners.add(owner);
+  }
+}
+
+function addedDotOwners(ops: readonly PatchOp[]): Map<string, Set<string>> {
+  const owners = new Map<string, Set<string>>();
   for (const op of ops) {
     if (op instanceof NodeAdd) {
-      owners.set(Dot.encode(op.dot), nodeOwner(op));
+      addDotOwner(owners, op.dot, nodeOwner(op));
     } else if (op instanceof EdgeAdd) {
-      owners.set(Dot.encode(op.dot), edgeOwner(op));
+      addDotOwner(owners, op.dot, edgeOwner(op));
     }
   }
   return owners;
@@ -68,15 +78,16 @@ export default function assertSamePatchRemoveOwnership(ops: readonly PatchOp[]):
   }
 }
 
-function assertOwnsAddedDots(claim: RemoveClaim, owners: ReadonlyMap<string, string>): void {
+function assertOwnsAddedDots(claim: RemoveClaim, owners: ReadonlyMap<string, ReadonlySet<string>>): void {
   const { owner } = claim;
   for (const dot of claim.observedDots) {
-    const adder = owners.get(dot);
-    if (adder !== undefined && adder !== owner) {
-      throw new CrossOwnerRemoveError(
-        'A remove lists an observed dot that the same patch adds to a different element',
-        { context: { dot, removeOwner: owner, addOwner: adder } },
-      );
+    for (const adder of owners.get(dot) ?? []) {
+      if (adder !== owner) {
+        throw new CrossOwnerRemoveError(
+          'A remove lists an observed dot that the same patch adds to a different element',
+          { context: { dot, removeOwner: owner, addOwner: adder } },
+        );
+      }
     }
   }
 }
