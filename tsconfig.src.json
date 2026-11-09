@@ -10,6 +10,7 @@
     "src/globals.d.ts",
     "bin/git-warp.ts",
     "bin/**/*.ts",
+    "benchmarks/cone-showcase/**/*.ts",
     "scripts/**/*.ts"
   ],
   "exclude": [
