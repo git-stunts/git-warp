@@ -118,6 +118,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the internal retained graph manifest over the cone basis: a schema-1
+  commitment over the record-trie layout, ordinal geometry and writer frontier,
+  equal for every fold order that reaches that frontier, plus graph-local
+  ordinals (one dot of the node or edge OR-Set) that resolve through one
+  bounded 256-counter dot page each. A retained checkpoint and the live head of
+  the same basis are one manifest. No persisted record or basis format changes.
+  A cone basis whose `records` entry is not a tree now refuses with
+  `ConeRecordError` `E_CONE_RECORD_CORRUPT` when it opens. A records root or
+  trie directory whose object is not a tree refuses with the same code at the
+  first read. Both used to fail with an untyped git-cas error.
+  See [Retained graph manifests](docs/topics/retained-manifests.md)
+  ([#815](https://github.com/git-stunts/git-warp/issues/815)).
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
   with an injected `WarpAccessPort` and no implicit access. `execute` returns
@@ -213,6 +225,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sync ingress. No git-warp writer produces this shape. A remove that lists
   another element's dot from an earlier patch is not refused yet
   ([#1120](https://github.com/git-stunts/git-warp/issues/1120)).
+
+- Run the installed `npm run upgrade` command directly from its compiled
+  entry, without rebuilding or deleting the package's `dist` directory.
+  Source-checkout operators must run `npm run build` first. The packed smoke
+  now covers the npm command and verifies that help and dry-run preserve the
+  installed package ([#1136](https://github.com/git-stunts/git-warp/issues/1136)).
+
 - Discover every supported test file recursively under `test/unit/` before
   partitioning the default unit run. New directories no longer need a runner
   allowlist entry. The runner refuses missing, unexpected or duplicate paths
