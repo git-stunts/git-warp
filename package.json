@@ -143,7 +143,7 @@
     "issue:triage": "node scripts/issue-triage-report.ts",
     "jsr:publish": "bash scripts/run-jsr-publish.sh",
     "issue:dead-exports": "node scripts/dead-export-report.ts",
-    "upgrade": "npm run build --silent && node dist/scripts/upgrade-v16-to-v17.js",
+    "upgrade": "node dist/scripts/upgrade-v16-to-v17.js",
     "install:git-warp": "bash scripts/install-git-warp.sh",
     "uninstall:git-warp": "bash scripts/uninstall-git-warp.sh",
     "test:node22": "docker compose -f docker/docker-compose.test.yml --profile node22 run --build --rm test-node22",
