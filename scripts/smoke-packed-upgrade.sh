@@ -38,8 +38,12 @@ main() {
   package_dir=$(cd -- "$1" && pwd -P)
   # Ownership starts with mktemp. Cleanup gets this exact private path before
   # fixture work starts; no background workers or mounts are created.
-  work=$(mktemp -d "${TMPDIR:-/tmp}/git-warp-upgrade-smoke.XXXXXX")
-  trap 'cleanup "$?" "$work"' EXIT
+  # The EXIT trap owns this script-global path: main's locals can unwind
+  # before the trap runs after an errexit failure.
+  declare -g UPGRADE_SMOKE_WORK
+  UPGRADE_SMOKE_WORK=$(mktemp -d "${TMPDIR:-/tmp}/git-warp-upgrade-smoke.XXXXXX")
+  trap 'cleanup "$?" "$UPGRADE_SMOKE_WORK"' EXIT
+  work=$UPGRADE_SMOKE_WORK
   [[ ! -e $package_dir/tsconfig.publish.json ]]
   [[ ! -e $package_dir/index.ts ]]
   snapshot_package "$package_dir" >"$work/before.sha256"
