@@ -1,27 +1,27 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { intent } from '../../../advanced.ts';
 import { execFileSync } from 'node:child_process';
 import { GitStorage, UnretainedWriteReceipt, WarpAddress, type RetainedWriteReceipt, type Warp } from '../../../index.ts';
 import { composeWarpWrites } from '../../../src/application/WarpWriteComposition.ts';
 import type WriteRace from '../../../src/domain/api/WriteRace.ts';
 import WarpError from '../../../src/domain/errors/WarpError.ts';
-import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import ObservationCoordinate from '../../../src/domain/services/custody/ObservationCoordinate.ts';
 import ObservationReceiptCore from '../../../src/domain/services/custody/ObservationReceiptCore.ts';
 import ResolvedObservation from '../../../src/domain/services/custody/ResolvedObservation.ts';
 import { canonicalStringify } from '../../../src/domain/utils/canonicalStringify.ts';
-import GitWriteAttemptJournalAdapter from '../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import ObservationCustodyCborCodec from '../../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
 import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
 import { GRAPH, TestAccess, attemptRefs, disposeWarpFixtures, git, open, repository, retained, unseen, boundRaces } from '../../helpers/WarpWriteFixture.ts';
+import FaultingObservationCustody from '../../helpers/FaultingObservationCustody.ts';
+import WriteAttemptJournalCapture from '../../helpers/WriteAttemptJournalCapture.ts';
+import { narrowed } from '../../helpers/ObservationCustodyFixture.ts';
 
 afterEach(async () => {
-  vi.restoreAllMocks();
   await disposeWarpFixtures();
 });
 
-function wire(race: WriteRace): object {
+function wire(race: WriteRace) {
   const { kind, subject, key, writers, overflow, causality } = race;
   return { kind, subject, key, writers: [...writers], overflow, causality };
 }
@@ -45,15 +45,11 @@ async function coreRaces(path: string, receipt: RetainedWriteReceipt): Promise<s
   }
 }
 
-const settleUnavailable = (custody: ObservationCustodyPort): ObservationCustodyPort => new Proxy(custody, {
-  get(target: ObservationCustodyPort, name: string | symbol) {
-    if (name === 'settle') {
-      return () => Promise.resolve(new CustodyIndeterminate(new Error('store went away')));
-    }
-    const value = Reflect.get(target, name) as unknown;
-    return typeof value === 'function' ? value.bind(target) : value;
-  },
-});
+function settleUnavailable(custody: ObservationCustodyPort): ObservationCustodyPort {
+  const faulting = new FaultingObservationCustody(custody);
+  faulting.inject({ operation: 'settle', when: 'before' });
+  return faulting;
+}
 
 /** `underdetermined`: the rival writes through the legacy patch path (see `unseen`), which records no causality. */
 const BOB_TITLE = { kind: 'register', subject: 'doc', key: 'title', writers: ['bob'], overflow: 0, causality: 'underdetermined' };
@@ -137,11 +133,21 @@ describe('a retained write keeps the races it was admitted with', () => {
 describe('a receipt rebuilt from custody', () => {
   /** A plural write whose record outlived its settlement, as after a crash before the record was removed. */
   async function settledWithRecord(path: string): Promise<{ readonly warp: Warp; readonly receipt: RetainedWriteReceipt; readonly ref: string }> {
-    const warp = await open(path);
-    retained(await warp.as('alice').execute([intent.node.add({ subject: 'doc' }), intent.property.set({ subject: 'doc', key: 'title', value: 'one' })]));
+    const initial = await open(path);
+    retained(await initial.as('alice').execute([intent.node.add({ subject: 'doc' }), intent.property.set({ subject: 'doc', key: 'title', value: 'one' })]));
+    await initial.close();
     await unseen(path, 'bob', (patch) => { patch.setProperty('doc', 'title', 'unseen'); });
-    vi.spyOn(GitWriteAttemptJournalAdapter.prototype, 'remove').mockRejectedValueOnce(new Error('ref store went away'));
+    let captured: WriteAttemptJournalCapture | null = null;
+    const warp = await open(path, {
+      wrapCustody: (custody) => { captured = new WriteAttemptJournalCapture(custody, path, GRAPH); return captured; },
+    });
     const receipt = retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' })));
+    const { records } = narrowed(captured, WriteAttemptJournalCapture);
+    expect(records.size).toBe(1);
+    expect(attemptRefs(path)).toEqual([]);
+    for (const [ref, oid] of records) {
+      git(path, ['update-ref', ref, oid]);
+    }
     const [ref = ''] = attemptRefs(path);
     return { warp, receipt, ref };
   }
@@ -159,7 +165,10 @@ describe('a receipt rebuilt from custody', () => {
   it('refuses a record whose races differ from its retained core, and keeps it', async () => {
     const path = await repository();
     const { warp, ref } = await settledWithRecord(path);
-    const stored: { readonly [field: string]: unknown } = codec.decode(execFileSync('git', ['cat-file', 'blob', git(path, ['rev-parse', ref])], { cwd: path }));
+    const stored = codec.decode(execFileSync('git', ['cat-file', 'blob', git(path, ['rev-parse', ref])], { cwd: path }));
+    if (stored === null || typeof stored !== 'object') {
+      throw new Error('The journal did not encode a record');
+    }
     const altered = execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: path, input: codec.encode({ ...stored, races: [['register', 'doc', 'title', ['mallory'], 0, 'underdetermined']] }) });
     git(path, ['update-ref', ref, altered.toString().trim()]);
 
@@ -185,7 +194,7 @@ describe('races under randomized interleavings', () => {
    * reads, so every value another writer set on a key after Alice began writing stays unobserved,
    * and each such key races once, naming those writers.
    */
-  function expectedRaces(unobserved: ReadonlyMap<string, ReadonlySet<string>>, keys: readonly string[]): object[] {
+  function expectedRaces(unobserved: ReadonlyMap<string, ReadonlySet<string>>, keys: readonly string[]) {
     return [...keys].sort().flatMap((key) => {
       const writers = [...(unobserved.get(key) ?? [])].sort();
       return writers.length === 0 ? [] : [{ kind: 'register', subject: 'doc', key, writers, overflow: 0, causality: 'underdetermined' }];

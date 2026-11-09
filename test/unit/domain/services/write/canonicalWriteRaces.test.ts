@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import WriteRace from '../../../../../src/domain/api/WriteRace.ts';
 import { canonicalWriteRaces } from '../../../../../src/domain/services/write/canonicalWriteRaces.ts';
 
-const RACE = { kind: 'register', subject: 'doc', key: 'body', writers: ['dave'], overflow: 2, causality: 'underdetermined' } as const;
+const RACE = { kind: 'register', subject: 'doc', key: 'body', writers: ['dave'], overflow: 2, causality: 'underdetermined' } satisfies ConstructorParameters<typeof WriteRace>[0];
 
 function shape(races: readonly WriteRace[]): ReadonlyArray<readonly [readonly string[], number, string]> {
   return races.map(({ writers, overflow, causality }) => [writers, overflow, causality]);

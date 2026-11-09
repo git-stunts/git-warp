@@ -1,14 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { intent } from '../../../advanced.ts';
 import { execFileSync } from 'node:child_process';
 import { IndeterminateWriteReceipt, UnretainedWriteReceipt, type AuthoredWriteReceipt, type Warp } from '../../../index.ts';
 import WarpError from '../../../src/domain/errors/WarpError.ts';
 import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import CustodyRefused from '../../../src/domain/services/custody/CustodyRefused.ts';
-import GitWriteAttemptJournalAdapter from '../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
+import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
-import { attemptRefs, disposeWarpFixtures, git, open, repository, retained, unseen } from '../../helpers/WarpWriteFixture.ts';
+import { GRAPH, attemptRefs, disposeWarpFixtures, git, open, repository, retained, unseen } from '../../helpers/WarpWriteFixture.ts';
+import WriteRecoveryCustody from '../../helpers/WriteRecoveryCustody.ts';
+import WriteAttemptJournalCapture from '../../helpers/WriteAttemptJournalCapture.ts';
+import { narrowed } from '../../helpers/ObservationCustodyFixture.ts';
 
 /**
  * Option (i) of #1072: recovery builds a receipt from the record's races only when custody
@@ -16,7 +19,6 @@ import { attemptRefs, disposeWarpFixtures, git, open, repository, retained, unse
  * Every other outcome answers indeterminate and keeps the record.
  */
 afterEach(async () => {
-  vi.restoreAllMocks();
   await disposeWarpFixtures();
 });
 
@@ -30,21 +32,7 @@ function custodyAnswering(answers: {
   readonly settlement?: () => CustodyIndeterminate;
   readonly settle?: () => CustodyIndeterminate | CustodyRefused;
 }): (custody: ObservationCustodyPort) => ObservationCustodyPort {
-  return (custody) => new Proxy(custody, {
-    get(target: ObservationCustodyPort, name: string | symbol) {
-      const value = Reflect.get(target, name) as unknown;
-      if (name === 'readEvidence' && answers.settlement !== undefined) {
-        const read = target.readEvidence.bind(target);
-        const failed = answers.settlement;
-        return (...args: Parameters<ObservationCustodyPort['readEvidence']>) => (args[1] === 'settlement' ? Promise.resolve(failed()) : read(...args));
-      }
-      if (name === 'settle' && answers.settle !== undefined) {
-        const settled = answers.settle;
-        return () => Promise.resolve(settled());
-      }
-      return typeof value === 'function' ? value.bind(target) : value;
-    },
-  });
+  return (custody) => new WriteRecoveryCustody(custody, answers);
 }
 
 /** Alice's first write, then Bob's write she never observed, so her next title write races `["bob"]`. */
@@ -64,10 +52,17 @@ async function raced(warp: Warp): Promise<AuthoredWriteReceipt> {
 /** A plural write custody settled with races `["bob"]`, whose record outlived it. */
 async function settledWithRecord(path: string): Promise<string> {
   await seeded(path);
-  const warp = await open(path, { clock });
-  vi.spyOn(GitWriteAttemptJournalAdapter.prototype, 'remove').mockRejectedValueOnce(new Error('ref store went away'));
+  let captured: WriteAttemptJournalCapture | null = null;
+  const warp = await open(path, {
+    clock, wrapCustody: (custody) => { captured = new WriteAttemptJournalCapture(custody, path, GRAPH); return captured; },
+  });
   retained(await raced(warp));
-  vi.restoreAllMocks();
+  const { records } = narrowed(captured, WriteAttemptJournalCapture);
+  expect(records.size).toBe(1);
+  expect(attemptRefs(path)).toEqual([]);
+  for (const [ref, oid] of records) {
+    git(path, ['update-ref', ref, oid]);
+  }
   return attemptRefs(path)[0] ?? '';
 }
 
@@ -82,13 +77,16 @@ async function unsettled(path: string): Promise<string> {
 }
 
 /** Rewrites the saved record, as a corrupt or altered ref would. */
-function rewrite(path: string, ref: string, fields: { readonly [field: string]: unknown }): void {
-  const stored: { readonly [field: string]: unknown } = codec.decode(execFileSync('git', ['cat-file', 'blob', git(path, ['rev-parse', ref])], { cwd: path }));
+function rewrite(path: string, ref: string, fields: { readonly [field: string]: CodecValue }): void {
+  const stored = codec.decode(execFileSync('git', ['cat-file', 'blob', git(path, ['rev-parse', ref])], { cwd: path }));
+  if (stored === null || typeof stored !== 'object') {
+    throw new Error('The journal did not encode a record');
+  }
   const written = execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: path, input: codec.encode({ ...stored, ...fields }) });
   git(path, ['update-ref', ref, written.toString().trim()]);
 }
 
-async function asked(warp: Warp, ref: string): Promise<object> {
+async function asked(warp: Warp, ref: string) {
   return await warp.as('alice').reconcile(ref.split('/').at(-1) ?? '').then(
     (receipt) => ({
       receipt: receipt?.constructor.name ?? null,
@@ -107,7 +105,7 @@ describe('recovery of a write whose settlement custody may hold', () => {
     const ref = await settledWithRecord(path);
     rewrite(path, ref, { races: MALLORY });
 
-    expect(await asked(await open(path, { clock }), ref)).toEqual(MISMATCH);
+    expect(await asked(await open(path, { clock, wrapCustody: custodyAnswering({}) }), ref)).toEqual(MISMATCH);
     expect(attemptRefs(path)).toEqual([ref]);
   });
 
@@ -141,7 +139,7 @@ describe('recovery of a write whose settlement custody may hold', () => {
 
     expect(await asked(await open(path, { clock, wrapCustody: custodyAnswering({ settlement: unavailable }) }), ref)).toEqual(INDETERMINATE);
     expect(attemptRefs(path)).toEqual([ref]);
-    expect(await asked(await open(path, { clock }), ref)).toEqual({ receipt: 'RetainedWriteReceipt', races: [['bob']] });
+    expect(await asked(await open(path, { clock, wrapCustody: custodyAnswering({}) }), ref)).toEqual({ receipt: 'RetainedWriteReceipt', races: [['bob']] });
     expect(attemptRefs(path)).toEqual([]);
   });
 });
@@ -154,7 +152,7 @@ describe('recovery of a write custody reports not settled', () => {
 
     expect(await asked(await open(path, { clock, wrapCustody: custodyAnswering({ settle: conflict }) }), ref)).toEqual(INDETERMINATE);
     expect(attemptRefs(path)).toEqual([ref]);
-    expect(await asked(await open(path, { clock }), ref)).toEqual({ receipt: 'RetainedWriteReceipt', races: [['bob']] });
+    expect(await asked(await open(path, { clock, wrapCustody: custodyAnswering({}) }), ref)).toEqual({ receipt: 'RetainedWriteReceipt', races: [['bob']] });
   });
 
   it('keeps a final unretained outcome from the record, and removes it', async () => {

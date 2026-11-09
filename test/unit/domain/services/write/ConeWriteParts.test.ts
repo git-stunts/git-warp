@@ -8,16 +8,14 @@ import ObservationAttemptId from '../../../../../src/domain/services/custody/Obs
 import ObservationBindings from '../../../../../src/domain/services/custody/ObservationBindings.ts';
 import ObservationBudget from '../../../../../src/domain/services/custody/ObservationBudget.ts';
 import type ObservationCoordinate from '../../../../../src/domain/services/custody/ObservationCoordinate.ts';
-import type ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
+import ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
 import ObservationDependencyClaim from '../../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDigest from '../../../../../src/domain/services/custody/ObservationDigest.ts';
 import ObservationPreparation from '../../../../../src/domain/services/custody/ObservationPreparation.ts';
-import ObservationIndeterminate from '../../../../../src/domain/services/custody/ObservationIndeterminate.ts';
 import ObservationQuestion from '../../../../../src/domain/services/custody/ObservationQuestion.ts';
 import ObservationRefused from '../../../../../src/domain/services/custody/ObservationRefused.ts';
 import ObservationUnretained from '../../../../../src/domain/services/custody/ObservationUnretained.ts';
 import ObservationWritePremise from '../../../../../src/domain/services/custody/ObservationWritePremise.ts';
-import ObservationDecodeFailure from '../../../../../src/domain/services/custody/ObservationDecodeFailure.ts';
 import ObservationAdmitted from '../../../../../src/domain/services/custody/ObservationAdmitted.ts';
 import RetainedObservation from '../../../../../src/domain/services/custody/RetainedObservation.ts';
 import IndeterminateWriteReceipt from '../../../../../src/domain/api/IndeterminateWriteReceipt.ts';
@@ -38,6 +36,23 @@ import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageC
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
 import type ObservationCustodyCodecPort from '../../../../../src/ports/ObservationCustodyCodecPort.ts';
 import GitWriteAttemptJournalAdapter, { type WriteAttemptHistory } from '../../../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
+import CustodyAcknowledged from '../../../../../src/domain/services/custody/CustodyAcknowledged.ts';
+import CustodyEvidence from '../../../../../src/domain/services/custody/CustodyEvidence.ts';
+import CustodyIndeterminate from '../../../../../src/domain/services/custody/CustodyIndeterminate.ts';
+import CustodyRefused from '../../../../../src/domain/services/custody/CustodyRefused.ts';
+import ObservationCustodyPage from '../../../../../src/domain/services/custody/ObservationCustodyPage.ts';
+import ObservationPrepared from '../../../../../src/domain/services/custody/ObservationPrepared.ts';
+import ObservationRecord from '../../../../../src/domain/services/custody/ObservationRecord.ts';
+import ObservationSettlementPage from '../../../../../src/domain/services/custody/ObservationSettlementPage.ts';
+import NodeCryptoAdapter from '../../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import ObservationCustodyCborCodec from '../../../../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
+import codec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
+import { narrowed, sources } from '../../../../helpers/ObservationCustodyFixture.ts';
+import { ScriptedCustody, ScriptedSupport, inspectionAt } from '../../../../helpers/ScriptedObservationPorts.ts';
+import WriteRecoveryFixture from '../../../../helpers/WriteRecoveryFixture.ts';
+import WriteRecoveryCustody from '../../../../helpers/WriteRecoveryCustody.ts';
+import InMemoryGraphAdapter from '../../../../helpers/InMemoryGraphAdapter.ts';
+import type CodecValue from '../../../../../src/domain/types/codec/CodecValue.ts';
 
 const ATTEMPT = new ObservationAttemptId('a'.repeat(32));
 const DIGEST = new ObservationDigest('b'.repeat(64));
@@ -266,39 +281,53 @@ describe('ConeWriteRecovery', () => {
   });
 
   it.each([
-    new ObservationRefused('cancelled'), new ObservationRefused('not-reserved'), new ObservationRefused('contention'),
-    new ObservationRefused('not-prepared'), new ObservationIndeterminate('settlement', new Error('gone')),
+    new CustodyRefused('cancelled'), new CustodyRefused('not-reserved'), new CustodyRefused('contention'),
+    new CustodyRefused('not-prepared'), new CustodyIndeterminate(new Error('gone')),
   ])('answers indeterminate and keeps the record when custody answers %o, not not-settled', async (answer) => {
-    const remove = vi.fn();
-    const settled = await recovery({
-      custody: {
-        resume: () => Promise.resolve(new ObservationAdmitted({ identity: {} } as ObservationAttempt, 'armed')),
-        recoverCoordinate: () => Promise.resolve(answer),
-      },
-      journal: { read: () => Promise.resolve(recordOf().asReported(OID)), remove },
-    }).reconcile('alice', ATTEMPT.value);
+    const port = new ScriptedCustody();
+    port.reserved = new CustodyAcknowledged('recovered', 'armed');
+    const custody = new ObservationCustodyService({
+      custody: new WriteRecoveryCustody(port, { settlement: () => answer }), support: new ScriptedSupport(), codec: new ObservationCustodyCborCodec(codec),
+      crypto: new NodeCryptoAdapter(), attempts: { next: () => ATTEMPT },
+    });
+    const fixture = new WriteRecoveryFixture(custody);
+    const saved = recordOf().asReported(OID);
+    await fixture.journal.save(saved);
+
+    const settled = await fixture.recovery.reconcile('alice', ATTEMPT.value);
 
     expect(settled).toBeInstanceOf(IndeterminateWriteReceipt);
-    expect(remove).not.toHaveBeenCalled();
+    expect(await fixture.journal.read(ATTEMPT)).toEqual(saved);
+    expect(port.pages).toEqual([]);
   });
 
   it('settles from the commit a receipt reported, whatever the chain says now', async () => {
-    const attempt = { identity: {} } as ObservationAttempt;
-    const attempted = vi.fn(() => Promise.resolve('settlement-refused'));
-    const service = new ConeWriteRecovery({
-      graph: 'g', clock: () => 1,
-      custody: {
-        resume: () => Promise.resolve(new ObservationAdmitted(attempt, 'armed')),
-        recoverCoordinate: () => Promise.resolve(new ObservationRefused('not-settled')),
-      } as unknown as ObservationCustodyService,
-      journal: { read: () => Promise.resolve(recordOf().asReported(OID)) } as unknown as WriteAttemptJournalPort,
-      probe: { locate: () => Promise.reject(new Error('not asked')) } as unknown as WritePublicationProbe,
-      settlement: { attempted, concluded: () => Promise.resolve({}) } as unknown as ConeWriteSettlement,
+    const port = new ScriptedCustody();
+    const custodyCodec = new ObservationCustodyCborCodec(codec);
+    const custody = new ObservationCustodyService({
+      custody: new WriteRecoveryCustody(port, {}), support: new ScriptedSupport(), codec: custodyCodec, crypto: new NodeCryptoAdapter(), attempts: { next: () => ATTEMPT },
     });
+    const saved = recordOf().asReported(OID);
+    const attempt = narrowed(await custody.resume(ATTEMPT, saved.bindings), ObservationAdmitted).attempt;
+    narrowed(await custody.prepare(attempt, sources()), ObservationPrepared);
+    expect(port.pages).toHaveLength(1);
+    port.evidence.preparation = new CustodyEvidence('prepared', narrowed(port.pages[0] ?? null, ObservationCustodyPage));
+    port.reserved = new CustodyAcknowledged('recovered', 'armed');
+    port.inspected = inspectionAt('armed');
+    port.evidence.settlement = new CustodyRefused('not-settled');
+    port.settled = new CustodyRefused('contention');
+    const fixture = new WriteRecoveryFixture(custody);
+    await fixture.journal.save(saved);
 
-    await service.reconcile('alice', ATTEMPT.value);
+    const receipt = narrowed(await fixture.recovery.reconcile('alice', ATTEMPT.value), UnretainedWriteReceipt);
 
-    expect(attempted).toHaveBeenCalledWith(expect.objectContaining({ commit: OID }));
+    expect(receipt.publication.toString()).toBe(OID);
+    expect(port.pages).toHaveLength(2);
+    const page = narrowed(port.pages[1] ?? null, ObservationCustodyPage);
+    const settlement = narrowed(custodyCodec.decodeSettlementPage(page.record()), ObservationSettlementPage);
+    const retainedRecord = narrowed(custodyCodec.decodeRecord(settlement.record()), ObservationRecord);
+    expect(retainedRecord.publication?.commit).toBe(OID);
+    expect(await fixture.journal.read(ATTEMPT)).toEqual(saved);
   });
 
   it('leaves a reported attempt for its caller', async () => {
@@ -325,6 +354,12 @@ describe('ConeWriteRecovery', () => {
 });
 
 describe('a saved record that is not a write', () => {
+  async function rawJournal(fields: CodecValue): Promise<GitWriteAttemptJournalAdapter> {
+    const history = new InMemoryGraphAdapter({ clock: { now: () => 1 } });
+    await history.updateRef(buildWriteAttemptRef('g', ATTEMPT.value), await history.writeBlob(codec.encode(fields)));
+    return new GitWriteAttemptJournalAdapter({ graph: 'g', history, codec, custodyCodec: new ObservationCustodyCborCodec(codec) });
+  }
+
   it('skips a blob it cannot open in a listing, and rejects on a direct read', async () => {
     const journal = new GitWriteAttemptJournalAdapter({
       graph: 'g',
@@ -342,33 +377,23 @@ describe('a saved record that is not a write', () => {
   });
 
   it('refuses to read a blob of the wrong shape', async () => {
-    const journal = new GitWriteAttemptJournalAdapter({
-      graph: 'g',
-      codec: { decode: () => ({ shape: 'wrong' }) } as unknown as CodecPort,
-      custodyCodec: {} as ObservationCustodyCodecPort,
-      history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
-    });
+    const journal = await rawJournal({ shape: 'wrong' });
 
     await expect(journal.read(ATTEMPT)).rejects.toThrow('could not be decoded');
   });
 
   it('refuses to read an undecodable preparation', async () => {
-    const journal = new GitWriteAttemptJournalAdapter({
-      graph: 'g',
-      codec: { decode: () => ({ version: 2, preparation: new Uint8Array(), admission: 'derived', races: [], occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
-      custodyCodec: { decodePreparation: () => new ObservationDecodeFailure('malformed') } as unknown as ObservationCustodyCodecPort,
-      history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
+    const journal = await rawJournal({
+      version: 2, preparation: new Uint8Array(), admission: 'derived', races: [], occurrences: [], savedAt: 1, reported: false, commit: null,
     });
 
     await expect(journal.read(ATTEMPT)).rejects.toThrow('could not be decoded');
   });
 
   it('refuses to read it', async () => {
-    const journal = new GitWriteAttemptJournalAdapter({
-      graph: 'g',
-      codec: { decode: () => ({ version: 2, preparation: new Uint8Array(), admission: 'derived', races: [], occurrences: [], savedAt: 1, reported: false, commit: null }) } as unknown as CodecPort,
-      custodyCodec: { decodePreparation: () => new ObservationPreparation(ATTEMPT, bindings(null)) } as unknown as ObservationCustodyCodecPort,
-      history: { readRef: () => Promise.resolve(OID), readBlob: () => Promise.resolve(new Uint8Array()) } as unknown as WriteAttemptHistory,
+    const journal = await rawJournal({
+      version: 2, preparation: new ObservationCustodyCborCodec(codec).encodePreparation(new ObservationPreparation(ATTEMPT, bindings(null))),
+      admission: 'derived', races: [], occurrences: [], savedAt: 1, reported: false, commit: null,
     });
 
     await expect(journal.read(ATTEMPT)).rejects.toThrow('could not be decoded');

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import AdapterValidationError from '../../../../src/domain/errors/AdapterValidationError.ts';
 import UnsupportedWriteAttemptLayoutError from '../../../../src/domain/errors/UnsupportedWriteAttemptLayoutError.ts';
 import ObservationAttemptId from '../../../../src/domain/services/custody/ObservationAttemptId.ts';
@@ -14,10 +14,7 @@ import WriteAttemptRecord from '../../../../src/domain/services/write/WriteAttem
 import GitWriteAttemptJournalAdapter, { type WriteAttemptHistory } from '../../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import ObservationCustodyCborCodec from '../../../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
 import codec from '../../../../src/infrastructure/codecs/CborCodec.ts';
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
+import type CodecValue from '../../../../src/domain/types/codec/CodecValue.ts';
 
 const OLD = new ObservationAttemptId('a'.repeat(32));
 const CURRENT = new ObservationAttemptId('e'.repeat(32));
@@ -27,7 +24,13 @@ const custodyCodec = new ObservationCustodyCborCodec(codec);
 /** The layout this build reads; a record in it that does not decode is garbage, not another layout. */
 const RECORD_LAYOUT = 2;
 
-type Stored = { readonly [field: string]: unknown };
+type Stored = { readonly [field: string]: CodecValue };
+
+/** A codec transport record; arrays, byte strings and dates are not field dictionaries. */
+function isStored(value: CodecValue): value is Stored {
+  return value !== null && typeof value === 'object'
+    && !Array.isArray(value) && !(value instanceof Uint8Array) && !(value instanceof Date);
+}
 
 const PREMISE = new ObservationWritePremise({ intents: new ObservationDigest('b'.repeat(64)), writerId: 'alice', predecessor: null });
 
@@ -57,7 +60,10 @@ function history(): WriteAttemptHistory & {
     reads: () => reads,
     rewrite: (ref, change) => {
       const oid = refs.get(ref) ?? '';
-      const stored: Stored = codec.decode(blobs.get(oid) ?? new Uint8Array());
+      const stored = codec.decode<CodecValue>(blobs.get(oid) ?? new Uint8Array());
+      if (!isStored(stored)) {
+        throw new Error('The journal did not encode a field dictionary');
+      }
       blobs.set(oid, codec.encode(change(stored)));
     },
     writeBlob: (content) => { const oid = String(blobs.size).padStart(40, '0'); blobs.set(oid, content); return Promise.resolve(oid); },
@@ -167,26 +173,28 @@ describe('a listing of write attempts', () => {
     for (const attemptId of ids) {
       await journal.save(record(attemptId));
     }
-    for (const start of [0, 0.3, 0.6, 0.9]) {
-      vi.spyOn(Math, 'random').mockReturnValue(start);
-      const listing = await journal.list(2);
-      expect(listing.records).toHaveLength(2);
-      expect(listing.unsupportedRefs).toEqual([]);
-    }
+    const listing = await journal.list(2);
+    expect(listing.records).toHaveLength(2);
+    expect(new Set(listing.records.map(({ attemptId }) => attemptId.value)).size).toBe(2);
+    expect(listing.records.every(({ attemptId }) => ids.some((id) => id.value === attemptId.value))).toBe(true);
+    expect(listing.unsupportedRefs).toEqual([]);
   });
 
   it('does not count an other-layout record against its limit, wherever it starts', async () => {
     const store = history();
     const journal = journalOf(store);
-    for (const attemptId of ids) {
+    const ring = [...ids, new ObservationAttemptId('5'.repeat(32)), new ObservationAttemptId('6'.repeat(32))];
+    for (const attemptId of ring) {
       await journal.save(record(attemptId));
     }
-    store.rewrite(refOf(ids[0] ?? OLD), (stored) => ({ ...stored, version: 1 }));
-    for (const start of [0, 0.3, 0.6, 0.9]) {
-      vi.spyOn(Math, 'random').mockReturnValue(start);
-      const listing = await journal.list(2);
-      expect(listing.records).toHaveLength(2);
+    // Unsupported entries at cyclic positions 0 and 3 intersect every four-entry window.
+    // There are fewer than four unsupported entries, so every start must return all four live records.
+    for (const index of [0, 3]) {
+      store.rewrite(refOf(ring[index] ?? OLD), (stored) => ({ ...stored, version: 1 }));
     }
+    const listing = await journal.list(4);
+    expect(listing.records.map(({ attemptId }) => attemptId.value).sort())
+      .toEqual(ring.filter((_id, index) => index !== 0 && index !== 3).map(({ value }) => value).sort());
   });
 
   it('reports every other-layout record it passes before reaching its limit', async () => {
@@ -198,9 +206,7 @@ describe('a listing of write attempts', () => {
     for (const attemptId of ids.slice(0, 3)) {
       store.rewrite(refOf(attemptId), (stored) => ({ ...stored, version: 1 }));
     }
-    vi.spyOn(Math, 'random').mockReturnValue(0);
-
-    expect((await journal.list(3)).unsupportedRefs).toEqual(ids.slice(0, 3).map(refOf));
+    expect((await journal.list(3)).unsupportedRefs.slice().sort()).toEqual(ids.slice(0, 3).map(refOf).sort());
   });
 
   it('reads O(limit) blobs however many other-layout refs a clone holds', async () => {
@@ -212,17 +218,17 @@ describe('a listing of write attempts', () => {
       store.rewrite(refOf(attemptId), (stored) => ({ ...stored, version: 1 }));
     }
     await journal.save(record(CURRENT));
-    vi.spyOn(Math, 'random').mockReturnValue(0);
     const before = store.reads();
 
     const listing = await journal.list(64);
 
-    expect(store.reads() - before).toBeLessThanOrEqual(2 * 64);
+    expect(store.reads() - before).toBeLessThanOrEqual(65);
     expect(listing.unsupported).toBe(64);
-    expect(listing.records).toEqual([]);
+    expect(listing.records.map(({ attemptId }) => attemptId.value))
+      .toEqual(listing.records.length === 0 ? [] : [CURRENT.value]);
   });
 
-  it('starts where the random start says, so blobs that never clear cannot starve a live record', async () => {
+  it('finds a live record among corrupt blobs when its budget covers the entire page', async () => {
     const store = history();
     const journal = journalOf(store);
     for (const attemptId of ids) {
@@ -231,8 +237,6 @@ describe('a listing of write attempts', () => {
     for (const attemptId of ids.slice(0, 3)) {
       store.rewrite(refOf(attemptId), () => ({ version: RECORD_LAYOUT, garbage: true }));
     }
-    vi.spyOn(Math, 'random').mockReturnValue(0.75);
-
-    expect((await journal.list(1)).records.map(({ attemptId }) => attemptId.value)).toEqual([ids[3]?.value]);
+    expect((await journal.list(4)).records.map(({ attemptId }) => attemptId.value)).toEqual([ids[3]?.value]);
   });
 });

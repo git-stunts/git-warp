@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import WriteRace from '../../../src/domain/api/WriteRace.ts';
 import WriteRaceError from '../../../src/domain/errors/WriteRaceError.ts';
 
-const REGISTER = { kind: 'register', subject: 'doc', key: 'title', writers: ['bob'], overflow: 0, causality: 'observed' } as const;
-const LIFECYCLE = { kind: 'lifecycle', subject: 'doc', key: null, writers: ['bob'], overflow: 0, causality: 'observed' } as const;
+const REGISTER = { kind: 'register', subject: 'doc', key: 'title', writers: ['bob'], overflow: 0, causality: 'observed' } satisfies ConstructorParameters<typeof WriteRace>[0];
+const LIFECYCLE = { kind: 'lifecycle', subject: 'doc', key: null, writers: ['bob'], overflow: 0, causality: 'observed' } satisfies ConstructorParameters<typeof WriteRace>[0];
 
 function refusal(build: () => WriteRace): WriteRaceError | null {
   try {

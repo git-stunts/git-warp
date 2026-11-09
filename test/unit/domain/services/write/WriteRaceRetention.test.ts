@@ -1,50 +1,59 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import IndeterminateWriteReceipt from '../../../../../src/domain/api/IndeterminateWriteReceipt.ts';
 import RetainedWriteReceipt from '../../../../../src/domain/api/RetainedWriteReceipt.ts';
 import UnretainedWriteReceipt from '../../../../../src/domain/api/UnretainedWriteReceipt.ts';
+import UnpublishedWriteReceipt from '../../../../../src/domain/api/UnpublishedWriteReceipt.ts';
 import WriteRace from '../../../../../src/domain/api/WriteRace.ts';
+import DotMint from '../../../../../src/domain/crdt/DotMint.ts';
+import VersionVector from '../../../../../src/domain/crdt/VersionVector.ts';
 import AdapterValidationError from '../../../../../src/domain/errors/AdapterValidationError.ts';
 import RetainedWriteCoreMismatchError from '../../../../../src/domain/errors/RetainedWriteCoreMismatchError.ts';
 import WarpError from '../../../../../src/domain/errors/WarpError.ts';
-import ObservationKnownUnpublished from '../../../../../src/domain/services/custody/ObservationKnownUnpublished.ts';
+import ConeLaneBasis from '../../../../../src/domain/services/cone/ConeLaneBasis.ts';
+import LaneConeScope from '../../../../../src/domain/services/cone/LaneConeScope.ts';
+import CustodyEvidence from '../../../../../src/domain/services/custody/CustodyEvidence.ts';
+import CustodyRefused from '../../../../../src/domain/services/custody/CustodyRefused.ts';
+import ObservationCustodyPage from '../../../../../src/domain/services/custody/ObservationCustodyPage.ts';
 import ObservationPrepared from '../../../../../src/domain/services/custody/ObservationPrepared.ts';
-import { bytesEqual } from '../../../../../src/domain/services/custody/observationCustodyOutcomes.ts';
 import ObservationAdmitted from '../../../../../src/domain/services/custody/ObservationAdmitted.ts';
-import type ObservationAttempt from '../../../../../src/domain/services/custody/ObservationAttempt.ts';
 import ObservationAttemptId from '../../../../../src/domain/services/custody/ObservationAttemptId.ts';
 import ObservationBindings from '../../../../../src/domain/services/custody/ObservationBindings.ts';
 import ObservationBudget from '../../../../../src/domain/services/custody/ObservationBudget.ts';
-import ObservationCoordinate from '../../../../../src/domain/services/custody/ObservationCoordinate.ts';
 import ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
 import ObservationDependencyClaim from '../../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDigest from '../../../../../src/domain/services/custody/ObservationDigest.ts';
 import ObservationPreparation from '../../../../../src/domain/services/custody/ObservationPreparation.ts';
 import ObservationPublicationEvidence from '../../../../../src/domain/services/custody/ObservationPublicationEvidence.ts';
+import ObservationPublicationPermission from '../../../../../src/domain/services/custody/ObservationPublicationPermission.ts';
 import ObservationQuestion from '../../../../../src/domain/services/custody/ObservationQuestion.ts';
 import ObservationReceiptCore from '../../../../../src/domain/services/custody/ObservationReceiptCore.ts';
-import ObservationRecord from '../../../../../src/domain/services/custody/ObservationRecord.ts';
-import ObservationRefused from '../../../../../src/domain/services/custody/ObservationRefused.ts';
+import ObservationSettlementPage from '../../../../../src/domain/services/custody/ObservationSettlementPage.ts';
 import ObservationWritePremise from '../../../../../src/domain/services/custody/ObservationWritePremise.ts';
-import ResolvedObservation from '../../../../../src/domain/services/custody/ResolvedObservation.ts';
 import RetainedObservation from '../../../../../src/domain/services/custody/RetainedObservation.ts';
 import ConeWritePublisher from '../../../../../src/domain/services/write/ConeWritePublisher.ts';
-import ConeWriteRecovery from '../../../../../src/domain/services/write/ConeWriteRecovery.ts';
-import ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
 import LoweredConeWrite from '../../../../../src/domain/services/write/LoweredConeWrite.ts';
-import type PatchEntryFold from '../../../../../src/domain/services/write/PatchEntryFold.ts';
+import PatchEntryFold from '../../../../../src/domain/services/write/PatchEntryFold.ts';
 import WriteAttemptListing from '../../../../../src/domain/services/write/WriteAttemptListing.ts';
 import WriteAttemptRecord from '../../../../../src/domain/services/write/WriteAttemptRecord.ts';
-import type WritePublicationProbe from '../../../../../src/domain/services/write/WritePublicationProbe.ts';
 import { failedWriteCore, publishedWriteCore } from '../../../../../src/domain/services/write/writeReceiptCore.ts';
 import { textDecode } from '../../../../../src/domain/utils/bytes.ts';
 import { canonicalStringify } from '../../../../../src/domain/utils/canonicalStringify.ts';
+import type CodecValue from '../../../../../src/domain/types/codec/CodecValue.ts';
 import { boundRaces } from '../../../../helpers/WarpWriteFixture.ts';
 import GitWriteAttemptJournalAdapter, { type WriteAttemptHistory } from '../../../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import ObservationCustodyCborCodec from '../../../../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
+import NodeCryptoAdapter from '../../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import codec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
-import type { PatchBuilder } from '../../../../../src/domain/services/PatchBuilder.ts';
-import WriteAttemptJournalPort from '../../../../../src/ports/WriteAttemptJournalPort.ts';
-import { prototypeStub } from '../../../../helpers/PrototypeStub.ts';
+import { PatchBuilder } from '../../../../../src/domain/services/PatchBuilder.ts';
+import type WriteAttemptJournalPort from '../../../../../src/ports/WriteAttemptJournalPort.ts';
+import type ObservationCustodyPort from '../../../../../src/ports/ObservationCustodyPort.ts';
+import InMemoryConeRecordStore from '../../../../helpers/InMemoryConeRecordStore.ts';
+import MemoryConeFeed from '../../../../helpers/MemoryConeFeed.ts';
+import MeteredObservationCustody from '../../../../helpers/MeteredObservationCustody.ts';
+import ObservationCustodyFixture, { basisTree, narrowed, sources, writerCommits } from '../../../../helpers/ObservationCustodyFixture.ts';
+import { ScriptedCustody, ScriptedSupport, inspectionAt } from '../../../../helpers/ScriptedObservationPorts.ts';
+import InterruptedSettlementRead from '../../../../helpers/InterruptedSettlementRead.ts';
+import WriteRecoveryFixture from '../../../../helpers/WriteRecoveryFixture.ts';
 
 const ATTEMPT = new ObservationAttemptId('a'.repeat(32));
 const DIGEST = new ObservationDigest('b'.repeat(64));
@@ -58,25 +67,31 @@ const TITLE_RACE = new WriteRace({ kind: 'register', subject: 'doc', key: 'title
 const DAVE_BODY = new WriteRace({ kind: 'register', subject: 'doc', key: 'body', writers: ['dave'], overflow: 2, causality: 'underdetermined' });
 const BOB_REMOVED = new WriteRace({ kind: 'lifecycle', subject: 'doc', key: null, writers: ['bob'], overflow: 0, causality: 'observed' });
 
-function preparation(): ObservationPreparation {
+function preparation(basis = COMMIT, predecessor: string | null = PARENT): ObservationPreparation {
   return new ObservationPreparation(ATTEMPT, new ObservationBindings({
-    basis: COMMIT, observer: 'writer:alice', question: new ObservationQuestion('q', 1), purpose: 'p',
+    basis, observer: 'writer:alice', question: new ObservationQuestion('q', 1), purpose: 'p',
     budget: new ObservationBudget({ records: 1, bytes: 1, work: 1 }), evidence: [],
     dependencies: ObservationDependencyClaim.NONE,
-    writePremise: new ObservationWritePremise({ intents: DIGEST, writerId: 'alice', predecessor: PARENT }),
+    writePremise: new ObservationWritePremise({ intents: DIGEST, writerId: 'alice', predecessor }),
   }));
 }
 
-function record(races: readonly WriteRace[] = [TITLE_RACE, BOB_REMOVED, DAVE_BODY]): WriteAttemptRecord {
+function record(races: readonly WriteRace[] = [TITLE_RACE, BOB_REMOVED, DAVE_BODY], prepared = preparation()): WriteAttemptRecord {
   return new WriteAttemptRecord({
-    preparation: preparation(), admission: races.length === 0 ? 'derived' : 'plural', races, occurrences: [], savedAt: 1,
+    preparation: prepared, admission: races.length === 0 ? 'derived' : 'plural', races, occurrences: [], savedAt: 1,
   });
 }
 
 /** The canonical form a receipt core binds for one race. */
-function wire(race: WriteRace): object {
+function wire(race: WriteRace) {
   const { kind, subject, key, writers, overflow, causality } = race;
   return { kind, subject, key, writers: [...writers], overflow, causality };
+}
+
+function scriptedService(custody: ObservationCustodyPort): ObservationCustodyService {
+  return new ObservationCustodyService({
+    custody, support: new ScriptedSupport(), codec: custodyCodec, crypto: new NodeCryptoAdapter(), attempts: { next: () => ATTEMPT },
+  });
 }
 
 const PLURAL_CORE = '{"admission":"plural","commit":"cccccccccccccccccccccccccccccccccccccccc","graph":"g","intents":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","occurrences":[],"predecessor":"dddddddddddddddddddddddddddddddddddddddd",'
@@ -100,11 +115,11 @@ describe('a write attempt record saves its races before arming', () => {
   });
 
   it('refuses two races on one subject and key, so its races are a set', () => {
-    const fields = { preparation: preparation(), admission: 'plural' as const, occurrences: [], savedAt: 1 };
+    const fields = { preparation: preparation(), occurrences: [], savedAt: 1 };
     for (const twin of [TITLE_RACE, new WriteRace({ ...TITLE_RACE, writers: ['erin'] }), new WriteRace({ ...TITLE_RACE, overflow: 3 })]) {
-      expect(() => new WriteAttemptRecord({ ...fields, races: [TITLE_RACE, DAVE_BODY, twin] })).toThrow('at most one race per subject and key');
+      expect(() => new WriteAttemptRecord({ ...fields, admission: 'plural', races: [TITLE_RACE, DAVE_BODY, twin] })).toThrow('at most one race per subject and key');
     }
-    expect(() => new WriteAttemptRecord({ ...fields, races: [BOB_REMOVED, new WriteRace({ ...BOB_REMOVED, causality: 'underdetermined' })] })).toThrow(WarpError);
+    expect(() => new WriteAttemptRecord({ ...fields, admission: 'plural', races: [BOB_REMOVED, new WriteRace({ ...BOB_REMOVED, causality: 'underdetermined' })] })).toThrow(WarpError);
     expect(record([TITLE_RACE, new WriteRace({ ...TITLE_RACE, subject: 'doc2' }), BOB_REMOVED]).races).toHaveLength(3);
   });
 
@@ -119,31 +134,38 @@ describe('a plural write saves its races before it arms', () => {
   it('journals the canonical races before custody is asked to arm', async () => {
     const steps: string[] = [];
     const saved: WriteAttemptRecord[] = [];
-    const attempt = { identity: {} } as ObservationAttempt;
+    const port = new ScriptedCustody();
+    port.armed = new CustodyRefused('capacity-full');
+    const custody = scriptedService(new MeteredObservationCustody(port, (operation, side) => {
+      if (side === 'before' && (operation === 'reserve' || operation === 'arm')) {
+        steps.push(operation);
+      }
+    }));
+    const fixture = new WriteRecoveryFixture(custody);
+    const journal: WriteAttemptJournalPort = {
+      save: async (saving) => { await fixture.journal.save(saving); steps.push('save'); saved.push(saving); },
+      read: (id) => fixture.journal.read(id),
+      remove: (id) => fixture.journal.remove(id),
+      list: (limit) => fixture.journal.list(limit),
+    };
     const publisher = new ConeWritePublisher({
-      graph: 'g', clock: () => 1,
-      custody: prototypeStub(ObservationCustodyService, {
-        resume: () => { steps.push('reserve'); return Promise.resolve(new ObservationAdmitted(attempt, 'reserved')); },
-        prepare: () => Promise.resolve(prototypeStub(ObservationPrepared, {})),
-        authorizePublication: () => { steps.push('arm'); return Promise.resolve(new ObservationRefused('capacity-full')); },
-        cancel: () => Promise.resolve(new ObservationKnownUnpublished(attempt)),
-      }),
-      journal: prototypeStub(WriteAttemptJournalPort, {
-        save: (saving: WriteAttemptRecord) => { steps.push('save'); saved.push(saving); return Promise.resolve(); },
-        remove: () => Promise.resolve(),
-      }),
-      attempts: { next: () => ATTEMPT },
-      probe: {} as WritePublicationProbe,
-      settlement: {} as ConeWriteSettlement,
+      graph: 'g', clock: () => 1, custody, journal, attempts: { next: () => ATTEMPT },
+      probe: fixture.probe, settlement: fixture.settlement,
     });
+    const builder = new PatchBuilder({
+      persistence: fixture.history, graphName: 'g', writerId: 'alice', lamport: 1,
+      versionVector: VersionVector.empty(), dotMint: DotMint.after('alice', 0), getCurrentState: () => null,
+    });
+    const cone = new ConeLaneBasis({ store: new InMemoryConeRecordStore(), feed: new MemoryConeFeed('g'), scope: new LaneConeScope('g') });
     const lowered = new LoweredConeWrite({
       writer: 'alice', bindings: preparation().bindings, admission: 'plural', races: [DAVE_BODY, TITLE_RACE, BOB_REMOVED], occurrences: [],
-      builder: {} as PatchBuilder, fold: {} as PatchEntryFold,
+      builder, fold: new PatchEntryFold(cone, PARENT),
     });
 
-    await publisher.publish(lowered, () => Promise.resolve(null));
+    const receipt = await publisher.publish(lowered, () => Promise.resolve(null));
 
     expect(steps).toEqual(['save', 'reserve', 'arm']);
+    expect(receipt).toBeInstanceOf(UnpublishedWriteReceipt);
     expect(saved[0]?.admission).toBe('plural');
     expect(saved[0]?.races.map(wire)).toEqual(record().races.map(wire));
   });
@@ -172,74 +194,94 @@ describe('the canonical write receipt core', () => {
 });
 
 describe('a settled write reports the races its core binds', () => {
-  const attempt = { identity: {} } as ObservationAttempt;
+  const repositories = new ObservationCustodyFixture();
+  afterEach(async () => await repositories.dispose());
 
   it('passes custody the core with the races and reports the same ones', async () => {
-    const settle = vi.fn((_attempt: ObservationAttempt, _fields: { readonly core: ObservationReceiptCore }) => Promise.resolve(new ObservationRefused('contention')));
-    const settling = new ConeWriteSettlement({
-      graph: 'g', custody: prototypeStub(ObservationCustodyService, { settle }), journal: prototypeStub(WriteAttemptJournalPort, { remove: () => Promise.resolve() }),
-    });
+    const port = new ScriptedCustody();
+    const custody = scriptedService(port);
+    const fixture = new WriteRecoveryFixture(custody);
     const saved = record();
+    const attempt = narrowed(await custody.resume(ATTEMPT, saved.bindings), ObservationAdmitted).attempt;
+    narrowed(await custody.prepare(attempt, sources()), ObservationPrepared);
+    expect(port.pages).toHaveLength(1);
+    port.evidence.preparation = new CustodyEvidence('prepared', narrowed(port.pages[0] ?? null, ObservationCustodyPage));
+    port.inspected = inspectionAt('armed');
+    port.settled = new CustodyRefused('contention');
 
-    const receipt = await settling.settle({ attempt, record: saved, commit: COMMIT });
-    const core = settle.mock.calls[0]?.[1].core;
+    const receipt = await fixture.settlement.settle({ attempt, record: saved, commit: COMMIT });
+    expect(port.pages).toHaveLength(2);
+    const page = narrowed(port.pages[1] ?? null, ObservationCustodyPage);
+    const settled = narrowed(custodyCodec.decodeSettlementPage(page.record()), ObservationSettlementPage);
+    const core = narrowed(custodyCodec.decodeCore(settled.core()), ObservationReceiptCore);
 
     expect(receipt).toBeInstanceOf(UnretainedWriteReceipt);
     expect(receipt.outcome.kind).toBe('plural');
-    expect(core === undefined ? null : boundRaces(core)).toBe(canonicalStringify(receipt.outcome.races.map(wire)));
+    expect(boundRaces(core)).toBe(canonicalStringify(receipt.outcome.races.map(wire)));
   });
 
-  /** Recovery over custody that settled `retained`, the exact core bytes custody would have kept, for the record `saved`. */
-  function rebuilding(saved: WriteAttemptRecord, retained: ObservationReceiptCore, publication: ObservationPublicationEvidence | null = new ObservationPublicationEvidence('alice', COMMIT)): { readonly recovery: ConeWriteRecovery; readonly remove: ReturnType<typeof vi.fn> } {
-    const held = custodyCodec.encodeCore(retained);
-    const resolved = new ResolvedObservation({
-      preparation: saved.preparation,
-      record: new ObservationRecord({ preparation: DIGEST, support: DIGEST, core: DIGEST, publication }),
-      core: held,
+  /** A real retained publication; only the journal's race set may differ from what custody kept. */
+  async function rebuilding(savedRaces: readonly WriteRace[], heldRaces = savedRaces) {
+    const path = await repositories.repository('sha1');
+    const basis = basisTree(path, 'race-recovery');
+    const [commit] = writerCommits(path, 1);
+    if (commit === undefined) {
+      throw new Error('The fixture did not create its publication');
+    }
+    let boundary: InterruptedSettlementRead | null = null;
+    const opened = await repositories.open(path, {
+      limit: 8,
+      wrap: (inner) => { boundary = new InterruptedSettlementRead(inner); return boundary; },
     });
-    const remove = vi.fn(() => Promise.resolve());
-    const settlement = new ConeWriteSettlement({ graph: 'g', custody: {} as ObservationCustodyService, journal: {} as WriteAttemptJournalPort });
-    const recovery = new ConeWriteRecovery({
-      graph: 'g', clock: () => 1, settlement,
-      custody: prototypeStub(ObservationCustodyService, {
-        resume: () => Promise.resolve(new ObservationAdmitted(attempt, 'settled')),
-        recoverCoordinate: () => Promise.resolve(new RetainedObservation(new ObservationCoordinate({ attemptId: ATTEMPT, binding: DIGEST, record: DIGEST }), held)),
-        resolve: () => Promise.resolve(resolved),
-        holdsCore: (evidence: ResolvedObservation, core: ObservationReceiptCore) => bytesEqual(evidence.core(), custodyCodec.encodeCore(core)),
-      }),
-      journal: prototypeStub(WriteAttemptJournalPort, { read: () => Promise.resolve(saved), remove }),
-      probe: {} as WritePublicationProbe,
-    });
-    return { recovery, remove };
+    const interruption = narrowed(boundary, InterruptedSettlementRead);
+    const saved = record(savedRaces, preparation(basis, null));
+    const held = record(heldRaces, saved.preparation);
+    const core = publishedWriteCore('g', held, commit);
+    const attempt = narrowed(await opened.service.resume(ATTEMPT, held.bindings), ObservationAdmitted).attempt;
+    const prepared = narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
+    narrowed(await opened.service.authorizePublication(prepared), ObservationPublicationPermission);
+    narrowed(await opened.service.settle(attempt, {
+      core, publication: new ObservationPublicationEvidence('alice', commit),
+    }), RetainedObservation);
+    const fixture = new WriteRecoveryFixture(opened.service);
+    await fixture.journal.save(saved);
+    return { fixture, core, interruption, saved };
   }
 
   it('rebuilds a settled receipt from its record with the exact race set its retained core binds', async () => {
-    const saved = record();
-    const core = publishedWriteCore('g', saved, COMMIT);
-    const { recovery, remove } = rebuilding(saved, core);
+    const { fixture, core } = await rebuilding(record().races);
 
-    const rebuilt = await recovery.reconcile('alice', ATTEMPT.value);
+    const rebuilt = await fixture.recovery.reconcile('alice', ATTEMPT.value);
 
     expect(rebuilt).toBeInstanceOf(RetainedWriteReceipt);
     expect(canonicalStringify(rebuilt instanceof RetainedWriteReceipt ? rebuilt.outcome.races.map(wire) : null)).toBe(boundRaces(core));
-    expect(remove).toHaveBeenCalledOnce();
+    expect(await fixture.journal.read(ATTEMPT)).toBeNull();
   });
 
-  it('stays indeterminate when the retained evidence names no publication', async () => {
-    const { recovery, remove } = rebuilding(record(), publishedWriteCore('g', record(), COMMIT), null);
+  it('stays indeterminate and keeps the record when evidence becomes unreadable after recovering its coordinate', async () => {
+    const { fixture, core, interruption, saved } = await rebuilding(record().races);
+    // Coordinate recovery reads settlement once, then its resolver reads it once.
+    // The next read belongs to receipt reconstruction and is the injected failure.
+    interruption.availableThrough = interruption.settlementReads + 2;
 
-    expect(await recovery.reconcile('alice', ATTEMPT.value)).toBeInstanceOf(IndeterminateWriteReceipt);
-    expect(remove).not.toHaveBeenCalled();
+    expect(await fixture.recovery.reconcile('alice', ATTEMPT.value)).toBeInstanceOf(IndeterminateWriteReceipt);
+    expect(interruption.settlementReads).toBe(interruption.availableThrough + 1);
+    expect(await fixture.journal.read(ATTEMPT)).toEqual(saved);
+
+    interruption.availableThrough = Number.POSITIVE_INFINITY;
+    const recovered = narrowed(await fixture.recovery.reconcile('alice', ATTEMPT.value), RetainedWriteReceipt);
+    expect(canonicalStringify(recovered.outcome.races.map(wire))).toBe(boundRaces(core));
+    expect(await fixture.journal.read(ATTEMPT)).toBeNull();
   });
 
   it('refuses to rebuild a receipt whose record names other races than its retained core, keeping the record', async () => {
-    const { recovery, remove } = rebuilding(record([DAVE_BODY]), publishedWriteCore('g', record(), COMMIT));
+    const { fixture, saved } = await rebuilding([DAVE_BODY], record().races);
 
-    const refused = await recovery.reconcile('alice', ATTEMPT.value).then(() => null, (error: Error) => error);
+    const refused = await fixture.recovery.reconcile('alice', ATTEMPT.value).then(() => null, (error: Error) => error);
 
     expect(refused).toBeInstanceOf(RetainedWriteCoreMismatchError);
     expect(refused instanceof RetainedWriteCoreMismatchError ? refused.code : null).toBe('E_WRITE_CORE_MISMATCH');
-    expect(remove).not.toHaveBeenCalled();
+    expect(await fixture.journal.read(ATTEMPT)).toEqual(saved);
   });
 });
 
@@ -270,38 +312,38 @@ describe('the journal keeps a record\'s races', () => {
     const read = await journal(store).read(ATTEMPT);
 
     const [blob] = [...store.blobs.values()];
-    const stored: { readonly version?: unknown } = codec.decode(blob ?? new Uint8Array());
-
-    expect(stored.version).toBe(2);
+    expect(codec.decode(blob ?? new Uint8Array())).toMatchObject({ version: 2 });
     expect(read?.races.map(wire)).toEqual(saved.races.map(wire));
     expect(read === null ? null : publishedWriteCore('g', read, COMMIT).outcome()).toEqual(publishedWriteCore('g', saved, COMMIT).outcome());
   });
 
-  type Stored = { readonly [field: string]: unknown };
-  const withRaces = (races: unknown) => (stored: Stored): Stored => ({ ...stored, races });
-  const malformed: ReadonlyArray<readonly [string, (stored: Stored) => Stored]> = [
-    ['an unknown kind', withRaces([['merge', 'doc', 'title', ['bob'], 0, 'observed']])],
-    ['a register race with no key', withRaces([['register', 'doc', null, ['bob'], 0, 'observed']])],
-    ['a register race with an empty key', withRaces([['register', 'doc', '', ['bob'], 0, 'observed']])],
-    ['a lifecycle race with a key', withRaces([['lifecycle', 'doc', 'title', ['bob'], 0, 'observed']])],
-    ['a negative overflow', withRaces([['register', 'doc', 'title', ['bob'], -1, 'observed']])],
-    ['a fractional overflow', withRaces([['register', 'doc', 'title', ['bob'], 0.5, 'observed']])],
-    ['an unknown causality', withRaces([['register', 'doc', 'title', ['bob'], 0, 'guessed']])],
-    ['a non-text writer', withRaces([['register', 'doc', 'title', [7], 0, 'observed']])],
-    ['an empty writer id', withRaces([['register', 'doc', 'title', [''], 0, 'observed']])],
-    ['a writer id that is not ref-safe', withRaces([['register', 'doc', 'title', ['a/b'], 0, 'observed']])],
-    ['a short entry', withRaces([['register', 'doc', 'title']])],
-    ['a non-list', withRaces('races')],
-    ['a plural write with no races', withRaces([])],
-    ['two races on one subject and key', withRaces([['register', 'doc', 'title', ['bob'], 0, 'observed'], ['register', 'doc', 'title', ['carol'], 0, 'observed']])],
+  const malformed: ReadonlyArray<readonly [string, CodecValue]> = [
+    ['an unknown kind', [['merge', 'doc', 'title', ['bob'], 0, 'observed']]],
+    ['a register race with no key', [['register', 'doc', null, ['bob'], 0, 'observed']]],
+    ['a register race with an empty key', [['register', 'doc', '', ['bob'], 0, 'observed']]],
+    ['a lifecycle race with a key', [['lifecycle', 'doc', 'title', ['bob'], 0, 'observed']]],
+    ['a negative overflow', [['register', 'doc', 'title', ['bob'], -1, 'observed']]],
+    ['a fractional overflow', [['register', 'doc', 'title', ['bob'], 0.5, 'observed']]],
+    ['an unknown causality', [['register', 'doc', 'title', ['bob'], 0, 'guessed']]],
+    ['a non-text writer', [['register', 'doc', 'title', [7], 0, 'observed']]],
+    ['an empty writer id', [['register', 'doc', 'title', [''], 0, 'observed']]],
+    ['a writer id that is not ref-safe', [['register', 'doc', 'title', ['a/b'], 0, 'observed']]],
+    ['a short entry', [['register', 'doc', 'title']]],
+    ['a non-list', 'races'],
+    ['a plural write with no races', []],
+    ['two races on one subject and key', [['register', 'doc', 'title', ['bob'], 0, 'observed'], ['register', 'doc', 'title', ['carol'], 0, 'observed']]],
   ];
 
-  it.each(malformed)('fails closed on %s, with a typed error on read and a skip in a listing', async (_name, corrupt) => {
+  it.each(malformed)('fails closed on %s, with a typed error on read and a skip in a listing', async (_name, races) => {
     const store = history();
     await journal(store).save(record());
+    expect(await journal(store).read(ATTEMPT)).toEqual(record());
     const [oid] = [...store.blobs.keys()];
-    const stored: Stored = codec.decode(store.blobs.get(oid ?? '') ?? new Uint8Array());
-    store.blobs.set(oid ?? '', codec.encode(corrupt(stored)));
+    const stored = codec.decode(store.blobs.get(oid ?? '') ?? new Uint8Array());
+    if (stored === null || typeof stored !== 'object') {
+      throw new Error('The journal did not encode a record');
+    }
+    store.blobs.set(oid ?? '', codec.encode({ ...stored, races }));
 
     await expect(journal(store).read(ATTEMPT)).rejects.toThrow(AdapterValidationError);
     expect(await journal(store).list(4)).toEqual(NOTHING_LISTED);
@@ -310,8 +352,12 @@ describe('the journal keeps a record\'s races', () => {
   it('fails closed on a derived write that names a race', async () => {
     const store = history();
     await journal(store).save(record());
+    expect(await journal(store).read(ATTEMPT)).toEqual(record());
     const [oid] = [...store.blobs.keys()];
-    const stored: { readonly [key: string]: unknown } = codec.decode(store.blobs.get(oid ?? '') ?? new Uint8Array());
+    const stored = codec.decode(store.blobs.get(oid ?? '') ?? new Uint8Array());
+    if (stored === null || typeof stored !== 'object') {
+      throw new Error('The journal did not encode a record');
+    }
     store.blobs.set(oid ?? '', codec.encode({ ...stored, admission: 'derived' }));
 
     await expect(journal(store).read(ATTEMPT)).rejects.toThrow(AdapterValidationError);
