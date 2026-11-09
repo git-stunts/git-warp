@@ -1,7 +1,8 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { checkSourceReachability, UNREACHABLE_SOURCE_ALLOWLIST_PATH } from '../../../scripts/source-reachability/SourceReachabilityGate.ts';
 
 const roots: string[] = [];
@@ -31,17 +32,28 @@ function fixture(): string {
 }
 
 describe('source reachability gate', () => {
+  it('rejects a new dead source even when the candidate adds an owner row', () => {
+    const root = fixture();
+    write(root, UNREACHABLE_SOURCE_ALLOWLIST_PATH, '# owned\n');
+    execFileSync('git', ['init', '-b', 'main'], { cwd: root, stdio: 'pipe', timeout: 10_000 });
+    execFileSync('git', ['add', '.'], { cwd: root, stdio: 'pipe', timeout: 10_000 });
+    execFileSync('git', ['-c', 'user.name=Reachability fixture', '-c', 'user.email=fixture@example.invalid',
+      'commit', '-m', 'accepted allowance'], { cwd: root, stdio: 'pipe', timeout: 10_000 });
+    write(root, 'src/new-dead.ts', 'export const dead = 1;\n');
+    write(root, UNREACHABLE_SOURCE_ALLOWLIST_PATH, '#814\tsrc/new-dead.ts\n');
+    expect(checkSourceReachability(root, { base: 'main' }).violations)
+      .toContain('NEW allowance #814\tsrc/new-dead.ts');
+  });
+
   it('passes when every src file is reached through value, type, index or dynamic imports', () => {
     const root = fixture();
     expect(checkSourceReachability(root)).toEqual({ reached: 6, unreachable: [], violations: [] });
   });
 
-  it('fails RED on a new unreachable src file, and passes GREEN once it is allowed with an owner', () => {
+  it('rejects an unlisted unreachable source in the working-tree inventory', () => {
     const root = fixture();
     write(root, 'src/dead.ts', 'export const dead = 1;\n');
     expect(checkSourceReachability(root).violations).toEqual(['NEW unreachable source src/dead.ts']);
-    write(root, UNREACHABLE_SOURCE_ALLOWLIST_PATH, '# owned\n#814\tsrc/dead.ts\n');
-    expect(checkSourceReachability(root)).toMatchObject({ unreachable: ['src/dead.ts'], violations: [] });
   });
 
   it('fails on stale, malformed, ownerless and duplicate allowances', () => {
@@ -60,5 +72,38 @@ describe('source reachability gate', () => {
 
   it('keeps this repository on its owned allow-list', () => {
     expect(checkSourceReachability(process.cwd()).violations).toEqual([]);
+  });
+
+  it('passes the working-tree command for a reached source inventory', async () => {
+    const root = fixture();
+    const originalDirectory = process.cwd();
+    const originalExitCode = process.exitCode;
+    try {
+      process.chdir(root);
+      process.exitCode = 0;
+      vi.resetModules();
+      await import('../../../scripts/source-reachability/check-source-reachability.ts');
+      expect(process.exitCode).toBe(0);
+    } finally {
+      process.chdir(originalDirectory);
+      process.exitCode = originalExitCode;
+    }
+  });
+
+  it('refuses an unlisted dead file through the working-tree command', async () => {
+    const root = fixture();
+    write(root, 'src/dead.ts', 'export const dead = 1;\n');
+    const originalDirectory = process.cwd();
+    const originalExitCode = process.exitCode;
+    try {
+      process.chdir(root);
+      process.exitCode = 0;
+      vi.resetModules();
+      await import('../../../scripts/source-reachability/check-source-reachability.ts');
+      expect(process.exitCode).toBe(1);
+    } finally {
+      process.chdir(originalDirectory);
+      process.exitCode = originalExitCode;
+    }
   });
 });

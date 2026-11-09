@@ -2,10 +2,11 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import ts from 'typescript';
 import packageRuntimeRoots from '../package-payload/PackageRuntimeRoots.ts';
+import parseSourceAllowances, { UNREACHABLE_SOURCE_ALLOWLIST_PATH } from './parseSourceAllowances.ts';
+import SourceAllowanceHistory from './SourceAllowanceHistory.ts';
 
-export const UNREACHABLE_SOURCE_ALLOWLIST_PATH = 'policy/unreachable-source-allowlist.txt';
+export { UNREACHABLE_SOURCE_ALLOWLIST_PATH } from './parseSourceAllowances.ts';
 const SOURCE_ROOT = 'src';
-const ALLOWANCE = /^#([1-9][0-9]*)\t(src\/[^\t\r\n]+\.ts)$/u;
 
 export type SourceReachabilityReport = Readonly<{
   readonly reached: number;
@@ -13,20 +14,24 @@ export type SourceReachabilityReport = Readonly<{
   readonly violations: readonly string[];
 }>;
 
-/** Fails on an unreachable src file that is not allowed, and on an allowance that no longer names one. */
-export function checkSourceReachability(root: string): SourceReachabilityReport {
+/** Checks current inventory; a history basis also enforces shrink-only admission across the branch. */
+export function checkSourceReachability(
+  root: string, history?: Readonly<{ base: string; initialCommit?: string }>,
+): SourceReachabilityReport {
   const base = resolve(root);
   const reached = reachableSources(base);
   const unreachable = listSources(join(base, SOURCE_ROOT))
     .map((path) => relative(base, path).split(sep).join('/'))
     .filter((path) => !reached.has(path))
     .sort();
-  const allowed = readAllowances(join(base, UNREACHABLE_SOURCE_ALLOWLIST_PATH));
+  const path = join(base, UNREACHABLE_SOURCE_ALLOWLIST_PATH);
+  const allowed = parseSourceAllowances(existsSync(path) ? readFileSync(path, 'utf8') : '');
   const missing = new Set(unreachable);
   const violations = [
     ...allowed.problems,
     ...unreachable.filter((path) => !allowed.paths.has(path)).map((path) => `NEW unreachable source ${path}`),
     ...[...allowed.paths].filter((path) => !missing.has(path)).map((path) => `STALE allowance ${path}: it is reachable or gone; remove it`),
+    ...(history === undefined || allowed.problems.length > 0 ? [] : new SourceAllowanceHistory(base, history.initialCommit).check(history.base)),
   ];
   return Object.freeze({ reached: reached.size, unreachable: Object.freeze(unreachable), violations: Object.freeze(violations) });
 }
@@ -64,24 +69,4 @@ function listSources(directory: string): string[] {
     if (entry.isDirectory()) return listSources(path);
     return entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts') ? [path] : [];
   });
-}
-
-function readAllowances(path: string): Readonly<{ paths: ReadonlySet<string>; problems: readonly string[] }> {
-  const lines = existsSync(path) ? readFileSync(path, 'utf8').split('\n') : [];
-  const paths = new Set<string>();
-  const problems: string[] = [];
-  for (const line of lines.filter((entry) => entry !== '' && !entry.startsWith('# '))) {
-    const problem = admitAllowance(line, paths);
-    if (problem !== null) problems.push(problem);
-  }
-  return Object.freeze({ paths, problems: Object.freeze(problems) });
-}
-
-/** Adds one owned allowance, or names why the line is refused. */
-function admitAllowance(line: string, paths: Set<string>): string | null {
-  const allowed = ALLOWANCE.exec(line)?.[2];
-  if (allowed === undefined) return `MALFORMED allowance: ${line}`;
-  if (paths.has(allowed)) return `DUPLICATE allowance ${allowed}`;
-  paths.add(allowed);
-  return null;
 }

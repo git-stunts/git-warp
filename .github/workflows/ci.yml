@@ -119,6 +119,8 @@ jobs:
         run: npm run lint:quarantine-graduate
       - name: 'Gate 4i: Public capability allowances only shrink from the merge base'
         run: node --experimental-strip-types scripts/public-surface/check-history.ts
+      - name: 'Gate 4j: Dead-source allowances only shrink from the accepted basis'
+        run: node --experimental-strip-types scripts/source-reachability/check-source-history.ts
 
   type-firewall-surface:
     runs-on: ubuntu-latest
