@@ -4,12 +4,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { intent } from '../../../../advanced.ts';
 import {
   handleMcpMessage,
   listMcpTools,
 } from '../../../../bin/cli/commands/mcp/McpProtocol.ts';
 import McpRuntimeSession
   from '../../../../bin/cli/commands/mcp/McpRuntimeSession.ts';
+import {
+  isMcpJsonObject,
+  type McpJsonObject,
+} from '../../../../bin/cli/commands/mcp/McpJsonValue.ts';
+import { writeThroughWarp } from '../../../helpers/WarpSeed.ts';
 
 const EXPECTED_TOOLS = [
   'warp_observation_start',
@@ -121,6 +127,41 @@ describe('MCP command protocol', () => {
     });
   });
 
+  it.each([
+    ['events', 'admin'],
+    ['other', 'guest'],
+  ])('observes the selected Lane %s through MCP tools', async (lane, role) => {
+    await writeThroughWarp(repository, 'events', 'alice', [
+      intent.node.add({ subject: 'user:alice' }),
+      intent.property.set({ subject: 'user:alice', key: 'role', value: 'admin' }),
+    ]);
+    await writeThroughWarp(repository, 'other', 'alice', [
+      intent.node.add({ subject: 'user:alice' }),
+      intent.property.set({ subject: 'user:alice', key: 'role', value: 'guest' }),
+    ]);
+    await callTool(1, 'warp_repair', { lane: 'events', action: 'materialization' });
+    await callTool(2, 'warp_repair', { lane: 'other', action: 'materialization' });
+
+    const started = await callTool(3, 'warp_observation_start', {
+      lane, observerId: 'role-reader',
+      reading: { kind: 'property.get', subject: 'user:alice', key: 'role' },
+    });
+    const observationId = started['observationId'];
+    if (typeof observationId !== 'string') throw new Error('MCP start requires an observation ID');
+    const page = await callTool(4, 'warp_observation_read', { observationId });
+    expect(page).toMatchObject({
+      observationId, readings: [{ type: 'Reading', value: role }],
+      terminal: true, cursor: null,
+    });
+    const receiptRef = page['receiptRef'];
+    if (typeof receiptRef !== 'string') throw new Error('Completed MCP observation requires a receipt reference');
+    const receipt = await callTool(5, 'warp_receipt_get', { receiptRef });
+    expect(receipt).toMatchObject({
+      type: 'Receipt', operation: 'observe', lane, writer: 'mcp-test',
+      status: 'completed', observer: { id: 'role-reader' },
+    });
+  });
+
   it('keeps observation cursors over a lazy bounded transport', async () => {
     let pulls = 0;
     const retained = await session.retainObservation({
@@ -169,9 +210,9 @@ describe('MCP command protocol', () => {
   async function callTool(
     id: number,
     name: string,
-    args: Record<string, string | Record<string, string>>,
-  ) {
-    return await handleMcpMessage(
+    args: McpJsonObject,
+  ): Promise<McpJsonObject> {
+    const response = await handleMcpMessage(
       session,
       {
         jsonrpc: '2.0',
@@ -181,5 +222,11 @@ describe('MCP command protocol', () => {
       },
       { serverVersion: '19.0.0' },
     );
+    if (response === null || !('result' in response) || !isMcpJsonObject(response.result)) {
+      throw new Error(`MCP ${name} requires a successful result`);
+    }
+    const content = response.result['structuredContent'];
+    if (!isMcpJsonObject(content)) throw new Error(`MCP ${name} requires structured content`);
+    return content;
   }
 });
