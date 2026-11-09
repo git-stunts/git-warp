@@ -16,10 +16,10 @@ describe('CborCodec', () => {
       ['a', [{ y: 2, x: 1 }]],
     ]);
 
-    const decoded = defaultCodec.decode(defaultCodec.encode(value)) as {
+    const decoded = defaultCodec.decode<{
       a: Array<{ x: number; y: number }>;
       b: { a: number; z: number };
-    };
+    }>(defaultCodec.encode(value));
 
     expect(Object.keys(decoded)).toEqual(['a', 'b']);
     expect(Object.keys(decoded.b)).toEqual(['a', 'z']);
@@ -33,13 +33,15 @@ describe('CborCodec', () => {
     const large = 1n << 70n;
     const negative = -(1n << 70n);
 
-    const decoded = defaultCodec.decode(defaultCodec.encode({
+    const decoded = defaultCodec.decode<{
+      when: Date; fractional: Date; bytes: Uint8Array; large: bigint; negative: bigint;
+    }>(defaultCodec.encode({
       when,
       fractional,
       bytes,
       large,
       negative,
-    })) as { when: Date; fractional: Date; bytes: Uint8Array; large: bigint; negative: bigint };
+    }));
 
     expect(decoded.when).toBeInstanceOf(Date);
     expect(decoded.when.toISOString()).toBe(when.toISOString());
@@ -57,7 +59,7 @@ describe('CborCodec', () => {
   it('preserves valid generic CBOR maps with non-text keys', () => {
     const decoded = defaultCodec.decode(
       Uint8Array.from([0xa1, 0x01, 0x02]),
-    ) as { readonly [key: string]: number };
+    );
 
     expect(decoded).toEqual({ 1: 2 });
   });

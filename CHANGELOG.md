@@ -185,6 +185,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Refuse unexpected CBOR tags before decoding peer-controlled repository
+  blobs. Only Date, bigint, and `Uint8Array` tags with the required content
+  type are accepted; regular expressions, shared references and other tag
+  extensions fail with a typed bounds error. Existing byte, depth and item
+  limits remain unchanged
+  ([#1088](https://github.com/git-stunts/git-warp/issues/1088)).
+
 - Discover every supported test file recursively under `test/unit/` before
   partitioning the default unit run. New directories no longer need a runner
   allowlist entry. The runner refuses missing, unexpected or duplicate paths

@@ -116,6 +116,38 @@ earn a separately reviewed public boundary.
 The supported transport today is Git's ref/object transfer, using the recipes
 above.
 
+## CBOR input limits
+
+Treat received repository blobs as untrusted. The shared CBOR decoder checks
+each blob before the general decoder interprets its contents:
+
+| Limit | Maximum |
+| --- | --- |
+| Encoded blob | 5 MiB (5,242,880 bytes) |
+| Nesting depth | 32, with the top-level value at depth zero |
+| Total items, including container keys and tagged contents | 1,000,000 |
+| Entries declared by one container | 1,000,000 |
+
+Only tags 0 and 1 (dates), 2 and 3 (big integers), and 64 (`Uint8Array`)
+are accepted. Each tag must wrap its specified content type. Other tags,
+including regular expressions, sets, explicit maps, records, and shared
+references, are refused before they can construct objects or cycles. Ordinary
+untagged maps remain supported. Indefinite lengths and truncated values are
+also refused.
+
+The existing limits remain unchanged. The fixture measurements recorded in
+[#1088](https://github.com/git-stunts/git-warp/issues/1088#issuecomment-6726313391)
+reached 201,753 encoded bytes, depth 10, 11,268 total items, and 1,023 entries
+in one container. These measurements describe that corpus, not every possible
+repository. The tag checks retain the Date, bigint, and byte-array forms used
+by the codec contract and released fixtures.
+
+A refusal from the shared decoder has code `E_CBOR_DECODE_BOUNDS` and a
+`reason` in its context. Index-shard readers retain their
+`E_INDEX_SHARD_MALFORMED` error boundary. Preserve the offending object and
+its identity when diagnosing a refusal; do not remove the checks to read it.
+HTTP JSON body limits are separate from these repository-blob limits.
+
 ## Verify
 
 Run bounded diagnostics against the same Lane on both clones:

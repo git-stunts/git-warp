@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MessageCodecError from '../../../../src/domain/errors/MessageCodecError.ts';
+import type CodecValue from '../../../../src/domain/types/codec/CodecValue.ts';
 import {
   CBOR_TAG_CONTENT_REFUSED_REASON,
   CBOR_TAG_REFUSED_REASON,
@@ -94,7 +95,7 @@ describe('CborCodec tag allow-list', () => {
   });
 
   it('accepts each allowed tag over its declared content', () => {
-    const decoded = defaultCodec.decode(Uint8Array.from([
+    const decoded = defaultCodec.decode<readonly CodecValue[]>(Uint8Array.from([
       0x87,
       0xc0, ...text('2026-04-06T16:00:00.000Z'),
       0xc1, 0x1a, 0x00, 0x00, 0x00, 0x00,
@@ -103,15 +104,16 @@ describe('CborCodec tag allow-list', () => {
       0xc2, 0x49, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
       0xc3, 0x41, 0x00,
       0xd8, 0x40, 0x42, 0x01, 0x02,
-    ])) as readonly [Date, Date, Date, Date, bigint, bigint, Uint8Array];
+    ]));
 
-    expect(decoded[0].toISOString()).toBe('2026-04-06T16:00:00.000Z');
-    expect(decoded[1].getTime()).toBe(0);
-    expect(decoded[2].getTime()).toBe(-1000);
-    expect(decoded[3].getTime()).toBe(1000);
+    expect(decoded).toHaveLength(7);
+    expect(decoded[0]).toEqual(new Date('2026-04-06T16:00:00.000Z'));
+    expect(decoded[1]).toEqual(new Date(0));
+    expect(decoded[2]).toEqual(new Date(-1000));
+    expect(decoded[3]).toEqual(new Date(1000));
     expect(decoded[4]).toBe(1n << 70n);
     expect(decoded[5]).toBe(-1n);
     expect(decoded[6]).toBeInstanceOf(Uint8Array);
-    expect(Array.from(decoded[6])).toEqual([1, 2]);
+    expect(decoded[6]).toEqual(new Uint8Array([1, 2]));
   });
 });

@@ -8,6 +8,9 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MessageCodecError from '../../../../src/domain/errors/MessageCodecError.ts';
+import type CodecValue from '../../../../src/domain/types/codec/CodecValue.ts';
+import v19Manifest from '../../../../fixtures/v19/pre-worldline/manifest.json' with { type: 'json' };
+import v20Manifest from '../../../../fixtures/v20/late-writes/manifest.json' with { type: 'json' };
 import {
   CBOR_TAG_CONTENT_REFUSED_REASON,
   CBOR_TAG_REFUSED_REASON,
@@ -16,10 +19,10 @@ import {
 type FixtureManifest = Readonly<{ bundlePath: string; bundleSha256: string }>;
 type CorpusCensus = { decoded: number; withBytes: number; tagRefusals: string[] };
 
-const CORPORA = [
-  ['v19 pre-worldline', resolve('fixtures/v19/pre-worldline'), { holdsBytes: true }],
-  ['v20 late-writes', resolve('fixtures/v20/late-writes'), { holdsBytes: false }],
-] as const;
+const CORPORA: ReadonlyArray<readonly [string, string, FixtureManifest, { holdsBytes: boolean }]> = [
+  ['v19 pre-worldline', resolve('fixtures/v19/pre-worldline'), v19Manifest, { holdsBytes: true }],
+  ['v20 late-writes', resolve('fixtures/v20/late-writes'), v20Manifest, { holdsBytes: false }],
+];
 const TAG_REASONS = new Set([CBOR_TAG_REFUSED_REASON, CBOR_TAG_CONTENT_REFUSED_REASON]);
 const restored: string[] = [];
 
@@ -27,8 +30,7 @@ function git(cwd: string, args: readonly string[]): Buffer {
   return execFileSync('git', ['-C', cwd, ...args], { maxBuffer: 64 * 1024 * 1024 });
 }
 
-async function restoreCorpus(directory: string): Promise<string> {
-  const manifest = JSON.parse(await readFile(join(directory, 'manifest.json'), 'utf8')) as FixtureManifest;
+async function restoreCorpus(directory: string, manifest: FixtureManifest): Promise<string> {
   const bundle = join(directory, manifest.bundlePath);
   expect(createHash('sha256').update(await readFile(bundle)).digest('hex')).toBe(manifest.bundleSha256);
   const repository = await mkdtemp(join(tmpdir(), 'git-warp-cbor-corpus-'));
@@ -48,7 +50,7 @@ function blobIds(repository: string): string[] {
     .map(([oid]) => oid ?? '');
 }
 
-function containsBytes(value: unknown): boolean {
+function containsBytes(value: CodecValue): boolean {
   if (value instanceof Uint8Array) { return true; }
   if (value === null || typeof value !== 'object') { return false; }
   return Object.values(value).some(containsBytes);
@@ -56,7 +58,7 @@ function containsBytes(value: unknown): boolean {
 
 function censusBlob(census: CorpusCensus, oid: string, bytes: Uint8Array): void {
   try {
-    const value = defaultCodec.decode(bytes);
+    const value = defaultCodec.decode<CodecValue>(bytes);
     census.decoded += 1;
     if (containsBytes(value)) { census.withBytes += 1; }
   } catch (error) {
@@ -71,8 +73,8 @@ describe('CborCodec over the released fixture corpora', () => {
     for (const repository of restored) { await rm(repository, { recursive: true, force: true }); }
   });
 
-  it.each(CORPORA)('decodes every %s blob without a tag refusal', async (_name, directory, { holdsBytes }) => {
-    const repository = await restoreCorpus(directory);
+  it.each(CORPORA)('decodes every %s blob without a tag refusal', async (_name, directory, manifest, { holdsBytes }) => {
+    const repository = await restoreCorpus(directory, manifest);
     const census: CorpusCensus = { decoded: 0, withBytes: 0, tagRefusals: [] };
 
     for (const oid of blobIds(repository)) {
