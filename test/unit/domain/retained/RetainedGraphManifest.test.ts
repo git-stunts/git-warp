@@ -39,6 +39,22 @@ describe('RetainedGraphManifest (#815)', () => {
     expect(manifestOf(reordered).equals(manifestOf())).toBe(true);
   });
 
+  it('constructs the same manifest across a wide frontier in either insertion order', () => {
+    const writerCount = 22_000;
+    const writers = new Map<string, ConeWriterPosition>();
+    const head = position('1', 1);
+    for (let index = 0; index < writerCount; index++) {
+      writers.set(`writer-${String(index).padStart(5, '0')}`, head);
+    }
+    const forward = new ConeBasis(ROOT, new ConeFrontier(writers));
+    const reversed = new ConeBasis(ROOT, new ConeFrontier(new Map([...writers].reverse())));
+    expect(() => manifestOf(forward)).not.toThrow();
+    const manifest = manifestOf(forward);
+    expect(manifest.basis.frontier.entries()).toHaveLength(writerCount);
+    expect(manifest.equals(manifestOf(reversed))).toBe(true);
+    expect(manifest.foldsWriter('writer-21999')).toBe(true);
+  });
+
   it('changes its commitment when the layout or the frontier changes', () => {
     const base = manifestOf().commitment;
     const variants = [
