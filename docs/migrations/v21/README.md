@@ -7,7 +7,7 @@ layout. A v21 runtime refuses a v19 or v20 repository with
 `E_SUBSTRATE_MIGRATION_REQUIRED` until it has been migrated.
 
 HTTP sync peers also require [signature v3 authentication](#http-sync-authentication).
-Upgrade the client and server together; signature v2 is refused in enforce mode.
+Upgrade the client and server together; signature v2 is refused in every mode.
 
 ## Before you migrate
 
@@ -129,8 +129,9 @@ It stays guarded.
 ## HTTP sync authentication
 
 Upgrade both HTTP sync peers to v21 before resuming authenticated sync. A v21
-server in enforce mode refuses signature v2 with HTTP `400` and
-`{"error":"SIG_VERSION_RETIRED"}`. There is no v2 compatibility switch.
+server refuses signature v2 before graph work with HTTP `400` and
+`{"error":"SIG_VERSION_RETIRED"}` in enforce, `log-only`, and explicit
+unauthenticated localhost modes. There is no v2 compatibility switch.
 
 The normal runtime composes the host clock for signing and verification. Existing
 shared secrets and key IDs keep their meaning. Direct users of `signSyncRequest`
@@ -158,30 +159,40 @@ canonical payload; it does not restore signature v2 support.
 ### Clock and restart behavior
 
 Keep client and server clocks within **300,000 ms (five minutes)** of each other.
-The server accepts both exact boundaries; one millisecond beyond either boundary
-returns `403 EXPIRED`. A failed timestamp check does not reserve the nonce.
+In enforce mode, the server accepts both exact boundaries; one millisecond beyond either boundary
+returns `403 EXPIRED`. The server checks freshness before storage and again after
+reservation completes. A request already expired at the first check does not
+reserve its nonce. If it expires while storage is awaited, the server refuses
+graph work with `403 EXPIRED` and retains the reserved nonce.
 
-The durable nonce reservation lasts **600,001 ms from admission**. This covers a
-request first admitted five minutes before its signed timestamp until one
-millisecond after its final acceptable instant. While its timestamp is still
-fresh, a restart returns `403 REPLAY` for an admitted nonce. Once the timestamp
-is outside the freshness interval, verification returns `403 EXPIRED`, including
-after the expired marker is swept.
+The durable nonce retention interval is **600,001 ms**, with expiry calculated
+from the clock snapshot at reservation entry. This covers a request first
+admitted five minutes before its signed timestamp until one millisecond after
+its final acceptable instant. In enforce mode, a restart returns `403 REPLAY`
+for an admitted nonce while its timestamp is still fresh. Once the timestamp is outside the
+freshness interval, verification returns `403 EXPIRED`, including after the
+expired marker is swept.
 
 This replaces the process-local highest-Lamport check. Restarting a client does
 not require preserving a signing counter. These guarantees assume synchronized
 clocks that progress normally; arbitrary clock rollback is outside this contract.
 Use enforce mode and TLS. Local `log-only` and explicit unauthenticated operation
-remain permissive and do not provide authenticated replay protection.
+remain permissive for supported and unsigned requests and do not provide
+authenticated replay protection. They still refuse retired signature v2.
 
 ### Contract evidence
+
+HTTP refusal evidence below uses enforce mode, except the retired-signature row,
+which covers every mode.
 
 | Requirement | Executable evidence | Exact oracle |
 | --- | --- | --- |
 | Signed timestamp | `SyncAuthService.clock.test.ts`: binds the wall-clock timestamp to the HMAC | Changing only the timestamp returns `401 INVALID_SIGNATURE`. |
 | Inclusive skew bound | `SyncAuthService.clock.test.ts`: exact and one-millisecond-outside cases | Both ±300,000 ms boundaries pass; both ±300,001 ms cases return `403 EXPIRED`. |
-| Retired signature | `HttpSyncServer.auth.test.ts`: refuses signature v2 | HTTP `400 SIG_VERSION_RETIRED`; no graph work. |
+| Retired signature | `HttpSyncServer.auth.test.ts`: refuses signature v2 in every mode | HTTP `400 SIG_VERSION_RETIRED`; no graph work in enforce, `log-only`, and explicit unauthenticated localhost modes. |
 | Durable boundary | `GitCasSyncReplayProtectionAdapter.integration.test.ts`: future-dated request after storage restart | At 600,000 ms, sweep removes zero and replay is refused; at 600,001 ms, sweep removes one and timestamp is expired. |
+| Storage await crosses expiry | `GitCasSyncReplayFreshness.integration.test.ts`: advances both clocks while a real storage sweep waits | Sweep removes the old marker and storage admits the nonce; HTTP still returns `403 EXPIRED`, with only the original graph request recorded. |
+| Post-reservation freshness | `SyncAuthService.reservationClock.test.ts`: unit clock crosses the inclusive boundary during reservation | `EXPIRED` after the wait; nonce remains reserved and the rate-limit token remains available. |
 | Restart after window | `SyncAuthService.restart.test.ts`: captured request after restart | The expired marker is swept and the captured request returns `EXPIRED`. |
 
 The unit cases live in `test/unit/domain/services/`. The durable case lives in

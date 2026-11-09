@@ -1,13 +1,4 @@
-/**
- * HMAC-SHA256 request signing and verification for the sync protocol.
- *
- * Provides:
- * - Canonical payload construction
- * - Request signing (client side)
- * - Request verification with replay protection (server side)
- *
- * @module domain/services/sync/SyncAuthService
- */
+/** HMAC-SHA256 signing and verification with signed freshness and durable replay protection. */
 
 import nullLogger from '../../utils/nullLogger.ts';
 import { validateWriterId } from '../../utils/RefLayout.ts';
@@ -246,6 +237,10 @@ export interface SyncAuthServiceOptions {
 }
 
 export default class SyncAuthService {
+  static isRetiredVersion(version: string | undefined): boolean {
+    return version !== undefined && RETIRED_SIG_VERSIONS.has(version);
+  }
+
   private readonly _keys: Record<string, SyncSecret>;
   private readonly _mode: 'enforce' | 'log-only';
   private readonly _crypto: CryptoPort;
@@ -304,7 +299,7 @@ export default class SyncAuthService {
     if (!authSchemeResult.ok) { return authSchemeResult; }
 
     const sigVersion = headers['x-warp-sig-version'];
-    if (sigVersion !== undefined && RETIRED_SIG_VERSIONS.has(sigVersion)) {
+    if (SyncAuthService.isRetiredVersion(sigVersion)) {
       return fail('SIG_VERSION_RETIRED', 400);
     }
     if (sigVersion !== SIG_VERSION) { return fail('INVALID_VERSION', 400); }
@@ -453,6 +448,11 @@ export default class SyncAuthService {
         return this._fail('replay detected', { keyId, nonce }, nonceResult);
       }
       return this._fail('replay protection unavailable', { keyId }, nonceResult);
+    }
+
+    const admissionFreshness = this._validateFreshness(timestamp);
+    if (!admissionFreshness.ok) {
+      return this._fail('timestamp expired during replay reservation', { keyId, timestamp }, admissionFreshness);
     }
 
     const rateLimitResult = this._consumeRateLimit(keyId);

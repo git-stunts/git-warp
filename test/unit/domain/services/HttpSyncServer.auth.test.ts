@@ -142,12 +142,18 @@ describe('HttpSyncServer explicitly permissive operation', () => {
     expect(await http.request(headers)).toMatchObject({ status: 200 });
     expect(graph.requests).toHaveLength(1);
   });
-  it('processes retired signature versions in explicit log-only mode', async () => {
+  it('refuses retired signature versions in explicit log-only mode', async () => {
     const clock = new ManualClock();
     const { http, graph } = await boot({ auth: auth(clock, 'log-only') });
     const headers = { ...await signed(clock), 'x-warp-sig-version': '2' };
-    expect(await http.request(headers)).toMatchObject({ status: 200 });
-    expect(graph.requests).toHaveLength(1);
+    expect(await http.request(headers)).toMatchObject({ status: 400, body: '{"error":"SIG_VERSION_RETIRED"}' });
+    expect(graph.requests).toHaveLength(0);
+  });
+  it('admits a valid v3 request in explicit log-only mode', async () => {
+    const clock = new ManualClock();
+    const { http, graph } = await boot({ auth: auth(clock, 'log-only') });
+    expect(await http.request(await signed(clock))).toMatchObject({ status: 200 });
+    expect(graph.requests).toEqual([{ type: 'sync-request', frontier: {} }]);
   });
   it('processes forbidden writers in log-only mode', async () => {
     const clock = new ManualClock();
@@ -173,5 +179,14 @@ describe('HttpSyncServer explicitly permissive operation', () => {
     const headers = mode === 'signed' ? await signed(new ManualClock()) : {};
     expect(await http.request(headers)).toMatchObject({ status: 200 });
     expect(graph.requests).toEqual([{ type: 'sync-request', frontier: {} }]);
+  });
+  it('refuses retired signature versions with explicit unsafe localhost mode', async () => {
+    const http = new MemoryHttpPort();
+    const graph = new SyncInbox();
+    const server = new HttpSyncServer({ httpPort: http, graph, unsafeAllowUnauthenticatedLocalhost: true });
+    await server.listen(9999);
+    const headers = { ...await signed(new ManualClock()), 'x-warp-sig-version': '2' };
+    expect(await http.request(headers)).toMatchObject({ status: 400, body: '{"error":"SIG_VERSION_RETIRED"}' });
+    expect(graph.requests).toHaveLength(0);
   });
 });

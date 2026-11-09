@@ -54,12 +54,13 @@ The HTTP sync protocol supports optional HMAC-SHA256 request signing with replay
 6. Server resolves the key by key-id, recomputes HMAC, and compares with constant-time equality
 7. Server checks the signed timestamp against its injected clock (inclusive five-minute skew allowance)
 8. Server reserves the nonce atomically and durably (prevents replay)
-9. Server applies the configured per-key rate limit before graph work
+9. Server checks freshness again after reservation completes; enforce mode refuses an expired request and its nonce remains reserved
+10. Server applies the configured per-key rate limit before graph work
 
 ### Enforcement Modes
 
 - **`enforce`** (default): Rejects requests that fail authentication with appropriate HTTP status codes (400/401/403). No request details leak in error responses.
-- **`log-only`**: Logs authentication failures but allows requests through. Use during rollout to identify issues before enforcing.
+- **`log-only`**: Logs authentication failures but allows requests through. Use during rollout to identify issues before enforcing. Retired signature versions are still refused before authentication.
 
 ### Error Response Hygiene
 
@@ -77,25 +78,31 @@ request HMAC. The verifier uses an injected clock and accepts a timestamp only
 when its distance from the server clock is at most **300,000 ms (five minutes)**,
 in either direction. A timestamp outside this inclusive interval returns
 `403 EXPIRED`. Signature v2 used a Lamport counter and is refused with
-`400 SIG_VERSION_RETIRED` in enforce mode.
+`400 SIG_VERSION_RETIRED` before graph work in every mode, including `log-only`
+and explicit unauthenticated localhost operation.
 
 The Git runtime reserves each graph/key-id/nonce identity durably through
-git-cas before admitting the request. Reservations last **600,001 ms from
-admission**: a request accepted five minutes early can remain valid for ten
-minutes, and the extra millisecond keeps its nonce reserved at the inclusive
-freshness boundary. git-cas preserves millisecond expiry and treats a marker
-as expired when its expiry is at or before the current time.
+git-cas before admitting the request. Reservations use a **600,001 ms retention
+interval**, with expiry calculated from the clock snapshot at reservation entry.
+A request accepted five minutes early can remain valid for ten minutes, and the
+extra millisecond keeps its nonce reserved at the inclusive freshness boundary.
+git-cas preserves millisecond expiry and treats a marker as expired when its
+expiry is at or before the current time.
 
-A server restart preserves nonce refusal during that interval. Once the
+In enforce mode, a server restart preserves nonce refusal during that interval. Once the
 reservation expires and is swept, the signed timestamp is already outside the
-accepted interval, so restarting cannot make the captured request fresh again.
+accepted interval. The server checks freshness again after the asynchronous
+reservation. In enforce mode, crossing expiry while storage is awaited returns
+`403 EXPIRED` before graph work. A nonce reserved during that wait remains reserved
+on refusal.
 Storage failure returns `503 REPLAY_STORE_UNAVAILABLE`. Expired markers can be
 swept; no permanent nonce history is required.
 
 Keep host clocks synchronized. These guarantees assume clocks progress normally;
 they do not provide protection against arbitrary wall-clock rollback. Local
 `log-only` and explicit unauthenticated modes deliberately permit unauthenticated
-traffic. Use enforce mode and TLS for protected sync. See the
+traffic; they still refuse retired signature v2. Use enforce mode and TLS for
+protected sync. See the
 [v21 sync authentication migration](../docs/migrations/v21/README.md#http-sync-authentication)
 before upgrading peers.
 
