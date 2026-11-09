@@ -35,7 +35,7 @@ The HTTP sync protocol supports optional HMAC-SHA256 request signing with replay
 
 **Protected against:**
 - Unauthorized sync requests from unknown peers
-- Replay attacks (nonce-based, with 5-minute TTL window)
+- Replay attacks in enforce mode (signed freshness plus durable nonce reservations)
 - Request body tampering (HMAC covers body SHA-256)
 - Timing attacks on signature comparison (`timingSafeEqual`)
 
@@ -47,14 +47,14 @@ The HTTP sync protocol supports optional HMAC-SHA256 request signing with replay
 ### Authentication Flow
 
 1. Client computes SHA-256 of request body
-2. Client builds canonical payload: `warp-v1|KEY_ID|METHOD|PATH|TIMESTAMP|NONCE|CONTENT_TYPE|BODY_SHA256`
+2. Client reads epoch milliseconds through its injected clock and builds the canonical payload: `warp-v3|shared-secret-hmac-sha256|KEY_ID|METHOD|PATH|TIMESTAMP|NONCE|CONTENT_TYPE|BODY_SHA256`
 3. Client computes HMAC-SHA256 of canonical payload using shared secret
-4. Client sends 5 auth headers: `x-warp-sig-version`, `x-warp-key-id`, `x-warp-timestamp`, `x-warp-nonce`, `x-warp-signature`
+4. Client sends six auth headers: `x-warp-auth-scheme`, `x-warp-sig-version`, `x-warp-key-id`, `x-warp-timestamp`, `x-warp-nonce`, `x-warp-signature`
 5. Server validates header formats (cheap checks first)
-6. Server checks clock skew (default: 5 minutes)
-7. Server reserves nonce atomically (prevents replay)
-8. Server resolves key by key-id
-9. Server recomputes HMAC and compares with constant-time equality
+6. Server resolves the key by key-id, recomputes HMAC, and compares with constant-time equality
+7. Server checks the signed timestamp against its injected clock (inclusive five-minute skew allowance)
+8. Server reserves the nonce atomically and durably (prevents replay)
+9. Server applies the configured per-key rate limit before graph work
 
 ### Enforcement Modes
 
@@ -72,10 +72,32 @@ Detailed diagnostics (exact failure reason, key-id, peer info) are sent to the s
 
 ### Nonce Cache and Restart Semantics
 
-The nonce cache is an in-memory LRU (default capacity: 100,000 entries). On server restart, the cache is empty. This means:
-- Nonces from before the restart can be replayed within the 5-minute clock skew window
-- This is an accepted trade-off for simplicity; persistent nonce storage is not implemented in v1
-- For higher security, keep the clock skew window small and use TLS
+Signature v3 binds an epoch-millisecond wall-clock timestamp and nonce to the
+request HMAC. The verifier uses an injected clock and accepts a timestamp only
+when its distance from the server clock is at most **300,000 ms (five minutes)**,
+in either direction. A timestamp outside this inclusive interval returns
+`403 EXPIRED`. Signature v2 used a Lamport counter and is refused with
+`400 SIG_VERSION_RETIRED` in enforce mode.
+
+The Git runtime reserves each graph/key-id/nonce identity durably through
+git-cas before admitting the request. Reservations last **600,001 ms from
+admission**: a request accepted five minutes early can remain valid for ten
+minutes, and the extra millisecond keeps its nonce reserved at the inclusive
+freshness boundary. git-cas preserves millisecond expiry and treats a marker
+as expired when its expiry is at or before the current time.
+
+A server restart preserves nonce refusal during that interval. Once the
+reservation expires and is swept, the signed timestamp is already outside the
+accepted interval, so restarting cannot make the captured request fresh again.
+Storage failure returns `503 REPLAY_STORE_UNAVAILABLE`. Expired markers can be
+swept; no permanent nonce history is required.
+
+Keep host clocks synchronized. These guarantees assume clocks progress normally;
+they do not provide protection against arbitrary wall-clock rollback. Local
+`log-only` and explicit unauthenticated modes deliberately permit unauthenticated
+traffic. Use enforce mode and TLS for protected sync. See the
+[v21 sync authentication migration](../docs/migrations/v21/README.md#http-sync-authentication)
+before upgrading peers.
 
 ### Key Rotation
 

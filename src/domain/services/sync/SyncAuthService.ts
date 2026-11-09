@@ -17,17 +17,28 @@ import { requireCrypto } from '../crypto/CryptoRequirement.ts';
 import { drawEntropy } from '../../utils/EntropyDraw.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type RandomPort from '../../../ports/RandomPort.ts';
+import type ClockPort from '../../../ports/ClockPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type LogFields from '../../types/log/LogFields.ts';
 import type SyncReplayProtectionPort from '../../../ports/SyncReplayProtectionPort.ts';
 import SyncSecret from './SyncSecret.ts';
 import SyncRateLimiter, { type SyncRateLimitConfig } from './SyncRateLimiter.ts';
-const SIG_VERSION = '2';
-const SIG_PREFIX = 'warp-v2';
+const SIG_VERSION = '3';
+const SIG_PREFIX = 'warp-v3';
+/** Refused signature versions whose timestamps carry no wall-clock time. */
+const RETIRED_SIG_VERSIONS: ReadonlySet<string> = new Set(['2']);
 const HMAC_ALGO = 'sha256';
 export const SYNC_AUTH_SCHEME_HEADER = 'x-warp-auth-scheme';
 export const SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME = 'shared-secret-hmac-sha256';
-export const SYNC_REPLAY_ACCEPTANCE_WINDOW_MS = 10 * 60 * 1000;
+/**
+ * Largest accepted distance, in either direction, between a request's signed
+ * wall-clock timestamp and the server clock.
+ */
+export const SYNC_CLOCK_SKEW_ALLOWANCE_MS = 5 * 60 * 1000;
+/** Expiry is inclusive, so retain the marker through the final valid millisecond. */
+const SYNC_REPLAY_RETENTION_MARGIN_MS = 1;
+/** Retain admitted nonces through the complete signed-timestamp validity interval. */
+export const SYNC_REPLAY_ACCEPTANCE_WINDOW_MS = 2 * SYNC_CLOCK_SKEW_ALLOWANCE_MS + SYNC_REPLAY_RETENTION_MARGIN_MS;
 const NONCE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SIG_HEX_LENGTH = 64;
 const HEX_PATTERN = /^[0-9a-f]+$/;
@@ -84,11 +95,11 @@ function mintNonce(random: RandomPort): string {
  * Signs an outgoing sync request.
  */
 export async function signSyncRequest(
-  params: { method: string; path: string; contentType: string; body: Uint8Array; secret: SyncSecret; keyId: string; lamport: number; authScheme?: SyncAuthScheme },
-  deps: { crypto?: CryptoPort; random: RandomPort },
+  params: { method: string; path: string; contentType: string; body: Uint8Array; secret: SyncSecret; keyId: string; authScheme?: SyncAuthScheme },
+  deps: { crypto?: CryptoPort; random: RandomPort; clock: ClockPort },
 ): Promise<Record<string, string>> {
   const c = requireCrypto(deps.crypto, 'signSyncRequest');
-  const timestamp = String(params.lamport);
+  const timestamp = String(readWallClockMs(deps.clock, 'signSyncRequest'));
   const nonce = mintNonce(deps.random);
   const authScheme = params.authScheme ?? SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME;
 
@@ -119,6 +130,27 @@ export async function signSyncRequest(
 
 function fail(reason: string, status: number): FailResult {
   return { ok: false, reason, status };
+}
+
+/** Reads the injected clock and refuses a value that is not a whole epoch millisecond. */
+function readWallClockMs(clock: ClockPort, owner: string): number {
+  const nowMs = clock.nowMs();
+  if (!Number.isSafeInteger(nowMs) || nowMs < 0) {
+    throw new SyncError(`${owner} clock must return a non-negative integer epoch millisecond`, {
+      code: 'E_SYNC_AUTH_CLOCK',
+      context: { nowMs },
+    });
+  }
+  return nowMs;
+}
+
+function _validateClock(clock: ClockPort | undefined): asserts clock is ClockPort {
+  if (clock === null || clock === undefined || typeof clock.nowMs !== 'function') {
+    throw new SyncError(
+      'SyncAuthService requires an injected wall clock',
+      { code: 'E_SYNC_AUTH_CLOCK' },
+    );
+  }
 }
 
 interface AuthMetrics {
@@ -206,6 +238,7 @@ export interface SyncAuthServiceOptions {
   keys: Record<string, SyncSecret>;
   mode?: 'enforce' | 'log-only';
   replayProtection: SyncReplayProtectionPort;
+  clock: ClockPort;
   crypto?: CryptoPort;
   logger?: LoggerPort;
   allowedWriters?: string[];
@@ -218,7 +251,7 @@ export default class SyncAuthService {
   private readonly _crypto: CryptoPort;
   private readonly _logger: LoggerPort;
   private readonly _replayProtection: SyncReplayProtectionPort;
-  private readonly _lastSeenLamport: Map<string, number>;
+  private readonly _clock: ClockPort;
   private readonly _allowedWriters: Set<string> | null;
   private readonly _rateLimiter: SyncRateLimiter | null;
   private readonly _metrics: AuthMetrics;
@@ -228,12 +261,14 @@ export default class SyncAuthService {
       keys,
       mode = 'enforce',
       replayProtection,
+      clock,
       crypto,
       logger,
       allowedWriters,
       rateLimit,
     } = options ?? {};
     _validateKeys(keys);
+    _validateClock(clock);
     if (replayProtection === null
       || replayProtection === undefined
       || typeof replayProtection.reserve !== 'function') {
@@ -247,7 +282,7 @@ export default class SyncAuthService {
     this._crypto = requireCrypto(crypto, 'SyncAuthService');
     this._logger = logger ?? nullLogger;
     this._replayProtection = replayProtection;
-    this._lastSeenLamport = new Map();
+    this._clock = clock;
     this._metrics = _freshMetrics();
     this._allowedWriters = _validateAllowedWriters(allowedWriters);
     this._rateLimiter = rateLimit === undefined ? null : new SyncRateLimiter(rateLimit);
@@ -269,6 +304,9 @@ export default class SyncAuthService {
     if (!authSchemeResult.ok) { return authSchemeResult; }
 
     const sigVersion = headers['x-warp-sig-version'];
+    if (sigVersion !== undefined && RETIRED_SIG_VERSIONS.has(sigVersion)) {
+      return fail('SIG_VERSION_RETIRED', 400);
+    }
     if (sigVersion !== SIG_VERSION) { return fail('INVALID_VERSION', 400); }
 
     const keyId = headers['x-warp-key-id'];
@@ -286,18 +324,13 @@ export default class SyncAuthService {
     return { ok: true, sigVersion, signature, timestamp, nonce, keyId, authScheme: authSchemeResult.authScheme };
   }
 
-  private _validateFreshness(timestamp: string, keyId: string): FailResult | OkResult {
-    const lamport = Number(timestamp);
-    if (!Number.isFinite(lamport) || lamport < 0) {
+  private _validateFreshness(timestamp: string): FailResult | OkResult {
+    const signedAtMs = Number(timestamp);
+    const nowMs = readWallClockMs(this._clock, 'SyncAuthService');
+    if (Math.abs(nowMs - signedAtMs) > SYNC_CLOCK_SKEW_ALLOWANCE_MS) {
       this._metrics.clockSkewRejects += 1;
-      return fail('INVALID_LAMPORT', 400);
+      return fail('EXPIRED', 403);
     }
-    const lastSeen = this._lastSeenLamport.get(keyId) ?? -1;
-    if (lamport <= lastSeen) {
-      this._metrics.clockSkewRejects += 1;
-      return fail('STALE_LAMPORT', 403);
-    }
-    this._lastSeenLamport.set(keyId, lamport);
     return { ok: true };
   }
 
@@ -409,9 +442,9 @@ export default class SyncAuthService {
       return this._fail('signature mismatch', { keyId }, sigResult);
     }
 
-    const freshnessResult = this._validateFreshness(timestamp, keyId);
+    const freshnessResult = this._validateFreshness(timestamp);
     if (!freshnessResult.ok) {
-      return this._fail('lamport freshness rejected', { keyId, timestamp }, freshnessResult);
+      return this._fail('timestamp outside the skew allowance', { keyId, timestamp }, freshnessResult);
     }
 
     const nonceResult = await this._reserveNonce(keyId, nonce);

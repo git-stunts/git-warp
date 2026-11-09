@@ -6,6 +6,9 @@ keeps its v20 encoding and is never rewritten. Strand history moves to a new
 layout. A v21 runtime refuses a v19 or v20 repository with
 `E_SUBSTRATE_MIGRATION_REQUIRED` until it has been migrated.
 
+HTTP sync peers also require [signature v3 authentication](#http-sync-authentication).
+Upgrade the client and server together; signature v2 is refused in enforce mode.
+
 ## Before you migrate
 
 1. **Stop every git-warp v20 process on the repository.** v20.0.0 checks the
@@ -122,3 +125,65 @@ Repeating it, even after a crash between the two, returns that record instead
 of minting again. A collision that is visible only inside a
 strand cannot be repaired from the lane, because the strand's base is pinned.
 It stays guarded.
+
+## HTTP sync authentication
+
+Upgrade both HTTP sync peers to v21 before resuming authenticated sync. A v21
+server in enforce mode refuses signature v2 with HTTP `400` and
+`{"error":"SIG_VERSION_RETIRED"}`. There is no v2 compatibility switch.
+
+The normal runtime composes the host clock for signing and verification. Existing
+shared secrets and key IDs keep their meaning. Direct users of `signSyncRequest`
+must replace the `lamport` parameter with an injected `ClockPort` in the dependency
+argument. Direct `SyncAuthService` and `HttpSyncServer` users must provide `clock`
+alongside `replayProtection`. The port's `nowMs()` returns a non-negative safe
+integer epoch millisecond. Tests should supply a clock that advances explicitly.
+
+### Wire changes
+
+`x-warp-sig-version` is `3`. `x-warp-timestamp` contains wall-clock epoch
+milliseconds, rather than a Lamport counter. The client signs this canonical
+payload with HMAC-SHA256:
+
+```text
+warp-v3|shared-secret-hmac-sha256|KEY_ID|METHOD|PATH|TIMESTAMP|NONCE|CONTENT_TYPE|BODY_SHA256
+```
+
+The version, authentication scheme, key ID, timestamp, nonce, and signature travel
+in the six `x-warp-*` authentication headers. The method is uppercase and the path
+includes the query string without its fragment. The existing optional absence of
+the scheme header remains supported with the scheme field omitted from the
+canonical payload; it does not restore signature v2 support.
+
+### Clock and restart behavior
+
+Keep client and server clocks within **300,000 ms (five minutes)** of each other.
+The server accepts both exact boundaries; one millisecond beyond either boundary
+returns `403 EXPIRED`. A failed timestamp check does not reserve the nonce.
+
+The durable nonce reservation lasts **600,001 ms from admission**. This covers a
+request first admitted five minutes before its signed timestamp until one
+millisecond after its final acceptable instant. While its timestamp is still
+fresh, a restart returns `403 REPLAY` for an admitted nonce. Once the timestamp
+is outside the freshness interval, verification returns `403 EXPIRED`, including
+after the expired marker is swept.
+
+This replaces the process-local highest-Lamport check. Restarting a client does
+not require preserving a signing counter. These guarantees assume synchronized
+clocks that progress normally; arbitrary clock rollback is outside this contract.
+Use enforce mode and TLS. Local `log-only` and explicit unauthenticated operation
+remain permissive and do not provide authenticated replay protection.
+
+### Contract evidence
+
+| Requirement | Executable evidence | Exact oracle |
+| --- | --- | --- |
+| Signed timestamp | `SyncAuthService.clock.test.ts`: binds the wall-clock timestamp to the HMAC | Changing only the timestamp returns `401 INVALID_SIGNATURE`. |
+| Inclusive skew bound | `SyncAuthService.clock.test.ts`: exact and one-millisecond-outside cases | Both ±300,000 ms boundaries pass; both ±300,001 ms cases return `403 EXPIRED`. |
+| Retired signature | `HttpSyncServer.auth.test.ts`: refuses signature v2 | HTTP `400 SIG_VERSION_RETIRED`; no graph work. |
+| Durable boundary | `GitCasSyncReplayProtectionAdapter.integration.test.ts`: future-dated request after storage restart | At 600,000 ms, sweep removes zero and replay is refused; at 600,001 ms, sweep removes one and timestamp is expired. |
+| Restart after window | `SyncAuthService.restart.test.ts`: captured request after restart | The expired marker is swept and the captured request returns `EXPIRED`. |
+
+The unit cases live in `test/unit/domain/services/`. The durable case lives in
+`test/integration/infrastructure/adapters/`. Run them through
+`scripts/run-in-docker.sh` as required by the repository test policy.
