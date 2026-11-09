@@ -188,9 +188,11 @@ export function encode(data: unknown): Uint8Array {
  * through Git. This function rejects payloads over five MiB and structurally
  * validates depth, cardinality and tags before the optimized cbor-x decoder
  * can allocate containers from untrusted length declarations or interpret a
- * tag. Only tags 0, 1, 2, 3 and 64 are admitted, each over its declared
- * content form, so `Date`, `bigint` and `Uint8Array` round-trip and values
- * such as `RegExp`, `Set`, `Map` or shared references are refused.
+ * tag. Only tags 0, 1, 2, 3 and 64 are admitted over supported content
+ * encodings. Tag 1 accepts smaller integer and floating epoch encodings;
+ * eight-byte integer representations are refused before the full decoder.
+ * Supported `Date`, `bigint` and `Uint8Array` forms round-trip. Tags for
+ * `RegExp`, `Set`, `Map` or shared references are refused.
  */
 export function decode(buffer: Uint8Array): unknown {
   requireBoundedCbor(buffer);

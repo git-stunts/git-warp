@@ -73,7 +73,8 @@ describe('CborCodec over the released fixture corpora', () => {
     for (const repository of restored) { await rm(repository, { recursive: true, force: true }); }
   });
 
-  it.each(CORPORA)('decodes every %s blob without a tag refusal', async (_name, directory, manifest, { holdsBytes }) => {
+  // Other typed refusals are outside this tag-focused oracle; Git blobs need not be CBOR.
+  it.each(CORPORA)('finds no new tag refusal in %s fixture blobs', async (_name, directory, manifest, { holdsBytes }) => {
     const repository = await restoreCorpus(directory, manifest);
     const census: CorpusCensus = { decoded: 0, withBytes: 0, tagRefusals: [] };
 

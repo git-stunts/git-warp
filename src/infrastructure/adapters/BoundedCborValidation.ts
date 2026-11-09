@@ -29,18 +29,22 @@ const NEGATIVE_INTEGER_MAJOR = 1;
 const BYTE_STRING_MAJOR = 2;
 const TEXT_STRING_MAJOR = 3;
 const FLOAT_INITIAL_BYTES = new Set([0xf9, 0xfa, 0xfb]);
+const EIGHT_BYTE_INTEGER_INITIAL_BYTES = new Set([0x1b, 0x3b]);
 
 type CborTagContentRule = (initial: number) => boolean;
 
 const isByteString: CborTagContentRule = (initial) => initial >>> MAJOR_TYPE_SHIFT === BYTE_STRING_MAJOR;
 const isTextString: CborTagContentRule = (initial) => initial >>> MAJOR_TYPE_SHIFT === TEXT_STRING_MAJOR;
 const isEpochNumber: CborTagContentRule = (initial) =>
-  initial >>> MAJOR_TYPE_SHIFT <= NEGATIVE_INTEGER_MAJOR || FLOAT_INITIAL_BYTES.has(initial);
+  !EIGHT_BYTE_INTEGER_INITIAL_BYTES.has(initial) &&
+  (initial >>> MAJOR_TYPE_SHIFT <= NEGATIVE_INTEGER_MAJOR || FLOAT_INITIAL_BYTES.has(initial));
 
 /**
  * The only CBOR tags any decoder may admit, each with the one content form
  * its cbor-x extension reads: RFC 8949 date-time text (0), epoch seconds (1),
  * unsigned and negative bignums (2, 3) and cbor-x's Uint8Array tag (64).
+ * Tag 1 admits smaller integer and floating encodings, but refuses eight-byte
+ * integers: cbor-x returns those as bigint while its epoch extension needs number.
  * These are the tagged forms of the declared `CodecValue` type. Every other
  * tag, including shared references (28, 29) and so every reference cycle,
  * is refused before cbor-x can interpret it.

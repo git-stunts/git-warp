@@ -129,7 +129,10 @@ each blob before the general decoder interprets its contents:
 | Entries declared by one container | 1,000,000 |
 
 Only tags 0 and 1 (dates), 2 and 3 (big integers), and 64 (`Uint8Array`)
-are accepted. Each tag must wrap its specified content type. Other tags,
+are accepted over supported content encodings. Tag 1 accepts smaller integer
+and floating epoch encodings. Eight-byte integer representations under tag 1
+are refused before the full decoder; untagged eight-byte integers are unchanged.
+These checks do not establish the semantic validity of every Date value. Other tags,
 including regular expressions, sets, explicit maps, records, and shared
 references, are refused before they can construct objects or cycles. Ordinary
 untagged maps remain supported. Indefinite lengths and truncated values are
@@ -139,12 +142,13 @@ The existing limits remain unchanged. The fixture measurements recorded in
 [#1088](https://github.com/git-stunts/git-warp/issues/1088#issuecomment-6726313391)
 reached 201,753 encoded bytes, depth 10, 11,268 total items, and 1,023 entries
 in one container. These measurements describe that corpus, not every possible
-repository. The tag checks retain the Date, bigint, and byte-array forms used
-by the codec contract and released fixtures.
+repository. The tag-focused fixture check finds no new tag refusals in released
+fixture blobs; it does not prove that every previously accepted blob still decodes.
 
-A refusal from the shared decoder has code `E_CBOR_DECODE_BOUNDS` and a
-`reason` in its context. Index-shard readers retain their
-`E_INDEX_SHARD_MALFORMED` error boundary. Preserve the offending object and
+A structural preflight refusal from the shared decoder has code
+`E_CBOR_DECODE_BOUNDS` and a `reason` in its context. Index-shard readers that
+request strict structure limits retain their `E_INDEX_SHARD_MALFORMED` preflight
+error boundary. Preserve the offending object and
 its identity when diagnosing a refusal; do not remove the checks to read it.
 HTTP JSON body limits are separate from these repository-blob limits.
 
