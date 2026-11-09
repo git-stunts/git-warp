@@ -3,15 +3,9 @@ import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import GraphOrdinal from '../../../../src/domain/retained/GraphOrdinal.ts';
 import OrdinalGeometry from '../../../../src/domain/retained/OrdinalGeometry.ts';
 import OrdinalSegment from '../../../../src/domain/retained/OrdinalSegment.ts';
-import type { ConeDotSet } from '../../../../src/domain/services/cone/ConeRecordKey.ts';
 import RetainedGraphError from '../../../../src/domain/errors/RetainedGraphError.ts';
 
 const GEOMETRY = OrdinalGeometry.dotPages();
-/** A value whose runtime shape contradicts its static type, as a corrupt decode would produce. */
-function untyped<T>(json: string): T {
-  const value: T = JSON.parse(json);
-  return value;
-}
 
 describe('GraphOrdinal and OrdinalSegment (#815)', () => {
   it('names one dot of one OR-Set: kind, writer chain and counter', () => {
@@ -29,7 +23,8 @@ describe('GraphOrdinal and OrdinalSegment (#815)', () => {
   });
 
   it('refuses unknown kinds, invalid writers and counters outside a dot', () => {
-    expect(() => new GraphOrdinal({ kind: untyped<ConeDotSet>('"prop"'), writerId: 'alice', counter: 1 }))
+    // @ts-expect-error -- an invalid decoded kind must reach runtime validation.
+    expect(() => new GraphOrdinal({ kind: 'prop', writerId: 'alice', counter: 1 }))
       .toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
     expect(() => new GraphOrdinal({ kind: 'node', writerId: '', counter: 1 })).toThrow(expect.objectContaining({ code: 'E_CRDT_INVALID_MINT_ID' }));
     expect(() => new GraphOrdinal({ kind: 'node', writerId: 'a/b', counter: 1 })).toThrow(expect.objectContaining({ code: 'E_INVALID_WRITER_ID' }));
@@ -63,7 +58,8 @@ describe('GraphOrdinal and OrdinalSegment (#815)', () => {
   });
 
   it('refuses invalid segments', () => {
-    expect(() => new OrdinalSegment({ kind: untyped<ConeDotSet>('"label"'), writerId: 'w', index: 0 }))
+    // @ts-expect-error -- an invalid decoded kind must reach runtime validation.
+    expect(() => new OrdinalSegment({ kind: 'label', writerId: 'w', index: 0 }))
       .toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
     expect(() => new OrdinalSegment({ kind: 'node', writerId: 'w', index: -1 }))
       .toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));

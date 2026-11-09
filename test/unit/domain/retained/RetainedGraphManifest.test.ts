@@ -86,9 +86,11 @@ describe('RetainedGraphManifest (#815)', () => {
 
   it('refuses incomplete parts and geometries the record layout does not store', () => {
     expect(() => manifestOf(BASIS, '')).toThrow(expect.objectContaining({ code: 'E_RETAINED_MANIFEST_INVALID' }));
-    expect(() => new RetainedGraphManifest({ layout: LAYOUT, geometry: OrdinalGeometry.dotPages(), basis: untyped<ConeBasis>('{}') }))
+    // @ts-expect-error -- an empty decoded object is not a validated basis.
+    expect(() => new RetainedGraphManifest({ layout: LAYOUT, geometry: OrdinalGeometry.dotPages(), basis: {} }))
       .toThrow(expect.objectContaining({ code: 'E_RETAINED_MANIFEST_INVALID' }));
-    expect(() => new RetainedGraphManifest({ layout: LAYOUT, geometry: untyped<OrdinalGeometry>('{}'), basis: BASIS }))
+    // @ts-expect-error -- an empty decoded object is not validated geometry.
+    expect(() => new RetainedGraphManifest({ layout: LAYOUT, geometry: {}, basis: BASIS }))
       .toThrow(expect.objectContaining({ code: 'E_RETAINED_MANIFEST_INVALID' }));
     const alternate = OrdinalGeometry.of({ version: 2, segmentCapacity: 2 ** 16, pageSpan: 64 });
     expect(() => new RetainedGraphManifest({ layout: LAYOUT, geometry: alternate, basis: BASIS }))
@@ -102,14 +104,10 @@ describe('ManifestCommitment and ManifestOrdinal (#815)', () => {
     expect(() => new ManifestCommitment('a'.repeat(63))).toThrow(expect.objectContaining({ code: 'E_RETAINED_MANIFEST_INVALID' }));
     const commitment = new ManifestCommitment('a'.repeat(64));
     expect(commitment.equals(new ManifestCommitment('a'.repeat(64)))).toBe(true);
-    expect(() => new ManifestOrdinal(commitment, untyped<GraphOrdinal>('{}'))).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
-    expect(() => new ManifestOrdinal(untyped<ManifestCommitment>('{}'), new GraphOrdinal({ kind: 'node', writerId: 'w', counter: 1 })))
+    // @ts-expect-error -- an empty decoded object is not a validated ordinal.
+    expect(() => new ManifestOrdinal(commitment, {})).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
+    // @ts-expect-error -- an empty decoded object is not a validated commitment.
+    expect(() => new ManifestOrdinal({}, new GraphOrdinal({ kind: 'node', writerId: 'w', counter: 1 })))
       .toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
   });
 });
-
-/** A value whose runtime shape contradicts its static type, as a corrupt decode would produce. */
-function untyped<T>(json: string): T {
-  const value: T = JSON.parse(json);
-  return value;
-}

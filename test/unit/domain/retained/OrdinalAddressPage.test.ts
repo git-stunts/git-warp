@@ -77,7 +77,8 @@ describe('OrdinalAddressPage (#815)', () => {
   });
 
   it('refuses anything but a cone dot page (D6)', () => {
-    expect(() => new OrdinalAddressPage(GEOMETRY, untyped<ConeDotPage>('{"set":"node","writerId":"w1","pageIndex":0}')))
+    // @ts-expect-error -- a decoded shape is not a validated ConeDotPage.
+    expect(() => new OrdinalAddressPage(GEOMETRY, { set: 'node', writerId: 'w1', pageIndex: 0 }))
       .toThrow(expect.objectContaining({ code: 'E_RETAINED_PAGE_INVALID' }));
   });
 
@@ -87,9 +88,3 @@ describe('OrdinalAddressPage (#815)', () => {
       .toThrow(expect.objectContaining({ code: 'E_RETAINED_GEOMETRY_UNSUPPORTED' }));
   });
 });
-
-/** A value whose runtime shape contradicts its static type, as a corrupt decode would produce. */
-function untyped<T>(json: string): T {
-  const value: T = JSON.parse(json);
-  return value;
-}

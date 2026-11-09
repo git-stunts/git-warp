@@ -225,7 +225,8 @@ describe('retained graph manifest over the Git cone record store (#815)', () => 
       const over = (records: string): RetainedGraphManifest => new RetainedGraphManifest({
         layout: manifest.layout, geometry: manifest.geometry, basis: new ConeBasis(ConeRoot.at(records), manifest.basis.frontier),
       });
-      const corrupt = (tree: string): unknown => expect.objectContaining({ code: 'E_CONE_RECORD_CORRUPT', context: { tree } });
+      const corrupt = (tree: string): ReturnType<typeof expect.objectContaining> =>
+        expect.objectContaining({ code: 'E_CONE_RECORD_CORRUPT', context: { tree } });
       const resolver = new OrdinalAddressResolver(store);
       const first = new GraphOrdinal({ kind: 'node', writerId: 'w1', counter: 1 });
       await expect(resolver.resolve(over(await withBlobAt(root, 'd')), first)).rejects.toEqual(corrupt(blob));

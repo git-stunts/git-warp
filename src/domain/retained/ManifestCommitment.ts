@@ -1,6 +1,6 @@
 import { blake3 } from '@noble/hashes/blake3.js';
 import RetainedGraphError from '../errors/RetainedGraphError.ts';
-import { concatBytes, hexEncode, textEncode } from '../utils/bytes.ts';
+import { hexEncode, textEncode } from '../utils/bytes.ts';
 
 const DIGEST_PATTERN = /^[0-9a-f]{64}$/u;
 const FIELD_DELIMITER = textEncode(':');
@@ -31,11 +31,14 @@ export default class ManifestCommitment {
 
   /** The commitment over `fields`, in order. */
   static over(fields: readonly string[]): ManifestCommitment {
-    const preimage = concatBytes(...fields.flatMap((field) => {
+    const hasher = blake3.create({});
+    for (const field of fields) {
       const bytes = textEncode(field);
-      return [textEncode(String(bytes.length)), FIELD_DELIMITER, bytes];
-    }));
-    return new ManifestCommitment(hexEncode(blake3(preimage)));
+      hasher.update(textEncode(String(bytes.length)));
+      hasher.update(FIELD_DELIMITER);
+      hasher.update(bytes);
+    }
+    return new ManifestCommitment(hexEncode(hasher.digest()));
   }
 
   equals(other: ManifestCommitment): boolean {

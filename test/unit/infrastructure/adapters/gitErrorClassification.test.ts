@@ -22,12 +22,6 @@ function exitedError(message: string, exitCode: number): GitError {
   return Object.assign(new Error(message), { exitCode });
 }
 
-/** A failure whose runtime shape lacks a message, as a foreign throwable can. */
-function untyped<T>(json: string): T {
-  const value: T = JSON.parse(json);
-  return value;
-}
-
 describe('gitErrorClassification', () => {
   it('reads the exit code from details, exitCode or a numeric code, ignoring string codes', () => {
     expect(getExitCode(gitError('x', { code: 128 }))).toBe(128);
@@ -46,7 +40,8 @@ describe('gitErrorClassification', () => {
     expect(shouldRetry?.(gitError('fatal: cannot lock ref'))).toBe(true);
     expect(shouldRetry?.(gitError('failed', { stderr: 'Connection timed out' }))).toBe(true);
     expect(shouldRetry?.(gitError('fatal: bad object'))).toBe(false);
-    expect(shouldRetry?.(untyped<GitError>('{"name":"GitError"}'))).toBe(false);
+    // @ts-expect-error -- a foreign throwable can lack the Error message.
+    expect(shouldRetry?.({ name: 'GitError' })).toBe(false);
   });
 
   it('recognizes dangling objects only at exit code 128', () => {
@@ -89,7 +84,8 @@ describe('gitErrorClassification', () => {
     expect(wrapGitError(crashed)).toBe(crashed);
     const quiet = gitError('', { code: 128 });
     expect(wrapGitError(quiet)).toBe(quiet);
-    const bare = untyped<GitError>('{"name":"GitError","exitCode":128}');
+    const bare = { name: 'GitError', exitCode: 128 };
+    // @ts-expect-error -- a foreign throwable can lack the Error message.
     expect(wrapGitError(bare)).toBe(bare);
   });
 
