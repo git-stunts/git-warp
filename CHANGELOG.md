@@ -197,6 +197,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Refuse unexpected CBOR tags before decoding peer-controlled repository
+  blobs. Only supported Date, bigint, and `Uint8Array` tag encodings are
+  accepted; regular expressions, shared references and other tag extensions
+  fail with a typed bounds error. Tag 1 now refuses eight-byte integer epoch
+  encodings with the owning boundary's typed error instead of a raw TypeError;
+  smaller integer and floating epoch encodings remain supported. Existing byte,
+  depth and item limits remain unchanged
+  ([#1088](https://github.com/git-stunts/git-warp/issues/1088)).
+
 - Run the installed `npm run upgrade` command directly from its compiled
   entry, without rebuilding or deleting the package's `dist` directory.
   Source-checkout operators must run `npm run build` first. The packed smoke
