@@ -30,6 +30,7 @@ const EXECUTION_VALUES = new Map([
 const KNOWN_FAILURES = [
   /^unknown argument: /u,
   /^--[a-z-]+ requires a value$/u,
+  /^--[a-z-]+ requires a non-empty value$/u,
   /^--repo and --graph are required\n\nUsage: /u,
   /^--apply cannot be combined with --dry-run$/u,
 ];
@@ -165,6 +166,18 @@ describe('v18 migration CLI parser', () => {
     );
   });
 
+  it('refuses an empty value, such as an unset shell variable', () => {
+    expect(() => parseV18MigrationCliOptions(['--repo', '', '--graph', 'orders'])).toThrow(
+      '--repo requires a non-empty value',
+    );
+    expect(() => parseV18MigrationCliOptions(['--repo', '/srv/data/repo', '--graph', ''])).toThrow(
+      '--graph requires a non-empty value',
+    );
+    expect(() => parseV18MigrationCliOptions([...required, '--scratch-root', ''])).toThrow(
+      '--scratch-root requires a non-empty value',
+    );
+  });
+
   it('fails closed with a known refusal for arbitrary flag combinations', () => {
     const token = fc.oneof(
       fc.constantFrom(...Object.values(V18_MIGRATION_CLI_FLAGS).map((flag) => flag.name)),
@@ -179,6 +192,8 @@ describe('v18 migration CLI parser', () => {
       } else {
         expect(args).toContain('--repo');
         expect(args).toContain('--graph');
+        expect(outcome.repositoryPath).not.toBe('');
+        expect(outcome.graph).not.toBe('');
         expect(args.includes('--apply') && args.includes('--dry-run')).toBe(false);
         expect(outcome.mode.promotesVerifiedRefs()).toBe(!args.includes('--dry-run'));
       }

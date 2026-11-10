@@ -87,5 +87,8 @@ function requireValue(flag: V18MigrationCliFlag, value: string | undefined): str
   if (value === undefined || value.startsWith('--')) {
     throw new Error(`${flag.name} requires a value`);
   }
+  if (value === '') {
+    throw new Error(`${flag.name} requires a non-empty value`);
+  }
   return value;
 }
