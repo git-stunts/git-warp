@@ -212,7 +212,15 @@ the testing surface, not in the first-use constructor.
 
 - `access` is a `WarpAccessPort`. It decides each operation. Opening grants
   nothing and changes nothing in the repository: the write path opens on the
-  first granted write or reconcile.
+  first granted write or reconcile. If the write path cannot open, that call
+  rejects and nothing is published. Every later granted write or reconcile
+  tries the open again, and rejects until one open succeeds. When the
+  retention store is what did not open, the error has code
+  `E_WARP_RETENTION_OPEN`. Its `refusal` is `policy-mismatch` when the graph's
+  saved retention capacity differs from the capacity this build uses; no
+  retry clears that. With any other `refusal`, or with `refusal` `null` and a
+  `cause` that holds the store's failure (for example a held Git ref lock), a
+  retry can succeed.
 - `options.logger` is an optional `LoggerPort`. It receives runtime warnings,
   for example a node removal under the `warn` policy that leaves attached data.
   Without a logger, a `Warp` prints nothing. Logging is not part of the access
@@ -245,8 +253,12 @@ const warp = await Warp.open(WarpAddress.of(GitStorage.root(), 'todos'), access,
 
 `access` is your `WarpAccessPort`. `LogFields` is a read-only map from field
 names to `LogFieldValue`: strings, numbers, booleans, `null`, `undefined`,
-bigints, arrays and nested `LogFields`. The current warnings send a message
-that starts with `[warp]` and give no context, so `context` can be absent.
+bigints, arrays and nested `LogFields`. Do not depend on the message text or
+on `context`. The node removal warning sends a message that starts with
+`[warp]` and no `context`. Other warnings from the writer's runtime differ:
+for example, a failed step after a commit sends a `[warp]` message with an
+`error` field in `context`. Handle a call with `context` and a call without
+it.
 
 `Warp.open` refuses `options` that are not a plain object, or that name an
 option other than `logger`, with `E_WARP_OPEN_OPTIONS`. It refuses a `logger`

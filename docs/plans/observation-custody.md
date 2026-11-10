@@ -427,20 +427,22 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   A ledger saying `reserved` or `prepared` can't outrank a record or chain naming a commit. One
   saying `cancelled` still does, which only a copied record can reach.
 - **Limits a graph can reach:** a walk stops 4,096 commits past the predecessor, after which an
-  attempt stays indeterminate and each later open pays for the walk. The 4,097th writer on a graph
+  attempt stays indeterminate and each later sweep or `reconcile` of it pays for the walk. The 4,097th writer on a graph
   refuses every write there, with no repair, because the support limit counts the whole frontier.
-- **The sweep:** it runs when a Warp opens, over at most 64 saved attempts from a random start,
+- **The sweep:** it runs once for each Warp, inside that Warp's first granted `execute` or `reconcile`
+  (#1078; before that change it ran in `Warp.open`). A Warp that is only denied, or that only
+  stages, never sweeps. It covers at most 64 saved attempts from a random start,
   so records that never clear can't starve the rest. It needs no `attempts(phase)` listing
   because `resume` is only called on a saved id. An unarmed attempt under an hour old is left
   alone apart from `resume`, which reserves if a crash came before that, in case its owner is
   alive; an older one is abandoned, and a live owner loses only its
   work. An armed one is settled from the chain, has its record removed if another commit took
   its place, staying charged, and otherwise waits for its writer's next patch. Custody's settled outcome outranks the chain.
-  There is no retry count, since nothing repeats without an open or a caller asking.
+  There is no retry count, since nothing repeats without another Warp's first granted operation or a caller asking.
 - **Reported attempts:** before `execute` returns an indeterminate or repeatable unretained
   receipt it marks the record, with the commit if one is known, and the sweep leaves a marked record
   alone. Only `AuthoredWarp.reconcile` answers it, for that writer, and then removes it, so an answer
-  can't be consumed by whoever opens the graph next. The mark comes before the receipt is delivered,
+  can't be consumed by whoever sweeps the graph next. The mark comes before the receipt is delivered,
   so a process that dies between them strands the record, and `reconcile` removes it before delivering
   too, so it answers at most once. A caller who never reconciles leaves one ref
   behind, which also counts against a sweep's page. `reconcile` returning null never means nothing

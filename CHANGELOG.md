@@ -74,14 +74,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `Warp.open` no longer writes to the repository, so a deny-all opener or a read-only clone opens.
-  Errors from opening the write path, such as `E_WARP_RETENTION_OPEN`, now reject the first granted
-  `execute` or `reconcile` instead of `open`. In-flight write attempts and support under construction
-  move to `refs/warp-local/<graph>/`, so a `refs/warp/*` lane fetch no longer copies them
-  ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
-- Operator note: clones built from `main` after #1051 may hold old `refs/warp/<graph>/write-attempts/`
-  refs that nothing sweeps now. List them with
-  `git for-each-ref --format='%(refname)' refs/warp/ | grep /write-attempts/` and delete each with
-  `git update-ref -d <ref>`. No release wrote them, so there is no migration
+  The write path opens in a `Warp`'s first granted `execute` or `reconcile`, so errors from opening
+  it reject that call instead of `open`. Until the write path has opened, every granted `execute`
+  or `reconcile` rejects, having published nothing, and the next one tries the open again. This
+  step is outside the receipt rule of the `AuthoredWarp.execute()` entry below: an unavailable
+  store here rejects. A retention store that did not open rejects with `E_WARP_RETENTION_OPEN`,
+  and the error says why. Its `refusal` is `policy-mismatch` when the graph's saved retention
+  capacity differs, which no retry clears, or `contention`, which a retry can clear. When the
+  store could not answer, for example because of a held ref lock, `refusal` is `null` and `cause`
+  is the store's failure; a retry can clear that too. In-flight write attempts and support under
+  construction move to `refs/warp-local/<graph>/`, so a `refs/warp/*` lane fetch no longer copies
+  them ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
+- Operator note: a clone that ran a build of `main` after #1051 and before this change can hold
+  in-flight refs under `refs/warp/<graph>/write-attempts/` and
+  `refs/warp/<graph>/observations/construction/`. No release wrote them, so there is no automatic
+  migration. This build does not read them: the sweep does not see them, `reconcile` returns
+  `null` for such an attempt although its record still exists, and no error names the ref.
+  Deleting a `write-attempts` ref abandons that attempt's answer: the write may have published,
+  and its receipt is lost. Before you delete one, finish the attempt with the build that wrote
+  it, or move the ref to `refs/warp-local/`. The listing and move commands are in
+  [Finish in-flight refs from pre-release builds](docs/topics/sync.md#finish-in-flight-refs-from-pre-release-builds)
   ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
 - `AuthoredWarp.execute()` reports an unavailable store while it fixes the write
   basis or reads the premise records as an `UnpublishedWriteReceipt`
@@ -256,18 +268,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   canonical order, on every receipt, and each race names each writer once, sorted, by a
   valid writer id. A saved race that names an invalid writer id fails closed
   ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
-- Write attempt refs under `refs/warp/<graph>/write-attempts/` in a non-negative integer
-  layout version other than 2 are not read. `AuthoredWarp.reconcile` of such an attempt
-  rejects with code `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, and the error names the ref and the
-  remedy. A record whose layout version is not a non-negative integer cannot be decoded: it
+- A write attempt record in a non-negative integer layout version other than 2 is not read.
+  Attempt records live under `refs/warp-local/<graph>/write-attempts/`
+  ([#1078](https://github.com/git-stunts/git-warp/issues/1078), under Changed).
+  `AuthoredWarp.reconcile` of such an attempt rejects with code
+  `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, and the error names the ref and the remedy. A record whose layout version is not a non-negative integer cannot be decoded: it
   rejects with `AdapterValidationError`, names no ref, and is kept.
-  - Layout 1 came only from clones built from `main` before this fix. Delete only the ref the
+  - Layout 1 came only from clones built from `main` before this fix. Those builds saved it
+    under `refs/warp/<graph>/write-attempts/`, which this build does not read: there,
+    `reconcile` returns `null` and no error names the ref (see the operator note under
+    Changed). So this error names a layout-1 record only after its ref was moved to
+    `refs/warp-local/`. Delete only the ref the
     error names: run the `git update-ref -d` command that the error message prints, in the
     repository that holds the graph. That command quotes the ref for the shell, so do not
     retype it from a template. The ref holds only that attempt's recovery record, not graph
     data: a patch the attempt published stays on its writer's chain, and only that attempt's
-    receipt is lost. Do not delete the whole prefix, which can also hold current
-    attempts. Deleting the ref frees nothing in custody; it abandons that attempt's fate,
+    receipt is lost. Do not delete the whole `refs/warp-local/<graph>/write-attempts/`
+    prefix, which can also hold current attempts. Deleting the ref frees nothing in custody; it abandons that attempt's fate,
     which is harmless at the current unlimited retention capacity.
   - A newer layout came from a newer git-warp. Keep the ref and finish the attempt with that
     build.

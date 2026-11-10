@@ -29,11 +29,12 @@ export default class Warp {
   /**
    * Opens the repository and changes nothing in it (#1078). A deny-all access port or a
    * read-only clone opens. The write path (the cone, custody, the retention policy and the
-   * sweep of unfinished attempts) opens on the first granted write or reconcile, which
-   * rejects if it cannot. A writer's host opens on its first granted write or stage. The
-   * sweep is graph-wide housekeeping: under any writer's grant it abandons only attempts
-   * older than the grace period. An optional `logger` hears runtime warnings, such as a
-   * removal under the `warn` policy; its failures are ignored. Without one, nothing is printed.
+   * sweep of unfinished attempts) opens on the first granted write or reconcile. While it
+   * cannot open, each granted write or reconcile rejects and the next one tries again. A
+   * writer's host opens on its first granted write or stage. The sweep is graph-wide
+   * housekeeping: under any writer's grant it abandons only attempts older than the grace
+   * period. An optional `logger` hears runtime warnings, such as a removal under the `warn`
+   * policy; its failures are ignored. Without one, nothing is printed.
    */
   static async open(address: WarpAddress, access: WarpAccessPort, options: WarpOpenOptions = {}): Promise<Warp> {
     if (!(address instanceof WarpAddress)) {
