@@ -170,7 +170,7 @@ function recoveryOver(journal: MemoryJournal, chain: EndlessChain, ledger: Count
 }
 
 describe('ConeWriteRecovery sweep budget (#1075)', () => {
-  it('reads for an out-of-reach publication once: later opens leave its record to reconcile', async () => {
+  it('reads for an out-of-reach publication once: later opens keep its record and do not read for it again', async () => {
     const journal = new MemoryJournal([recordOf(1, 'd'.repeat(40))]);
     const chain = new EndlessChain();
     const { recovery } = recoveryOver(journal, chain);
