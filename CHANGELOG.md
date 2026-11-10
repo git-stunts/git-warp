@@ -99,8 +99,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a node is not refused. The index build or index update that would store its
   bitmap fails with `E_ROARING_SHARD_WRITE_CARDINALITY`; the runtime then
   logs the warning `index build failed` and continues without the index. A
-  sparse bitmap far below 2^24 values can also pass the 5 MiB file limit of
-  the default codec, which is older than this change. Most index readers and
+  sparse bitmap far below 2^24 values can still make an index shard file
+  larger than the 5 MiB that the default codec reads; that limit is older
+  than this change. Most index readers and
   the index updaters let a rejection through to the caller. Checkpoint shard reads (node
   liveness and neighbourhood) report it as `QueryError`
   `E_OPTIC_NO_BOUNDED_BASIS` with reason `checkpoint-shard-invalid` and keep
