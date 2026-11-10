@@ -2,8 +2,8 @@ import WarpError from '../../errors/WarpError.ts';
 
 /**
  * Commits one sweep's publication probes may still read (#1075). Probes spend it as
- * they read, so one `Warp.open` reads a bounded amount of writer history however many
- * unresolved attempts it finds.
+ * they read, so a Warp's one sweep, inside its first granted `execute` or `reconcile`, reads
+ * a bounded amount of writer history however many unresolved attempts it finds.
  */
 export default class WriteReadBudget {
   #remaining: number;

@@ -25,7 +25,10 @@ import WriteReadBudget from './WriteReadBudget.ts';
 
 /** How old an unarmed attempt must be before a sweep assumes its owner is gone. A live owner that loses this race only refuses. */
 export const UNARMED_ATTEMPT_GRACE_MS = 60 * 60 * 1000;
-/** Records one sweep looks at, so opening a Warp stays bounded after many crashes; later opens see the rest. */
+/**
+ * Records one sweep looks at, so a Warp's first granted operation stays bounded after many
+ * crashes. A Warp sweeps once in its life; later Warps see the rest.
+ */
 export const SWEEP_LIMIT = 64;
 /** Commits one sweep's probes may read: four probes that each find a predecessor out of reach (#1075). */
 export const SWEEP_READ_BUDGET = 4 * PUBLICATION_PROBE_READS;
@@ -80,7 +83,10 @@ export default class ConeWriteRecovery {
    * reported one waits for its owner's `reconcile`, or its only answer would be lost, or
    * it is out of a probe's reach and nothing resolves it yet.
    * A failure on one record, or the listing, only leaves work for a later sweep. So does
-   * a spent read budget: a sweep stops once it could not afford another full probe.
+   * a spent read budget: a sweep stops once it could not afford another full probe. It is
+   * graph-wide housekeeping run under whichever writer's operation was granted first: it
+   * abandons only unarmed attempts older than the grace period, and none whose predecessor
+   * is out of a probe's reach (#1075, #1078).
    */
   async sweep(): Promise<void> {
     const budget = new WriteReadBudget(SWEEP_READ_BUDGET);
@@ -107,7 +113,7 @@ export default class ConeWriteRecovery {
         await this.#recover(record);
       }
     } catch {
-      // Everything unresolved is still saved, and the next open tries again.
+      // Everything unresolved is still saved, and the next Warp to compose custody tries again.
     }
   }
 

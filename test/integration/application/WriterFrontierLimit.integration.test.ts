@@ -74,7 +74,7 @@ describe('the writer limit through lowering and custody, on 4,096 distinct write
         ? new ConeWritePremise({ from: premise.from, stored: widened(premise.stored), reader: premise.reader })
         : premise;
     });
-    warp = await fixture.open(path, {
+    warp = await fixture.openSwept(path, {
       clock: CLOCK,
       wrapCustody: (custody) => new MeteredObservationCustody(custody, (transition, side) => transitions.push(`${transition}:${side}`)),
     });
