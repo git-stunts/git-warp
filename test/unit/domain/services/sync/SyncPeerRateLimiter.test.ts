@@ -75,7 +75,7 @@ describe('SyncPeerRateLimiter admission', () => {
   it('refuses the request one above the limit', () => {
     const limiter = subject(new ManualClock());
     spend(limiter, PEER_A, LIMIT.capacity);
-    expect(limiter.admit(PEER_A)).toEqual({ admitted: false, retryAfterSeconds: 1 });
+    expect(limiter.admit(PEER_A)).toEqual({ admitted: false, retryAfterSeconds: 1, peer: PEER_A });
   });
 
   it('admits again when the refill window rolls over and not one millisecond sooner', () => {
@@ -93,9 +93,9 @@ describe('SyncPeerRateLimiter admission', () => {
     const clock = new ManualClock();
     const limiter = subject(clock, { refillTokensPerSecond: 0.25 });
     spend(limiter, PEER_A, LIMIT.capacity);
-    expect(limiter.admit(PEER_A)).toEqual({ admitted: false, retryAfterSeconds: 4 });
+    expect(limiter.admit(PEER_A)).toEqual({ admitted: false, retryAfterSeconds: 4, peer: PEER_A });
     clock.advance(2500);
-    expect(limiter.admit(PEER_A)).toEqual({ admitted: false, retryAfterSeconds: 2 });
+    expect(limiter.admit(PEER_A)).toEqual({ admitted: false, retryAfterSeconds: 2, peer: PEER_A });
   });
 
   // Oracle: RFC 9110 section 10.2.3, delay-seconds is a non-negative decimal integer.

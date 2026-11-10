@@ -47,6 +47,7 @@ export default class HttpSyncServer {
   private readonly _auth: SyncAuthService | null;
   private readonly _authMode: string | null;
   private readonly _peerLimiter: SyncPeerRateLimiter;
+  private readonly _metrics = { peerRateLimitRejects: 0 };
 
   constructor(options: HttpSyncServerOptions) {
     const parsed = parseOptions(options);
@@ -182,7 +183,15 @@ export default class HttpSyncServer {
     if (admission.admitted) {
       return null;
     }
-    return peerRateLimitedResponse(admission.retryAfterSeconds);
+    const { peer, retryAfterSeconds } = admission;
+    this._metrics.peerRateLimitRejects += 1;
+    this._logger.warn('sync server: peer rate limit exceeded', { peer, retryAfterSeconds });
+    return peerRateLimitedResponse(retryAfterSeconds);
+  }
+
+  /** Counts of server-level refusals; authentication counts live on SyncAuthService. */
+  getMetrics(): { peerRateLimitRejects: number } {
+    return { ...this._metrics };
   }
 
   /**

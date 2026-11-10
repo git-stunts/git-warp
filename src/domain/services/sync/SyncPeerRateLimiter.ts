@@ -12,7 +12,7 @@ export type SyncPeerRateLimit = {
 
 export type SyncPeerAdmission =
   | { readonly admitted: true }
-  | { readonly admitted: false; readonly retryAfterSeconds: number };
+  | { readonly admitted: false; readonly retryAfterSeconds: number; readonly peer: string | null };
 
 /**
  * Default pre-authentication limit: a burst of 60 requests for each peer, a
@@ -102,7 +102,7 @@ export default class SyncPeerRateLimiter {
     if (admitted) {
       return ADMITTED;
     }
-    return { admitted, retryAfterSeconds: Math.ceil((1 - tokens) / this._limit.refillTokensPerSecond) };
+    return { admitted, retryAfterSeconds: Math.ceil((1 - tokens) / this._limit.refillTokensPerSecond), peer: key };
   }
 
   private _refilledTokens(bucket: PeerBucket | undefined, nowMs: number): number {

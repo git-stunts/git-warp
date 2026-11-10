@@ -14,6 +14,8 @@ import SeededRandomPort from '../../../helpers/SeededRandomPort.ts';
 import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
 import ManualClock from '../../../helpers/ManualClock.ts';
 import { MemoryHttpPort, SyncInbox, WarningLog } from '../../../helpers/SyncHttpFixture.ts';
+import NoOpLogger from '../../../../src/infrastructure/adapters/NoOpLogger.ts';
+import type LogFields from '../../../../src/domain/types/log/LogFields.ts';
 
 // Oracle for every test here: the decision record on issue #1090. The peer
 // gate runs after the route and protocol preflight and before the body parse
@@ -30,11 +32,19 @@ const RANDOM = new SeededRandomPort(1090);
 type Sent = { readonly peer?: string | undefined; readonly headers?: Record<string, string>;
   readonly body?: Uint8Array; readonly method?: string; readonly url?: string };
 
+/** Records each server warning with its structured fields. */
+class FieldLog extends NoOpLogger {
+  readonly warnings: { readonly message: string; readonly fields: LogFields | undefined }[] = [];
+  override warn(message: string, fields?: LogFields): void { this.warnings.push({ message, fields }); }
+}
+
 class Harness {
   readonly clock = new ManualClock();
   readonly http = new MemoryHttpPort();
   readonly graph = new SyncInbox();
   readonly log = new WarningLog();
+  readonly serverLog = new FieldLog();
+  server: HttpSyncServer | null = null;
 
   authentication(mode: 'enforce' | 'log-only' = 'enforce') {
     return { keys: { default: SECRET }, crypto: defaultCrypto, clock: this.clock, mode, logger: this.log,
@@ -43,8 +53,9 @@ class Harness {
 
   async boot(options: Partial<HttpSyncServerOptions> = {}): Promise<this> {
     const server = new HttpSyncServer({ httpPort: this.http, graph: this.graph, clock: this.clock,
-      auth: this.authentication(), peerRateLimit: LIMIT, ...options });
+      logger: this.serverLog, auth: this.authentication(), peerRateLimit: LIMIT, ...options });
     await server.listen(9999);
+    this.server = server;
     return this;
   }
 
@@ -274,5 +285,19 @@ describe('HttpSyncServer peer limit configuration', () => {
     expect(() => new HttpSyncServer({ httpPort: h.http, graph: h.graph,
       // @ts-expect-error Exercise malformed clock input at the HTTP configuration boundary.
       clock: invalidClock, unsafeAllowUnauthenticatedLocalhost: true })).toThrow(/HttpSyncServer config: clock must provide nowMs/);
+  });
+});
+
+describe('HttpSyncServer peer refusal trace', () => {
+  // Oracle: review findings W-F-1 and M-F-7 on PR #1162. Each refusal is
+  // logged at the level of the key-id limiter's refusal (warn) and counted.
+  it('logs and counts each refusal with the peer key and the delay, and nothing for admitted requests', async () => {
+    const h = await new Harness().boot();
+    await h.statuses(LIMIT.capacity + 2, () => h.valid(PEER_A));
+    h.clock.advance(250);
+    await h.valid(PEER_A);
+    const refusal = { message: 'sync server: peer rate limit exceeded', fields: { peer: PEER_A, retryAfterSeconds: 1 } };
+    expect(h.serverLog.warnings).toEqual([refusal, refusal, refusal]);
+    expect(h.server?.getMetrics()).toEqual({ peerRateLimitRejects: 3 });
   });
 });
