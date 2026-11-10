@@ -62,6 +62,12 @@ try {
 Use a stable writer identity for each independent clone or process that writes
 to the same graph.
 
+A graph supports at most 4,096 writers. Use a bounded pool of writer IDs, not
+one writer ID for each end user. A writer ID counts from its first write, and
+nothing removes one yet. A new writer ID on a graph that already has 4,096 gets
+an `UnpublishedWriteReceipt` with cause `writer-limit-reached`; the writers the
+graph already has keep writing.
+
 `execute` accepts one Intent or one non-empty ordered array. The array lowers
 through one patch publication: either all of its edits become visible, or none
 do. Atomicity never crosses graphs or separate `execute` calls.

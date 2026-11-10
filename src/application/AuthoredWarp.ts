@@ -41,7 +41,10 @@ export default class AuthoredWarp {
 
   /**
    * Asks again what became of an indeterminate or unretained write's `attempt`. Ask again
-   * while it stays so; a final answer is given once. Null means it was already answered, was
+   * while it stays so; a final answer is given once. The requirement `publication-walk-exhausted`
+   * is the exception: the attempt's predecessor lies more than 4,096 commits behind its writer's
+   * tip, this call runs the same bounded probe and returns the same indeterminate answer unless custody
+   * already holds the outcome, and nothing resolves such an attempt yet. Null means it was already answered, was
    * never this writer's, this writer is denied now, or a sweep finished it first. It does not
    * mean the write did not land. It rejects if a store read fails: it reads after an attempt
    * exists, so contract section 7 governs it, not the pre-permission rule. It also rejects, with code

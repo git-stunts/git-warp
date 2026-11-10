@@ -28,8 +28,10 @@ export default class WriteAttemptRecord {
   /** Host time when saved; only ages an attempt nothing has armed. */
   readonly savedAt: number;
   /**
-   * Only a `reconcile` may finish this record: a receipt told a caller to ask again, or a
-   * sweep found its predecessor further back than a probe reads, and no sweep reads for it again.
+   * No sweep reads for this record again. Either a receipt told a caller to ask again, and only
+   * that caller's `reconcile` may finish it; or recovery found its predecessor further back than a
+   * probe reads. A `reconcile` of that one runs the same probe and finds the same, so nothing
+   * finishes it yet.
    */
   readonly reported: boolean;
   /** The commit a receipt already reported as published, which nothing may later contradict. */

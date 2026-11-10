@@ -426,12 +426,21 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   answer, because this producer alone would publish; that deliberately differs from the outcome table.
   A ledger saying `reserved` or `prepared` can't outrank a record or chain naming a commit. One
   saying `cancelled` still does, which only a copied record can reach.
-- **Limits a graph can reach:** a walk stops 4,096 commits past the predecessor, after which an
-  attempt stays indeterminate and each later open pays for the walk. The 4,097th writer on a graph
-  refuses every write there, with no repair, because the support limit counts the whole frontier.
+- **Limits a graph can reach:** one probe lists at most 4,097 commits past the predecessor in a
+  single `git log`, and the probes of one sweep list at most 16,388 (#1075). An attempt whose
+  predecessor lies further back, armed or not, stays indeterminate with `publication-walk-exhausted`.
+  Its record is kept and saved as reported, so later opens do not read for it again; a `reconcile`
+  finds the same, and nothing resolves it yet. The support limit counts the whole frontier: 4,096
+  writers. A new writer on a full frontier is refused before it reserves (`writer-limit-reached`,
+  repair `reuse_writer_id`), and the writers already in it keep writing. A frontier can still pass
+  the limit, through concurrent first writes by new writers or writer chains fetched from another
+  clone. Every write there is then refused (`retention-refused-writer-limit`, repair
+  `compact_writer_frontier`), and no repair exists until #1044 adds frontier compaction.
 - **The sweep:** it runs when a Warp opens, over at most 64 saved attempts from a random start,
   so records that never clear can't starve the rest. It needs no `attempts(phase)` listing
-  because `resume` is only called on a saved id. An unarmed attempt under an hour old is left
+  because `resume` is only called on a saved id. An unarmed attempt whose predecessor is out of
+  a probe's reach is kept as indeterminate at any age, since the chain may hold its commit. Any other
+  unarmed attempt under an hour old is left
   alone apart from `resume`, which reserves if a crash came before that, in case its owner is
   alive; an older one is abandoned, and a live owner loses only its
   work. An armed one is settled from the chain, has its record removed if another commit took
