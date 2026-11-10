@@ -16,6 +16,7 @@ import ResolvedObservation from '../../../src/domain/services/custody/ResolvedOb
 import ObservationAttemptId from '../../../src/domain/services/custody/ObservationAttemptId.ts';
 import { textDecode } from '../../../src/domain/utils/bytes.ts';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
+import GitCasMaterializationStoreAdapter from '../../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import GitWriteAttemptJournalAdapter from '../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
@@ -616,6 +617,20 @@ describe('composition', () => {
 
     unlinkSync(join(path, '.git', lock));
     retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
+  });
+
+  it('releases the storage services of each write path that failed to open', async () => {
+    const path = await repository();
+    const first = await open(path, { limit: 3 });
+    retained(await first.as('alice').execute(intent.node.add({ subject: 'x' })));
+    await first.close();
+    const released = vi.spyOn(GitCasMaterializationStoreAdapter.prototype, 'close');
+
+    const other = await open(path, { limit: 4 });
+    await expect(other.as('alice').execute(intent.node.add({ subject: 'y' }))).rejects.toMatchObject({ code: 'E_WARP_RETENTION_OPEN' });
+    await expect(other.as('alice').execute(intent.node.add({ subject: 'y' }))).rejects.toMatchObject({ code: 'E_WARP_RETENTION_OPEN' });
+
+    expect(released).toHaveBeenCalledTimes(2);
   });
 
   it('requires a storage located by root or at', async () => {

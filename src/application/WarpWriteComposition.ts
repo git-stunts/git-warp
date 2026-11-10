@@ -74,6 +74,9 @@ type WriterHosts = (writer: string) => Promise<RuntimeHostProduct>;
 
 type OpenedPath = { readonly custody: ObservationCustodyService; readonly path: ConeWritePath };
 
+/** A lane's cone basis, and the release of the storage services opened to read it. */
+type OpenedCone = { readonly basis: ConeLaneBasis; release(): Promise<void> };
+
 /**
  * Composes one graph's write path over one opened Git repository. Composing changes nothing
  * in it: the cone, custody, the retention policy and the sweep wait for the first granted
@@ -138,8 +141,9 @@ async function openPath(fields: {
   readonly hosts: WriterHosts;
 }): Promise<OpenedPath> {
   const { graph, git, ports, overrides, storage, content, hosts } = fields;
-  const lowering = new ConeWriteLowering({ graph, cone: await openCone({ graph, git, ports, storage }), content, crypto: ports.crypto, openPatch: async (writer) => await (await hosts(writer)).createPatch() });
-  const custody = await openCustodyService({ graph, git, ports, overrides });
+  const cone = await openCone({ graph, git, ports, storage });
+  const lowering = new ConeWriteLowering({ graph, cone: cone.basis, content, crypto: ports.crypto, openPatch: async (writer) => await (await hosts(writer)).createPatch() });
+  const custody = await custodyOrRelease(cone, async () => await openCustodyService({ graph, git, ports, overrides }));
   const journal = new GitWriteAttemptJournalAdapter({ graph, history: git.history, codec: ports.codec, custodyCodec: new ObservationCustodyCborCodec(ports.codec) });
   const probe = new WritePublicationProbe({ graph, history: git.history, messages: ports.commitMessageCodec });
   const settlement = new ConeWriteSettlement({ graph, custody, journal });
@@ -180,16 +184,32 @@ async function openCone(fields: {
   readonly git: WarpConeWriteStorage;
   readonly ports: RuntimeHostNodePorts;
   readonly storage: GitStorage;
-}): Promise<ConeLaneBasis> {
+}): Promise<OpenedCone> {
   const { graph, git, ports, storage } = fields;
   const services = await resolveWarpStorage(storage).runtimeStorage.createRuntimeStorageServices({
     timelineName: graph, codec: ports.codec, crypto: ports.crypto, commitMessageCodec: ports.commitMessageCodec,
   });
-  return ConeLaneBasis.ofLane({
+  const basis = ConeLaneBasis.ofLane({
     lane: graph,
     store: new GitConeRecordStoreAdapter({ history: git.history, codec: ports.codec }),
     feed: new GitConePatchFeedAdapter({ history: git.history, journal: services.patchJournal, commitMessageCodec: ports.commitMessageCodec }),
   });
+  return { basis, release: async () => await services.materializations.close() };
+}
+
+/**
+ * Custody for an opened cone. If custody does not open, the path-open fails and the next granted
+ * operation opens the cone again, so this one's storage services are released now: otherwise each
+ * failed open would keep one more set until the Warp closes.
+ */
+async function custodyOrRelease(cone: OpenedCone, open: () => Promise<ObservationCustodyService>): Promise<ObservationCustodyService> {
+  try {
+    return await open();
+  } catch (error) {
+    // These services took no workspace or lease, so their close has nothing to fail on; the open failure is the one to report.
+    await cone.release().catch(() => undefined);
+    throw error;
+  }
 }
 
 async function openCustodyService(fields: {
