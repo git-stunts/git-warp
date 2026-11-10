@@ -2,6 +2,7 @@
 
 import SyncError from '../../errors/SyncError.ts';
 import type ClockPort from '../../../ports/ClockPort.ts';
+import type { SyncReplayReservation } from '../../../ports/SyncReplayProtectionPort.ts';
 
 /**
  * Largest accepted distance, in either direction, between a request's signed
@@ -28,4 +29,20 @@ export function readWallClockMs(clock: ClockPort, owner: string): number {
 /** True when the signed timestamp is within the inclusive skew allowance of `nowMs`. */
 export function isWithinClockSkew(signedAtMs: number, nowMs: number): boolean {
   return Math.abs(nowMs - signedAtMs) <= SYNC_CLOCK_SKEW_ALLOWANCE_MS;
+}
+
+/**
+ * True when a reserved request is fresh on the replay store's own time: signed no
+ * later than the allowance after the entry reading, and no earlier than the
+ * allowance before the completion reading, both inclusive.
+ *
+ * Why no captured request is admitted twice, whatever the injected clock reads:
+ * a first admission entered at store time s0 needs T <= s0 + 300000, and its marker
+ * lives until s0 + 600001. The store admits the nonce again only at g >= s0 + 600001,
+ * and the completion reading c >= g then needs T >= c - 300000 >= s0 + 300001.
+ * Both cannot hold. This relies on store time that does not run backwards.
+ */
+export function isFreshOnStoreTime(signedAtMs: number, reservation: SyncReplayReservation): boolean {
+  return signedAtMs <= reservation.reservedAtMs + SYNC_CLOCK_SKEW_ALLOWANCE_MS
+    && signedAtMs >= reservation.completedAtMs - SYNC_CLOCK_SKEW_ALLOWANCE_MS;
 }

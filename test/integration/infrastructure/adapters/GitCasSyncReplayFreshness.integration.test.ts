@@ -46,13 +46,16 @@ async function createRepository(): Promise<string> {
   return directory;
 }
 
-async function openServer(directory: string, clock: ManualClock, graph: SyncInbox, latch?: CallLatch) {
+/** `host` leaves the adapter on its default clock, which the fake system `Date` drives. */
+type StoreTime = 'injected' | 'host';
+
+async function openServer(directory: string, clock: ManualClock, graph: SyncInbox, latch?: CallLatch, storeTime: StoreTime = 'injected') {
   const plumbing = await Plumbing.createDefault({ cwd: directory });
   const store = ContentAddressableStore.createCbor({ plumbing, chunking: { strategy: 'cdc' } });
   stores.push(store);
   const gates: SyncReplaySweepGate[] = [];
   const replay = new GitCasSyncReplayProtectionAdapter({
-    graphName: 'events', wallClockMs: clock.read,
+    graphName: 'events', ...(storeTime === 'injected' ? { wallClockMs: clock.read } : {}),
     cas: { expiringSets: { open: async options => {
       const set = await store.expiringSets.open(options);
       if (latch === undefined) { return set; }
@@ -154,5 +157,82 @@ describe('durable replay freshness while storage awaits', () => {
       status: 200, body: '{"frontier":{},"patches":[],"type":"sync-response"}',
     });
     expect(graph.requests).toHaveLength(2);
+  });
+
+  // Oracle (#1089 F-1): the replay store's time decides the final freshness verdict, so an
+  // injected runtime clock that stands still cannot let a captured request in twice.
+  it('refuses the captured request when the injected clock stands still past marker expiry', async () => {
+    const directory = await createRepository();
+    const clock = new ManualClock();
+    const graph = new SyncInbox();
+    const headers = await signed(clock, 1089);
+    const first = await openServer(directory, clock, graph, undefined, 'host');
+    expect((await first.http.request(headers, BODY)).status).toBe(200);
+    await first.store.close();
+    stores.splice(stores.indexOf(first.store), 1);
+
+    vi.setSystemTime(MANUAL_CLOCK_EPOCH_MS + 2 * SYNC_CLOCK_SKEW_ALLOWANCE_MS + 1);
+    const restarted = await openServer(directory, clock, graph, undefined, 'host');
+    const result = await restarted.http.request(headers, BODY);
+    const outcome = { status: result.status, body: result.body, graphRequests: graph.requests.length };
+    expect(outcome).toEqual({ status: 403, body: '{"error":"EXPIRED"}', graphRequests: 1 });
+  });
+
+  // Oracle: the duplicate enters storage one millisecond before the marker expires and the
+  // store crosses expiry during the sweep. The store admits the nonce again; the store-time
+  // reading taken after admission still refuses the request. The first admission is the
+  // control: a request signed exactly at the future bound is accepted.
+  it('refuses a duplicate whose storage wait crosses marker expiry under a stopped injected clock', async () => {
+    const directory = await createRepository();
+    const clock = new ManualClock();
+    const graph = new SyncInbox();
+    const headers = await signed(new ManualClock(clock.nowMs() + SYNC_CLOCK_SKEW_ALLOWANCE_MS), 1089);
+    const first = await openServer(directory, clock, graph, undefined, 'host');
+    expect((await first.http.request(headers, BODY)).status).toBe(200);
+    expect(graph.requests).toHaveLength(1);
+    await first.store.close();
+    stores.splice(stores.indexOf(first.store), 1);
+
+    vi.setSystemTime(MANUAL_CLOCK_EPOCH_MS + 2 * SYNC_CLOCK_SKEW_ALLOWANCE_MS);
+    const latch = new CallLatch('before');
+    latches.push(latch);
+    const restarted = await openServer(directory, clock, graph, latch, 'host');
+    const response = restarted.http.request(headers, BODY);
+    try {
+      await latch.arrived();
+      vi.setSystemTime(MANUAL_CLOCK_EPOCH_MS + 2 * SYNC_CLOCK_SKEW_ALLOWANCE_MS + 1);
+    } finally {
+      latch.release();
+      await response;
+    }
+    const result = await response;
+    expect(restarted.gates[0]?.sweeps.map(sweep => sweep.removed)).toEqual([1]);
+    expect(restarted.gates[0]?.admissions.map(admission => admission.admitted)).toEqual([true]);
+    const outcome = { status: result.status, body: result.body, graphRequests: graph.requests.length };
+    expect(outcome).toEqual({ status: 403, body: '{"error":"EXPIRED"}', graphRequests: 1 });
+  });
+
+  // Oracle: the entry reading sets the marker expiry; the completion reading comes from
+  // the same clock after the store has answered.
+  it('reports the store time on entry and after the store answers', async () => {
+    const directory = await createRepository();
+    const latch = new CallLatch('before');
+    latches.push(latch);
+    const server = await openServer(directory, new ManualClock(), new SyncInbox(), latch, 'host');
+    const pending = server.replay.reserve({ keyId: 'default', nonce: 'store-time-readings', ttlMs: 60_000 });
+    try {
+      await latch.arrived();
+      vi.setSystemTime(MANUAL_CLOCK_EPOCH_MS + 7);
+    } finally {
+      latch.release();
+      await pending;
+    }
+    expect(await pending).toEqual({
+      admitted: true,
+      expiresAt: new Date(MANUAL_CLOCK_EPOCH_MS + 60_000).toISOString(),
+      generation: expect.stringMatching(/^[0-9a-f]{40,64}$/),
+      reservedAtMs: MANUAL_CLOCK_EPOCH_MS,
+      completedAtMs: MANUAL_CLOCK_EPOCH_MS + 7,
+    });
   });
 });

@@ -14,7 +14,9 @@ import type LogFields from '../../types/log/LogFields.ts';
 import type SyncReplayProtectionPort from '../../../ports/SyncReplayProtectionPort.ts';
 import SyncSecret from './SyncSecret.ts';
 import SyncRateLimiter, { type SyncRateLimitConfig } from './SyncRateLimiter.ts';
-import { SYNC_REPLAY_ACCEPTANCE_WINDOW_MS, isWithinClockSkew, readWallClockMs } from './SyncRequestFreshness.ts';
+import {
+  SYNC_REPLAY_ACCEPTANCE_WINDOW_MS, isFreshOnStoreTime, isWithinClockSkew, readWallClockMs,
+} from './SyncRequestFreshness.ts';
 const SIG_VERSION = '3';
 const SIG_PREFIX = 'warp-v3';
 /** Refused signature versions whose timestamps carry no wall-clock time. */
@@ -310,7 +312,7 @@ export default class SyncAuthService {
     return { ok: true };
   }
 
-  private async _reserveNonce(keyId: string, nonce: string): Promise<FailResult | OkResult> {
+  private async _reserveNonce(keyId: string, nonce: string, timestamp: string): Promise<FailResult | OkResult> {
     try {
       const reservation = await this._replayProtection.reserve({
         keyId,
@@ -320,6 +322,12 @@ export default class SyncAuthService {
       if (!reservation.admitted) {
         this._metrics.replayRejectCount += 1;
         return fail('REPLAY', 403);
+      }
+      // The store's own time gives the final freshness verdict, so the clock that expires
+      // the marker also bounds the request. The nonce stays reserved on refusal.
+      if (!isFreshOnStoreTime(Number(timestamp), reservation)) {
+        this._metrics.clockSkewRejects += 1;
+        return fail('EXPIRED', 403);
       }
       return { ok: true };
     } catch {
@@ -423,10 +431,13 @@ export default class SyncAuthService {
       return this._fail('timestamp outside the skew allowance', { keyId, timestamp }, freshnessResult);
     }
 
-    const nonceResult = await this._reserveNonce(keyId, nonce);
+    const nonceResult = await this._reserveNonce(keyId, nonce, timestamp);
     if (!nonceResult.ok) {
       if (nonceResult.reason === 'REPLAY') {
         return this._fail('replay detected', { keyId, nonce }, nonceResult);
+      }
+      if (nonceResult.reason === 'EXPIRED') {
+        return this._fail('timestamp expired on replay store time', { keyId, timestamp }, nonceResult);
       }
       return this._fail('replay protection unavailable', { keyId }, nonceResult);
     }
