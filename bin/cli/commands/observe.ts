@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { parseCommandArgs } from '../infrastructure.ts';
 import type { CliOptions } from '../types.ts';
 import { observerFromText } from '../v19/V19DomainInput.ts';
-import { openRequiredLane, withRuntime } from '../v19/V19Runtime.ts';
+import { openRequiredLane, requireLaneName, withRuntime } from '../v19/V19Runtime.ts';
 import {
   readingEnvelope,
   receiptEnvelope,
@@ -12,7 +12,6 @@ import {
 } from '../../presenters/V19ReadingReceipt.ts';
 import type { McpJsonValue } from './mcp/McpJsonValue.ts';
 import Runtime from '../../../src/application/Runtime.ts';
-import type Lane from '../../../src/domain/api/Lane.ts';
 import type Observation from '../../../src/domain/api/Observation.ts';
 import type Reading from '../../../src/domain/api/ObservedReading.ts';
 import type Observer from '../../../src/domain/api/Observer.ts';
@@ -52,7 +51,7 @@ type ObserveLaneFields = Readonly<{
 }>;
 
 type ObservationResultFields = Readonly<{
-  readonly lane: Lane;
+  readonly lane: string;
   readonly observer: Observer<ReadingValue>;
   readonly readings: readonly McpJsonValue[];
   readonly receipt: McpJsonValue;
@@ -170,7 +169,7 @@ async function streamLaneObservation(
     writer: options.writer,
   });
   try {
-    const lane = await openRequiredLane(runtime, options.lane, options.strand);
+    const lane = await openRequiredLane(runtime, options.lane);
     const observer = observerFromText(observerId, reading);
     return {
       payload: undefined,
@@ -197,11 +196,7 @@ async function observeLane(
   fields: ObserveLaneFields,
 ): Promise<ObservationCommandResult> {
   const { observerId, options, reading, runtime } = fields;
-  const lane = await openRequiredLane(
-    runtime,
-    options.lane,
-    options.strand,
-  );
+  const lane = await openRequiredLane(runtime, options.lane);
   const observer = observerFromText(observerId, reading);
   const observation = lane.observe(observer);
   const readings: McpJsonValue[] = [];
@@ -209,7 +204,7 @@ async function observeLane(
     readings.push(readingEnvelope(observed));
   }
   return observationResult({
-    lane,
+    lane: requireLaneName(options.lane),
     observer,
     readings,
     receipt: receiptEnvelope(await observation.receipt),
@@ -224,7 +219,7 @@ function observationResult(
   return {
     payload: Object.freeze({
       type: 'Observation',
-      lane: lane.name,
+      lane,
       observer: Object.freeze({
         id: observer.id,
         cardinality: observer.cardinality,

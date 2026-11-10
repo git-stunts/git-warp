@@ -23,7 +23,7 @@ import {
   type PublishedEntityCoordinate,
 } from './PublishedIntentSequence.ts';
 import type { RepairHint } from './ReceiptSupport.ts';
-import WriteReceipt from './WriteReceipt.ts';
+import TimelineWriteReceipt from './TimelineWriteReceipt.ts';
 import type { PatchCommitResult } from '../types/PatchCommitResult.ts';
 import type AdmissionEvaluation from '../admission/AdmissionEvaluation.ts';
 import type EntityOccurrence from './EntityOccurrence.ts';
@@ -93,7 +93,7 @@ const MATERIALIZE_HINT = Object.freeze([
 ]);
 export async function executeIntentWrite(
   request: IntentWriteRequestFields,
-): Promise<WriteReceipt<WriteIntentInput>> {
+): Promise<TimelineWriteReceipt<WriteIntentInput>> {
   const fields = normalizeIntentWrite(request);
   const { runtime, context, sequence } = fields;
   const recoveryEvidence = await createWriteRecoveryEvidence(runtime, context);
@@ -145,7 +145,7 @@ async function publishIntentWrite(
 
 async function obstructedWriteReceipt(
   fields: FailedWriteFields,
-): Promise<WriteReceipt<WriteIntentInput>> {
+): Promise<TimelineWriteReceipt<WriteIntentInput>> {
   const { write, attempt, recoveryEvidence, error } = fields;
   const failure = operationalWriteFailure(error);
   if (failure === null) {
@@ -164,10 +164,10 @@ async function obstructedWriteReceipt(
 
 async function createObstructionReceipt(
   fields: ObstructionReceiptFields,
-): Promise<WriteReceipt<WriteIntentInput>> {
+): Promise<TimelineWriteReceipt<WriteIntentInput>> {
   const { write, prepared, recoveryEvidence, obstruction } = fields;
   const { runtime, context, sequence } = write;
-  return new WriteReceipt({
+  return new TimelineWriteReceipt({
     lane: runtime.worldlineName,
     writer: runtime.writerId,
     intent: sequence.input,
@@ -217,11 +217,11 @@ function missingPublishedBasisError(): WarpError {
 
 async function derivedWriteReceipt(
   fields: PublishedWriteFields & PublishedWriteAttempt,
-): Promise<WriteReceipt<WriteIntentInput>> {
+): Promise<TimelineWriteReceipt<WriteIntentInput>> {
   const { runtime, context, sequence, publication } = fields;
   const evidence = await committedWriteEvidence(fields);
   const occurrences = publishedEntityOccurrences(fields, evidence);
-  const receipt = new WriteReceipt({
+  const receipt = new TimelineWriteReceipt({
     lane: runtime.worldlineName,
     writer: runtime.writerId,
     intent: sequence.input,
@@ -345,7 +345,8 @@ const INVALID_PATCH_METADATA_CODES: ReadonlySet<string> = new Set([
   'E_PATCH_OPS', 'E_PATCH_METADATA_ENTRY', 'E_PATCH_METADATA_TYPE',
 ]);
 
-function invalidObservationMetadata(error: WarpError): boolean {
+/** Patch history that does not decode or is malformed, as a write observation meets it. */
+export function invalidObservationMetadata(error: WarpError): boolean {
   if (error instanceof MessageCodecError || error instanceof CrdtError) { return true; }
   if (error instanceof SyncError) { return error.code === 'E_SYNC_PATCH_HISTORY'; }
   return error instanceof PatchError && INVALID_PATCH_METADATA_CODES.has(error.code);

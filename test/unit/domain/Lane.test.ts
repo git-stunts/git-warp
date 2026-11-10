@@ -1,10 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import Intent from '../../../src/domain/api/Intent.ts';
+import { createEntityAdmissionInventoryObserver } from '../../../advanced.ts';
 import Lane from '../../../src/domain/api/Lane.ts';
-import Observer from '../../../src/domain/api/Observer.ts';
 
-const writeIntent = vi.fn();
 const startObserver = vi.fn();
 
 describe('Lane', () => {
@@ -16,237 +14,26 @@ describe('Lane', () => {
     expect(() => new Lane(null)).toThrow(
       expect.objectContaining({ code: 'E_LANE_OPTIONS' }),
     );
+    expect(() => new Lane(undefined)).toThrow(
+      expect.objectContaining({ code: 'E_LANE_OPTIONS' }),
+    );
     expect(() => new Lane({
-      descriptor: { kind: 'worldline', name: 'events' },
       // @ts-expect-error Exercise the JavaScript boundary.
       startObserver: 'invalid',
-      writeIntent,
-      writer: 'agent-1',
     })).toThrow(expect.objectContaining({ code: 'E_LANE_OBSERVER' }));
-    expect(() => new Lane({
-      descriptor: { kind: 'worldline', name: 'events' },
-      startObserver,
-      // @ts-expect-error Exercise the JavaScript boundary.
-      writeIntent: 'invalid',
-      writer: 'agent-1',
-    })).toThrow(expect.objectContaining({ code: 'E_LANE_WRITER' }));
   });
 
-  it('refuses staging when no content capability was injected', async () => {
-    const lane = new Lane({
-      descriptor: { kind: 'worldline', name: 'events' }, startObserver, writeIntent, writer: 'agent-1',
-    });
-    await expect(lane.stageContent('bytes')).rejects.toMatchObject({ code: 'NO_ASSET_STORAGE' });
-    expect(writeIntent).not.toHaveBeenCalled();
-  });
-
-  it('validates an injected staging capability at construction', () => {
-    expect(() => new Lane({
-      descriptor: { kind: 'worldline', name: 'events' }, startObserver, writeIntent, writer: 'agent-1',
-      // @ts-expect-error Exercise the JavaScript constructor boundary.
-      stageContent: 'invalid',
-    })).toThrow(expect.objectContaining({ code: 'E_LANE_CONTENT' }));
-  });
-
-  it('exposes its identity and delegates admitted writes', async () => {
-    const lane = new Lane({
-      descriptor: { kind: 'worldline', name: 'events' },
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    });
-    const intent = Intent.addNode({ subject: 'user:alice' });
-
-    await lane.write(intent);
-
-    expect(lane.name).toBe('events');
-    expect(lane.reference).toEqual({ kind: 'worldline', name: 'events' });
-    expect(lane.writer).toBe('agent-1');
-    expect(writeIntent).toHaveBeenCalledWith(intent);
-  });
-
-  it('delegates a non-empty intent array as one atomic write request', async () => {
-    const lane = new Lane({
-      descriptor: { kind: 'worldline', name: 'events' },
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    });
-    const intents = [
-      Intent.addNode({ subject: 'user:alice' }),
-      Intent.addNode({ subject: 'team:ops' }),
-      Intent.addEdge({ from: 'user:alice', to: 'team:ops', label: 'memberOf' }),
-    ] as const;
-
-    await lane.write(intents);
-
-    expect(writeIntent).toHaveBeenCalledTimes(1);
-    expect(writeIntent.mock.calls[0]?.[0]).not.toBe(intents);
-    expect(writeIntent.mock.calls[0]?.[0]).toEqual(intents);
-    expect(Object.isFrozen(writeIntent.mock.calls[0]?.[0])).toBe(true);
-  });
-
-  it('rejects an empty intent array before invoking the writer', async () => {
-    const lane = new Lane({
-      descriptor: { kind: 'worldline', name: 'events' },
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    });
-
-    await expect(lane.write([])).rejects.toMatchObject({
-      code: 'E_INTENT_SEQUENCE_EMPTY',
-    });
-    expect(writeIntent).not.toHaveBeenCalled();
-  });
-
-  it('rejects invalid observers and descriptor shapes', () => {
-    const lane = new Lane({
-      descriptor: { kind: 'worldline', name: 'events' },
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    });
+  it('rejects an observe call without an Observer', () => {
+    const lane = new Lane({ startObserver });
     // @ts-expect-error Exercise the JavaScript boundary.
     expect(() => lane.observe({})).toThrow(
       expect.objectContaining({ code: 'E_LANE_OBSERVE_OBSERVER' }),
     );
-    expect(() => new Lane({
-      // @ts-expect-error Exercise the JavaScript boundary.
-      descriptor: null,
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    })).toThrow(expect.objectContaining({ code: 'E_LANE_DESCRIPTOR' }));
-    expect(() => new Lane({
-      // @ts-expect-error Exercise the JavaScript boundary.
-      descriptor: { kind: 'future', name: 'events' },
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    })).toThrow(expect.objectContaining({ code: 'E_LANE_KIND' }));
-  });
-
-  it('rejects incomplete strand coordinates and Lane references', () => {
-    expect(() => new Lane({
-      descriptor: {
-        // @ts-expect-error Exercise the JavaScript boundary.
-        forkedAt: null,
-        kind: 'strand',
-        name: 'trial',
-        parent: { kind: 'worldline', name: 'events' },
-      },
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    })).toThrow(expect.objectContaining({ code: 'E_LANE_FORK_COORDINATE' }));
-    expect(() => new Lane({
-      descriptor: {
-        forkedAt: {
-          id: 'coordinate:1',
-          lane: { kind: 'worldline', name: 'events' },
-        },
-        kind: 'strand',
-        name: 'trial',
-        // @ts-expect-error Exercise the JavaScript boundary.
-        parent: null,
-      },
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    })).toThrow(expect.objectContaining({ code: 'E_LANE_REFERENCE' }));
-    expect(() => new Lane({
-      descriptor: {
-        forkedAt: {
-          id: 'coordinate:1',
-          // @ts-expect-error Exercise the JavaScript boundary.
-          lane: { kind: 'future', name: 'events' },
-        },
-        kind: 'strand',
-        name: 'trial',
-        // @ts-expect-error Exercise the JavaScript boundary.
-        parent: { kind: 'future', name: 'events' },
-      },
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    })).toThrow(expect.objectContaining({ code: 'E_LANE_REFERENCE_KIND' }));
-  });
-
-  it('keeps worldline and strand descriptors mutually exclusive', () => {
-    expect(() => new Lane({
-      descriptor: {
-        kind: 'worldline',
-        name: 'events',
-        parent: { kind: 'worldline', name: 'main' },
-      } as never,
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    })).toThrowError(expect.objectContaining({ code: 'E_LANE_KIND_OVERLAP' }));
-
-    const strand = new Lane({
-      descriptor: {
-        forkedAt: {
-          id: 'coordinate:1',
-          lane: { kind: 'worldline', name: 'events' },
-        },
-        kind: 'strand',
-        name: 'try-admin-role',
-        parent: { kind: 'worldline', name: 'events' },
-      },
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    });
-
-    expect(strand.kind).toBe('strand');
-    expect(strand.descriptor).toEqual({
-      forkedAt: {
-        id: 'coordinate:1',
-        lane: { kind: 'worldline', name: 'events' },
-      },
-      kind: 'strand',
-      name: 'try-admin-role',
-      parent: { kind: 'worldline', name: 'events' },
-    });
-    expect(Object.isFrozen(strand.descriptor)).toBe(true);
-  });
-
-  it('rejects a strand fork coordinate from another parent', () => {
-    expect(() => new Lane({
-      descriptor: {
-        forkedAt: {
-          id: 'coordinate:1',
-          lane: { kind: 'worldline', name: 'other' },
-        },
-        kind: 'strand',
-        name: 'try-admin-role',
-        parent: { kind: 'worldline', name: 'events' },
-      },
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    })).toThrow(expect.objectContaining({ code: 'E_LANE_FORK_PARENT' }));
   });
 
   it('constructs an Observation without starting runtime work', () => {
-    const lane = new Lane({
-      descriptor: { kind: 'worldline', name: 'events' },
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
-    });
-    const observer = new Observer<string>({
-      cardinality: 'exactly-one',
-      decode: (value) => {
-        if (typeof value !== 'string') {
-          throw new TypeError('users.role-of expected a string');
-        }
-        return value;
-      },
-      id: 'users.role-of',
-    });
+    const lane = new Lane({ startObserver });
+    const observer = createEntityAdmissionInventoryObserver('users');
 
     const observation = lane.observe(observer);
 
@@ -254,17 +41,26 @@ describe('Lane', () => {
     expect(startObserver).not.toHaveBeenCalled();
   });
 
-  it('rejects loose intents at the write boundary', async () => {
-    const lane = new Lane({
-      descriptor: { kind: 'worldline', name: 'events' },
-      startObserver,
-      writeIntent,
-      writer: 'agent-1',
+  it('starts its observer when the observation is consumed', async () => {
+    const lane = new Lane({ startObserver });
+    const observer = createEntityAdmissionInventoryObserver('users');
+    startObserver.mockResolvedValue({
+      readings: (async function* () {})(),
+      receipt: Promise.resolve('receipt'),
     });
 
-    await expect(lane.write({ kind: 'node.add' } as never)).rejects.toMatchObject({
-      code: 'E_LANE_WRITE_INTENT',
-    });
-    expect(writeIntent).not.toHaveBeenCalled();
+    const observation = lane.observe(observer);
+    expect(await Array.fromAsync(observation)).toEqual([]);
+
+    expect(startObserver).toHaveBeenCalledWith(observer);
+  });
+
+  it('is frozen and has no write, staging or identity members', () => {
+    const lane = new Lane({ startObserver });
+
+    expect(Object.isFrozen(lane)).toBe(true);
+    for (const member of ['write', 'stageContent', 'name', 'kind', 'descriptor', 'reference', 'writer']) {
+      expect(member in lane).toBe(false);
+    }
   });
 });

@@ -1,12 +1,21 @@
 # v19 Public Vocabulary Checkpoint
 
-> **Status:** Current in `v20.0.0`; introduced in `v19.0.0`.
+> **Status:** Current in `v20.0.0`; introduced in `v19.0.0`. Historical for v21.
 >
-> This document is the normative product vocabulary and public-surface design.
-> The Runtime, Lane, Intent, Observer, streaming Observation, Reading, Receipt,
-> settlement, charts, generated SDK, CLI, and MCP surfaces are implemented.
-> One generated contract drives their public vocabulary and all twelve
-> acceptance gates execute in CI and release preflight.
+> **v21 removed part of this surface**
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)): `Lane.write`,
+> `Lane.stageContent`, the `Lane` identity getters, `Runtime.fork`,
+> `Runtime.strand`, settlement, and the CLI `write`, `fork`, `settle` and
+> `--strand`. Writes go through `warp.as(writer).execute(intent)`. Reads keep
+> `Runtime.open()`, `runtime.lane()` and `Lane.observe()` until
+> [#1052](https://github.com/git-stunts/git-warp/issues/1052). See the
+> [v21 migration guide](../../migrations/v21/README.md#api-changes).
+>
+> This document records the v19 product vocabulary and public-surface design.
+> In v21, the Runtime read path, Lane, Intent, Observer, streaming Observation,
+> Reading, Receipt, charts, generated SDK, CLI, and MCP surfaces are
+> implemented; settlement is not. One generated contract drives the CLI and
+> MCP vocabulary. CI runs all twelve acceptance gates.
 >
 > The `entity.add` / `EntityOccurrence` surface present in v19.1.0 is an
 > unofficial, unstable preview and is not part of this stable application
@@ -48,6 +57,11 @@ The canonical sentence is:
 
 > An Observer runs against a Lane, producing an Observation that emits
 > Readings and leaves a Receipt.
+
+> **v21:** The diagram and its reading steps show the v19/v20 surface. v21
+> removed `Runtime.fork`, `Runtime.strand` and `Lane.write`
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)). A v21 write
+> goes through `warp.as(writer).execute(intent)` and returns a `WriteReceipt`.
 
 The following class diagram shows ownership and operation results. It is a
 vocabulary map, not a claim that every noun is implemented as a concrete
@@ -160,7 +174,15 @@ actually needs the deeper concept.
 
 ## Package Root
 
-The only root runtime value is `Runtime`:
+In v21 the root exports two application entry points. `Warp` writes, and
+`Runtime` keeps the legacy read path. The root also exports the values a
+`Warp` write needs: `WarpAddress`, `GitStorage`, `WarpAccessPort`,
+`WarpWriteGrant`, `WarpAccessDenied`, `Coordinate`, and the four
+`WriteReceipt` classes. The
+[v21 migration guide](../../migrations/v21/README.md#api-changes) shows a
+tested `Warp.open` example.
+
+Open a `Runtime` to read:
 
 ```typescript
 import { Runtime } from '@git-stunts/git-warp';
@@ -175,7 +197,7 @@ The root may export the TypeScript types needed to describe the core contract,
 but it must not export competing factories, adapters, graph substrate, or
 generic intent and observer registries as runtime values.
 
-`Runtime.open()` is the production composition root. It constructs and owns the
+`Runtime.open()` is the composition root for reads. It constructs and owns the
 default history and artifact adapters internally. Application code does not
 construct Git plumbing, git-cas, cache, retention, or graph persistence
 adapters.
@@ -244,6 +266,11 @@ idempotent.
 
 ## Lanes
 
+> **v21:** A Lane is now a read-only worldline handle with only `observe()`.
+> v21 removed Lane writes, strands and forks
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)). The strand
+> and fork text in this section describes the v19/v20 surface.
+
 `Lane` replaces `Timeline` in public vocabulary. A timeline suggests a total
 order. A lane permits independent progression, concurrency, strands, and
 worldlines without claiming that all history is globally linear.
@@ -295,13 +322,18 @@ Application authors should normally use Wesley-generated domain SDKs:
 ```typescript
 import { users } from './generated/users.generated.js';
 
-const receipt = await events.write(
+const receipt = await warp.as('agent-1').execute(
   users.intents.assignRole({
     subject: 'user:alice',
     role: 'admin',
   })
 );
 ```
+
+This example is illustrative: `warp` is a `Warp` that `Warp.open(address,
+access)` returned. The
+[v21 migration guide](../../migrations/v21/README.md#api-changes) shows how to
+open one.
 
 Generated builders return validated runtime-backed `Intent` values. They do
 not return loose JSON envelopes that rely on conventions for correctness.
@@ -479,6 +511,13 @@ transport framing.
 
 ## Admission Outcomes, Evidence, And Receipts
 
+> **v21:** This section describes the v19/v20 `Lane.write()` surface. v21
+> removed `Lane.write()` and its v20 `WriteReceipt`
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)). In v21,
+> `warp.as(writer).execute(intent)` returns one of the four v21 `WriteReceipt`
+> classes, and the admission of a published write is `derived` or `plural`.
+> See the [v21 migration guide](../../migrations/v21/README.md#api-changes).
+
 `Lane.write()` accepts either one validated Intent or one non-empty ordered
 array of validated Intents. An array is one admission request:
 
@@ -650,6 +689,9 @@ machine-readable envelopes.
 
 ## Settlement
 
+> **v21:** This section describes the v19/v20 surface. v21 removed it
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
+
 Admission and settlement are different phases. Admission classifies how
 histories meet. Settlement is the later, law-governed promotion of a plural or
 resolved coordinate into a canonical shared Lane. A `conflict` has not settled,
@@ -753,7 +795,7 @@ The shipped package families are:
 
 | Surface        | Role                                                                   |
 | -------------- | ---------------------------------------------------------------------- |
-| root           | `Runtime` plus type-only core contracts                                |
+| root           | `Warp` and its write values, `Runtime` reads, type-only contracts      |
 | `/charts`      | Derived graph-shaped Observers and Readings                            |
 | `/diagnostics` | `doctor`, repair planning, audit, and Receipt inspection               |
 | `/advanced`    | Formal reads and generic constructors for generated SDK infrastructure |
@@ -771,37 +813,28 @@ conformance evidence exist.
 
 ## CLI Grammar
 
+> **v21:** v21 removed the `write`, `fork` and `settle` commands and the
+> `--strand` option
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)). The CLI has
+> no write command; write through `warp.as(writer).execute(intent)`. See the
+> [CLI guide](../cli.md).
+
 The CLI follows the same verbs and nouns:
 
 ```text
-git warp write
 git warp observe
-git warp fork
-git warp settle preview
-git warp settle apply
 git warp receipt show
 git warp doctor
 git warp repair
 git warp audit
+git warp mcp
 ```
 
 Each CLI invocation opens and closes local Runtime resources internally. CLI
 help does not teach sessions, Git adapters, OIDs, graph stores, or cache
 management for ordinary operations.
 
-`--lane <name>` selects a worldline Lane. Adding `--strand <name>` selects its
-named child for write and observe operations. Settlement is explicit about all
-three participants:
-
-```text
-git warp settle preview --source <lane> --strand <name> --target <lane>
-git warp settle apply --plan <path>
-```
-
-The preview artifact contains the selector and immutable plan fields. Apply
-reopens the lanes, derives a fresh Runtime-owned plan, compares every reviewed
-field, and settles only that fresh plan. Stale or mismatched artifacts fail
-closed.
+`--lane <name>` selects a worldline Lane.
 
 Human output defaults to the shared Reading and Receipt renderers. `--json`
 emits one canonical envelope; streaming commands support `--jsonl` without
@@ -809,27 +842,24 @@ renaming transport batches as pages.
 
 ## MCP Grammar
 
+> **v21:** `warp_lane_describe`, `warp_intent_write`,
+> `warp_settlement_preview` and `warp_settlement_apply` are removed
+> ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
+
 MCP exposes the same model through tools and resources rather than inventing a
 second ontology. The shipped capability families are:
 
 ```text
-warp_lane_describe
-warp_intent_write
 warp_observation_start
 warp_observation_read
 warp_observation_cancel
 warp_receipt_get
-warp_settlement_preview
-warp_settlement_apply
 warp_doctor
 warp_repair
 warp_audit
 ```
 
-Lane-oriented MCP inputs likewise use `lane` plus an optional `strand`.
-`warp_settlement_preview` requires `sourceLane`, `sourceStrand`, and
-`targetLane`; `warp_settlement_apply` re-previews the retained record in a new
-Runtime operation before mutation.
+Lane-oriented MCP inputs use `lane`.
 
 Observation tools exchange Observation identities, Readings, terminal state,
 and Receipt references. MCP cursors and batches are transport details. They do
@@ -883,12 +913,12 @@ The superseded pre-checkpoint v19 facade has these dispositions:
 | `openWarp()`             | `Runtime.open()`                                                 |
 | `Warp` from `openWarp()` | `Runtime`. Today's root `Warp`, from `Warp.open`, is a new API   |
 | `Timeline`               | `Lane`                                                           |
-| `DraftTimeline`          | `Lane` with `kind: 'strand'`                                     |
+| `DraftTimeline`          | `Lane` with `kind: 'strand'` in v19/v20; removed in v21          |
 | `timeline.read(reading)` | `lane.observe(observer)`                                         |
 | root `reading` builders  | Wesley-generated `*.observers` or `/charts`                      |
 | root `intent` builders   | Wesley-generated `*.intents`                                     |
-| `previewJoin()`          | `Runtime.previewSettlement()`                                    |
-| `join()`                 | `Runtime.settle(plan)`                                           |
+| `previewJoin()`          | `Runtime.previewSettlement()` in v19/v20; removed in v21         |
+| `join()`                 | `Runtime.settle(plan)` in v19/v20; removed in v21                |
 | `/storage` constructors  | internal Runtime composition; testing injection under `/testing` |
 | graph package proposals  | `/charts`                                                        |
 
@@ -901,17 +931,23 @@ public Git adapters.
 The checkpoint is implemented only when executable evidence proves all of the
 following:
 
-1. Root runtime values contain exactly `Runtime`.
-2. Ordinary open, close, lane, write, observe, and receipt workflows compile
-   without importing Git, storage, graph, or formal nouns.
-3. Lane kinds are mutually exclusive runtime truths.
+1. Root runtime values are exactly the set that
+   `test/unit/scripts/v19-public-api-boundary.test.ts` lists: `Runtime`,
+   `Warp`, and the values a `Warp` write needs.
+2. Ordinary open, close, lane, observe, and receipt workflows compile
+   without importing Git, storage, graph, or formal nouns. In v21, writes go
+   through `Warp.as(writer).execute(intent)`
+   ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
+3. A `Lane` is a read-only worldline handle: v21 removed its writes, staging,
+   identity members, and strand kind.
 4. Generated Intent and Observer values are validated domain objects.
 5. `Lane.observe()` is synchronous and all demand paths share one execution.
 6. Awaiting a Receipt drains without materializing Reading streams.
 7. `Reading.value` is canonical across SDK, CLI JSON, MCP, fixtures, and
    serialized envelopes.
 8. Outcome and support algebras cannot alias one another.
-9. Settlement accepts only immutable validated plans and revalidates them.
+9. Settlement is removed from the v21 `Runtime`, which keeps only its read
+   path until [#1052](https://github.com/git-stunts/git-warp/issues/1052).
 10. `/graph` is absent and `/charts` is tested as a derived-view surface.
 11. CLI and MCP capability names conform to the same vocabulary.
 12. Legacy vocabulary is rejected from public surfaces with explicit migration

@@ -51,7 +51,7 @@ export default class InlineBinaryBudget {
   #consumeBytes(length: number): void {
     if (length > this.#remaining) {
       throw new WarpError(
-        'Inline binary property exceeds 64 KiB; store the payload as a streaming content asset',
+        'Inline binary property exceeds 64 KiB',
         'E_INLINE_BINARY_LIMIT',
         { context: { maximum: MAX_INLINE_BINARY_BYTES } },
       );

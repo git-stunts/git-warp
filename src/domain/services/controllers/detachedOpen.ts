@@ -6,6 +6,7 @@
  */
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type RandomPort from '../../../ports/RandomPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type { CorePersistence } from '../../types/WarpPersistence.ts';
 import type { NormalizedTrustConfig } from '../../runtimeHelpers.ts';
@@ -23,6 +24,7 @@ export type DetachedOpenOptions = {
   autoMaterialize: false;
   onDeleteWithData: 'reject' | 'cascade' | 'warn';
   crypto: CryptoPort;
+  random: RandomPort;
   codec: CodecPort;
   audit: false;
   checkpointPolicy?: CheckpointPolicy | null;
@@ -43,6 +45,7 @@ export type DetachedOpenHost = {
   _trustConfig: NormalizedTrustConfig;
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
   _crypto: CryptoPort;
+  _random: RandomPort;
   _codec: CodecPort;
 };
 
@@ -56,6 +59,7 @@ function coreOptions(graph: DetachedOpenHost): DetachedOpenOptions {
     autoMaterialize: false,
     onDeleteWithData: graph._onDeleteWithData,
     crypto: graph._crypto,
+    random: graph._random,
     codec: graph._codec,
     audit: false,
   };

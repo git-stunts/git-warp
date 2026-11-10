@@ -14,7 +14,9 @@ import { validateWriterId } from '../../utils/RefLayout.ts';
 import { hexEncode, hexDecode } from '../../utils/bytes.ts';
 import SyncError from '../../errors/SyncError.ts';
 import { requireCrypto } from '../crypto/CryptoRequirement.ts';
+import { drawEntropy } from '../../utils/EntropyDraw.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type RandomPort from '../../../ports/RandomPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type LogFields from '../../types/log/LogFields.ts';
 import type SyncReplayProtectionPort from '../../../ports/SyncReplayProtectionPort.ts';
@@ -30,6 +32,11 @@ const NONCE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[
 const SIG_HEX_LENGTH = 64;
 const HEX_PATTERN = /^[0-9a-f]+$/;
 const MAX_TIMESTAMP_DIGITS = 16;
+const NONCE_ENTROPY_BYTES = 16;
+const UUID_VERSION_BYTE = 6;
+const UUID_VERSION_4_BITS = 0x40;
+const UUID_VARIANT_BYTE = 8;
+const UUID_VARIANT_RFC4122_BITS = 0x80;
 
 type FailResult = { ok: false; reason: string; status: number };
 type OkResult = { ok: true };
@@ -62,15 +69,27 @@ export function buildCanonicalPayload(params: {
 }
 
 /**
+ * Mints a request nonce from injected entropy, laid out as an RFC 4122
+ * version-4 UUID so the wire format stays the one verifiers accept.
+ */
+function mintNonce(random: RandomPort): string {
+  const bytes = Uint8Array.from(drawEntropy(random, NONCE_ENTROPY_BYTES));
+  bytes[UUID_VERSION_BYTE] = (bytes[UUID_VERSION_BYTE]! & 0x0f) | UUID_VERSION_4_BITS;
+  bytes[UUID_VARIANT_BYTE] = (bytes[UUID_VARIANT_BYTE]! & 0x3f) | UUID_VARIANT_RFC4122_BITS;
+  const hex = hexEncode(bytes);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/**
  * Signs an outgoing sync request.
  */
 export async function signSyncRequest(
   params: { method: string; path: string; contentType: string; body: Uint8Array; secret: SyncSecret; keyId: string; lamport: number; authScheme?: SyncAuthScheme },
-  deps: { crypto?: CryptoPort } = {},
+  deps: { crypto?: CryptoPort; random: RandomPort },
 ): Promise<Record<string, string>> {
   const c = requireCrypto(deps.crypto, 'signSyncRequest');
   const timestamp = String(params.lamport);
-  const nonce = globalThis.crypto.randomUUID();
+  const nonce = mintNonce(deps.random);
   const authScheme = params.authScheme ?? SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME;
 
   const bodySha256 = await c.hash('sha256', params.body);

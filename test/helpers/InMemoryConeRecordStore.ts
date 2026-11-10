@@ -7,6 +7,9 @@ import ConeRoot from '../../src/domain/services/cone/ConeRoot.ts';
 import StoredConeBasis from '../../src/domain/services/cone/StoredConeBasis.ts';
 import ConeRecordStorePort from '../../src/ports/ConeRecordStorePort.ts';
 
+/** The record layout marker of the in-memory store. */
+export const IN_MEMORY_CONE_LAYOUT = 'in-memory cone record trie\n';
+
 /**
  * Immutable in-memory cone record trie for tests: every write yields a new
  * root that shares nothing mutable with the old one, and the basis head is
@@ -21,6 +24,10 @@ export default class InMemoryConeRecordStore extends ConeRecordStorePort {
   recordWrites = 0;
   /** Called before a publication compares the head, so tests can race it. */
   beforePublish: ((head: ConeBasisHead) => Promise<void>) | null = null;
+
+  override recordLayout(): string {
+    return IN_MEMORY_CONE_LAYOUT;
+  }
 
   override async readRecords(root: ConeRoot, keys: readonly ConeRecordKey[]): Promise<ConeRecordSnapshot> {
     const records = this.#records(root);

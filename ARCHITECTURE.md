@@ -133,8 +133,8 @@ Full standard: [Systems-Style TypeScript](docs/SYSTEMS_STYLE_TYPESCRIPT.md).
 
 ### `Runtime`
 
-The package root exports exactly one runtime value. `Runtime.open()` owns
-production storage composition:
+The package root exports `Warp` for writes and `Runtime` for the legacy read
+path. `Runtime.open()` owns production storage composition for reads:
 
 ```typescript
 import { Runtime } from '@git-stunts/git-warp';
@@ -146,8 +146,10 @@ const team = await runtime.lane('team');
 await runtime.close();
 ```
 
-Application code writes validated Intents with `lane.write(intent)` and runs
-Observers with `lane.observe(observer)`. Formal coordinate reads and Receipt
+Application code writes validated Intents with `warp.as(writer).execute(intent)`
+on a `Warp` opened with an injected `WarpAccessPort`, and runs Observers with
+`lane.observe(observer)` until #1052 adds the Optic read. v21 removed `Lane`
+writes, strands and settlement (#1054). Formal coordinate reads and Receipt
 inspection live on the explicit `/advanced` and `/diagnostics` subpaths.
 
 ### Storage composition
@@ -229,6 +231,7 @@ Abstract contracts between domain and infrastructure:
 - **CodecPort** — encode/decode (CBOR)
 - **CryptoPort** — hash, hmac, sign, verify
 - **ClockPort** — wall clock (injected, not ambient)
+- **RandomPort** — entropy for minted ids, nonces, and sampling seeds (injected, not ambient)
 - **LoggerPort** — structured logging
 - **PatchJournalPort** — streamed patch-entry scans
 - **CheckpointStorePort** — folded checkpoint state storage

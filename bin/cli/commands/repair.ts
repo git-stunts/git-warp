@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { parseCommandArgs } from '../infrastructure.ts';
 import type { CliOptions } from '../types.ts';
-import { openRequiredLane, withRuntime } from '../v19/V19Runtime.ts';
+import { openRequiredLane, requireLaneName, withRuntime } from '../v19/V19Runtime.ts';
 import { stableStringify } from '../../presenters/json.ts';
 import prepareMaterialization from './MaterializationRepair.ts';
 
@@ -27,8 +27,9 @@ export default async function handleRepair({
 }> {
   parseCommandArgs(args, REPAIR_OPTIONS, REPAIR_SCHEMA);
   return await withRuntime(options, async (runtime) => {
-    const lane = await openRequiredLane(runtime, options.lane);
-    const payload = await prepareMaterialization(options, lane.name);
+    const name = requireLaneName(options.lane);
+    await openRequiredLane(runtime, name);
+    const payload = await prepareMaterialization(options, name);
     return {
       payload,
       human: stableStringify(payload),

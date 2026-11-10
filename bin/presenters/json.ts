@@ -3,7 +3,6 @@
  *
  * - stableStringify: pretty-printed, sorted-key JSON (--json)
  * - compactStringify: single-line, sorted-key JSON (--jsonl)
- * - sanitizePayload: strips internal _-prefixed keys before serialization
  */
 
 /**
@@ -42,36 +41,4 @@ export function stableStringify(value: unknown): string {
  */
 export function compactStringify(value: unknown): string {
   return JSON.stringify(normalize(value));
-}
-
-/**
- * Checks if a value is a non-null, non-array object suitable for key filtering.
- */
-function isFilterableObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value);
-}
-
-/**
- * Removes all underscore-prefixed keys from an object.
- */
-function stripInternalKeys(rec: Record<string, unknown>): Record<string, unknown> {
-  const clean: Record<string, unknown> = {};
-  for (const key of Object.keys(rec)) {
-    if (!key.startsWith('_')) {
-      clean[key] = rec[key];
-    }
-  }
-  return clean;
-}
-
-/**
- * Shallow-clones a payload, removing all top-level underscore-prefixed keys.
- * These are internal rendering artifacts (e.g. _renderedSvg, _renderedAscii)
- * that should not leak into JSON/NDJSON output.
- */
-export function sanitizePayload(payload: unknown): unknown {
-  if (!isFilterableObject(payload)) {
-    return payload;
-  }
-  return stripInternalKeys(payload);
 }

@@ -170,6 +170,7 @@ npx --no-install git-warp --help >/dev/null
 npx --no-install git-warp-v18-to-v19 --help >/dev/null
 
 PACKAGE_DIR="$FIXTURE_DIR/node_modules/@git-stunts/git-warp"
+bash "$ROOT/scripts/smoke-packed-upgrade.sh" "$PACKAGE_DIR"
 # Normalize the installed entry to a physical path for this packed smoke check.
 # Direct and symlinked entry paths are covered by the upgrade CLI regressions.
 LEGACY_UPGRADE="$(cd "$PACKAGE_DIR" && pwd -P)/dist/scripts/upgrade-v16-to-v17.js"
@@ -240,7 +241,7 @@ JSON
 node_modules/.bin/tsc -p tsconfig.json
 node_modules/.bin/tsc -p tsconfig.json --module ESNext --moduleResolution Bundler
 
-# Supported CLI, hook, and migration behavior against a disposable repository.
+# Supported Warp writes, CLI, hook, and migration behavior against a disposable repository.
 REPO="$TMP_ROOT/repo"
 git init -q "$REPO"
 git -C "$REPO" config user.name "git-warp packed smoke"
@@ -250,9 +251,10 @@ git -C "$REPO" commit -q --allow-empty -m "packed smoke base"
 warp() {
   npx --no-install git-warp --repo "$REPO" --lane events --writer smoke --json "$@"
 }
-warp write --intent '{"kind":"node.add","subject":"user:alice"}' > /dev/null
-warp write --intent '{"kind":"property.set","subject":"user:alice","key":"role","value":"admin"}' \
-  > write.json
+cp "$ROOT/test/fixtures/packed-warp-write.mjs" ./packed-warp-write.mjs
+node packed-warp-write.mjs "$REPO" events smoke node.add user:alice > /dev/null
+node packed-warp-write.mjs "$REPO" events smoke \
+  property.set user:alice role admin > write.json
 warp repair --action materialization > /dev/null
 warp observe --observer role \
   --reading '{"kind":"property.get","subject":"user:alice","key":"role"}' > observe.json
@@ -288,11 +290,9 @@ if [ "$MIGRATE_STATUS" -ne 1 ]; then
 fi
 grep -qF 'events — v19 current' migrate.txt
 grep -qF 'confirmation requires an interactive terminal' migrate.txt
-node "$LEGACY_UPGRADE" --repo "$REPO" --dry-run --json > upgrade.json
+npm --prefix "$PACKAGE_DIR" --silent run upgrade -- --repo "$REPO" --dry-run --json > upgrade.json
 test "$(git -C "$REPO" for-each-ref)" = "$REFS_BEFORE"
 node "$CHECK_PACKED" results "$FIXTURE_DIR"
 bash "$ROOT/scripts/smoke-packed-node-removal.sh" "$ROOT" "$PACKAGE_DIR" "$TMP_ROOT/lifecycle"
 bash "$ROOT/scripts/smoke-packed-attachments.sh" "$ROOT" "$FIXTURE_DIR"
-cp "$ROOT/test/fixtures/packed-atomic-budget.mjs" ./packed-atomic-budget.mjs
-node packed-atomic-budget.mjs
 echo "packed artifact smoke passed"

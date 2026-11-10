@@ -80,10 +80,3 @@ export function compareEventIds(a: EventId | LegacyEventId, b: EventId | LegacyE
 
   return 0;
 }
-
-/**
- * Checks if EventId a is greater than EventId b.
- */
-export function isGreater(a: EventId | LegacyEventId, b: EventId | LegacyEventId): boolean {
-  return compareEventIds(a, b) > 0;
-}
