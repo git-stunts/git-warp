@@ -73,6 +73,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The `git-warp-v18-to-v19` migrator checks the `--repo` path before discovery
+  ([#811](https://github.com/git-stunts/git-warp/issues/811)). A path that does not exist,
+  is not a directory, or is not a Git repository stops with `Repository not found: <path>`
+  and the reason. If Git refuses the path for another reason, the error reads
+  `Could not open <path> as a Git repository` and keeps the Git diagnostic as its cause.
+  Before, these cases gave a Git process-spawn error or a raw Git diagnostic. An empty value
+  for a flag that takes one, such as `--repo ""` from an unset shell variable, is refused
+  with `<flag> requires a non-empty value`; before, an empty `--repo` selected the current
+  directory. `--help` lists `--repo` and `--graph`, says when the command lists graphs,
+  says that `--yes` without `--dry-run` migrates and promotes without asking, and names the
+  rollback after a failed verification. The migration guides quote the help text and five
+  command outcomes from this source, and say how the pinned `19.1.0` package differs.
 - `AuthoredWarp.execute()` reports an unavailable store while it fixes the write
   basis or reads the premise records as an `UnpublishedWriteReceipt`
   (`write-basis-unavailable`, `write-premise-unavailable`) and does not reject.
@@ -103,6 +115,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   beside `crypto`, or by calling `installDefaultRuntimeHostNodePorts()` first.
   The package entry points export neither name
   ([#184](https://github.com/git-stunts/git-warp/issues/184)).
+- Move incremental index shard encoding behind `IndexStorePort`. The new
+  `IndexStorePort.openShardTree()` opens a synchronous typed view over an
+  in-memory index tree; `IncrementalIndexUpdater` now reads and returns
+  `MetaShard`, `EdgeShard`, `LabelShard`, and `PropertyShard` values and
+  never encodes or decodes shard bytes. `MaterializedViewService` still
+  decodes the updated tree to rebuild its reader; removing that decode belongs
+  with the legacy encoder under
+  [#228](https://github.com/git-stunts/git-warp/issues/228). The adapter
+  refuses a malformed meta, edge, or label shard with
+  `E_INDEX_SHARD_MALFORMED`. A refusal does not fail the materialize or the
+  local commit that updates the index: the runtime marks the index degraded,
+  logs the warning `index build failed` when a logger is configured, and
+  rebuilds the index on a later materialize or local commit. Query results stay
+  correct in between. The tree given to `openShardTree()` is always one that the running
+  process built, so index shards stored in existing repositories do not pass
+  through the new validation at this release. Rewritten index trees stay
+  byte-identical.
+  `IndexStorePort` implementations must add `openShardTree()`, and
+  `MaterializedViewService.applyDiff()` requires the `indexStore` option. No
+  package entry point exports `IndexStorePort` or `MaterializedViewService`,
+  so only implementations in this repository need the change
+  ([#192](https://github.com/git-stunts/git-warp/issues/192)).
 - Document garbage collection for repositories that git-warp writes to. The
   runtime never runs `git gc` and starts no `git gc --auto`. Measured with
   git-cas 7.2.0 and Git 2.39.5, a retained write adds about 55 loose objects
