@@ -102,7 +102,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default codec reads; that limit is older than this change. An in-process
   read that expands a very large edge bitmap into an array is not bounded by
   this change; [#1159](https://github.com/git-stunts/git-warp/issues/1159)
-  tracks it. Most index readers and the index updaters let a rejection
+  tracks it. A checkpoint neighbourhood page does bounded work: it visits at
+  most 4 × `limit` + 256 stored candidates. When a stored edge bitmap names
+  many ids that are not live nodes, a page can therefore be `truncated` with
+  fewer than `limit` edges, or with none; its cursor continues the read. Most
+  index readers and the index updaters let a rejection
   through to the caller. Checkpoint shard reads (node liveness and
   neighbourhood) report it as `QueryError` `E_OPTIC_NO_BOUNDED_BASIS` with
   reason `checkpoint-shard-invalid` and keep the rejection as `cause`.

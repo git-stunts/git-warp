@@ -3,7 +3,7 @@ import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roarin
 import type { EdgeShardBuckets } from '../../artifacts/EdgeShardBuckets.ts';
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 import type { NeighborhoodOpticEdge } from './NeighborhoodOpticReadResult.ts';
-import type { NeighborhoodCandidatePosition } from './NeighborhoodPageCursor.ts';
+import { neighborhoodCandidateBudget, type NeighborhoodCandidatePosition } from './NeighborhoodPageCursor.ts';
 
 export type DecodedNeighborhoodEdgeShard = EdgeShardBuckets;
 
@@ -47,14 +47,33 @@ export type NeighborhoodBitmapPageResult = {
   readonly resumeAfter: Array<NeighborhoodCandidatePosition | null>;
 };
 
+/** The candidates that one page has visited, over every direction that it reads. */
+type NeighborhoodPageProgress = {
+  readonly budget: number;
+  visited: number;
+  lastVisited: NeighborhoodCandidatePosition | null;
+};
+
+/**
+ * Collects one page of live neighbours. The page ends with `hasMore` when it
+ * holds `limit` edges and another live neighbour follows, or when it has
+ * visited its budget of stored candidates. In the second case `last` is the
+ * last candidate visited, so the next page continues after it and no
+ * candidate is visited twice.
+ */
 export async function collectNeighborhoodBitmapPage(
   options: NeighborhoodCollectOptions,
 ): Promise<NeighborhoodBitmapPageResult> {
   const edges: NeighborhoodOpticEdge[] = [];
   const resumeAfter: Array<NeighborhoodCandidatePosition | null> = [];
+  const progress: NeighborhoodPageProgress = {
+    budget: neighborhoodCandidateBudget(options.limit),
+    visited: 0,
+    lastVisited: options.after,
+  };
   let last = options.after;
   for (const direction of readableDirections(options.direction, options.after)) {
-    const result = await collectDirection({ direction, edges, initialLast: last, options, resumeAfter });
+    const result = await collectDirection({ direction, edges, initialLast: last, options, progress, resumeAfter });
     if (result.hasMore) {
       return { edges, resumeAfter, ...result };
     }
@@ -80,32 +99,64 @@ export function createNeighborhoodCandidateHeap(
   return heap;
 }
 
+type NeighborhoodDirectionContext = {
+  readonly direction: 'in' | 'out';
+  readonly edges: NeighborhoodOpticEdge[];
+  readonly initialLast: NeighborhoodCandidatePosition | null;
+  readonly options: NeighborhoodCollectOptions;
+  readonly progress: NeighborhoodPageProgress;
+  readonly resumeAfter: Array<NeighborhoodCandidatePosition | null>;
+};
+
 async function collectDirection(
-  context: {
-    readonly direction: 'in' | 'out';
-    readonly edges: NeighborhoodOpticEdge[];
-    readonly initialLast: NeighborhoodCandidatePosition | null;
-    readonly options: NeighborhoodCollectOptions;
-    readonly resumeAfter: Array<NeighborhoodCandidatePosition | null>;
-  },
+  context: NeighborhoodDirectionContext,
 ): Promise<Omit<NeighborhoodBitmapPageResult, 'edges' | 'resumeAfter'>> {
-  const { direction, edges, options } = context;
+  const { direction, edges, options, progress } = context;
   const heap = await options.loader.readCandidateHeap({ ...options, direction });
   let last = context.initialLast;
-  while (heap.length > 0) {
-    const candidate = popAndAdvance(heap);
-    const neighborId = await options.loader.resolveLiveNode(candidate.globalId);
-    if (neighborId === null) {
-      continue;
+  while (true) {
+    const live = await nextLiveCandidate(heap, options.loader, progress);
+    if (live === null) {
+      return heap.length > 0 ? { hasMore: true, last: progress.lastVisited } : { hasMore: false, last };
     }
     if (edges.length === options.limit) {
       return { hasMore: true, last };
     }
     context.resumeAfter.push(last);
-    edges.push(Object.freeze({ direction, neighborId, label: candidate.label }));
-    last = candidatePosition(candidate);
+    edges.push(Object.freeze({ direction, neighborId: live.neighborId, label: live.candidate.label }));
+    last = recordVisit(progress, live.candidate);
   }
-  return { hasMore: false, last };
+}
+
+/**
+ * Visits candidates that name no live node until one names a live node. It
+ * returns null when the heap is empty or when the page budget is spent; the
+ * heap still holds candidates in the second case.
+ */
+async function nextLiveCandidate(
+  heap: NeighborhoodBitmapCandidate[],
+  loader: NeighborhoodBitmapPageSource,
+  progress: NeighborhoodPageProgress,
+): Promise<{ readonly candidate: NeighborhoodBitmapCandidate; readonly neighborId: string } | null> {
+  while (heap.length > 0 && progress.visited < progress.budget) {
+    const candidate = popAndAdvance(heap);
+    const neighborId = await loader.resolveLiveNode(candidate.globalId);
+    if (neighborId !== null) {
+      return { candidate, neighborId };
+    }
+    recordVisit(progress, candidate);
+  }
+  return null;
+}
+
+function recordVisit(
+  progress: NeighborhoodPageProgress,
+  candidate: NeighborhoodBitmapCandidate,
+): NeighborhoodCandidatePosition {
+  const position = candidatePosition(candidate);
+  progress.visited += 1;
+  progress.lastVisited = position;
+  return position;
 }
 
 function addLabelBitmap(

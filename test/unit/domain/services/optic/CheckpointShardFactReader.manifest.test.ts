@@ -14,7 +14,14 @@ import CheckpointBasisManifest, {
   CheckpointBasisShardRootMap,
   CheckpointBasisSupportPosture,
 } from '../../../../../src/domain/services/optic/CheckpointBasisManifest.ts';
-import CheckpointShardFactReader from '../../../../../src/domain/services/optic/CheckpointShardFactReader.ts';
+import CheckpointShardFactReader, {
+  type CheckpointShardNeighborhoodPage,
+} from '../../../../../src/domain/services/optic/CheckpointShardFactReader.ts';
+import {
+  DEFAULT_NEIGHBORHOOD_PAGE_SIZE,
+  neighborhoodCandidateBudget,
+} from '../../../../../src/domain/services/optic/NeighborhoodPageCursor.ts';
+import { getRoaringBitmap32 } from '../../../../../src/domain/utils/roaring.ts';
 import type { CheckpointTailIndexBasis } from '../../../../../src/domain/services/optic/CheckpointTailBasisLoader.ts';
 import CheckpointTailOpticSource, {
   type CheckpointTailCheckpointFrontier,
@@ -306,6 +313,50 @@ describe('CheckpointShardFactReader manifest-backed routing', () => {
     ].sort());
     expect(indexStore.openedShardHandles).not.toContain(unrelatedMetaHandle.toString());
     expect(indexStore.decodedShardHandles).toEqual([]);
+  });
+
+  // Oracle: the neighbourhood has exactly one live neighbour. The stored
+  // bitmap also names the 65,536 global ids of one full run container, none
+  // of which is a node, so the first page ends on its candidate budget.
+  it('ends a page on its candidate budget and reaches the live neighbour through the cursors', async () => {
+    const indexStore = new MockIndexStorage();
+    const sourceMetaPath = `meta_${computeShardKey(NODE_ID)}.cbor`;
+    const neighborMetaPath = `meta_${computeShardKey(NEIGHBOR_ID)}.cbor`;
+    const outgoingPath = `fwd_${computeShardKey(NODE_ID)}.cbor`;
+    const stored = defaultCodec.decode<Record<string, Record<string, Uint8Array>>>(neighborhoodShardBytes());
+    const Bitmap = getRoaringBitmap32();
+    const [owner, neighbours] = Object.entries(stored['0'] ?? {})[0] ?? ['', new Uint8Array(0)];
+    const padded = Bitmap.deserialize(neighbours, true);
+    padded.orInPlace(Bitmap.deserialize(encodePortableShard(fullRunContainers(1)), true));
+    const basis = manifestBasis({
+      livenessRoots: new Map([
+        [sourceMetaPath, await indexStore.writeBlob(metaShardBytes(NODE_ID))],
+        [neighborMetaPath, await indexStore.writeBlob(metaShardBytes(NEIGHBOR_ID))],
+      ]),
+      propertyRoots: new Map<string, AssetHandle>(),
+      outgoingAdjacencyRoots: new Map([[
+        outgoingPath,
+        await indexStore.writeBlob(defaultCodec.encode({ '0': { [owner]: padded.serialize(true) } })),
+      ]]),
+      edgeFactRoots: new Map([['labels.cbor', await indexStore.writeBlob(defaultCodec.encode([[EDGE_LABEL, 0]]))]]),
+    });
+    const reader = new CheckpointShardFactReader({ source: new ManifestShardSource(indexStore) });
+    const pages: CheckpointShardNeighborhoodPage[] = [];
+    let cursor: string | null = null;
+
+    do {
+      const page = await reader.readNeighborhood(basis, { nodeId: NODE_ID, direction: 'out', labels: [], cursor });
+      pages.push(page);
+      cursor = page.cursor;
+    } while (cursor !== null);
+
+    expect(computeShardKey(NEIGHBOR_ID)).not.toBe('00');
+    expect(pages[0]).toMatchObject({ edges: [], resumeCursors: [] });
+    expect(pages[0]?.cursor).toEqual(expect.any(String));
+    expect(pages.length).toBe(Math.ceil((padded.size + 1) / neighborhoodCandidateBudget(DEFAULT_NEIGHBORHOOD_PAGE_SIZE)));
+    expect(pages.flatMap((page) => page.edges)).toEqual([
+      { direction: 'out', neighborId: NEIGHBOR_ID, label: EDGE_LABEL },
+    ]);
   });
 
   // Oracle: callers branch on E_OPTIC_NO_BOUNDED_BASIS, so a checkpoint shard
