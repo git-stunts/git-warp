@@ -286,7 +286,10 @@ they do not repeat these rules.
     integration files it names). Coverage that only the full integration suite
     gives does not count. Map each touched line from `git diff -U0 origin/main`
     onto `coverage/clover.xml`. List each counted file and its numbers in the PR
-    body.
+    body. A change that only deletes a branch, guard, call, or export has no
+    added line to map. For it, map the surviving lines that the deleted code
+    guarded or fed, and name the test that shows their behavior after the
+    deletion.
   - The default report includes `src/**/*.ts`, but excludes `src/ports/**/*.ts`
     and `src/**/*.d.ts`. Scripts and tests are outside its include pattern.
     List excluded touched files and their evidence in the PR body. For executable
