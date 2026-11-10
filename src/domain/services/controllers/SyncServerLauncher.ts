@@ -14,6 +14,7 @@ import type HttpServerPort from '../../../ports/HttpServerPort.ts';
 import type { SyncHost } from './SyncController.ts';
 import type SyncSecret from '../sync/SyncSecret.ts';
 import type { SyncRateLimitConfig } from '../sync/SyncRateLimiter.ts';
+import type { SyncPeerRateLimit } from '../sync/SyncPeerRateLimiter.ts';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ export interface ServeOptions {
   httpPort: HttpServerPort;
   auth?: { keys: Record<string, SyncSecret>; mode?: 'enforce' | 'log-only'; rateLimit?: SyncRateLimitConfig };
   unsafeAllowUnauthenticatedLocalhost?: boolean;
+  peerRateLimit?: SyncPeerRateLimit;
 }
 
 export interface ServerHandle {
@@ -58,6 +60,7 @@ export async function launchSyncServer(
     httpPort,
     auth,
     unsafeAllowUnauthenticatedLocalhost,
+    peerRateLimit,
   } = options;
 
   if (typeof port !== 'number') {
@@ -91,8 +94,10 @@ export async function launchSyncServer(
     path,
     host: hostname,
     maxRequestBytes,
+    clock: host._clock,
     ...(authConfig !== undefined ? { auth: authConfig } : {}),
     ...(unsafeAllowUnauthenticatedLocalhost !== undefined ? { unsafeAllowUnauthenticatedLocalhost } : {}),
+    ...(peerRateLimit !== undefined ? { peerRateLimit } : {}),
   });
 
   return await httpServer.listen(port);

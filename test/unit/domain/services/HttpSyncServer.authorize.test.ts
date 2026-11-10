@@ -25,7 +25,7 @@ describe('HttpSyncServer frontier writer authorization', () => {
     const clock = new ManualClock();
     const http = new MemoryHttpPort();
     const graph = new SyncInbox();
-    const server = new HttpSyncServer({ httpPort: http, graph, allowedWriters: ['alice', 'bob'],
+    const server = new HttpSyncServer({ httpPort: http, graph, clock, allowedWriters: ['alice', 'bob'],
       auth: { keys: { default: SECRET }, crypto: CRYPTO, clock,
         replayProtection: new InMemorySyncReplayProtection(clock.read) } });
     await server.listen(9999);

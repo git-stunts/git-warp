@@ -1,350 +1,270 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.ts';
-import { DEFAULT_PEER_RATE_LIMIT } from '../../../../src/domain/services/sync/HttpSyncServerHelpers.ts';
+import type { HttpSyncServerOptions } from '../../../../src/domain/services/sync/HttpSyncServerHelpers.ts';
 import { signSyncRequest } from '../../../../src/domain/services/sync/SyncAuthService.ts';
+import {
+  DEFAULT_SYNC_PEER_RATE_LIMIT,
+  type SyncPeerRateLimit,
+} from '../../../../src/domain/services/sync/SyncPeerRateLimiter.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import SyncError from '../../../../src/domain/errors/SyncError.ts';
-import HttpServerPort, {
-  HttpRequest,
-  type HttpResponse,
-  type HttpServerHandle,
-} from '../../../../src/ports/HttpServerPort.ts';
-import { createMockCrypto, type MockCrypto } from '../../../helpers/mockPorts.ts';
+import { HttpRequest, type HttpResponse } from '../../../../src/ports/HttpServerPort.ts';
+import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import SeededRandomPort from '../../../helpers/SeededRandomPort.ts';
 import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
+import ManualClock from '../../../helpers/ManualClock.ts';
+import { MemoryHttpPort, SyncInbox, WarningLog } from '../../../helpers/SyncHttpFixture.ts';
 
+// Oracle for every test here: the decision record on issue #1090. The peer
+// gate runs after the route and protocol preflight and before the body parse
+// and all authentication work, in every auth mode.
 const SECRET = SyncSecret.fromString('peer-limit-secret');
-const KEY_ID = 'default';
-const NONCE_RANDOM = new SeededRandomPort(1090);
-const SYNC_BODY_TEXT = '{"frontier":{},"type":"sync-request"}';
-const BAD_SIGNATURE = '0'.repeat(64);
+const WRONG_SECRET = SyncSecret.fromString('not-the-peer-limit-secret');
+const BODY = new TextEncoder().encode('{"type":"sync-request","frontier":{}}');
+const PEER_REFUSAL = '{"error":"PEER_RATE_LIMITED"}';
 const PEER_A = '203.0.113.10';
 const PEER_B = '203.0.113.20';
-const PEER_C = '198.51.100.30';
+const LIMIT: SyncPeerRateLimit = { capacity: 3, refillTokensPerSecond: 1, maxTrackedPeers: 16 };
+const RANDOM = new SeededRandomPort(1090);
 
-type Handler = (request: HttpRequest) => Promise<HttpResponse>;
+type Sent = { readonly peer?: string | undefined; readonly headers?: Record<string, string>;
+  readonly body?: Uint8Array; readonly method?: string; readonly url?: string };
 
-class ManualClock {
-  private _nowMs = 1_000_000;
+class Harness {
+  readonly clock = new ManualClock();
+  readonly http = new MemoryHttpPort();
+  readonly graph = new SyncInbox();
+  readonly log = new WarningLog();
 
-  readonly now = (): number => this._nowMs;
+  authentication(mode: 'enforce' | 'log-only' = 'enforce') {
+    return { keys: { default: SECRET }, crypto: defaultCrypto, clock: this.clock, mode, logger: this.log,
+      replayProtection: new InMemorySyncReplayProtection(this.clock.read) };
+  }
 
-  advance(ms: number): void {
-    this._nowMs += ms;
+  async boot(options: Partial<HttpSyncServerOptions> = {}): Promise<this> {
+    const server = new HttpSyncServer({ httpPort: this.http, graph: this.graph, clock: this.clock,
+      auth: this.authentication(), peerRateLimit: LIMIT, ...options });
+    await server.listen(9999);
+    return this;
+  }
+
+  async signed(secret: SyncSecret = SECRET): Promise<Record<string, string>> {
+    return await signSyncRequest({ method: 'POST', path: '/sync', contentType: 'application/json',
+      body: BODY, secret, keyId: 'default' }, { crypto: defaultCrypto, random: RANDOM, clock: this.clock });
+  }
+
+  async send(sent: Sent = {}): Promise<HttpResponse> {
+    return await this.http.dispatch(new HttpRequest({ method: sent.method ?? 'POST', url: sent.url ?? '/sync',
+      headers: { 'content-type': 'application/json', host: '127.0.0.1:9999', ...sent.headers },
+      body: sent.body ?? BODY, peerAddress: sent.peer }));
+  }
+
+  async valid(peer: string | undefined): Promise<HttpResponse> {
+    return await this.send({ peer, headers: await this.signed() });
+  }
+
+  async forged(peer: string | undefined): Promise<HttpResponse> {
+    return await this.send({ peer, headers: await this.signed(WRONG_SECRET) });
+  }
+
+  async responses(count: number, request: () => Promise<HttpResponse>): Promise<HttpResponse[]> {
+    const seen: HttpResponse[] = [];
+    for (let index = 0; index < count; index += 1) {
+      seen.push(await request());
+    }
+    return seen;
+  }
+
+  async statuses(count: number, request: () => Promise<HttpResponse>): Promise<(number | undefined)[]> {
+    return (await this.responses(count, request)).map((response) => response.status);
   }
 }
 
-class CapturingHttpPort extends HttpServerPort {
-  private _handler: Handler | null = null;
-
-  createServer(requestHandler: Handler): HttpServerHandle {
-    this._handler = requestHandler;
-    return {
-      listen(_port, host, callback) {
-        const done = typeof host === 'function' ? host : callback;
-        done?.(null);
-      },
-      close(callback) {
-        callback?.();
-      },
-      address() {
-        return { address: '127.0.0.1', port: 9999, family: 'IPv4' };
-      },
-    };
-  }
-
-  handler(): Handler {
-    if (this._handler === null) {
-      throw new SyncError('handler not captured');
-    }
-    return this._handler;
-  }
-}
-
-type PeerLimit = { readonly capacity: number; readonly refillTokensPerSecond: number; readonly maxTrackedPeers: number };
-
-type Harness = {
-  readonly handler: Handler;
-  readonly crypto: MockCrypto;
-  readonly clock: ManualClock;
-  readonly processSyncRequest: ReturnType<typeof vi.fn>;
-};
-
-type HarnessOptions = {
-  readonly peerRateLimit?: PeerLimit;
-  readonly mode?: 'enforce' | 'log-only';
-  readonly host?: string;
-};
-
-async function harness(options: HarnessOptions = {}): Promise<Harness> {
-  const port = new CapturingHttpPort();
-  const crypto = createMockCrypto();
-  const clock = new ManualClock();
-  const processSyncRequest = vi.fn(async () => ({ type: 'sync-response', frontier: {}, patches: [] }));
-  const server = new HttpSyncServer({
-    httpPort: port,
-    graph: { processSyncRequest },
-    host: options.host ?? '0.0.0.0',
-    auth: {
-      keys: { [KEY_ID]: SECRET },
-      mode: options.mode ?? 'enforce',
-      crypto,
-      replayProtection: new InMemorySyncReplayProtection(clock.now),
-      rateLimit: { capacity: 1000, refillTokensPerSecond: 1000, clock: clock.now },
-      ...(options.peerRateLimit !== undefined ? { peerRateLimit: options.peerRateLimit } : {}),
-    },
-  });
-  await server.listen(9999);
-  return { handler: port.handler(), crypto, clock, processSyncRequest };
-}
-
-let lamport = 0;
-
-async function signedRequest(
-  crypto: MockCrypto,
-  peerAddress: string | undefined,
-  signature: 'valid' | 'forged',
-): Promise<HttpRequest> {
-  lamport += 1;
-  const body = new TextEncoder().encode(SYNC_BODY_TEXT);
-  const headers = await signSyncRequest(
-    { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SECRET, keyId: KEY_ID, lamport },
-    { crypto, random: NONCE_RANDOM },
-  );
-  return new HttpRequest({
-    method: 'POST',
-    url: '/sync',
-    headers: {
-      'content-type': 'application/json',
-      host: '127.0.0.1:9999',
-      ...headers,
-      ...(signature === 'forged' ? { 'x-warp-signature': BAD_SIGNATURE } : {}),
-    },
-    body,
-    peerAddress,
-  });
-}
-
-function errorCode(response: HttpResponse): string {
-  const body = typeof response.body === 'string' ? response.body : '';
-  const match = /"error":"([^"]+)"/.exec(body);
-  return match?.[1] ?? '';
-}
-
-const SMALL_LIMIT: PeerLimit = { capacity: 3, refillTokensPerSecond: 1, maxTrackedPeers: 16 };
-
-describe('HttpSyncServer peer pre-authentication limiter', () => {
-  it('admits requests under the limit', async () => {
-    const h = await harness({ peerRateLimit: SMALL_LIMIT });
-    for (let index = 0; index < 10; index += 1) {
-      const res = await h.handler(await signedRequest(h.crypto, PEER_A, 'valid'));
-      expect(res.status).toBe(200);
-    }
-    expect(h.processSyncRequest).toHaveBeenCalledTimes(10);
+describe('HttpSyncServer peer admission', () => {
+  it('admits the request exactly at the peer limit into graph sync', async () => {
+    const h = await new Harness().boot();
+    expect(await h.statuses(LIMIT.capacity, () => h.valid(PEER_A))).toEqual([200, 200, 200]);
+    expect(h.graph.requests).toHaveLength(LIMIT.capacity);
   });
 
-  it('refuses a failed-auth flood from one peer before any hash or HMAC work', async () => {
-    const h = await harness({ peerRateLimit: SMALL_LIMIT });
-    const flood: HttpRequest[] = [];
-    for (let index = 0; index < 50; index += 1) {
-      flood.push(await signedRequest(h.crypto, PEER_A, 'forged'));
-    }
-    h.crypto.hash.mockClear();
-    h.crypto.hmac.mockClear();
-
-    const statuses: number[] = [];
-    for (const request of flood.slice(0, SMALL_LIMIT.capacity)) {
-      statuses.push((await h.handler(request)).status);
-    }
-    expect(statuses).toEqual([401, 401, 401]);
-    expect(h.crypto.hmac).toHaveBeenCalledTimes(SMALL_LIMIT.capacity);
-    expect(h.crypto.hash).toHaveBeenCalledTimes(SMALL_LIMIT.capacity);
-
-    for (const request of flood.slice(SMALL_LIMIT.capacity)) {
-      const res = await h.handler(request);
-      expect(res.status).toBe(429);
-      expect(errorCode(res)).toBe('PEER_RATE_LIMITED');
-    }
-    // No refused request reached the SHA-256 or the HMAC.
-    expect(h.crypto.hmac).toHaveBeenCalledTimes(SMALL_LIMIT.capacity);
-    expect(h.crypto.hash).toHaveBeenCalledTimes(SMALL_LIMIT.capacity);
-    expect(h.processSyncRequest).not.toHaveBeenCalled();
+  it('refuses the request one above the peer limit with a typed 429', async () => {
+    const h = await new Harness().boot();
+    await h.statuses(LIMIT.capacity, () => h.valid(PEER_A));
+    expect(await h.valid(PEER_A)).toMatchObject({ status: 429, body: PEER_REFUSAL,
+      headers: { 'content-type': 'application/json', 'retry-after': '1' } });
+    expect(h.graph.requests).toHaveLength(LIMIT.capacity);
   });
 
-  it('keeps a second peer and a valid key on another peer working during the flood', async () => {
-    const h = await harness({ peerRateLimit: SMALL_LIMIT });
-    for (let index = 0; index < 20; index += 1) {
-      await h.handler(await signedRequest(h.crypto, PEER_A, 'forged'));
-    }
-    expect((await h.handler(await signedRequest(h.crypto, PEER_A, 'forged'))).status).toBe(429);
-
-    const secondPeer = await h.handler(await signedRequest(h.crypto, PEER_B, 'forged'));
-    expect(secondPeer.status).toBe(401);
-
-    const validKey = await h.handler(await signedRequest(h.crypto, PEER_C, 'valid'));
-    expect(validKey.status).toBe(200);
-    expect(h.processSyncRequest).toHaveBeenCalledTimes(1);
+  it('stops a failed-authentication flood before any authentication work', async () => {
+    const h = await new Harness().boot();
+    const seen = await h.statuses(50, () => h.forged(PEER_A));
+    expect(seen.slice(0, LIMIT.capacity)).toEqual([401, 401, 401]);
+    expect(seen.slice(LIMIT.capacity)).toEqual(Array.from({ length: 50 - LIMIT.capacity }, () => 429));
+    // Each request that reaches signature verification logs one mismatch.
+    expect(h.log.warnings).toEqual(['sync auth: signature mismatch', 'sync auth: signature mismatch',
+      'sync auth: signature mismatch']);
+    expect(h.graph.requests).toHaveLength(0);
   });
 
-  it('refuses the request exactly one past the limit and admits the one at the limit', async () => {
-    const h = await harness({ peerRateLimit: SMALL_LIMIT });
-    for (let index = 0; index < SMALL_LIMIT.capacity - 1; index += 1) {
-      await h.handler(await signedRequest(h.crypto, PEER_A, 'forged'));
-    }
-    const atLimit = await h.handler(await signedRequest(h.crypto, PEER_A, 'forged'));
-    expect(atLimit.status).toBe(401);
-    const pastLimit = await h.handler(await signedRequest(h.crypto, PEER_A, 'forged'));
-    expect(pastLimit.status).toBe(429);
+  it('keeps another peer working while one peer is refused', async () => {
+    const h = await new Harness().boot();
+    await h.statuses(LIMIT.capacity + 5, () => h.forged(PEER_A));
+    expect(await h.valid(PEER_B)).toMatchObject({ status: 200 });
   });
 
-  it('recovers after the refill window on the injected clock', async () => {
-    const h = await harness({ peerRateLimit: SMALL_LIMIT });
-    for (let index = 0; index < SMALL_LIMIT.capacity; index += 1) {
-      await h.handler(await signedRequest(h.crypto, PEER_A, 'forged'));
-    }
-    expect((await h.handler(await signedRequest(h.crypto, PEER_A, 'valid'))).status).toBe(429);
-
+  it('admits a refused peer again when the injected clock passes the refill window', async () => {
+    const h = await new Harness().boot();
+    await h.statuses(LIMIT.capacity, () => h.forged(PEER_A));
     h.clock.advance(999);
-    expect((await h.handler(await signedRequest(h.crypto, PEER_A, 'valid'))).status).toBe(429);
+    expect(await h.valid(PEER_A)).toMatchObject({ status: 429 });
     h.clock.advance(1);
-    expect((await h.handler(await signedRequest(h.crypto, PEER_A, 'valid'))).status).toBe(200);
+    expect(await h.valid(PEER_A)).toMatchObject({ status: 200 });
   });
 
-  it('bounds HMAC work under a sustained flood to the burst plus the refill', async () => {
-    const h = await harness({ peerRateLimit: SMALL_LIMIT });
-    const seconds = 30;
-    const requestsPerSecond = 100;
-    const forged = await signedRequest(h.crypto, PEER_A, 'forged');
-    h.crypto.hmac.mockClear();
-    for (let second = 0; second < seconds; second += 1) {
-      for (let index = 0; index < requestsPerSecond; index += 1) {
-        await h.handler(forged);
-      }
-      h.clock.advance(1000);
-    }
-    const maxHmac = SMALL_LIMIT.capacity + (seconds - 1) * SMALL_LIMIT.refillTokensPerSecond;
-    expect(h.crypto.hmac.mock.calls.length).toBeLessThanOrEqual(maxHmac);
+  it('does not reserve the nonce of a request that the peer gate refuses', async () => {
+    const h = await new Harness().boot();
+    await h.statuses(LIMIT.capacity, () => h.forged(PEER_A));
+    const headers = await h.signed();
+    expect(await h.send({ peer: PEER_A, headers })).toMatchObject({ status: 429 });
+    h.clock.advance(1000);
+    // A reserved nonce would answer 403 REPLAY here.
+    expect(await h.send({ peer: PEER_A, headers })).toMatchObject({ status: 200 });
   });
 
-  it('charges refused requests that fail before authentication', async () => {
-    const h = await harness({ peerRateLimit: SMALL_LIMIT });
-    const notJson = new HttpRequest({
-      method: 'POST',
-      url: '/sync',
-      headers: { 'content-type': 'text/plain', host: '127.0.0.1:9999' },
-      body: new TextEncoder().encode('x'),
-      peerAddress: PEER_A,
-    });
-    for (let index = 0; index < SMALL_LIMIT.capacity; index += 1) {
-      expect((await h.handler(notJson)).status).toBe(400);
-    }
-    expect((await h.handler(notJson)).status).toBe(429);
-  });
-
-  it('puts requests without a socket peer address in one shared bucket', async () => {
-    const h = await harness({ peerRateLimit: SMALL_LIMIT });
-    for (let index = 0; index < SMALL_LIMIT.capacity; index += 1) {
-      await h.handler(await signedRequest(h.crypto, undefined, 'forged'));
-    }
-    expect((await h.handler(await signedRequest(h.crypto, undefined, 'valid'))).status).toBe(429);
-    expect((await h.handler(await signedRequest(h.crypto, PEER_B, 'valid'))).status).toBe(200);
-  });
-
-  it('ignores X-Forwarded-For when it chooses the peer bucket', async () => {
-    const h = await harness({ peerRateLimit: SMALL_LIMIT });
-    for (let index = 0; index < SMALL_LIMIT.capacity; index += 1) {
-      const forged = await signedRequest(h.crypto, PEER_A, 'forged');
-      await h.handler(new HttpRequest({
-        method: forged.method,
-        url: forged.url,
-        headers: { ...forged.headers, 'x-forwarded-for': `192.0.2.${index}` },
-        ...(forged.body !== undefined ? { body: forged.body } : {}),
-        peerAddress: PEER_A,
-      }));
-    }
-    const spoofed = await signedRequest(h.crypto, PEER_A, 'valid');
-    const res = await h.handler(new HttpRequest({
-      method: spoofed.method,
-      url: spoofed.url,
-      headers: { ...spoofed.headers, 'x-forwarded-for': PEER_C },
-      ...(spoofed.body !== undefined ? { body: spoofed.body } : {}),
-      peerAddress: PEER_A,
-    }));
-    expect(res.status).toBe(429);
-  });
-
-  it('evicts the least recently seen peer when the peer table is full', async () => {
-    const h = await harness({ peerRateLimit: { capacity: 1, refillTokensPerSecond: 1, maxTrackedPeers: 2 } });
-    await h.handler(await signedRequest(h.crypto, PEER_A, 'forged'));
-    expect((await h.handler(await signedRequest(h.crypto, PEER_A, 'forged'))).status).toBe(429);
-
-    await h.handler(await signedRequest(h.crypto, PEER_B, 'forged'));
-    await h.handler(await signedRequest(h.crypto, PEER_C, 'forged'));
-
-    expect((await h.handler(await signedRequest(h.crypto, PEER_A, 'valid'))).status).toBe(200);
+  it('refuses a malformed body from a spent peer before the body parse', async () => {
+    const h = await new Harness().boot();
+    const malformed = { peer: PEER_A, body: new TextEncoder().encode('{') };
+    const seen = await h.statuses(LIMIT.capacity + 1, () => h.send(malformed));
+    expect(seen).toEqual([400, 400, 400, 429]);
   });
 });
 
-describe('HttpSyncServer peer limiter defaults and configuration', () => {
-  it('is on by default with the documented default when auth.rateLimit is set', async () => {
-    const h = await harness();
-    for (let index = 0; index < DEFAULT_PEER_RATE_LIMIT.capacity; index += 1) {
-      expect((await h.handler(await signedRequest(h.crypto, PEER_A, 'forged'))).status).toBe(401);
-    }
-    const refused = await h.handler(await signedRequest(h.crypto, PEER_A, 'forged'));
-    expect(refused.status).toBe(429);
-    expect(errorCode(refused)).toBe('PEER_RATE_LIMITED');
+describe('HttpSyncServer peer admission ordering', () => {
+  const RETIRED = { 'x-warp-sig-version': '2' };
+  it.each([
+    { name: 'an unknown route', sent: { url: '/elsewhere' }, status: 404, body: '{"error":"Not Found"}' },
+    { name: 'a wrong method', sent: { method: 'GET' }, status: 405, body: '{"error":"Method Not Allowed"}' },
+    { name: 'a retired signature version', sent: { headers: RETIRED }, status: 400, body: '{"error":"SIG_VERSION_RETIRED"}' },
+    { name: 'a wrong content type', sent: { headers: { 'content-type': 'text/plain' } }, status: 400, body: '{"error":"Expected application/json"}' },
+    { name: 'an oversized body', sent: { body: new Uint8Array(65) }, status: 413, body: '{"error":"Request too large"}' },
+  ])('answers $name with its own refusal and spends no peer budget', async ({ sent, status, body }) => {
+    const h = await new Harness().boot({ maxRequestBytes: 64 });
+    const seen = await h.statuses(LIMIT.capacity + 2, () => h.send({ peer: PEER_A, ...sent }));
+    expect(seen).toEqual(Array.from({ length: LIMIT.capacity + 2 }, () => status));
+    expect(await h.send({ peer: PEER_A, ...sent })).toMatchObject({ status, body });
+    expect(await h.statuses(LIMIT.capacity, () => h.valid(PEER_A))).toEqual([200, 200, 200]);
   });
 
-  it('documents a bounded default peer table', () => {
-    expect(DEFAULT_PEER_RATE_LIMIT).toEqual({
-      capacity: expect.any(Number),
-      refillTokensPerSecond: expect.any(Number),
-      maxTrackedPeers: expect.any(Number),
-    });
-    expect(Object.isFrozen(DEFAULT_PEER_RATE_LIMIT)).toBe(true);
-    expect(Number.isInteger(DEFAULT_PEER_RATE_LIMIT.maxTrackedPeers)).toBe(true);
+  it('still answers an unknown route with 404 for a peer that is over its limit', async () => {
+    const h = await new Harness().boot();
+    await h.statuses(LIMIT.capacity, () => h.forged(PEER_A));
+    expect(await h.forged(PEER_A)).toMatchObject({ status: 429 });
+    expect(await h.send({ peer: PEER_A, url: '/elsewhere' })).toMatchObject({ status: 404 });
+  });
+});
+
+describe('HttpSyncServer peer identity', () => {
+  it('puts requests without a socket peer address in one shared budget', async () => {
+    const h = await new Harness().boot();
+    await h.statuses(LIMIT.capacity, () => h.forged(undefined));
+    expect(await h.valid(undefined)).toMatchObject({ status: 429, body: PEER_REFUSAL });
+    expect(await h.valid(PEER_B)).toMatchObject({ status: 200 });
   });
 
-  it('does not limit peers in log-only mode', async () => {
-    const h = await harness({ mode: 'log-only', host: '127.0.0.1', peerRateLimit: SMALL_LIMIT });
-    for (let index = 0; index < 10; index += 1) {
-      expect((await h.handler(await signedRequest(h.crypto, PEER_A, 'forged'))).status).toBe(200);
-    }
+  it.each(['x-forwarded-for', 'forwarded', 'x-real-ip'])('does not let the %s header choose the budget', async (header) => {
+    const h = await new Harness().boot();
+    let rotation = 0;
+    const rotating = async (): Promise<HttpResponse> => {
+      rotation += 1;
+      const claimed = header === 'forwarded' ? `for=192.0.2.${rotation}` : `192.0.2.${rotation}`;
+      return await h.send({ peer: PEER_A, headers: { ...await h.signed(WRONG_SECRET), [header]: claimed } });
+    };
+    const seen = await h.statuses(LIMIT.capacity + 3, rotating);
+    expect(seen).toEqual([401, 401, 401, 429, 429, 429]);
   });
 
-  it('rejects peerRateLimit without auth.rateLimit, which supplies the clock', () => {
-    expect(() => new HttpSyncServer({
-      httpPort: new CapturingHttpPort(),
-      graph: { processSyncRequest: async () => ({}) },
-      host: '127.0.0.1',
-      auth: {
-        keys: { [KEY_ID]: SECRET },
-        crypto: createMockCrypto(),
-        replayProtection: new InMemorySyncReplayProtection(new ManualClock().now),
-        peerRateLimit: SMALL_LIMIT,
-      },
-    })).toThrow(/auth.peerRateLimit requires auth.rateLimit/);
+  it('does not let a forwarding header that names a spent peer spend or refuse another socket peer', async () => {
+    const h = await new Harness().boot();
+    await h.statuses(LIMIT.capacity, () => h.forged(PEER_A));
+    const headers = { ...await h.signed(), 'x-forwarded-for': PEER_A };
+    expect(await h.send({ peer: PEER_B, headers })).toMatchObject({ status: 200 });
+  });
+});
+
+describe('HttpSyncServer peer admission in permissive modes', () => {
+  it('bounds a peer in log-only mode', async () => {
+    const h = new Harness();
+    await h.boot({ auth: h.authentication('log-only') });
+    expect(await h.statuses(LIMIT.capacity + 1, () => h.forged(PEER_A))).toEqual([200, 200, 200, 429]);
+    expect(h.graph.requests).toHaveLength(LIMIT.capacity);
   });
 
-  it('rejects invalid peerRateLimit values', () => {
-    for (const peerRateLimit of [
-      { ...SMALL_LIMIT, capacity: 0 },
-      { ...SMALL_LIMIT, refillTokensPerSecond: 0 },
-      { ...SMALL_LIMIT, maxTrackedPeers: 1.5 },
-    ]) {
-      expect(() => new HttpSyncServer({
-        httpPort: new CapturingHttpPort(),
-        graph: { processSyncRequest: async () => ({}) },
-        host: '0.0.0.0',
-        auth: {
-          keys: { [KEY_ID]: SECRET },
-          crypto: createMockCrypto(),
-          replayProtection: new InMemorySyncReplayProtection(new ManualClock().now),
-          rateLimit: { capacity: 1, refillTokensPerSecond: 1, clock: new ManualClock().now },
-          peerRateLimit,
-        },
-      })).toThrow(SyncError);
-    }
+  it('bounds a peer on an unauthenticated localhost server', async () => {
+    const h = new Harness();
+    const server = new HttpSyncServer({ httpPort: h.http, graph: h.graph, clock: h.clock,
+      unsafeAllowUnauthenticatedLocalhost: true, peerRateLimit: LIMIT });
+    await server.listen(9999);
+    const seen = await h.statuses(LIMIT.capacity + 1, () => h.send({ peer: '127.0.0.1' }));
+    expect(seen).toEqual([200, 200, 200, 429]);
+    expect(h.graph.requests).toHaveLength(LIMIT.capacity);
+  });
+});
+
+describe('HttpSyncServer peer gate beside the key-id limiter', () => {
+  const keyLimited = (h: Harness, capacity: number) => ({ auth: { ...h.authentication(),
+    rateLimit: { capacity, refillTokensPerSecond: 0.000001, clock: h.clock.read } } });
+
+  it('keeps the key-id refusal distinct from the peer refusal', async () => {
+    const h = new Harness();
+    await h.boot(keyLimited(h, 1));
+    expect(await h.valid(PEER_A)).toMatchObject({ status: 200 });
+    expect(await h.valid(PEER_A)).toMatchObject({ status: 429, body: '{"error":"RATE_LIMITED"}' });
+  });
+
+  it('charges a key-id refusal to the peer budget, because the peer gate cannot know the outcome', async () => {
+    const h = new Harness();
+    await h.boot(keyLimited(h, 1));
+    const seen = await h.responses(LIMIT.capacity + 1, () => h.valid(PEER_A));
+    expect(seen.map((response) => response.body)).toEqual(['{"frontier":{},"patches":[],"type":"sync-response"}', '{"error":"RATE_LIMITED"}',
+      '{"error":"RATE_LIMITED"}', PEER_REFUSAL]);
+  });
+
+  it('spends no key-id budget on a request that the peer gate refuses', async () => {
+    const h = new Harness();
+    await h.boot({ ...keyLimited(h, 2), peerRateLimit: { ...LIMIT, capacity: 1 } });
+    expect(await h.valid(PEER_A)).toMatchObject({ status: 200 });
+    expect(await h.valid(PEER_A)).toMatchObject({ status: 429, body: PEER_REFUSAL });
+    h.clock.advance(1000);
+    // The key-id budget of two still holds its second token.
+    expect(await h.valid(PEER_A)).toMatchObject({ status: 200 });
+    h.clock.advance(1000);
+    expect(await h.valid(PEER_A)).toMatchObject({ status: 429, body: '{"error":"RATE_LIMITED"}' });
+  });
+});
+
+describe('HttpSyncServer peer limit configuration', () => {
+  it('applies the documented default when no peer limit is configured', async () => {
+    const h = new Harness();
+    const server = new HttpSyncServer({ httpPort: h.http, graph: h.graph, clock: h.clock,
+      unsafeAllowUnauthenticatedLocalhost: true });
+    await server.listen(9999);
+    const seen = await h.statuses(DEFAULT_SYNC_PEER_RATE_LIMIT.capacity + 1, () => h.send({ peer: PEER_A }));
+    expect(seen.slice(0, -1)).toEqual(Array.from({ length: DEFAULT_SYNC_PEER_RATE_LIMIT.capacity }, () => 200));
+    expect(seen.at(-1)).toBe(429);
+  });
+
+  it.each([
+    { capacity: 0 }, { refillTokensPerSecond: 0 }, { maxTrackedPeers: 1.5 },
+  ])('refuses the invalid peer limit %j at construction', (override) => {
+    const h = new Harness();
+    expect(() => new HttpSyncServer({ httpPort: h.http, graph: h.graph, clock: h.clock,
+      unsafeAllowUnauthenticatedLocalhost: true, peerRateLimit: { ...LIMIT, ...override } })).toThrow(SyncError);
+  });
+
+  it.each([null, undefined, {}, 0])('refuses the invalid server clock %s at construction', (invalidClock) => {
+    const h = new Harness();
+    expect(() => new HttpSyncServer({ httpPort: h.http, graph: h.graph,
+      // @ts-expect-error Exercise malformed clock input at the HTTP configuration boundary.
+      clock: invalidClock, unsafeAllowUnauthenticatedLocalhost: true })).toThrow(/HttpSyncServer config: clock must provide nowMs/);
   });
 });

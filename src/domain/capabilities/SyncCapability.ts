@@ -8,6 +8,7 @@ import type { WarpState } from '../services/JoinReducer.ts';
 import type { DecodedPatch } from '../services/sync/syncPatchLoader.ts';
 import type SyncSecret from '../services/sync/SyncSecret.ts';
 import type { SyncRateLimitConfig } from '../services/sync/SyncRateLimiter.ts';
+import type { SyncPeerRateLimit } from '../services/sync/SyncPeerRateLimiter.ts';
 import type HttpServerPort from '../../ports/HttpServerPort.ts';
 
 /** Lightweight status snapshot. */
@@ -115,6 +116,8 @@ export type ServeOptions = {
   auth?: { keys: Record<string, SyncSecret>; mode?: 'enforce' | 'log-only'; rateLimit?: SyncRateLimitConfig };
   unsafeAllowUnauthenticatedLocalhost?: boolean;
   allowedWriters?: string[];
+  /** Pre-authentication limit for each socket peer address. On by default. */
+  peerRateLimit?: SyncPeerRateLimit;
 };
 
 /** Handle returned by serve(). */

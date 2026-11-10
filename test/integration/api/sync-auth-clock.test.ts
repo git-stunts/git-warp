@@ -18,7 +18,7 @@ describe('authenticated HTTP runtime clock composition', () => {
   it('uses the configured clock through the controller and real HTTP adapters', async () => {
     const clock = new ManualClock();
     const graph = new SyncInbox();
-    const server = new HttpSyncServer({ httpPort: new NodeHttpAdapter(), graph,
+    const server = new HttpSyncServer({ httpPort: new NodeHttpAdapter(), graph, clock,
       auth: { keys: { default: SECRET }, crypto: new NodeCryptoAdapter(), clock,
         replayProtection: new InMemorySyncReplayProtection(clock.read) } });
     const handle = await server.listen(0);
