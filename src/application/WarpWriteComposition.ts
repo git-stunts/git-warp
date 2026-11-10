@@ -124,7 +124,7 @@ function writerHosts(fields: {
   return async (writer) => {
     const known = opened.get(writer) ?? openRuntimeHostProduct({
       persistence: binding.history, runtimeStorage: binding.runtimeStorage, graphName: graph, writerId: writer,
-      codec: ports.codec, crypto: ports.crypto, trustCrypto: ports.trustCrypto, commitMessageCodec: ports.commitMessageCodec,
+      codec: ports.codec, crypto: ports.crypto, random: ports.random, trustCrypto: ports.trustCrypto, commitMessageCodec: ports.commitMessageCodec,
     });
     opened.set(writer, known);
     try {

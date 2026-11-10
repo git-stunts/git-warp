@@ -9,10 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- Remove the legacy write, strand and settlement capabilities of `Runtime` and `Lane`
+  ([#1054](https://github.com/git-stunts/git-warp/issues/1054)). Write with
+  `warp.as(writer).execute(intent)`. `Runtime` keeps only the read path until #1052 adds
+  the Optic read: `Runtime.open()`, `runtime.lane()`, `Lane.observe()`, the legacy
+  `Optic` read through `captureCoordinate`, and `close()`. Removed: `Lane.write`,
+  `Lane.stageContent` (`AuthoredWarp.stage` stages text), the `Lane` identity getters,
+  `Runtime.writer`, `Runtime.fork`, `Runtime.strand`, `Runtime.previewSettlement`,
+  `Runtime.settle`, the v20 `WriteReceipt`, `AdmissionOutcome`, `EntityOccurrence`,
+  `EntityCausalRelation`, `ContentInput`, the `Lane` descriptor and reference types, the
+  settlement types and the fork, strand and settlement options. `AuthoredWriteReceipt` is
+  renamed `WriteReceipt`. The CLI loses `write`, `fork`, `settle` and `--strand`; MCP
+  loses `warp_lane_describe`, `warp_intent_write`, `warp_settlement_preview` and
+  `warp_settlement_apply`. Iterator and content stream signatures declare their
+  completion types. See [the v21 migration guide](docs/migrations/v21/README.md#api-changes).
+  A new `lint:source-reachability` gate fails on any `src/` file that no package entry point
+  reaches; the 255 existing ones are listed with their owning issue in
+  `policy/unreachable-source-allowlist.txt`, and the list can only shrink. The package entry
+  ceiling falls (see Packaging).
 - Reserve `write-attempts` as a graph-name segment for clone-local write attempt refs.
   Patch commits made through `Warp` carry an `eg-publication-attempt` trailer; existing
   decoders read only the trailers they know
-  ([#1051](https://github.com/git-stunts/git-warp/issues/1051)).
+  ([#1051](https://github.com/git-stunts/git-warp/issues/1051)). A released v20 reader
+  refuses a v21 repository on its substrate marker (`E_SUBSTRATE_VERSION_UNSUPPORTED`)
+  before it reads any patch; v20's commit message decoder ignores the trailer
+  ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
 - Reserve `cone` as a graph-name segment for clone-local cone basis refs
   ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
 - Give every strand an immutable id and every strand writer its own dots.
@@ -34,6 +55,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `AuthoredWarp.execute()` reports an unavailable store while it fixes the write
+  basis or reads the premise records as an `UnpublishedWriteReceipt`
+  (`write-basis-unavailable`, `write-premise-unavailable`) and does not reject.
+  At those steps, invalid input, a throwing access port, defects, broken
+  invariants and repository corruption reject, and a store failure that the
+  adapter cannot identify as transient rejects. The attempt-journal and
+  custody-support steps still turn any failure into `attempt-journal-unavailable`
+  or `retention-unavailable` until #1109 classifies them by type. Corrupt patch
+  history met while reading the premise rejects as `WriteHistoryCorruptError`
+  instead of a missing-basis refusal. Every failure of the patch feed or the
+  writer's runtime host now rejects too, transient or not, until #1109 classifies
+  them, and so does an error the fast-import writer creates above the store host;
+  on unreleased `main` such a failure returned `write-basis-unavailable`. A held
+  lock during fast-import still gives `write-basis-unavailable`. A git-cas `GIT_OBJECT_NOT_FOUND` read through the
+  history adapter is now typed as `PersistenceError` `E_MISSING_OBJECT`, so on the
+  checkpoint-shard read it becomes `E_OPTIC_NO_BOUNDED_BASIS`
+  (`checkpoint-shard-unavailable`)
+  ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
+- Generated writer ids, default strand names, fork names, index-verification
+  seeds, and sync request nonces now come from the runtime's injected entropy
+  source instead of host crypto globals. Their formats and validation are
+  unchanged. `Runtime.open`, `createRuntimeHarness` and the CLI supply the
+  default entropy source, so code that uses the package entry points needs no
+  change. Only code that imports internal modules directly, such as this
+  repository's scripts and tests, can open a runtime host with its own ports.
+  If such code installs no default ports, it now fails with
+  `E_RANDOM_REQUIRED`. Fix it by passing `random: new HostRandomAdapter()`
+  beside `crypto`, or by calling `installDefaultRuntimeHostNodePorts()` first.
+  The package entry points export neither name
+  ([#184](https://github.com/git-stunts/git-warp/issues/184)).
+- Document garbage collection for repositories that git-warp writes to. The
+  runtime never runs `git gc` and starts no `git gc --auto`. Measured with
+  git-cas 7.2.0 and Git 2.39.5, a retained write adds about 55 loose objects
+  (about 220 KiB on a filesystem with 4 KiB blocks) and one permanent ref.
+  Schedule `git gc --cruft` (Git 2.37 or later), for example daily; on Git
+  2.37 to 2.40 also set `gc.cruftPacks=true`. See
+  [Operations: Garbage collection](docs/operations/README.md#garbage-collection).
+  When #1052 Slice 3b lands, a read will retain, at about 30 objects and one
+  ref, only when its query asks for a Coordinate
+  ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)
   trees instead of 64 ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
@@ -75,6 +136,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the internal retained graph manifest over the cone basis: a schema-1
+  commitment over the record-trie layout, ordinal geometry and writer frontier,
+  equal for every fold order that reaches that frontier, plus graph-local
+  ordinals (one dot of the node or edge OR-Set) that resolve through one
+  bounded 256-counter dot page each. A retained checkpoint and the live head of
+  the same basis are one manifest. No persisted record or basis format changes.
+  A cone basis whose `records` entry is not a tree now refuses with
+  `ConeRecordError` `E_CONE_RECORD_CORRUPT` when it opens. A records root or
+  trie directory whose object is not a tree refuses with the same code at the
+  first read. Both used to fail with an untyped git-cas error.
+  See [Retained graph manifests](docs/topics/retained-manifests.md)
+  ([#815](https://github.com/git-stunts/git-warp/issues/815)).
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
   with an injected `WarpAccessPort` and no implicit access. `execute` returns
@@ -141,6 +214,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#1015](https://github.com/git-stunts/git-warp/issues/1015)).
 
 ### Fixed
+
+- A write receipt rebuilt by `AuthoredWarp.reconcile` after an interrupted write now
+  reports the same `outcome.races` as the original receipt, rather than none. Retained
+  receipts keep their races as durable evidence. `outcome.races` is now always in one
+  canonical order, on every receipt, and each race names each writer once, sorted, by a
+  valid writer id. A saved race that names an invalid writer id fails closed
+  ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
+- Write attempt refs under `refs/warp/<graph>/write-attempts/` in a non-negative integer
+  layout version other than 2 are not read. `AuthoredWarp.reconcile` of such an attempt
+  rejects with code `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, and the error names the ref and the
+  remedy. A record whose layout version is not a non-negative integer cannot be decoded: it
+  rejects with `AdapterValidationError`, names no ref, and is kept.
+  - Layout 1 came only from clones built from `main` before this fix. Delete only the ref the
+    error names: run the `git update-ref -d` command that the error message prints, in the
+    repository that holds the graph. That command quotes the ref for the shell, so do not
+    retype it from a template. The ref holds only that attempt's recovery record, not graph
+    data: a patch the attempt published stays on its writer's chain, and only that attempt's
+    receipt is lost. Do not delete the whole prefix, which can also hold current
+    attempts. Deleting the ref frees nothing in custody; it abandons that attempt's fate,
+    which is harmless at the current unlimited retention capacity.
+  - A newer layout came from a newer git-warp. Keep the ref and finish the attempt with that
+    build.
+  - Any other layout, such as 0, was never written by a release: the record is corrupt. Keep
+    the ref and report it.
+
+  The recovery sweep passes over at most one page of these refs without counting them
+  against that page, and does not report them yet
+  ([#1072](https://github.com/git-stunts/git-warp/issues/1072); reporting is [#1107](https://github.com/git-stunts/git-warp/issues/1107)).
+- `AuthoredWarp.reconcile` rejects with code `E_WRITE_CORE_MISMATCH` when a saved write
+  attempt record does not rebuild, byte for byte, the receipt core that custody retained for
+  it. The record is altered or corrupt, so it is kept. Report it. The sweep does not report it
+  yet ([#1072](https://github.com/git-stunts/git-warp/issues/1072); reporting is [#1107](https://github.com/git-stunts/git-warp/issues/1107)).
+  - Recovery builds a receipt from the record's races only when custody reports that it holds
+    no settlement for the attempt, or when custody's retained core matched the record.
+  - In every other case, such as a failed custody read, the attempt stays indeterminate and the
+    record is kept. A later ask that can read custody's copy makes the comparison.
+  - After custody reports no settlement, recovery calls `settle`, and its outcome stands as
+    before: a final outcome such as `evidence-too-large` gives an unretained receipt and removes
+    the record, because custody holds no core for those races to disagree with. A `settle`
+    conflict is the exception: it answers indeterminate and keeps the record.
+  - After custody reports no settlement, recovery trusts the record's races, because custody
+    holds nothing to compare them with. So a tampered record's races can be retained. The
+    receipt and the retained core then agree, so a rebuilt receipt still never disagrees with
+    the retained core.
+
+- Refuse unexpected CBOR tags before decoding peer-controlled repository
+  blobs. Only supported Date, bigint, and `Uint8Array` tag encodings are
+  accepted; regular expressions, shared references and other tag extensions
+  fail with a typed bounds error. Tag 1 now refuses eight-byte integer epoch
+  encodings with the owning boundary's typed error instead of a raw TypeError;
+  smaller integer and floating epoch encodings remain supported. Existing byte,
+  depth and item limits remain unchanged
+  ([#1088](https://github.com/git-stunts/git-warp/issues/1088)).
+
+- Run the installed `npm run upgrade` command directly from its compiled
+  entry, without rebuilding or deleting the package's `dist` directory.
+  Source-checkout operators must run `npm run build` first. The packed smoke
+  now covers the npm command and verifies that help and dry-run preserve the
+  installed package ([#1136](https://github.com/git-stunts/git-warp/issues/1136)).
 
 - Discover every supported test file recursively under `test/unit/` before
   partitioning the default unit run. New directories no longer need a runner
@@ -321,8 +453,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Packaging
 
-- The published root now reaches `Warp` as well as `Runtime`, so the entry ceiling rises. The
-  ceilings are 760,000 compressed bytes, 3,300,000 unpacked bytes and 1,300 entries.
+- The published root reaches `Warp` as well as `Runtime`. After #1054 removed the legacy write,
+  strand and settlement surface, the ceilings are 760,000 compressed bytes, 3,300,000 unpacked
+  bytes and 1,250 entries.
 
 ## [20.0.0] - 2026-10-03
 

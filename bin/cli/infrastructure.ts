@@ -34,7 +34,6 @@ export const HELP_TEXT = [
   'options:',
   '  --repo <path>     Local Git repository (default: cwd)',
   '  --lane <name>     Runtime Lane name',
-  '  --strand <name>   Named child strand of --lane',
   '  --writer <id>     Runtime writer identity (default: cli)',
   '  --json            Emit one canonical JSON envelope',
   '  --jsonl           Emit canonical JSON Lines for streaming output',
@@ -97,7 +96,6 @@ export const KNOWN_COMMANDS = Object.freeze(
 const BASE_OPTIONS = {
   repo: { type: 'string', short: 'r' },
   lane: { type: 'string' },
-  strand: { type: 'string' },
   writer: { type: 'string', default: 'cli' },
   json: { type: 'boolean', default: false },
   jsonl: { type: 'boolean', default: false },
@@ -108,7 +106,6 @@ const BASE_STRING_FLAGS = new Set([
   '--repo',
   '-r',
   '--lane',
-  '--strand',
   '--writer',
 ]);
 const BASE_BOOLEAN_FLAGS = new Set([
@@ -182,7 +179,6 @@ export function parseArgs(
   let values: {
     readonly repo?: string;
     readonly lane?: string;
-    readonly strand?: string;
     readonly writer?: string;
     readonly json?: boolean;
     readonly jsonl?: boolean;
@@ -199,7 +195,6 @@ export function parseArgs(
     throw usageError(error instanceof Error ? error.message : String(error));
   }
   const lane = typeof values.lane === 'string' ? values.lane : null;
-  const strand = typeof values.strand === 'string' ? values.strand : null;
   const jsonl = values.jsonl === true;
   const writerExplicit = baseArgs.some(
     (argument) =>
@@ -210,7 +205,6 @@ export function parseArgs(
       typeof values.repo === 'string' ? values.repo : process.cwd(),
     ),
     lane,
-    strand,
     writer: typeof values.writer === 'string' ? values.writer : 'cli',
     json: values.json === true,
     jsonl,

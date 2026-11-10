@@ -51,7 +51,7 @@ const JAVASCRIPT_ONLY_PREFIXES = Object.freeze(['dist/bin/', 'dist/scripts/']);
 export default class PackagePayloadPolicy {
   readonly maxPackedBytes = 760_000;
   readonly maxUnpackedBytes = 3_300_000;
-  readonly maxEntryCount = 1_300;
+  readonly maxEntryCount = 1_250;
 
   /** Reports every missing asset, forbidden path, and exceeded size limit. */
   assess(inventory: PackagePayloadInventory): PackagePayloadAssessment {
