@@ -107,7 +107,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   many ids that are not live nodes, a page can therefore be `truncated` with
   fewer than `limit` edges, or with none; its cursor continues the read. Most
   index readers and the index updaters let a rejection
-  through to the caller. Checkpoint shard reads (node liveness and
+  through to the caller. The incremental index update reads its shards
+  through the shard tree adapter, which refuses a stored value that is not a
+  byte string with `IndexError` `E_INDEX_SHARD_MALFORMED` and not with
+  `E_ROARING_SHARD_MALFORMED`; malformed bytes and an alive bitmap above the
+  bound still raise `RoaringShardRejectedError` there. Checkpoint shard reads (node liveness and
   neighbourhood) report it as `QueryError` `E_OPTIC_NO_BOUNDED_BASIS` with
   reason `checkpoint-shard-invalid` and keep the rejection as `cause`.
   `BitmapIndexReader` also catches it: in strict mode (the default) it throws
