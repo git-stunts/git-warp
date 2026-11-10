@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import SyncPeerRateLimiter, {
   DEFAULT_SYNC_PEER_RATE_LIMIT,
+  MAX_PEER_BURST,
+  MAX_RETRY_AFTER_SECONDS,
+  MAX_TRACKED_PEERS,
   type SyncPeerRateLimit,
 } from '../../../../../src/domain/services/sync/SyncPeerRateLimiter.ts';
 import SyncError from '../../../../../src/domain/errors/SyncError.ts';
@@ -30,10 +33,18 @@ describe('SyncPeerRateLimiter configuration', () => {
     ['capacity', 0], ['capacity', -1], ['capacity', 1.5], ['capacity', Number.NaN],
     ['refillTokensPerSecond', 0], ['refillTokensPerSecond', -1], ['refillTokensPerSecond', Number.POSITIVE_INFINITY],
     ['maxTrackedPeers', 0], ['maxTrackedPeers', 2.5], ['maxTrackedPeers', Number.POSITIVE_INFINITY],
+    ['capacity', 2 ** 53], ['capacity', 1e308], ['capacity', MAX_PEER_BURST + 1],
+    ['maxTrackedPeers', 1e308], ['maxTrackedPeers', MAX_TRACKED_PEERS + 1],
+    ['refillTokensPerSecond', 1 / MAX_RETRY_AFTER_SECONDS / 2], ['refillTokensPerSecond', 1e-300],
   ])('refuses %s = %s at construction', (field, value) => {
     const build = (): SyncPeerRateLimiter => subject(new ManualClock(), { [field]: value });
     expect(build).toThrow(SyncError);
     expect(build).toThrow(`peerRateLimit.${field}`);
+  });
+
+  it('accepts each bound exactly', () => {
+    expect(() => subject(new ManualClock(), { capacity: MAX_PEER_BURST, maxTrackedPeers: MAX_TRACKED_PEERS,
+      refillTokensPerSecond: 1 / MAX_RETRY_AFTER_SECONDS })).not.toThrow();
   });
 
   it('refuses a clock that does not provide nowMs', () => {
@@ -86,6 +97,22 @@ describe('SyncPeerRateLimiter admission', () => {
     clock.advance(2500);
     expect(limiter.admit(PEER_A)).toEqual({ admitted: false, retryAfterSeconds: 2 });
   });
+
+  // Oracle: RFC 9110 section 10.2.3, delay-seconds is a non-negative decimal integer.
+  it.each([1 / MAX_RETRY_AFTER_SECONDS, 0.0001234, 0.3, 1, 7, 1e9])(
+    'reports a whole number of seconds from 1 to the named maximum at refill %s', (refillTokensPerSecond) => {
+      const clock = new ManualClock();
+      const limiter = subject(clock, { capacity: 1, refillTokensPerSecond });
+      limiter.admit(PEER_A);
+      const delays: number[] = [];
+      for (const step of [0, 1, 333, 1000]) {
+        clock.advance(step);
+        const admission = limiter.admit(PEER_A);
+        delays.push(admission.admitted ? 1 : admission.retryAfterSeconds);
+      }
+      expect(delays.map(String).every((text) => /^[1-9]\d*$/.test(text))).toBe(true);
+      expect(Math.max(...delays)).toBeLessThanOrEqual(MAX_RETRY_AFTER_SECONDS);
+    });
 
   it('does not let refused attempts push the bucket into debt', () => {
     const clock = new ManualClock();

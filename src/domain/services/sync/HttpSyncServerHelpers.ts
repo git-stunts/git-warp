@@ -86,10 +86,11 @@ export const optionsSchema = z.object({
   path: z.string().startsWith('/').default('/sync'),
   host: z.string().min(1).default('127.0.0.1'),
   clock: clockPort('clock'),
-  peerRateLimit: z.custom<SyncPeerRateLimit>(
-    (v) => v !== null && typeof v === 'object',
-    'peerRateLimit must be an object',
-  ).optional(),
+  peerRateLimit: z.object({
+    capacity: z.number(),
+    refillTokensPerSecond: z.number(),
+    maxTrackedPeers: z.number(),
+  }).strict().optional(),
   auth: authSchema.optional(),
   unsafeAllowUnauthenticatedLocalhost: z.boolean().default(false),
   allowedWriters: z.array(z.string()).optional(),

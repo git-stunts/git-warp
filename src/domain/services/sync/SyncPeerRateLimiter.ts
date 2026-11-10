@@ -19,6 +19,13 @@ export type SyncPeerAdmission =
  * refill of 10 requests per second, and at most 4096 tracked peers. The
  * measured basis is in .github/SECURITY.md, "Peer Admission Limit".
  */
+/** Largest accepted `capacity`: a burst above it is no limit in practice. */
+export const MAX_PEER_BURST = 1_000_000;
+/** Largest accepted `maxTrackedPeers`, which bounds the memory of the peer table. */
+export const MAX_TRACKED_PEERS = 1_000_000;
+/** Largest `Retry-After`; it sets the smallest accepted `refillTokensPerSecond`. */
+export const MAX_RETRY_AFTER_SECONDS = 86_400;
+
 export const DEFAULT_SYNC_PEER_RATE_LIMIT: SyncPeerRateLimit = Object.freeze({
   capacity: 60,
   refillTokensPerSecond: 10,
@@ -29,19 +36,25 @@ type PeerBucket = { readonly tokens: number; readonly updatedAtMs: number };
 
 const ADMITTED: SyncPeerAdmission = Object.freeze({ admitted: true });
 
-function refuseLimit(field: keyof SyncPeerRateLimit, value: number, kind: string): never {
-  throw new SyncError(`peerRateLimit.${field} must be a positive ${kind}`, {
+type LimitRange = readonly [min: number, max: number, isNumber: (value: number) => boolean, kind: string];
+
+/** Accepted range of each field. */
+const LIMIT_RANGES: Readonly<Record<keyof SyncPeerRateLimit, LimitRange>> = {
+  capacity: [1, MAX_PEER_BURST, Number.isSafeInteger, 'an integer'],
+  refillTokensPerSecond: [1 / MAX_RETRY_AFTER_SECONDS, Number.MAX_VALUE, Number.isFinite, 'a number'],
+  maxTrackedPeers: [1, MAX_TRACKED_PEERS, Number.isSafeInteger, 'an integer'],
+};
+
+function checked(limit: SyncPeerRateLimit, field: keyof SyncPeerRateLimit): number {
+  const [min, max, isNumber, kind] = LIMIT_RANGES[field];
+  const value = limit[field];
+  if (isNumber(value) && value >= min && value <= max) {
+    return value;
+  }
+  throw new SyncError(`peerRateLimit.${field} must be ${kind} from ${min} to ${max}`, {
     code: 'E_SYNC_RATE_LIMIT_CONFIG',
     context: { [field]: value },
   });
-}
-
-function positiveInteger(field: keyof SyncPeerRateLimit, value: number): number {
-  return Number.isInteger(value) && value > 0 ? value : refuseLimit(field, value, 'integer');
-}
-
-function positiveRate(field: keyof SyncPeerRateLimit, value: number): number {
-  return Number.isFinite(value) && value > 0 ? value : refuseLimit(field, value, 'number');
 }
 
 /**
@@ -63,9 +76,9 @@ export default class SyncPeerRateLimiter {
       throw new SyncError('peerRateLimit clock must provide nowMs()', { code: 'E_SYNC_RATE_LIMIT_CONFIG' });
     }
     this._limit = Object.freeze({
-      capacity: positiveInteger('capacity', limit.capacity),
-      refillTokensPerSecond: positiveRate('refillTokensPerSecond', limit.refillTokensPerSecond),
-      maxTrackedPeers: positiveInteger('maxTrackedPeers', limit.maxTrackedPeers),
+      capacity: checked(limit, 'capacity'),
+      refillTokensPerSecond: checked(limit, 'refillTokensPerSecond'),
+      maxTrackedPeers: checked(limit, 'maxTrackedPeers'),
     });
     this._clock = clock;
     Object.freeze(this);

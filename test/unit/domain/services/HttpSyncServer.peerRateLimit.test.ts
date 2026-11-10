@@ -261,6 +261,14 @@ describe('HttpSyncServer peer limit configuration', () => {
       unsafeAllowUnauthenticatedLocalhost: true, peerRateLimit: { ...LIMIT, ...override } })).toThrow(SyncError);
   });
 
+  it('refuses an unknown peer limit key with the server configuration error', () => {
+    const h = new Harness();
+    expect(() => new HttpSyncServer({ httpPort: h.http, graph: h.graph, clock: h.clock,
+      unsafeAllowUnauthenticatedLocalhost: true,
+      // @ts-expect-error Exercise an untyped caller that tries to switch the limit off.
+      peerRateLimit: { ...LIMIT, enabled: false } })).toThrow(/^HttpSyncServer config: .*enabled/);
+  });
+
   it.each([null, undefined, {}, 0])('refuses the invalid server clock %s at construction', (invalidClock) => {
     const h = new Harness();
     expect(() => new HttpSyncServer({ httpPort: h.http, graph: h.graph,
