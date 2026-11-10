@@ -7,8 +7,8 @@ import type RoaringShardBounds from './RoaringShardBounds.ts';
  * Returns a constructor that validates every serialized shard before
  * `library` deserializes it, and that refuses to serialize a bitmap above
  * the cardinality bound. A writer therefore cannot store a bitmap that
- * every reader refuses. Construction and every other bitmap operation stay
- * with the library.
+ * readers refuse for its cardinality. Construction and every other bitmap
+ * operation stay with the library.
  */
 export default function boundRoaringConstructor(
   library: RoaringBitmap32Constructor,
