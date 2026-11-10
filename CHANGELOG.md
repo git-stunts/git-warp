@@ -77,8 +77,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   values is a support limit: a node with more than 2^24 neighbours in one
   bucket (one label, or all labels) is not supported, and the write that
   would store its bitmap is refused. Most index readers and the index
-  updaters let the error through to the caller. `BitmapIndexReader` catches
-  it: in strict mode (the default) it throws `ShardCorruptionError` with the
+  updaters let the error through to the caller. Checkpoint shard reads (node
+  liveness and neighbourhood) report it as `QueryError`
+  `E_OPTIC_NO_BOUNDED_BASIS` with reason `checkpoint-shard-invalid` and keep
+  the rejection as `cause`. `BitmapIndexReader` also catches it: in strict
+  mode (the default) it throws `ShardCorruptionError` with the
   rejection message in `context.originalError`, and in non-strict mode it
   logs a warning and returns no neighbours from that bitmap. No consumer
   change is necessary. An index that a released writer produced is read as

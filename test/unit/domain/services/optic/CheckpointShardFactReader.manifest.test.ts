@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { EdgeShard } from '../../../../../src/domain/artifacts/EdgeShard.ts';
 import { MetaShard } from '../../../../../src/domain/artifacts/MetaShard.ts';
+import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import RoaringShardRejectedError from '../../../../../src/domain/errors/RoaringShardRejectedError.ts';
 import { PropertyShard } from '../../../../../src/domain/artifacts/PropertyShard.ts';
 import { shardToEntry } from '../../../../../src/domain/services/MaterializedViewHelpers.ts';
@@ -306,25 +307,30 @@ describe('CheckpointShardFactReader manifest-backed routing', () => {
     expect(indexStore.decodedShardHandles).toEqual([]);
   });
 
-  // Oracle: no runtime can allocate the declared length, so an attempt to
-  // expand the value throws a RangeError and not the typed rejection.
-  it.each([
-    ['an adjacency bitmap', 'edge'],
-    ['an alive bitmap', 'alive'],
-  ])('refuses a map that declares a length in place of %s in a local neighborhood', async (_name, target) => {
+  // Oracle: callers branch on E_OPTIC_NO_BOUNDED_BASIS, so a checkpoint shard
+  // whose bitmap value the shard boundary refuses is an invalid checkpoint
+  // shard. No runtime can allocate the declared length, so an attempt to
+  // expand that value gives a RangeError and not this outcome.
+  it.each<[string, 'edge' | 'alive', CodecValue]>([
+    ['null in place of an adjacency bitmap', 'edge', null],
+    ['a map that declares a length in place of an adjacency bitmap', 'edge', { length: Number.MAX_SAFE_INTEGER }],
+    ['malformed bytes as an adjacency bitmap', 'edge', new Uint8Array([1, 2, 3])],
+    ['null in place of an alive bitmap', 'alive', null],
+    ['a map that declares a length in place of an alive bitmap', 'alive', { length: Number.MAX_SAFE_INTEGER }],
+    ['malformed bytes as an alive bitmap', 'alive', new Uint8Array([1, 2, 3])],
+  ])('reports %s as an invalid checkpoint shard in a local neighborhood', async (_name, target, value) => {
     const indexStore = new MockIndexStorage();
     const sourceMetaPath = `meta_${computeShardKey(NODE_ID)}.cbor`;
     const outgoingPath = `fwd_${computeShardKey(NODE_ID)}.cbor`;
-    const declaredLength = { length: Number.MAX_SAFE_INTEGER };
     const sourceMeta = defaultCodec.decode<{ nodeToGlobal: Array<[string, number]>; nextLocalId: number; alive: Uint8Array }>(
       metaShardBytes(NODE_ID),
     );
     const sourceGlobalId = String(sourceMeta.nodeToGlobal[0]?.[1]);
     const sourceMetaHandle = await indexStore.writeBlob(target === 'alive'
-      ? defaultCodec.encode({ ...sourceMeta, alive: declaredLength })
+      ? defaultCodec.encode({ ...sourceMeta, alive: value })
       : metaShardBytes(NODE_ID));
     const outgoingHandle = await indexStore.writeBlob(target === 'edge'
-      ? defaultCodec.encode({ '0': { [sourceGlobalId]: declaredLength } })
+      ? defaultCodec.encode({ '0': { [sourceGlobalId]: value } })
       : neighborhoodShardBytes());
     const labelsHandle = await indexStore.writeBlob(defaultCodec.encode([[EDGE_LABEL, 0]]));
     const basis = manifestBasis({
@@ -340,8 +346,38 @@ describe('CheckpointShardFactReader manifest-backed routing', () => {
       (error: Error) => error,
     );
 
-    expect(failure).toBeInstanceOf(RoaringShardRejectedError);
-    expect(failure).toMatchObject({ code: 'E_ROARING_SHARD_MALFORMED', context: { fault: 'not-bytes' } });
+    expect(failure).toBeInstanceOf(QueryError);
+    expect(failure).toMatchObject({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: { reason: 'checkpoint-shard-invalid' },
+    });
+    expect(failure.cause).toBeInstanceOf(RoaringShardRejectedError);
+  });
+
+  it('reports malformed alive bitmap bytes as an invalid checkpoint shard in a liveness read', async () => {
+    const indexStore = new MockIndexStorage();
+    const metaPath = `meta_${computeShardKey(NODE_ID)}.cbor`;
+    const metaHandle = await indexStore.writeBlob(defaultCodec.encode({
+      nodeToGlobal: [[NODE_ID, 0]],
+      nextLocalId: 1,
+      alive: new Uint8Array([1, 2, 3]),
+    }));
+    const basis = manifestBasis({
+      livenessRoots: new Map([[metaPath, metaHandle]]),
+      propertyRoots: new Map<string, AssetHandle>(),
+    });
+    const reader = new CheckpointShardFactReader({ source: new ManifestShardSource(indexStore) });
+
+    const failure = await reader.readNodeAlive(basis, NODE_ID).then(
+      () => new Error('the value was admitted as bitmap bytes'),
+      (error: Error) => error,
+    );
+
+    expect(failure).toMatchObject({
+      code: 'E_OPTIC_NO_BOUNDED_BASIS',
+      context: { reason: 'checkpoint-shard-invalid', path: metaPath, oid: metaHandle.toString() },
+    });
+    expect(failure.cause).toBeInstanceOf(RoaringShardRejectedError);
   });
 });
 
