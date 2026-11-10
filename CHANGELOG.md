@@ -123,6 +123,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not a byte string the same way, without the `E_ROARING_SHARD_MALFORMED`
   code. No consumer change is necessary. An index that a released writer
   produced is read as before.
+- `Warp.open` no longer writes to the repository, so a deny-all opener opens and changes nothing.
+  Opening a repository that the process cannot write to is not tested. A granted `execute` or
+  `reconcile` opens the write path if no earlier call has, so an error from opening it rejects
+  that call instead of `open`. If the write path cannot open, the call rejects, having published
+  nothing. Each later granted `execute` or `reconcile` tries the open again, and rejects only
+  while the open still fails. This step is outside the receipt rule of the
+  `AuthoredWarp.execute()` entry below: an unavailable store here rejects. Only a retention store
+  that did not open has a typed error, `E_WARP_RETENTION_OPEN`, which says why; a cone store
+  that did not open rejects with its own error, which is not classified. Nothing was published
+  in either case, so it is safe to call again. The `refusal` of `E_WARP_RETENTION_OPEN` is
+  `policy-mismatch` when the graph's saved retention capacity differs, which no retry clears, or
+  `contention`, which a retry can clear. When the
+  store could not answer, for example because of a held ref lock, `refusal` is `null` and `cause`
+  is the store's failure; a retry can clear that too. In-flight write attempts and support under
+  construction move to `refs/warp-local/<graph>/`, so a `refs/warp/*` lane fetch no longer copies
+  them ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
+- Operator note: a clone that ran a build of `main` after #1051 and before this change can hold
+  in-flight refs under `refs/warp/<graph>/write-attempts/` and
+  `refs/warp/<graph>/observations/construction/`. No release wrote them, so there is no automatic
+  migration. This build does not read them: the sweep does not see them, `reconcile` returns
+  `null` for such an attempt although its record still exists, and no error names the ref.
+  Deleting a `write-attempts` ref abandons that attempt's answer: the write may have published,
+  and its receipt is lost. Before you delete one, finish the attempt with the build that wrote
+  it, or move the ref to `refs/warp-local/`. The listing and move commands are in
+  [Finish in-flight refs from pre-release builds](docs/topics/sync.md#finish-in-flight-refs-from-pre-release-builds)
+  ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
 - The `git-warp-v18-to-v19` migrator checks the `--repo` path before discovery
   ([#811](https://github.com/git-stunts/git-warp/issues/811)). A path that does not exist,
   is not a directory, or is not a Git repository stops with `Repository not found: <path>`
@@ -238,6 +264,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Warp.open(address, access, { logger })` accepts an optional `LoggerPort`, now exported from
+  the package root with the `LogFields`, `LogFieldValue` and `WarpOpenOptions` types. The `warn`
+  removal policy reports to it, and a logger that throws or rejects cannot affect a write. Without a
+  logger, a `Warp` prints nothing. Options that are not a plain object, or that name an unknown
+  option, are refused with `E_WARP_OPEN_OPTIONS`, and a logger that is not a `LoggerPort` with
+  callable methods with `E_WARP_OPEN_LOGGER`
+  ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
 - Add the internal retained graph manifest over the cone basis: a schema-1
   commitment over the record-trie layout, ordinal geometry and writer frontier,
   equal for every fold order that reaches that frontier, plus graph-local
@@ -323,18 +356,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   canonical order, on every receipt, and each race names each writer once, sorted, by a
   valid writer id. A saved race that names an invalid writer id fails closed
   ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
-- Write attempt refs under `refs/warp/<graph>/write-attempts/` in a non-negative integer
-  layout version other than 2 are not read. `AuthoredWarp.reconcile` of such an attempt
-  rejects with code `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, and the error names the ref and the
-  remedy. A record whose layout version is not a non-negative integer cannot be decoded: it
+- A write attempt record in a non-negative integer layout version other than 2 is not read.
+  Attempt records live under `refs/warp-local/<graph>/write-attempts/`
+  ([#1078](https://github.com/git-stunts/git-warp/issues/1078), under Changed).
+  `AuthoredWarp.reconcile` of such an attempt rejects with code
+  `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, and the error names the ref and the remedy. A record whose layout version is not a non-negative integer cannot be decoded: it
   rejects with `AdapterValidationError`, names no ref, and is kept.
-  - Layout 1 came only from clones built from `main` before this fix. Delete only the ref the
+  - Layout 1 came only from clones built from `main` before this fix. Those builds saved it
+    under `refs/warp/<graph>/write-attempts/`, which this build does not read: there,
+    `reconcile` returns `null` and no error names the ref (see the operator note under
+    Changed). So this error names a layout-1 record only after its ref was moved to
+    `refs/warp-local/`. Delete only the ref the
     error names: run the `git update-ref -d` command that the error message prints, in the
     repository that holds the graph. That command quotes the ref for the shell, so do not
     retype it from a template. The ref holds only that attempt's recovery record, not graph
     data: a patch the attempt published stays on its writer's chain, and only that attempt's
-    receipt is lost. Do not delete the whole prefix, which can also hold current
-    attempts. Deleting the ref frees nothing in custody; it abandons that attempt's fate,
+    receipt is lost. Do not delete the whole `refs/warp-local/<graph>/write-attempts/`
+    prefix, which can also hold current attempts. Deleting the ref frees nothing in custody; it abandons that attempt's fate,
     which is harmless at the current unlimited retention capacity.
   - A newer layout came from a newer git-warp. Keep the ref and finish the attempt with that
     build.

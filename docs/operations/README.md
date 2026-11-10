@@ -221,8 +221,23 @@ of them can return, for example:
   not confirmed. Pass the receipt's `attempt` to
   `warp.as(writer).reconcile(attempt)`, which retries the retention. If it
   returns `UnretainedWriteReceipt` again, call it again later. A `null` result
-  means that the attempt was already answered or that a sweep finished it,
-  not that the write was lost.
+  does not mean that the write was lost. The usual causes are that the
+  attempt was already answered or that a sweep finished it. `null` is also the
+  answer for an attempt of another writer and for a writer that the access
+  port denies now. One more cause applies only to a clone that ran a
+  pre-release build of `main`: the record still exists at the old ref
+  location, which this build does not read. See
+  [Finish in-flight refs from pre-release builds](../topics/sync.md#finish-in-flight-refs-from-pre-release-builds).
+
+The first granted `execute` or `reconcile` of a `Warp` also opens the write
+path. A ref lock met during that step rejects the call instead of returning a
+receipt. Nothing was published. Call the operation again: every granted
+operation tries the open again until it succeeds. When the lock is on the
+retention ledger, the rejection has code `E_WARP_RETENTION_OPEN`, its
+`refusal` is `null`, and its `cause` is the Git failure. The same code with
+`refusal` set to `policy-mismatch` is not a lock: the graph's saved retention
+capacity differs from the capacity that this build uses, and no retry clears
+it.
 
 If nothing collects garbage, disk use grows by about 220 KiB for each
 retained write, with no upper limit. The default threshold is passed after
