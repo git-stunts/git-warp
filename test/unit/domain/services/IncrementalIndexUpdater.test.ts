@@ -8,6 +8,11 @@ import { createEmptyState, applyPatchOp, encodeEdgeKey } from '../../../../src/d
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import CborIndexShardTree from '../../../../src/infrastructure/adapters/CborIndexShardTree.ts';
+import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
+import type CodecPort from '../../../../src/ports/CodecPort.ts';
+import type { PatchDiff } from '../../../../src/domain/types/PatchDiff.ts';
+import type WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.ts';
 import { ShardIdOverflowError } from '../../../../src/domain/errors/index.ts';
@@ -50,6 +55,17 @@ function buildTree(state) {
   return new MaterializedViewService({ codec: defaultCodec }).build(state).tree;
 }
 
+/** Runs one update over an encoded tree and returns only the rewritten shards, encoded. */
+function computeDirty(
+  updater: IncrementalIndexUpdater,
+  request: { diff: PatchDiff; state: WarpState; tree: Record<string, Uint8Array> },
+  codec: CodecPort = defaultCodec,
+): Record<string, Uint8Array> {
+  const shards = new CborIndexShardTree({ codec, tree: request.tree });
+  const dirty = updater.computeDirtyShards({ diff: request.diff, state: request.state, shards });
+  return new CborIndexShardTree({ codec, tree: {} }).withShards(dirty);
+}
+
 /** @param {Record<string, Uint8Array>} tree */
 function readIndex(tree) {
   return new LogicalIndexReader({ codec: defaultCodec }).loadFromTree(tree).toLogicalIndex();
@@ -88,11 +104,11 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
-      const dirtyShards = updater.computeDirtyShards({
+      const updater = new IncrementalIndexUpdater();
+      const dirtyShards = computeDirty(updater, {
         diff,
         state: state2,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
 
       // Only the meta shard for C should be dirty
@@ -129,11 +145,11 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
         nodesCleared: [],
       };
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
-      const removed = updater.computeDirtyShards({
+      const updater = new IncrementalIndexUpdater();
+      const removed = computeDirty(updater, {
         diff: removeDiff,
         state: state1,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
       const tree2 = { ...tree1, ...removed };
 
@@ -150,10 +166,10 @@ describe('IncrementalIndexUpdater', () => {
         propsChanged: [],
         nodesCleared: [],
       };
-      const readded = updater.computeDirtyShards({
+      const readded = computeDirty(updater, {
         diff: readdDiff,
         state: state1,
-        loadShard: (path) => tree2[path],
+        tree: tree2,
       });
       const tree3 = { ...tree2, ...readded };
       const index3 = readIndex(tree3);
@@ -186,11 +202,11 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
-      const dirtyShards = updater.computeDirtyShards({
+      const updater = new IncrementalIndexUpdater();
+      const dirtyShards = computeDirty(updater, {
         diff,
         state: state2,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
 
       expect(
@@ -210,11 +226,11 @@ describe('IncrementalIndexUpdater', () => {
         props: [],
       });
       const tree1 = buildTree(state);
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
+      const updater = new IncrementalIndexUpdater();
 
       // Remove B, then re-add it to initialize the updater's adjacency cache.
       state.nodeAlive.remove(state.nodeAlive.getDots('B'));
-      const removedB = updater.computeDirtyShards({
+      const removedB = computeDirty(updater, {
         diff: {
           nodesAdded: [],
           nodesRemoved: ['B'],
@@ -224,12 +240,12 @@ describe('IncrementalIndexUpdater', () => {
           nodesCleared: [],
         },
         state,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
       const tree2 = { ...tree1, ...removedB };
 
       applyPatchOp(state, { type: 'NodeAdd', node: 'B', dot: Dot.create('w1', 200) }, new EventId(200, 'w1', 'a'.repeat(40), 200));
-      const readdedB1 = updater.computeDirtyShards({
+      const readdedB1 = computeDirty(updater, {
         diff: {
           nodesAdded: ['B'],
           nodesRemoved: [],
@@ -239,14 +255,14 @@ describe('IncrementalIndexUpdater', () => {
           nodesCleared: [],
         },
         state,
-        loadShard: (path) => tree2[path],
+        tree: tree2,
       });
       const tree3 = { ...tree2, ...readdedB1 };
 
       // Edge transition with no re-added nodes must still reconcile cache state.
       const edgeKey = encodeEdgeKey('A', 'B', 'knows');
       state.edgeAlive.remove(state.edgeAlive.getDots(edgeKey));
-      const removedEdge = updater.computeDirtyShards({
+      const removedEdge = computeDirty(updater, {
         diff: {
           nodesAdded: [],
           nodesRemoved: [],
@@ -256,13 +272,13 @@ describe('IncrementalIndexUpdater', () => {
           nodesCleared: [],
         },
         state,
-        loadShard: (path) => tree3[path],
+        tree: tree3,
       });
       const tree4 = { ...tree3, ...removedEdge };
 
       // Re-add B again; stale adjacency would incorrectly resurrect A->B.
       state.nodeAlive.remove(state.nodeAlive.getDots('B'));
-      const removedBAgain = updater.computeDirtyShards({
+      const removedBAgain = computeDirty(updater, {
         diff: {
           nodesAdded: [],
           nodesRemoved: ['B'],
@@ -272,12 +288,12 @@ describe('IncrementalIndexUpdater', () => {
           nodesCleared: [],
         },
         state,
-        loadShard: (path) => tree4[path],
+        tree: tree4,
       });
       const tree5 = { ...tree4, ...removedBAgain };
 
       applyPatchOp(state, { type: 'NodeAdd', node: 'B', dot: Dot.create('w1', 201) }, new EventId(201, 'w1', 'a'.repeat(40), 201));
-      const readdedB2 = updater.computeDirtyShards({
+      const readdedB2 = computeDirty(updater, {
         diff: {
           nodesAdded: ['B'],
           nodesRemoved: [],
@@ -287,7 +303,7 @@ describe('IncrementalIndexUpdater', () => {
           nodesCleared: [],
         },
         state,
-        loadShard: (path) => tree5[path],
+        tree: tree5,
       });
       const tree6 = { ...tree5, ...readdedB2 };
       const index6 = readIndex(tree6);
@@ -308,10 +324,10 @@ describe('IncrementalIndexUpdater', () => {
         props: [],
       });
       const tree1 = buildTree(state);
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
+      const updater = new IncrementalIndexUpdater();
 
       state.nodeAlive.remove(state.nodeAlive.getDots('B'));
-      const removed = updater.computeDirtyShards({
+      const removed = computeDirty(updater, {
         diff: {
           nodesAdded: [],
           nodesRemoved: ['B'],
@@ -321,13 +337,13 @@ describe('IncrementalIndexUpdater', () => {
           nodesCleared: [],
         },
         state,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
       const tree2 = { ...tree1, ...removed };
 
       applyPatchOp(state, { type: 'NodeAdd', node: 'B', dot: Dot.create('w1', 300) }, new EventId(300, 'w1', 'a'.repeat(40), 300));
 
-      const readded = updater.computeDirtyShards({
+      const readded = computeDirty(updater, {
         diff: {
           nodesAdded: ['B'],
           nodesRemoved: [],
@@ -337,7 +353,7 @@ describe('IncrementalIndexUpdater', () => {
           nodesCleared: [],
         },
         state,
-        loadShard: (path) => tree2[path],
+        tree: tree2,
       });
       const tree3 = { ...tree2, ...readded };
       const index3 = readIndex(tree3);
@@ -382,12 +398,12 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
+      const updater = new IncrementalIndexUpdater();
       expect(() =>
-        updater.computeDirtyShards({
+        computeDirty(updater, {
           diff,
           state,
-          loadShard: (path) => tree[path],
+          tree: tree,
         }),
       ).toThrow(ShardIdOverflowError);
     });
@@ -409,11 +425,11 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
-      const dirtyShards = updater.computeDirtyShards({
+      const updater = new IncrementalIndexUpdater();
+      const dirtyShards = computeDirty(updater, {
         diff,
         state,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
 
       const tree2 = { ...tree1, ...dirtyShards };
@@ -448,11 +464,11 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
-      const dirtyShards = updater.computeDirtyShards({
+      const updater = new IncrementalIndexUpdater();
+      const dirtyShards = computeDirty(updater, {
         diff,
         state,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
 
       const tree2 = { ...tree1, ...dirtyShards };
@@ -506,11 +522,11 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
-      const dirtyShards = updater.computeDirtyShards({
+      const updater = new IncrementalIndexUpdater();
+      const dirtyShards = computeDirty(updater, {
         diff,
         state: state2,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
 
       // labels.cbor should be dirty (new label 'likes')
@@ -558,11 +574,11 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
-      const dirtyShards = updater.computeDirtyShards({
+      const updater = new IncrementalIndexUpdater();
+      const dirtyShards = computeDirty(updater, {
         diff,
         state,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
 
       const tree2 = { ...tree1, ...dirtyShards };
@@ -598,12 +614,12 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
+      const updater = new IncrementalIndexUpdater();
       // Should not throw — unregistered label means edge was never indexed
-      const dirtyShards = updater.computeDirtyShards({
+      const dirtyShards = computeDirty(updater, {
         diff,
         state,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
 
       // The 'knows' edge should be unaffected
@@ -632,11 +648,11 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
-      const dirtyShards = updater.computeDirtyShards({
+      const updater = new IncrementalIndexUpdater();
+      const dirtyShards = computeDirty(updater, {
         diff,
         state,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
 
       const shardKey = computeShardKey('A');
@@ -669,11 +685,11 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
-      const dirtyShards = updater.computeDirtyShards({
+      const updater = new IncrementalIndexUpdater();
+      const dirtyShards = computeDirty(updater, {
         diff,
         state,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
 
       const shardKey = computeShardKey('__proto__');
@@ -709,11 +725,11 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
-      const dirtyShards = updater.computeDirtyShards({
+      const updater = new IncrementalIndexUpdater();
+      const dirtyShards = computeDirty(updater, {
         diff,
         state,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
 
       const tree2 = { ...tree1, ...dirtyShards };
@@ -760,12 +776,12 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec });
-      updater.computeDirtyShards({
+      const updater = new IncrementalIndexUpdater();
+      computeDirty(updater, {
         diff,
         state,
-        loadShard: (path) => tree1[path],
-      });
+        tree: tree1,
+      }, codec);
 
       expect(capturedPropBags).toHaveLength(1);
       const [capturedPropBag] = capturedPropBags;
@@ -792,11 +808,11 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
-      const dirtyShards = updater.computeDirtyShards({
+      const updater = new IncrementalIndexUpdater();
+      const dirtyShards = computeDirty(updater, {
         diff,
         state,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
 
       expect(Object.keys(dirtyShards).length).toBe(0);
@@ -875,9 +891,9 @@ describe('IncrementalIndexUpdater', () => {
         edges: [],
         props: [],
       });
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
+      const updater = new IncrementalIndexUpdater();
 
-      const dirtyShards = updater.computeDirtyShards({
+      const dirtyShards = computeDirty(updater, {
         diff: {
           nodesAdded: [],
           nodesRemoved: [],
@@ -887,7 +903,7 @@ describe('IncrementalIndexUpdater', () => {
           nodesCleared: [],
         },
         state,
-        loadShard: () => undefined,
+        tree: {},
       });
 
       expect(Object.keys(dirtyShards).filter((path) => path.startsWith('fwd_') || path.startsWith('rev_'))).toEqual([]);
@@ -899,7 +915,7 @@ describe('IncrementalIndexUpdater', () => {
         edges: [{ from: 'A', to: 'B', label: 'rel' }],
         props: [],
       });
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
+      const updater = new IncrementalIndexUpdater();
       const emptyDiff = {
         nodesAdded: [],
         nodesRemoved: [],
@@ -909,12 +925,12 @@ describe('IncrementalIndexUpdater', () => {
         nodesCleared: [],
       };
 
-      updater.computeDirtyShards({
+      computeDirty(updater, {
         diff: emptyDiff,
         state,
-        loadShard: () => undefined,
+        tree: {},
       });
-      const dirtyShards = updater.computeDirtyShards({
+      const dirtyShards = computeDirty(updater, {
         diff: {
           nodesAdded: [],
           nodesRemoved: [],
@@ -924,7 +940,7 @@ describe('IncrementalIndexUpdater', () => {
           nodesCleared: [],
         },
         state,
-        loadShard: () => undefined,
+        tree: {},
       });
 
       expect(Object.keys(dirtyShards).filter((path) => path.startsWith('fwd_') || path.startsWith('rev_'))).toEqual([]);
@@ -936,10 +952,10 @@ describe('IncrementalIndexUpdater', () => {
         edges: [{ from: 'A', to: 'B', label: 'rel' }],
         props: [],
       });
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
+      const updater = new IncrementalIndexUpdater();
       const tree1 = buildTree(state);
 
-      updater.computeDirtyShards({
+      computeDirty(updater, {
         diff: {
           nodesAdded: [],
           nodesRemoved: [],
@@ -949,12 +965,12 @@ describe('IncrementalIndexUpdater', () => {
           nodesCleared: [],
         },
         state,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
 
       applyPatchOp(state, { type: 'EdgeAdd', from: 'A', to: 'C', label: 'rel', dot: Dot.create('w1', 301) }, new EventId(301, 'w1', 'a'.repeat(40), 301));
 
-      const dirtyShards = updater.computeDirtyShards({
+      const dirtyShards = computeDirty(updater, {
         diff: {
           nodesAdded: [],
           nodesRemoved: [],
@@ -964,7 +980,7 @@ describe('IncrementalIndexUpdater', () => {
           nodesCleared: [],
         },
         state,
-        loadShard: (path) => tree1[path],
+        tree: tree1,
       });
       const tree2 = { ...tree1, ...dirtyShards };
       const index2 = readIndex(tree2);
@@ -979,9 +995,9 @@ describe('IncrementalIndexUpdater', () => {
         edges: [],
         props: [],
       });
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
+      const updater = new IncrementalIndexUpdater();
 
-      const dirtyShards = updater.computeDirtyShards({
+      const dirtyShards = computeDirty(updater, {
         diff: {
           nodesAdded: [],
           nodesRemoved: [],
@@ -991,7 +1007,7 @@ describe('IncrementalIndexUpdater', () => {
           nodesCleared: [],
         },
         state,
-        loadShard: () => undefined,
+        tree: {},
       });
 
       expect(Object.keys(dirtyShards).filter((path) => path.startsWith('fwd_') || path.startsWith('rev_'))).toEqual([]);
@@ -1010,7 +1026,7 @@ describe('IncrementalIndexUpdater', () => {
         props: [{ nodeId: 'A', key: 'name', value: 'Alice' }],
       });
 
-      const mvs = new MaterializedViewService({ codec: defaultCodec });
+      const mvs = new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
       const { tree: tree1 } = mvs.build(state1);
 
       // Incremental update: add node C and edge B->C

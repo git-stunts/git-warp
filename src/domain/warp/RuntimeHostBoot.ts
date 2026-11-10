@@ -350,6 +350,7 @@ export async function resolveRuntimeHostConstructionOptions(
 
   const resolvedViewService = new MaterializedViewService({
     codec: resolvedCodec,
+    indexStore: resolvedIndexStore,
   });
 
   let resolvedAuditService: AuditReceiptService | undefined;

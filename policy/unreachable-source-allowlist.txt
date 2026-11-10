@@ -257,6 +257,5 @@
 #814	src/infrastructure/codecs/EffectEmissionJsonCodec.ts
 #814	src/infrastructure/codecs/TickReceiptJsonCodec.ts
 #814	src/ports/BoundaryTransitionRecordCodecPort.ts
-#814	src/ports/ShardPort.ts
 #814	src/ports/WasmVerifiedAdmissionPort.ts
 #814	src/ports/ZKWormholeProofVerifierPort.ts
