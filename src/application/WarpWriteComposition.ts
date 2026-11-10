@@ -206,8 +206,8 @@ async function custodyOrRelease(cone: OpenedCone, open: () => Promise<Observatio
   try {
     return await open();
   } catch (error) {
-    // These services took no workspace or lease, so their close has nothing to fail on; the open failure is the one to report.
-    await cone.release().catch(() => undefined);
+    // These services took no workspace or lease, so their close has nothing to fail on.
+    await cone.release();
     throw error;
   }
 }
