@@ -156,9 +156,10 @@ export default abstract class IndexStorePort {
   /**
    * Opens a synchronous semantic view over one in-memory encoded index tree.
    *
-   * Incremental index updates read and write typed shards through the view.
-   * The adapter decodes, validates, and encodes; the domain never handles
-   * shard bytes.
+   * `IncrementalIndexUpdater` reads and writes typed shards through the view,
+   * so the updater does not encode or decode shard bytes; the adapter decodes,
+   * validates, and encodes for it. `MaterializedViewService` still decodes the
+   * updated tree to rebuild its reader (see `IndexShardTreePort`).
    */
   abstract openShardTree(_tree: EncodedIndexTree): IndexShardTreePort;
 }

@@ -1,11 +1,18 @@
 /**
  * Byte-compatibility witness for incremental index updates.
  *
- * Applies seeded two-writer patch sequences through
- * MaterializedViewService.applyDiff and digests every intermediate index
- * tree. The expected digests were recorded from the codec-owning updater
- * before #192 moved shard encoding behind IndexStorePort, so any change to
- * the encoded shard bytes fails this test.
+ * Applies six seeded two-writer sequences of 40 one-operation patches, each
+ * built up from an empty state, through MaterializedViewService.applyDiff and
+ * digests every intermediate index tree.
+ *
+ * Oracle: change detection. PR #1115 reports that the expected digests were
+ * recorded on main `96733bfbe` with the codec-owning updater, before #192
+ * moved shard encoding behind IndexStorePort. That updater is gone, so the
+ * recording cannot be repeated from this tree.
+ *
+ * Scope: the test fails when the bytes of a shard that these six sequences
+ * produce change. It says nothing about other sequences. It has no legacy
+ * map-form input: every tree here is written by the current builders.
  */
 import { createHash } from 'node:crypto';
 import { describe, it, expect } from 'vitest';

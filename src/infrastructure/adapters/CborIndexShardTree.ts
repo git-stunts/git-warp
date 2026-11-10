@@ -121,7 +121,12 @@ function parseLabels(decoded: unknown): Array<[string, number]> {
   return parseIdEntries(decoded, LABELS_PATH);
 }
 
-/** Accepts the current `[name, id]` entry list and the legacy `{ name: id }` map. */
+/**
+ * Accepts the `[name, id]` entry list that the index builders and this adapter
+ * write, and a `{ name: id }` map. `LogicalIndexReader` and the previous
+ * updater accept both forms, so this reader does too. The map form does not
+ * come from storage here: the tree is always one that the running process built.
+ */
 function parseIdEntries(value: unknown, path: string): Array<[string, number]> {
   const entries = Array.isArray(value)
     ? value

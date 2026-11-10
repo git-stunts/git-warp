@@ -4,7 +4,13 @@ import type { LabelShard } from '../domain/artifacts/LabelShard.ts';
 import type { IndexShard } from '../domain/artifacts/IndexShard.ts';
 import type { PropValue } from '../domain/types/PropValue.ts';
 
-/** Encoded in-memory index tree, keyed by storage path. Domain code treats it as opaque. */
+/**
+ * Encoded in-memory index tree, keyed by storage path.
+ *
+ * `IncrementalIndexUpdater` never reads it. `MaterializedViewService` still
+ * decodes the updated tree to rebuild its index reader; removing that decode
+ * belongs with the legacy encoder under #228.
+ */
 export type EncodedIndexTree = Readonly<Record<string, Uint8Array>>;
 
 /** Validated property bags of one property shard, keyed by node ID. */
@@ -16,10 +22,16 @@ export type IndexEdgeDirection = 'fwd' | 'rev';
 /**
  * Port for synchronous semantic access to one in-memory encoded index tree.
  *
- * Incremental index updates read the shards that a diff touches and return
- * rewritten semantic shards. The adapter owns storage paths, decoding,
+ * `IncrementalIndexUpdater` reads the shards that a diff touches and returns
+ * rewritten semantic shards, so the updater does not encode or decode. For
+ * these reads and writes the adapter owns storage paths, decoding,
  * validation, and encoding. A read returns `null` when the shard is absent,
- * and throws an `IndexError` when the stored shard is malformed.
+ * and throws an `IndexError` when the shard is malformed.
+ *
+ * This port does not remove every shard decode from the domain.
+ * `MaterializedViewService.applyDiff()` still decodes the updated tree with
+ * `LogicalIndexReader.loadFromTree()` to rebuild its reader. Removing that
+ * decode belongs with the legacy encoder under #228.
  *
  * Obtain an instance from `IndexStorePort.openShardTree()`.
  */
