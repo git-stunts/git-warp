@@ -1,5 +1,9 @@
 import WarpError from '../../domain/errors/WarpError.ts';
-import type { RoaringBitmap32Constructor, RoaringModuleInput } from '../../domain/utils/roaring.ts';
+import type {
+  RoaringBitmap32Constructor,
+  RoaringLibraryConstructor,
+  RoaringModuleInput,
+} from '../../domain/utils/roaring.ts';
 import boundRoaringConstructor from './BoundedRoaringConstructor.ts';
 import RoaringShardBounds from './RoaringShardBounds.ts';
 
@@ -18,7 +22,7 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isRoaringBitmap32Constructor(value: unknown): value is RoaringBitmap32Constructor {
+function isRoaringBitmap32Constructor(value: unknown): value is RoaringLibraryConstructor {
   return typeof value === 'function';
 }
 
@@ -46,8 +50,11 @@ function normalizeRoaringModule(value: unknown): RoaringModule | null {
 }
 
 /** Every loaded library deserializes only shards that pass the shard boundary. */
-function boundedModule(library: RoaringBitmap32Constructor, isNativelyInstalled: unknown): RoaringModule {
-  const RoaringBitmap32 = boundRoaringConstructor(library, RoaringShardBounds.standard());
+function boundedModule(library: RoaringLibraryConstructor, isNativelyInstalled: unknown): RoaringModule {
+  const RoaringBitmap32 = boundRoaringConstructor(library, {
+    edge: RoaringShardBounds.edge(),
+    alive: RoaringShardBounds.alive(),
+  });
   const native = normalizeIsNativelyInstalled(isNativelyInstalled);
   return native === undefined ? { RoaringBitmap32 } : { RoaringBitmap32, isNativelyInstalled: native };
 }

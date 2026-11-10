@@ -70,55 +70,56 @@ describe('peer-controlled bitmap shards meet the boundary before the bitmap libr
     expect(error.context['fault']).toBe(fault);
   });
 
-  it('rejects a shard one value above the cardinality bound before it is loaded', () => {
+  function aliveRejection(bytes: Uint8Array): RoaringShardRejectedError {
+    try {
+      Bitmap.deserializeAlive(bytes);
+    } catch (error) {
+      if (error instanceof RoaringShardRejectedError) {
+        return error;
+      }
+      throw error;
+    }
+    throw new Error('the alive bitmap was admitted');
+  }
+
+  it('admits an alive bitmap that holds exactly the id space of one meta shard', () => {
     const atBound = encodePortableShard(fullRunContainers(256));
-    expect(Bitmap.deserialize(atBound, true).size).toBe(RoaringShardBounds.MAX_CARDINALITY);
-    const bomb = encodePortableShard(fullRunContainers(65536));
-    expect(rejection(bomb).code).toBe('E_ROARING_SHARD_CARDINALITY');
+    expect(Bitmap.deserializeAlive(atBound).size).toBe(RoaringShardBounds.MAX_ALIVE_CARDINALITY);
   });
 
-  it('rejects a hand-built shard exactly one value above the cardinality bound', () => {
+  it('rejects a hand-built alive bitmap one value above the id space of one meta shard', () => {
     const oneAbove = encodePortableShard([
       ...fullRunContainers(256),
       { kind: 'array', key: 256, values: [0] },
     ]);
-    const error = rejection(oneAbove);
+    const error = aliveRejection(oneAbove);
     expect(error.code).toBe('E_ROARING_SHARD_CARDINALITY');
     expect(error.context).toEqual({
-      cardinality: RoaringShardBounds.MAX_CARDINALITY + 1,
-      maxCardinality: RoaringShardBounds.MAX_CARDINALITY,
+      cardinality: RoaringShardBounds.MAX_ALIVE_CARDINALITY + 1,
+      maxCardinality: RoaringShardBounds.MAX_ALIVE_CARDINALITY,
     });
   });
 
-  it('writes a bitmap that holds exactly the cardinality bound and reads it back', () => {
-    const atBound = Bitmap.deserialize(encodePortableShard(fullRunContainers(256)), true);
-
-    const written = atBound.serialize(true);
-
-    expect(Bitmap.deserialize(written, true).size).toBe(RoaringShardBounds.MAX_CARDINALITY);
+  it('rejects an alive bitmap that declares the whole id space, although its last byte is missing', () => {
+    const bomb = encodePortableShard(fullRunContainers(65536));
+    expect(aliveRejection(bomb.subarray(0, bomb.length - 1)).code).toBe('E_ROARING_SHARD_CARDINALITY');
   });
 
-  it('refuses to write a loaded bitmap that grew one value above the cardinality bound', () => {
-    const grown = Bitmap.deserialize(encodePortableShard(fullRunContainers(256)), true);
-    grown.add(RoaringShardBounds.MAX_CARDINALITY);
+  it('reads an edge bitmap one value above the alive bound, grows it and writes it again', () => {
+    const edge = Bitmap.deserialize(encodePortableShard([
+      ...fullRunContainers(256),
+      { kind: 'array', key: 256, values: [0] },
+    ]), true);
+    edge.add(4_000_000_000);
 
-    expect(() => grown.serialize(true)).toThrow(expect.objectContaining({
-      code: 'E_ROARING_SHARD_WRITE_CARDINALITY',
-      context: {
-        cardinality: RoaringShardBounds.MAX_CARDINALITY + 1,
-        maxCardinality: RoaringShardBounds.MAX_CARDINALITY,
-      },
-    }));
+    const written = edge.serialize(true);
+
+    expect(Bitmap.deserialize(written, true).size).toBe(RoaringShardBounds.MAX_ALIVE_CARDINALITY + 2);
   });
 
-  it('refuses to write a new bitmap that holds one value above the cardinality bound', () => {
-    const built = new Bitmap();
-    built.orInPlace(Bitmap.deserialize(encodePortableShard(fullRunContainers(256)), true));
-    built.add(RoaringShardBounds.MAX_CARDINALITY);
-
-    expect(() => built.serialize(true)).toThrow(RoaringShardRejectedError);
-    built.remove(RoaringShardBounds.MAX_CARDINALITY);
-    expect(Bitmap.deserialize(built.serialize(true), true).size).toBe(RoaringShardBounds.MAX_CARDINALITY);
+  it('reads an edge bitmap that holds the whole id space', () => {
+    const wholeIdSpace = encodePortableShard(fullRunContainers(65536));
+    expect(Bitmap.deserialize(wholeIdSpace, true).size).toBe(2 ** 32);
   });
 
   it('rejects a shard one byte above the size bound before it is loaded', () => {

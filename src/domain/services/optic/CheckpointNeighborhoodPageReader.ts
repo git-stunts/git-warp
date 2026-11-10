@@ -285,7 +285,7 @@ function decodeMeta(decoded: DecodedMetaShard): LoadedMetaShard {
   const aliveBytes = requireRoaringShardBytes(decoded.alive);
   const alive = aliveBytes.length === 0
     ? new (getRoaringBitmap32())()
-    : getRoaringBitmap32().deserialize(aliveBytes, true);
+    : getRoaringBitmap32().deserializeAlive(aliveBytes);
   return { alive, byGlobalId };
 }
 

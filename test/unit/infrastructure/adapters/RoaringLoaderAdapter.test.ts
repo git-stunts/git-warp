@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
-  RoaringBitmap32Constructor,
+  RoaringLibraryConstructor,
   RoaringBitmapSubset,
 } from '../../../../src/domain/utils/roaring.ts';
 import { encodePortableShard } from '../../../helpers/PortableRoaringShardFixture.ts';
@@ -68,7 +68,7 @@ class FakeBitmap implements RoaringBitmapSubset {
 function createBitmapConstructor(options: {
   readonly label: string;
   readonly nativeAvailability?: boolean;
-}): RoaringBitmap32Constructor {
+}): RoaringLibraryConstructor {
   class BitmapCtor extends FakeBitmap {
     static deserialize(data: Uint8Array | ArrayLike<number>): RoaringBitmapSubset {
       return new BitmapCtor(Array.from(data));
@@ -198,29 +198,31 @@ describe('RoaringLoaderAdapter', () => {
     expect(adapter.getNativeRoaringAvailable()).toBe(true);
   });
 
-  it('applies the declared cardinality bound when any bitmap of an injected library is written', async () => {
+  it('applies the alive cardinality bound before the library loads an alive bitmap, and never to an edge bitmap', async () => {
     const { default: boundRoaringConstructor } = await import(
       '../../../../src/infrastructure/adapters/BoundedRoaringConstructor.ts'
     );
     const { default: RoaringShardBounds } = await import(
       '../../../../src/infrastructure/adapters/RoaringShardBounds.ts'
     );
-    const library = createBitmapConstructor({ label: 'WrittenBitmap' });
-    const Bounded = boundRoaringConstructor(library, new RoaringShardBounds({ maxBytes: 64, maxCardinality: 3 }));
-    const loaded = Bounded.deserialize(encodePortableShard([{ kind: 'array', key: 0, values: [1, 2, 3] }]), true);
-    const built = new Bounded([1, 2, 3]);
+    const library = createBitmapConstructor({ label: 'KindBitmap' });
+    const deserialize = vi.spyOn(library, 'deserialize');
+    const Bounded = boundRoaringConstructor(library, {
+      alive: new RoaringShardBounds({ maxBytes: 64, maxCardinality: 3 }),
+      edge: new RoaringShardBounds({ maxBytes: 64, maxCardinality: 2 ** 32 }),
+    });
+    const atBound = encodePortableShard([{ kind: 'array', key: 0, values: [1, 2, 3] }]);
+    const above = encodePortableShard([{ kind: 'array', key: 0, values: [1, 2, 3, 4] }]);
 
-    expect(built.serialize(true)).toEqual(new Uint8Array([1, 2, 3]));
-    expect(loaded).toBeInstanceOf(library);
-    loaded.add(200);
-    built.add(4);
+    expect(() => Bounded.deserializeAlive(above)).toThrow(expect.objectContaining({
+      code: 'E_ROARING_SHARD_CARDINALITY',
+      context: { cardinality: 4, maxCardinality: 3 },
+    }));
+    expect(deserialize).not.toHaveBeenCalled();
 
-    for (const bitmap of [loaded, built]) {
-      expect(() => bitmap.serialize(true)).toThrow(expect.objectContaining({
-        code: 'E_ROARING_SHARD_WRITE_CARDINALITY',
-        context: { cardinality: bitmap.size, maxCardinality: 3 },
-      }));
-    }
+    Bounded.deserializeAlive(atBound);
+    Bounded.deserialize(above, true);
+    expect(deserialize.mock.calls).toEqual([[atBound, true], [above, true]]);
   });
 
   it('treats a module without a usable constructor as unavailable', async () => {

@@ -247,7 +247,7 @@ export default class LogicalIndexReader {
     }
     const aliveBytes = requireRoaringShardBytes(aliveData);
     if (aliveBytes.length > 0) {
-      this._aliveBitmaps.set(shardKey, Ctor.deserialize(aliveBytes, true));
+      this._aliveBitmaps.set(shardKey, Ctor.deserializeAlive(aliveBytes));
     }
   }
 

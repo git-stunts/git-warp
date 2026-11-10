@@ -82,37 +82,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the bytes are not a valid portable encoding (no bytes, truncated bytes,
     unknown cookie, unordered keys, wrong offsets, unordered array values,
     bitmap or run contents that disagree with the header, or trailing bytes).
-  - `E_ROARING_SHARD_CARDINALITY`: one bitmap holds more than 2^24 values.
+  - `E_ROARING_SHARD_CARDINALITY`: an alive bitmap (the live nodes of one
+    meta shard) holds more than 2^24 values, which is more than one meta
+    shard can address.
   - `E_ROARING_SHARD_TOO_LARGE`: one bitmap has more than 34,086,920 bytes.
     With the default CBOR codec a stored bitmap cannot reach that size: the
     codec refuses an index shard file above 5 MiB first, with its own error.
   - `E_ROARING_SHARD_FORMAT`: a caller asked for a format other than the
     portable format.
-  - `E_ROARING_SHARD_WRITE_CARDINALITY`: a writer tried to store one bitmap
-    with more than 2^24 values.
 
-  The two limits apply to one bitmap, not to an index shard file such as
+  Alive bitmaps are bounded at 2^24 values. Edge bitmaps (the neighbours of
+  one node in one bucket) are bounded by bytes and by structure, not by
+  cardinality, because neighbours come from every meta shard. No write is
+  refused: the boundary checks a bitmap only when it is read. The byte limit
+  applies to one bitmap, not to an index shard file such as
   `fwd_<shard>.cbor` or `shards_*.cbor`. One file holds many bitmaps, and
-  memory still grows with the number of bitmaps in a file. The limit of 2^24
-  values is a support limit: a node with more than 2^24 neighbours in one
-  bucket (one label, or all labels) is not supported. The graph write for such
-  a node is not refused. The index build or index update that would store its
-  bitmap fails with `E_ROARING_SHARD_WRITE_CARDINALITY`; the runtime then
-  logs the warning `index build failed` and continues without the index. A
-  sparse bitmap far below 2^24 values can still make an index shard file
-  larger than the 5 MiB that the default codec reads; that limit is older
-  than this change. Most index readers and
-  the index updaters let a rejection through to the caller. Checkpoint shard reads (node
-  liveness and neighbourhood) report it as `QueryError`
-  `E_OPTIC_NO_BOUNDED_BASIS` with reason `checkpoint-shard-invalid` and keep
-  the rejection as `cause`. `BitmapIndexReader` also catches it: in strict
-  mode (the default) it throws `ShardCorruptionError` with the
-  rejection message in `context.originalError`, and in non-strict mode it
-  logs a warning and returns no neighbours from that bitmap. It reports a
-  stored value that is not a byte string the same way, without the
-  `E_ROARING_SHARD_MALFORMED` code. No consumer
-  change is necessary. An index that a released writer produced is read as
-  before when each of its bitmaps is in the limits.
+  memory still grows with the number of bitmaps in a file. A large edge
+  bitmap can still make an index shard file larger than the 5 MiB that the
+  default codec reads; that limit is older than this change. An in-process
+  read that expands a very large edge bitmap into an array is not bounded by
+  this change; [#1159](https://github.com/git-stunts/git-warp/issues/1159)
+  tracks it. Most index readers and the index updaters let a rejection
+  through to the caller. Checkpoint shard reads (node liveness and
+  neighbourhood) report it as `QueryError` `E_OPTIC_NO_BOUNDED_BASIS` with
+  reason `checkpoint-shard-invalid` and keep the rejection as `cause`.
+  `BitmapIndexReader` also catches it: in strict mode (the default) it throws
+  `ShardCorruptionError` with the rejection message in
+  `context.originalError`, and in non-strict mode it logs a warning and
+  returns no neighbours from that bitmap. It reports a stored value that is
+  not a byte string the same way, without the `E_ROARING_SHARD_MALFORMED`
+  code. No consumer change is necessary. An index that a released writer
+  produced is read as before.
 - `AuthoredWarp.execute()` reports an unavailable store while it fixes the write
   basis or reads the premise records as an `UnpublishedWriteReceipt`
   (`write-basis-unavailable`, `write-premise-unavailable`) and does not reject.

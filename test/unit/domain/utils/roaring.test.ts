@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
-  RoaringBitmap32Constructor,
+  RoaringLibraryConstructor,
   RoaringBitmapSubset,
 } from '../../../../src/domain/utils/roaring.ts';
 
@@ -65,7 +65,7 @@ class FakeBitmap implements RoaringBitmapSubset {
 function createBitmapConstructor(options: {
   readonly nativeAvailability?: boolean;
   readonly label: string;
-}): RoaringBitmap32Constructor {
+}): RoaringLibraryConstructor {
   class BitmapCtor extends FakeBitmap {
     static deserialize(data: Uint8Array | ArrayLike<number>): RoaringBitmapSubset {
       return new BitmapCtor(Array.from(data));

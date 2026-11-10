@@ -14,15 +14,26 @@ export type RoaringBitmapSubset = {
   [Symbol.iterator](): Iterator<number>;
 };
 
-export type RoaringBitmap32Constructor = {
+/** The bitmap class of a Roaring library, as the loader receives it. */
+export type RoaringLibraryConstructor = {
   new(values?: Iterable<number>): RoaringBitmapSubset;
   deserialize(data: Uint8Array, portable: boolean): RoaringBitmapSubset;
   isNativelyInstalled?: () => boolean;
 };
 
+/**
+ * The bitmap class that the loader returns. `deserialize` reads an edge
+ * bitmap, which holds neighbour global ids from every meta shard.
+ * `deserializeAlive` reads the alive bitmap of one meta shard and refuses
+ * more values than one meta shard can address.
+ */
+export type RoaringBitmap32Constructor = RoaringLibraryConstructor & {
+  deserializeAlive(data: Uint8Array): RoaringBitmapSubset;
+};
+
 type RoaringModuleOverride = {
-  readonly RoaringBitmap32: RoaringBitmap32Constructor;
-  readonly default?: { readonly RoaringBitmap32?: RoaringBitmap32Constructor };
+  readonly RoaringBitmap32: RoaringLibraryConstructor;
+  readonly default?: { readonly RoaringBitmap32?: RoaringLibraryConstructor };
   readonly isNativelyInstalled?: boolean;
 };
 

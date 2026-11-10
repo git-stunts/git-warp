@@ -262,7 +262,7 @@ export default class IncrementalIndexUpdater {
       ? null
       : requireRoaringShardBytes(raw.alive);
     const alive = aliveBytes !== null && aliveBytes.length > 0
-      ? RoaringBitmap32.deserialize(aliveBytes, true)
+      ? RoaringBitmap32.deserializeAlive(aliveBytes)
       : new RoaringBitmap32();
 
     const globalToNode = new Map<number, string>();

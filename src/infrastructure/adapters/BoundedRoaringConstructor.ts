@@ -1,41 +1,43 @@
 import RoaringShardRejectedError from '../../domain/errors/RoaringShardRejectedError.ts';
-import type { RoaringBitmap32Constructor, RoaringBitmapSubset } from '../../domain/utils/roaring.ts';
+import type {
+  RoaringBitmap32Constructor,
+  RoaringBitmapSubset,
+  RoaringLibraryConstructor,
+} from '../../domain/utils/roaring.ts';
 import inspectPortableRoaringShard from './PortableRoaringShardInspector.ts';
 import type RoaringShardBounds from './RoaringShardBounds.ts';
 
 /**
  * Returns a constructor that validates every serialized shard before
- * `library` deserializes it, and that refuses to serialize a bitmap above
- * the cardinality bound. A writer therefore cannot store a bitmap that
- * readers refuse for its cardinality. Construction and every other bitmap
- * operation stay with the library.
+ * `library` deserializes it. `deserialize` applies the `edge` bounds and
+ * `deserializeAlive` applies the `alive` bounds. Construction,
+ * serialization and every other bitmap operation stay with the library, so
+ * no write is refused. The boundary checks a shard only when it is
+ * deserialized: an index update stores the bitmaps that it does not change
+ * as the bytes that it read, without a check.
  */
 export default function boundRoaringConstructor(
-  library: RoaringBitmap32Constructor,
-  bounds: RoaringShardBounds,
+  library: RoaringLibraryConstructor,
+  bounds: { readonly edge: RoaringShardBounds; readonly alive: RoaringShardBounds },
 ): RoaringBitmap32Constructor {
+  function admit(data: Uint8Array, kindBounds: RoaringShardBounds): RoaringBitmapSubset {
+    const inspection = inspectPortableRoaringShard(data, kindBounds);
+    if (inspection instanceof RoaringShardRejectedError) {
+      throw inspection;
+    }
+    return library.deserialize(data, true);
+  }
+
   return class BoundedRoaringBitmap32 extends library {
     static override deserialize(data: Uint8Array, portable: boolean): RoaringBitmapSubset {
       if (!portable) {
         throw RoaringShardRejectedError.unsupportedFormat();
       }
-      const inspection = inspectPortableRoaringShard(data, bounds);
-      if (inspection instanceof RoaringShardRejectedError) {
-        throw inspection;
-      }
-      const bitmap = library.deserialize(data, true);
-      // The library builds an instance of its own class. The instance takes
-      // the bounded prototype, so a loaded bitmap that grows meets the same
-      // write bound as a new one.
-      Object.setPrototypeOf(bitmap, BoundedRoaringBitmap32.prototype);
-      return bitmap;
+      return admit(data, bounds.edge);
     }
 
-    override serialize(portable: boolean): Uint8Array {
-      if (this.size > bounds.maxCardinality) {
-        throw RoaringShardRejectedError.cardinalityUnwritable(this.size, bounds.maxCardinality);
-      }
-      return super.serialize(portable);
+    static deserializeAlive(data: Uint8Array): RoaringBitmapSubset {
+      return admit(data, bounds.alive);
     }
   };
 }

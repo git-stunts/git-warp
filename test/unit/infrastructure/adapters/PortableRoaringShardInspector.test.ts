@@ -12,7 +12,7 @@ import {
   type FixtureContainer,
 } from '../../../helpers/PortableRoaringShardFixture.ts';
 
-const STANDARD = RoaringShardBounds.standard();
+const STANDARD = RoaringShardBounds.alive();
 
 function rejectionCode(bytes: Uint8Array, bounds = STANDARD): string {
   const inspection = inspectPortableRoaringShard(bytes, bounds);
@@ -159,7 +159,7 @@ describe('inspectPortableRoaringShard: bounds', () => {
     expect(rejectionCode(bytes, below)).toBe('E_ROARING_SHARD_CARDINALITY');
   });
 
-  it('holds the standard cardinality bound at 2^24 values', () => {
+  it('holds the alive cardinality bound at 2^24 values', () => {
     const atBound = encodePortableShard(fullRunContainers(256));
     expect(accepted(atBound).cardinality).toBe(2 ** 24);
     const above = encodePortableShard([
@@ -175,13 +175,21 @@ describe('inspectPortableRoaringShard: bounds', () => {
     expect(rejectionCode(broken)).toBe('E_ROARING_SHARD_CARDINALITY');
   });
 
-  it('rejects input above the standard byte bound without reading it', () => {
-    const oversized = new Uint8Array(RoaringShardBounds.MAX_BYTES + 1);
-    expect(rejectionCode(oversized)).toBe('E_ROARING_SHARD_TOO_LARGE');
+  it('admits every cardinality of the id space under the edge bounds', () => {
+    const wholeIdSpace = encodePortableShard(fullRunContainers(65536));
+    expect(accepted(wholeIdSpace, RoaringShardBounds.edge()).cardinality).toBe(2 ** 32);
   });
 
-  it('derives the standard byte bound from the largest encoding of 2^24 values', () => {
-    expect(RoaringShardBounds.MAX_CARDINALITY).toBe(16_777_216);
+  it.each([
+    ['alive', RoaringShardBounds.alive()],
+    ['edge', RoaringShardBounds.edge()],
+  ])('rejects input above the byte bound of the %s bounds without reading it', (_name, bounds) => {
+    const oversized = new Uint8Array(RoaringShardBounds.MAX_BYTES + 1);
+    expect(rejectionCode(oversized, bounds)).toBe('E_ROARING_SHARD_TOO_LARGE');
+  });
+
+  it('derives the byte bound from an upper bound on the encoding of 2^24 values', () => {
+    expect(RoaringShardBounds.MAX_ALIVE_CARDINALITY).toBe(16_777_216);
     expect(RoaringShardBounds.MAX_BYTES).toBe(8 + 8192 + 65536 * 8 + 2 * 16_777_216);
   });
 

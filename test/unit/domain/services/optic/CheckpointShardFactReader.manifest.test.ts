@@ -33,6 +33,7 @@ import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts'
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
 import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
 import MockIndexStorage from '../../../../helpers/MockIndexStorage.ts';
+import { encodePortableShard, fullRunContainers } from '../../../../helpers/PortableRoaringShardFixture.ts';
 
 const NODE_ID = 'node:manifest-backed';
 const PROPERTY_KEY = 'title';
@@ -318,6 +319,7 @@ describe('CheckpointShardFactReader manifest-backed routing', () => {
     ['null in place of an alive bitmap', 'alive', null],
     ['a map that declares a length in place of an alive bitmap', 'alive', { length: Number.MAX_SAFE_INTEGER }],
     ['malformed bytes as an alive bitmap', 'alive', new Uint8Array([1, 2, 3])],
+    ['an alive bitmap above the id space of one meta shard', 'alive', encodePortableShard(fullRunContainers(257))],
   ])('reports %s as an invalid checkpoint shard in a local neighborhood', async (_name, target, value) => {
     const indexStore = new MockIndexStorage();
     const sourceMetaPath = `meta_${computeShardKey(NODE_ID)}.cbor`;
