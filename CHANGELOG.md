@@ -105,9 +105,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tracks it. A checkpoint neighbourhood page does bounded work: it visits at
   most 4 × `limit` + 256 stored candidates. When a stored edge bitmap names
   many ids that are not live nodes, a page can therefore be `truncated` with
-  fewer than `limit` edges, or with none; its cursor continues the read. Most
-  index readers and the index updaters let a rejection
-  through to the caller. The incremental index update reads its shards
+  fewer than `limit` edges, or with none; its cursor continues the read.
+  `LogicalIndexReader` and the index updaters do not catch a rejection. When
+  the runtime builds or updates its in-memory view index, it catches any error
+  from them, logs the warning `index build failed` and continues without the
+  index. The incremental index update reads its shards
   through the shard tree adapter, which refuses a stored value that is not a
   byte string with `IndexError` `E_INDEX_SHARD_MALFORMED` and not with
   `E_ROARING_SHARD_MALFORMED`; malformed bytes and an alive bitmap above the
