@@ -7,7 +7,6 @@ export type WarpGraphInstance = RuntimeHostProduct;
 export type CliOptions = {
   repo: string;
   lane: string | null;
-  strand: string | null;
   json: boolean;
   jsonl: boolean;
   writer: string;

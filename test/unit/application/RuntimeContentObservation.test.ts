@@ -1,13 +1,11 @@
 import { expect, it, vi } from 'vitest';
 import RuntimeActivity from '../../../src/application/RuntimeActivity.ts';
-import { startContentObservation, startStrandContentObservation } from '../../../src/application/RuntimeContentObservation.ts';
+import { startContentObservation } from '../../../src/application/RuntimeContentObservation.ts';
 import WarpWorldline from '../../../src/domain/WarpWorldline.ts';
-import WarpWorldlineCoordinate from '../../../src/domain/WarpWorldlineCoordinate.ts';
 import WarpError from '../../../src/domain/errors/WarpError.ts';
 import ContentOwner from '../../../src/domain/api/ContentOwner.ts';
 import { createNodeContentObserver } from '../../../src/domain/api/ContentObserverRuntime.ts';
 import { createTimeline } from '../../../src/domain/api/TimelineRuntime.ts';
-import { createDraftTimeline } from '../../../src/domain/api/DraftTimelineRuntime.ts';
 import { bindContentReadRuntime, captureContentReadBasis } from '../../../src/domain/services/ContentReadRuntime.ts';
 import { createPatchBuilderMockPersistence, RecordingPatchJournal } from '../domain/services/PatchBuilderTestHarness.ts';
 
@@ -55,20 +53,4 @@ it('preserves unexpected storage failures and reports typed refusal without clai
   fields.refs.listRefs.mockRejectedValueOnce(new WarpError('bounded refusal', 'E_CONTENT_READ_LIMIT'));
   expect(await (await startContentObservation(fields)).receipt)
     .toMatchObject({ status: 'obstructed', reason: 'E_CONTENT_READ_LIMIT' });
-});
-
-it('refuses a strand without its captured coordinate', async () => {
-  const fields = fixture();
-  const draft = await createDraftTimeline({ ...fields, timelineName: 'documents', draftName: 'draft' });
-  const execution = await startStrandContentObservation({ ...fields, draft });
-  expect(await execution.receipt).toMatchObject({ status: 'obstructed', reason: 'E_CONTENT_READ_BASIS' });
-});
-
-it('propagates an unexpected strand capture failure', async () => {
-  const fields = fixture();
-  const forkedAt = new WarpWorldlineCoordinate({ worldlineName: 'documents', checkpointSha: 'a001', frontier: new Map(), createWorldline: vi.fn() });
-  const draft = await createDraftTimeline({ ...fields, forkedAt, timelineName: 'documents', draftName: 'draft' });
-  const failure = new Error('capture failed');
-  fields.prepareStrandOptic.mockRejectedValue(failure);
-  await expect(startStrandContentObservation({ ...fields, draft })).rejects.toBe(failure);
 });

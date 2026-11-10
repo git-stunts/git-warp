@@ -20,7 +20,7 @@ import type Reading from './Reading.ts';
 import { executeReading } from './ReadingRuntime.ts';
 import Tick from './Tick.ts';
 import type { JoinOptions } from './Timeline.ts';
-import type WriteReceipt from './WriteReceipt.ts';
+import type TimelineWriteReceipt from './TimelineWriteReceipt.ts';
 import { executeIntentWrite } from './WriteRuntime.ts';
 
 export type { DraftReadingTarget } from './DraftReadingTarget.ts';
@@ -318,7 +318,7 @@ export function requireDraftStateForReading(draft: DraftTimeline): DraftTimeline
 
 async function writeDraftIntent(
   fields: DraftWriteFields,
-): Promise<WriteReceipt<WriteIntentInput>> {
+): Promise<TimelineWriteReceipt<WriteIntentInput>> {
   let draftPatch: WarpDraftPatchEntry | undefined;
   const receipt = await executeIntentWrite({
     runtime: fields.runtime,
