@@ -196,7 +196,11 @@ await graph.syncWith('http://peer:3000', {
 
 ## Writer Authorization
 
-The sync server supports an optional writer whitelist that restricts which writer IDs can submit patches through the HTTP sync protocol.
+The built-in sync server supports an optional writer list, `allowedWriters`. A sync
+request carries the frontier of the requester (writer ID to tip SHA), not patches; the
+server sends patches in its response and does not apply patches from a request. The
+server refuses a request whose frontier names a writer ID that is not in the list. No
+package entry point has exposed `serve()` since v19.0.0.
 
 ### Configuration
 
@@ -205,7 +209,7 @@ await graph.serve({
   port: 3000,
   httpPort: new NodeHttpAdapter(),
   auth: {
-    keys: { default: 'your-shared-secret' },
+    keys: { default: SyncSecret.fromString('your-shared-secret') },
     mode: 'enforce',
   },
   allowedWriters: ['alice', 'bob', 'node-1'],
@@ -214,11 +218,20 @@ await graph.serve({
 
 ### Rules
 
-- Writer ID matching is **case-sensitive** and follows the pattern `[A-Za-z0-9._-]+` (1–64 characters)
-- Writer IDs are validated at server startup; invalid IDs throw immediately
-- When `allowedWriters` is not set (default), all authenticated writers are permitted
-- When set, sync requests containing patches from unlisted writers receive HTTP 403 (`FORBIDDEN_WRITER`)
-- The `forbiddenWriterRejects` metric tracks rejected requests
+- Writer ID matching is **case-sensitive**. Each listed ID must match `[A-Za-z0-9._-]+`,
+  have 1–64 characters and not contain `..`
+- A non-empty list requires `auth`; without it `serve()` refuses to start. With `auth`,
+  `serve()` refuses to start if a listed ID is invalid (`E_INVALID_WRITER_ID`) or the list
+  is empty (`E_SYNC_AUTH_EMPTY_ALLOWED_WRITERS`)
+- When `allowedWriters` is not set (default), the frontier is not checked
+- When set, a request whose frontier names an unlisted writer receives HTTP 403
+  (`FORBIDDEN_WRITER`) in `enforce` mode. In `log-only` mode the server logs it and
+  answers the request
+- A request with an empty frontier names no writer, so this check passes it
+- The sync auth service counts each frontier that fails the check in its
+  `forbiddenWriterRejects` metric, in both modes. `serve()` does not expose this metric
+- Before v21.0.0, `serve()` did not pass `allowedWriters` to the server, so the list had
+  no effect ([#1163](https://github.com/git-stunts/git-warp/issues/1163))
 
 ## Reporting a Vulnerability
 

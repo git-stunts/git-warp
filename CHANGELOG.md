@@ -70,6 +70,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `E_CLOCK_REQUIRED`. See the
   [v21 sync authentication migration](docs/migrations/v21/README.md#http-sync-authentication)
   ([#1089](https://github.com/git-stunts/git-warp/issues/1089)).
+- The built-in sync server now enforces `allowedWriters` when it is started through
+  `serve()`. A server with this option set now refuses, with HTTP 403 `FORBIDDEN_WRITER`,
+  requests it answered before, and refuses to start with a list it accepted before (see
+  Fixed). No package entry point has exposed `serve()` since v19.0.0
+  ([#1163](https://github.com/git-stunts/git-warp/issues/1163)).
 
 ### Changed
 
@@ -350,6 +355,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `serve()` now passes `allowedWriters` to the HTTP sync server. From v11.0.0 to v20.0.0
+  it did not, so the writer list that `.github/SECURITY.md` documents had no effect: the
+  server answered a signed request whose frontier named an unlisted writer, and an invalid
+  or empty list, or a list without `auth`, did not stop the server from starting. In
+  v11.0.0 to v18.2.1 `WarpGraph` (and from v17.0.0 `WarpCore`) exposed `serve()`, and v18.1.0 to v18.2.1
+  also passed `git warp serve --allow-writer` to it; v19.0.0 and v20.0.0 published no route
+  to `serve()`. An operator who set `allowedWriters` now gets the documented behaviour: a
+  request whose frontier names an unlisted writer gets HTTP 403 `FORBIDDEN_WRITER` in
+  `enforce` mode, and an invalid list stops `serve()` at startup. `.github/SECURITY.md`
+  now states that the check reads the requester's frontier, that a request with an empty
+  frontier passes it, and that `serve()` does not expose the `forbiddenWriterRejects`
+  metric ([#1163](https://github.com/git-stunts/git-warp/issues/1163)).
 - A write receipt rebuilt by `AuthoredWarp.reconcile` after an interrupted write now
   reports the same `outcome.races` as the original receipt, rather than none. Retained
   receipts keep their races as durable evidence. `outcome.races` is now always in one

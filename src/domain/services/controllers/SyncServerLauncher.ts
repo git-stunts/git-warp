@@ -29,6 +29,7 @@ export interface ServeOptions {
   httpPort: HttpServerPort;
   auth?: { keys: Record<string, SyncSecret>; mode?: 'enforce' | 'log-only'; rateLimit?: SyncRateLimitConfig };
   unsafeAllowUnauthenticatedLocalhost?: boolean;
+  allowedWriters?: string[];
 }
 
 export interface ServerHandle {
@@ -58,6 +59,7 @@ export async function launchSyncServer(
     httpPort,
     auth,
     unsafeAllowUnauthenticatedLocalhost,
+    allowedWriters,
   } = options;
 
   if (typeof port !== 'number') {
@@ -93,6 +95,7 @@ export async function launchSyncServer(
     maxRequestBytes,
     ...(authConfig !== undefined ? { auth: authConfig } : {}),
     ...(unsafeAllowUnauthenticatedLocalhost !== undefined ? { unsafeAllowUnauthenticatedLocalhost } : {}),
+    ...(allowedWriters !== undefined ? { allowedWriters } : {}),
   });
 
   return await httpServer.listen(port);
