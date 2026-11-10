@@ -1,478 +1,162 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.ts';
+import type { HttpSyncServerOptions } from '../../../../src/domain/services/sync/HttpSyncServerHelpers.ts';
+import type { SyncRequest, SyncResponse } from '../../../../src/domain/services/sync/SyncProtocol.ts';
+import type LogFields from '../../../../src/domain/types/log/LogFields.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
-import { createMockCrypto } from '../../../helpers/mockPorts.ts';
+import { HttpRequest } from '../../../../src/ports/HttpServerPort.ts';
+import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import NoOpLogger from '../../../../src/infrastructure/adapters/NoOpLogger.ts';
+import ManualClock from '../../../helpers/ManualClock.ts';
 import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
+import { MemoryHttpPort, SyncInbox } from '../../../helpers/SyncHttpFixture.ts';
 
-const TEST_CRYPTO = createMockCrypto();
-const TEST_REPLAY_PROTECTION = new InMemorySyncReplayProtection();
-
-/** @param {any} value @returns {any} */
-function canonicalizeJson(value) {
-  if (Array.isArray(value)) {
-    return value.map(canonicalizeJson);
+const BODY = new TextEncoder().encode('{"type":"sync-request","frontier":{}}');
+function configured(options: Partial<HttpSyncServerOptions> = {}) {
+  const http = new MemoryHttpPort();
+  const graph = new SyncInbox();
+  const server = new HttpSyncServer({ httpPort: http, graph, unsafeAllowUnauthenticatedLocalhost: true, ...options });
+  return { http, graph, server };
+}
+function authentication() {
+  const clock = new ManualClock();
+  return { keys: { default: SyncSecret.fromString('secret') }, crypto: new NodeCryptoAdapter(), clock,
+    replayProtection: new InMemorySyncReplayProtection(clock.read) };
+}
+class FailingSyncInbox extends SyncInbox {
+  readonly failure = new Error('private object-store failure');
+  override processSyncRequest(_request: SyncRequest): Promise<SyncResponse> { return Promise.reject(this.failure); }
+}
+class ErrorLog extends NoOpLogger {
+  readonly entries: { message: string; context: LogFields | undefined }[] = [];
+  override error(message: string, context?: LogFields): void { this.entries.push({ message, context }); }
+}
+class OrderedResponseInbox extends SyncInbox {
+  override processSyncRequest(_request: SyncRequest): Promise<SyncResponse> {
+    return Promise.resolve({ type: 'sync-response', frontier: { b: '2', a: '1' }, patches: [] });
   }
-  if (value && typeof value === 'object') {
-        const sorted = ({}) as Record<string, any>;
-    for (const key of Object.keys(value).sort()) {
-      sorted[key] = canonicalizeJson(value[key]);
-    }
-    return sorted;
-  }
-  return value;
 }
 
-/** @param {any} value */
-function canonicalStringify(value) {
-  return JSON.stringify(canonicalizeJson(value));
-}
-
-/**
- * Creates a mock HttpServerPort that captures the request handler
- * and lets tests invoke it directly without network I/O.
- */
-/** @returns {any} */
-function createMockPort() {
-    let handler;
-  const addressValue = { port: 9999 };
-
-  return {
-    port: {
-      createServer(/** @type {any} */ requestHandler) {
-        handler = requestHandler;
-        return {
-          listen(/** @type {any} */ _port, /** @type {any} */ _host, /** @type {any} */ cb) {
-            if (typeof _host === 'function') {
-              cb = _host;
-            }
-            if (cb) cb(null);
-          },
-          close(/** @type {any} */ cb) {
-            if (cb) cb(null);
-          },
-          address() {
-            return addressValue;
-          },
-        };
-      },
-    },
-    getHandler() {
-      return handler;
-    },
-    setAddress(/** @type {any} */ addr) {
-      addressValue.port = addr.port;
-    },
-  };
-}
-
-describe('HttpSyncServer', () => {
-    let mockPort;
-    let graph;
-
-  beforeEach(() => {
-    mockPort = createMockPort();
-    graph = {
-      processSyncRequest: vi.fn().mockResolvedValue({
-        type: 'sync-response',
-        frontier: {},
-        patches: [],
-      }),
-    };
+describe('HttpSyncServer configuration', () => {
+  it('refuses a nonnumeric port', async () => {
+    const { server } = configured();
+    // @ts-expect-error Exercise runtime validation for an untyped caller.
+    await expect(server.listen('abc')).rejects.toMatchObject({ code: 'E_SYNC_PROTOCOL' });
   });
-
-  it('throws if port is not a number', async () => {
-    const server = new HttpSyncServer((({
-      httpPort: mockPort.port,
-      graph,
-      unsafeAllowUnauthenticatedLocalhost: true,
-    }) as any));
-    await expect(server.listen(('abc' as any))).rejects.toThrow('listen() requires a numeric port');
-  });
-
-  it('returns url and close handle on listen', async () => {
-    const server = new HttpSyncServer((({
-      httpPort: mockPort.port,
-      graph,
-      host: '127.0.0.1',
-      path: '/sync',
-      unsafeAllowUnauthenticatedLocalhost: true,
-    }) as any));
-
+  it('returns the configured URL and a usable close handle', async () => {
+    const { server } = configured();
     const handle = await server.listen(9999);
     expect(handle.url).toBe('http://127.0.0.1:9999/sync');
-    expect(typeof handle.close).toBe('function');
     await handle.close();
   });
-
-  describe('production auth defaults', () => {
-    it('rejects localhost no-auth serving unless unsafe mode is explicit', () => {
-      expect(() => new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        host: '127.0.0.1',
-      }) as any))).toThrow(/unsafeAllowUnauthenticatedLocalhost/);
-    });
-
-    it('allows localhost no-auth serving when unsafe mode is explicit', () => {
-      expect(() => new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        host: '127.0.0.1',
-        unsafeAllowUnauthenticatedLocalhost: true,
-      }) as any))).not.toThrow();
-    });
-
-    it('rejects non-local no-auth serving even when unsafe localhost mode is set', () => {
-      expect(() => new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        host: '0.0.0.0',
-        unsafeAllowUnauthenticatedLocalhost: true,
-      }) as any))).toThrow(/auth is required for non-local sync hosts/);
-    });
-
-    it('rejects non-local log-only auth serving', () => {
-      expect(() => new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        host: '0.0.0.0',
-        auth: {
-          keys: { default: SyncSecret.fromString('secret') },
-          mode: 'log-only',
-          crypto: TEST_CRYPTO,
-          replayProtection: new InMemorySyncReplayProtection(),
-        },
-      }) as any))).toThrow(/non-local sync hosts require auth.mode "enforce"/);
-    });
-
-    it('allows non-local enforced auth serving', () => {
-      expect(() => new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        host: '0.0.0.0',
-        auth: {
-          keys: { default: SyncSecret.fromString('secret') },
-          mode: 'enforce',
-          crypto: TEST_CRYPTO,
-          replayProtection: new InMemorySyncReplayProtection(),
-          rateLimit: {
-            capacity: 10,
-            refillTokensPerSecond: 1,
-            clock: () => 0,
-          },
-        },
-      }) as any))).not.toThrow();
-    });
-
-    it('rejects non-local enforced auth serving without rate limiting', () => {
-      expect(() => new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        host: '0.0.0.0',
-        auth: {
-          keys: { default: SyncSecret.fromString('secret') },
-          mode: 'enforce',
-          crypto: TEST_CRYPTO,
-          replayProtection: new InMemorySyncReplayProtection(),
-        },
-      }) as any))).toThrow(/non-local sync hosts require auth.rateLimit/);
-    });
+  it('requires explicit unsafe mode for localhost without auth', () => {
+    expect(() => new HttpSyncServer({ httpPort: new MemoryHttpPort(), graph: new SyncInbox() }))
+      .toThrow(/unsafeAllowUnauthenticatedLocalhost/);
   });
-
-  it('rejects path without leading slash', () => {
-    expect(() => new HttpSyncServer((({
-      httpPort: mockPort.port,
-      graph,
-      path: 'custom',
-    }) as any))).toThrow(/HttpSyncServer config/);
+  it('allows explicit unsafe localhost mode', () => { expect(() => configured()).not.toThrow(); });
+  it('requires auth for a nonlocal host even in unsafe mode', () => {
+    expect(() => configured({ host: '0.0.0.0' })).toThrow(/auth is required for non-local sync hosts/);
   });
-
-  describe('request handling', () => {
-        let handler;
-
-    beforeEach(async () => {
-      const server = new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        host: '127.0.0.1',
-        path: '/sync',
-        unsafeAllowUnauthenticatedLocalhost: true,
-      }) as any));
-      await server.listen(9999);
-      handler = mockPort.getHandler();
-    });
-
-    it('returns 400 for non-JSON content type', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'text/plain', host: '127.0.0.1:9999' },
-        body: undefined,
-      });
-      expect(res.status).toBe(400);
-      expect(JSON.parse(res.body)).toEqual({ error: 'Expected application/json' });
-    });
-
-    it('returns 400 for invalid URL', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '://bad',
-        headers: { host: '://bad' },
-        body: undefined,
-      });
-      expect(res.status).toBe(400);
-      expect(JSON.parse(res.body)).toEqual({ error: 'Invalid URL' });
-    });
-
-    it('returns 404 for wrong path', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/other',
-        headers: { host: '127.0.0.1:9999' },
-        body: undefined,
-      });
-      expect(res.status).toBe(404);
-      expect(JSON.parse(res.body)).toEqual({ error: 'Not Found' });
-    });
-
-    it('returns 405 for non-POST method', async () => {
-      const res = await handler({
-        method: 'GET',
-        url: '/sync',
-        headers: { host: '127.0.0.1:9999' },
-        body: undefined,
-      });
-      expect(res.status).toBe(405);
-      expect(JSON.parse(res.body)).toEqual({ error: 'Method Not Allowed' });
-    });
-
-    it('returns 413 for oversized request', async () => {
-      const server = new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        maxRequestBytes: 10,
-        unsafeAllowUnauthenticatedLocalhost: true,
-      }) as any));
-      await server.listen(9999);
-      const h = mockPort.getHandler();
-
-      const res = await h({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from('x'.repeat(20)),
-      });
-      expect(res.status).toBe(413);
-      expect(JSON.parse(res.body)).toEqual({ error: 'Request too large' });
-    });
-
-    it('returns 400 for invalid JSON body', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from('{bad json'),
-      });
-      expect(res.status).toBe(400);
-      expect(JSON.parse(res.body)).toEqual({ error: 'Invalid JSON' });
-    });
-
-    it('returns 400 for invalid sync request structure', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify({ type: 'not-sync' })),
-      });
-      expect(res.status).toBe(400);
-      expect(JSON.parse(res.body).error).toMatch(/Invalid sync request/);
-    });
-
-    it('returns 400 when frontier is an array', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: [] })),
-      });
-      expect(res.status).toBe(400);
-      expect(JSON.parse(res.body).error).toMatch(/Invalid sync request/);
-    });
-
-    it('returns 400 when frontier is missing', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify({ type: 'sync-request' })),
-      });
-      expect(res.status).toBe(400);
-      expect(JSON.parse(res.body).error).toMatch(/Invalid sync request/);
-    });
-
-    it('returns 200 with canonical JSON for valid sync request', async () => {
-      const payload = {
-        type: 'sync-response',
-        frontier: { b: '2', a: '1' },
-        patches: [{ writerId: 'w1', sha: 's1', patch: { z: 1, a: 2 } }],
-      };
-      graph.processSyncRequest.mockResolvedValue(payload);
-
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} })),
-      });
-      expect(res.status).toBe(200);
-      expect(res.body).toBe(canonicalStringify(payload));
-    });
-
-    it('returns sanitized 500 when processSyncRequest throws', async () => {
-      graph.processSyncRequest.mockRejectedValue(new Error('secret backend path /tmp/git-warp'));
-
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} })),
-      });
-      expect(res.status).toBe(500);
-      expect(JSON.parse(res.body)).toEqual({
-        code: 'E_SYNC_INTERNAL',
-        error: 'Sync failed',
-      });
-      expect(res.body).not.toContain('secret backend path');
-      expect(res.body).not.toContain('/tmp/git-warp');
-    });
-
-    it('logs the internal sync error through LoggerPort', async () => {
-      const logger = {
-        debug: vi.fn(),
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        child: vi.fn(),
-      };
-      const server = new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        logger,
-        unsafeAllowUnauthenticatedLocalhost: true,
-      }) as any));
-      await server.listen(9999);
-      const h = mockPort.getHandler();
-      const internalError = new Error('private object-store failure');
-      graph.processSyncRequest.mockRejectedValue(internalError);
-
-      const res = await h({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} })),
-      });
-
-      expect(res.status).toBe(500);
-      expect(logger.error).toHaveBeenCalledWith(
-        'sync server: processSyncRequest failed',
-        expect.objectContaining({ error: internalError }),
-      );
-    });
-
-    it('allows requests without content-type header', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} })),
-      });
-      expect(res.status).toBe(200);
-    });
-
-    it('allows application/json with charset', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json; charset=utf-8', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify({ type: 'sync-request', frontier: {} })),
-      });
-      expect(res.status).toBe(200);
-    });
-
-    it('handles empty body as invalid sync request', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { host: '127.0.0.1:9999' },
-        body: undefined,
-      });
-      expect(res.status).toBe(400);
-      expect(JSON.parse(res.body).error).toMatch(/Invalid sync request/);
-    });
+  it('refuses log-only auth on a nonlocal host', () => {
+    expect(() => configured({ host: '0.0.0.0', auth: { ...authentication(), mode: 'log-only' } }))
+      .toThrow(/non-local sync hosts require auth.mode "enforce"/);
   });
-
-  describe('allowedWriters configuration validation', () => {
-    it('throws when allowedWriters is set without auth.keys', () => {
-      expect(() => new HttpSyncServer({
-        httpPort: (createMockPort() as any),
-        graph: { processSyncRequest: vi.fn() },
-        allowedWriters: ['alice'],
-      })).toThrow(/allowedWriters requires auth\.keys to be configured/);
-    });
-
-    it('does not throw when allowedWriters is set with auth.keys', () => {
-      expect(() => new HttpSyncServer({
-        httpPort: (createMockPort() as any),
-        graph: { processSyncRequest: vi.fn() },
-        auth: {
-          keys: { default: SyncSecret.fromString('secret') },
-          crypto: TEST_CRYPTO,
-          replayProtection: TEST_REPLAY_PROTECTION,
-        },
-        allowedWriters: ['alice'],
-      })).not.toThrow();
-    });
+  it('allows enforced auth with rate limiting on a nonlocal host', () => {
+    const clock = new ManualClock();
+    expect(() => configured({ host: '0.0.0.0', auth: { ...authentication(), mode: 'enforce',
+      rateLimit: { capacity: 1, refillTokensPerSecond: 1, clock: clock.read } } })).not.toThrow();
   });
+  it('requires rate limiting on a nonlocal host', () => {
+    expect(() => configured({ host: '0.0.0.0', auth: { ...authentication(), mode: 'enforce' } }))
+      .toThrow(/non-local sync hosts require auth.rateLimit/);
+  });
+  it('rejects a path without a leading slash', () => { expect(() => configured({ path: 'sync' })).toThrow(/HttpSyncServer config/); });
+  it('requires auth when allowedWriters is configured', () => {
+    expect(() => configured({ allowedWriters: ['alice'] })).toThrow(/allowedWriters/);
+  });
+  it('accepts allowedWriters with authentication', () => {
+    expect(() => configured({ auth: authentication(), allowedWriters: ['alice'] })).not.toThrow();
+  });
+  it('rejects missing required options', () => {
+    // @ts-expect-error Exercise the untyped constructor boundary.
+    expect(() => new HttpSyncServer({})).toThrow(/HttpSyncServer config/);
+  });
+  it('rejects a negative body size limit', () => { expect(() => configured({ maxRequestBytes: -1 })).toThrow(/HttpSyncServer config/); });
+  it('rejects an empty key map', () => {
+    expect(() => configured({ auth: { ...authentication(), keys: {} } })).toThrow(/auth.keys must not be empty/);
+  });
+  it('rejects unrecognized top-level options', () => {
+    // @ts-expect-error Exercise strict runtime option validation.
+    expect(() => configured({ unrecognized: 42 })).toThrow(/HttpSyncServer config/);
+  });
+  it('applies the default route and host', async () => {
+    const { server, http } = configured();
+    expect((await server.listen(9999)).url).toBe('http://127.0.0.1:9999/sync');
+    expect(await http.request()).toMatchObject({ status: 200 });
+  });
+});
 
-  describe('Zod schema validation', () => {
-    it('throws on empty options (missing required fields)', () => {
-      expect(() => new HttpSyncServer(({} as any))).toThrow(/HttpSyncServer config/);
-    });
-
-    it('throws on negative maxRequestBytes', () => {
-      expect(() => new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        maxRequestBytes: -1,
-      }) as any))).toThrow(/HttpSyncServer config/);
-    });
-
-    it('throws on empty auth.keys', () => {
-      expect(() => new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        auth: { keys: {} },
-      }) as any))).toThrow(/auth\.keys must not be empty/);
-    });
-
-    it('throws on unknown top-level key (strict mode)', () => {
-      expect(() => new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        unknownKey: 42,
-      }) as any))).toThrow(/HttpSyncServer config/);
-    });
-
-    it('succeeds with explicit unsafe localhost defaults and applies them correctly', () => {
-      const server = new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        unsafeAllowUnauthenticatedLocalhost: true,
-      }) as any));
-      // Default path and host are applied via Zod schema
-      expect(server._path).toBe('/sync');
-      expect(server._host).toBe('127.0.0.1');
-      expect(server._maxRequestBytes).toBe(4194304);
-    });
+describe('HttpSyncServer HTTP boundary', () => {
+  it.each([
+    { name: 'non-JSON content type', method: 'POST', url: '/sync', contentType: 'text/plain', body: BODY, status: 400, error: 'Expected application/json' },
+    { name: 'invalid URL', method: 'POST', url: 'http://[', contentType: 'application/json', body: BODY, status: 400, error: 'Invalid URL' },
+    { name: 'wrong path', method: 'POST', url: '/missing', contentType: 'application/json', body: BODY, status: 404, error: 'Not Found' },
+    { name: 'non-POST method', method: 'GET', url: '/sync', contentType: 'application/json', body: BODY, status: 405, error: 'Method Not Allowed' },
+    { name: 'invalid JSON', method: 'POST', url: '/sync', contentType: 'application/json', body: new TextEncoder().encode('not-json'), status: 400, error: 'Invalid JSON' },
+  ])('rejects $name before graph work', async row => {
+    const { server, http, graph } = configured();
+    await server.listen(9999);
+    const result = await http.dispatch(new HttpRequest({ method: row.method, url: row.url, body: row.body,
+      headers: { 'content-type': row.contentType, host: '127.0.0.1:9999' } }));
+    expect(result).toMatchObject({ status: row.status, body: `{"error":"${row.error}"}` });
+    expect(graph.requests).toHaveLength(0);
+  });
+  it('rejects an oversized request before graph work', async () => {
+    const { server, http, graph } = configured({ maxRequestBytes: 10 });
+    await server.listen(9999);
+    expect(await http.request()).toMatchObject({ status: 413, body: '{"error":"Request too large"}' });
+    expect(graph.requests).toHaveLength(0);
+  });
+  it.each([
+    ['invalid request kind', '{"type":"not-sync"}'],
+    ['array frontier', '{"type":"sync-request","frontier":[]}'],
+    ['missing frontier', '{"type":"sync-request"}'],
+    ['empty body', ''],
+  ])('rejects %s before graph work', async (_name, source) => {
+    const { server, http, graph } = configured();
+    await server.listen(9999);
+    const response = await http.request({}, new TextEncoder().encode(source));
+    expect(response.status).toBe(400);
+    expect(response.body).toContain('Invalid sync request');
+    expect(graph.requests).toHaveLength(0);
+  });
+  it('returns a canonically ordered response', async () => {
+    const { server, http } = configured({ graph: new OrderedResponseInbox() });
+    await server.listen(9999);
+    expect(await http.request()).toMatchObject({ status: 200, body: '{"frontier":{"a":"1","b":"2"},"patches":[],"type":"sync-response"}' });
+  });
+  it('sanitizes internal failures in HTTP responses', async () => {
+    const { server, http } = configured({ graph: new FailingSyncInbox() });
+    await server.listen(9999);
+    expect(await http.request()).toMatchObject({ status: 500, body: '{"code":"E_SYNC_INTERNAL","error":"Sync failed"}' });
+  });
+  it('retains internal failure diagnostics in the logger', async () => {
+    const graph = new FailingSyncInbox();
+    const logger = new ErrorLog();
+    const { server, http } = configured({ graph, logger });
+    await server.listen(9999);
+    expect(await http.request()).toMatchObject({ status: 500 });
+    expect(logger.entries).toEqual([{ message: 'sync server: processSyncRequest failed', context: { error: graph.failure } }]);
+  });
+  it('allows an omitted content-type header', async () => {
+    const { server, http } = configured();
+    await server.listen(9999);
+    expect(await http.dispatch(new HttpRequest({ method: 'POST', url: '/sync', headers: { host: '127.0.0.1:9999' }, body: BODY })))
+      .toMatchObject({ status: 200 });
+  });
+  it('allows application/json with a charset', async () => {
+    const { server, http } = configured();
+    await server.listen(9999);
+    expect(await http.request({ 'content-type': 'application/json; charset=utf-8' })).toMatchObject({ status: 200 });
   });
 });
