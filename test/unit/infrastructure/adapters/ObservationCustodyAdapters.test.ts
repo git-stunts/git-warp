@@ -188,7 +188,7 @@ describe('GitCasObservationCustodyAdapter', () => {
     ['a string', 'ledger offline', 'ledger offline'],
     ['nothing', undefined, 'undefined'],
   ])('keeps a store failure that is %s inside an Error, so the retention rejection can be built', async (_, thrown, described) => {
-    // git-cas passes on whatever its store threw, so the value is read here without its declared type.
+    // git-cas never gives this; the fake breaks the declared type on purpose.
     const held: object = { thrown };
     const failing: ObservationReservations = {
       open: async () => await Promise.resolve({ status: 'indeterminate', policy: POLICY, cause: Reflect.get(held, 'thrown') }),

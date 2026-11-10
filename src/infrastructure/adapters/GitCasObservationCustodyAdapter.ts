@@ -145,8 +145,9 @@ export default class GitCasObservationCustodyAdapter extends ObservationCustodyP
 }
 
 /**
- * The failure an open reported, as an Error. git-cas passes on whatever its store threw, so a
- * value that is not an Error is kept in the `context.thrown` of one that describes it.
+ * The failure an open reported, as an Error. git-cas declares and gives an Error here. This
+ * guard keeps the domain error buildable if another reservation store gives something else:
+ * the value is kept in `context.thrown`.
  */
 function storeFailure(thrown: unknown): Error {
   return thrown instanceof Error

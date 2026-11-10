@@ -9,8 +9,9 @@ import WarpError from './WarpError.ts';
  * retention capacity differs from the one this build opens it with, and no retry clears that;
  * `contention` means other processes kept winning the ledger, and a retry can succeed. When the
  * store could not answer, `refusal` is null and `cause` is its failure, such as a held ref lock:
- * a retry can succeed. `cause` is always an Error: the custody adapter wraps any other thrown
- * value in one and keeps the value in that Error's `context.thrown`.
+ * a retry can succeed. `cause` is always an Error. git-cas gives one: it wraps any other thrown
+ * value in a `CasError` and keeps the value in that error's `meta.originalError`. The custody
+ * adapter also wraps a non-Error from a reservation store that breaks that contract.
  */
 export default class RetentionStoreOpenError extends WarpError {
   readonly refusal: CustodyRefusalReason | null;
