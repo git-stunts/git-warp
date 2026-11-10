@@ -33,6 +33,7 @@ export function openWarp(options: OpenWarpOptions): Promise<Warp> {
           codec: runtimePorts.codec,
           crypto: runtimePorts.crypto,
           random: runtimePorts.random,
+          clock: runtimePorts.clock,
           trustCrypto: runtimePorts.trustCrypto,
           commitMessageCodec: runtimePorts.commitMessageCodec,
         });
