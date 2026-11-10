@@ -15,13 +15,13 @@ afterEach(async () => {
 
 describe('Warp write composition (#1075)', () => {
   it('checks every write against the 4,096-writer frontier limit', async () => {
-    const admits = vi.spyOn(WriterFrontierLimit.prototype, 'admits');
+    const refusal = vi.spyOn(WriterFrontierLimit.prototype, 'refusal');
     const warp = await fixture.open(await fixture.repository(), { clock: CLOCK });
 
     fixture.retained(await warp.as('alice').execute(intent.node.add({ subject: 'n' })));
 
-    expect(admits).toHaveBeenCalledWith('alice', expect.anything());
-    expect(admits.mock.contexts.map((limit) => limit instanceof WriterFrontierLimit && limit.writers))
+    expect(refusal).toHaveBeenCalledWith('alice', expect.anything());
+    expect(refusal.mock.contexts.map((limit) => limit instanceof WriterFrontierLimit && limit.writers))
       .toEqual([WARP_SUPPORT_LIMITS.writers]);
   });
 

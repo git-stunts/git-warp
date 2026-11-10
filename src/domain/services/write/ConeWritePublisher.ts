@@ -20,6 +20,7 @@ import type { default as ConeWriteSettlement, PublishedAttempt } from './ConeWri
 import type LoweredConeWrite from './LoweredConeWrite.ts';
 import WriteAttemptRecord from './WriteAttemptRecord.ts';
 import type WritePublicationProbe from './WritePublicationProbe.ts';
+import WriterFrontierRefusal from './WriterFrontierRefusal.ts';
 import { failedWriteCore } from './writeReceiptCore.ts';
 
 const CONTENDED_STEP_ATTEMPTS = 4;
@@ -30,14 +31,10 @@ const CAPACITY_REPAIR = Object.freeze([Object.freeze({
   code: 'retention_capacity_exhausted',
   message: 'This graph has used every retention slot it was opened with, and the limit cannot be raised yet.',
 })]);
-/** A frontier already past the writer limit, which only concurrent first writes by new writers can reach (#1075). */
-const WRITER_FRONTIER_REPAIR = Object.freeze([Object.freeze({
-  code: 'compact_writer_frontier',
-  message: 'This graph\'s frontier holds more writers than one write can retain, so no write is retained until retired writers are compacted.',
-})]);
+/** What repairs a refusal, by cause. Custody refuses a writer already in a frontier past the writer limit (#1075). */
 const REPAIRS: ReadonlyMap<string, readonly RepairHint[]> = new Map<string, readonly RepairHint[]>([
   ['retention-capacity-exhausted', CAPACITY_REPAIR],
-  ['retention-refused-writer-limit', WRITER_FRONTIER_REPAIR],
+  [WriterFrontierRefusal.OVER_LIMIT.cause, WriterFrontierRefusal.OVER_LIMIT.repairHints],
 ]);
 
 /** How the one publication went: landed, definitely did not, or cannot be told. */

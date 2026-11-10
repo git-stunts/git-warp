@@ -190,10 +190,14 @@ describe('ConeWriteLowering', () => {
   });
 });
 
-/** A basis whose frontier holds `count` writer chains, `w0` to `w<count - 1>`. */
+/** A basis whose frontier holds `count` writer chains, `w0` to `w<count - 1>`, each with a head of its own. */
 function basisOf(count: number): ConeBasis {
-  const position = new ConeWriterPosition('e'.repeat(40), 1);
-  return new ConeBasis(ConeRoot.empty(), new ConeFrontier(new Map(Array.from({ length: count }, (_, index) => [`w${index}`, position]))));
+  const position = (index: number): ConeWriterPosition => new ConeWriterPosition(index.toString(16).padStart(40, '0'), 1);
+  return new ConeBasis(ConeRoot.empty(), new ConeFrontier(new Map(Array.from({ length: count }, (_, index) => [`w${index}`, position(index)]))));
+}
+
+function repairsOf(lowered: object): readonly string[] {
+  return lowered instanceof UnpublishedWriteReceipt ? lowered.repairHints.map((hint) => hint.code) : [];
 }
 
 /** The premise the cone would publish, with its stored basis replaced by `basis`. */
@@ -224,7 +228,15 @@ describe('ConeWriteLowering at the writer limit (#1075)', () => {
     const lowered = await lowering({ premise: onto(basisOf(4096)) }).lower(request);
 
     expect(causeOf(lowered)).toBe('writer-limit-reached');
-    expect(lowered instanceof UnpublishedWriteReceipt ? lowered.repairHints.map((hint) => hint.code) : []).toEqual(['reuse_writer_id']);
+    expect(repairsOf(lowered)).toEqual(['reuse_writer_id']);
+  });
+
+  it('does not tell a new writer to reuse a writer ID on a frontier past the limit, where no ID can write', async () => {
+    const lowered = await lowering({ premise: onto(basisOf(4097)) }).lower(request);
+
+    expect(causeOf(lowered)).toBe('retention-refused-writer-limit');
+    expect(repairsOf(lowered)).toEqual(['compact_writer_frontier']);
+    expect(lowered instanceof UnpublishedWriteReceipt ? lowered.repairHints[0]?.message : '').toContain('cannot do that yet: issue #1044');
   });
 
   it('refuses a limit that is not a count', () => {

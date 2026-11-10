@@ -40,11 +40,6 @@ const WRITE_QUESTION = new ObservationQuestion('git-warp:question/write-premise'
 const WRITE_LAW = 'git-warp:admission-law/cone-write/v1';
 const BASIS_UNAVAILABLE = 'write-basis-unavailable';
 const PREMISE_UNAVAILABLE = 'write-premise-unavailable';
-const WRITER_LIMIT_REACHED = 'writer-limit-reached';
-const WRITER_LIMIT_REPAIR = Object.freeze([Object.freeze({
-  code: 'reuse_writer_id',
-  message: 'This graph already has as many writers as one write can retain; write as one of its existing writer IDs, such as one of a bounded pool that users share.',
-})]);
 
 /** A write's patch builder and the basis its premises are read from. */
 type OpenedWrite = { readonly builder: PatchBuilder; readonly premise: ConeWritePremise };
@@ -122,11 +117,12 @@ export default class ConeWriteLowering {
     }
   }
 
-  /** A writer new to a frontier already at the limit is refused before anything is reserved (#1075). */
+  /** A writer new to a frontier at or past the limit is refused before anything is reserved (#1075). */
   #admitted(writer: string, opened: OpenedWrite): OpenedWrite | UnpublishedWriteReceipt {
-    return this.#writers.admits(writer, opened.premise.basis)
+    const refusal = this.#writers.refusal(writer, opened.premise.basis);
+    return refusal === null
       ? opened
-      : new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: WRITER_LIMIT_REACHED, repairHints: WRITER_LIMIT_REPAIR });
+      : new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: refusal.cause, repairHints: refusal.repairHints });
   }
 
   async #loweredOnto(run: {
