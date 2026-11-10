@@ -153,9 +153,9 @@ domain modules provide the validated intents and observers for an application.
 > opens it. Stop every v18 writer, back up the repository, install v19 without
 > starting the application, and run the confirmed migration:
 >
+> <!-- v18-to-v19-cli: example promote literal -->
 > ```bash
-> npm exec --package=@git-stunts/git-warp@19.1.0 -- \
->   git-warp-v18-to-v19 \
+> npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
 >   --repo /path/to/repository \
 >   --graph <graph-name>
 > ```

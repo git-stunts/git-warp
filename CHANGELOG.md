@@ -82,8 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AuthoredWarp.execute()` entry below: an unavailable store here rejects. Only a retention store
   that did not open has a typed error, `E_WARP_RETENTION_OPEN`, which says why; a cone store
   that did not open rejects with its own error, which is not classified. Nothing was published
-  in either case, so it is safe to call again. Its `refusal` is `policy-mismatch` when the graph's saved retention
-  capacity differs, which no retry clears, or `contention`, which a retry can clear. When the
+  in either case, so it is safe to call again. The `refusal` of `E_WARP_RETENTION_OPEN` is
+  `policy-mismatch` when the graph's saved retention capacity differs, which no retry clears, or
+  `contention`, which a retry can clear. When the
   store could not answer, for example because of a held ref lock, `refusal` is `null` and `cause`
   is the store's failure; a retry can clear that too. In-flight write attempts and support under
   construction move to `refs/warp-local/<graph>/`, so a `refs/warp/*` lane fetch no longer copies
@@ -98,6 +99,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it, or move the ref to `refs/warp-local/`. The listing and move commands are in
   [Finish in-flight refs from pre-release builds](docs/topics/sync.md#finish-in-flight-refs-from-pre-release-builds)
   ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
+- The `git-warp-v18-to-v19` migrator checks the `--repo` path before discovery
+  ([#811](https://github.com/git-stunts/git-warp/issues/811)). A path that does not exist,
+  is not a directory, or is not a Git repository stops with `Repository not found: <path>`
+  and the reason. If Git refuses the path for another reason, the error reads
+  `Could not open <path> as a Git repository` and keeps the Git diagnostic as its cause.
+  Before, these cases gave a Git process-spawn error or a raw Git diagnostic. An empty value
+  for a flag that takes one, such as `--repo ""` from an unset shell variable, is refused
+  with `<flag> requires a non-empty value`; before, an empty `--repo` selected the current
+  directory. `--help` lists `--repo` and `--graph`, says when the command lists graphs,
+  says that `--yes` without `--dry-run` migrates and promotes without asking, and names the
+  rollback after a failed verification. The migration guides quote the help text and five
+  command outcomes from this source, and say how the pinned `19.1.0` package differs.
 - `AuthoredWarp.execute()` reports an unavailable store while it fixes the write
   basis or reads the premise records as an `UnpublishedWriteReceipt`
   (`write-basis-unavailable`, `write-premise-unavailable`) and does not reject.
