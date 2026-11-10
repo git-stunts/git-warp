@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import { intent } from '../../../advanced.ts';
@@ -580,6 +580,13 @@ describe('a record that outlives its attempt', () => {
   });
 });
 
+/** The ledger ref git-cas keeps for the fixture graph, read from a repository that already holds one. */
+async function ledgerRef(): Promise<string> {
+  const path = await repository();
+  retained(await (await open(path)).as('alice').execute(intent.node.add({ subject: 'x' })));
+  return git(path, ['for-each-ref', '--format=%(refname)', 'refs/cas/reservations/']);
+}
+
 describe('composition', () => {
   it('refuses each granted operation on a graph whose retention capacity differs', async () => {
     const path = await repository();
@@ -588,8 +595,27 @@ describe('composition', () => {
     await first.close();
 
     const other = await open(path, { limit: 4 });
-    await expect(other.as('alice').execute(intent.node.add({ subject: 'y' }))).rejects.toMatchObject({ code: 'E_WARP_RETENTION_OPEN' });
-    await expect(other.as('alice').reconcile('a'.repeat(32))).rejects.toMatchObject({ code: 'E_WARP_RETENTION_OPEN' });
+    const mismatch = { code: 'E_WARP_RETENTION_OPEN', refusal: 'policy-mismatch', message: 'This graph\'s retention store did not open: the store refused (policy-mismatch)' };
+    await expect(other.as('alice').execute(intent.node.add({ subject: 'y' }))).rejects.toMatchObject(mismatch);
+    await expect(other.as('alice').reconcile('a'.repeat(32))).rejects.toMatchObject(mismatch);
+  });
+
+  it('carries a real held ledger lock as the cause of the retention rejection, then writes once it is released', async () => {
+    const lock = `${await ledgerRef()}.lock`;
+    const path = await repository();
+    const warp = await open(path);
+    mkdirSync(dirname(join(path, '.git', lock)), { recursive: true });
+    writeFileSync(join(path, '.git', lock), '');
+
+    const rejection = await warp.as('alice').execute(intent.node.add({ subject: 'x' })).then(() => null, (error: Error) => error);
+    expect(rejection).toMatchObject({ code: 'E_WARP_RETENTION_OPEN', refusal: null });
+    const cause = rejection?.cause instanceof Error ? rejection.cause.message : 'no cause';
+    expect(cause).toContain(lock);
+    expect(rejection?.message).toBe(`This graph's retention store did not open: the store could not answer (${cause})`);
+    expect(tip(path, 'alice')).toBeNull();
+
+    unlinkSync(join(path, '.git', lock));
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
   });
 
   it('requires a storage located by root or at', async () => {

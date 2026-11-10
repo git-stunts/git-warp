@@ -1,6 +1,6 @@
 import type { ContentMetadataInput } from '../domain/api/ContentMetadataInput.ts';
 import type StagedContent from '../domain/api/StagedContent.ts';
-import WarpError from '../domain/errors/WarpError.ts';
+import RetentionStoreOpenError from '../domain/errors/RetentionStoreOpenError.ts';
 import ConeLaneBasis from '../domain/services/cone/ConeLaneBasis.ts';
 import ContentStagingAuthority from '../domain/services/ContentStagingAuthority.ts';
 import ObservationCustodyService from '../domain/services/custody/ObservationCustodyService.ts';
@@ -203,7 +203,7 @@ async function openCustodyService(fields: {
     reservations: git.reservations, graphName: graph, limit: overrides.limit ?? WARP_RETENTION_SLOTS, crypto: ports.crypto,
   });
   if (!(custody instanceof GitCasObservationCustodyAdapter)) {
-    throw new WarpError('This graph\'s retention store did not open', 'E_WARP_RETENTION_OPEN');
+    throw new RetentionStoreOpenError(custody);
   }
   return new ObservationCustodyService({
     custody: overrides.wrapCustody === undefined ? custody : overrides.wrapCustody(custody),
