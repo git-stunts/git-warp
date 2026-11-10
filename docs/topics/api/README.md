@@ -867,7 +867,7 @@ The superseded pre-checkpoint v19 facade has these dispositions:
 | `openWarp()`             | `Runtime.open()`                                                 |
 | `Warp` from `openWarp()` | `Runtime`. Today's root `Warp`, from `Warp.open`, is a new API   |
 | `Timeline`               | `Lane`                                                           |
-| `DraftTimeline`          | `Lane` with `kind: 'strand'`                                     |
+| `DraftTimeline`          | `Lane` with `kind: 'strand'` in v19/v20; removed in v21          |
 | `timeline.read(reading)` | `lane.observe(observer)`                                         |
 | root `reading` builders  | Wesley-generated `*.observers` or `/charts`                      |
 | root `intent` builders   | Wesley-generated `*.intents`                                     |

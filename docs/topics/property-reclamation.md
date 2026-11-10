@@ -147,8 +147,10 @@ proves that a concurrent unobserved add survives while the old property clears.
 `warp.as(writer).execute(intent)` prepares node removals automatically before
 lowering. It reads each removed node from the lane's cone records at one basis
 (`ConeWriteBasis`): the node record under the `warn` deletion policy, and also
-its incident edge and neighbour records under `reject` and `cascade`. It reads
-only those records, never journal history.
+its incident edge and neighbour records under `reject` and `cascade`. The
+removal read uses only those cone records; it does not scan journal history.
+Before it, the write folds any patches that the lane's cone basis has not
+folded yet.
 
 The rest of this section records the #912 journal-scan basis
 (`BoundedNodeRemovalBasis`) that the v20 `Lane.write` used. v21 removed
