@@ -25,6 +25,9 @@ COPY package*.json ./
 COPY scripts ./scripts
 COPY patches ./patches
 RUN npm ci
+# The released v20 package, run as an old reader by the #1079 compatibility witness.
+COPY test/fixtures/v20-reader/package*.json ./test/fixtures/v20-reader/
+RUN npm --prefix test/fixtures/v20-reader ci --ignore-scripts --no-audit --no-fund
 COPY . .
 RUN npm run build --silent
 # Init a git repo so plumbing operations work inside the container.
