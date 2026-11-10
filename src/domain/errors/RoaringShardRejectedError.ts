@@ -10,7 +10,7 @@ import WarpError from './WarpError.ts';
  *
  * | Code | Description |
  * |------|-------------|
- * | `E_ROARING_SHARD_MALFORMED` | The bytes are not a valid portable Roaring encoding; `context.fault` names the defect |
+ * | `E_ROARING_SHARD_MALFORMED` | The stored value is not bytes, or the bytes are not a valid portable Roaring encoding; `context.fault` names the defect |
  * | `E_ROARING_SHARD_TOO_LARGE` | The shard has more bytes than the declared bound |
  * | `E_ROARING_SHARD_CARDINALITY` | The container headers declare more values than the declared bound |
  * | `E_ROARING_SHARD_FORMAT` | A caller asked for a serialization format that the boundary does not validate |

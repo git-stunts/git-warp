@@ -1,14 +1,11 @@
 import QueryError from '../../errors/QueryError.ts';
 import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roaring.ts';
-import toBytes from '../../utils/toBytes.ts';
+import type { EdgeShardBuckets } from '../../artifacts/EdgeShardBuckets.ts';
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 import type { NeighborhoodOpticEdge } from './NeighborhoodOpticReadResult.ts';
 import type { NeighborhoodCandidatePosition } from './NeighborhoodPageCursor.ts';
 
-export type DecodedNeighborhoodEdgeShard = Record<
-  string,
-  Record<string, Uint8Array | ArrayLike<number>>
->;
+export type DecodedNeighborhoodEdgeShard = EdgeShardBuckets;
 
 export type NeighborhoodLabelRegistry = {
   readonly byId: ReadonlyMap<number, string>;
@@ -126,7 +123,7 @@ function addLabelBitmap(
   if (bytes === undefined) {
     return;
   }
-  const bitmap = getRoaringBitmap32().deserialize(toBytes(bytes), true);
+  const bitmap = getRoaringBitmap32().deserialize(bytes, true);
   const index = firstCandidateIndex(bitmap, options);
   if (index < bitmap.size) {
     heapPush(heap, candidateAt(bitmap, index, options));

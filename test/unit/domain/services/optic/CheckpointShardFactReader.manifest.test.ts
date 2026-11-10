@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { EdgeShard } from '../../../../../src/domain/artifacts/EdgeShard.ts';
 import { MetaShard } from '../../../../../src/domain/artifacts/MetaShard.ts';
+import RoaringShardRejectedError from '../../../../../src/domain/errors/RoaringShardRejectedError.ts';
 import { PropertyShard } from '../../../../../src/domain/artifacts/PropertyShard.ts';
 import { shardToEntry } from '../../../../../src/domain/services/MaterializedViewHelpers.ts';
 import LogicalBitmapIndexBuilder from '../../../../../src/domain/services/index/LogicalBitmapIndexBuilder.ts';
@@ -303,6 +304,44 @@ describe('CheckpointShardFactReader manifest-backed routing', () => {
     ].sort());
     expect(indexStore.openedShardHandles).not.toContain(unrelatedMetaHandle.toString());
     expect(indexStore.decodedShardHandles).toEqual([]);
+  });
+
+  // Oracle: no runtime can allocate the declared length, so an attempt to
+  // expand the value throws a RangeError and not the typed rejection.
+  it.each([
+    ['an adjacency bitmap', 'edge'],
+    ['an alive bitmap', 'alive'],
+  ])('refuses a map that declares a length in place of %s in a local neighborhood', async (_name, target) => {
+    const indexStore = new MockIndexStorage();
+    const sourceMetaPath = `meta_${computeShardKey(NODE_ID)}.cbor`;
+    const outgoingPath = `fwd_${computeShardKey(NODE_ID)}.cbor`;
+    const declaredLength = { length: Number.MAX_SAFE_INTEGER };
+    const sourceMeta = defaultCodec.decode<{ nodeToGlobal: Array<[string, number]>; nextLocalId: number; alive: Uint8Array }>(
+      metaShardBytes(NODE_ID),
+    );
+    const sourceGlobalId = String(sourceMeta.nodeToGlobal[0]?.[1]);
+    const sourceMetaHandle = await indexStore.writeBlob(target === 'alive'
+      ? defaultCodec.encode({ ...sourceMeta, alive: declaredLength })
+      : metaShardBytes(NODE_ID));
+    const outgoingHandle = await indexStore.writeBlob(target === 'edge'
+      ? defaultCodec.encode({ '0': { [sourceGlobalId]: declaredLength } })
+      : neighborhoodShardBytes());
+    const labelsHandle = await indexStore.writeBlob(defaultCodec.encode([[EDGE_LABEL, 0]]));
+    const basis = manifestBasis({
+      livenessRoots: new Map([[sourceMetaPath, sourceMetaHandle]]),
+      propertyRoots: new Map<string, AssetHandle>(),
+      outgoingAdjacencyRoots: new Map([[outgoingPath, outgoingHandle]]),
+      edgeFactRoots: new Map([['labels.cbor', labelsHandle]]),
+    });
+    const reader = new CheckpointShardFactReader({ source: new ManifestShardSource(indexStore) });
+
+    const failure = await reader.readNeighborhood(basis, { nodeId: NODE_ID, direction: 'out', labels: [] }).then(
+      () => new Error('the value was admitted as bitmap bytes'),
+      (error: Error) => error,
+    );
+
+    expect(failure).toBeInstanceOf(RoaringShardRejectedError);
+    expect(failure).toMatchObject({ code: 'E_ROARING_SHARD_MALFORMED', context: { fault: 'not-bytes' } });
   });
 });
 

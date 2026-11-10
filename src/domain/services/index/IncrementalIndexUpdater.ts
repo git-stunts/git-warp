@@ -13,10 +13,12 @@ import type ORSet from '../../crdt/ORSet.ts';
 import type { PatchDiff, EdgeDiffEntry } from '../../types/PatchDiff.ts';
 import type WarpState from '../state/WarpState.ts';
 import computeShardKey from '../../utils/shardKey.ts';
-import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
+import requireEdgeShardBuckets from '../../artifacts/EdgeShardBuckets.ts';
+import requireRoaringShardBytes from '../../artifacts/RoaringShardBytes.ts';
+import type CodecValue from '../../types/codec/CodecValue.ts';
 import IndexNodeUpdater from './IndexNodeUpdater.ts';
 import IndexEdgeUpdater, { type EdgeUpdateContext } from './IndexEdgeUpdater.ts';
 import IndexPropertyUpdater from './IndexPropertyUpdater.ts';
@@ -251,13 +253,16 @@ export default class IncrementalIndexUpdater {
     const raw = this._codec.decode<{
       nodeToGlobal: Array<[string, number]> | Record<string, number>;
       nextLocalId: number;
-      alive?: Uint8Array;
+      alive?: CodecValue;
     }>(buf);
     const entries: Array<[string, number]> = Array.isArray(raw.nodeToGlobal)
       ? raw.nodeToGlobal
       : Object.entries(raw.nodeToGlobal);
-    const alive = raw.alive !== undefined && raw.alive !== null && raw.alive.length > 0
-      ? RoaringBitmap32.deserialize(toBytes(raw.alive), true)
+    const aliveBytes = raw.alive === undefined || raw.alive === null
+      ? null
+      : requireRoaringShardBytes(raw.alive);
+    const alive = aliveBytes !== null && aliveBytes.length > 0
+      ? RoaringBitmap32.deserialize(aliveBytes, true)
       : new RoaringBitmap32();
 
     const globalToNode = new Map<number, string>();
@@ -309,7 +314,7 @@ export default class IncrementalIndexUpdater {
     if (!buf) {
       return {};
     }
-    return this._codec.decode(buf);
+    return requireEdgeShardBuckets(this._codec.decode(buf));
   }
 
   private _flushEdgeShards(
