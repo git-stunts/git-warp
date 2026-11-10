@@ -44,7 +44,14 @@ export default class AuthoredWarp {
    * while it stays so; a final answer is given once. Null means it was already answered, was
    * never this writer's, this writer is denied now, or a sweep finished it first. It does not
    * mean the write did not land. It rejects if a store read fails: it reads after an attempt
-   * exists, so contract section 7 governs it, not the pre-permission rule.
+   * exists, so contract section 7 governs it, not the pre-permission rule. It also rejects, with code
+   * `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, when this writer's saved record uses a layout this
+   * git-warp does not read; the error names the ref and says what to do. Another writer's such
+   * record answers null, unless the record no longer names a readable writer, which refuses every
+   * writer. It rejects with code `E_WRITE_CORE_MISMATCH`, keeping the record, when the record does
+   * not rebuild the receipt core custody retained: the record is altered or corrupt. Report it; the
+   * sweep does not yet. Races come from the record alone only when custody holds no settlement;
+   * while custody's copy cannot be compared, the answer is indeterminate.
    */
   async reconcile(attempt: string): Promise<WriteReceipt | null> {
     return await this.#backend.reconcile(this.writer, attempt);

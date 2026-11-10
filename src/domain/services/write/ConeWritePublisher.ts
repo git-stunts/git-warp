@@ -77,6 +77,7 @@ export default class ConeWritePublisher {
     const record = new WriteAttemptRecord({
       preparation: new ObservationPreparation(this.#attempts.next(), lowered.bindings),
       admission: lowered.admission,
+      races: lowered.races,
       occurrences: lowered.occurrences,
       savedAt: this.#clock(),
     });
@@ -184,7 +185,7 @@ export default class ConeWritePublisher {
       if (fate.result !== null) {
         await lowered.fold.fold(fate.result);
       }
-      return await this.#settledLanding({ attempt: permission.attempt, record, commit: fate.commit, races: lowered.races });
+      return await this.#settledLanding({ attempt: permission.attempt, record, commit: fate.commit });
     }
     return fate.kind === 'failed' ? await this.#failed(record, permission) : await this.#indeterminate(record);
   }

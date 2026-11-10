@@ -454,7 +454,9 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   is rarely reachable there. A patch records one frontier, so a sequence that also reads records, such as
   a `node.remove` beside a `property.set`, observes the whole basis for both. Nothing but a landed write
   adds to what was seen until #1052's reads can, so a raced register stays `plural` until then.
-  Races are on the outer receipt only, not the retained core, so no replay will have them.
+  The races are saved in the attempt record before arming and bound in the retained core (#1072),
+  in one canonical order, so a rebuilt receipt reports exactly the original races, and #1053's
+  replay will be able to.
 - **Authority:** the access port's grant supplies the authority evidence and budget, and is asked
   again before arming. A grant that changed refuses, since the premise binds the original. Staging
   content asks too. A budget

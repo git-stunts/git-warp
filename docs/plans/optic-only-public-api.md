@@ -310,6 +310,8 @@ A new invocation's latency, telemetry, or wall-clock time belongs outside those
 bytes. Revocation or missing evidence produces a new refusal record without
 rewriting the historical receipt. Replaying a write receipt verifies the retained
 write and its justifying observation; it never executes the intent again.
+A write core in layout version 1 (pre-#1072, clones of unreleased `main` only)
+is unsupported: replay refuses it and never reads its missing races as `[]`.
 
 A write's Coordinate binds the observation that justified that intent, including
 its actual read-before-write basis. The resulting write receipt separately binds
@@ -545,9 +547,10 @@ code reached only by its own tests. The budget is not raised. Measured with
 | --- | ---: | ---: | ---: | ---: |
 | Before #1079 (`origin/main` at d78c33d99) | 3,295,830 | 4,170 | 713,417 | 1,229 |
 | After #1079 | 3,282,914 | 17,086 | 711,234 | 1,225 |
+| After #1072 (PR #1095) | 3,294,515 | 5,485 | 714,158 | 1,230 |
 
 #1052 is expected to be close to #1051 in size, and #1051 added about 323,000
-unpacked bytes. 17,086 free bytes do not cover that. **Decided (2026-11-08):**
+unpacked bytes. 17,086 free bytes did not cover that, and after #1072 5,485 remain. **Decided (2026-11-08):**
 #1054 runs before #1052 and is recorded as a GitHub dependency, so #1052 starts
 with the bytes the legacy deletion frees. Measure again after #1054. If #1052
 still needs more, it deletes the legacy code it replaces in its own PR, or it gets
