@@ -31,6 +31,7 @@ import type OperationPolicyPort from '../../../ports/OperationPolicyPort.ts';
 import type { OperationPolicyExecuteOptions } from '../../../ports/OperationPolicyPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type RandomPort from '../../../ports/RandomPort.ts';
+import type ClockPort from '../../../ports/ClockPort.ts';
 import type SyncSecret from '../sync/SyncSecret.ts';
 import {
   mapsEqual,
@@ -81,17 +82,16 @@ type SyncMetadataResult = {
  */
 function resolveAuth(
   auth: { secret: SyncSecret; keyId?: string } | undefined,
-  signing: { crypto: CryptoPort; random: RandomPort },
-  lamport: number,
+  signing: { crypto: CryptoPort; random: RandomPort; clock: ClockPort },
 ): SyncHttpAuth | undefined {
   if (auth === undefined || auth.secret === undefined) { return undefined; }
   return {
     scheme: SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME,
     secret: auth.secret,
     ...(auth.keyId !== undefined && auth.keyId !== '' ? { keyId: auth.keyId } : {}),
-    lamport,
     crypto: signing.crypto,
     random: signing.random,
+    clock: signing.clock,
   };
 }
 
@@ -451,8 +451,7 @@ export default class SyncController {
     const httpClient = await this._resolveHttpClient();
     const resolvedAuth = resolveAuth(
       auth,
-      { crypto: this._host._crypto, random: this._host._random },
-      this._host._maxObservedLamport,
+      { crypto: this._host._crypto, random: this._host._random, clock: this._host._clock },
     );
     const result = await httpClient.exchange(
       {

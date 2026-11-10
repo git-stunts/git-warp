@@ -22,15 +22,18 @@ export default class InMemorySyncReplayProtection implements SyncReplayProtectio
 
   reserve(request: SyncReplayReservationRequest): Promise<SyncReplayReservation> {
     const identity = replayIdentity(request);
+    const reservedAtMs = this._clock();
     const previous = this._entries.get(identity);
-    if (previous !== undefined && previous.expiresAtMs > this._clock()) {
+    if (previous !== undefined && previous.expiresAtMs > reservedAtMs) {
       return Promise.resolve(Object.freeze({
         admitted: false,
         expiresAt: previous.expiresAt,
         generation: String(this._generation),
+        reservedAtMs,
+        completedAtMs: this._clock(),
       }));
     }
-    const expiresAtMs = this._clock() + request.ttlMs;
+    const expiresAtMs = reservedAtMs + request.ttlMs;
     const expiresAt = new Date(expiresAtMs).toISOString();
     this._entries.set(identity, {
       expiresAt,
@@ -41,6 +44,8 @@ export default class InMemorySyncReplayProtection implements SyncReplayProtectio
       admitted: true,
       expiresAt,
       generation: String(this._generation),
+      reservedAtMs,
+      completedAtMs: this._clock(),
     }));
   }
 

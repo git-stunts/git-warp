@@ -8,11 +8,12 @@
  * @module domain/services/index/LogicalIndexReader
  */
 
-import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roaring.ts';
 import { MetaShard } from '../../artifacts/MetaShard.ts';
 import { EdgeShard } from '../../artifacts/EdgeShard.ts';
 import { LabelShard } from '../../artifacts/LabelShard.ts';
+import requireEdgeShardBuckets, { type EdgeShardBuckets } from '../../artifacts/EdgeShardBuckets.ts';
+import requireRoaringShardBytes from '../../artifacts/RoaringShardBytes.ts';
 import IndexError from '../../errors/IndexError.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
@@ -219,7 +220,7 @@ export default class LogicalIndexReader {
       this._loadDecodedLabels(labels);
     }
     for (const { path, data } of edges) {
-      this._loadDecodedEdges(path.startsWith('fwd_') ? 'fwd' : 'rev', data, Ctor);
+      this._loadEdgeBuckets(path.startsWith('fwd_') ? 'fwd' : 'rev', requireEdgeShardBuckets(data), Ctor);
     }
   }
 
@@ -227,7 +228,7 @@ export default class LogicalIndexReader {
   private _loadDecodedMeta(path: string, raw: unknown, Ctor: RoaringCtor): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const meta = raw as {
       nodeToGlobal: Array<[string, number]> | Record<string, number>;
-      alive: Uint8Array | ArrayLike<number>;
+      alive?: CodecValue;
     };
     const entries: Array<[string, unknown]> = Array.isArray(meta.nodeToGlobal) // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
       ? meta.nodeToGlobal
@@ -240,9 +241,13 @@ export default class LogicalIndexReader {
   }
 
   /** Loads an alive bitmap from decoded meta data if present and non-empty. */
-  private _loadAliveBitmap(shardKey: string, aliveData: Uint8Array | ArrayLike<number>, Ctor: RoaringCtor): void {
-    if (aliveData !== null && aliveData !== undefined && aliveData.length > 0) {
-      this._aliveBitmaps.set(shardKey, Ctor.deserialize(toBytes(aliveData), true));
+  private _loadAliveBitmap(shardKey: string, aliveData: CodecValue, Ctor: RoaringCtor): void {
+    if (aliveData === null || aliveData === undefined) {
+      return;
+    }
+    const aliveBytes = requireRoaringShardBytes(aliveData);
+    if (aliveBytes.length > 0) {
+      this._aliveBitmaps.set(shardKey, Ctor.deserializeAlive(aliveBytes));
     }
   }
 
@@ -284,7 +289,7 @@ export default class LogicalIndexReader {
     } else if (path === 'labels.cbor') {
       this._loadDecodedLabels(data);
     } else if (isEdgeShard(path)) {
-      this._loadDecodedEdges(path.startsWith('fwd_') ? 'fwd' : 'rev', data, Ctor);
+      this._loadEdgeBuckets(path.startsWith('fwd_') ? 'fwd' : 'rev', requireEdgeShardBuckets(data), Ctor);
     }
   }
 
@@ -295,18 +300,17 @@ export default class LogicalIndexReader {
     } else if (shard instanceof LabelShard) {
       this._loadLabelShard(shard);
     } else if (shard instanceof EdgeShard) {
-      this._loadEdgeShard(shard, Ctor);
+      this._loadEdgeBuckets(shard.direction, shard.buckets, Ctor);
     }
   }
 
-  /** Populates edge stores from decoded edge shard data. */
-  private _loadDecodedEdges(dir: 'fwd' | 'rev', raw: unknown, Ctor: RoaringCtor): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  /** Populates edge stores from the bitmap bytes of one edge shard. */
+  private _loadEdgeBuckets(dir: 'fwd' | 'rev', buckets: EdgeShardBuckets, Ctor: RoaringCtor): void {
     const store = dir === 'fwd' ? this._edgeFwd : this._edgeRev;
     const byOwner = dir === 'fwd' ? this._edgeByOwnerFwd : this._edgeByOwnerRev;
-    const decoded = raw as Record<string, Record<string, Uint8Array | ArrayLike<number>>>;
-    for (const [bucket, entries] of Object.entries(decoded)) {
+    for (const [bucket, entries] of Object.entries(buckets)) {
       for (const [gidStr, bitmapBytes] of Object.entries(entries)) {
-        const bitmap = Ctor.deserialize(toBytes(bitmapBytes), true);
+        const bitmap = Ctor.deserialize(bitmapBytes, true);
         store.set(`${dir}:${bucket}:${gidStr}`, bitmap);
         this._indexByOwner(byOwner, { bucket, gidStr, bitmap });
       }
@@ -351,17 +355,4 @@ export default class LogicalIndexReader {
     }
   }
 
-  /** Loads an EdgeShard's bitmap data into the reader's edge stores. */
-  private _loadEdgeShard(shard: EdgeShard, Ctor: RoaringCtor): void {
-    const dir = shard.direction;
-    const store = dir === 'fwd' ? this._edgeFwd : this._edgeRev;
-    const byOwner = dir === 'fwd' ? this._edgeByOwnerFwd : this._edgeByOwnerRev;
-    for (const [bucket, entries] of Object.entries(shard.buckets)) {
-      for (const [gidStr, bitmapBytes] of Object.entries(entries)) {
-        const bitmap = Ctor.deserialize(toBytes(bitmapBytes), true);
-        store.set(`${dir}:${bucket}:${gidStr}`, bitmap);
-        this._indexByOwner(byOwner, { bucket, gidStr, bitmap });
-      }
-    }
-  }
 }

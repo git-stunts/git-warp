@@ -48,7 +48,6 @@ const CANONICAL_NOUNS = [
   'Observation',
   'Reading',
   'Receipt',
-  'Settlement',
 ] as const;
 
 afterEach(() => {
@@ -90,6 +89,12 @@ describe('generated v19 vocabulary contract', () => {
       .toEqual(V19_CAPABILITY_CONTRACT.cli.map((entry) => entry.command));
     expect(listMcpTools().map((tool) => tool.name))
       .toEqual(V19_CAPABILITY_CONTRACT.mcp.map((entry) => entry.name));
+  });
+
+  it('publishes the retained observation invocation without a strand selector', () => {
+    const observation = V19_CAPABILITY_CONTRACT.cli.find((entry) => entry.command === 'observe');
+    expect(observation?.usage)
+      .toBe('git warp observe --lane <name> --observer <id> --reading <json>');
   });
 
   it('keeps JSON and TypeScript artifacts byte-semantically equal', () => {

@@ -264,6 +264,11 @@ export default class ObservationCustodyService {
     return new ObservationReconciled('cancelled');
   }
 
+  /** Whether resolved evidence holds exactly `core`, byte for byte as settling it would have kept it. */
+  holdsCore(resolved: ResolvedObservation, core: ObservationReceiptCore): boolean {
+    return bytesEqual(resolved.core(), this.#codec.encodeCore(core));
+  }
+
   /** The exact original evidence of a Coordinate, or a typed unavailable outcome. */
   async resolve(coordinate: ObservationCoordinate): ReturnType<ObservationCustodyResolver['resolve']> {
     return await this.#resolver.resolve(coordinate);

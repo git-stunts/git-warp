@@ -16,39 +16,40 @@ describe('CborCodec', () => {
       ['a', [{ y: 2, x: 1 }]],
     ]);
 
-    const decoded = defaultCodec.decode(defaultCodec.encode(value)) as {
+    const decoded = defaultCodec.decode<{
       a: Array<{ x: number; y: number }>;
       b: { a: number; z: number };
-    };
+    }>(defaultCodec.encode(value));
 
     expect(Object.keys(decoded)).toEqual(['a', 'b']);
     expect(Object.keys(decoded.b)).toEqual(['a', 'z']);
     expect(Object.keys(decoded.a[0]!)).toEqual(['x', 'y']);
   });
 
-  it('preserves CBOR-native nested values without flattening them into plain objects', () => {
+  it('preserves the allowed CBOR-native nested values without flattening them into plain objects', () => {
     const when = new Date('2026-04-06T16:00:00.000Z');
+    const fractional = new Date('2026-04-06T16:00:00.250Z');
     const bytes = new Uint8Array([1, 2, 3, 4]);
-    const pattern = /warp/gi;
-    const tags = new Set(['alpha', 'beta']);
+    const large = 1n << 70n;
+    const negative = -(1n << 70n);
 
-    const decoded = defaultCodec.decode(defaultCodec.encode({
+    const decoded = defaultCodec.decode<{
+      when: Date; fractional: Date; bytes: Uint8Array; large: bigint; negative: bigint;
+    }>(defaultCodec.encode({
       when,
+      fractional,
       bytes,
-      pattern,
-      tags,
-    })) as { when: Date; bytes: Uint8Array; pattern: RegExp; tags: Set<string> };
+      large,
+      negative,
+    }));
 
     expect(decoded.when).toBeInstanceOf(Date);
     expect(decoded.when.toISOString()).toBe(when.toISOString());
+    expect(decoded.fractional.toISOString()).toBe(fractional.toISOString());
     expect(decoded.bytes).toBeInstanceOf(Uint8Array);
     expect(Array.from(decoded.bytes)).toEqual([1, 2, 3, 4]);
-    expect(decoded.pattern).toBeInstanceOf(RegExp);
-    expect(decoded.pattern.source).toBe('warp');
-    expect(decoded.pattern.flags).toContain('g');
-    expect(decoded.pattern.flags).toContain('i');
-    expect(decoded.tags).toBeInstanceOf(Set);
-    expect(Array.from(decoded.tags)).toEqual(['alpha', 'beta']);
+    expect(decoded.large).toBe(large);
+    expect(decoded.negative).toBe(negative);
   });
 
   it('accepts CBOR at the configured nesting-depth boundary', () => {
@@ -58,7 +59,7 @@ describe('CborCodec', () => {
   it('preserves valid generic CBOR maps with non-text keys', () => {
     const decoded = defaultCodec.decode(
       Uint8Array.from([0xa1, 0x01, 0x02]),
-    ) as { readonly [key: string]: number };
+    );
 
     expect(decoded).toEqual({ 1: 2 });
   });

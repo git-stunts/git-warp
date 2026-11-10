@@ -19,7 +19,6 @@ import {
   parseArgs,
   upgradeV16ToV17,
 } from '../../../scripts/upgrade-v16-to-v17.ts';
-import { parseUpgradeCommandEntrypoint } from '../../helpers/parseUpgradeCommandEntrypoint.ts';
 import retainUnavailableMaterialization from '../../helpers/retainUnavailableMaterialization.ts';
 
 function oid(hex: string): string {
@@ -152,7 +151,7 @@ describe('v16 to v17 top-level upgrade utility', () => {
   });
 
   it('wires npm run upgrade through the top-level operator script', () => {
-    expect(parseUpgradeCommandEntrypoint(packageJson.scripts.upgrade)).toBe('dist/scripts/upgrade-v16-to-v17.js');
+    expect(packageJson.scripts.upgrade).toBe('node dist/scripts/upgrade-v16-to-v17.js');
     expect(publishTsconfig.include).toContain('scripts/upgrade-v16-to-v17.ts');
     expect(packageJson.files).toContain('dist/scripts/upgrade-v16-to-v17.js');
     // The operator command is executable implementation; no public declaration

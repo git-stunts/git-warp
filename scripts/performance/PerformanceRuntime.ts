@@ -15,6 +15,7 @@ import { TrailerCommitMessageCodecAdapter }
   from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import HostRandomAdapter from '../../src/infrastructure/adapters/HostRandomAdapter.ts';
+import HostClockAdapter from '../../src/infrastructure/adapters/HostClockAdapter.ts';
 import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 import MaterializationStorePort, {
   type MaterializationAcquisition,
@@ -74,6 +75,7 @@ export async function openPerformanceRuntime(
     codec: defaultCodec,
     crypto: new WebCryptoAdapter(),
     random: new HostRandomAdapter(),
+    clock: new HostClockAdapter(),
     commitMessageCodec: new TrailerCommitMessageCodecAdapter(),
     autoMaterialize: false,
   });
