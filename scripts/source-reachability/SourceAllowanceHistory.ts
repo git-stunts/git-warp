@@ -4,8 +4,9 @@ import { resolve } from 'node:path';
 import parseSourceAllowances, { UNREACHABLE_SOURCE_ALLOWLIST_PATH } from './parseSourceAllowances.ts';
 import SourceHistoryRefusal from './SourceHistoryRefusal.ts';
 
-// The 242-file inventory approved by #1054, before this history guard was added.
-const INITIAL_ALLOWANCE_COMMIT = 'aae43fae9d6564e6f41f8516552eec77bd735a72';
+// The 242-file inventory approved by #1054, plus the 13 retained-manifest files that
+// main merged through #815 before this guard reached main.
+const INITIAL_ALLOWANCE_COMMIT = 'be9d374f4419492420c002d7942a3480e584f949';
 const GUARD_DIRECTORY = 'scripts/source-reachability/';
 const GIT_TIMEOUT_MS = 10_000;
 const GIT_OUTPUT_BYTES = 1_048_576;
