@@ -4,6 +4,7 @@ import SyncPeerRateLimiter, {
   MAX_PEER_BURST,
   MAX_RETRY_AFTER_SECONDS,
   MAX_TRACKED_PEERS,
+  peerBucketKey,
   type SyncPeerRateLimit,
 } from '../../../../../src/domain/services/sync/SyncPeerRateLimiter.ts';
 import SyncError from '../../../../../src/domain/errors/SyncError.ts';
@@ -176,13 +177,19 @@ describe('SyncPeerRateLimiter peer identity', () => {
     expect(limiter.admit(text)).toEqual(ADMITTED);
   });
 
-  // Rule: the key is the address text exactly as the transport reports it.
-  // The limiter does not parse or normalize addresses.
-  it('treats an IPv4 address and its IPv4-mapped IPv6 form as two peers', () => {
+  // Rule (front-office decision on PR #1162, M-F-1): an IPv4-mapped IPv6
+  // address keys as its IPv4 address; any other IPv6 address keys by its /64.
+  it('gives an IPv4 address and its IPv4-mapped IPv6 form one budget', () => {
     const limiter = subject(new ManualClock());
     spend(limiter, PEER_A, LIMIT.capacity);
-    expect(limiter.admit(PEER_A).admitted).toBe(false);
-    expect(limiter.admit(`::ffff:${PEER_A}`)).toEqual(ADMITTED);
+    expect(limiter.admit(`::FFFF:${PEER_A}`)).toEqual({ admitted: false, retryAfterSeconds: 1, peer: PEER_A });
+  });
+
+  it('gives every address in one IPv6 /64 one budget', () => {
+    const limiter = subject(new ManualClock());
+    spend(limiter, '2001:db8:1:2::1', LIMIT.capacity);
+    expect(limiter.admit('2001:db8:1:2:ffff:ffff:ffff:ffff').admitted).toBe(false);
+    expect(limiter.admit('2001:db8:1:3::1')).toEqual(ADMITTED);
   });
 });
 
@@ -249,5 +256,31 @@ describe('SyncPeerRateLimiter bounded peer table', () => {
     }
     expect(refusals).toHaveLength(200);
     expect(refusals).not.toContain(true);
+  });
+});
+
+describe('peerBucketKey', () => {
+  it.each([
+    ['::ffff:192.0.2.1', '192.0.2.1'],
+    ['::FFFF:192.0.2.1', '192.0.2.1'],
+    ['192.0.2.1', '192.0.2.1'],
+    ['2001:db8:1:2::1', '2001:db8:1:2::/64'],
+    ['2001:0DB8:0001:0002:ffff:0000:0000:0002', '2001:db8:1:2::/64'],
+    ['2001:db8:1:2::', '2001:db8:1:2::/64'],
+    ['2001:db8:1:2::1%eth0', '2001:db8:1:2::/64'],
+    ['2001:db8:1:2:0:0:192.0.2.1', '2001:db8:1:2::/64'],
+    ['2001:db8::', '2001:db8:0:0::/64'],
+    ['2001:db8:1:3::1', '2001:db8:1:3::/64'],
+    ['::1', '0:0:0:0::/64'],
+    ['64:ff9b::192.0.2.1', '64:ff9b:0:0::/64'],
+  ])('keys %s as %s', (address, key) => {
+    expect(peerBucketKey(address)).toBe(key);
+  });
+
+  it.each([
+    'not an address', '', ':', ':::', '1::2::3', '1:2:3', '1:2:3:4:5:6:7:8:9', '12345::', 'g::1',
+    '1.2.3.4::', '::1.2.3', '1:2:3:4:5:6:7::8', '%eth0', '::ffff:1.2.3.4.5',
+  ])('keys the unparsable text %j as itself without throwing', (text) => {
+    expect(peerBucketKey(text)).toBe(text);
   });
 });

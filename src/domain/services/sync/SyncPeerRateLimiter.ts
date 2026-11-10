@@ -26,6 +26,40 @@ export const MAX_TRACKED_PEERS = 1_000_000;
 /** Largest `Retry-After`; it sets the smallest accepted `refillTokensPerSecond`. */
 export const MAX_RETRY_AFTER_SECONDS = 86_400;
 
+const IPV4_MAPPED = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i;
+const IPV6_TEXT = /^[\da-f:.]+(?:%.*)?$/isu;
+const IPV6_GROUPS = 8;
+const PREFIX_GROUPS = 4;
+
+/**
+ * The bucket key of a socket peer address. An IPv4-mapped IPv6 address keys
+ * as its IPv4 address; any other IPv6 address keys by its /64 prefix, without
+ * a zone identifier; IPv4 and any text that is not an IP address key as the
+ * text itself. Never throws.
+ */
+export function peerBucketKey(address: string): string {
+  return IPV4_MAPPED.exec(address)?.[1] ?? ipv6Prefix(address) ?? address;
+}
+
+/** The /64 prefix of an IPv6 address, from the WHATWG URL parser's canonical form. */
+function ipv6Prefix(address: string): string | null {
+  const canonical = IPV6_TEXT.test(address) ? canonicalIpv6(address.replace(/%.*$/su, '')) : null;
+  return canonical === null ? null : `${expandedGroups(canonical).slice(0, PREFIX_GROUPS).join(':')}::/64`;
+}
+
+function canonicalIpv6(address: string): string | null {
+  try {
+    return new URL(`http://[${address}]`).hostname.slice(1, -1);
+  } catch {
+    return null;
+  }
+}
+
+function expandedGroups(canonical: string): string[] {
+  const [head = [], tail = []] = canonical.split('::').map((half) => (half === '' ? [] : half.split(':')));
+  return [...head, ...Array.from({ length: IPV6_GROUPS - head.length - tail.length }, () => '0'), ...tail];
+}
+
 export const DEFAULT_SYNC_PEER_RATE_LIMIT: SyncPeerRateLimit = Object.freeze({
   capacity: 60,
   refillTokensPerSecond: 10,
@@ -93,7 +127,7 @@ export default class SyncPeerRateLimiter {
         context: { nowMs },
       });
     }
-    const key = peerAddress ?? null;
+    const key = peerAddress === undefined ? null : peerBucketKey(peerAddress);
     const tokens = this._refilledTokens(this._buckets.get(key), nowMs);
     const admitted = tokens >= 1;
     this._buckets.delete(key);
