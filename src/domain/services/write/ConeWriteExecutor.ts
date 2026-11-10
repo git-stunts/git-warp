@@ -1,5 +1,5 @@
 import type WarpAccessPort from '../../../ports/WarpAccessPort.ts';
-import type { AuthoredWriteReceipt } from '../../api/AuthoredWriteReceipt.ts';
+import type { WriteReceipt } from '../../api/WriteReceipt.ts';
 import IntentSequence, { type WriteIntentInput } from '../../api/IntentSequence.ts';
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import WarpAccessDenied from '../../api/WarpAccessDenied.ts';
@@ -34,7 +34,7 @@ export default class ConeWriteExecutor {
     Object.freeze(this);
   }
 
-  async execute(writer: string, input: WriteIntentInput): Promise<AuthoredWriteReceipt> {
+  async execute(writer: string, input: WriteIntentInput): Promise<WriteReceipt> {
     const sequence = IntentSequence.from(input);
     const request = new WarpWriteRequest({ graph: this.#graph, writer, purpose: WRITE_PURPOSE, intents: sequence.intents });
     const grant = await this.#access.authorizeWrite(request);
@@ -46,7 +46,7 @@ export default class ConeWriteExecutor {
   }
 
   /** Asks again after a writer's indeterminate write. A writer denied now learns nothing of it, as if no record remained. */
-  async reconcile(writer: string, attempt: string): Promise<AuthoredWriteReceipt | null> {
+  async reconcile(writer: string, attempt: string): Promise<WriteReceipt | null> {
     const request = new WarpWriteRequest({ graph: this.#graph, writer, purpose: WRITE_PURPOSE, intents: [] });
     const grant = await this.#access.authorizeWrite(request);
     return grant instanceof WarpWriteGrant ? await this.#recovery.reconcile(writer, attempt) : null;

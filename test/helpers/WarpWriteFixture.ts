@@ -13,12 +13,14 @@ import {
   WarpAddress,
   WarpWriteGrant,
 } from '../../index.ts';
-import type { AuthoredWriteReceipt, WarpWriteRequest } from '../../index.ts';
+import type { WriteReceipt, WarpWriteRequest } from '../../index.ts';
 import { getDefaultRuntimeHostNodePorts } from '../../src/application/RuntimeHostNodeDefaults.ts';
 import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
 import { overrideWarpComposition, type WarpCompositionOverrides } from '../../src/application/WarpWriteComposition.ts';
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';
 import { buildWriteAttemptsPrefix } from '../../src/domain/utils/WriteAttemptRefLayout.ts';
+import type ObservationReceiptCore from '../../src/domain/services/custody/ObservationReceiptCore.ts';
+import { textDecode } from '../../src/domain/utils/bytes.ts';
 import EdgeAdd from '../../src/domain/types/ops/EdgeAdd.ts';
 import NodeAdd from '../../src/domain/types/ops/NodeAdd.ts';
 import { openRuntimeHostProduct, type RuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
@@ -77,22 +79,22 @@ export async function open(
   return warp;
 }
 
-function narrowed<T extends object>(receipt: AuthoredWriteReceipt | null, type: new (...args: never[]) => T): T {
+function narrowed<T extends object>(receipt: WriteReceipt | null, type: new (...args: never[]) => T): T {
   if (!(receipt instanceof type)) {
     throw new Error(`Expected ${type.name}, got ${JSON.stringify(receipt)}`);
   }
   return receipt;
 }
 
-export function retained(receipt: AuthoredWriteReceipt | null): RetainedWriteReceipt {
+export function retained(receipt: WriteReceipt | null): RetainedWriteReceipt {
   return narrowed(receipt, RetainedWriteReceipt);
 }
 
-export function unpublished(receipt: AuthoredWriteReceipt | null): UnpublishedWriteReceipt {
+export function unpublished(receipt: WriteReceipt | null): UnpublishedWriteReceipt {
   return narrowed(receipt, UnpublishedWriteReceipt);
 }
 
-export function indeterminate(receipt: AuthoredWriteReceipt | null): IndeterminateWriteReceipt {
+export function indeterminate(receipt: WriteReceipt | null): IndeterminateWriteReceipt {
   return narrowed(receipt, IndeterminateWriteReceipt);
 }
 
@@ -104,6 +106,25 @@ export function tip(path: string, writer: string): string | null {
 export function attemptRefs(path: string): string[] {
   const listed = git(path, ['for-each-ref', '--format=%(refname)', buildWriteAttemptsPrefix(GRAPH)]);
   return listed === '' ? [] : listed.split('\n');
+}
+
+type Patch = Parameters<Parameters<RuntimeHostProduct['patch']>[0]>[0];
+
+/** A write by another writer this Warp never observed, through the legacy patch path, which records no causality. */
+export async function unseen(path: string, writer: string, build: (patch: Patch) => void): Promise<void> {
+  const storage = await GitStorage.open({ cwd: path });
+  try {
+    const ports = getDefaultRuntimeHostNodePorts();
+    const binding = resolveWarpStorage(storage);
+    const product = await openRuntimeHostProduct({
+      persistence: binding.history, runtimeStorage: binding.runtimeStorage, graphName: GRAPH, writerId: writer,
+      codec: ports.codec, crypto: ports.crypto, trustCrypto: ports.trustCrypto, commitMessageCodec: ports.commitMessageCodec,
+    });
+    await product.materialize();
+    await product.patch(build);
+  } finally {
+    await storage.close();
+  }
 }
 
 /** Reads the graph through the legacy whole-state path, which #1052 replaces. */
@@ -154,3 +175,14 @@ export async function addDots(path: string, writers: readonly string[]): Promise
     return dots;
   });
 }
+
+/**
+ * The `races` text a receipt core binds, cut from its canonical outcome without decoding it:
+ * outcome keys are sorted, so `races` is followed by `version`.
+ */
+export function boundRaces(core: ObservationReceiptCore): string {
+  const text = textDecode(core.outcome());
+  const start = text.indexOf('"races":');
+  return start === -1 ? 'no races bound' : text.slice(start + '"races":'.length, text.indexOf(',"version":', start));
+}
+

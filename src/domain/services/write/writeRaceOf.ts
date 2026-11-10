@@ -10,6 +10,7 @@ export function writeRaceOf(plurality: Plurality): WriteRace {
     : { kind, overflow, causality, subject: lifecycleSubject(plurality.element), key: null, writers: plurality.removedBy });
 }
 
+/** Edge subjects are not injective against node ids; latent until edge lifecycle races are emitted (#1096). */
 function lifecycleSubject(element: Extract<Plurality, { kind: 'lifecycle' }>['element']): string {
   return element.kind === 'node' ? element.subject : `${element.from}>${element.to}:${element.label}`;
 }

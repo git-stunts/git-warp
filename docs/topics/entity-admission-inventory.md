@@ -126,11 +126,11 @@ Atomic intent arrays make operation shape alone insufficient. These two
 requests can otherwise lower to the same operations:
 
 ```typescript
-await lane.write([
+await warp.as(writer).execute([
   intent.entity.add({ subject: 'capture:1', properties: { body: 'hello' } }),
 ]);
 
-await lane.write([
+await warp.as(writer).execute([
   intent.node.add({ subject: 'capture:1' }),
   intent.property.set({ subject: 'capture:1', key: 'body', value: 'hello' }),
 ]);
