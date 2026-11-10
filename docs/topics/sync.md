@@ -62,6 +62,13 @@ Do not use a glob such as `refs/warp/*/write-attempts/` in its place:
 `git for-each-ref` matches nothing with it. No output from the listing means that
 the clone holds no such ref.
 
+> Warning: `git update-ref -d` on a `write-attempts` ref that you have not finished
+> or moved abandons the answer of that attempt. This cannot be undone. The write may
+> have published; a patch that it published stays on the chain of its writer. Its
+> receipt is lost, and its reservation stays charged in the ledger, which is harmless
+> at the current unlimited retention capacity. Delete such a ref only when you accept
+> that loss.
+
 For each `write-attempts` ref, finish the attempt before you delete anything. Use
 one of these two ways:
 
@@ -77,18 +84,14 @@ one of these two ways:
   ```
 
   The first command points the new ref at the same record. The second deletes only
-  the old ref. Quote a ref whose graph name holds characters that your shell
-  interprets. After the move, the next sweep finishes an attempt that nobody holds a
-  receipt for, and `reconcile` answers the writer that holds one. If the moved record
+  the old ref, which loses nothing, because the new ref now holds the record. Quote
+  a ref whose graph name holds characters that your shell interprets. After the
+  move, this build treats the attempt like any other unfinished attempt: a sweep
+  resolves one that nobody holds a receipt for, and `reconcile` answers the writer
+  that holds one. If the moved record
   has layout 1, `reconcile` rejects with `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`: only
   the build that wrote it can finish it. The error message prints the command that
-  deletes that ref, and the warning below applies to it.
-
-> Warning: `git update-ref -d` on a `write-attempts` ref abandons the answer of that
-> attempt. This cannot be undone. The write may have published; a patch that it
-> published stays on the chain of its writer. Its receipt is lost, and its
-> reservation stays charged in the ledger, which is harmless at the current
-> unlimited retention capacity. Delete such a ref only when you accept that loss.
+  deletes that ref, and the warning above applies to it.
 
 An old `observations/construction` ref holds only support that was under
 construction. Recovery does not read it. Delete each one with
