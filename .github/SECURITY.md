@@ -42,7 +42,7 @@ The HTTP sync protocol supports optional HMAC-SHA256 request signing with replay
 
 **Not protected against:**
 - Compromised shared secrets (rotate keys immediately if leaked)
-- Denial-of-service from many socket addresses (body size limits and the [peer admission limit](#peer-admission-limit) bound the work that one socket address can cause; they do not bound a flood from many addresses)
+- Denial-of-service from many socket addresses (body size limits and the [peer admission limit](#peer-admission-limit) bound the parse and authentication work that one socket address can cause; they do not bound the body read, and they do not bound a flood from many addresses)
 - Man-in-the-middle without TLS (use HTTPS in production)
 
 ### Authentication Flow
@@ -164,8 +164,8 @@ limit and is unchanged.
   address, or `null` for the shared no-address budget) and
   `retryAfterSeconds`. Without a logger, nothing is logged. The server logs
   every refusal, so a flood of refused requests gives one warning for each
-  request. The first request without a peer address also logs one warning
-  for each server instance. A caller that constructs `HttpSyncServer`
+  request. The first request without a peer address that passes the earlier
+  checks also logs one warning for each server instance. A caller that constructs `HttpSyncServer`
   directly can read the refusal count as
   `HttpSyncServer.getMetrics().peerRateLimitRejects`; `serve()` returns only
   `{ url, close }` and exposes no metrics.
@@ -175,7 +175,9 @@ limit and is unchanged.
   keeps its spent budget, unless at least `maxTrackedPeers` other addresses
   send between two of its requests. An evicted peer starts again with a full
   burst.
-- **Time.** The limiter reads time only from the runtime's `ClockPort`.
+- **Time.** The limiter reads time only from the server's `clock` (`ClockPort`).
+  `serve()` passes the runtime's clock; a caller that constructs
+  `HttpSyncServer` directly supplies one.
 
 The default comes from the measured cost of one rejected request. The
 measurement is `test/benchmark/SyncRejectionCost.benchmark.ts`, run in the

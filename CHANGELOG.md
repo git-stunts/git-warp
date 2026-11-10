@@ -59,13 +59,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   most 4096 tracked peers. There is no off switch. A peer over its limit receives
   `429` with `{"error":"PEER_RATE_LIMITED"}` and a `Retry-After` header;
   `syncWith` reports it as a non-retried `E_SYNC_PROTOCOL` "Protocol error: 429".
-  Before you upgrade a server behind a reverse proxy or NAT gateway, raise
+  Before you upgrade a server whose clients reach it through a reverse proxy or
+  one NAT gateway, raise
   `peerRateLimit` on `serve()` or `HttpSyncServer`: all its clients share one
   budget, and one of them can use all of it. `HttpRequest` has a new
   `peerAddress` field that the Node, Bun and Deno adapters fill from the
   connected socket; forwarding headers such as `X-Forwarded-For` are never read.
   A custom `HttpServerPort` adapter must fill `peerAddress` from the connected
-  socket, or all its clients share one budget (the server logs one warning). When
+  socket, or all its clients share one budget (the server logs one warning when it has a logger). When
   the runtime has a logger, each refusal is logged. A caller that constructs
   `HttpSyncServer` directly can read the count as
   `HttpSyncServer.getMetrics().peerRateLimitRejects`; `serve()` exposes no
