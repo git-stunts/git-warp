@@ -14,7 +14,7 @@ import ObservationDigest from '../../../../../src/domain/services/custody/Observ
 import ObservationPreparation from '../../../../../src/domain/services/custody/ObservationPreparation.ts';
 import ObservationQuestion from '../../../../../src/domain/services/custody/ObservationQuestion.ts';
 import ObservationWritePremise from '../../../../../src/domain/services/custody/ObservationWritePremise.ts';
-import ConeWriteRecovery, { SWEEP_READ_BUDGET } from '../../../../../src/domain/services/write/ConeWriteRecovery.ts';
+import ConeWriteRecovery, { SWEEP_READ_BUDGET, UNARMED_ATTEMPT_GRACE_MS } from '../../../../../src/domain/services/write/ConeWriteRecovery.ts';
 import ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
 import WriteAttemptListing from '../../../../../src/domain/services/write/WriteAttemptListing.ts';
 import WriteAttemptRecord from '../../../../../src/domain/services/write/WriteAttemptRecord.ts';
@@ -121,24 +121,48 @@ class ShortChain extends EndlessChain {
 /** A scripted ledger that counts the transitions a recovery asks of it. */
 class CountedCustody extends ScriptedCustody {
   reserves = 0;
+  cancels = 0;
 
   override async reserve(identity: ObservationCustodyIdentity): Promise<CustodyTransition> {
     this.reserves += 1;
     return await super.reserve(identity);
   }
+
+  override async cancel(identity: ObservationCustodyIdentity): Promise<CustodyTransition> {
+    this.cancels += 1;
+    return await super.cancel(identity);
+  }
 }
 
-/** Real recovery, custody service and settlement over a ledger that holds every attempt armed and unsettled. */
-function recoveryOver(journal: MemoryJournal, chain: EndlessChain): { readonly recovery: ConeWriteRecovery; readonly ledger: CountedCustody } {
+/** Every record here is saved at host time 1, so this clock reads just past an unarmed attempt's grace. */
+const PAST_GRACE = 1 + UNARMED_ATTEMPT_GRACE_MS;
+
+/** A ledger that holds every attempt armed with no settlement, as a crash after arming leaves it. */
+function armedLedger(): CountedCustody {
   const ledger = new CountedCustody();
   ledger.reserved = new CustodyAcknowledged('recovered', 'armed');
   ledger.evidence.settlement = new CustodyRefused('not-settled');
+  return ledger;
+}
+
+/** A ledger that holds every attempt reserved and never armed, and lets it be cancelled. */
+function unarmedLedger(): CountedCustody {
+  const ledger = new CountedCustody();
+  ledger.reserved = new CustodyAcknowledged('recovered', 'reserved');
+  return ledger;
+}
+
+/** Real recovery, custody service and settlement over the given ledger, which defaults to an armed one. */
+function recoveryOver(journal: MemoryJournal, chain: EndlessChain, ledger: CountedCustody = armedLedger()): {
+  readonly recovery: ConeWriteRecovery;
+  readonly ledger: CountedCustody;
+} {
   const custody = new ObservationCustodyService({
     custody: ledger, support: new ScriptedSupport(), codec: new ObservationCustodyCborCodec(codec), crypto: new NodeCryptoAdapter(),
     attempts: { next: () => new ObservationAttemptId('9'.repeat(32)) },
   });
   const recovery = new ConeWriteRecovery({
-    graph: 'g', clock: () => 1, journal, custody,
+    graph: 'g', clock: () => PAST_GRACE, journal, custody,
     probe: new WritePublicationProbe({ graph: 'g', history: chain, messages: DEFAULT_COMMIT_MESSAGE_CODEC }),
     settlement: new ConeWriteSettlement({ graph: 'g', custody, journal }),
   });
@@ -207,5 +231,47 @@ describe('ConeWriteRecovery sweep budget (#1075)', () => {
     const unresolved = await recovery.reconcile('alice', pending.attemptId.value);
     expect(unresolved instanceof IndeterminateWriteReceipt ? unresolved.requirement : '').toBe('publication-unresolved');
     expect(unresolved).not.toBeInstanceOf(UnpublishedWriteReceipt);
+  });
+});
+
+describe('ConeWriteRecovery of an unarmed attempt past its grace (#1075)', () => {
+  it('keeps an attempt whose predecessor is out of reach, since the chain may hold its commit', async () => {
+    const record = recordOf(1, 'd'.repeat(40));
+    const journal = new MemoryJournal([record]);
+    const { recovery, ledger } = recoveryOver(journal, new EndlessChain(), unarmedLedger());
+
+    const answer = await recovery.reconcile('alice', record.attemptId.value);
+
+    expect(answer).toBeInstanceOf(IndeterminateWriteReceipt);
+    expect(answer instanceof IndeterminateWriteReceipt ? answer.requirement : '').toBe('publication-walk-exhausted');
+    expect(journal.records.has(record.attemptId.value)).toBe(true);
+    expect(ledger.cancels).toBe(0);
+  });
+
+  it('reads for it in one sweep only, and no sweep abandons it', async () => {
+    const record = recordOf(1, 'd'.repeat(40));
+    const journal = new MemoryJournal([record]);
+    const chain = new EndlessChain();
+    const { recovery, ledger } = recoveryOver(journal, chain, unarmedLedger());
+
+    await recovery.sweep();
+    await recovery.sweep();
+
+    expect(chain.listed).toBe(PUBLICATION_PROBE_READS);
+    expect(journal.records.get(record.attemptId.value)?.reported).toBe(true);
+    expect(ledger.cancels).toBe(0);
+  });
+
+  it('still cancels an attempt whose writer chain has not moved past its predecessor', async () => {
+    const record = recordOf(1, TIP);
+    const journal = new MemoryJournal([record]);
+    const { recovery, ledger } = recoveryOver(journal, new EndlessChain(), unarmedLedger());
+
+    const answer = await recovery.reconcile('alice', record.attemptId.value);
+
+    expect(answer).toBeInstanceOf(UnpublishedWriteReceipt);
+    expect(answer instanceof UnpublishedWriteReceipt ? answer.cause : '').toBe('attempt-cancelled');
+    expect(journal.records.has(record.attemptId.value)).toBe(false);
+    expect(ledger.cancels).toBe(1);
   });
 });

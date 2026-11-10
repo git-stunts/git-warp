@@ -171,13 +171,23 @@ export default class ConeWriteRecovery {
 
   /**
    * The ledger says nothing armed it, so it never published, unless the ledger lost that
-   * fact: a record or chain naming a commit outranks it. Otherwise only its age says
-   * whether its owner might still try.
+   * fact: a record or chain naming a commit outranks it. A chain that moved further than a
+   * probe reads cannot rule that commit out, so the attempt is kept as out of reach and is
+   * never abandoned (#1075). Otherwise only its age says whether its owner might still try.
    */
   async #recoverUnarmed(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<WriteReceipt> {
-    if (await this.#provesPublication(record)) {
+    if (record.commit !== null) {
       return this.#indeterminate(record, RECOVERY_UNAVAILABLE);
     }
+    const found = await this.#probe.locate(record);
+    if (found.kind === 'exhausted') {
+      return await this.#outOfReach(record);
+    }
+    return found.kind === 'own' ? this.#indeterminate(record, RECOVERY_UNAVAILABLE) : await this.#abandonedOnceStale(record, attempt);
+  }
+
+  /** The chain shows no commit of this attempt, so an attempt older than its grace is abandoned. */
+  async #abandonedOnceStale(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<WriteReceipt> {
     if (this.#clock() - record.savedAt < UNARMED_ATTEMPT_GRACE_MS) {
       return this.#indeterminate(record, ATTEMPT_UNOWNED_YET);
     }
@@ -185,10 +195,6 @@ export default class ConeWriteRecovery {
     return abandoned instanceof ObservationReconciled
       ? await this.#finishedUnpublished(record, CANCELLED)
       : this.#indeterminate(record, RECOVERY_UNAVAILABLE);
-  }
-
-  async #provesPublication(record: WriteAttemptRecord): Promise<boolean> {
-    return record.commit !== null || (await this.#probe.locate(record)).kind === 'own';
   }
 
   /**
@@ -247,7 +253,8 @@ export default class ConeWriteRecovery {
 
   /**
    * Its fate is fixed, since its writer's chain has moved on, but it lies further back than a
-   * probe reads. Saved as reported, it is left to `reconcile`, so no later sweep reads for it again.
+   * probe reads. Saved as reported, no later sweep reads for it again. A `reconcile` runs this
+   * same probe, so it gives this same answer: nothing resolves such an attempt yet.
    */
   async #outOfReach(record: WriteAttemptRecord): Promise<IndeterminateWriteReceipt> {
     try {
