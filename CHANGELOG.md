@@ -80,7 +80,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commits. An unresolved attempt whose predecessor lies more than 4,096
   commits behind its writer's tip, armed or not, gets the indeterminate
   requirement `publication-walk-exhausted`. Recovery keeps its record and
-  never reports it cancelled. Once that answer is saved, later opens do not
+  does not abandon it; it reports the attempt cancelled only when custody already
+  holds a cancellation. Once that answer is saved, later opens do not
   read for it again. `reconcile` runs the same bounded probe and returns the
   same indeterminate answer, unless custody already holds the attempt's outcome.
   Nothing resolves such an attempt yet, so asking again does not help. A new

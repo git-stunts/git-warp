@@ -77,7 +77,8 @@ export default class ConeWriteRecovery {
 
   /**
    * Resolves what it can of a bounded page of attempts nobody holds a receipt for: a
-   * reported one waits for its owner's `reconcile`, or its only answer would be lost.
+   * reported one waits for its owner's `reconcile`, or its only answer would be lost, or
+   * it is out of a probe's reach and nothing resolves it yet.
    * A failure on one record, or the listing, only leaves work for a later sweep. So does
    * a spent read budget: a sweep stops once it could not afford another full probe.
    */

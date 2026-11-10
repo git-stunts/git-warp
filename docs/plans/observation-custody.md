@@ -448,7 +448,7 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   There is no retry count, since nothing repeats without an open or a caller asking.
 - **Reported attempts:** before `execute` returns an indeterminate or repeatable unretained
   receipt it marks the record, with the commit if one is known, and the sweep leaves a marked record
-  alone. Only `AuthoredWarp.reconcile` answers it, for that writer, and then removes it, so an answer
+  alone. Only `AuthoredWarp.reconcile` answers it, for that writer, and then removes it (except a record marked because its predecessor is out of reach, which `reconcile` answers and keeps), so an answer
   can't be consumed by whoever opens the graph next. The mark comes before the receipt is delivered,
   so a process that dies between them strands the record, and `reconcile` removes it before delivering
   too, so it answers at most once. A caller who never reconciles leaves one ref

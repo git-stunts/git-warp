@@ -13,8 +13,8 @@ export type WriterChainHistory = {
 
 /**
  * Gives a publication probe a writer's chain (#1075): a range of first parents comes
- * from one `git log`, not one process per commit, so a probe's cost does not grow
- * with the depth it searches.
+ * from one `git log`, not one process per commit, so a probe costs one Git process,
+ * whatever the depth. Git may still walk the whole range inside that process (#1158).
  */
 export default class GitWritePublicationHistoryAdapter implements WritePublicationHistory {
   readonly #history: WriterChainHistory;

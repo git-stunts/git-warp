@@ -11,7 +11,7 @@ import { freezeRepairHints, type RepairHint } from '../../api/ReceiptSupport.ts'
 export default class WriterFrontierRefusal {
   static readonly FULL = new WriterFrontierRefusal('writer-limit-reached', {
     code: 'reuse_writer_id',
-    message: 'This graph already has as many writers as one write can retain; write as one of its existing writer IDs, such as one of a bounded pool that users share.',
+    message: 'This graph already has as many writers as one write can retain; write as a writer ID that this clone already writes as, such as one of a bounded pool that its users share.',
   });
 
   static readonly OVER_LIMIT = new WriterFrontierRefusal('retention-refused-writer-limit', {
