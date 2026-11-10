@@ -502,7 +502,6 @@ export default tseslint.config(
       // Index
       "src/domain/services/index/BitmapIndexBuilder.ts",
       "src/domain/services/index/BitmapNeighborProvider.ts",
-      "src/domain/services/index/IncrementalIndexUpdater.ts",
       "src/domain/services/index/LogicalBitmapIndexBuilder.ts",
       "src/domain/services/index/LogicalIndexBuildService.ts",
       // Provenance

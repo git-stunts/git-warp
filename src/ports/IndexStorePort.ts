@@ -4,6 +4,7 @@ import type CodecValue from '../domain/types/codec/CodecValue.ts';
 import type AssetHandle from '../domain/storage/AssetHandle.ts';
 import type BundleHandle from '../domain/storage/BundleHandle.ts';
 import type ArtifactStagingPort from './ArtifactStagingPort.ts';
+import type { default as IndexShardTreePort, EncodedIndexTree } from './IndexShardTreePort.ts';
 
 export type IndexShardStructureLimits = Readonly<{
   maxContainerEntries: number;
@@ -151,4 +152,15 @@ export default abstract class IndexStorePort {
     _path: string,
     _options?: IndexShardDecodeOptions,
   ): Promise<TDecoded | null>;
+
+  /**
+   * Opens a synchronous semantic view over one in-memory encoded index tree.
+   *
+   * `IncrementalIndexUpdater` reads typed shards through the view and returns
+   * typed shards; `MaterializedViewService` writes them back through it. So the
+   * updater does not encode or decode shard bytes; the adapter decodes,
+   * validates, and encodes. `MaterializedViewService` still decodes the
+   * updated tree to rebuild its reader (see `IndexShardTreePort`).
+   */
+  abstract openShardTree(_tree: EncodedIndexTree): IndexShardTreePort;
 }
