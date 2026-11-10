@@ -13,7 +13,7 @@ import { ScriptedCustody, ScriptedSupport } from '../../../../helpers/ScriptedOb
 import WriteRecoveryFixture from '../../../../helpers/WriteRecoveryFixture.ts';
 
 const ATTEMPT = 'a'.repeat(32);
-const REF = `refs/warp/g/write-attempts/${ATTEMPT}`;
+const REF = `refs/warp-local/g/write-attempts/${ATTEMPT}`;
 
 function recovery(): { readonly fixture: WriteRecoveryFixture; readonly transitions: string[] } {
   const transitions: string[] = [];

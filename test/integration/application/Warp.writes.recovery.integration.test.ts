@@ -8,7 +8,7 @@ import CustodyRefused from '../../../src/domain/services/custody/CustodyRefused.
 import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
-import { GRAPH, attemptRefs, disposeWarpFixtures, git, open, repository, retained, unseen } from '../../helpers/WarpWriteFixture.ts';
+import { GRAPH, attemptRefs, disposeWarpFixtures, git, open, openSwept, repository, retained, unseen } from '../../helpers/WarpWriteFixture.ts';
 import WriteRecoveryCustody from '../../helpers/WriteRecoveryCustody.ts';
 import WriteAttemptJournalCapture from '../../helpers/WriteAttemptJournalCapture.ts';
 import { narrowed } from '../../helpers/ObservationCustodyFixture.ts';
@@ -97,7 +97,24 @@ async function asked(warp: Warp, ref: string) {
 }
 
 const MISMATCH = { error: 'E_WRITE_CORE_MISMATCH' };
+const UNANSWERED = { receipt: null, races: null };
 const INDETERMINATE = { receipt: IndeterminateWriteReceipt.name, races: null };
+
+/** Where builds of `main` before #1078 saved the attempt that now lives at `ref`. This build never reads it. */
+function formerRef(ref: string): string {
+  return ref.replace('refs/warp-local/', 'refs/warp/');
+}
+
+/** The operator's two commands from the sync topic: point the new ref at the record, then delete the old ref. */
+function moved(path: string, from: string, to: string): void {
+  git(path, ['update-ref', to, from]);
+  git(path, ['update-ref', '-d', from]);
+}
+
+function refsAt(path: string, ref: string): string[] {
+  const listed = git(path, ['for-each-ref', '--format=%(refname)', ref]);
+  return listed === '' ? [] : listed.split('\n');
+}
 
 describe('recovery of a write whose settlement custody may hold', () => {
   it('control: refuses an altered record when custody can be read, and keeps it', async () => {
@@ -114,8 +131,11 @@ describe('recovery of a write whose settlement custody may hold', () => {
     const ref = await settledWithRecord(path);
     rewrite(path, ref, { races: MALLORY });
 
-    await open(path, { clock, wrapCustody: custodyAnswering({ settlement: unavailable }) });
+    let settlementReads = 0;
+    await openSwept(path, { clock, wrapCustody: custodyAnswering({ settlement: () => { settlementReads += 1; return unavailable(); } }) });
 
+    // The sweep judged this record: it asked custody for the settlement. A sweep that skipped or dropped the record would also keep it.
+    expect(settlementReads).toBeGreaterThan(0);
     expect(attemptRefs(path)).toEqual([ref]);
   });
 
@@ -165,5 +185,54 @@ describe('recovery of a write custody reports not settled', () => {
 
     expect(answer instanceof UnretainedWriteReceipt ? [answer.retention, answer.attempt] : answer).toEqual(['evidence-too-large', null]);
     expect(attemptRefs(path)).toEqual([]);
+  });
+});
+
+/**
+ * #1078 moved attempt records from `refs/warp/<graph>/write-attempts/` to `refs/warp-local/`.
+ * Only pre-release builds of `main` wrote the old prefix. Decided: this build does not read it,
+ * and the documented remedy is to move the ref. Oracle: the operator note in `docs/topics/sync.md`.
+ */
+describe('a record under the refs/warp/ prefix that pre-release builds wrote', () => {
+  it('answers null to its owner while the record stays, then answers once the ref is moved', async () => {
+    const path = await repository();
+    const ref = await unsettled(path);
+    const former = formerRef(ref);
+    moved(path, ref, former);
+
+    expect(await asked(await open(path, { clock }), ref)).toEqual(UNANSWERED);
+    expect(refsAt(path, former)).toEqual([former]);
+
+    moved(path, former, ref);
+    expect(await asked(await open(path, { clock }), ref)).toEqual({ receipt: 'RetainedWriteReceipt', races: [['bob']] });
+    expect(attemptRefs(path)).toEqual([]);
+  });
+
+  it('is passed over by a sweep, which finishes it once the ref is moved', async () => {
+    const path = await repository();
+    const ref = await settledWithRecord(path);
+    const former = formerRef(ref);
+    moved(path, ref, former);
+
+    await openSwept(path, { clock });
+    expect(refsAt(path, former)).toEqual([former]);
+
+    moved(path, former, ref);
+    await openSwept(path, { clock });
+    expect(attemptRefs(path)).toEqual([]);
+  });
+
+  it('gets no layout refusal for a layout-1 record until the ref is moved', async () => {
+    const path = await repository();
+    const ref = await unsettled(path);
+    const former = formerRef(ref);
+    moved(path, ref, former);
+    rewrite(path, former, { version: 1 });
+
+    expect(await asked(await open(path, { clock }), ref)).toEqual(UNANSWERED);
+
+    moved(path, former, ref);
+    expect(await asked(await open(path, { clock }), ref)).toEqual({ error: 'E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED' });
+    expect(attemptRefs(path)).toEqual([ref]);
   });
 });

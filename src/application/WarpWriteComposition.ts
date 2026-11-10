@@ -1,6 +1,6 @@
 import type { ContentMetadataInput } from '../domain/api/ContentMetadataInput.ts';
 import type StagedContent from '../domain/api/StagedContent.ts';
-import WarpError from '../domain/errors/WarpError.ts';
+import RetentionStoreOpenError from '../domain/errors/RetentionStoreOpenError.ts';
 import ConeLaneBasis from '../domain/services/cone/ConeLaneBasis.ts';
 import ContentStagingAuthority from '../domain/services/ContentStagingAuthority.ts';
 import ObservationCustodyService from '../domain/services/custody/ObservationCustodyService.ts';
@@ -9,6 +9,7 @@ import ConeWriteExecutor from '../domain/services/write/ConeWriteExecutor.ts';
 import ConeWriteLowering from '../domain/services/write/ConeWriteLowering.ts';
 import ConeWritePublisher from '../domain/services/write/ConeWritePublisher.ts';
 import ConeWriteRecovery from '../domain/services/write/ConeWriteRecovery.ts';
+import ConeWritePath from '../domain/services/write/ConeWritePath.ts';
 import ConeWriteSettlement from '../domain/services/write/ConeWriteSettlement.ts';
 import WritePublicationProbe from '../domain/services/write/WritePublicationProbe.ts';
 import { openRuntimeHostProduct, type RuntimeHostProduct } from '../domain/warp/RuntimeHostProduct.ts';
@@ -19,10 +20,12 @@ import GitConePatchFeedAdapter from '../infrastructure/adapters/GitConePatchFeed
 import GitConeRecordStoreAdapter from '../infrastructure/adapters/GitConeRecordStoreAdapter.ts';
 import GitWriteAttemptJournalAdapter from '../infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import ObservationCustodyCborCodec from '../infrastructure/adapters/ObservationCustodyCborCodec.ts';
+import type LoggerPort from '../ports/LoggerPort.ts';
 import type ObservationAttemptSourcePort from '../ports/ObservationAttemptSourcePort.ts';
 import type ObservationCustodyPort from '../ports/ObservationCustodyPort.ts';
 import type WarpAccessPort from '../ports/WarpAccessPort.ts';
 import GitStorage from './GitStorage.ts';
+import GuardedLogger from './GuardedLogger.ts';
 import { gitStorageLocation } from './GitStorageLocation.ts';
 import { getDefaultRuntimeHostNodePorts, type RuntimeHostNodePorts } from './RuntimeHostNodeDefaults.ts';
 import type WarpAddress from './WarpAddress.ts';
@@ -58,73 +61,113 @@ export function overrideWarpComposition(access: WarpAccessPort, overrides: WarpC
 /** What a Warp drives. */
 export type WarpWrites = {
   readonly executor: ConeWriteExecutor;
-  readonly recovery: ConeWriteRecovery;
-  readonly custody: ObservationCustodyService;
+  /**
+   * Opens the write path if no granted operation has yet, which marks the substrate, installs
+   * the retention policy and sweeps unfinished attempts, then returns its custody.
+   */
+  openCustody(): Promise<ObservationCustodyService>;
   stage(writer: string, staged: { readonly content: string; readonly metadata: ContentMetadataInput | undefined }): Promise<StagedContent>;
   close(): Promise<void>;
 };
 
 type WriterHosts = (writer: string) => Promise<RuntimeHostProduct>;
 
-/** Composes one graph's write path over one opened Git repository. */
-export async function composeWarpWrites(
-  address: WarpAddress,
-  access: WarpAccessPort,
-): Promise<WarpWrites> {
+type OpenedPath = { readonly custody: ObservationCustodyService; readonly path: ConeWritePath };
+
+/** A lane's cone basis, and the release of the storage services opened to read it. */
+type OpenedCone = { readonly basis: ConeLaneBasis; release(): Promise<void> };
+
+/**
+ * Composes one graph's write path over one opened Git repository. Composing changes nothing
+ * in it: the cone, custody, the retention policy and the sweep wait for the first granted
+ * write or reconcile, and a writer's host for its first granted write or stage (#1078).
+ */
+export async function composeWarpWrites(opening: {
+  readonly address: WarpAddress;
+  readonly access: WarpAccessPort;
+  readonly logger: LoggerPort | undefined;
+}): Promise<WarpWrites> {
+  const { address, access } = opening;
   const overrides = COMPOSITION_OVERRIDES.get(access) ?? {};
-  const storage = await GitStorage.open({ cwd: gitStorageLocation(address.storage) });
-  try {
-    const writes = await composeOverStorage({ address, access, overrides, storage });
-    await writes.recovery.sweep();
-    return writes;
-  } catch (error) {
-    await storage.close();
-    throw error;
-  }
+  const logger = opening.logger === undefined ? undefined : new GuardedLogger(opening.logger);
+  return composeOverStorage({ address, access, overrides, logger, storage: await GitStorage.open({ cwd: gitStorageLocation(address.storage) }) });
 }
 
-async function composeOverStorage(run: {
+function composeOverStorage(run: {
   readonly address: WarpAddress;
   readonly access: WarpAccessPort;
   readonly overrides: WarpCompositionOverrides;
+  readonly logger: LoggerPort | undefined;
   readonly storage: GitStorage;
-}): Promise<WarpWrites> {
-  const { address, access, overrides, storage } = run;
+}): WarpWrites {
+  const { address, access, overrides, logger, storage } = run;
   const graph = address.name;
   const ports = getDefaultRuntimeHostNodePorts();
   const git = resolveConeWrites(storage);
-  const hosts = writerHosts({ graph, storage, ports });
-  const custody = await openCustodyService({ graph, git, ports, overrides });
+  const hosts = writerHosts({ graph, storage, ports, logger });
+  const content = new ContentStagingAuthority();
+  const opened = onFirstUse(async () => await openPath({ graph, git, ports, overrides, storage, content, hosts }));
+  return {
+    openCustody: async () => (await opened()).custody,
+    executor: new ConeWriteExecutor({ graph, access, path: async () => (await opened()).path }),
+    stage: async (writer, staged) => await content.stage({ assetStorage: (await hosts(writer))._assetStorage, content: staged.content, metadata: staged.metadata, slug: `${graph}/${writer}` }),
+    close: async () => await storage.close(),
+  };
+}
+
+/** Runs `open` once it succeeds; a failed open is tried again by the next caller. */
+function onFirstUse<T>(open: () => Promise<T>): () => Promise<T> {
+  let pending: Promise<T> | null = null;
+  return async () => {
+    const run = pending ?? open();
+    pending = run;
+    try {
+      return await run;
+    } catch (error) {
+      pending = null;
+      throw error;
+    }
+  };
+}
+
+/** Opens the cone and custody, which marks the substrate and installs or verifies the retention policy, then sweeps what earlier processes left. */
+async function openPath(fields: {
+  readonly graph: string;
+  readonly git: WarpConeWriteStorage;
+  readonly ports: RuntimeHostNodePorts;
+  readonly overrides: WarpCompositionOverrides;
+  readonly storage: GitStorage;
+  readonly content: ContentStagingAuthority;
+  readonly hosts: WriterHosts;
+}): Promise<OpenedPath> {
+  const { graph, git, ports, overrides, storage, content, hosts } = fields;
+  const cone = await openCone({ graph, git, ports, storage });
+  const lowering = new ConeWriteLowering({ graph, cone: cone.basis, content, crypto: ports.crypto, openPatch: async (writer) => await (await hosts(writer)).createPatch() });
+  const custody = await custodyOrRelease(cone, async () => await openCustodyService({ graph, git, ports, overrides }));
   const journal = new GitWriteAttemptJournalAdapter({ graph, history: git.history, codec: ports.codec, custodyCodec: new ObservationCustodyCborCodec(ports.codec) });
   const probe = new WritePublicationProbe({ graph, history: git.history, messages: ports.commitMessageCodec });
   const settlement = new ConeWriteSettlement({ graph, custody, journal });
   const clock = overrides.clock ?? (() => Date.now());
-  const content = new ContentStagingAuthority();
   const recovery = new ConeWriteRecovery({ graph, custody, journal, probe, settlement, clock });
-  return {
-    custody, recovery,
-    executor: new ConeWriteExecutor({
-      graph, access, recovery,
-      lowering: new ConeWriteLowering({ graph, cone: await openCone({ graph, git, ports, storage }), content, crypto: ports.crypto, openPatch: async (writer) => await (await hosts(writer)).createPatch() }),
-      publisher: new ConeWritePublisher({ graph, custody, journal, probe, settlement, clock, attempts: overrides.attempts ?? new EntropyObservationAttemptSource() }),
-    }),
-    stage: async (writer, staged) => await content.stage({ assetStorage: (await hosts(writer))._assetStorage, content: staged.content, metadata: staged.metadata, slug: `${graph}/${writer}` }),
-    close: async () => await storage.close(),
-  };
+  const publisher = new ConeWritePublisher({ graph, custody, journal, probe, settlement, clock, attempts: overrides.attempts ?? new EntropyObservationAttemptSource() });
+  await recovery.sweep();
+  return { custody, path: new ConeWritePath({ lowering, publisher, recovery }) };
 }
 
 function writerHosts(fields: {
   readonly graph: string;
   readonly storage: GitStorage;
   readonly ports: RuntimeHostNodePorts;
+  readonly logger: LoggerPort | undefined;
 }): WriterHosts {
-  const { graph, storage, ports } = fields;
+  const { graph, storage, ports, logger } = fields;
   const binding = resolveWarpStorage(storage);
   const opened = new Map<string, Promise<RuntimeHostProduct>>();
   return async (writer) => {
     const known = opened.get(writer) ?? openRuntimeHostProduct({
       persistence: binding.history, runtimeStorage: binding.runtimeStorage, graphName: graph, writerId: writer,
       codec: ports.codec, crypto: ports.crypto, random: ports.random, clock: ports.clock, trustCrypto: ports.trustCrypto, commitMessageCodec: ports.commitMessageCodec,
+      ...(logger === undefined ? {} : { logger }),
     });
     opened.set(writer, known);
     try {
@@ -141,16 +184,32 @@ async function openCone(fields: {
   readonly git: WarpConeWriteStorage;
   readonly ports: RuntimeHostNodePorts;
   readonly storage: GitStorage;
-}): Promise<ConeLaneBasis> {
+}): Promise<OpenedCone> {
   const { graph, git, ports, storage } = fields;
   const services = await resolveWarpStorage(storage).runtimeStorage.createRuntimeStorageServices({
     timelineName: graph, codec: ports.codec, crypto: ports.crypto, commitMessageCodec: ports.commitMessageCodec,
   });
-  return ConeLaneBasis.ofLane({
+  const basis = ConeLaneBasis.ofLane({
     lane: graph,
     store: new GitConeRecordStoreAdapter({ history: git.history, codec: ports.codec }),
     feed: new GitConePatchFeedAdapter({ history: git.history, journal: services.patchJournal, commitMessageCodec: ports.commitMessageCodec }),
   });
+  return { basis, release: async () => await services.materializations.close() };
+}
+
+/**
+ * Custody for an opened cone. If custody does not open, the path-open fails and the next granted
+ * operation opens the cone again, so this one's storage services are released now: otherwise each
+ * failed open would keep one more set until the Warp closes.
+ */
+async function custodyOrRelease(cone: OpenedCone, open: () => Promise<ObservationCustodyService>): Promise<ObservationCustodyService> {
+  try {
+    return await open();
+  } catch (error) {
+    // These services took no workspace or lease, so their close has nothing to fail on.
+    await cone.release();
+    throw error;
+  }
 }
 
 async function openCustodyService(fields: {
@@ -164,7 +223,7 @@ async function openCustodyService(fields: {
     reservations: git.reservations, graphName: graph, limit: overrides.limit ?? WARP_RETENTION_SLOTS, crypto: ports.crypto,
   });
   if (!(custody instanceof GitCasObservationCustodyAdapter)) {
-    throw new WarpError('This graph\'s retention store did not open', 'E_WARP_RETENTION_OPEN');
+    throw new RetentionStoreOpenError(custody);
   }
   return new ObservationCustodyService({
     custody: overrides.wrapCustody === undefined ? custody : overrides.wrapCustody(custody),

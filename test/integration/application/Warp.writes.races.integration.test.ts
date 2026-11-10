@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { intent } from '../../../advanced.ts';
 import { execFileSync } from 'node:child_process';
-import { GitStorage, UnretainedWriteReceipt, WarpAddress, type RetainedWriteReceipt, type Warp } from '../../../index.ts';
-import { composeWarpWrites } from '../../../src/application/WarpWriteComposition.ts';
+import { UnretainedWriteReceipt, type RetainedWriteReceipt, type Warp } from '../../../index.ts';
 import type WriteRace from '../../../src/domain/api/WriteRace.ts';
 import WarpError from '../../../src/domain/errors/WarpError.ts';
 import ObservationCoordinate from '../../../src/domain/services/custody/ObservationCoordinate.ts';
@@ -12,7 +11,7 @@ import { canonicalStringify } from '../../../src/domain/utils/canonicalStringify
 import ObservationCustodyCborCodec from '../../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
 import codec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
-import { GRAPH, TestAccess, attemptRefs, disposeWarpFixtures, git, open, repository, retained, unseen, boundRaces } from '../../helpers/WarpWriteFixture.ts';
+import { GRAPH, attemptRefs, composed, disposeWarpFixtures, git, open, repository, retained, unseen, boundRaces } from '../../helpers/WarpWriteFixture.ts';
 import FaultingObservationCustody from '../../helpers/FaultingObservationCustody.ts';
 import WriteAttemptJournalCapture from '../../helpers/WriteAttemptJournalCapture.ts';
 import { narrowed } from '../../helpers/ObservationCustodyFixture.ts';
@@ -28,10 +27,10 @@ function wire(race: WriteRace) {
 
 /** The races bound in a retained receipt's canonical core, read back from custody. */
 async function coreRaces(path: string, receipt: RetainedWriteReceipt): Promise<string> {
-  const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
+  const writes = await composed(path);
   try {
     const coordinate = ObservationCoordinate.parse(receipt.coordinate.toString());
-    const resolved = coordinate === null ? null : await writes.custody.resolve(coordinate);
+    const resolved = coordinate === null ? null : await (await writes.openCustody()).resolve(coordinate);
     if (!(resolved instanceof ResolvedObservation)) {
       throw new Error('Expected the retained evidence to resolve');
     }
