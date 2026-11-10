@@ -9,7 +9,6 @@
  */
 
 import computeShardKey from '../../utils/shardKey.ts';
-import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
 import ShardIdOverflowError from '../../errors/ShardIdOverflowError.ts';
 import type { WorkingMetaShard, EdgeShardData } from './types.ts';
@@ -158,7 +157,7 @@ export default class IndexNodeUpdater {
     if (!bucketData || !bucketData[gidStr]) {
       return [];
     }
-    const bm = RoaringBitmap32.deserialize(toBytes(bucketData[gidStr]), true);
+    const bm = RoaringBitmap32.deserialize(bucketData[gidStr], true);
     const peers = bm.toArray();
     bm.clear();
     bucketData[gidStr] = bm.serialize(true);
@@ -186,10 +185,7 @@ export default class IndexNodeUpdater {
       const peerGidStr = String(peerGid);
       const peerBucketData = peerData[opts.bucket];
       if (peerBucketData && peerBucketData[peerGidStr]) {
-        const peerBm = RoaringBitmap32.deserialize(
-          toBytes(peerBucketData[peerGidStr]),
-          true,
-        );
+        const peerBm = RoaringBitmap32.deserialize(peerBucketData[peerGidStr], true);
         peerBm.remove(deadGid);
         peerBucketData[peerGidStr] = peerBm.serialize(true);
       }

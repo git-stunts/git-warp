@@ -1,16 +1,17 @@
 import WarpError from '../errors/WarpError.ts';
+import requireEdgeShardBuckets, { type EdgeShardBuckets } from './EdgeShardBuckets.ts';
 import { IndexShard } from './IndexShard.ts';
 
 /** Forward or reverse edge bitmaps for a shard. */
 export class EdgeShard extends IndexShard {
   readonly direction: 'fwd' | 'rev';
-  readonly buckets: Record<string, Record<string, Uint8Array>>;
+  readonly buckets: EdgeShardBuckets;
 
   constructor({ shardKey, schemaVersion = 1, direction, buckets }: {
     shardKey: string;
     schemaVersion?: number;
     direction: 'fwd' | 'rev';
-    buckets: Record<string, Record<string, Uint8Array>>;
+    buckets: EdgeShardBuckets;
   }) {
     super({ shardKey, schemaVersion });
     if (direction !== 'fwd' && direction !== 'rev') {
@@ -20,7 +21,7 @@ export class EdgeShard extends IndexShard {
       );
     }
     this.direction = direction;
-    this.buckets = buckets;
+    this.buckets = requireEdgeShardBuckets(buckets);
     Object.freeze(this);
   }
 }
