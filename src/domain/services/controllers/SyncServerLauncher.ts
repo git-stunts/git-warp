@@ -78,6 +78,7 @@ export async function launchSyncServer(
         ...auth,
         crypto: host._crypto,
         replayProtection: requireReplayProtection(host),
+        clock: host._clock,
         ...(host._logger ? { logger: host._logger } : {}),
       }
     : undefined;

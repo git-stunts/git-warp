@@ -55,10 +55,15 @@ export default class GitCasSyncReplayProtectionAdapter implements SyncReplayProt
     const result = await replaySet.addIfAbsent(replayIdentity(this._graphName, request), {
       expiresAt,
     });
+    // Both readings come from this adapter's clock. The freshness verdict built on
+    // them assumes that this clock and the git-cas set's clock are the same
+    // non-decreasing host time, which the default composition provides.
     return Object.freeze({
       admitted: result.admitted,
       expiresAt: result.marker?.expiresAt ?? expiresAt,
       generation: result.generation,
+      reservedAtMs: nowMs,
+      completedAtMs: this._wallClockMs(),
     });
   }
 

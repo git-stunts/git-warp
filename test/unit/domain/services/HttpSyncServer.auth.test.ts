@@ -1,587 +1,192 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import HttpSyncServer from '../../../../src/domain/services/sync/HttpSyncServer.ts';
-import { signSyncRequest } from '../../../../src/domain/services/sync/SyncAuthService.ts';
+import { signSyncRequest, SYNC_CLOCK_SKEW_ALLOWANCE_MS } from '../../../../src/domain/services/sync/SyncAuthService.ts';
+import type { HttpSyncServerOptions } from '../../../../src/domain/services/sync/HttpSyncServerHelpers.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
-import { createMockCrypto } from '../../../helpers/mockPorts.ts';
+import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import SeededRandomPort from '../../../helpers/SeededRandomPort.ts';
 import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
-
-/** Deterministic, well-spread nonce entropy shared by this file's signed requests. */
-const NONCE_RANDOM = new SeededRandomPort(184001);
+import ManualClock from '../../../helpers/ManualClock.ts';
+import { MemoryHttpPort, SyncInbox, WarningLog } from '../../../helpers/SyncHttpFixture.ts';
 
 const SECRET = SyncSecret.fromString('test-secret');
-const KEY_ID = 'default';
-const KEYS = { [KEY_ID]: SECRET };
-const TEST_CRYPTO = createMockCrypto();
+const KEYS = { default: SECRET };
+const BODY = new TextEncoder().encode('{"type":"sync-request","frontier":{}}');
+const FORBIDDEN_BODY = new TextEncoder().encode('{"type":"sync-request","frontier":{"eve":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}');
 
-const VALID_SYNC_BODY = { type: 'sync-request', frontier: {} };
-
-let signLamport = 0;
-
-function makeManualClock(/** @type {number} */ startMs = 0) {
-  let currentMs = startMs;
-  return {
-    now: () => currentMs,
-    advance(/** @type {number} */ ms) {
-      currentMs += ms;
-    },
-  };
+async function signed(clock: ManualClock, options: { body?: Uint8Array; secret?: SyncSecret; keyId?: string } = {}) {
+  return await signSyncRequest({ method: 'POST', path: '/sync', contentType: 'application/json',
+    body: options.body ?? BODY, secret: options.secret ?? SECRET, keyId: options.keyId ?? 'default' },
+  { crypto: defaultCrypto, random: new SeededRandomPort(clock.nowMs()), clock });
+}
+function auth(clock: ManualClock, mode: 'enforce' | 'log-only') {
+  return { keys: KEYS, crypto: defaultCrypto, clock, mode,
+    replayProtection: new InMemorySyncReplayProtection(clock.read) };
+}
+async function boot(options: Partial<HttpSyncServerOptions> = {}) {
+  const clock = new ManualClock();
+  const http = new MemoryHttpPort();
+  const graph = new SyncInbox();
+  const server = new HttpSyncServer({ httpPort: http, graph,
+    auth: { keys: KEYS, crypto: defaultCrypto, clock,
+      replayProtection: new InMemorySyncReplayProtection(clock.read) }, ...options });
+  await server.listen(9999);
+  return { clock, http, graph };
 }
 
-/**
- * Signs a sync request body and returns the raw Buffer + merged headers.
- *
- * @param {Object} bodyObj
- * @returns {Promise<{ body: Buffer, headers: Record<string, string> }>}
- */
-async function signedBody(bodyObj) {
-  signLamport += 1;
-  const body = Buffer.from(JSON.stringify(bodyObj));
-  const headers = await signSyncRequest(
-    { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SECRET, keyId: KEY_ID, lamport: signLamport },
-    { crypto: TEST_CRYPTO, random: NONCE_RANDOM },
-  );
-  return { body, headers: { 'content-type': 'application/json', host: '127.0.0.1:9999', ...headers } };
-}
-
-/**
- * Creates a mock HttpServerPort that captures the request handler
- * and lets tests invoke it directly without network I/O.
- *
- * @returns {any}
- */
-function createMockPort() {
-    let handler;
-  const addressValue = { port: 9999 };
-
-  return {
-    port: {
-      createServer(/** @type {any} */ requestHandler) {
-        handler = requestHandler;
-        return {
-          listen(/** @type {any} */ _port, /** @type {any} */ _host, /** @type {any} */ cb) {
-            if (typeof _host === 'function') {
-              cb = _host;
-            }
-            if (cb) {
-              cb(null);
-            }
-          },
-          close(/** @type {any} */ cb) {
-            if (cb) {
-              cb(null);
-            }
-          },
-          address() {
-            return addressValue;
-          },
-        };
-      },
-    },
-    getHandler() {
-      return handler;
-    },
-  };
-}
-
-describe('HttpSyncServer auth integration', () => {
-    let mockPort;
-    let graph;
-
-  beforeEach(() => {
-    mockPort = createMockPort();
-    graph = {
-      processSyncRequest: vi.fn().mockResolvedValue({
-        type: 'sync-response',
-        frontier: {},
-        patches: [],
-      }),
-    };
+describe('HttpSyncServer authenticated admission', () => {
+  it('rejects an unsigned request before graph work', async () => {
+    const { http, graph } = await boot();
+    expect(await http.request()).toMatchObject({ status: 400, body: '{"error":"INVALID_VERSION"}' });
+    expect(graph.requests).toHaveLength(0);
   });
-
-  // ---------------------------------------------------------------------------
-  // enforce mode
-  // ---------------------------------------------------------------------------
-  describe('enforce mode', () => {
-        let handler;
-
-    beforeEach(async () => {
-      const server = new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        host: '127.0.0.1',
-        path: '/sync',
-        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
-      }) as any));
-      await server.listen(9999);
-      handler = mockPort.getHandler();
-    });
-
-    it('rejects unsigned request (missing sig-version → 400)', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify(VALID_SYNC_BODY)),
-      });
-      expect(res.status).toBe(400);
-      expect(JSON.parse(res.body).error).toBe('INVALID_VERSION');
-    });
-
-    it('returns 401 when sig-version present but auth headers missing', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: {
-          'content-type': 'application/json',
-          host: '127.0.0.1:9999',
-          'x-warp-sig-version': '2',
-        },
-        body: Buffer.from(JSON.stringify(VALID_SYNC_BODY)),
-      });
-      expect(res.status).toBe(401);
-      expect(JSON.parse(res.body).error).toBe('MISSING_AUTH');
-    });
-
-    it('returns 200 for valid signed request', async () => {
-      const { body, headers } = await signedBody(VALID_SYNC_BODY);
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers,
-        body,
-      });
-      expect(res.status).toBe(200);
-    });
-
-    it('returns 401 for wrong secret', async () => {
-      const body = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
-      const headers = await signSyncRequest(
-        { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SyncSecret.fromString('wrong-secret'), keyId: KEY_ID, lamport: ++signLamport },
-        { crypto: TEST_CRYPTO, random: NONCE_RANDOM },
-      );
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999', ...headers },
-        body,
-      });
-      expect(res.status).toBe(401);
-    });
-
-    it('returns 403 for replayed nonce', async () => {
-      const { body, headers } = await signedBody(VALID_SYNC_BODY);
-
-      const first = await handler({ method: 'POST', url: '/sync', headers, body });
-      expect(first.status).toBe(200);
-
-      const second = await handler({ method: 'POST', url: '/sync', headers, body });
-      expect(second.status).toBe(403);
-    });
-
-    it('returns a stable 503 when durable replay storage is unavailable', async () => {
-      const server = new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        host: '127.0.0.1',
-        path: '/sync',
-        auth: {
-          keys: KEYS,
-          mode: 'enforce',
-          crypto: TEST_CRYPTO,
-          replayProtection: {
-            reserve: async () => { throw new Error('private adapter failure'); },
-            sweep: async () => ({ removed: 0, generation: null }),
-          },
-        },
-      }) as any));
-      await server.listen(9999);
-      const unavailableHandler = mockPort.getHandler();
-      const { body, headers } = await signedBody(VALID_SYNC_BODY);
-
-      const response = await unavailableHandler({ method: 'POST', url: '/sync', headers, body });
-      expect(response.status).toBe(503);
-      expect(JSON.parse(response.body).error).toBe('REPLAY_STORE_UNAVAILABLE');
-      expect(response.body).not.toContain('private adapter failure');
-      expect(graph.processSyncRequest).not.toHaveBeenCalled();
-    });
-
-    it('returns 403 for stale lamport (non-increasing)', async () => {
-      // First request succeeds at a high lamport
-      const { body: body1, headers: headers1 } = await signedBody(VALID_SYNC_BODY);
-      const res1 = await handler({ method: 'POST', url: '/sync', headers: headers1, body: body1 });
-      expect(res1.status).toBe(200);
-
-      // Second request at lamport 0 (lower than first) → 403 STALE_LAMPORT
-      const lowLamportBody = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
-      const lowHeaders = await signSyncRequest(
-        { method: 'POST', path: '/sync', contentType: 'application/json', body: lowLamportBody, secret: SECRET, keyId: KEY_ID, lamport: 0 },
-        { crypto: TEST_CRYPTO, random: NONCE_RANDOM },
-      );
-      const res2 = await handler({
-        method: 'POST', url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999', ...lowHeaders },
-        body: lowLamportBody,
-      });
-      expect(res2.status).toBe(403);
-    });
-
-    it('returns 401 for unknown key-id', async () => {
-      const body = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
-      const headers = await signSyncRequest(
-        { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SECRET, keyId: 'unknown-key', lamport: ++signLamport },
-        { crypto: TEST_CRYPTO, random: NONCE_RANDOM },
-      );
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999', ...headers },
-        body,
-      });
-      expect(res.status).toBe(401);
-    });
+  it('rejects missing auth headers when the version is present', async () => {
+    const { http, graph } = await boot();
+    expect(await http.request({ 'x-warp-sig-version': '3' })).toMatchObject({ status: 401, body: '{"error":"MISSING_AUTH"}' });
+    expect(graph.requests).toHaveLength(0);
   });
-
-  // ---------------------------------------------------------------------------
-  // log-only mode
-  // ---------------------------------------------------------------------------
-  describe('log-only mode', () => {
-        let handler;
-
-    beforeEach(async () => {
-      const server = new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        host: '127.0.0.1',
-        path: '/sync',
-        auth: { keys: KEYS, mode: 'log-only', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
-      }) as any));
-      await server.listen(9999);
-      handler = mockPort.getHandler();
-    });
-
-    it('returns 200 for unsigned request', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify(VALID_SYNC_BODY)),
-      });
-      expect(res.status).toBe(200);
-    });
-
-    it('returns 200 for invalid signature', async () => {
-      const body = Buffer.from(JSON.stringify(VALID_SYNC_BODY));
-      const headers = await signSyncRequest(
-        { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SyncSecret.fromString('wrong-secret'), keyId: KEY_ID, lamport: ++signLamport },
-        { crypto: TEST_CRYPTO, random: NONCE_RANDOM },
-      );
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999', ...headers },
-        body,
-      });
-      expect(res.status).toBe(200);
-    });
-
-    it('still processes the request and returns sync response', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify(VALID_SYNC_BODY)),
-      });
-      expect(res.status).toBe(200);
-      const parsed = JSON.parse(res.body);
-      expect(parsed.type).toBe('sync-response');
-      expect(graph.processSyncRequest).toHaveBeenCalledOnce();
-    });
+  it('admits a valid v3 request into graph sync', async () => {
+    const { clock, http, graph } = await boot();
+    expect(await http.request(await signed(clock))).toMatchObject({ status: 200, body: '{"frontier":{},"patches":[],"type":"sync-response"}' });
+    expect(graph.requests).toEqual([{ type: 'sync-request', frontier: {} }]);
   });
-
-  // ---------------------------------------------------------------------------
-  // explicit unsafe localhost no-auth config
-  // ---------------------------------------------------------------------------
-  describe('unsafe localhost no-auth config', () => {
-        let handler;
-
-    beforeEach(async () => {
-      const server = new HttpSyncServer((({
-        httpPort: mockPort.port,
-        graph,
-        host: '127.0.0.1',
-        path: '/sync',
-        unsafeAllowUnauthenticatedLocalhost: true,
-      }) as any));
-      await server.listen(9999);
-      handler = mockPort.getHandler();
-    });
-
-    it('returns 200 for unsigned request when unsafe localhost mode is explicit', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify(VALID_SYNC_BODY)),
-      });
-      expect(res.status).toBe(200);
-    });
-
-    it('returns 200 for signed request when unsafe localhost mode is explicit', async () => {
-      const { body, headers } = await signedBody(VALID_SYNC_BODY);
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers,
-        body,
-      });
-      expect(res.status).toBe(200);
-    });
-
-    it('processes the request normally', async () => {
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify(VALID_SYNC_BODY)),
-      });
-      expect(res.status).toBe(200);
-      expect(graph.processSyncRequest).toHaveBeenCalledWith(VALID_SYNC_BODY);
-    });
+  it('rejects a wrong signing secret', async () => {
+    const { clock, http, graph } = await boot();
+    expect(await http.request(await signed(clock, { secret: SyncSecret.fromString('wrong-secret') })))
+      .toMatchObject({ status: 401, body: '{"error":"INVALID_SIGNATURE"}' });
+    expect(graph.requests).toHaveLength(0);
   });
-
-  // ---------------------------------------------------------------------------
-  // auth.mode validation
-  // ---------------------------------------------------------------------------
-  describe('auth.mode validation', () => {
-    it('defaults to enforce when mode is omitted', async () => {
-      const noModeMockPort = createMockPort();
-      const server = new HttpSyncServer((({
-        httpPort: noModeMockPort.port,
-        graph,
-        host: '127.0.0.1',
-        path: '/sync',
-        auth: { keys: KEYS, crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
-      }) as any));
-      await server.listen(9999);
-      const noModeHandler = noModeMockPort.getHandler();
-
-      // Unsigned request should be rejected (enforce mode)
-      const res = await noModeHandler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from(JSON.stringify(VALID_SYNC_BODY)),
-      });
-      expect(res.status).toBe(400);
-    });
-
-    it('throws on invalid auth.mode string', () => {
-      const badModeMockPort = createMockPort();
-      expect(() => new HttpSyncServer((({
-        httpPort: badModeMockPort.port,
-        graph,
-        host: '127.0.0.1',
-        path: '/sync',
-        auth: { keys: KEYS, mode: 'typo', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
-      }) as any))).toThrow(/HttpSyncServer config/);
-    });
+  it('rejects an already admitted nonce', async () => {
+    const { clock, http, graph } = await boot();
+    const headers = await signed(clock);
+    expect(await http.request(headers)).toMatchObject({ status: 200 });
+    expect(await http.request(headers)).toMatchObject({ status: 403, body: '{"error":"REPLAY"}' });
+    expect(graph.requests).toHaveLength(1);
   });
-
-  // ---------------------------------------------------------------------------
-  // ordering: oversize body rejected before auth check (DoS guard)
-  // ---------------------------------------------------------------------------
-  describe('ordering', () => {
-    it('returns 413 before auth check for oversize body', async () => {
-      const oversizeMockPort = createMockPort();
-      const server = new HttpSyncServer((({
-        httpPort: oversizeMockPort.port,
-        graph,
-        host: '127.0.0.1',
-        path: '/sync',
-        maxRequestBytes: 10,
-        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
-      }) as any));
-      await server.listen(9999);
-      const oversizeHandler = oversizeMockPort.getHandler();
-
-      // Body is larger than 10 bytes but has no auth headers — 413 must come before 401
-      const res = await oversizeHandler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999' },
-        body: Buffer.from('x'.repeat(20)),
-      });
-      expect(res.status).toBe(413);
-      expect(JSON.parse(res.body)).toEqual({ error: 'Request too large' });
-    });
-
-    it('returns 413 even when request is properly signed', async () => {
-      const oversizeMockPort = createMockPort();
-      const server = new HttpSyncServer((({
-        httpPort: oversizeMockPort.port,
-        graph,
-        host: '127.0.0.1',
-        path: '/sync',
-        maxRequestBytes: 10,
-        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
-      }) as any));
-      await server.listen(9999);
-      const oversizeHandler = oversizeMockPort.getHandler();
-
-      const { body, headers } = await signedBody(VALID_SYNC_BODY);
-      const res = await oversizeHandler({
-        method: 'POST',
-        url: '/sync',
-        headers,
-        body,
-      });
-      expect(res.status).toBe(413);
-    });
+  it('returns a stable 503 when replay storage is unavailable', async () => {
+    const clock = new ManualClock();
+    const { http, graph } = await boot({ auth: { ...auth(clock, 'enforce'), replayProtection: {
+      reserve: () => Promise.reject(new Error('private adapter failure')),
+      sweep: () => Promise.resolve({ removed: 0, generation: null }),
+    } } });
+    expect(await http.request(await signed(clock))).toMatchObject({ status: 503, body: '{"error":"REPLAY_STORE_UNAVAILABLE"}' });
+    expect(graph.requests).toHaveLength(0);
   });
-
-  describe('allowedWriters + log-only mode', () => {
-    it('allows forbidden writer through in log-only mode', async () => {
-      const mock = createMockPort();
-      const server = new HttpSyncServer((({
-        httpPort: mock.port,
-        graph,
-        auth: { keys: KEYS, mode: 'log-only', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
-        allowedWriters: ['alice'],
-      }) as any));
-      await server.listen(9999);
-      const handler = mock.getHandler();
-
-      // Writer whitelist is checked via frontier keys (B1)
-      const bodyObj = { type: 'sync-request', frontier: { eve: 'a'.repeat(40) } };
-      const { body, headers } = await signedBody(bodyObj);
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers,
-        body,
-      });
-      // log-only: request proceeds (200), not blocked (403)
-      expect(res.status).toBe(200);
-    });
-
-    it('blocks forbidden writer in enforce mode', async () => {
-      const mock = createMockPort();
-      const server = new HttpSyncServer((({
-        httpPort: mock.port,
-        graph,
-        auth: { keys: KEYS, mode: 'enforce', crypto: TEST_CRYPTO, replayProtection: new InMemorySyncReplayProtection(makeManualClock().now) },
-        allowedWriters: ['alice'],
-      }) as any));
-      await server.listen(9999);
-      const handler = mock.getHandler();
-
-      // Writer whitelist is checked via frontier keys (B1)
-      const bodyObj = { type: 'sync-request', frontier: { eve: 'a'.repeat(40) } };
-      const { body, headers } = await signedBody(bodyObj);
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers,
-        body,
-      });
-      expect(res.status).toBe(403);
-    });
+  it('rejects a signed timestamp outside the skew allowance', async () => {
+    const { clock, http, graph } = await boot();
+    const old = new ManualClock(clock.nowMs() - SYNC_CLOCK_SKEW_ALLOWANCE_MS - 1);
+    expect(await http.request(await signed(old))).toMatchObject({ status: 403, body: '{"error":"EXPIRED"}' });
+    expect(graph.requests).toHaveLength(0);
   });
-
-  describe('rate limiting', () => {
-    it('returns 429 without running graph sync work when a key exhausts its budget', async () => {
-      const mock = createMockPort();
-      const clock = makeManualClock();
-      const server = new HttpSyncServer((({
-        httpPort: mock.port,
-        graph,
-        auth: {
-          keys: KEYS,
-          mode: 'enforce',
-          crypto: TEST_CRYPTO,
-          replayProtection: new InMemorySyncReplayProtection(makeManualClock().now),
-          rateLimit: {
-            capacity: 1,
-            refillTokensPerSecond: 1,
-            clock: clock.now,
-          },
-        },
-      }) as any));
-      await server.listen(9999);
-      const handler = mock.getHandler();
-
-      const first = await signedBody(VALID_SYNC_BODY);
-      const firstRes = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: first.headers,
-        body: first.body,
-      });
-      expect(firstRes.status).toBe(200);
-
-      const second = await signedBody(VALID_SYNC_BODY);
-      const secondRes = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: second.headers,
-        body: second.body,
-      });
-
-      expect(secondRes.status).toBe(429);
-      expect(JSON.parse(secondRes.body).error).toBe('RATE_LIMITED');
-      expect(graph.processSyncRequest).toHaveBeenCalledOnce();
-    });
+  it('refuses signature v2 with SIG_VERSION_RETIRED', async () => {
+    const { clock, http, graph } = await boot();
+    const headers = { ...await signed(clock), 'x-warp-sig-version': '2' };
+    expect(await http.request(headers)).toMatchObject({ status: 400, body: '{"error":"SIG_VERSION_RETIRED"}' });
+    expect(graph.requests).toHaveLength(0);
   });
+  it('rejects an unconfigured key-id', async () => {
+    const { clock, http, graph } = await boot();
+    expect(await http.request(await signed(clock, { keyId: 'missing' }))).toMatchObject({ status: 401, body: '{"error":"UNKNOWN_KEY_ID"}' });
+    expect(graph.requests).toHaveLength(0);
+  });
+  it('defaults an omitted auth mode to enforce', async () => {
+    const { http, graph } = await boot();
+    expect(await http.request()).toMatchObject({ status: 400 });
+    expect(graph.requests).toHaveLength(0);
+  });
+  it('rejects an invalid auth mode at construction', () => {
+    const clock = new ManualClock();
+    expect(() => new HttpSyncServer({ httpPort: new MemoryHttpPort(), graph: new SyncInbox(),
+      // @ts-expect-error Exercise an untyped caller with an invalid mode.
+      auth: { ...auth(clock, 'enforce'), mode: 'typo' } })).toThrow(/HttpSyncServer config/);
+  });
+  it.each([null, undefined, {}, 0])('rejects an invalid clock port at construction: %s', invalidClock => {
+    const clock = new ManualClock();
+    expect(() => new HttpSyncServer({ httpPort: new MemoryHttpPort(), graph: new SyncInbox(),
+      // @ts-expect-error Exercise malformed clock input at the HTTP configuration boundary.
+      auth: { ...auth(clock, 'enforce'), clock: invalidClock } })).toThrow(/HttpSyncServer config/);
+  });
+  it.each(['signed', 'unsigned'])('rejects oversized %s input before graph work', async mode => {
+    const { clock, http, graph } = await boot({ maxRequestBytes: 10 });
+    const headers = mode === 'signed' ? await signed(clock) : {};
+    expect(await http.request(headers)).toMatchObject({ status: 413 });
+    expect(graph.requests).toHaveLength(0);
+  });
+  it('blocks a forbidden writer in enforce mode', async () => {
+    const { clock, http, graph } = await boot({ allowedWriters: ['alice'] });
+    const headers = await signed(clock, { body: FORBIDDEN_BODY });
+    expect(await http.request(headers, FORBIDDEN_BODY)).toMatchObject({ status: 403, body: '{"error":"FORBIDDEN_WRITER"}' });
+    expect(graph.requests).toHaveLength(0);
+  });
+  it('rejects an exhausted request budget before graph work', async () => {
+    const clock = new ManualClock();
+    const { http, graph } = await boot({ auth: { ...auth(clock, 'enforce'),
+      rateLimit: { capacity: 1, refillTokensPerSecond: 1, clock: clock.read } } });
+    expect(await http.request(await signed(clock))).toMatchObject({ status: 200 });
+    clock.advance(1);
+    expect(await http.request(await signed(clock))).toMatchObject({ status: 429, body: '{"error":"RATE_LIMITED"}' });
+    expect(graph.requests).toHaveLength(1);
+  });
+});
 
-  // ---------------------------------------------------------------------------
-  // log-only end-to-end: auth failure + forbidden writer + sync proceeds
-  // ---------------------------------------------------------------------------
-  describe('log-only end-to-end', () => {
-    it('bad signature + forbidden writer both pass through, sync succeeds', async () => {
-      const mock = createMockPort();
-      const logger = { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() };
-      const server = new HttpSyncServer((({
-        httpPort: mock.port,
-        graph,
-        auth: {
-          keys: KEYS,
-          mode: 'log-only',
-          crypto: TEST_CRYPTO,
-          replayProtection: new InMemorySyncReplayProtection(makeManualClock().now),
-          logger,
-        },
-        allowedWriters: ['alice'],
-      }) as any));
-      await server.listen(9999);
-      const handler = mock.getHandler();
-
-      // Sign with WRONG secret (auth fails) and include a FORBIDDEN writer (eve)
-      // Writer whitelist is checked via frontier keys (B1)
-      const bodyObj = { type: 'sync-request', frontier: { eve: 'a'.repeat(40) } };
-      const body = Buffer.from(JSON.stringify(bodyObj));
-      const headers = await signSyncRequest(
-        { method: 'POST', path: '/sync', contentType: 'application/json', body, secret: SyncSecret.fromString('wrong-secret'), keyId: KEY_ID, lamport: ++signLamport },
-        { crypto: TEST_CRYPTO, random: NONCE_RANDOM },
-      );
-      const res = await handler({
-        method: 'POST',
-        url: '/sync',
-        headers: { 'content-type': 'application/json', host: '127.0.0.1:9999', ...headers },
-        body,
-      });
-
-      // Request proceeds despite both failures
-      expect(res.status).toBe(200);
-      const parsed = JSON.parse(res.body);
-      expect(parsed.type).toBe('sync-response');
-      expect(graph.processSyncRequest).toHaveBeenCalledOnce();
-
-      // Both failures were independently logged
-      const warnCalls = logger.warn.mock.calls.filter(
-        (/** @type {any[]} */ args) => typeof args[0] === 'string' && args[0].startsWith('sync auth:'),
-      );
-      expect(warnCalls.length).toBeGreaterThanOrEqual(2);
-    });
+describe('HttpSyncServer explicitly permissive operation', () => {
+  it('processes unsigned requests in log-only mode', async () => {
+    const { http, graph } = await boot({ auth: auth(new ManualClock(), 'log-only') });
+    expect(await http.request()).toMatchObject({ status: 200 });
+    expect(graph.requests).toEqual([{ type: 'sync-request', frontier: {} }]);
+  });
+  it('processes invalid signatures in log-only mode', async () => {
+    const clock = new ManualClock();
+    const { http, graph } = await boot({ auth: auth(clock, 'log-only') });
+    const headers = await signed(clock, { secret: SyncSecret.fromString('wrong-secret') });
+    expect(await http.request(headers)).toMatchObject({ status: 200 });
+    expect(graph.requests).toHaveLength(1);
+  });
+  it('refuses retired signature versions in explicit log-only mode', async () => {
+    const clock = new ManualClock();
+    const { http, graph } = await boot({ auth: auth(clock, 'log-only') });
+    const headers = { ...await signed(clock), 'x-warp-sig-version': '2' };
+    expect(await http.request(headers)).toMatchObject({ status: 400, body: '{"error":"SIG_VERSION_RETIRED"}' });
+    expect(graph.requests).toHaveLength(0);
+  });
+  it('admits a valid v3 request in explicit log-only mode', async () => {
+    const clock = new ManualClock();
+    const { http, graph } = await boot({ auth: auth(clock, 'log-only') });
+    expect(await http.request(await signed(clock))).toMatchObject({ status: 200 });
+    expect(graph.requests).toEqual([{ type: 'sync-request', frontier: {} }]);
+  });
+  it('processes forbidden writers in log-only mode', async () => {
+    const clock = new ManualClock();
+    const { http, graph } = await boot({ auth: auth(clock, 'log-only'), allowedWriters: ['alice'] });
+    const headers = await signed(clock, { body: FORBIDDEN_BODY });
+    expect(await http.request(headers, FORBIDDEN_BODY)).toMatchObject({ status: 200 });
+    expect(graph.requests).toHaveLength(1);
+  });
+  it('records both failures when log-only mode admits a request', async () => {
+    const clock = new ManualClock();
+    const logger = new WarningLog();
+    const { http, graph } = await boot({ auth: { ...auth(clock, 'log-only'), logger }, allowedWriters: ['alice'] });
+    const headers = await signed(clock, { body: FORBIDDEN_BODY, secret: SyncSecret.fromString('wrong-secret') });
+    expect(await http.request(headers, FORBIDDEN_BODY)).toMatchObject({ status: 200 });
+    expect(graph.requests).toHaveLength(1);
+    expect(logger.warnings).toEqual(['sync auth: signature mismatch', 'sync auth: forbidden writers rejected']);
+  });
+  it.each(['signed', 'unsigned'])('admits a %s request with explicit unsafe localhost mode', async mode => {
+    const http = new MemoryHttpPort();
+    const graph = new SyncInbox();
+    const server = new HttpSyncServer({ httpPort: http, graph, unsafeAllowUnauthenticatedLocalhost: true });
+    await server.listen(9999);
+    const headers = mode === 'signed' ? await signed(new ManualClock()) : {};
+    expect(await http.request(headers)).toMatchObject({ status: 200 });
+    expect(graph.requests).toEqual([{ type: 'sync-request', frontier: {} }]);
+  });
+  it('refuses retired signature versions with explicit unsafe localhost mode', async () => {
+    const http = new MemoryHttpPort();
+    const graph = new SyncInbox();
+    const server = new HttpSyncServer({ httpPort: http, graph, unsafeAllowUnauthenticatedLocalhost: true });
+    await server.listen(9999);
+    const headers = { ...await signed(new ManualClock()), 'x-warp-sig-version': '2' };
+    expect(await http.request(headers)).toMatchObject({ status: 400, body: '{"error":"SIG_VERSION_RETIRED"}' });
+    expect(graph.requests).toHaveLength(0);
   });
 });
