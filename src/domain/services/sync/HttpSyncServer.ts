@@ -8,7 +8,7 @@
  * @module domain/services/sync/HttpSyncServer
  */
 
-import type SyncAuthService from './SyncAuthService.ts';
+import SyncAuthService from './SyncAuthService.ts';
 import SyncError from '../../errors/SyncError.ts';
 import nullLogger from '../../utils/nullLogger.ts';
 import type LogFields from '../../types/log/LogFields.ts';
@@ -144,7 +144,7 @@ export default class HttpSyncServer {
   }
 
   /**
-   * Runs content-type, route, and body-size validation.
+   * Runs content-type, route, signature retirement, and body-size validation.
    */
   private _preflight(req: {
     method: string;
@@ -159,6 +159,9 @@ export default class HttpSyncServer {
     const routeError = validateRoute(req, this._path, this._host);
     if (routeError !== null) {
       return routeError;
+    }
+    if (SyncAuthService.isRetiredVersion(req.headers['x-warp-sig-version'])) {
+      return errorResponse(400, 'SIG_VERSION_RETIRED');
     }
     return checkBodySize(req.body, this._maxRequestBytes);
   }
