@@ -23,6 +23,7 @@ The `GitGraphAdapter` validates all ref arguments to prevent injection attacks:
 
 - **Streaming-First**: Large graph traversals use async generators to prevent OOM
 - **Bitmap Indexing**: Sharded Roaring Bitmap indexes enable O(1) lookups without loading entire graphs
+- **Bitmap Shard Validation**: Every serialized Roaring bitmap is validated before the bitmap library reads it. The boundary refuses a stored value that is not a byte string, checks the portable format structure, container headers, offsets, and container contents, and rejects one bitmap above 34,086,920 bytes with `RoaringShardRejectedError`. An alive bitmap (the live nodes of one meta shard) is also rejected above 2^24 values, which is all that one meta shard can address. An edge bitmap (the neighbours of one node) is bounded by bytes and by structure, not by cardinality, because neighbours come from every meta shard. No write is refused: the boundary checks a bitmap only when it is read. With the default CBOR codec, the codec refuses an index shard file above 5 MiB first, so the 34,086,920-byte bound cannot fire for a stored bitmap there. The byte bound applies to one bitmap. One index shard file holds many bitmaps, and memory still grows with the number of bitmaps in that file. An in-process read that expands a very large edge bitmap into an array is not bounded by this boundary; [#1159](https://github.com/git-stunts/git-warp/issues/1159) tracks it. A checkpoint neighbourhood page does bounded work: it visits at most 4 × `limit` + 256 stored candidates and then ends with a cursor, whatever the edge bitmap holds. The `roaring-wasm` row under Accepted Risks is older than this boundary; [#1032](https://github.com/git-stunts/git-warp/issues/1032) owns that table and updates the row
 - **Delimiter Safety**: Uses ASCII Record Separator (`\x1E`) to prevent message collision
 
 ## Sync Authentication (SHIELD)
@@ -169,7 +170,7 @@ await graph.syncWith('http://peer:3000', {
 | `@git-stunts/alfred` | Runtime | Low | Retry/backoff utility, no I/O |
 | `@git-stunts/trailer-codec` | Runtime | Low | Pure string encoding, no I/O |
 | `cbor-x` | Runtime | Medium | Binary parser processing untrusted sync payloads; mitigated by body size limit in HttpSyncServer (4 MB default) |
-| `roaring-wasm` | Runtime | Low-Medium | WebAssembly build of CRoaring. Synced peer-controlled graph data influences bitmap construction, and retained index shards are deserialized by bitmap readers. WASM memory isolation does not establish input trust or prevent wrong results, traps, or resource exhaustion |
+| `roaring-wasm` | Runtime | Low-Medium | WebAssembly build of CRoaring. Synced peer-controlled graph data influences bitmap construction, and retained index shards are deserialized by bitmap readers. WASM memory isolation does not establish input trust or prevent wrong results, traps, or resource exhaustion. git-warp validates and bounds each serialized bitmap before the library reads it (see Bitmap Shard Validation) |
 | `zod` | Runtime | Low | Schema validation, pure JS |
 
 

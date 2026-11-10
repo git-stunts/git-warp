@@ -15,7 +15,6 @@ import { EdgeShard } from '../../artifacts/EdgeShard.ts';
 import { LabelShard } from '../../artifacts/LabelShard.ts';
 import type { IndexShard } from '../../artifacts/IndexShard.ts';
 import type { default as IndexShardTreePort, IndexEdgeDirection } from '../../../ports/IndexShardTreePort.ts';
-import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32 } from '../../utils/roaring.ts';
 import type { EdgeUpdateContext } from './IndexEdgeUpdater.ts';
 import type { WorkingMetaShard, EdgeShardData } from './types.ts';
@@ -121,7 +120,7 @@ function inflateMeta(shard: MetaShard | null): WorkingMetaShard {
     nodeToGlobalMap.set(nodeId, gid);
   }
   const aliveBitmap = shard.alive.length > 0
-    ? RoaringBitmap32.deserialize(toBytes(shard.alive), true)
+    ? RoaringBitmap32.deserializeAlive(shard.alive)
     : new RoaringBitmap32();
   return { nodeToGlobal, nextLocalId: shard.nextLocalId, aliveBitmap, globalToNode, nodeToGlobalMap };
 }
