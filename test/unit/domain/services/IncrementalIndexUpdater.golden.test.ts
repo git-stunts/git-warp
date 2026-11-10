@@ -12,7 +12,8 @@
  *
  * Scope: the test fails when the bytes of a shard that these six sequences
  * produce change. It says nothing about other sequences. It has no legacy
- * map-form input: every tree here is written by the current builders.
+ * map-form input: every tree here is written by the current full build and the
+ * current adapter encoder.
  */
 import { createHash } from 'node:crypto';
 import { describe, it, expect } from 'vitest';

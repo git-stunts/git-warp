@@ -115,8 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `E_INDEX_SHARD_MALFORMED`. A refusal does not fail the materialize or the
   local commit that updates the index: the runtime marks the index degraded,
   logs the warning `index build failed` when a logger is configured, and
-  rebuilds the index on the next materialize. Query results stay correct in
-  between. The tree given to `openShardTree()` is always one that the running
+  rebuilds the index on a later materialize or local commit. Query results stay
+  correct in between. The tree given to `openShardTree()` is always one that the running
   process built, so index shards stored in existing repositories do not pass
   through the new validation at this release. Rewritten index trees stay
   byte-identical.
