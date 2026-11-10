@@ -36,17 +36,20 @@ function normalizeNodeHeaders(headers: IncomingMessage['headers']): Record<strin
 /**
  * Builds an HttpRequest from a Node.js IncomingMessage and body buffer.
  */
-function buildHttpRequest(req: IncomingMessage, body: Buffer): HttpRequest {
+function buildHttpRequest(req: IncomingMessage, body: Buffer, peerAddress: string | undefined): HttpRequest {
   return new HttpRequest({
     method: req.method ?? '',
     url: req.url ?? '',
     headers: normalizeNodeHeaders(req.headers),
     body: body.length > 0 ? body : undefined,
-    peerAddress: socketPeerAddress(req),
+    peerAddress,
   });
 }
 
-/** Reads the connected socket peer address; headers never supply it. */
+/**
+ * Reads the connected socket peer address; headers never supply it. Node
+ * reports none for a destroyed socket, so callers read it before the body.
+ */
 function socketPeerAddress(req: IncomingMessage): string | undefined {
   const address = req.socket.remoteAddress;
   return address === undefined || address.length === 0 ? undefined : address;
@@ -96,8 +99,9 @@ async function dispatch(
   { handler, logger }: DispatchOptions,
 ): Promise<void> {
   try {
+    const peerAddress = socketPeerAddress(req);
     const body = await readBody(req);
-    const request = buildHttpRequest(req, body);
+    const request = buildHttpRequest(req, body, peerAddress);
     const response = await handler(request);
     sendResponse(response, res);
   } catch (err) {
