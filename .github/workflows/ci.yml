@@ -173,7 +173,19 @@ jobs:
         with:
           persist-credentials: false
       - name: Installed-package public API and attachment consumer gate
-        run: bash scripts/smoke-packed-artifact.sh
+        run: |
+          bash scripts/run-in-docker.sh bash -c '
+            set -euo pipefail
+            bash --version
+            shellcheck --version
+            shfmt --version
+            for script in scripts/smoke-packed-upgrade.sh scripts/SmokeTestDockerEntry.sh; do
+              bash -n "$script"
+            done
+            shellcheck --rcfile=scripts/upgrade-smoke.shellcheckrc --shell=bash --severity=style --check-sourced scripts/smoke-packed-upgrade.sh
+            shfmt -d scripts/smoke-packed-upgrade.sh scripts/SmokeTestDockerEntry.sh
+            bash scripts/smoke-packed-artifact.sh
+          '
 
   type-firewall-docs:
     runs-on: ubuntu-latest

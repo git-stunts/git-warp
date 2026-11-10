@@ -189,6 +189,16 @@ TypeScript fallback is not a published runtime. The supported legacy upgrade
 command is an additional explicit root. Unrecognized export shapes or launcher
 paths fail validation rather than silently disappearing from the root set.
 
+The installed `npm run upgrade -- ...` command runs the compiled migration
+directly. It does not build or change the installed package. To invoke it from
+another directory, use `npm --prefix <installed-package> run upgrade -- ...`
+and pass `--repo <repository>` explicitly. In a source checkout, run
+`npm run build` before `npm run upgrade`. Build needs the checkout's source,
+compiler configuration, and development dependencies; these are not part of
+the installed runtime. The packed smoke runs the npm command for help and
+dry-run, and verifies that the installed file bytes and repository refs stay
+unchanged.
+
 NFT traces literal dynamic imports and filesystem references. Trace warnings,
 missing roots, and computed dynamic imports block pruning before deletion.
 The computed-import guard is shared with the advisory analyzer; the analyzer's

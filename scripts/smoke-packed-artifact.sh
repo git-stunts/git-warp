@@ -170,6 +170,7 @@ npx --no-install git-warp --help >/dev/null
 npx --no-install git-warp-v18-to-v19 --help >/dev/null
 
 PACKAGE_DIR="$FIXTURE_DIR/node_modules/@git-stunts/git-warp"
+bash "$ROOT/scripts/smoke-packed-upgrade.sh" "$PACKAGE_DIR"
 # Normalize the installed entry to a physical path for this packed smoke check.
 # Direct and symlinked entry paths are covered by the upgrade CLI regressions.
 LEGACY_UPGRADE="$(cd "$PACKAGE_DIR" && pwd -P)/dist/scripts/upgrade-v16-to-v17.js"
@@ -289,7 +290,7 @@ if [ "$MIGRATE_STATUS" -ne 1 ]; then
 fi
 grep -qF 'events — v19 current' migrate.txt
 grep -qF 'confirmation requires an interactive terminal' migrate.txt
-node "$LEGACY_UPGRADE" --repo "$REPO" --dry-run --json > upgrade.json
+npm --prefix "$PACKAGE_DIR" --silent run upgrade -- --repo "$REPO" --dry-run --json > upgrade.json
 test "$(git -C "$REPO" for-each-ref)" = "$REFS_BEFORE"
 node "$CHECK_PACKED" results "$FIXTURE_DIR"
 bash "$ROOT/scripts/smoke-packed-node-removal.sh" "$ROOT" "$PACKAGE_DIR" "$TMP_ROOT/lifecycle"
