@@ -68,6 +68,14 @@ nothing removes one yet. A new writer ID on a graph that already has 4,096 gets
 an `UnpublishedWriteReceipt` with cause `writer-limit-reached`; the writers the
 graph already has keep writing.
 
+The limit counts every writer chain that a clone holds, including chains that
+it fetched from other clones. A clone that holds more than 4,096 writer chains
+refuses every write by every writer ID, with cause
+`retention-refused-writer-limit`. Nothing repairs that yet
+([#1044](https://github.com/git-stunts/git-warp/issues/1044) tracks frontier
+compaction), so keep the total number of writer IDs across all clones of a
+graph at or below 4,096.
+
 `execute` accepts one Intent or one non-empty ordered array. The array lowers
 through one patch publication: either all of its edits become visible, or none
 do. Atomicity never crosses graphs or separate `execute` calls.
