@@ -14,6 +14,7 @@ import type LogFields from '../../types/log/LogFields.ts';
 import type SyncReplayProtectionPort from '../../../ports/SyncReplayProtectionPort.ts';
 import SyncSecret from './SyncSecret.ts';
 import SyncRateLimiter, { type SyncRateLimitConfig } from './SyncRateLimiter.ts';
+import { SYNC_REPLAY_ACCEPTANCE_WINDOW_MS, isWithinClockSkew, readWallClockMs } from './SyncRequestFreshness.ts';
 const SIG_VERSION = '3';
 const SIG_PREFIX = 'warp-v3';
 /** Refused signature versions whose timestamps carry no wall-clock time. */
@@ -21,15 +22,7 @@ const RETIRED_SIG_VERSIONS: ReadonlySet<string> = new Set(['2']);
 const HMAC_ALGO = 'sha256';
 export const SYNC_AUTH_SCHEME_HEADER = 'x-warp-auth-scheme';
 export const SHARED_SECRET_HMAC_SYNC_AUTH_SCHEME = 'shared-secret-hmac-sha256';
-/**
- * Largest accepted distance, in either direction, between a request's signed
- * wall-clock timestamp and the server clock.
- */
-export const SYNC_CLOCK_SKEW_ALLOWANCE_MS = 5 * 60 * 1000;
-/** Expiry is inclusive, so retain the marker through the final valid millisecond. */
-const SYNC_REPLAY_RETENTION_MARGIN_MS = 1;
-/** Retain admitted nonces through the complete signed-timestamp validity interval. */
-export const SYNC_REPLAY_ACCEPTANCE_WINDOW_MS = 2 * SYNC_CLOCK_SKEW_ALLOWANCE_MS + SYNC_REPLAY_RETENTION_MARGIN_MS;
+export { SYNC_CLOCK_SKEW_ALLOWANCE_MS, SYNC_REPLAY_ACCEPTANCE_WINDOW_MS } from './SyncRequestFreshness.ts';
 const NONCE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SIG_HEX_LENGTH = 64;
 const HEX_PATTERN = /^[0-9a-f]+$/;
@@ -121,18 +114,6 @@ export async function signSyncRequest(
 
 function fail(reason: string, status: number): FailResult {
   return { ok: false, reason, status };
-}
-
-/** Reads the injected clock and refuses a value that is not a whole epoch millisecond. */
-function readWallClockMs(clock: ClockPort, owner: string): number {
-  const nowMs = clock.nowMs();
-  if (!Number.isSafeInteger(nowMs) || nowMs < 0) {
-    throw new SyncError(`${owner} clock must return a non-negative integer epoch millisecond`, {
-      code: 'E_SYNC_AUTH_CLOCK',
-      context: { nowMs },
-    });
-  }
-  return nowMs;
 }
 
 function _validateClock(clock: ClockPort | undefined): asserts clock is ClockPort {
@@ -322,7 +303,7 @@ export default class SyncAuthService {
   private _validateFreshness(timestamp: string): FailResult | OkResult {
     const signedAtMs = Number(timestamp);
     const nowMs = readWallClockMs(this._clock, 'SyncAuthService');
-    if (Math.abs(nowMs - signedAtMs) > SYNC_CLOCK_SKEW_ALLOWANCE_MS) {
+    if (!isWithinClockSkew(signedAtMs, nowMs)) {
       this._metrics.clockSkewRejects += 1;
       return fail('EXPIRED', 403);
     }
