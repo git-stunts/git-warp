@@ -184,9 +184,15 @@ export function encode(data: unknown): Uint8Array {
 /**
  * Decodes CBOR bytes to a JavaScript value.
  *
- * This function rejects payloads over five MiB and structurally validates
- * depth and cardinality before the optimized cbor-x decoder can allocate
- * containers from untrusted length declarations.
+ * Every repository blob is untrusted input, because peers replicate it
+ * through Git. This function rejects payloads over five MiB and structurally
+ * validates depth, cardinality and tags before the optimized cbor-x decoder
+ * can allocate containers from untrusted length declarations or interpret a
+ * tag. Only tags 0, 1, 2, 3 and 64 are admitted over supported content
+ * encodings. Tag 1 accepts smaller integer and floating epoch encodings;
+ * eight-byte integer representations are refused before the full decoder.
+ * Supported `Date`, `bigint` and `Uint8Array` forms round-trip. Tags for
+ * `RegExp`, `Set`, `Map` or shared references are refused.
  */
 export function decode(buffer: Uint8Array): unknown {
   requireBoundedCbor(buffer);

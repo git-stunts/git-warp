@@ -30,10 +30,14 @@ RUN arch="${TARGETARCH:-$(dpkg --print-architecture)}" \
     arm64) deno_arch="aarch64" ;; \
     *) echo "Unsupported Deno Docker target architecture: ${arch}" >&2; exit 1 ;; \
   esac \
-  && curl -fsSL \
+  && printf 'Downloading Deno %s (%s)\n' "$DENO_VERSION" "$deno_arch" \
+  && curl --fail --silent --show-error --location \
+    --connect-timeout 15 --max-time 60 --retry 2 --retry-max-time 120 \
     "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${deno_arch}-unknown-linux-gnu.zip" \
     -o /tmp/deno.zip \
-  && curl -fsSL \
+  && printf 'Downloading Deno %s checksum (%s)\n' "$DENO_VERSION" "$deno_arch" \
+  && curl --fail --silent --show-error --location \
+    --connect-timeout 15 --max-time 60 --retry 2 --retry-max-time 120 \
     "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${deno_arch}-unknown-linux-gnu.zip.sha256sum" \
     -o /tmp/deno.zip.sha256sum \
   && expected_sha="$(cut -d ' ' -f 1 /tmp/deno.zip.sha256sum)" \

@@ -142,6 +142,15 @@ describe('ObservationCustodyService', () => {
     });
   });
 
+  it('tells whether resolved evidence holds exactly a core', async () => {
+    const attempt = await readAttempt();
+    const held = new ResolvedObservation({
+      preparation: attempt.preparation, record: new ObservationRecord({ preparation: SCRIPTED_DIGEST, support: SCRIPTED_DIGEST, core: SCRIPTED_DIGEST, publication: null }),
+      core: custodyCodec.encodeCore(readCore('stored')),
+    });
+    expect([service.holdsCore(held, readCore('stored')), service.holdsCore(held, readCore('other'))]).toEqual([true, false]);
+  });
+
   describe('prepare', () => {
     it('retains support, releases construction and hands custody its roots', async () => {
       const attempt = await readAttempt();
@@ -195,6 +204,8 @@ describe('ObservationCustodyService', () => {
       custody.prepared = new CustodyRefused('contention');
       expect(await fresh.prepare(attempt, sources())).toEqual(new ObservationRefused('contention'));
       expect(support.releases).toBe(0);
+      custody.prepared = new CustodyIndeterminate(failure);
+      expect(await fresh.prepare(attempt, sources())).toEqual(new ObservationIndeterminate('preparation', failure));
     });
 
     it('reports a non-Error builder rejection as indeterminate', async () => {

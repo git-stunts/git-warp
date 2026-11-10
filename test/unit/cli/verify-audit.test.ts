@@ -30,7 +30,6 @@ const { default: handleVerifyAudit } = await import('../../../bin/cli/commands/v
 const CLI_OPTIONS: CliOptions = {
   repo: '/tmp/git-warp-test',
   lane: 'demo',
-  strand: null,
   json: true,
   jsonl: false,
   writer: 'cli',

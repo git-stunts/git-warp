@@ -7,20 +7,28 @@ import { join } from 'node:path';
 import process from 'node:process';
 import { log } from 'node:console';
 
-const { Runtime } = await import('@git-stunts/git-warp');
+const { GitStorage, RetainedWriteReceipt, Runtime, Warp, WarpAccessPort, WarpAddress, WarpWriteGrant } = await import('@git-stunts/git-warp');
 const { createObserver, intent, reading } = await import('@git-stunts/git-warp/advanced');
 const repository = await mkdtemp(join(tmpdir(), 'warp-deno-smoke-'));
 try {
   execFileSync('git', ['init', '--quiet', repository]);
   execFileSync('git', ['-C', repository, 'config', 'user.name', 'Deno smoke']);
   execFileSync('git', ['-C', repository, 'config', 'user.email', 'deno@example.invalid']);
-  const runtime = await Runtime.open({ at: repository, writer: 'deno-smoke' });
+  class SmokeAccess extends WarpAccessPort {
+    authorizeWrite(request) {
+      return Promise.resolve(new WarpWriteGrant({
+        authority: `deno-smoke:${request.writer}`,
+        budget: { records: 64, bytes: 64 * 1024, work: 1_000 },
+      }));
+    }
+  }
+  const warp = await Warp.open(WarpAddress.of(GitStorage.at(repository), 'smoke'), new SmokeAccess());
   try {
-    const lane = await runtime.lane('smoke');
-    const receipt = await lane.write(intent.node.add({ subject: 'smoke:node' }));
+    const receipt = await warp.as('deno-smoke').execute(intent.node.add({ subject: 'smoke:node' }));
+    assert.ok(receipt instanceof RetainedWriteReceipt, 'node write must be retained');
     assert.equal(receipt.outcome.kind, 'derived', 'node write must be admitted');
   } finally {
-    await runtime.close();
+    await warp.close();
   }
   // Bounded observations require materialization evidence, prepared by the public CLI.
   execFileSync(join(process.cwd(), 'node_modules/.bin/git-warp'), [
