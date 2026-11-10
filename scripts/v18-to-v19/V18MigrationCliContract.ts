@@ -86,13 +86,21 @@ const flags = V18_MIGRATION_CLI_FLAGS;
 /** Default behavior and confirmation semantics, as `--help` states them. */
 export const V18_MIGRATION_CLI_SEMANTICS: readonly string[] = Object.freeze([
   'The default is one pass: discover, confirm, rehearse, promote, and verify.',
-  'Discovery lists every graph and whether it is current or needs an upgrade.',
+  'Discovery finds every graph. The command lists them, and whether each is',
+  'current or needs an upgrade, when --graph names no graph, with --yes, and',
+  'when it has no terminal.',
   'Without --yes, the command requires an interactive terminal and asks for',
-  'confirmation before inventory. Authoritative refs change only in the final',
-  'compare-and-swap transaction, after the scratch proof succeeds.',
+  'confirmation before inventory. With --yes and without --dry-run, it',
+  'migrates and promotes the named graph without asking.',
+  'Authoritative refs change only in the final compare-and-swap transaction,',
+  'after the scratch proof succeeds. If the promoted graph then fails',
+  'verification, a second guarded transaction rolls those refs back.',
   'A separate --dry-run is intentionally disposable and cannot be reused.',
   'For encrypted stores, set GIT_WARP_MIGRATION_PASSPHRASE in the environment.',
 ]);
+
+/** The line the command prints when the operator cancels at the confirmation. */
+export const V18_MIGRATION_CLI_CANCELLED = 'v18-to-v19 migration cancelled; no refs changed';
 
 /** `Usage:` line: the command followed by its required flags. */
 export function v18MigrationCliUsageLine(): string {

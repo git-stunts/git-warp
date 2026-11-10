@@ -20,7 +20,7 @@ import { type V18MigrationProgress, v18MigrationProgressPercent } from './V18Mig
 import V18MigrationProgressCoalescer from './V18MigrationProgressCoalescer.ts';
 import { formatV18MigrationReport } from './V18MigrationReport.ts';
 import { createV18MigrationTheme } from './V18MigrationTheme.ts';
-import { V18_MIGRATION_CLI_FLAGS } from './V18MigrationCliContract.ts';
+import { V18_MIGRATION_CLI_CANCELLED, V18_MIGRATION_CLI_FLAGS } from './V18MigrationCliContract.ts';
 import { formatV18MigrationCliHelp } from './V18MigrationCliHelp.ts';
 import {
   isV18MigrationCliHelpRequest,
@@ -90,7 +90,7 @@ async function runInteractive(
     ...sharedOptions(options, target.repositoryPath),
   });
   if (result.status === 'cancelled') {
-    process.stdout.write('v18-to-v19 migration cancelled; no refs changed\n');
+    process.stdout.write(`${V18_MIGRATION_CLI_CANCELLED}\n`);
     return null;
   }
   if (result.status === 'failed') {

@@ -5,6 +5,7 @@ import {
   V18_MIGRATION_CLI_COMMAND,
   V18_MIGRATION_CLI_FLAGS,
   V18_MIGRATION_CLI_PLACEHOLDERS,
+  V18_MIGRATION_CLI_SEMANTICS,
 } from '../../../scripts/v18-to-v19/V18MigrationCliContract.ts';
 import {
   V18_MIGRATION_CLI_EXAMPLES,
@@ -57,6 +58,12 @@ describe('v18 migration CLI contract', () => {
     }
     expect(help).toContain('The default is one pass: discover, confirm, rehearse, promote, and verify.');
     expect(help).toContain('Without --yes, the command requires an interactive terminal');
+    expect(help).toContain(
+      'With --yes and without --dry-run, it\nmigrates and promotes the named graph without asking.',
+    );
+    expect(help).toContain('a second guarded transaction rolls those refs back.');
+    expect(help).not.toContain('Discovery lists every graph');
+    expect(help).toContain(`\n\n${V18_MIGRATION_CLI_SEMANTICS.join('\n')}\n`);
     expect(help.endsWith('\n')).toBe(true);
   });
 
@@ -90,6 +97,9 @@ describe('v18 migration CLI contract', () => {
       mode: V18MigrationExecutionMode.promote(), repositoryPath: '/srv/data/repo',
     });
     expect(parsed('dry-run').mode).toBe(V18MigrationExecutionMode.rehearse());
+    expect(parsed('dry-run-unattended')).toMatchObject({
+      assumeYes: true, mode: V18MigrationExecutionMode.rehearse(),
+    });
     expect(parsed('automation')).toMatchObject({ assumeYes: true, json: false });
     expect(parsed('verify-current')).toMatchObject({ assumeYes: true, json: true });
   });
@@ -101,11 +111,19 @@ describe('v18 migration CLI contract', () => {
       ['repository-not-found', 'stderr', 1],
       ['empty-repository', 'stderr', 1],
       ['graph-not-found', 'stderr', 1],
+      ['no-terminal', 'stderr', 1],
       ['already-current', 'stdout', 0],
     ]);
-    for (const outcome of V18_MIGRATION_CLI_OUTCOMES.values()) {
-      expect(outcome.example).toBe(V18_MIGRATION_CLI_EXAMPLES.get('automation'));
-    }
+  });
+
+  it('documents no outcome through a command form that can promote', () => {
+    const modes = [...V18_MIGRATION_CLI_OUTCOMES.values()].map((outcome) => [
+      outcome.name,
+      parseV18MigrationCliOptions(outcome.example.argv(EXECUTION_VALUES)).mode.promotesVerifiedRefs(),
+    ]);
+
+    expect(modes).toHaveLength(5);
+    expect(modes.filter(([, promotes]) => promotes !== false)).toEqual([]);
   });
 
   it('refuses execution values that leave a placeholder unbound', () => {

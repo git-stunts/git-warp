@@ -69,7 +69,23 @@ Stop every process that can write to the repository, make a normal repository
 backup, and identify the graph name used by the application. Graph names are
 not fixed: one Git repository may contain several independent WARP graphs.
 
-Run the migration once:
+<!-- v18-to-v19-cli: note graph-names -->
+To learn the graph names, run the `--dry-run` form below with any name. If the
+repository does not hold that name, the command stops with `Graph not found`
+and lists every graph. If the repository holds that name, the command shows
+the selected graph and waits for you to confirm a rehearsal; without a
+terminal it lists every graph and stops. A `--dry-run` run cannot change
+authoritative refs.
+
+<!-- v18-to-v19-cli: example dry-run literal -->
+```bash
+npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
+  --repo /path/to/repository \
+  --graph <graph-name> \
+  --dry-run
+```
+
+When you know the graph name, run the migration once:
 
 <!-- v18-to-v19-cli: example promote literal -->
 ```bash
@@ -90,7 +106,24 @@ final report. Before confirmation, the summary also reports current Git object
 storage, the scratch path, free space on the scratch and source Git volumes,
 and whether scratch free space meets the operating budget.
 
+<!-- v18-to-v19-cli: note yes-promotes -->
+`--yes` skips the confirmation. With `--yes` and without `--dry-run`, the command
+migrates and promotes the named graph without asking. Use that form only
+after the backup, with every writer stopped.
+
 ### Command reference
+
+<!-- v18-to-v19-cli: note published-package -->
+The help text and the command output that the git-warp guides quote come from
+the migrator source in the git-warp repository. The repository's test suite
+runs that source and compares its output with each quoted block. That source
+is not in a published package yet; it ships in the next release. The examples
+pin the published `@git-stunts/git-warp@19.1.0` package, which carries an older
+migrator. The migrator source at tag `v19.1.0` differs from the quoted
+blocks in two ways. `--help` prints an older, shorter text. The command
+does not check the `--repo` path before it starts Git, so a wrong path fails
+with a Git process-spawn error or a Git diagnostic, not with
+`Repository not found`.
 
 `--help` prints the complete flag list and the default behavior:
 
@@ -110,27 +143,36 @@ Options:
   -h, --help                Show this help.
 
 The default is one pass: discover, confirm, rehearse, promote, and verify.
-Discovery lists every graph and whether it is current or needs an upgrade.
+Discovery finds every graph. The command lists them, and whether each is
+current or needs an upgrade, when --graph names no graph, with --yes, and
+when it has no terminal.
 Without --yes, the command requires an interactive terminal and asks for
-confirmation before inventory. Authoritative refs change only in the final
-compare-and-swap transaction, after the scratch proof succeeds.
+confirmation before inventory. With --yes and without --dry-run, it
+migrates and promotes the named graph without asking.
+Authoritative refs change only in the final compare-and-swap transaction,
+after the scratch proof succeeds. If the promoted graph then fails
+verification, a second guarded transaction rolls those refs back.
 A separate --dry-run is intentionally disposable and cannot be reused.
 For encrypted stores, set GIT_WARP_MIGRATION_PASSPHRASE in the environment.
 ```
 
 ### What the command reports
 
-Each transcript below is the real output of the `--yes` form, checked against
-the command by the repository's test suite. Paths and graph names are replaced
-by the same placeholders as the examples above. Errors are written to standard
-error and exit with status 1.
+Each transcript below is the output of the migrator source in this repository;
+the note under [Command reference](#command-reference) says how the pinned
+package differs. The transcripts show the bare command name; run it through
+the pinned `npm exec` form shown above. Every transcript uses a `--dry-run`
+form, which cannot change authoritative refs, and the normal command reports
+the same refusals. Paths and graph names are replaced by the same placeholders
+as the examples above. Errors are written to standard error and exit with
+status 1.
 
 A `--repo` path that does not exist, or that Git does not recognize as a
 repository, stops before discovery:
 
 <!-- v18-to-v19-cli: outcome repository-not-found -->
 ```console
-$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --yes
+$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --dry-run
 git-warp-v18-to-v19: Repository not found: /path/to/repository does not exist
 ```
 
@@ -138,7 +180,7 @@ A repository without any git-warp graph has nothing to migrate:
 
 <!-- v18-to-v19-cli: outcome empty-repository -->
 ```console
-$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --yes
+$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --dry-run
 git-warp-v18-to-v19: Graph not found: <graph-name>
 Graphs found: none
 ```
@@ -146,24 +188,50 @@ Graphs found: none
 A name that the repository does not hold stops before migration work and lists
 every graph that discovery found. In this transcript the repository holds a v18
 graph named `orders` and a current graph named `team-notes`; your repository
-reports its own names. Rerun with one of the listed names:
+reports its own names. Use one of the listed names in the command that you
+mean to run:
 
 <!-- v18-to-v19-cli: outcome graph-not-found -->
 ```console
-$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --yes
+$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --dry-run
 git-warp-v18-to-v19: Graph not found: <graph-name>
 Graphs found:
   - orders — upgrade required (legacy unmarked substrate); 1 writer; 1 ref
   - team-notes — v19 current; 0 writers; 1 ref
 ```
 
+Without `--yes`, the command needs a terminal for the confirmation. When it
+has none, for example in a pipeline, it lists every graph and stops before
+inventory. In this transcript `<graph-name>` is `orders` in the same
+repository. The last line names `--yes`: added to this `--dry-run` form, it
+runs the rehearsal unattended; without `--dry-run`, it promotes without
+asking:
+
+<!-- v18-to-v19-cli: outcome no-terminal -->
+```console
+$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --dry-run
+Graphs found:
+  - orders — upgrade required (legacy unmarked substrate); 1 writer; 1 ref
+  - team-notes — v19 current; 0 writers; 1 ref
+git-warp-v18-to-v19: confirmation requires an interactive terminal; inspect the graph list and rerun with --yes
+```
+
+<!-- v18-to-v19-cli: note cancelled -->
+If you cancel at the confirmation, the command prints
+`v18-to-v19 migration cancelled; no refs changed` on standard output and
+exits with status 0.
+
 A graph that already carries the current substrate marker needs no upgrade.
 The command verifies it through a disposable append and bounded reading,
-changes no refs, and prints this report on standard output with status 0:
+changes no refs, and prints this report on standard output with status 0.
+`writers: 0` and `scratch verified: no` are normal for this status: the
+command does not inventory the writers of a current graph and builds no
+scratch repository for it. They do not mean that writers were lost. The rerun
+in step 7 of the checklist below reports the same status:
 
 <!-- v18-to-v19-cli: outcome already-current -->
 ```console
-$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --yes
+$ git-warp-v18-to-v19 --repo /path/to/repository --graph <graph-name> --dry-run --yes
 git-warp v18-to-v19 migration completed successfully
 status: already-current
 repository: /path/to/repository
@@ -193,6 +261,11 @@ being migrated.
    ```
 
 3. Record the selected graph's starting refs somewhere outside the repository.
+   Use the graph name that the application uses. If you do not know it, list
+   the names first, as
+   [Migrate Retained v18 State First](#migrate-retained-v18-state-first)
+   describes. An empty snapshot file means that the repository holds no graph
+   with that name.
 
    ```bash
    GRAPH_NAME='<graph-name>'
@@ -205,8 +278,8 @@ being migrated.
 
 4. Choose a scratch volume with at least the displayed operating budget. Pass
    `--scratch-root <path>` when the system temporary volume is not suitable.
-5. Run the normal command without `--dry-run`, inspect the graph and capacity
-   summary, and confirm once.
+5. Run the normal command without `--dry-run` and with the same graph name,
+   inspect the selected graph and the capacity summary, and confirm once.
 6. Save the final report and its recovery-ref prefix. A successful report says
    `migrated` and `scratch verified: yes`.
 7. Rerun with `--yes --json`. It must verify the promoted repository and

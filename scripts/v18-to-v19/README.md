@@ -36,6 +36,18 @@ work. If `<graph-name>` is wrong, it stops with `Graph not found` and lists the
 graphs it did find, including their version posture, writer count, and ref
 count. A repository may contain any number of independently named graphs.
 
+<!-- v18-to-v19-cli: note published-package -->
+The help text and the command output that the git-warp guides quote come from
+the migrator source in the git-warp repository. The repository's test suite
+runs that source and compares its output with each quoted block. That source
+is not in a published package yet; it ships in the next release. The examples
+pin the published `@git-stunts/git-warp@19.1.0` package, which carries an older
+migrator. The migrator source at tag `v19.1.0` differs from the quoted
+blocks in two ways. `--help` prints an older, shorter text. The command
+does not check the `--repo` path before it starts Git, so a wrong path fails
+with a Git process-spawn error or a Git diagnostic, not with
+`Repository not found`.
+
 `--help` prints the complete flag list and the default behavior:
 
 <!-- v18-to-v19-cli: help -->
@@ -54,17 +66,22 @@ Options:
   -h, --help                Show this help.
 
 The default is one pass: discover, confirm, rehearse, promote, and verify.
-Discovery lists every graph and whether it is current or needs an upgrade.
+Discovery finds every graph. The command lists them, and whether each is
+current or needs an upgrade, when --graph names no graph, with --yes, and
+when it has no terminal.
 Without --yes, the command requires an interactive terminal and asks for
-confirmation before inventory. Authoritative refs change only in the final
-compare-and-swap transaction, after the scratch proof succeeds.
+confirmation before inventory. With --yes and without --dry-run, it
+migrates and promotes the named graph without asking.
+Authoritative refs change only in the final compare-and-swap transaction,
+after the scratch proof succeeds. If the promoted graph then fails
+verification, a second guarded transaction rolls those refs back.
 A separate --dry-run is intentionally disposable and cannot be reused.
 For encrypted stores, set GIT_WARP_MIGRATION_PASSPHRASE in the environment.
 ```
 
 The [v19 migration guide](../../docs/migrations/v19/README.md#what-the-command-reports)
 quotes the output for a missing repository, an empty repository, an unknown
-graph name, and a graph that is already current.
+graph name, a run without a terminal, and a graph that is already current.
 
 In an interactive terminal, the command displays the selected graph and exact
 mode in a framed application, then waits for confirmation before inventory or
@@ -83,6 +100,11 @@ final report to standard output. Add `--json` for a machine-readable report.
 For encrypted v18 patches, provide `GIT_WARP_MIGRATION_PASSPHRASE` in the
 environment; the passphrase is never accepted as an argument or included in
 the report.
+
+<!-- v18-to-v19-cli: note yes-promotes -->
+`--yes` skips the confirmation. With `--yes` and without `--dry-run`, the command
+migrates and promotes the named graph without asking. Use that form only
+after the backup, with every writer stopped.
 
 The scratch and disposable verification repositories default to the operating
 system's temporary volume. Use `--scratch-root <path>` to place all migration

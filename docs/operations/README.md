@@ -67,12 +67,31 @@ git clone --mirror --no-hardlinks "$REPOSITORY" "$BACKUP"
 git -C "$BACKUP" fsck --full
 ```
 
-Run the migration without `--dry-run`; the framed application discovers graph
-names, reports source and scratch capacity, and asks for confirmation:
+Set the graph name that the application uses:
 
 ```bash
-GRAPH_NAME='<graph-name>' # one of the names the discovery listed
+GRAPH_NAME='<graph-name>'
 ```
+
+<!-- v18-to-v19-cli: note graph-names -->
+To learn the graph names, run the `--dry-run` form below with any name. If the
+repository does not hold that name, the command stops with `Graph not found`
+and lists every graph. If the repository holds that name, the command shows
+the selected graph and waits for you to confirm a rehearsal; without a
+terminal it lists every graph and stops. A `--dry-run` run cannot change
+authoritative refs.
+
+<!-- v18-to-v19-cli: example dry-run shell -->
+```bash
+npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
+  --repo "$REPOSITORY" \
+  --graph "$GRAPH_NAME" \
+  --dry-run
+```
+
+Run the migration without `--dry-run`. The framed application shows the
+selected graph, reports source and scratch capacity, and asks for
+confirmation:
 
 <!-- v18-to-v19-cli: example promote shell -->
 ```bash
@@ -85,6 +104,11 @@ After a successful cutover, rerun with `--yes --json`. The idempotent
 verification must report `already-current`. Then start the already-tested v19
 application and verify a bounded read, one write, its Receipt, restart
 behavior, and the next backup.
+
+<!-- v18-to-v19-cli: note yes-promotes -->
+`--yes` skips the confirmation. With `--yes` and without `--dry-run`, the command
+migrates and promotes the named graph without asking. Use that form only
+after the backup, with every writer stopped.
 
 An omitted `checkpointPolicy` now defaults to `{ every: 64 }` in v19.1.0.
 Use `checkpointPolicy: null` only when disabling automatic checkpoints is a

@@ -13,6 +13,7 @@ import {
 } from '../../../scripts/v18-to-v19/V18MigrationCliContract.ts';
 import {
   V18_MIGRATION_CLI_EXAMPLES,
+  V18_MIGRATION_CLI_NOTES,
   V18_MIGRATION_CLI_OUTCOMES,
 } from '../../../scripts/v18-to-v19/V18MigrationCliGuidance.ts';
 import type V18MigrationCliExample from '../../../scripts/v18-to-v19/V18MigrationCliExample.ts';
@@ -24,12 +25,20 @@ import { gitOk, MigrationTestDirectories } from './migrationTestEnvironment.ts';
 const GUIDANCE = Object.freeze({
   'README.md': ['example promote literal'],
   'docs/migrations/v19/README.md': [
-    'example promote literal', 'help',
-    ...[...V18_MIGRATION_CLI_OUTCOMES.keys()].map((name) => `outcome ${name}`),
+    'note graph-names', 'example dry-run literal', 'example promote literal', 'note yes-promotes',
+    'note published-package', 'help',
+    ...[...V18_MIGRATION_CLI_OUTCOMES.keys()].flatMap(
+      (name) => (name === 'already-current' ? ['note cancelled', `outcome ${name}`] : [`outcome ${name}`]),
+    ),
     'example dry-run literal',
   ],
-  'docs/operations/README.md': ['example promote shell'],
-  'scripts/v18-to-v19/README.md': ['example promote literal', 'help', 'example dry-run literal'],
+  'docs/operations/README.md': [
+    'note graph-names', 'example dry-run shell', 'example promote shell', 'note yes-promotes',
+  ],
+  'scripts/v18-to-v19/README.md': [
+    'example promote literal', 'note published-package', 'help', 'note yes-promotes',
+    'example dry-run literal',
+  ],
 });
 /** Git flags that the guides quote for backups and maintenance; they are not migration CLI flags. */
 const FOREIGN_FLAGS = new Set(['--no-hardlinks', '--cruft']);
@@ -37,8 +46,16 @@ const MARKER = /^(?:> )?<!-- v18-to-v19-cli: ([a-z -]+) -->$/u;
 /** A line that invokes this command, directly or through the pinned package. */
 const COMMAND_LINE = /^(?:\$ )?(?:npm exec .*)?git-warp-v18-to-v19(?: |$)/u;
 const REQUESTED_GRAPH = 'requested-graph';
+/** The v18 graph in the two-graph repository that the transcripts describe. */
+const LEGACY_GRAPH = 'orders';
+/** Outcomes that run against the two-graph repository, with the name each one requests. */
+const TWO_GRAPH_REQUESTS: ReadonlyMap<string, string> = new Map([
+  ['graph-not-found', REQUESTED_GRAPH],
+  ['no-terminal', LEGACY_GRAPH],
+]);
 const GOLDEN_MANIFEST = resolve('fixtures/v18/retained-substrate-golden/manifest.json');
 const { repository, graph } = V18_MIGRATION_CLI_PLACEHOLDERS;
+const yesFlag = V18_MIGRATION_CLI_FLAGS.yes.name;
 
 type GuidanceBlock = Readonly<{
   body: string;
@@ -69,6 +86,41 @@ describe('v18-to-v19 migration guidance contract', () => {
       expect(block.body, `${block.path}: ${block.directive}`).toBe(
         example?.render(form === 'shell' ? 'shell' : 'literal'),
       );
+    }
+  });
+
+  it('renders every note from the canonical guidance', () => {
+    const notes = allBlocks().filter((entry) => entry.directive.startsWith('note '));
+
+    expect(new Set(notes.map((block) => block.directive.slice('note '.length)))).toEqual(
+      new Set(V18_MIGRATION_CLI_NOTES.keys()),
+    );
+    for (const block of notes) {
+      expect(block.body, `${block.path}: ${block.directive}`).toBe(
+        V18_MIGRATION_CLI_NOTES.get(block.directive.slice('note '.length)),
+      );
+    }
+  });
+
+  it('says which CLI the quoted output comes from before the first quoted output', () => {
+    const quoting = Object.keys(GUIDANCE)
+      .map((path) => guidanceBlocks(path).map((block) => block.directive))
+      .filter((directives) => directives.some(quotesCliOutput));
+
+    expect(quoting).toHaveLength(2);
+    for (const directives of quoting) {
+      const note = directives.indexOf('note published-package');
+      expect(note).toBeGreaterThanOrEqual(0);
+      expect(note).toBeLessThan(directives.findIndex(quotesCliOutput));
+    }
+  });
+
+  it('warns that --yes promotes in every guide that names --yes', () => {
+    const naming = Object.keys(GUIDANCE).filter((path) => readGuide(path).includes(yesFlag));
+
+    expect(naming).toHaveLength(3);
+    for (const path of naming) {
+      expect(guidanceBlocks(path).map((block) => block.directive), path).toContain('note yes-promotes');
     }
   });
 
@@ -150,15 +202,19 @@ async function prepareOutcome(
   if (outcome.name === 'already-current') {
     return await migratedFixture(repositoryPath);
   }
-  if (outcome.name !== 'repository-not-found') {
-    await mkdir(repositoryPath);
-    await gitOk(repositoryPath, ['init', '--bare', '--quiet']);
+  if (outcome.name === 'repository-not-found') {
+    return preparedOutcome(repositoryPath, REQUESTED_GRAPH);
   }
-  if (outcome.name === 'graph-not-found') {
-    await writeLegacyWriter(repositoryPath, 'orders');
-    await writeCurrentMarker(repositoryPath, 'team-notes');
+  await mkdir(repositoryPath);
+  await gitOk(repositoryPath, ['init', '--bare', '--quiet']);
+  const requested = TWO_GRAPH_REQUESTS.get(outcome.name);
+  if (requested === undefined) {
+    expect(outcome.name).toBe('empty-repository');
+    return preparedOutcome(repositoryPath, REQUESTED_GRAPH);
   }
-  return preparedOutcome(repositoryPath, REQUESTED_GRAPH);
+  await writeLegacyWriter(repositoryPath, LEGACY_GRAPH);
+  await writeCurrentMarker(repositoryPath, 'team-notes');
+  return preparedOutcome(repositoryPath, requested);
 }
 
 /** Restores the published v18 golden fixture and migrates it through the real CLI. */
@@ -214,6 +270,10 @@ function requiredOutcome(name: string): V18MigrationCliOutcome {
   return outcome;
 }
 
+function quotesCliOutput(directive: string): boolean {
+  return directive === 'help' || directive.startsWith('outcome ');
+}
+
 function allBlocks(): readonly GuidanceBlock[] {
   return Object.keys(GUIDANCE).flatMap((path) => guidanceBlocks(path));
 }
@@ -222,17 +282,32 @@ function readGuide(path: string): string {
   return readFileSync(path, 'utf8');
 }
 
-/** Reads each marked fence, removing a uniform blockquote prefix. */
+/** Reads each marked block: a note paragraph, or a fence without its uniform blockquote prefix. */
 function guidanceBlocks(path: string): readonly GuidanceBlock[] {
   const lines = readGuide(path).split('\n');
   const blocks: GuidanceBlock[] = [];
   lines.forEach((line, index) => {
-    const match = MARKER.exec(line);
-    if (match !== null) {
-      blocks.push(Object.freeze({ ...fenceAt(lines, index + 1), directive: match[1] ?? '', path }));
+    const directive = MARKER.exec(line)?.[1];
+    if (directive !== undefined) {
+      const content = directive.startsWith('note ') ? paragraphAt(lines, index + 1) : fenceAt(lines, index + 1);
+      blocks.push(Object.freeze({ ...content, directive, path }));
     }
   });
   return blocks;
+}
+
+/** A note is the paragraph directly below its marker, up to the next blank line. */
+function paragraphAt(
+  lines: readonly string[],
+  start: number,
+): Readonly<{ body: string; lines: readonly number[] }> {
+  const blank = lines.indexOf('', start);
+  const end = blank === -1 ? lines.length : blank;
+  expect(end, `note paragraph expected at line ${String(start + 1)}`).toBeGreaterThan(start);
+  return Object.freeze({
+    body: lines.slice(start, end).join('\n'),
+    lines: Object.freeze(Array.from({ length: end - start }, (_, offset) => start + offset)),
+  });
 }
 
 function fenceAt(
