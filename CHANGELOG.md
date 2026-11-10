@@ -52,6 +52,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `E_SUBSTRATE_MIGRATION_REQUIRED` until the v20-to-v21 migration
   ([#1015](https://github.com/git-stunts/git-warp/issues/1015)) has run
   ([#1014](https://github.com/git-stunts/git-warp/issues/1014)).
+- HTTP sync authentication moves to signature v3. The client signs a wall-clock
+  epoch-millisecond timestamp instead of a Lamport counter, and the server
+  accepts it within an inclusive 300,000 ms of its own clock. The durable nonce
+  reservation lasts 600,001 ms, so a captured request stays refused across a
+  server restart while its timestamp is fresh. A v21 server refuses signature v2
+  with `400 SIG_VERSION_RETIRED` in every mode, and a v20 server in enforce mode
+  refuses signature v3 with `400 INVALID_VERSION`, so authenticated HTTP sync
+  between a v20 peer and a v21 peer fails in both directions: upgrade both.
+  `signSyncRequest` takes an injected `ClockPort` in place of the `lamport`
+  parameter. `SyncAuthService` requires `clock` and refuses to construct without
+  one (`E_SYNC_AUTH_CLOCK`). A `SyncReplayProtectionPort` reservation must report
+  the store time on entry and after the store answers (`reservedAtMs`,
+  `completedAtMs`); the server judges a reserved request on those readings, so a
+  caller-supplied runtime clock cannot reopen the replay window. Opening a
+  runtime with no `clock` and no installed default runtime ports is refused with
+  `E_CLOCK_REQUIRED`. See the
+  [v21 sync authentication migration](docs/migrations/v21/README.md#http-sync-authentication)
+  ([#1089](https://github.com/git-stunts/git-warp/issues/1089)).
 
 ### Changed
 
