@@ -129,7 +129,7 @@ function loosePath(path: string, oid: string): string {
 }
 
 function constructionRefs(path: string): string {
-  return git(path, ['for-each-ref', '--format=%(refname)', `refs/warp/${FIXTURE_GRAPH}/observations/`]);
+  return git(path, ['for-each-ref', '--format=%(refname)', `refs/warp-local/${FIXTURE_GRAPH}/observations/`]);
 }
 
 function missingOid(path: string, digit: string): string {

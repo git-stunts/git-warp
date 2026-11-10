@@ -18,7 +18,7 @@ import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
 const ATTEMPT = new ObservationAttemptId('a'.repeat(32));
 const DIGEST = new ObservationDigest('b'.repeat(64));
 const custodyCodec = new ObservationCustodyCborCodec(codec);
-const REF = `refs/warp/g/write-attempts/${ATTEMPT.value}`;
+const REF = `refs/warp-local/g/write-attempts/${ATTEMPT.value}`;
 
 function stored(): Uint8Array {
   const preparation = new ObservationPreparation(ATTEMPT, new ObservationBindings({

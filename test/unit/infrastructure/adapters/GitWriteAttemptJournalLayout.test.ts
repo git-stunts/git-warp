@@ -18,7 +18,7 @@ import type CodecValue from '../../../../src/domain/types/codec/CodecValue.ts';
 
 const OLD = new ObservationAttemptId('a'.repeat(32));
 const CURRENT = new ObservationAttemptId('e'.repeat(32));
-const refOf = (attemptId: ObservationAttemptId): string => `refs/warp/g/write-attempts/${attemptId.value}`;
+const refOf = (attemptId: ObservationAttemptId): string => `refs/warp-local/g/write-attempts/${attemptId.value}`;
 const OLD_REF = refOf(OLD);
 const custodyCodec = new ObservationCustodyCborCodec(codec);
 /** The layout this build reads; a record in it that does not decode is garbage, not another layout. */

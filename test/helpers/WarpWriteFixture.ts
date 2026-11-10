@@ -13,10 +13,10 @@ import {
   WarpAddress,
   WarpWriteGrant,
 } from '../../index.ts';
-import type { WriteReceipt, WarpWriteRequest } from '../../index.ts';
+import type { WriteReceipt, WarpOpenOptions, WarpWriteRequest } from '../../index.ts';
 import { getDefaultRuntimeHostNodePorts } from '../../src/application/RuntimeHostNodeDefaults.ts';
 import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
-import { overrideWarpComposition, type WarpCompositionOverrides } from '../../src/application/WarpWriteComposition.ts';
+import { composeWarpWrites, overrideWarpComposition, type WarpCompositionOverrides, type WarpWrites } from '../../src/application/WarpWriteComposition.ts';
 import { buildWriterRef } from '../../src/domain/utils/RefLayout.ts';
 import { buildWriteAttemptsPrefix } from '../../src/domain/utils/WriteAttemptRefLayout.ts';
 import type ObservationReceiptCore from '../../src/domain/services/custody/ObservationReceiptCore.ts';
@@ -24,6 +24,8 @@ import { textDecode } from '../../src/domain/utils/bytes.ts';
 import EdgeAdd from '../../src/domain/types/ops/EdgeAdd.ts';
 import NodeAdd from '../../src/domain/types/ops/NodeAdd.ts';
 import { openRuntimeHostProduct, type RuntimeHostProduct } from '../../src/domain/warp/RuntimeHostProduct.ts';
+import CustodyIndeterminate from '../../src/domain/services/custody/CustodyIndeterminate.ts';
+import type ObservationCustodyPort from '../../src/ports/ObservationCustodyPort.ts';
 
 export const GRAPH = 'todos';
 const BUDGET = { records: 1024, bytes: 1024 * 1024, work: 50_000 };
@@ -68,14 +70,41 @@ export async function repository(): Promise<string> {
   return path;
 }
 
+/** The instant every fixture Warp reads unless a test injects its own clock, so no test depends on real time. */
+export const FIXED_NOW = 1_000_000;
+
+/** Gives Warps opened with `access` the fixed clock, under any overrides a test supplies. */
+export function overrideWithFixedClock(access: WarpAccessPort, overrides: WarpCompositionOverrides = {}): void {
+  overrideWarpComposition(access, { clock: () => FIXED_NOW, ...overrides });
+}
+
 export async function open(
   path: string,
   overrides: WarpCompositionOverrides = {},
   access: WarpAccessPort = new TestAccess(),
+  options: WarpOpenOptions = {},
 ): Promise<Warp> {
-  overrideWarpComposition(access, overrides);
-  const warp = await Warp.open(WarpAddress.of(GitStorage.at(path), GRAPH), access);
+  overrideWithFixedClock(access, overrides);
+  const warp = await Warp.open(WarpAddress.of(GitStorage.at(path), GRAPH), access, options);
   opened.push(warp);
+  return warp;
+}
+
+/** Composes a write path directly, on the fixed clock, for tests that inspect custody. */
+export async function composed(path: string, access: WarpAccessPort = new TestAccess()): Promise<WarpWrites> {
+  overrideWithFixedClock(access);
+  return await composeWarpWrites({ address: WarpAddress.of(GitStorage.at(path), GRAPH), access, logger: undefined });
+}
+
+/** An attempt id no writer has used, so asking about it only opens the write path. */
+const UNUSED_ATTEMPT = '0'.repeat(32);
+
+/** Opens a Warp and makes its first granted operation, which opens custody and sweeps (#1078). */
+export async function openSwept(path: string, overrides: WarpCompositionOverrides = {}): Promise<Warp> {
+  const warp = await open(path, overrides);
+  if (await warp.as('sweeper').reconcile(UNUSED_ATTEMPT) !== null) {
+    throw new Error('An unused attempt had an answer');
+  }
   return warp;
 }
 
@@ -101,6 +130,19 @@ export function indeterminate(receipt: WriteReceipt | null): IndeterminateWriteR
 export function tip(path: string, writer: string): string | null {
   const listed = git(path, ['for-each-ref', '--format=%(objectname)', buildWriterRef(GRAPH, writer)]);
   return listed === '' ? null : listed;
+}
+
+/** Custody that answers one step as a crash would, leaving the attempt for a later sweep. */
+export function crashingAt(step: string): (custody: ObservationCustodyPort) => ObservationCustodyPort {
+  return (custody) => new Proxy(custody, {
+    get(target: ObservationCustodyPort, name: string | symbol) {
+      if (name === step) {
+        return () => Promise.resolve(new CustodyIndeterminate(new Error('crash')));
+      }
+      const value = Reflect.get(target, name) as unknown;
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
 }
 
 export function attemptRefs(path: string): string[] {

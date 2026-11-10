@@ -24,7 +24,10 @@ import type WritePublicationProbe from './WritePublicationProbe.ts';
 
 /** How old an unarmed attempt must be before a sweep assumes its owner is gone. A live owner that loses this race only refuses. */
 export const UNARMED_ATTEMPT_GRACE_MS = 60 * 60 * 1000;
-/** Records one sweep looks at, so opening a Warp stays bounded after many crashes; later opens see the rest. */
+/**
+ * Records one sweep looks at, so a Warp's first granted operation stays bounded after many
+ * crashes. A Warp sweeps once in its life; later Warps see the rest.
+ */
 export const SWEEP_LIMIT = 64;
 const ATTEMPT_UNOWNED_YET = 'attempt-in-progress';
 const PUBLICATION_UNRESOLVED = 'publication-unresolved';
@@ -69,7 +72,9 @@ export default class ConeWriteRecovery {
   /**
    * Resolves what it can of a bounded page of attempts nobody holds a receipt for: a
    * reported one waits for its owner's `reconcile`, or its only answer would be lost.
-   * A failure on one record, or the listing, only leaves work for a later sweep.
+   * A failure on one record, or the listing, only leaves work for a later sweep. It is
+   * graph-wide housekeeping run under whichever writer's operation was granted first: it
+   * abandons only unarmed attempts older than the grace period (#1078).
    */
   async sweep(): Promise<void> {
     for (const record of (await this.#listed()).records) {
@@ -91,7 +96,7 @@ export default class ConeWriteRecovery {
         await this.#recover(record);
       }
     } catch {
-      // Everything unresolved is still saved, and the next open tries again.
+      // Everything unresolved is still saved, and the next Warp to compose custody tries again.
     }
   }
 

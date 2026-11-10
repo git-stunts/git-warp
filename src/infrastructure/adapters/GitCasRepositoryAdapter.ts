@@ -42,7 +42,12 @@ import GitAllocationFloorStoreAdapter from './GitAllocationFloorStoreAdapter.ts'
 import GitMigrationProvenanceAdapter from './GitMigrationProvenanceAdapter.ts';
 import GitDotRepairStoreAdapter from './GitDotRepairStoreAdapter.ts';
 import SubstrateVersionGate from './SubstrateVersionGate.ts';
+import { LOCAL_REF_PREFIX } from '../../domain/utils/LocalRefLayout.ts';
+import { REF_PREFIX } from '../../domain/utils/RefLayout.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from './TrailerCommitMessageCodecAdapter.ts';
+
+/** Ref families git-cas may publish under: lane refs, and clone-local in-flight state (#1078). */
+export const WARP_APPLICATION_REF_PREFIXES: readonly string[] = Object.freeze([`${REF_PREFIX}/`, `${LOCAL_REF_PREFIX}/`]);
 
 type GitCasPolicy = {
   execute<T>(operation: () => Promise<T>): Promise<T>;
@@ -114,7 +119,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       const cas = ContentAddressableStore.createCbor({
         plumbing: options.plumbing,
         chunking: { strategy: 'cdc' },
-        applicationRefPrefixes: ['refs/warp/'],
+        applicationRefPrefixes: [...WARP_APPLICATION_REF_PREFIXES],
         ...(options.policy === undefined ? {} : { policy: options.policy }),
         ...(options.logger === undefined
           ? {}
