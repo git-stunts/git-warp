@@ -6,6 +6,7 @@ import ObservationAdmitted from '../custody/ObservationAdmitted.ts';
 import type ObservationAttempt from '../custody/ObservationAttempt.ts';
 import type ObservationCoordinate from '../custody/ObservationCoordinate.ts';
 import type ObservationCustodyService from '../custody/ObservationCustodyService.ts';
+import type ObservationIndeterminate from '../custody/ObservationIndeterminate.ts';
 import ObservationPublicationFailed from '../custody/ObservationPublicationFailed.ts';
 import ObservationReconciled from '../custody/ObservationReconciled.ts';
 import ObservationRefused, { type ObservationRefusalReason } from '../custody/ObservationRefused.ts';
@@ -13,6 +14,11 @@ import ResolvedObservation from '../custody/ResolvedObservation.ts';
 import RetainedObservation from '../custody/RetainedObservation.ts';
 import ObservationAttemptId from '../custody/ObservationAttemptId.ts';
 import type ConeWriteSettlement from './ConeWriteSettlement.ts';
+import type { PublishedAttempt } from './ConeWriteSettlement.ts';
+import RetainedWriteCoreMismatchError from '../../errors/RetainedWriteCoreMismatchError.ts';
+import UnsupportedWriteAttemptLayoutError from '../../errors/UnsupportedWriteAttemptLayoutError.ts';
+import WriteAttemptListing from './WriteAttemptListing.ts';
+import { publishedWriteCore } from './writeReceiptCore.ts';
 import type WriteAttemptRecord from './WriteAttemptRecord.ts';
 import type WritePublicationProbe from './WritePublicationProbe.ts';
 
@@ -66,16 +72,16 @@ export default class ConeWriteRecovery {
    * A failure on one record, or the listing, only leaves work for a later sweep.
    */
   async sweep(): Promise<void> {
-    for (const record of await this.#listed()) {
+    for (const record of (await this.#listed()).records) {
       await this.#swept(record);
     }
   }
 
-  async #listed(): Promise<readonly WriteAttemptRecord[]> {
+  async #listed(): Promise<WriteAttemptListing> {
     try {
       return await this.#journal.list(SWEEP_LIMIT);
     } catch {
-      return [];
+      return WriteAttemptListing.empty();
     }
   }
 
@@ -89,10 +95,25 @@ export default class ConeWriteRecovery {
     }
   }
 
-  /** The current receipt of one writer's attempt, or null if it has no record: already answered, or never this writer's. */
+  /**
+   * The current receipt of one writer's attempt, or null if it has no record: already answered, or never this writer's.
+   * Ownership is checked before any refusal, so another writer's record in an unreadable layout also answers null.
+   * A record that names no writer this build can read cannot be proved foreign, so it refuses every writer.
+   */
   async reconcile(writer: string, attemptText: string): Promise<AuthoredWriteReceipt | null> {
-    const record = await this.#journal.read(new ObservationAttemptId(attemptText));
-    return record?.premise.writerId === writer ? await this.#recover(record) : null;
+    const record = await this.#ownRecord(writer, new ObservationAttemptId(attemptText));
+    return record === null ? null : await this.#recover(record);
+  }
+
+  async #ownRecord(writer: string, attemptId: ObservationAttemptId): Promise<WriteAttemptRecord | null> {
+    try {
+      return ownedBy(await this.#journal.read(attemptId), writer);
+    } catch (error) {
+      if (error instanceof UnsupportedWriteAttemptLayoutError && error.writer !== null && error.writer !== writer) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async #recover(record: WriteAttemptRecord): Promise<AuthoredWriteReceipt> {
@@ -110,13 +131,27 @@ export default class ConeWriteRecovery {
     if (phase === 'reserved' || phase === 'prepared') {
       return await this.#recoverUnarmed(record, attempt);
     }
-    const recovered = await this.#custody.recoverCoordinate(attempt.identity);
+    return await this.#fromLedger(record, attempt, await this.#custody.recoverCoordinate(attempt.identity));
+  }
+
+  /**
+   * The record's races may stand alone only when custody positively holds no settlement. Any
+   * other doubt keeps the record for an ask that can compare it with custody's copy.
+   */
+  async #fromLedger(
+    record: WriteAttemptRecord,
+    attempt: ObservationAttempt,
+    recovered: RetainedObservation | ObservationPublicationFailed | ObservationRefused | ObservationIndeterminate,
+  ): Promise<AuthoredWriteReceipt> {
     if (recovered instanceof ObservationPublicationFailed) {
       return await this.#finishedUnpublished(record, STALE_PREDECESSOR);
     }
-    return recovered instanceof RetainedObservation
-      ? await this.#fromCustody({ record, attempt, coordinate: recovered.coordinate })
-      : await this.#fromChain(record, attempt);
+    if (recovered instanceof RetainedObservation) {
+      return await this.#fromCustody({ record, attempt, coordinate: recovered.coordinate });
+    }
+    return recovered instanceof ObservationRefused && recovered.reason === 'not-settled'
+      ? await this.#fromChain(record, attempt)
+      : this.#indeterminate(record, RECOVERY_UNAVAILABLE);
   }
 
   /**
@@ -141,25 +176,39 @@ export default class ConeWriteRecovery {
     return record.commit !== null || (await this.#probe.locate(record)).kind === 'own';
   }
 
-  /** Custody settled a publication, and that outranks whatever the chain says now. */
+  /**
+   * Custody settled a publication, and that outranks whatever the chain says now. The record must
+   * rebuild exactly the core custody retained, or the receipt would contradict its own Coordinate.
+   */
   async #fromCustody(run: {
     readonly record: WriteAttemptRecord;
     readonly attempt: ObservationAttempt;
     readonly coordinate: ObservationCoordinate;
   }): Promise<AuthoredWriteReceipt> {
+    const resolved = await this.#custody.resolve(run.coordinate);
+    return resolved instanceof ResolvedObservation ? await this.#fromResolved(resolved, run) : this.#indeterminate(run.record, RECOVERY_UNAVAILABLE);
+  }
+
+  async #fromResolved(resolved: ResolvedObservation, run: {
+    readonly record: WriteAttemptRecord;
+    readonly attempt: ObservationAttempt;
+    readonly coordinate: ObservationCoordinate;
+  }): Promise<AuthoredWriteReceipt> {
     const { record, attempt, coordinate } = run;
-    const resolved = await this.#custody.resolve(coordinate);
-    const commit = resolved instanceof ResolvedObservation ? resolved.record.publication?.commit : undefined;
+    const commit = resolved.record.publication?.commit;
     if (commit === undefined) {
       return this.#indeterminate(record, RECOVERY_UNAVAILABLE);
     }
+    if (!this.#custody.holdsCore(resolved, publishedWriteCore(this.#graph, record, commit))) {
+      throw new RetainedWriteCoreMismatchError(record.attemptId.value);
+    }
     await this.#forget(record);
-    return this.#settlement.retained({ attempt, record, commit, races: [] }, coordinate);
+    return this.#settlement.retained({ attempt, record, commit }, coordinate);
   }
 
   async #fromChain(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<AuthoredWriteReceipt> {
     if (record.commit !== null) {
-      return await this.#settlement.settle({ attempt, record, commit: record.commit, races: [] });
+      return await this.#settled({ attempt, record, commit: record.commit });
     }
     const found = await this.#probe.locate(record);
     if (found.kind === 'other') {
@@ -167,7 +216,15 @@ export default class ConeWriteRecovery {
     }
     return found.kind === 'none'
       ? this.#indeterminate(record, PUBLICATION_UNRESOLVED)
-      : await this.#settlement.settle({ attempt, record, commit: found.commit, races: [] });
+      : await this.#settled({ attempt, record, commit: found.commit });
+  }
+
+  /** A conflict after custody reported no settlement means one landed since, which this record may not rebuild. */
+  async #settled(published: PublishedAttempt): Promise<AuthoredWriteReceipt> {
+    const settled = await this.#settlement.attempted(published);
+    return settled === 'settlement-conflict'
+      ? this.#indeterminate(published.record, RECOVERY_UNAVAILABLE)
+      : await this.#settlement.concluded(published, settled);
   }
 
   async #forget(record: WriteAttemptRecord): Promise<void> {
@@ -188,4 +245,8 @@ export default class ConeWriteRecovery {
       graph: this.#graph, writer: record.premise.writerId, attempt: record.attemptId.value, requirement,
     });
   }
+}
+
+function ownedBy(record: WriteAttemptRecord | null, writer: string): WriteAttemptRecord | null {
+  return record?.premise.writerId === writer ? record : null;
 }
