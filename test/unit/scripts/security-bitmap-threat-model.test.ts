@@ -126,6 +126,35 @@ describe('peer-controlled bitmap shards meet the boundary before the bitmap libr
     expect(rejection(oversized).code).toBe('E_ROARING_SHARD_TOO_LARGE');
   });
 
+  // Pins the compatibility basis for the zero-byte refusal: the bitmap
+  // library alone reads zero bytes as an empty bitmap, but every edge writer
+  // stores `serialize(true)` output, which is never empty.
+  it.each([
+    ['a new bitmap', (): Uint8Array => new Bitmap().serialize(true)],
+    ['a cleared bitmap', (): Uint8Array => {
+      const cleared = new Bitmap([1, 70_000]);
+      cleared.clear();
+      return cleared.serialize(true);
+    }],
+    ['a bitmap whose last value was removed', (): Uint8Array => {
+      const emptied = new Bitmap([7]);
+      emptied.remove(7);
+      return emptied.serialize(true);
+    }],
+  ])('writes %s as eight bytes that read back as an empty bitmap', (_name, write) => {
+    const written = write();
+
+    expect(written.byteLength).toBe(8);
+    expect(Bitmap.deserialize(written, true).size).toBe(0);
+  });
+
+  it('rejects zero bytes as a truncated shard', () => {
+    const error = rejection(new Uint8Array(0));
+
+    expect(error.code).toBe('E_ROARING_SHARD_MALFORMED');
+    expect(error.context['fault']).toBe('truncated-cookie');
+  });
+
   it('rejects a request for a format the boundary does not validate', () => {
     expect(() => Bitmap.deserialize(golden, false)).toThrow(expect.objectContaining({
       code: 'E_ROARING_SHARD_FORMAT',
