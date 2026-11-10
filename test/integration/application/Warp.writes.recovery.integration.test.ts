@@ -131,8 +131,11 @@ describe('recovery of a write whose settlement custody may hold', () => {
     const ref = await settledWithRecord(path);
     rewrite(path, ref, { races: MALLORY });
 
-    await openSwept(path, { clock, wrapCustody: custodyAnswering({ settlement: unavailable }) });
+    let settlementReads = 0;
+    await openSwept(path, { clock, wrapCustody: custodyAnswering({ settlement: () => { settlementReads += 1; return unavailable(); } }) });
 
+    // The sweep judged this record: it asked custody for the settlement. A sweep that skipped or dropped the record would also keep it.
+    expect(settlementReads).toBeGreaterThan(0);
     expect(attemptRefs(path)).toEqual([ref]);
   });
 
