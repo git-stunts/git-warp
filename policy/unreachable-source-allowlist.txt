@@ -4,6 +4,7 @@
 # #1052: private cone and observation foundation for the Optic read.
 # #814: the full-state engine and its tooling-only helpers, retired by #815 to #822.
 # #1044: legacy migration code that retire-legacy removes.
+# #819: retained graph manifests from #815, merged to main before this gate; first consumed by #816 and #819.
 #814	src/application/RuntimeHostBrowserDefaults.ts
 #814	src/application/RuntimeHostCommitMessageCodecDefaults.ts
 #814	src/application/provenance/BtrOperations.ts
@@ -57,6 +58,7 @@
 #814	src/domain/errors/ContinuumArtifactAuthorityError.ts
 #814	src/domain/errors/CryptoError.ts
 #814	src/domain/errors/EmptyMessageError.ts
+#819	src/domain/errors/RetainedGraphError.ts
 #814	src/domain/errors/ShardValidationError.ts
 #814	src/domain/errors/StorageError.ts
 #814	src/domain/errors/index.ts
@@ -129,6 +131,18 @@
 #1044	src/domain/migrations/GraphModelMigrationSourceInventory.ts
 #1044	src/domain/migrations/GraphModelMigrationStateSnapshotReference.ts
 #1044	src/domain/migrations/GraphModelMigrationWriterChainDescriptor.ts
+#819	src/domain/retained/GraphOrdinal.ts
+#819	src/domain/retained/IdentifierDictionary.ts
+#819	src/domain/retained/ManifestCommitment.ts
+#819	src/domain/retained/ManifestOrdinal.ts
+#819	src/domain/retained/OrdinalAddress.ts
+#819	src/domain/retained/OrdinalAddressPage.ts
+#819	src/domain/retained/OrdinalAddressResolver.ts
+#819	src/domain/retained/OrdinalGeometry.ts
+#819	src/domain/retained/OrdinalSegment.ts
+#819	src/domain/retained/OrdinalValidation.ts
+#819	src/domain/retained/RetainedGraphManifest.ts
+#819	src/domain/retained/RetainedGraphManifestReader.ts
 #814	src/domain/services/BisectService.ts
 #814	src/domain/services/GraphOpAlgebraProjection.ts
 #1052	src/domain/services/admission/WasmVerifiedAdmissionService.ts

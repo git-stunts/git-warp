@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `warp_settlement_apply`. Iterator and content stream signatures declare their
   completion types. See [the v21 migration guide](docs/migrations/v21/README.md#api-changes).
   A new `lint:source-reachability` gate fails on any `src/` file that no package entry point
-  reaches; the 242 existing ones are listed with their owning issue in
+  reaches; the 255 existing ones are listed with their owning issue in
   `policy/unreachable-source-allowlist.txt`, and the list can only shrink. The package entry
   ceiling falls (see Packaging).
 - Reserve `write-attempts` as a graph-name segment for clone-local write attempt refs.
