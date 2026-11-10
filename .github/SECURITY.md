@@ -89,6 +89,16 @@ extra millisecond keeps its nonce reserved at the inclusive freshness boundary.
 git-cas preserves millisecond expiry and treats a marker as expired when its
 expiry is at or before the current time.
 
+Freshness and retention read different clocks. The verifier measures freshness
+with the runtime's `ClockPort`. The Git runtime's replay store measures nonce
+retention on host time. The replay guarantee therefore holds only when the
+runtime clock is the host wall clock (`HostClockAdapter`, the default). A
+caller-supplied clock that loses 1 ms or more against host time across the
+600,000 ms acceptance interval can let a marker expire while its request still
+reads as fresh, so a captured request can be admitted a second time.
+[#1152](https://github.com/git-stunts/git-warp/issues/1152) tracks putting both
+under one injected clock.
+
 In enforce mode, a server restart preserves nonce refusal during that interval. Once the
 reservation expires and is swept, the signed timestamp is already outside the
 accepted interval. The server checks freshness again after the asynchronous

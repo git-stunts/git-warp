@@ -173,6 +173,15 @@ for an admitted nonce while its timestamp is still fresh. Once the timestamp is 
 freshness interval, verification returns `403 EXPIRED`, including after the
 expired marker is swept.
 
+Freshness is measured with the runtime's `ClockPort`. Nonce retention is
+measured by the Git runtime's replay store on host time. The replay guarantee
+holds only when the runtime clock is the host wall clock (`HostClockAdapter`,
+the default). A caller-supplied `clock` that loses 1 ms or more against host
+time across the 600,000 ms acceptance interval can let a marker expire while its
+request still reads as fresh.
+[#1152](https://github.com/git-stunts/git-warp/issues/1152) tracks putting both
+under one injected clock.
+
 This replaces the process-local highest-Lamport check. Restarting a client does
 not require preserving a signing counter. These guarantees assume synchronized
 clocks that progress normally; arbitrary clock rollback is outside this contract.
