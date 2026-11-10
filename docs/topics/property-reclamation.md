@@ -144,8 +144,18 @@ proves that a concurrent unobserved add survives while the old property clears.
 
 ## Public bounded removal basis (#912)
 
-`Runtime` / `Lane.write` prepares node removals automatically before lowering.
-It captures writer heads, pins the publishing writer to its existing CAS parent,
+`warp.as(writer).execute(intent)` prepares node removals automatically before
+lowering. It reads each removed node from the lane's cone records at one basis
+(`ConeWriteBasis`): the node record under the `warn` deletion policy, and also
+its incident edge and neighbour records under `reject` and `cascade`. It reads
+only those records, never journal history.
+
+The rest of this section records the #912 journal-scan basis
+(`BoundedNodeRemovalBasis`) that the v20 `Lane.write` used. v21 removed
+`Lane.write` ([#1054](https://github.com/git-stunts/git-warp/issues/1054));
+the journal-scan basis stays in source for the internal timeline write route,
+and `Warp` writes do not use it. That basis
+captures writer heads, pins the publishing writer to its existing CAS parent,
 and scans immutable journal histories newest-first. The observation retains only
 membership dots, incident edges, and property names needed by the existing
 reject/cascade/warn deletion policy. It does not construct or cache a whole-graph
