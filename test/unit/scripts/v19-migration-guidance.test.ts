@@ -10,8 +10,6 @@ const MIGRATION_GUIDE = readFileSync(join(ROOT, 'docs/migrations/v19/README.md')
 const OPERATIONS_GUIDE = readFileSync(join(ROOT, 'docs/operations/README.md'), 'utf8');
 const ROOT_README = readFileSync(join(ROOT, 'README.md'), 'utf8');
 const TOPICS_INDEX = readFileSync(join(ROOT, 'docs/topics/README.md'), 'utf8');
-const SAFE_MIGRATION_COMMAND =
-  /npm exec --package=@git-stunts\/git-warp@19\.1\.0 -- \\\r?\n(?:> )?[ \t]+git-warp-v18-to-v19/u;
 
 function generatedSdkSection(): string {
   const start = MIGRATION_GUIDE.indexOf('## Generated Domain SDKs');
@@ -29,10 +27,8 @@ describe('v19 migration guidance', () => {
     expect(API_GUIDE).toContain('Current in `v20.0.0`');
   });
 
+  // v18-migration-cli-docs.test.ts verifies every command block against the CLI contract.
   it('keeps the root README on the current safe one-pass migration', () => {
-    expect(ROOT_README).toMatch(SAFE_MIGRATION_COMMAND);
-    expect(ROOT_README).toContain('--repo /path/to/repository');
-    expect(ROOT_README).toContain('--graph <graph-name>');
     expect(ROOT_README).toContain('--dry-run');
     expect(ROOT_README).toContain('E_SUBSTRATE_MIGRATION_REQUIRED');
     expect(ROOT_README).toContain('recovery refs');
@@ -56,7 +52,6 @@ describe('v19 migration guidance', () => {
 
   it('gives operators one complete maintenance-window checklist', () => {
     expect(OPERATIONS_GUIDE).toContain('## Migrate retained v18 state');
-    expect(OPERATIONS_GUIDE).toMatch(SAFE_MIGRATION_COMMAND);
     expect(OPERATIONS_GUIDE).toContain('git clone --mirror --no-hardlinks');
     expect(OPERATIONS_GUIDE).toContain('already-current');
     expect(OPERATIONS_GUIDE).toContain('Keep the recovery refs');

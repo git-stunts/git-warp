@@ -113,6 +113,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not a byte string the same way, without the `E_ROARING_SHARD_MALFORMED`
   code. No consumer change is necessary. An index that a released writer
   produced is read as before.
+- The `git-warp-v18-to-v19` migrator checks the `--repo` path before discovery
+  ([#811](https://github.com/git-stunts/git-warp/issues/811)). A path that does not exist,
+  is not a directory, or is not a Git repository stops with `Repository not found: <path>`
+  and the reason. If Git refuses the path for another reason, the error reads
+  `Could not open <path> as a Git repository` and keeps the Git diagnostic as its cause.
+  Before, these cases gave a Git process-spawn error or a raw Git diagnostic. An empty value
+  for a flag that takes one, such as `--repo ""` from an unset shell variable, is refused
+  with `<flag> requires a non-empty value`; before, an empty `--repo` selected the current
+  directory. `--help` lists `--repo` and `--graph`, says when the command lists graphs,
+  says that `--yes` without `--dry-run` migrates and promotes without asking, and names the
+  rollback after a failed verification. The migration guides quote the help text and five
+  command outcomes from this source, and say how the pinned `19.1.0` package differs.
 - `AuthoredWarp.execute()` reports an unavailable store while it fixes the write
   basis or reads the premise records as an `UnpublishedWriteReceipt`
   (`write-basis-unavailable`, `write-premise-unavailable`) and does not reject.
