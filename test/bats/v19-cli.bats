@@ -20,34 +20,23 @@ teardown() {
   run "${CLI[@]}" --help
   assert_success
 
-  [[ "$output" == *"git warp write"* ]]
   [[ "$output" == *"git warp observe"* ]]
-  [[ "$output" == *"git warp settle preview"* ]]
-  [[ "$output" == *"--strand <name>"* ]]
+  [[ "$output" != *"git warp write"* ]]
+  [[ "$output" != *"git warp fork"* ]]
+  [[ "$output" != *"git warp settle"* ]]
+  [[ "$output" != *"--strand"* ]]
   [[ "$output" == *"--jsonl"* ]]
   [[ "$output" != *"--graph"* ]]
   [[ "$output" != *"--ndjson"* ]]
   [[ "$output" != *"query result page"* ]]
 }
 
-@test "write returns a canonical Receipt envelope" {
-  write_user
-
-  JSON="$output" python3 - <<'PY'
-import json
-import os
-
-receipt = json.loads(os.environ["JSON"])
-assert receipt["type"] == "Receipt"
-assert receipt["operation"] == "write"
-assert receipt["lane"] == "users"
-assert receipt["writer"] == "bats"
-assert receipt["intent"] == {
-    "kind": "node.add",
-    "subject": "user:alice",
-}
-assert receipt["outcome"]["kind"] == "derived"
-PY
+@test "removed write, fork and settle commands fail closed" {
+  for command in write fork settle; do
+    run "${CLI[@]}" "${command}" --lane users
+    assert_failure
+    [[ "$output" == *"Unknown command: ${command}"* ]]
+  done
 }
 
 @test "repair prepares a bounded basis and observe emits Reading.value" {
@@ -98,106 +87,23 @@ PY
 }
 
 @test "receipt show uses the same canonical human renderer" {
-  write_user
-  receipt_file="${TEST_REPO}/receipt.json"
-  printf '%s\n' "$output" > "${receipt_file}"
-
-  run "${CLI[@]}" receipt show --input "${receipt_file}"
-  assert_success
-
-  [[ "$output" == *"Receipt: write"* ]]
-  [[ "$output" == *"resolution:"* ]]
-  [[ "$output" == *'"type": "Receipt"'* ]]
-}
-
-@test "fork, write, preview, and apply survive CLI process boundaries" {
   prepare_user_reading
-
-  run "${CLI[@]}" fork \
-    --lane users \
-    --writer bats \
-    --json \
-    --name review
-  assert_success
-
-  JSON="$output" python3 - <<'PY'
-import json
-import os
-
-lane = json.loads(os.environ["JSON"])
-assert lane["type"] == "Lane"
-assert lane["kind"] == "strand"
-assert lane["name"] == "review"
-assert lane["source"] == {"kind": "worldline", "name": "users"}
-PY
-
-  run "${CLI[@]}" write \
-    --lane users \
-    --strand review \
-    --writer bats \
-    --json \
-    --intent '{"kind":"property.set","subject":"user:alice","key":"role","value":"admin"}'
-  assert_success
-
-  plan_file="${TEST_REPO}/settlement-plan.json"
-  run "${CLI[@]}" settle preview \
-    --writer bats \
-    --json \
-    --source users \
-    --strand review \
-    --target users \
-    --out "${plan_file}"
-  assert_success
-
-  JSON="$output" python3 - <<'PY'
-import json
-import os
-
-preview = json.loads(os.environ["JSON"])
-assert preview["type"] == "SettlementPreview"
-assert preview["source"] == {"kind": "strand", "name": "review"}
-assert preview["target"] == {"kind": "worldline", "name": "users"}
-assert preview["selector"] == {
-    "sourceLane": "users",
-    "sourceStrand": "review",
-    "targetLane": "users",
-}
-assert preview["plan"]["sourceLaneId"] == "strand:review"
-assert preview["plan"]["targetLaneId"] == "worldline:users"
-assert preview["outcome"]["kind"] == "derived"
-PY
-
-  run "${CLI[@]}" settle apply \
-    --writer bats \
-    --json \
-    --plan "${plan_file}"
-  assert_success
-
-  JSON="$output" python3 - <<'PY'
-import json
-import os
-
-receipt = json.loads(os.environ["JSON"])
-assert receipt["type"] == "Receipt"
-assert receipt["operation"] == "settle"
-assert receipt["outcome"]["kind"] == "derived"
-PY
-
   run "${CLI[@]}" observe \
     --lane users \
     --writer bats \
     --json \
-    --observer users.role \
-    --reading '{"kind":"property.get","subject":"user:alice","key":"role"}'
+    --observer users.exists \
+    --reading '{"kind":"node.exists","subject":"user:alice"}'
+  assert_success
+  receipt_file="${TEST_REPO}/receipt.json"
+  JSON="$output" python3 -c 'import json, os, sys; json.dump(json.loads(os.environ["JSON"])["receipt"], sys.stdout)' > "${receipt_file}"
+
+  run "${CLI[@]}" receipt show --input "${receipt_file}"
   assert_success
 
-  JSON="$output" python3 - <<'PY'
-import json
-import os
-
-observation = json.loads(os.environ["JSON"])
-assert observation["readings"][0]["value"] == "admin"
-PY
+  [[ "$output" == *"Receipt: observe"* ]]
+  [[ "$output" == *"resolution:"* ]]
+  [[ "$output" == *'"type": "Receipt"'* ]]
 }
 
 @test "MCP lists the generated capability tools without graph-first names" {
@@ -243,14 +149,10 @@ import os
 response = json.loads(os.environ["JSON"])
 names = [tool["name"] for tool in response["result"]["tools"]]
 assert names == [
-    "warp_lane_describe",
-    "warp_intent_write",
     "warp_observation_start",
     "warp_observation_read",
     "warp_observation_cancel",
     "warp_receipt_get",
-    "warp_settlement_preview",
-    "warp_settlement_apply",
     "warp_doctor",
     "warp_repair",
     "warp_audit",
@@ -260,6 +162,10 @@ assert not any(name in names for name in [
     "warp_node_props",
     "warp_edges",
     "warp_has_node",
+    "warp_lane_describe",
+    "warp_intent_write",
+    "warp_settlement_preview",
+    "warp_settlement_apply",
 ])
 PY
 }

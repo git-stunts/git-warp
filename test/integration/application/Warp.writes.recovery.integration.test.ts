@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { intent } from '../../../advanced.ts';
 import { execFileSync } from 'node:child_process';
-import { IndeterminateWriteReceipt, UnretainedWriteReceipt, type AuthoredWriteReceipt, type Warp } from '../../../index.ts';
+import { IndeterminateWriteReceipt, UnretainedWriteReceipt, type WriteReceipt, type Warp } from '../../../index.ts';
 import WarpError from '../../../src/domain/errors/WarpError.ts';
 import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import CustodyRefused from '../../../src/domain/services/custody/CustodyRefused.ts';
@@ -43,7 +43,7 @@ async function seeded(path: string): Promise<void> {
   await unseen(path, 'bob', (patch) => { patch.setProperty('doc', 'title', 'unseen'); });
 }
 
-async function raced(warp: Warp): Promise<AuthoredWriteReceipt> {
+async function raced(warp: Warp): Promise<WriteReceipt> {
   const receipt = await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' }));
   await warp.close();
   return receipt;

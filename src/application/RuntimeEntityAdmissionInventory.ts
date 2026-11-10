@@ -98,20 +98,7 @@ export async function startEntityAdmissionInventory<TValue extends ReadingValue>
   }
 }
 
-/** Explicitly refuses inventory on strands until their overlay source is defined. */
-export function unsupportedStrandEntityAdmissionInventory<
-  TValue extends ReadingValue,
->(
-  timeline: Readonly<{ readonly name: string; readonly writer: string }>,
-  observer: Observer<TValue>,
-): ObservationExecution<TValue> {
-  return obstructedExecution(
-    timeline,
-    observer,
-    'entity_admission_inventory_strand_unavailable',
-  );
-}
-
+/** Streams the inventory Readings. Resolves a failure Receipt on error and a cancelled Receipt when the consumer stops early; always releases the lease. */
 async function* streamInventory<TValue extends ReadingValue>(
   options: InventoryOptions<TValue>,
 ): AsyncIterable<Reading<TValue>> {
