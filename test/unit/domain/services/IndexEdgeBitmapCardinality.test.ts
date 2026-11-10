@@ -12,6 +12,7 @@ import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
 import InMemoryGraphAdapter from '../../../helpers/InMemoryGraphAdapter.ts';
+import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import { fixtureToState, makeFixture } from '../../../helpers/fixtureDsl.ts';
 import { encodePortableShard, fullRunContainers } from '../../../helpers/PortableRoaringShardFixture.ts';
 
@@ -62,7 +63,7 @@ function storedBitmapOf(tree: Record<string, Uint8Array>, bucket: string, owner:
 // so a writer can store more than 2^24 values in one. Nothing may refuse such
 // a bitmap for its cardinality on read or on write.
 describe('an edge bitmap that holds more values than one alive bitmap can', () => {
-  const service = new MaterializedViewService({ codec: defaultCodec });
+  const service = new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
   const neighbour = nodeOutsideStoredNeighbours();
   const nodes = [HUB, neighbour];
   const built = service.build(fixtureToState(makeFixture({ nodes, edges: [] }))).tree;

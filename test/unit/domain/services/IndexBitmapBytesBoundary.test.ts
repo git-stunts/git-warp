@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import IndexError from '../../../../src/domain/errors/IndexError.ts';
 import RoaringShardRejectedError from '../../../../src/domain/errors/RoaringShardRejectedError.ts';
 import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.ts';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.ts';
@@ -8,6 +9,7 @@ import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import type CodecValue from '../../../../src/domain/types/codec/CodecValue.ts';
 import { PatchDiff } from '../../../../src/domain/types/PatchDiff.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
+import CborIndexShardTree from '../../../../src/infrastructure/adapters/CborIndexShardTree.ts';
 import { CborIndexStoreAdapter } from '../../../../src/infrastructure/adapters/CborIndexStoreAdapter.ts';
 import GitCasAssetStorageAdapter from '../../../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -91,10 +93,10 @@ function addEdgeOver(tree: Record<string, Uint8Array>): void {
     propsChanged: [],
     nodesCleared: [],
   });
-  new IncrementalIndexUpdater({ codec: defaultCodec }).computeDirtyShards({
+  new IncrementalIndexUpdater().computeDirtyShards({
     diff,
     state,
-    loadShard: (path) => tree[path],
+    shards: new CborIndexShardTree({ codec: defaultCodec, tree }),
   });
 }
 
@@ -158,18 +160,33 @@ describe('index bitmap values that are not bytes', () => {
     });
   });
 
-  describe('IncrementalIndexUpdater.computeDirtyShards', () => {
+  // The shard tree adapter owns decoding on this path. It refuses a value
+  // that is not a byte string with its own typed error, before the updater
+  // or a shard constructor sees the value.
+  describe('IncrementalIndexUpdater.computeDirtyShards over a CBOR shard tree', () => {
     it.each(NOT_BYTES)('refuses %s as a stored edge bitmap', (_name, value) => {
       const tree = builtTree();
       const stored = defaultCodec.encode({ all: { [String(globalIdOfA(tree))]: value } });
 
-      expectNotBytes(failureOf(() => addEdgeOver({ ...tree, [EDGE_PATH]: stored })));
+      const failure = failureOf(() => addEdgeOver({ ...tree, [EDGE_PATH]: stored }));
+
+      expect(failure).toBeInstanceOf(IndexError);
+      expect(failure).toMatchObject({
+        code: 'E_INDEX_SHARD_MALFORMED',
+        context: { path: EDGE_PATH, reason: 'edge bitmap is not a byte string' },
+      });
     });
 
     it.each(PRESENT_NOT_BYTES)('refuses %s as a stored alive bitmap', (_name, value) => {
       const tree = builtTree();
 
-      expectNotBytes(failureOf(() => addEdgeOver({ ...tree, [META_PATH]: metaShardWith(value) })));
+      const failure = failureOf(() => addEdgeOver({ ...tree, [META_PATH]: metaShardWith(value) }));
+
+      expect(failure).toBeInstanceOf(IndexError);
+      expect(failure).toMatchObject({
+        code: 'E_INDEX_SHARD_MALFORMED',
+        context: { path: META_PATH, reason: 'alive bitmap is not a byte string' },
+      });
     });
   });
 });

@@ -6,6 +6,7 @@ import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import { PatchDiff } from '../../../../src/domain/types/PatchDiff.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
+import CborIndexShardTree from '../../../../src/infrastructure/adapters/CborIndexShardTree.ts';
 import { CborIndexStoreAdapter } from '../../../../src/infrastructure/adapters/CborIndexStoreAdapter.ts';
 import GitCasAssetStorageAdapter from '../../../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -69,7 +70,7 @@ describe('the alive bitmap of one meta shard', () => {
     const tree = new MaterializedViewService({ codec: defaultCodec })
       .build(fixtureToState(makeFixture({ nodes: ['A', 'B'], edges: [] }))).tree;
     const stored = { ...tree, [META_PATH]: metaShardWith(ONE_ABOVE) };
-    const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
+    const updater = new IncrementalIndexUpdater();
 
     expect(() => updater.computeDirtyShards({
       diff: new PatchDiff({
@@ -81,7 +82,7 @@ describe('the alive bitmap of one meta shard', () => {
         nodesCleared: [],
       }),
       state: fixtureToState(makeFixture({ nodes: ['A', 'B'], edges: [edge] })),
-      loadShard: (path) => stored[path],
+      shards: new CborIndexShardTree({ codec: defaultCodec, tree: stored }),
     })).toThrow(expect.objectContaining(ABOVE_BOUND));
   });
 });

@@ -29,6 +29,8 @@ import { materializationPropertyShardKey } from '../../domain/materialization/Ma
 import { validateBoundedCbor } from './BoundedCborValidation.ts';
 import { decodeRoutedPropertyShardArtifact } from '../../domain/services/index/PropertyIndexReader.ts';
 import { writeCborIndexShards } from './CborIndexShardWriter.ts';
+import CborIndexShardTree from './CborIndexShardTree.ts';
+import type { default as IndexShardTreePort, EncodedIndexTree } from '../../ports/IndexShardTreePort.ts';
 import {
   optionalCborStructureLimits,
   optionalPositiveInteger,
@@ -280,6 +282,10 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     });
     validateRequestedStructure(bytes, options);
     return this._codec.decode<TDecoded>(bytes);
+  }
+
+  override openShardTree(tree: EncodedIndexTree): IndexShardTreePort {
+    return new CborIndexShardTree({ codec: this._codec, tree });
   }
 }
 
