@@ -55,8 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The HTTP sync server limits the request rate of each socket peer before it
   parses the body or does authentication work, and the limit is on by default
   ([#1090](https://github.com/git-stunts/git-warp/issues/1090)): a burst of 60
-  requests and a refill of 10 requests per second for each peer address, with at
-  most 4096 tracked peers. There is no off switch. A peer over its limit receives
+  requests and a refill of 10 requests per second for each peer address (one
+  key for each IPv4 address and for each IPv6 /64 prefix), with at most 4096
+  tracked peers. There is no off switch. A peer over its limit receives
   `429` with `{"error":"PEER_RATE_LIMITED"}` and a `Retry-After` header;
   `syncWith` reports it as a non-retried `E_SYNC_PROTOCOL` "Protocol error: 429".
   Before you upgrade a server behind a reverse proxy or NAT gateway, raise

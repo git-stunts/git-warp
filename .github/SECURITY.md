@@ -71,7 +71,7 @@ External error responses use coarse status codes and generic reason strings:
 - `403` — Expired timestamp, replayed nonce
 - `429` — `PEER_RATE_LIMITED` (the socket peer is over its admission limit; the response has a `Retry-After` header) or `RATE_LIMITED` (the key-id is over its configured limit)
 
-Detailed authentication diagnostics (exact failure reason, key-id) are sent to the structured logger only. A peer admission refusal logs the peer address and the `Retry-After` value to the server's structured logger; see [Peer Admission Limit](#peer-admission-limit).
+Detailed authentication diagnostics (exact failure reason, key-id) are sent to the structured logger only. A peer admission refusal logs the bucket key of the peer address and the `Retry-After` value to the server's structured logger; see [Peer Admission Limit](#peer-admission-limit).
 
 ### Nonce Cache and Restart Semantics
 
@@ -136,9 +136,12 @@ limit and is unchanged.
   `Forwarded`, `X-Real-IP`, or any other header to find the peer. A custom
   `HttpServerPort` adapter must set `HttpRequest.peerAddress` from the
   connected socket and never from a header.
-- **Address forms.** The server does not parse or normalize the address text.
-  `203.0.113.10` and `::ffff:203.0.113.10` are two keys. A host that connects
-  over IPv4 and over IPv6 has two budgets.
+- **Address forms.** The bucket key comes from the address text. An
+  IPv4-mapped IPv6 address such as `::ffff:203.0.113.10` keys as its IPv4
+  address. Any other IPv6 address keys by its /64 prefix (its first 64 bits),
+  without a zone identifier, so all addresses in one /64 share one budget. An
+  IPv4 address, and any text that is not an IP address, keys as itself. A host
+  that connects over IPv4 and over a native IPv6 address has two budgets.
 - **No peer address.** Requests for which the transport reports no peer address
   share one budget. That budget counts toward the peer table bound.
 - **Order.** The content type, route, method, retired signature version, and
@@ -160,7 +163,7 @@ limit and is unchanged.
   outside these ranges and refuses any other key. There is no switch that
   disables the limit.
 - **Trace.** Each refusal logs one warning, `sync server: peer rate limit
-  exceeded`, with the fields `peer` (the peer address, or `null` for the
+  exceeded`, with the fields `peer` (the bucket key, or `null` for the
   shared no-address budget) and `retryAfterSeconds`, and increments
   `peerRateLimitRejects` in `HttpSyncServer.getMetrics()`. The server logs
   every refusal, so a flood of refused requests gives one warning for each
@@ -207,10 +210,10 @@ The limit does not do these things:
   set `peerRateLimit` large enough for the total traffic of the proxy.
 - It is not a distributed limiter. Each server process has its own peer table,
   and a restart clears the table.
-- It is not a global flood bound. Each address has its own budget. An
-  attacker that sends from more distinct addresses than `maxTrackedPeers` (one
-  host with an IPv6 prefix can) is not limited by this gate, because the table
-  evicts each address before that address sends again.
+- It is not a global flood bound. Each bucket key has its own budget. An
+  attacker that sends from more distinct IPv6 /64 prefixes and IPv4 addresses
+  than `maxTrackedPeers` is not limited by this gate, because the table evicts
+  each key before that key sends again.
 - It does not bound the read of the request body. The Node, Bun and Deno
   adapters read each request body, up to their fixed limit of 10 MiB
   (`MAX_BODY_BYTES`, 10,485,760 bytes), before the limiter sees the request. A
