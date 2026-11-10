@@ -16,6 +16,7 @@ import ObservationRefused from '../../../../../src/domain/services/custody/Obser
 import ObservationWritePremise from '../../../../../src/domain/services/custody/ObservationWritePremise.ts';
 import ConeWriteRecovery, { SWEEP_READ_BUDGET } from '../../../../../src/domain/services/write/ConeWriteRecovery.ts';
 import type ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
+import WriteAttemptListing from '../../../../../src/domain/services/write/WriteAttemptListing.ts';
 import WriteAttemptRecord from '../../../../../src/domain/services/write/WriteAttemptRecord.ts';
 import WritePublicationProbe, {
   PUBLICATION_PROBE_READS,
@@ -38,7 +39,7 @@ function recordOf(index: number, predecessor: string): WriteAttemptRecord {
       budget: new ObservationBudget({ records: 1, bytes: 1, work: 1 }), evidence: [],
       dependencies: ObservationDependencyClaim.NONE, writePremise,
     })),
-    admission: 'derived', occurrences: [], savedAt: 1,
+    admission: 'derived', races: [], occurrences: [], savedAt: 1,
   });
 }
 
@@ -89,8 +90,8 @@ class MemoryJournal extends WriteAttemptJournalPort {
     return Promise.resolve();
   }
 
-  override list(limit: number): Promise<readonly WriteAttemptRecord[]> {
-    return Promise.resolve([...this.records.values()].slice(0, limit));
+  override list(limit: number): Promise<WriteAttemptListing> {
+    return Promise.resolve(new WriteAttemptListing({ records: [...this.records.values()].slice(0, limit), unsupportedRefs: [] }));
   }
 }
 

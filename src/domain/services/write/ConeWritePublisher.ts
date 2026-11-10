@@ -1,6 +1,6 @@
 import type ObservationAttemptSourcePort from '../../../ports/ObservationAttemptSourcePort.ts';
 import type WriteAttemptJournalPort from '../../../ports/WriteAttemptJournalPort.ts';
-import type { AuthoredWriteReceipt } from '../../api/AuthoredWriteReceipt.ts';
+import type { WriteReceipt } from '../../api/WriteReceipt.ts';
 import IndeterminateWriteReceipt from '../../api/IndeterminateWriteReceipt.ts';
 import type { RepairHint } from '../../api/ReceiptSupport.ts';
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
@@ -83,10 +83,11 @@ export default class ConeWritePublisher {
     Object.freeze(this);
   }
 
-  async publish(lowered: LoweredConeWrite, revocation: () => Promise<string | null>): Promise<AuthoredWriteReceipt> {
+  async publish(lowered: LoweredConeWrite, revocation: () => Promise<string | null>): Promise<WriteReceipt> {
     const record = new WriteAttemptRecord({
       preparation: new ObservationPreparation(this.#attempts.next(), lowered.bindings),
       admission: lowered.admission,
+      races: lowered.races,
       occurrences: lowered.occurrences,
       savedAt: this.#clock(),
     });
@@ -187,19 +188,19 @@ export default class ConeWritePublisher {
     readonly lowered: LoweredConeWrite;
     readonly record: WriteAttemptRecord;
     readonly permission: ObservationPublicationPermission;
-  }): Promise<AuthoredWriteReceipt> {
+  }): Promise<WriteReceipt> {
     const { lowered, record, permission } = run;
     const fate = await this.#publishOnce(lowered, record);
     if (fate.kind === 'landed') {
       if (fate.result !== null) {
         await lowered.fold.fold(fate.result);
       }
-      return await this.#settledLanding({ attempt: permission.attempt, record, commit: fate.commit, races: lowered.races });
+      return await this.#settledLanding({ attempt: permission.attempt, record, commit: fate.commit });
     }
     return fate.kind === 'failed' ? await this.#failed(record, permission) : await this.#indeterminate(record);
   }
 
-  async #settledLanding(published: PublishedAttempt): Promise<AuthoredWriteReceipt> {
+  async #settledLanding(published: PublishedAttempt): Promise<WriteReceipt> {
     const receipt = await this.#settlement.settle(published);
     if (receipt instanceof UnretainedWriteReceipt && receipt.attempt !== null) {
       await this.#markReported(published.record, published.commit);
@@ -236,7 +237,7 @@ export default class ConeWritePublisher {
    * The attempt ends and keeps its slot. Report unpublished however that records,
    * since it did not publish, unless custody holds another outcome for this attempt.
    */
-  async #failed(record: WriteAttemptRecord, permission: ObservationPublicationPermission): Promise<AuthoredWriteReceipt> {
+  async #failed(record: WriteAttemptRecord, permission: ObservationPublicationPermission): Promise<WriteReceipt> {
     try {
       const settled = await this.#custody.settleFailedPublication(permission, failedWriteCore(this.#graph, record, STALE_PREDECESSOR));
       if (settled instanceof ObservationPublicationFailed) {

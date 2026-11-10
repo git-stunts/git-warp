@@ -48,7 +48,7 @@ function recordAfter(predecessor: string): WriteAttemptRecord {
       budget: new ObservationBudget({ records: 1, bytes: 1, work: 1 }), evidence: [],
       dependencies: ObservationDependencyClaim.NONE, writePremise,
     })),
-    admission: 'derived', occurrences: [], savedAt: 1,
+    admission: 'derived', races: [], occurrences: [], savedAt: 1,
   });
 }
 
