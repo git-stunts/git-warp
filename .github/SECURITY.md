@@ -42,7 +42,7 @@ The HTTP sync protocol supports optional HMAC-SHA256 request signing with replay
 
 **Not protected against:**
 - Compromised shared secrets (rotate keys immediately if leaked)
-- Denial-of-service from many socket addresses (body size limits and the [peer admission limit](#peer-admission-limit) bound the work that one socket peer can cause; they do not bound a flood from many addresses)
+- Denial-of-service from many socket addresses (body size limits and the [peer admission limit](#peer-admission-limit) bound the work that one socket address can cause; they do not bound a flood from many addresses)
 - Man-in-the-middle without TLS (use HTTPS in production)
 
 ### Authentication Flow
@@ -71,7 +71,7 @@ External error responses use coarse status codes and generic reason strings:
 - `403` — Expired timestamp, replayed nonce
 - `429` — `PEER_RATE_LIMITED` (the socket peer is over its admission limit; the response has a `Retry-After` header) or `RATE_LIMITED` (the key-id is over its configured limit)
 
-Detailed diagnostics (exact failure reason, key-id, peer info) are sent to the structured logger only.
+Detailed authentication diagnostics (exact failure reason, key-id) are sent to the structured logger only. A peer admission refusal logs the peer address and the `Retry-After` value to the server's structured logger; see [Peer Admission Limit](#peer-admission-limit).
 
 ### Nonce Cache and Restart Semantics
 
@@ -153,9 +153,19 @@ limit and is unchanged.
 - **Default.** Each peer has a burst of 60 requests and a refill of 10 requests
   per second. The server tracks at most 4096 peers.
 - **Configuration.** Set `peerRateLimit: { capacity, refillTokensPerSecond,
-  maxTrackedPeers }` in the options of `serve()` or of `HttpSyncServer`. The
-  three values must be positive; `capacity` and `maxTrackedPeers` must be
-  integers. There is no switch that disables the limit.
+  maxTrackedPeers }` in the options of `serve()` or of `HttpSyncServer`.
+  `capacity` and `maxTrackedPeers` must be integers from 1 to 1,000,000.
+  `refillTokensPerSecond` must be a finite number of at least 1/86,400, so
+  `Retry-After` is never more than 86,400 seconds. The server refuses a value
+  outside these ranges and refuses any other key. There is no switch that
+  disables the limit.
+- **Trace.** Each refusal logs one warning, `sync server: peer rate limit
+  exceeded`, with the fields `peer` (the peer address, or `null` for the
+  shared no-address budget) and `retryAfterSeconds`, and increments
+  `peerRateLimitRejects` in `HttpSyncServer.getMetrics()`. The server logs
+  every refusal, so a flood of refused requests gives one warning for each
+  request. The first request without a peer address also logs one warning
+  for each server instance.
 - **Peer table.** When a new peer makes the table larger than
   `maxTrackedPeers`, the server evicts the peer that it saw least recently. A
   refused request counts as recent use. Thus a peer that continues to send
@@ -167,7 +177,8 @@ limit and is unchanged.
 The default comes from the measured cost of one rejected request. The
 measurement is `test/benchmark/SyncRejectionCost.benchmark.ts`, run in the
 Docker test image (Node.js 22.23.4, linux arm64) against the server's request
-handler in process. Each row has 5 warm-up requests and then 300 measured
+handler in process, without a socket. The figures do not include reading the
+body from the socket, which every request costs, refused or not. Each row has 5 warm-up requests and then 300 measured
 requests (40 for the 4 MiB body). The values are wall-clock milliseconds as
 p50 / p99.
 
@@ -196,11 +207,19 @@ The limit does not do these things:
   set `peerRateLimit` large enough for the total traffic of the proxy.
 - It is not a distributed limiter. Each server process has its own peer table,
   and a restart clears the table.
-- It is not a global flood bound. Each address has its own budget, and an
-  attacker with more addresses than `maxTrackedPeers` (for example, an IPv6
-  prefix) can get a new burst for an address after the table evicts it.
-- It does not bound the read of the request body. The HTTP adapter reads the
-  body, up to the body size limit, before the limiter sees the request.
+- It is not a global flood bound. Each address has its own budget. An
+  attacker that sends from more distinct addresses than `maxTrackedPeers` (one
+  host with an IPv6 prefix can) is not limited by this gate, because the table
+  evicts each address before that address sends again.
+- It does not bound the read of the request body. The Node, Bun and Deno
+  adapters read each request body, up to their fixed limit of 10 MiB
+  (`MAX_BODY_BYTES`, 10,485,760 bytes), before the limiter sees the request. A
+  body larger than the server's `maxRequestBytes` (4 MiB by default) is read in
+  full, answered `413`, and spends no peer token.
+
+The "No rate limiting on sync endpoint" row under Accepted Risks and the
+Availability row under Security Boundaries are older than this limit;
+[#1032](https://github.com/git-stunts/git-warp/issues/1032) updates them.
 
 ### Key Rotation
 

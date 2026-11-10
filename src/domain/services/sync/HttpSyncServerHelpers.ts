@@ -438,9 +438,17 @@ export interface HttpSyncServerOptions {
   path?: string;
   host?: string;
   maxRequestBytes?: number;
-  /** Clock for the peer admission gate; the launcher supplies the host clock. */
+  /**
+   * Clock for the peer admission gate. The server does not require it to be
+   * `auth.clock`; launchSyncServer passes the same host clock to both, and a
+   * direct caller should do the same so that both read one time source.
+   */
   clock: ClockPort;
-  /** Pre-authentication limit for each socket peer; defaults to DEFAULT_SYNC_PEER_RATE_LIMIT. */
+  /**
+   * Pre-authentication limit for each socket peer address. On by default
+   * with DEFAULT_SYNC_PEER_RATE_LIMIT (a burst of 60 requests, a refill of 10
+   * requests per second, at most 4096 tracked peers); it cannot be turned off.
+   */
   peerRateLimit?: SyncPeerRateLimit;
   auth?: {
     keys: Record<string, SyncSecret>;
