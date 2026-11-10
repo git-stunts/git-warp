@@ -9,7 +9,8 @@
  *
  * Oracle: specified behaviour. `RuntimeHost._buildViewFromResult` catches an
  * index failure, marks the index degraded, and logs `index build failed`.
- * A healthy incremental materialize must do neither.
+ * A healthy incremental update must do neither. The host reaches that method
+ * from materialize() and from a local commit, so both entries have a case.
  */
 import { describe, expect, it } from 'vitest';
 import RuntimeHost from '../../../../src/domain/RuntimeHost.ts';
@@ -163,5 +164,36 @@ describe('RuntimeHost incremental index through the production boot wiring', () 
     await expect(runtime.neighbors('A', 'outgoing')).resolves.toEqual([
       { nodeId: 'B', label: 'knows', direction: 'outgoing' },
     ]);
+  });
+
+  it('degrades the index when a local commit meets a malformed cached shard, then rebuilds', async () => {
+    const { runtime, logger } = await openRuntimes('malformed-cached-shard-commit');
+    const first = await runtime.createPatch();
+    await first.addNode('A').commit();
+    await runtime.materialize();
+    const tree = cachedIndexTree(runtime);
+    const metaPaths = Object.keys(tree).filter((path) => path.startsWith('meta_'));
+    expect(metaPaths).toHaveLength(1);
+    const metaPath = String(metaPaths[0]);
+    const malformedMeta = defaultCodec.encode({ nodeToGlobal: [['A', 0]], nextLocalId: 'one' });
+    runtime._cachedIndexTree = { ...tree, [metaPath]: malformedMeta };
+
+    const second = await runtime.createPatch();
+    await second.addNode('B').addEdge('A', 'B', 'knows').commit();
+
+    expect(logger.warnings).toEqual([{
+      message: INDEX_FAILURE_MESSAGE,
+      context: { error: `Index shard is malformed: ${metaPath} (id is not a non-negative integer)` },
+    }]);
+    expect(runtime._indexDegraded).toBe(true);
+    await expect(runtime.neighbors('A', 'outgoing')).resolves.toEqual([
+      { nodeId: 'B', label: 'knows', direction: 'outgoing' },
+    ]);
+
+    await runtime.materialize();
+
+    expect(logger.warnings).toHaveLength(1);
+    expect(runtime._indexDegraded).toBe(false);
+    expect(runtime._logicalIndex).not.toBeNull();
   });
 });
