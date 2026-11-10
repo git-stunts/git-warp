@@ -218,6 +218,14 @@ argument. Direct `SyncAuthService` and `HttpSyncServer` users must provide `cloc
 alongside `replayProtection`. The port's `nowMs()` returns a non-negative safe
 integer epoch millisecond. Tests should supply a clock that advances explicitly.
 
+`HttpSyncServer` also requires a top-level `clock` option for the peer admission
+limit, which is on by default. A socket peer over its limit (a burst of 60
+requests, then 10 requests per second) receives HTTP `429` with
+`{"error":"PEER_RATE_LIMITED"}`. `serve()` supplies the runtime clock, and the
+`peerRateLimit` option changes the limit. Clients behind one NAT gateway or one
+reverse proxy share one budget. The "Peer Admission Limit" section of the
+repository's `.github/SECURITY.md` gives the full rules.
+
 ### Wire changes
 
 `x-warp-sig-version` is `3`. `x-warp-timestamp` contains wall-clock epoch

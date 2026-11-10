@@ -42,7 +42,7 @@ The HTTP sync protocol supports optional HMAC-SHA256 request signing with replay
 
 **Not protected against:**
 - Compromised shared secrets (rotate keys immediately if leaked)
-- Denial-of-service (body size limits provide basic protection, but no rate limiting)
+- Denial-of-service from many socket addresses (body size limits and the [peer admission limit](#peer-admission-limit) bound the work that one socket peer can cause; they do not bound a flood from many addresses)
 - Man-in-the-middle without TLS (use HTTPS in production)
 
 ### Authentication Flow
@@ -51,7 +51,7 @@ The HTTP sync protocol supports optional HMAC-SHA256 request signing with replay
 2. Client reads epoch milliseconds through its injected clock and builds the canonical payload: `warp-v3|shared-secret-hmac-sha256|KEY_ID|METHOD|PATH|TIMESTAMP|NONCE|CONTENT_TYPE|BODY_SHA256`
 3. Client computes HMAC-SHA256 of canonical payload using shared secret
 4. Client sends six auth headers: `x-warp-auth-scheme`, `x-warp-sig-version`, `x-warp-key-id`, `x-warp-timestamp`, `x-warp-nonce`, `x-warp-signature`
-5. Server validates header formats (cheap checks first)
+5. Server applies the [peer admission limit](#peer-admission-limit) to the socket peer, before it parses the body, and then validates header formats (cheap checks first)
 6. Server resolves the key by key-id, recomputes HMAC, and compares with constant-time equality
 7. Server checks the signed timestamp against its injected clock (inclusive five-minute skew allowance)
 8. Server reserves the nonce atomically and durably (prevents replay)
@@ -69,6 +69,7 @@ External error responses use coarse status codes and generic reason strings:
 - `400` — Malformed headers (version, timestamp, nonce, signature format)
 - `401` — Missing auth headers, unknown key-id, invalid signature
 - `403` — Expired timestamp, replayed nonce
+- `429` — `PEER_RATE_LIMITED` (the socket peer is over its admission limit; the response has a `Retry-After` header) or `RATE_LIMITED` (the key-id is over its configured limit)
 
 Detailed diagnostics (exact failure reason, key-id, peer info) are sent to the structured logger only.
 
@@ -120,6 +121,86 @@ traffic; they still refuse retired signature v2. Use enforce mode and TLS for
 protected sync. See the
 [v21 sync authentication migration](../docs/migrations/v21/README.md#http-sync-authentication)
 before upgrading peers.
+
+### Peer Admission Limit
+
+The sync server limits the request rate of each socket peer before it parses
+the request body and before it does authentication work. The limit is on by
+default. It applies in `enforce` mode, in `log-only` mode, and on an explicitly
+unauthenticated localhost server. The per-key `auth.rateLimit` is a separate
+limit and is unchanged.
+
+- **Key.** The key is the peer address of the connected socket, as the runtime
+  reports it: `socket.remoteAddress` on Node, `server.requestIP()` on Bun, and
+  `info.remoteAddr` on Deno. The server does not read `X-Forwarded-For`,
+  `Forwarded`, `X-Real-IP`, or any other header to find the peer. A custom
+  `HttpServerPort` adapter must set `HttpRequest.peerAddress` from the
+  connected socket and never from a header.
+- **Address forms.** The server does not parse or normalize the address text.
+  `203.0.113.10` and `::ffff:203.0.113.10` are two keys. A host that connects
+  over IPv4 and over IPv6 has two budgets.
+- **No peer address.** Requests for which the transport reports no peer address
+  share one budget. That budget counts toward the peer table bound.
+- **Order.** The content type, route, method, retired signature version, and
+  body size checks run first. A request that they refuse gets their response
+  and spends no peer budget. Each request that passes them spends one token,
+  whether authentication later accepts the request or not. A refused request
+  causes no JSON parse, no SHA-256, no HMAC, and no nonce reservation.
+- **Refusal.** The server returns `429` with the body
+  `{"error":"PEER_RATE_LIMITED"}` and a `Retry-After` header. The header gives
+  the whole seconds until the peer's budget holds one token again, calculated
+  from the server's injected clock.
+- **Default.** Each peer has a burst of 60 requests and a refill of 10 requests
+  per second. The server tracks at most 4096 peers.
+- **Configuration.** Set `peerRateLimit: { capacity, refillTokensPerSecond,
+  maxTrackedPeers }` in the options of `serve()` or of `HttpSyncServer`. The
+  three values must be positive; `capacity` and `maxTrackedPeers` must be
+  integers. There is no switch that disables the limit.
+- **Peer table.** When a new peer makes the table larger than
+  `maxTrackedPeers`, the server evicts the peer that it saw least recently. A
+  refused request counts as recent use. Thus a peer that continues to send
+  keeps its spent budget, unless at least `maxTrackedPeers` other addresses
+  send between two of its requests. An evicted peer starts again with a full
+  burst.
+- **Time.** The limiter reads time only from the runtime's `ClockPort`.
+
+The default comes from the measured cost of one rejected request. The
+measurement is `test/benchmark/SyncRejectionCost.benchmark.ts`, run in the
+Docker test image (Node.js 22.23.4, linux arm64) against the server's request
+handler in process. Each row has 5 warm-up requests and then 300 measured
+requests (40 for the 4 MiB body). The values are wall-clock milliseconds as
+p50 / p99.
+
+| Rejected request | 37-byte body | 64 KiB body | 4 MiB body (default maximum) |
+| --- | --- | --- | --- |
+| Malformed JSON (`400`) | 0.005 / 0.010 | 0.092 / 0.893 | 6.4 / 7.7 |
+| Unknown key-id (`401`) | 0.006 / 0.016 | 0.091 / 0.261 | 8.3 / 10.6 |
+| Known key-id, bad signature (`401`) | 0.011 / 0.017 | 0.117 / 0.338 | 9.9 / 18.1 |
+| Refused by the peer limit (`429`) | 0.002 / 0.011 | 0.002 / 0.005 | 0.002 / 0.004 |
+
+At the default refill of 10 requests per second, one peer that sends rejected
+4 MiB requests without pause uses approximately 10% of one CPU core at the p50
+cost and 18% at the p99 cost. One burst of 60 such requests uses approximately
+0.6 to 1.1 seconds of CPU time. One `syncWith` call sends one request for each
+attempt, so the default admits ten clients behind one address that each sync
+one time per second. The numbers are from one machine; measure again on your
+hardware before you change the default.
+
+The limit does not do these things:
+
+- It does not separate clients that share a socket address. Clients behind one
+  NAT gateway or one reverse proxy share one budget, and one of them can use
+  all of it. The per-key limit does not make a shared address fair.
+- It does not replace a rate limit at a reverse proxy. Behind a reverse proxy,
+  every request has the address of the proxy. Limit the rate at the proxy, and
+  set `peerRateLimit` large enough for the total traffic of the proxy.
+- It is not a distributed limiter. Each server process has its own peer table,
+  and a restart clears the table.
+- It is not a global flood bound. Each address has its own budget, and an
+  attacker with more addresses than `maxTrackedPeers` (for example, an IPv6
+  prefix) can get a new burst for an address after the table evicts it.
+- It does not bound the read of the request body. The HTTP adapter reads the
+  body, up to the body size limit, before the limiter sees the request.
 
 ### Key Rotation
 

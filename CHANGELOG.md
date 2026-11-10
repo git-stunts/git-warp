@@ -264,6 +264,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The HTTP sync server limits the request rate of each socket peer before it
+  parses the body or does authentication work
+  ([#1090](https://github.com/git-stunts/git-warp/issues/1090)). The limit is on by
+  default (a burst of 60 requests and a refill of 10 requests per second for each
+  peer address, at most 4096 tracked peers), and the `peerRateLimit` option of
+  `serve()` and `HttpSyncServer` changes it. A peer over its limit receives `429`
+  with `{"error":"PEER_RATE_LIMITED"}` and a `Retry-After` header. The key is the
+  address of the connected socket: `HttpRequest` has a new `peerAddress` field
+  that the Node, Bun and Deno adapters fill from the socket, and forwarding headers
+  such as `X-Forwarded-For` are never read. Clients behind one NAT gateway or one
+  reverse proxy share one budget, and the limiter is not distributed.
+  `HttpSyncServer` now requires a top-level `clock` (`ClockPort`); `serve()`
+  supplies the runtime clock. The per-key `auth.rateLimit` is unchanged. See
+  [Peer Admission Limit](.github/SECURITY.md#peer-admission-limit).
+
 - `Warp.open(address, access, { logger })` accepts an optional `LoggerPort`, now exported from
   the package root with the `LogFields`, `LogFieldValue` and `WarpOpenOptions` types. The `warn`
   removal policy reports to it, and a logger that throws or rejects cannot affect a write. Without a
