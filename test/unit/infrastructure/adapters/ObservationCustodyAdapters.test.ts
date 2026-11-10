@@ -2,6 +2,7 @@ import { ReservationCursor, type ReservationListUnavailable, type ReservationPag
 import { describe, expect, it } from 'vitest';
 import CustodyAcknowledged from '../../../../src/domain/services/custody/CustodyAcknowledged.ts';
 import CustodyEvidence from '../../../../src/domain/services/custody/CustodyEvidence.ts';
+import RetentionStoreOpenError from '../../../../src/domain/errors/RetentionStoreOpenError.ts';
 import CustodyIndeterminate from '../../../../src/domain/services/custody/CustodyIndeterminate.ts';
 import CustodyInspection from '../../../../src/domain/services/custody/CustodyInspection.ts';
 import CustodyRefused from '../../../../src/domain/services/custody/CustodyRefused.ts';
@@ -181,6 +182,26 @@ describe('GitCasObservationCustodyAdapter', () => {
     };
     expect(await GitCasObservationCustodyAdapter.open({ reservations: failing, graphName: 'g', limit: 2, crypto: new NodeCryptoAdapter() }))
       .toEqual(new CustodyIndeterminate(cause));
+  });
+
+  it.each([
+    ['a string', 'ledger offline', 'ledger offline'],
+    ['nothing', undefined, 'undefined'],
+  ])('keeps a store failure that is %s inside an Error, so the retention rejection can be built', async (_, thrown, described) => {
+    // git-cas passes on whatever its store threw, so the value is read here without its declared type.
+    const held: object = { thrown };
+    const failing: ObservationReservations = {
+      open: async () => await Promise.resolve({ status: 'indeterminate', policy: POLICY, cause: Reflect.get(held, 'thrown') }),
+    };
+    const failure = await GitCasObservationCustodyAdapter.open({ reservations: failing, graphName: 'g', limit: 2, crypto: new NodeCryptoAdapter() });
+    if (!(failure instanceof CustodyIndeterminate)) {
+      throw new Error('Expected an indeterminate open');
+    }
+
+    const rejection = new RetentionStoreOpenError(failure);
+
+    expect(rejection.cause instanceof WarpError ? rejection.cause.context : 'not a WarpError').toEqual({ thrown });
+    expect(rejection.message).toBe(`This graph's retention store did not open: the store could not answer (The reservation store failed with a value that is not an Error: ${described})`);
   });
 
   it('maps every lifecycle status from the store, with exact evidence fields', async () => {

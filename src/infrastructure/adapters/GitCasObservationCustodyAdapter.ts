@@ -76,7 +76,7 @@ export default class GitCasObservationCustodyAdapter extends ObservationCustodyP
     if (opened.status === 'opened') {
       return new GitCasObservationCustodyAdapter(opened);
     }
-    return opened.status === 'refused' ? new CustodyRefused(opened.reason) : new CustodyIndeterminate(opened.cause);
+    return opened.status === 'refused' ? new CustodyRefused(opened.reason) : new CustodyIndeterminate(storeFailure(opened.cause));
   }
 
   /**
@@ -142,6 +142,16 @@ export default class GitCasObservationCustodyAdapter extends ObservationCustodyP
   override async readEvidence(identity: ObservationCustodyIdentity, stage: CustodyStage): Promise<CustodyEvidenceOutcome> {
     return await guarded(async () => evidence(await this.#namespace.readEvidence({ ...storeIdentity(identity), stage })));
   }
+}
+
+/**
+ * The failure an open reported, as an Error. git-cas passes on whatever its store threw, so a
+ * value that is not an Error is kept in the `context.thrown` of one that describes it.
+ */
+function storeFailure(thrown: unknown): Error {
+  return thrown instanceof Error
+    ? thrown
+    : new ObservationCustodyError(`The reservation store failed with a value that is not an Error: ${typeof thrown === 'string' ? thrown : typeof thrown}`, { context: { thrown } });
 }
 
 function identityOf(record: ReservationIdentity): ObservationCustodyIdentity {

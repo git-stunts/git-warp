@@ -9,7 +9,8 @@ import WarpError from './WarpError.ts';
  * retention capacity differs from the one this build opens it with, and no retry clears that;
  * `contention` means other processes kept winning the ledger, and a retry can succeed. When the
  * store could not answer, `refusal` is null and `cause` is its failure, such as a held ref lock:
- * a retry can succeed.
+ * a retry can succeed. `cause` is always an Error: the custody adapter wraps any other thrown
+ * value in one and keeps the value in that Error's `context.thrown`.
  */
 export default class RetentionStoreOpenError extends WarpError {
   readonly refusal: CustodyRefusalReason | null;
