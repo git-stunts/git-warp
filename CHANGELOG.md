@@ -84,6 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     bitmap or run contents that disagree with the header, or trailing bytes).
   - `E_ROARING_SHARD_CARDINALITY`: one bitmap holds more than 2^24 values.
   - `E_ROARING_SHARD_TOO_LARGE`: one bitmap has more than 34,086,920 bytes.
+    With the default CBOR codec a stored bitmap cannot reach that size: the
+    codec refuses an index shard file above 5 MiB first, with its own error.
   - `E_ROARING_SHARD_FORMAT`: a caller asked for a format other than the
     portable format.
   - `E_ROARING_SHARD_WRITE_CARDINALITY`: a writer tried to store one bitmap
@@ -93,15 +95,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fwd_<shard>.cbor` or `shards_*.cbor`. One file holds many bitmaps, and
   memory still grows with the number of bitmaps in a file. The limit of 2^24
   values is a support limit: a node with more than 2^24 neighbours in one
-  bucket (one label, or all labels) is not supported, and the write that
-  would store its bitmap is refused. Most index readers and the index
-  updaters let the error through to the caller. Checkpoint shard reads (node
+  bucket (one label, or all labels) is not supported. The graph write for such
+  a node is not refused. The index build or index update that would store its
+  bitmap fails with `E_ROARING_SHARD_WRITE_CARDINALITY`; the runtime then
+  logs the warning `index build failed` and continues without the index. A
+  sparse bitmap far below 2^24 values can also pass the 5 MiB file limit of
+  the default codec, which is older than this change. Most index readers and
+  the index updaters let a rejection through to the caller. Checkpoint shard reads (node
   liveness and neighbourhood) report it as `QueryError`
   `E_OPTIC_NO_BOUNDED_BASIS` with reason `checkpoint-shard-invalid` and keep
   the rejection as `cause`. `BitmapIndexReader` also catches it: in strict
   mode (the default) it throws `ShardCorruptionError` with the
   rejection message in `context.originalError`, and in non-strict mode it
-  logs a warning and returns no neighbours from that bitmap. No consumer
+  logs a warning and returns no neighbours from that bitmap. It reports a
+  stored value that is not a byte string the same way, without the
+  `E_ROARING_SHARD_MALFORMED` code. No consumer
   change is necessary. An index that a released writer produced is read as
   before when each of its bitmaps is in the limits.
 - `AuthoredWarp.execute()` reports an unavailable store while it fixes the write

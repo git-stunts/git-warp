@@ -18,8 +18,8 @@ const CONTAINER_METADATA_BYTES = 65536 * 8;
 const BYTES_PER_VALUE = 2;
 
 /**
- * The largest portable encoding that CRoaring emits for MAX_CARDINALITY
- * values. A container body never uses more than two bytes for each value:
+ * An upper bound on the portable encoding of MAX_CARDINALITY values; no real
+ * encoding attains it, because its terms do not all occur together. A container body never uses more than two bytes for each value:
  * an array stores two bytes for each value, a bitmap container (8192 bytes)
  * holds more than 4096 values, and a run container is kept only when it is
  * smaller. Each of the 65536 possible containers adds a key, a cardinality
