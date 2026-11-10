@@ -73,6 +73,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Validate every serialized Roaring bitmap before the bitmap library reads
+  it, and bound it
+  ([#1087](https://github.com/git-stunts/git-warp/issues/1087)). The bitmap
+  loader throws `RoaringShardRejectedError`. The class is not a package
+  export, so match on `error.code`:
+  - `E_ROARING_SHARD_MALFORMED`: the stored value is not a byte string, or
+    the bytes are not a valid portable encoding (no bytes, truncated bytes,
+    unknown cookie, unordered keys, wrong offsets, unordered array values,
+    bitmap or run contents that disagree with the header, or trailing bytes).
+  - `E_ROARING_SHARD_CARDINALITY`: an alive bitmap (the live nodes of one
+    meta shard) holds more than 2^24 values, which is more than one meta
+    shard can address.
+  - `E_ROARING_SHARD_TOO_LARGE`: one bitmap has more than 34,086,920 bytes.
+    With the default CBOR codec a stored bitmap cannot reach that size: the
+    codec refuses an index shard file above 5 MiB first, with its own error.
+  - `E_ROARING_SHARD_FORMAT`: a caller asked for a format other than the
+    portable format.
+
+  Alive bitmaps are bounded at 2^24 values. Edge bitmaps (the neighbours of
+  one node in one bucket) are bounded by bytes and by structure, not by
+  cardinality, because neighbours come from every meta shard. No write is
+  refused: the boundary checks a bitmap only when it is read. The byte limit
+  applies to one bitmap, not to an index shard file such as
+  `fwd_<shard>.cbor` or `shards_*.cbor`. One file holds many bitmaps, and
+  memory still grows with the number of bitmaps in a file. A large edge
+  bitmap can still make an index shard file larger than the 5 MiB that the
+  default codec reads; that limit is older than this change. An in-process
+  read that expands a very large edge bitmap into an array is not bounded by
+  this change; [#1159](https://github.com/git-stunts/git-warp/issues/1159)
+  tracks it. A checkpoint neighbourhood page does bounded work: it visits at
+  most 4 × `limit` + 256 stored candidates. When a stored edge bitmap names
+  many ids that are not live nodes, a page can therefore be `truncated` with
+  fewer than `limit` edges, or with none; its cursor continues the read.
+  `LogicalIndexReader` and the index updaters do not catch a rejection. When
+  the runtime builds or updates its in-memory view index, it catches any error
+  from them, logs the warning `index build failed` and continues without the
+  index. The incremental index update reads its shards
+  through the shard tree adapter, which refuses a stored value that is not a
+  byte string with `IndexError` `E_INDEX_SHARD_MALFORMED` and not with
+  `E_ROARING_SHARD_MALFORMED`; malformed bytes and an alive bitmap above the
+  bound still raise `RoaringShardRejectedError` there. Checkpoint shard reads (node liveness and
+  neighbourhood) report it as `QueryError` `E_OPTIC_NO_BOUNDED_BASIS` with
+  reason `checkpoint-shard-invalid` and keep the rejection as `cause`.
+  `BitmapIndexReader` also catches it: in strict mode (the default) it throws
+  `ShardCorruptionError` with the rejection message in
+  `context.originalError`, and in non-strict mode it logs a warning and
+  returns no neighbours from that bitmap. It reports a stored value that is
+  not a byte string the same way, without the `E_ROARING_SHARD_MALFORMED`
+  code. No consumer change is necessary. An index that a released writer
+  produced is read as before.
 - `Warp.open` no longer writes to the repository, so a deny-all opener opens and changes nothing.
   Opening a repository that the process cannot write to is not tested. A granted `execute` or
   `reconcile` opens the write path if no earlier call has, so an error from opening it rejects
