@@ -52,6 +52,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `E_SUBSTRATE_MIGRATION_REQUIRED` until the v20-to-v21 migration
   ([#1015](https://github.com/git-stunts/git-warp/issues/1015)) has run
   ([#1014](https://github.com/git-stunts/git-warp/issues/1014)).
+- The HTTP sync server limits the request rate of each socket peer before it
+  parses the body or does authentication work, and the limit is on by default
+  ([#1090](https://github.com/git-stunts/git-warp/issues/1090)): a burst of 60
+  requests and a refill of 10 requests per second for each peer address, with at
+  most 4096 tracked peers. There is no off switch. A peer over its limit receives
+  `429` with `{"error":"PEER_RATE_LIMITED"}` and a `Retry-After` header;
+  `syncWith` reports it as a non-retried `E_SYNC_PROTOCOL` "Protocol error: 429".
+  Before you upgrade a server behind a reverse proxy or NAT gateway, raise
+  `peerRateLimit` on `serve()` or `HttpSyncServer`: all its clients share one
+  budget, and one of them can use all of it. `HttpRequest` has a new
+  `peerAddress` field that the Node, Bun and Deno adapters fill from the
+  connected socket; forwarding headers such as `X-Forwarded-For` are never read.
+  A custom `HttpServerPort` adapter must fill `peerAddress` from the connected
+  socket, or all its clients share one budget (the server logs one warning). Each
+  refusal is logged and counted in `HttpSyncServer.getMetrics()`.
+  `HttpSyncServer` now requires a top-level `clock` (`ClockPort`); `serve()`
+  supplies the runtime clock. The per-key `auth.rateLimit` is unchanged, and the
+  limiter is not distributed. See
+  [Peer Admission Limit](.github/SECURITY.md#peer-admission-limit).
 - HTTP sync authentication moves to signature v3. The client signs a wall-clock
   epoch-millisecond timestamp instead of a Lamport counter, and the server
   accepts it within an inclusive 300,000 ms of its own clock. The durable nonce
@@ -263,21 +282,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#1042](https://github.com/git-stunts/git-warp/issues/1042)).
 
 ### Added
-
-- The HTTP sync server limits the request rate of each socket peer before it
-  parses the body or does authentication work
-  ([#1090](https://github.com/git-stunts/git-warp/issues/1090)). The limit is on by
-  default (a burst of 60 requests and a refill of 10 requests per second for each
-  peer address, at most 4096 tracked peers), and the `peerRateLimit` option of
-  `serve()` and `HttpSyncServer` changes it. A peer over its limit receives `429`
-  with `{"error":"PEER_RATE_LIMITED"}` and a `Retry-After` header. The key is the
-  address of the connected socket: `HttpRequest` has a new `peerAddress` field
-  that the Node, Bun and Deno adapters fill from the socket, and forwarding headers
-  such as `X-Forwarded-For` are never read. Clients behind one NAT gateway or one
-  reverse proxy share one budget, and the limiter is not distributed.
-  `HttpSyncServer` now requires a top-level `clock` (`ClockPort`); `serve()`
-  supplies the runtime clock. The per-key `auth.rateLimit` is unchanged. See
-  [Peer Admission Limit](.github/SECURITY.md#peer-admission-limit).
 
 - `Warp.open(address, access, { logger })` accepts an optional `LoggerPort`, now exported from
   the package root with the `LogFields`, `LogFieldValue` and `WarpOpenOptions` types. The `warn`
