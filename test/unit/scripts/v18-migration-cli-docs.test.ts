@@ -31,8 +31,8 @@ const GUIDANCE = Object.freeze({
   'docs/operations/README.md': ['example promote shell'],
   'scripts/v18-to-v19/README.md': ['example promote literal', 'help', 'example dry-run literal'],
 });
-/** Git flags that the guides quote for backups; they are not migration CLI flags. */
-const FOREIGN_FLAGS = new Set(['--no-hardlinks']);
+/** Git flags that the guides quote for backups and maintenance; they are not migration CLI flags. */
+const FOREIGN_FLAGS = new Set(['--no-hardlinks', '--cruft']);
 const MARKER = /^(?:> )?<!-- v18-to-v19-cli: ([a-z -]+) -->$/u;
 /** A line that invokes this command, directly or through the pinned package. */
 const COMMAND_LINE = /^(?:\$ )?(?:npm exec .*)?git-warp-v18-to-v19(?: |$)/u;
