@@ -42,7 +42,14 @@ function buildHttpRequest(req: IncomingMessage, body: Buffer): HttpRequest {
     url: req.url ?? '',
     headers: normalizeNodeHeaders(req.headers),
     body: body.length > 0 ? body : undefined,
+    peerAddress: socketPeerAddress(req),
   });
+}
+
+/** Reads the connected socket peer address; headers never supply it. */
+function socketPeerAddress(req: IncomingMessage): string | undefined {
+  const address = req.socket.remoteAddress;
+  return address === undefined || address.length === 0 ? undefined : address;
 }
 
 /**
