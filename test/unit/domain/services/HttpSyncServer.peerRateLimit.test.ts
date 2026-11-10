@@ -301,3 +301,27 @@ describe('HttpSyncServer peer refusal trace', () => {
     expect(h.server?.getMetrics()).toEqual({ peerRateLimitRejects: 3 });
   });
 });
+
+describe('HttpSyncServer transport without a peer address', () => {
+  // Oracle: review finding M-F-3 on PR #1162. An adapter that leaves
+  // peerAddress unset puts every client in one budget; the server says so once.
+  const NO_PEER_WARNING = 'sync server: requests without a socket peer address share one peer budget;'
+    + ' the HttpServerPort adapter should set peerAddress from the connected socket';
+
+  it('warns once per server, at the first request without a peer address', async () => {
+    const h = await new Harness().boot({ peerRateLimit: { ...LIMIT, capacity: 100 } });
+    await h.valid(PEER_A);
+    expect(h.serverLog.warnings).toEqual([]);
+    await h.statuses(5, () => h.valid(undefined));
+    await h.valid(PEER_B);
+    expect(h.serverLog.warnings).toEqual([{ message: NO_PEER_WARNING, fields: undefined }]);
+  });
+
+  it('warns again for a second server instance', async () => {
+    const h = await new Harness().boot();
+    await h.valid(undefined);
+    await h.boot();
+    await h.valid(undefined);
+    expect(h.serverLog.warnings.map((warning) => warning.message)).toEqual([NO_PEER_WARNING, NO_PEER_WARNING]);
+  });
+});

@@ -48,6 +48,7 @@ export default class HttpSyncServer {
   private readonly _authMode: string | null;
   private readonly _peerLimiter: SyncPeerRateLimiter;
   private readonly _metrics = { peerRateLimitRejects: 0 };
+  private _warnedNoPeerAddress = false;
 
   constructor(options: HttpSyncServerOptions) {
     const parsed = parseOptions(options);
@@ -179,6 +180,11 @@ export default class HttpSyncServer {
    * mode, so a refused request costs no JSON parse, hash, HMAC or nonce.
    */
   private _admitPeer(peerAddress: string | undefined): JsonHttpResponse | null {
+    if (peerAddress === undefined && !this._warnedNoPeerAddress) {
+      this._warnedNoPeerAddress = true;
+      this._logger.warn('sync server: requests without a socket peer address share one peer budget;'
+        + ' the HttpServerPort adapter should set peerAddress from the connected socket');
+    }
     const admission = this._peerLimiter.admit(peerAddress);
     if (admission.admitted) {
       return null;
