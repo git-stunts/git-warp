@@ -267,7 +267,9 @@ function edgeRemove(fields: EdgeFields): EdgeRemove {
     from: fields.from,
     to: fields.to,
     label: fields.label,
-    observedDots: ['agent-1:1'],
+    // A dot from an earlier patch: an edge remove must not list a dot that
+    // the same patch adds to a different element (#1120 same-patch check).
+    observedDots: ['agent-0:1'],
   });
 }
 

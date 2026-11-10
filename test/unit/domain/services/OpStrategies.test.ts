@@ -182,10 +182,12 @@ describe('NodeRemoveStrategy', () => {
     expect(observed.length).toBeGreaterThan(0);
 
     const diff = emptyDiff();
-    applied(state, 'NodeRemove', new NodeRemove('node:one', observed), eventId(2, 'writer-a'), diff);
+    const removeEvent = eventId(2, 'writer-a');
+    applied(state, 'NodeRemove', new NodeRemove('node:one', observed), removeEvent, diff);
 
     expect(state.nodeAlive.contains('node:one')).toBe(false);
     expect(diff.nodesRemoved).toStrictEqual(['node:one']);
+    expect(state.nodeClearEvent.get('node:one')).toBe(removeEvent);
   });
 
   it('rejects a one-shot generator for observedDots instead of silently no-opping', () => {

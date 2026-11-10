@@ -6,7 +6,9 @@
  * The pinned sha256 values were produced by running this file once against
  * the first implementation; they catch any later change to the encoding.
  * The receipt's value was pinned again the same way when the receipt gained
- * its floating tombstones.
+ * its floating tombstones, and again when the receipt began to list every
+ * tombstoned node dot (#1119): for this fixture it changed from no dots to
+ * `w:1` and `w:2`, which the receipt cases below assert.
  */
 
 import { createHash } from 'node:crypto';
@@ -132,7 +134,7 @@ const PINNED_SHA256: Readonly<Record<string, string>> = {
   'life_67.cbor': '848cffe39b3b7485c0d4fafc5d709118a552c03fa94e5928dd3311e2539470af',
   'life_9c.cbor': 'e474a9629b66510714a7861d59e5f2fd0838822bb06d40fe7292549e21afa63a',
   'life_b2.cbor': '68b76f460bcd447465e6f822d275dfb413df79fc952f57d220e55d627da0cff1',
-  'life_receipt.cbor': '795b03bc3efd341115d39668faf2ad970ad634f13c64680e326882bab46a76de',
+  'life_receipt.cbor': '31724cd8212619ff444677391eff2c07674027aee033d09dfbb5ffa47ecba5e1',
 };
 
 describe('node lifecycle receipt', () => {
@@ -140,7 +142,7 @@ describe('node lifecycle receipt', () => {
     return codec.decode<CodecValue>(encoded.get(NODE_LIFECYCLE_RECEIPT_PATH) ?? new Uint8Array());
   }
 
-  it('lists the node tombstones whose adds the state does not hold', async () => {
+  it('lists a tombstoned node dot whose add the state does not hold', async () => {
     // Writer x removed a dot of writer y that this state never received.
     const state = lifecycleState();
     applyPatchOp(state, new NodeRemove('plain', [encodeDot(Dot.create('y', 1))]), event(11, 'x'));
@@ -150,14 +152,17 @@ describe('node lifecycle receipt', () => {
     expect(decodeNodeLifecycleReceipt(receiptOf(encoded), paths)).toMatchObject({
       nodeCount: 3,
       shardCount: 3,
-      floatingTombstones: ['y:1'],
+      floatingTombstones: ['w:1', 'w:2', 'y:1'],
     });
   });
 
-  it('lists none when every removed dot has its add in the state', async () => {
+  it('lists the tombstoned node dots whose adds the state holds', async () => {
+    // `readded` holds w:1 and w:2 and both are removed; the live dots w:3 and w:4 are not listed.
     const encoded = await encode(NodeLifecycleIndexBuilder.fromState(lifecycleState()).yieldShards());
 
-    expect(decodeNodeLifecycleReceipt(receiptOf(encoded), [...encoded.keys()])).toMatchObject({ floatingTombstones: [] });
+    expect(decodeNodeLifecycleReceipt(receiptOf(encoded), [...encoded.keys()])).toMatchObject({
+      floatingTombstones: ['w:1', 'w:2'],
+    });
   });
 
   it('refuses floating tombstones that are not ascending encoded dots', () => {

@@ -197,6 +197,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Refuse a `NodeRemove` without `node`, or an `EdgeRemove` without `from`,
+  `to` and `label`, with `PatchError` (`E_PATCH_MALFORMED`). Before, the
+  reducer dropped such an op without a receipt entry, even when it listed
+  observed dots. Stored patches are not affected, because the patch decoder
+  already refused these shapes. Sync responses do not pass through that
+  decoder: `applySyncResponse` now refuses a whole response that contains an
+  ownerless remove and leaves the caller's state unchanged. A remove that
+  names its owner and lists no observed dots is still a lawful no-op, and its
+  receipt reports `redundant`
+  ([#193](https://github.com/git-stunts/git-warp/issues/193)).
+- Make `materialize({ receipts: true })`, and `materialize()` without a
+  retained earlier state (for example in a fresh clone after a sync), agree
+  with the patch history on Git storage. With two or more writers, a remove
+  could be applied before the add that it observed, so a removed node or
+  edge came back in the returned and cached state. A full replay still lists
+  receipts in writer order, so such an early remove still reports
+  `redundant`, but the element is now removed. A bounded checkpoint-tail
+  node or node-property read now gives the same answer as `materialize()`
+  after a checkpoint that holds the remove without the add: the node
+  lifecycle receipt of a new checkpoint (`life_receipt.cbor`,
+  `floatingTombstones`) lists every tombstoned node dot of the checkpoint
+  state, where it listed only the tombstoned dots that no add in the
+  checkpoint held. The receipt key and schema version do not change. One
+  path is not fixed: a host that receives the remove through `syncWith`,
+  creates a checkpoint, and then receives the add still reports the element
+  alive ([#1153](https://github.com/git-stunts/git-warp/issues/1153)).
+  Earlier versions can have
+  stored that wrong state in the checkpoint and in retained
+  materializations, and the fix does not repair them. On an affected
+  repository using the default Git storage configuration, close all runtime
+  hosts and their backing storage instances. Delete
+  `refs/warp/<graph>/checkpoints/head` and
+  `refs/cas/caches/git-warp/materializations`, then reopen and materialize
+  from history. A still-open host can retain the wrong state after both refs
+  are deleted. The materializations cache ref is shared across graphs;
+  preserve all writer refs and history, and close all runtimes using the
+  repository. This procedure does not cover custom state-snapshot caches
+  ([#1119](https://github.com/git-stunts/git-warp/issues/1119)).
+- Refuse a patch in which a remove lists an observed dot that the same patch
+  adds to a different element, with `CrossOwnerRemoveError`
+  (`E_PATCH_CROSS_OWNER_REMOVE`, a `PatchError`), at the patch decoder and at
+  sync ingress. No git-warp writer produces this shape. A remove that lists
+  another element's dot from an earlier patch is not refused yet
+  ([#1120](https://github.com/git-stunts/git-warp/issues/1120)).
 - Refuse unexpected CBOR tags before decoding peer-controlled repository
   blobs. Only supported Date, bigint, and `Uint8Array` tag encodings are
   accepted; regular expressions, shared references and other tag extensions
@@ -205,7 +249,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   smaller integer and floating epoch encodings remain supported. Existing byte,
   depth and item limits remain unchanged
   ([#1088](https://github.com/git-stunts/git-warp/issues/1088)).
-
 - Run the installed `npm run upgrade` command directly from its compiled
   entry, without rebuilding or deleting the package's `dist` directory.
   Source-checkout operators must run `npm run build` first. The packed smoke

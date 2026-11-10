@@ -1,8 +1,11 @@
 /**
- * OpStrategies — the per-op-type dispatch table used by the reducer.
+ * OpStrategies — per-op-type strategy table. Production code reads only
+ * `receiptName` (conflict analysis). The reducers call the `Op` class
+ * methods; the `validate`/`mutate`/`outcome`/`snapshot`/`accumulate`
+ * methods here run only in tests, and a debt card tracks removing them.
  *
- * Each concrete `OpStrategy` subclass owns the five operations that
- * the reducer needs for a single op type:
+ * Each concrete `OpStrategy` subclass carries five operations for a
+ * single op type:
  *
  *   1. `validate(op)`    — boundary field-shape checks
  *   2. `mutate(state, op, eventId)` — CRDT mutation (in place)
@@ -15,7 +18,8 @@
  * that share mutate / snapshot / accumulate helpers via protected
  * statics on the base class.
  *
- * `OP_STRATEGIES` is the frozen Map used by JoinReducer for dispatch.
+ * `OP_STRATEGIES` is a frozen Map; JoinReducer re-exports it but does not
+ * dispatch through it.
  *
  * @module domain/services/OpStrategies
  */
@@ -66,6 +70,30 @@ function observedDotSet(op: OpLike): Set<string> { // nosemgrep: ts-no-like-type
   return new Set<string>(raw);
 }
 
+/**
+ * Reads a required owner-identity field of a remove op. A remove must name
+ * its owner (#193), so a missing field is a malformed op, not a wildcard.
+ */
+function requiredOwnerField(op: OpLike, field: 'node' | 'from' | 'to' | 'label'): string { // nosemgrep: ts-no-like-types -- 0025C
+  const value = op[field];
+  if (typeof value !== 'string') {
+    throw new PatchError(
+      `${op.type} op requires '${field}' to be a string, got ${typeof value}`,
+      { context: { opType: op.type, field, actual: typeof value } },
+    );
+  }
+  return value;
+}
+
+/** Encodes the owning edge key of an `EdgeRemove` op. */
+function requiredEdgeKey(op: OpLike): string { // nosemgrep: ts-no-like-types -- 0025C
+  return encodeEdgeKey(
+    requiredOwnerField(op, 'from'),
+    requiredOwnerField(op, 'to'),
+    requiredOwnerField(op, 'label'),
+  );
+}
+
 class NodeAddStrategy extends OpStrategy {
   readonly receiptName = 'NodeAdd';
   validate(op: OpLike): void { OpValidator.assertString(op, 'node'); OpValidator.assertDot(op); } // nosemgrep: ts-no-like-types -- 0025C
@@ -90,22 +118,23 @@ class NodeAddStrategy extends OpStrategy {
 
 class NodeRemoveStrategy extends OpStrategy {
   readonly receiptName = 'NodeTombstone';
-  validate(op: OpLike): void { OpValidator.assertIterable(op, 'observedDots'); } // nosemgrep: ts-no-like-types -- 0025C
+  validate(op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
+    requiredOwnerField(op, 'node');
+    OpValidator.assertIterable(op, 'observedDots');
+  }
   mutate(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
+    const node = requiredOwnerField(op, 'node');
     const dots = observedDotSet(op);
     state.nodeAlive.remove(dots);
-    if (dots.size > 0 && typeof op.node === 'string') {
-      recordNodeRemove(state, op.node, eventId);
+    if (dots.size > 0) {
+      recordNodeRemove(state, node, eventId);
     }
   }
   outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
-    const outcomeOp: { node?: string; observedDots: Iterable<string> } = {
-      observedDots: op.observedDots as Iterable<string>,
-    };
-    if (typeof op.node === 'string') {
-      outcomeOp.node = op.node;
-    }
-    return ReceiptBuilder.nodeRemoveOutcome(state.nodeAlive, outcomeOp);
+    return ReceiptBuilder.nodeRemoveOutcome(state.nodeAlive, {
+      node: requiredOwnerField(op, 'node'),
+      observedDots: observedDotSet(op),
+    });
   }
   snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
     return { aliveBeforeNodes: DiffCalculator.aliveElementsForDots(state.nodeAlive, observedDotSet(op)) };
@@ -145,38 +174,28 @@ class EdgeAddStrategy extends OpStrategy {
 
 class EdgeRemoveStrategy extends OpStrategy {
   readonly receiptName = 'EdgeTombstone';
-  validate(op: OpLike): void { OpValidator.assertIterable(op, 'observedDots'); } // nosemgrep: ts-no-like-types -- 0025C
+  validate(op: OpLike): void { // nosemgrep: ts-no-like-types -- 0025C
+    requiredEdgeKey(op);
+    OpValidator.assertIterable(op, 'observedDots');
+  }
   mutate(state: WarpState, op: OpLike, eventId: EventId): void { // nosemgrep: ts-no-like-types -- 0025C
+    const edgeKey = requiredEdgeKey(op);
     const dots = observedDotSet(op);
     state.edgeAlive.remove(dots);
-    if (dots.size > 0 && typeof op.from === 'string' && typeof op.to === 'string' && typeof op.label === 'string') {
-      advanceLifecycleEvent(state.edgeRemoveEvent, encodeEdgeKey(op.from, op.to, op.label), eventId);
+    if (dots.size > 0) {
+      advanceLifecycleEvent(state.edgeRemoveEvent, edgeKey, eventId);
     }
   }
   outcome(state: WarpState, op: OpLike): OpOutcomeResult { // nosemgrep: ts-no-like-types -- 0025C
-    const outcomeOp: {
-      from?: string;
-      to?: string;
-      label?: string;
-      observedDots: Iterable<string>;
-    } = {
-      observedDots: op.observedDots as Iterable<string>,
-    };
-    if (typeof op.from === 'string') {
-      outcomeOp.from = op.from;
-    }
-    if (typeof op.to === 'string') {
-      outcomeOp.to = op.to;
-    }
-    if (typeof op.label === 'string') {
-      outcomeOp.label = op.label;
-    }
-    return ReceiptBuilder.edgeRemoveOutcome(state.edgeAlive, outcomeOp);
+    return ReceiptBuilder.edgeRemoveOutcome(state.edgeAlive, {
+      from: requiredOwnerField(op, 'from'),
+      to: requiredOwnerField(op, 'to'),
+      label: requiredOwnerField(op, 'label'),
+      observedDots: observedDotSet(op),
+    });
   }
   snapshot(state: WarpState, op: OpLike): SnapshotBeforeOp { // nosemgrep: ts-no-like-types -- 0025C
-    const rawEdgeDots = op.observedDots as Iterable<string>;
-    const edgeDots = rawEdgeDots instanceof Set ? rawEdgeDots : new Set(rawEdgeDots);
-    return { aliveBeforeEdges: DiffCalculator.aliveElementsForDots(state.edgeAlive, edgeDots) };
+    return { aliveBeforeEdges: DiffCalculator.aliveElementsForDots(state.edgeAlive, observedDotSet(op)) };
   }
   accumulate(diff: MutablePatchDiff, state: WarpState, _op: OpLike, before: SnapshotBeforeOp): void { // nosemgrep: ts-no-like-types -- 0025C
     DiffCalculator.collectEdgeRemovals(diff, state, before.aliveBeforeEdges);

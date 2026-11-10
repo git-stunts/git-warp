@@ -30,7 +30,7 @@ describe('PatchHydrator', () => {
       ops: [
         { type: 'NodeAdd', id: 'user:alice', dot: ['alice', 1] },
         { type: 'EdgeAdd', from: 'user:alice', to: 'user:bob', label: 'friend', dot: { writer: 'alice', seq: 2 } },
-        { type: 'NodeRemove', node: 'user:charlie', observedDots: ['alice:1'] },
+        { type: 'NodeRemove', node: 'user:charlie', observedDots: ['carol:1'] },
         {
           type: 'EdgeRemove',
           from: 'user:alice',

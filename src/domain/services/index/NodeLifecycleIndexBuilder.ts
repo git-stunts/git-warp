@@ -4,7 +4,7 @@
  * One `life_XX.cbor` shard per index shard key holds a NodeLifecycleRecord
  * for every node with a lifecycle record or a register that is not stale,
  * and one `life_receipt.cbor` marks the root as carrying the family and
- * lists the node tombstones whose adds the state does not hold.
+ * lists every tombstoned node dot of the state.
  *
  * @module domain/services/index/NodeLifecycleIndexBuilder
  */
@@ -23,14 +23,14 @@ const NODE_LIFECYCLE_RECEIPT_SHARDS = 1;
 
 export default class NodeLifecycleIndexBuilder {
   private readonly _recordsByShard: ReadonlyMap<string, readonly NodeLifecycleRecord[]>;
-  private readonly _floatingTombstones: readonly string[];
+  private readonly _tombstonedDots: readonly string[];
 
   private constructor(
     recordsByShard: ReadonlyMap<string, readonly NodeLifecycleRecord[]>,
-    floatingTombstones: readonly string[],
+    tombstonedDots: readonly string[],
   ) {
     this._recordsByShard = recordsByShard;
-    this._floatingTombstones = Object.freeze([...floatingTombstones]);
+    this._tombstonedDots = Object.freeze([...tombstonedDots]);
     Object.freeze(this);
   }
 
@@ -53,7 +53,7 @@ export default class NodeLifecycleIndexBuilder {
       }
     }
     return new NodeLifecycleIndexBuilder(
-      NodeLifecycleIndexBuilder.captureRecords(state, nodesByShard), floatingNodeTombstones(state),
+      NodeLifecycleIndexBuilder.captureRecords(state, nodesByShard), tombstonedNodeDots(state),
     );
   }
 
@@ -93,7 +93,7 @@ export default class NodeLifecycleIndexBuilder {
     yield new NodeLifecycleReceipt({
       nodeCount,
       shardCount: this._recordsByShard.size,
-      floatingTombstones: this._floatingTombstones,
+      floatingTombstones: this._tombstonedDots,
     });
   }
 
@@ -114,13 +114,15 @@ function eventIdOf(event: Pick<EventId, 'lamport' | 'writerId' | 'patchSha' | 'o
 }
 
 /**
- * Node tombstones whose additions this state has never held. Membership
- * compaction retains causal evidence; only tombstones without a held add
- * belong in the floating-removal receipt.
+ * Every tombstoned node dot of the state, ascending. A tombstoned dot is
+ * never live, so a bounded read can decide from this list that a tail add
+ * with such a dot is dead. The list does not leave out a dot that a node
+ * entry holds: the session trie keeps the tombstone of a remove that came
+ * before its add by reserving the dot under the element (#1119), and that
+ * add can still arrive as checkpoint tail.
  */
-function floatingNodeTombstones(state: WarpState): readonly string[] {
-  const held = new Set(state.nodeAlive.entryDotsIter());
-  return [...state.nodeAlive.tombstonesIter()].filter((dot) => !held.has(dot)).sort(compareStrings);
+function tombstonedNodeDots(state: WarpState): readonly string[] {
+  return [...state.nodeAlive.tombstonesIter()].sort(compareStrings);
 }
 
 function lifecycleNodeIds(state: WarpState): ReadonlySet<string> {
