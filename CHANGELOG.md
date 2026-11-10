@@ -65,8 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `peerAddress` field that the Node, Bun and Deno adapters fill from the
   connected socket; forwarding headers such as `X-Forwarded-For` are never read.
   A custom `HttpServerPort` adapter must fill `peerAddress` from the connected
-  socket, or all its clients share one budget (the server logs one warning). Each
-  refusal is logged and counted in `HttpSyncServer.getMetrics()`.
+  socket, or all its clients share one budget (the server logs one warning). When
+  the runtime has a logger, each refusal is logged. A caller that constructs
+  `HttpSyncServer` directly can read the count as
+  `HttpSyncServer.getMetrics().peerRateLimitRejects`; `serve()` exposes no
+  metrics.
   `HttpSyncServer` now requires a top-level `clock` (`ClockPort`); `serve()`
   supplies the runtime clock. The per-key `auth.rateLimit` is unchanged, and the
   limiter is not distributed. See

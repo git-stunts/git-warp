@@ -71,7 +71,7 @@ External error responses use coarse status codes and generic reason strings:
 - `403` — Expired timestamp, replayed nonce
 - `429` — `PEER_RATE_LIMITED` (the socket peer is over its admission limit; the response has a `Retry-After` header) or `RATE_LIMITED` (the key-id is over its configured limit)
 
-Detailed authentication diagnostics (exact failure reason, key-id) are sent to the structured logger only. A peer admission refusal logs the peer address and the `Retry-After` value to the server's structured logger; see [Peer Admission Limit](#peer-admission-limit).
+Detailed authentication diagnostics (exact failure reason, key-id) are sent to the structured logger only. A peer admission refusal logs the peer address and the `Retry-After` value to the server's structured logger, when the runtime has a logger; see [Peer Admission Limit](#peer-admission-limit).
 
 ### Nonce Cache and Restart Semantics
 
@@ -159,13 +159,16 @@ limit and is unchanged.
   `Retry-After` is never more than 86,400 seconds. The server refuses a value
   outside these ranges and refuses any other key. There is no switch that
   disables the limit.
-- **Trace.** Each refusal logs one warning, `sync server: peer rate limit
-  exceeded`, with the fields `peer` (the peer address, or `null` for the
-  shared no-address budget) and `retryAfterSeconds`, and increments
-  `peerRateLimitRejects` in `HttpSyncServer.getMetrics()`. The server logs
+- **Trace.** When the runtime has a logger, each refusal logs one warning,
+  `sync server: peer rate limit exceeded`, with the fields `peer` (the peer
+  address, or `null` for the shared no-address budget) and
+  `retryAfterSeconds`. Without a logger, nothing is logged. The server logs
   every refusal, so a flood of refused requests gives one warning for each
   request. The first request without a peer address also logs one warning
-  for each server instance.
+  for each server instance. A caller that constructs `HttpSyncServer`
+  directly can read the refusal count as
+  `HttpSyncServer.getMetrics().peerRateLimitRejects`; `serve()` returns only
+  `{ url, close }` and exposes no metrics.
 - **Peer table.** When a new peer makes the table larger than
   `maxTrackedPeers`, the server evicts the peer that it saw least recently. A
   refused request counts as recent use. Thus a peer that continues to send
@@ -178,7 +181,9 @@ The default comes from the measured cost of one rejected request. The
 measurement is `test/benchmark/SyncRejectionCost.benchmark.ts`, run in the
 Docker test image (Node.js 22.23.4, linux arm64) against the server's request
 handler in process, without a socket. The figures do not include reading the
-body from the socket, which every request costs, refused or not. Each row has 5 warm-up requests and then 300 measured
+body from the socket, which every request costs, refused or not, and the
+refused-request figure does not include writing the log line, because the
+benchmark server has no logger. Each row has 5 warm-up requests and then 300 measured
 requests (40 for the 4 MiB body). The values are wall-clock milliseconds as
 p50 / p99.
 
