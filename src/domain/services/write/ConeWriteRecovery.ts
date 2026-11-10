@@ -39,14 +39,15 @@ const RETENTION_EXHAUSTED = 'retention-capacity-exhausted';
 /** It was cancelled, or never held a slot: either way it cannot have published. Anything else may clear, so its record stays. */
 const FINISHED_REFUSALS: ReadonlySet<ObservationRefusalReason> = new Set<ObservationRefusalReason>(['cancelled', 'capacity-full']);
 
+/** What a recovery is built from, kept so a sweep can build its budgeted twin. */
+type ConeWriteRecoveryFields = ConstructorParameters<typeof ConeWriteRecovery>[0];
+
 /**
  * Resolves write attempts a process left unfinished (#1051), from what can prove
  * their fate: the ledger and the writer's chain. Nothing here publishes or retries
  * an intent. An armed attempt stays charged, and with no finding stays unresolved until
  * its writer's next patch shows the attempt can no longer land.
  */
-type ConeWriteRecoveryFields = ConstructorParameters<typeof ConeWriteRecovery>[0];
-
 export default class ConeWriteRecovery {
   readonly #fields: ConeWriteRecoveryFields;
   readonly #graph: string;

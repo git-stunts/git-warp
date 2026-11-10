@@ -1,33 +1,43 @@
 import { describe, expect, it, vi } from 'vitest';
 import IndeterminateWriteReceipt from '../../../../../src/domain/api/IndeterminateWriteReceipt.ts';
 import UnpublishedWriteReceipt from '../../../../../src/domain/api/UnpublishedWriteReceipt.ts';
-import MessageCodecError from '../../../../../src/domain/errors/MessageCodecError.ts';
-import type ObservationAttempt from '../../../../../src/domain/services/custody/ObservationAttempt.ts';
-import ObservationAdmitted from '../../../../../src/domain/services/custody/ObservationAdmitted.ts';
+import CustodyAcknowledged from '../../../../../src/domain/services/custody/CustodyAcknowledged.ts';
+import type { CustodyTransition } from '../../../../../src/domain/services/custody/CustodyOutcome.ts';
+import CustodyRefused from '../../../../../src/domain/services/custody/CustodyRefused.ts';
 import ObservationAttemptId from '../../../../../src/domain/services/custody/ObservationAttemptId.ts';
 import ObservationBindings from '../../../../../src/domain/services/custody/ObservationBindings.ts';
 import ObservationBudget from '../../../../../src/domain/services/custody/ObservationBudget.ts';
-import type ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
+import type ObservationCustodyIdentity from '../../../../../src/domain/services/custody/ObservationCustodyIdentity.ts';
+import ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
 import ObservationDependencyClaim from '../../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDigest from '../../../../../src/domain/services/custody/ObservationDigest.ts';
 import ObservationPreparation from '../../../../../src/domain/services/custody/ObservationPreparation.ts';
 import ObservationQuestion from '../../../../../src/domain/services/custody/ObservationQuestion.ts';
-import ObservationRefused from '../../../../../src/domain/services/custody/ObservationRefused.ts';
 import ObservationWritePremise from '../../../../../src/domain/services/custody/ObservationWritePremise.ts';
 import ConeWriteRecovery, { SWEEP_READ_BUDGET } from '../../../../../src/domain/services/write/ConeWriteRecovery.ts';
-import type ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
+import ConeWriteSettlement from '../../../../../src/domain/services/write/ConeWriteSettlement.ts';
 import WriteAttemptListing from '../../../../../src/domain/services/write/WriteAttemptListing.ts';
 import WriteAttemptRecord from '../../../../../src/domain/services/write/WriteAttemptRecord.ts';
 import WritePublicationProbe, {
   PUBLICATION_PROBE_READS,
   type WritePublicationHistory,
 } from '../../../../../src/domain/services/write/WritePublicationProbe.ts';
+import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
+import NodeCryptoAdapter from '../../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
+import ObservationCustodyCborCodec from '../../../../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
+import codec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import type { NodeInfo } from '../../../../../src/ports/CommitPort.ts';
-import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';
+import { createGitCasPatchStorage } from '../../../../../src/ports/CommitMessageCodecPort.ts';
 import WriteAttemptJournalPort from '../../../../../src/ports/WriteAttemptJournalPort.ts';
+import { ScriptedCustody, ScriptedSupport } from '../../../../helpers/ScriptedObservationPorts.ts';
 
 const TIP = 'c'.repeat(40);
-const ATTEMPT_ARMED = { identity: {} } as ObservationAttempt;
+/** A real patch commit message by `alice` that names an attempt no record here has. */
+const ANOTHER_PATCH = DEFAULT_COMMIT_MESSAGE_CODEC.encodePatch({
+  kind: 'patch', graph: 'g', writer: 'alice', lamport: 1, schema: 2, patchHandle: new AssetHandle('asset:another-patch'),
+  storage: createGitCasPatchStorage({ encrypted: false }), publicationAttempt: 'f'.repeat(32),
+});
 /** Probes one sweep can afford when each finds its predecessor out of reach. */
 const OUT_OF_REACH_PER_SWEEP = Math.floor(SWEEP_READ_BUDGET / PUBLICATION_PROBE_READS);
 
@@ -52,7 +62,7 @@ class EndlessChain implements WritePublicationHistory {
   }
 
   getNodeInfo(sha: string): Promise<NodeInfo> {
-    return Promise.resolve({ sha, message: '', author: 'a', date: 'd', parents: [TIP] });
+    return Promise.resolve({ sha, message: ANOTHER_PATCH, author: 'a', date: 'd', parents: [TIP] });
   }
 
   firstParentsSince(range: { readonly limit: number }): Promise<readonly string[]> {
@@ -97,10 +107,10 @@ class MemoryJournal extends WriteAttemptJournalPort {
 
 const LOST_PREDECESSOR = 'e'.repeat(40);
 
-/** A chain whose tip directly follows `LOST_PREDECESSOR`, in a message that names no attempt. */
+/** A chain whose tip directly follows `LOST_PREDECESSOR`, in a patch that names another attempt. */
 class ShortChain extends EndlessChain {
   override getNodeInfo(sha: string): Promise<NodeInfo> {
-    return Promise.resolve({ sha, message: '', author: 'a', date: 'd', parents: [LOST_PREDECESSOR] });
+    return Promise.resolve({ sha, message: ANOTHER_PATCH, author: 'a', date: 'd', parents: [LOST_PREDECESSOR] });
   }
 
   override firstParentsSince(): Promise<readonly string[]> {
@@ -108,17 +118,31 @@ class ShortChain extends EndlessChain {
   }
 }
 
-const UNNAMED_MESSAGES = { decodePatch: () => { throw new MessageCodecError('not a patch'); } } as unknown as CommitMessageCodecPort;
+/** A scripted ledger that counts the transitions a recovery asks of it. */
+class CountedCustody extends ScriptedCustody {
+  reserves = 0;
 
-function recoveryOver(journal: MemoryJournal, chain: EndlessChain): { readonly recovery: ConeWriteRecovery; readonly resume: ReturnType<typeof vi.fn> } {
-  const resume = vi.fn(() => Promise.resolve(new ObservationAdmitted(ATTEMPT_ARMED, 'armed')));
-  const recovery = new ConeWriteRecovery({
-    graph: 'g', clock: () => 1, journal,
-    custody: { resume, recoverCoordinate: () => Promise.resolve(new ObservationRefused('not-settled')) } as unknown as ObservationCustodyService,
-    probe: new WritePublicationProbe({ graph: 'g', history: chain, messages: UNNAMED_MESSAGES }),
-    settlement: {} as ConeWriteSettlement,
+  override async reserve(identity: ObservationCustodyIdentity): Promise<CustodyTransition> {
+    this.reserves += 1;
+    return await super.reserve(identity);
+  }
+}
+
+/** Real recovery, custody service and settlement over a ledger that holds every attempt armed and unsettled. */
+function recoveryOver(journal: MemoryJournal, chain: EndlessChain): { readonly recovery: ConeWriteRecovery; readonly ledger: CountedCustody } {
+  const ledger = new CountedCustody();
+  ledger.reserved = new CustodyAcknowledged('recovered', 'armed');
+  ledger.evidence.settlement = new CustodyRefused('not-settled');
+  const custody = new ObservationCustodyService({
+    custody: ledger, support: new ScriptedSupport(), codec: new ObservationCustodyCborCodec(codec), crypto: new NodeCryptoAdapter(),
+    attempts: { next: () => new ObservationAttemptId('9'.repeat(32)) },
   });
-  return { recovery, resume };
+  const recovery = new ConeWriteRecovery({
+    graph: 'g', clock: () => 1, journal, custody,
+    probe: new WritePublicationProbe({ graph: 'g', history: chain, messages: DEFAULT_COMMIT_MESSAGE_CODEC }),
+    settlement: new ConeWriteSettlement({ graph: 'g', custody, journal }),
+  });
+  return { recovery, ledger };
 }
 
 describe('ConeWriteRecovery sweep budget (#1075)', () => {
@@ -139,11 +163,11 @@ describe('ConeWriteRecovery sweep budget (#1075)', () => {
   it('stops a sweep once it cannot afford another full probe, leaving the rest for later opens', async () => {
     const journal = new MemoryJournal(Array.from({ length: OUT_OF_REACH_PER_SWEEP + 2 }, (_, index) => recordOf(index, 'd'.repeat(40))));
     const chain = new EndlessChain();
-    const { recovery, resume } = recoveryOver(journal, chain);
+    const { recovery, ledger } = recoveryOver(journal, chain);
 
     await recovery.sweep();
 
-    expect(resume).toHaveBeenCalledTimes(OUT_OF_REACH_PER_SWEEP);
+    expect(ledger.reserves).toBe(OUT_OF_REACH_PER_SWEEP);
     expect(chain.listed).toBeLessThanOrEqual(SWEEP_READ_BUDGET);
     expect([...journal.records.values()].filter((record) => record.reported)).toHaveLength(OUT_OF_REACH_PER_SWEEP);
   });

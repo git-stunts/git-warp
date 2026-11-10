@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { NodeInfo } from '../../../../../src/ports/CommitPort.ts';
-import type CommitMessageCodecPort from '../../../../../src/ports/CommitMessageCodecPort.ts';
+import { createGitCasPatchStorage } from '../../../../../src/ports/CommitMessageCodecPort.ts';
+import AssetHandle from '../../../../../src/domain/storage/AssetHandle.ts';
 import ObservationAttemptId from '../../../../../src/domain/services/custody/ObservationAttemptId.ts';
 import ObservationBindings from '../../../../../src/domain/services/custody/ObservationBindings.ts';
 import ObservationBudget from '../../../../../src/domain/services/custody/ObservationBudget.ts';
@@ -13,6 +14,7 @@ import WriteAttemptRecord from '../../../../../src/domain/services/write/WriteAt
 import WritePublicationProbe, * as probing from '../../../../../src/domain/services/write/WritePublicationProbe.ts';
 import type { WritePublicationHistory } from '../../../../../src/domain/services/write/WritePublicationProbe.ts';
 import WriteReadBudget from '../../../../../src/domain/services/write/WriteReadBudget.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 
 const ATTEMPT = new ObservationAttemptId('a'.repeat(32));
 const DIGEST = new ObservationDigest('b'.repeat(64));
@@ -27,13 +29,16 @@ function shaAt(depth: number): string {
   return depth.toString(16).padStart(40, '0');
 }
 
-/** Reads back the graph, writer and attempt a fake patch message names, as `graph|writer|attempt`. */
-const NAMED_MESSAGES = {
-  decodePatch: (message: string) => {
-    const [graph = '', writer = '', publicationAttempt = ''] = message.split('|');
-    return { graph, writer, publicationAttempt };
-  },
-} as unknown as CommitMessageCodecPort;
+/** A real patch commit message on graph `g` by `alice`, naming the attempt that published it. */
+function patchNaming(publicationAttempt: string): string {
+  return DEFAULT_COMMIT_MESSAGE_CODEC.encodePatch({
+    kind: 'patch', graph: 'g', writer: 'alice', lamport: 1, schema: 2, patchHandle: new AssetHandle('asset:patch'),
+    storage: createGitCasPatchStorage({ encrypted: false }), publicationAttempt,
+  });
+}
+
+const OWN_PATCH = patchNaming(ATTEMPT.value);
+const ANOTHER_PATCH = patchNaming('f'.repeat(32));
 
 /** One writer's linear chain of `length` commits; the root is at depth `length - 1`. Every read is counted. */
 class CountedChain implements WritePublicationHistory {
@@ -80,11 +85,11 @@ function recordAfter(predecessor: string | null): WriteAttemptRecord {
 
 /** A chain whose commit at `ownDepth` names this attempt; every other commit names another one. */
 function chainNaming(length: number, ownDepth: number): CountedChain {
-  return new CountedChain(length, (depth) => `g|alice|${depth === ownDepth ? ATTEMPT.value : 'f'.repeat(32)}`);
+  return new CountedChain(length, (depth) => (depth === ownDepth ? OWN_PATCH : ANOTHER_PATCH));
 }
 
 function probeOver(history: CountedChain): WritePublicationProbe {
-  return new WritePublicationProbe({ graph: 'g', history, messages: NAMED_MESSAGES });
+  return new WritePublicationProbe({ graph: 'g', history, messages: DEFAULT_COMMIT_MESSAGE_CODEC });
 }
 
 describe('WritePublicationProbe on a deep chain (#1075)', () => {
@@ -121,7 +126,7 @@ describe('WritePublicationProbe on a deep chain (#1075)', () => {
     await expect(probeOver(chainNaming(0, 0)).locate(recordAfter(null))).resolves.toEqual({ kind: 'none' });
     const elsewhere = 'e'.repeat(40);
     await expect(probeOver(chainNaming(10, 9)).locate(recordAfter(elsewhere))).resolves.toEqual({ kind: 'none' });
-    const empty = new CountedChain(10, () => '');
+    const empty = new CountedChain(10, () => ANOTHER_PATCH);
     empty.firstParentsSince = () => Promise.resolve([]);
     await expect(probeOver(empty).locate(recordAfter(elsewhere))).resolves.toEqual({ kind: 'none' });
   });
