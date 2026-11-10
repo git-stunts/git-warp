@@ -1,10 +1,12 @@
 import WarpError from './WarpError.ts';
 
 /**
- * A serialized Roaring bitmap shard failed boundary validation.
+ * A Roaring bitmap shard failed boundary validation.
  *
- * Shards come from peers and from retained storage, so they are untrusted.
- * The boundary raises this error before the bitmap library reads the bytes.
+ * Serialized shards come from peers and from retained storage, so they are
+ * untrusted. The boundary raises this error before the bitmap library reads
+ * the bytes. The boundary also raises it before a writer serializes a
+ * bitmap above the support limit, because every reader refuses such a shard.
  *
  * ## Error Codes
  *
@@ -14,6 +16,7 @@ import WarpError from './WarpError.ts';
  * | `E_ROARING_SHARD_TOO_LARGE` | The shard has more bytes than the declared bound |
  * | `E_ROARING_SHARD_CARDINALITY` | The container headers declare more values than the declared bound |
  * | `E_ROARING_SHARD_FORMAT` | A caller asked for a serialization format that the boundary does not validate |
+ * | `E_ROARING_SHARD_WRITE_CARDINALITY` | A writer tried to serialize a bitmap that holds more values than the declared bound |
  */
 export default class RoaringShardRejectedError extends WarpError {
   private constructor(message: string, code: string, context: Record<string, string | number>) {
@@ -41,6 +44,14 @@ export default class RoaringShardRejectedError extends WarpError {
     return new RoaringShardRejectedError(
       `Roaring shard declares ${cardinality} values; the bound is ${maxCardinality}`,
       'E_ROARING_SHARD_CARDINALITY',
+      { cardinality, maxCardinality },
+    );
+  }
+
+  static cardinalityUnwritable(cardinality: number, maxCardinality: number): RoaringShardRejectedError {
+    return new RoaringShardRejectedError(
+      `Roaring bitmap holds ${cardinality} values; one bitmap can hold ${maxCardinality} at most`,
+      'E_ROARING_SHARD_WRITE_CARDINALITY',
       { cardinality, maxCardinality },
     );
   }

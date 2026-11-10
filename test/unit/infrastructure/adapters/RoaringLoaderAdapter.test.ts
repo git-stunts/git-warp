@@ -198,6 +198,31 @@ describe('RoaringLoaderAdapter', () => {
     expect(adapter.getNativeRoaringAvailable()).toBe(true);
   });
 
+  it('applies the declared cardinality bound when any bitmap of an injected library is written', async () => {
+    const { default: boundRoaringConstructor } = await import(
+      '../../../../src/infrastructure/adapters/BoundedRoaringConstructor.ts'
+    );
+    const { default: RoaringShardBounds } = await import(
+      '../../../../src/infrastructure/adapters/RoaringShardBounds.ts'
+    );
+    const library = createBitmapConstructor({ label: 'WrittenBitmap' });
+    const Bounded = boundRoaringConstructor(library, new RoaringShardBounds({ maxBytes: 64, maxCardinality: 3 }));
+    const loaded = Bounded.deserialize(encodePortableShard([{ kind: 'array', key: 0, values: [1, 2, 3] }]), true);
+    const built = new Bounded([1, 2, 3]);
+
+    expect(built.serialize(true)).toEqual(new Uint8Array([1, 2, 3]));
+    expect(loaded).toBeInstanceOf(library);
+    loaded.add(200);
+    built.add(4);
+
+    for (const bitmap of [loaded, built]) {
+      expect(() => bitmap.serialize(true)).toThrow(expect.objectContaining({
+        code: 'E_ROARING_SHARD_WRITE_CARDINALITY',
+        context: { cardinality: bitmap.size, maxCardinality: 3 },
+      }));
+    }
+  });
+
   it('treats a module without a usable constructor as unavailable', async () => {
     const adapter = await importFreshAdapter();
 

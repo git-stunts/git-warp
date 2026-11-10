@@ -1,6 +1,16 @@
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
 
-/** Values one meta shard can address: global ids carry a 24-bit local id. */
+/**
+ * The support limit for the number of values in one bitmap.
+ *
+ * An alive bitmap holds global ids of one meta shard. A global id carries a
+ * 24-bit local id, so an alive bitmap cannot hold more than 2^24 values. An
+ * edge bitmap holds the global ids of the neighbours of one node in one
+ * bucket. Neighbours come from all 256 meta shards, so the id space does
+ * not limit an edge bitmap. For an edge bitmap, 2^24 is a chosen support
+ * limit: a node with more than 2^24 neighbours in one bucket is not
+ * supported. The boundary applies the limit on write and on read.
+ */
 const MAX_CARDINALITY = 2 ** 24;
 const PORTABLE_PREFIX_BYTES = 8;
 const RUN_FLAG_BYTES = 65536 / 8;
@@ -28,11 +38,11 @@ function requirePositiveInteger(value: number, name: string): number {
 /**
  * The declared resource bounds for one serialized Roaring bitmap shard.
  *
- * The standard bounds hold 2^24 values: the whole local-id space of one
- * meta shard. Measured payloads are far below them. In a 1M-node graph
- * with 5 edges per node, the largest shard holds 4,278 values in 8,208
- * bytes. When one hub node links to every other node, its shard holds
- * 999,999 values in 1,992,642 bytes: about 1/17 of each bound.
+ * The standard bounds hold 2^24 values in one bitmap. Measured payloads are
+ * far below them. In a 1M-node graph with 5 edges per node, the largest
+ * shard holds 4,278 values in 8,208 bytes. When one hub node links to every
+ * other node, its shard holds 999,999 values in 1,992,642 bytes: about 1/17
+ * of each bound.
  */
 export default class RoaringShardBounds {
   static readonly MAX_CARDINALITY = MAX_CARDINALITY;

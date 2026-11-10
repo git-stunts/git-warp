@@ -77,6 +77,50 @@ describe('peer-controlled bitmap shards meet the boundary before the bitmap libr
     expect(rejection(bomb).code).toBe('E_ROARING_SHARD_CARDINALITY');
   });
 
+  it('rejects a hand-built shard exactly one value above the cardinality bound', () => {
+    const oneAbove = encodePortableShard([
+      ...fullRunContainers(256),
+      { kind: 'array', key: 256, values: [0] },
+    ]);
+    const error = rejection(oneAbove);
+    expect(error.code).toBe('E_ROARING_SHARD_CARDINALITY');
+    expect(error.context).toEqual({
+      cardinality: RoaringShardBounds.MAX_CARDINALITY + 1,
+      maxCardinality: RoaringShardBounds.MAX_CARDINALITY,
+    });
+  });
+
+  it('writes a bitmap that holds exactly the cardinality bound and reads it back', () => {
+    const atBound = Bitmap.deserialize(encodePortableShard(fullRunContainers(256)), true);
+
+    const written = atBound.serialize(true);
+
+    expect(Bitmap.deserialize(written, true).size).toBe(RoaringShardBounds.MAX_CARDINALITY);
+  });
+
+  it('refuses to write a loaded bitmap that grew one value above the cardinality bound', () => {
+    const grown = Bitmap.deserialize(encodePortableShard(fullRunContainers(256)), true);
+    grown.add(RoaringShardBounds.MAX_CARDINALITY);
+
+    expect(() => grown.serialize(true)).toThrow(expect.objectContaining({
+      code: 'E_ROARING_SHARD_WRITE_CARDINALITY',
+      context: {
+        cardinality: RoaringShardBounds.MAX_CARDINALITY + 1,
+        maxCardinality: RoaringShardBounds.MAX_CARDINALITY,
+      },
+    }));
+  });
+
+  it('refuses to write a new bitmap that holds one value above the cardinality bound', () => {
+    const built = new Bitmap();
+    built.orInPlace(Bitmap.deserialize(encodePortableShard(fullRunContainers(256)), true));
+    built.add(RoaringShardBounds.MAX_CARDINALITY);
+
+    expect(() => built.serialize(true)).toThrow(RoaringShardRejectedError);
+    built.remove(RoaringShardBounds.MAX_CARDINALITY);
+    expect(Bitmap.deserialize(built.serialize(true), true).size).toBe(RoaringShardBounds.MAX_CARDINALITY);
+  });
+
   it('rejects a shard one byte above the size bound before it is loaded', () => {
     const oversized = new Uint8Array(RoaringShardBounds.MAX_BYTES + 1);
     expect(rejection(oversized).code).toBe('E_ROARING_SHARD_TOO_LARGE');
