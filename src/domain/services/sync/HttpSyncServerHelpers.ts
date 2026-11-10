@@ -18,6 +18,7 @@ import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type HttpServerPort from '../../../ports/HttpServerPort.ts';
 import type SyncReplayProtectionPort from '../../../ports/SyncReplayProtectionPort.ts';
+import type ClockPort from '../../../ports/ClockPort.ts';
 import type { SyncRequest } from './SyncProtocol.ts';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -49,6 +50,11 @@ export const authSchema = z.object({
     (v) => v !== null && v !== undefined && typeof v === 'object'
       && typeof Reflect.get(v, 'reserve') === 'function',
     'auth.replayProtection must provide atomic reserve()',
+  ),
+  clock: z.custom<ClockPort>(
+    (v) => v !== null && v !== undefined && typeof v === 'object'
+      && typeof Reflect.get(v, 'nowMs') === 'function',
+    'auth.clock must provide nowMs()',
   ),
   rateLimit: z.object({
     capacity: z.number().int().positive(),
@@ -299,6 +305,7 @@ interface AuthConfig {
   crypto?: CryptoPort;
   logger?: LoggerPort;
   replayProtection: SyncReplayProtectionPort;
+  clock: ClockPort;
   allowedWriters?: string[];
   rateLimit?: SyncRateLimitConfig;
 }
@@ -310,6 +317,7 @@ function buildAuthConfig(auth: AuthSchemaInput, allowedWriters: string[] | undef
     ...cryptoField(auth),
     ...loggerField(auth),
     replayProtection: auth.replayProtection,
+    clock: auth.clock,
     ...rateLimitField(auth),
     ...allowedWritersField(allowedWriters),
   };
@@ -421,6 +429,7 @@ export interface HttpSyncServerOptions {
     crypto?: CryptoPort;
     logger?: LoggerPort;
     replayProtection: SyncReplayProtectionPort;
+    clock: ClockPort;
     rateLimit?: SyncRateLimitConfig;
   };
   unsafeAllowUnauthenticatedLocalhost?: boolean;

@@ -6,6 +6,7 @@ import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTime
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import HostRandomAdapter from '../../src/infrastructure/adapters/HostRandomAdapter.ts';
+import HostClockAdapter from '../../src/infrastructure/adapters/HostClockAdapter.ts';
 import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 
 export async function openScratchGraph(
@@ -30,6 +31,7 @@ export async function openScratchGraph(
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       crypto: new WebCryptoAdapter(),
       random: new HostRandomAdapter(),
+      clock: new HostClockAdapter(),
     });
     return Object.freeze({
       graph: graphRuntime,
