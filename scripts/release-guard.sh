@@ -56,6 +56,8 @@ TARGET_VERSION=""
 TARGET_MILESTONE=""
 FAILURES=0
 
+# docs/ROADMAP* stays retired. Root ROADMAP.md is the sanctioned compiled
+# milestone view (AGENTS.md, docs/plans/README.md#task-plan-house-format).
 RETIRED_DOC_PATHS=(
   "docs/archive"
   "docs/audits"

@@ -20,6 +20,8 @@ CURRENT_MIGRATION_DOCS=(
   "docs/migrations/v21/README.md"
 )
 
+# docs/ROADMAP* stays retired. Root ROADMAP.md is the sanctioned compiled
+# milestone view (AGENTS.md, docs/plans/README.md#task-plan-house-format).
 RETIRED_PATHS=(
   "docs/archive"
   "docs/audits"

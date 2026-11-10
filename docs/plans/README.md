@@ -59,3 +59,21 @@ The [public surface guard plan](./public-surface-guard.md), tracked by
 [#1050](https://github.com/git-stunts/git-warp/issues/1050), specifies an export-map
 driven capability check and shrinking legacy inventory for the accepted Optic
 contract. It does not remove existing APIs.
+
+## Task plan house format
+
+GitHub is the source of truth for planning. An issue is the task plan. Its body uses one of the six typed house card templates in [`.github/ISSUE_TEMPLATE/`](../../.github/ISSUE_TEMPLATE/): Feature, Bug, Decision, Investigation, Research, or Spike. Blank issues are disabled. The ADR 2 readiness review form is the one sanctioned non-house form; a planner run that requires the house format reports its issues, and that report is expected.
+
+Write issues in ASD-STE100 Simplified Technical English: a controlled form of English with one meaning per word, short sentences, and active voice.
+
+Executing agents receive the issue body as the task: a level-one heading naming the card type (`# Feature`), a fenced ```` ```text ```` block holding the LLM prompt that executes the task and satisfies every completion criterion, then the card's numbered sections `## 1.` to `## 9.`. Section 2 is the card-specific part; its parts are numbered 2, 2b, 2c, and so on. Never write machine-local absolute paths in an issue; use `~` or repository-relative paths. Each template already holds the heading, the prompt block, and the nine sections; fill them in and keep them.
+
+Dependencies are GitHub's native issue dependencies ("blocked by" / "blocking"), never prose or checklists. An edge *A blocks B* means "A must be closed (for code work, merged on `main`) before B is correct". Workstreams, parent/child containers, shared files, and similar topics do not create edges. Record a newly discovered prerequisite on the issue; the `issue-dag` skill's `--add-edge` does this and refuses an edge that would create a cycle.
+
+`status:blocked` means blocked by something outside the dependency graph (an external party, a decision, an outage), with the reason in the issue body. Dependency blocking is computed from the graph and is never labeled. `status:parked` requires a branch pushed to `origin`.
+
+The git-locks resource keys live in `lock:*` labels (`lock:host/heavy-work`, `lock:docs/`, `lock:scripts/`). Without one, the planner derives a key from `area:*` and says so. Take `host/*` keys in the workstation store that every repository on the host shares; take repository paths in this repository's default store.
+
+A milestone plan (root `ROADMAP.md`) is a rendered view compiled from GitHub, not a second tracker. Its hand-written part is the executive summary: what is missing and why it completes the milestone. Everything between the generated markers is compiled: the ranked Open Frontier table, a sequenced `- [ ]` checklist of atomic slices by wave with each item linking to its issue, the dependency diagram, and the branch audit. Wave numbers, unlock lists, and open/blocked state are computed on every run and are never hand-maintained in files.
+
+The branch audit is generated from the branches on `origin` and the open PRs. It is never hand-maintained, and `ROADMAP.md` has no hand-written audit table. Local-only worktrees are out of scope, because no one else can recover them; push a branch to make its work recoverable.

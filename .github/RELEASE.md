@@ -56,7 +56,7 @@ update this runbook only when the human procedure changes.
 Releases move through a standard lifecycle:
 
 1. `planned`: milestone exists with a thesis, scope, and goalposts.
-2. `active`: exactly one slice or tracking issue is `status:active`.
+2. `active`: every `status:active` issue has an open PR or a live git-locks lease.
 3. `release-prep`: a `release/vX.Y.Z` branch and normal PR exist.
 4. `merged`: the release-prep PR has landed on `main`.
 5. `tagged`: the immutable `vX.Y.Z` tag points at the reviewed `main` commit.
@@ -227,7 +227,8 @@ issue before marking release issues `status:active`.
 
 Use GitHub Milestones for version buckets. Do not create version labels for
 release targeting. Labels remain query axes: `type:*`, `priority:*`,
-`status:*`, and `area:*`.
+`status:*`, and `area:*`. `lock:*` labels are not an axis: they carry
+git-locks resource keys for the planner, and an issue may have none.
 
 ## Scope Reconciliation
 
@@ -637,7 +638,8 @@ After the retrospective, prep the next release deliberately:
 5. Define must-ship, may-slip, and explicitly-not-included scope.
 6. Break the milestone into two to five goalposts with acceptance evidence.
 7. Promote the first goalpost's issues to `priority:next`.
-8. Mark exactly one active slice or tracking issue `status:active`.
+8. Mark issues `status:active` only when work starts; every `status:active`
+   issue has an open PR or a live git-locks lease.
 9. Update release signposts only where the new thesis changes public or
    maintainer truth.
 

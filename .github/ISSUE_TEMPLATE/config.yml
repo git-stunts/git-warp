@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Task plan house format
+    url: https://github.com/git-stunts/git-warp/blob/main/docs/plans/README.md
+    about: Issues are the task plans; dependencies are GitHub "blocked by" relations; lock:* labels carry git-locks keys. How ROADMAP.md is compiled from them.
