@@ -18,6 +18,7 @@ import {
   resolveConfiguredCommitMessageCodec,
   resolveConfiguredCrypto,
   resolveConfiguredRandom,
+  resolveConfiguredClock,
   resolveConfiguredRuntimeStorage,
   resolveConfiguredTrustCrypto,
 } from './RuntimeHostPortResolvers.ts';
@@ -26,6 +27,7 @@ import type { CorePersistence } from '../types/WarpPersistence.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type RandomPort from '../../ports/RandomPort.ts';
+import type ClockPort from '../../ports/ClockPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type WarpStateCachePort from '../../ports/WarpStateCachePort.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
@@ -67,6 +69,7 @@ export type RuntimeHostConstructionOptions = {
   logger?: LoggerPort;
   crypto: CryptoPort;
   random: RandomPort;
+  clock: ClockPort;
   codec: CodecPort;
   trustCrypto?: TrustCryptoPort;
   stateCache?: WarpStateCachePort | null;
@@ -106,6 +109,7 @@ export type RuntimeHostOpenOptions = {
   logger?: LoggerPort;
   crypto?: CryptoPort;
   random?: RandomPort;
+  clock?: ClockPort;
   codec?: CodecPort;
   trustCrypto?: TrustCryptoPort;
   stateCache?: WarpStateCachePort | null;
@@ -131,6 +135,7 @@ export class WarpOpenOptions {
   readonly logger?: LoggerPort;
   readonly crypto?: CryptoPort;
   readonly random?: RandomPort;
+  readonly clock?: ClockPort;
   readonly codec?: CodecPort;
   readonly trustCrypto?: TrustCryptoPort;
   readonly stateCache?: WarpStateCachePort | null;
@@ -159,6 +164,7 @@ export class WarpOpenOptions {
     this.gcPolicy = snapshotGCPolicy(options.gcPolicy);
     if (options.crypto !== undefined) { this.crypto = options.crypto; }
     if (options.random !== undefined) { this.random = options.random; }
+    if (options.clock !== undefined) { this.clock = options.clock; }
     if (options.codec !== undefined) { this.codec = options.codec; }
     if (options.trustCrypto !== undefined) { this.trustCrypto = options.trustCrypto; }
 
@@ -296,6 +302,7 @@ export async function resolveRuntimeHostConstructionOptions(
     logger,
     crypto,
     random,
+    clock,
     codec,
     trustCrypto,
     stateCache,
@@ -315,6 +322,7 @@ export async function resolveRuntimeHostConstructionOptions(
   const resolvedCodec = await resolveConfiguredCodec(codec);
   const resolvedCrypto = await resolveConfiguredCrypto(crypto);
   const resolvedRandom = await resolveConfiguredRandom(random);
+  const resolvedClock = await resolveConfiguredClock(clock);
   const resolvedTrustCrypto = await resolveConfiguredTrustCrypto(trustCrypto, normalizedTrust);
   const resolvedRuntimeStorage = await resolveConfiguredRuntimeStorage(runtimeStorage);
   const storageServices = await resolvedRuntimeStorage.createRuntimeStorageServices({
@@ -404,6 +412,7 @@ export async function resolveRuntimeHostConstructionOptions(
       ...(logger !== undefined ? { logger } : {}),
       crypto: resolvedCrypto,
       random: resolvedRandom,
+      clock: resolvedClock,
       codec: resolvedCodec,
       ...(resolvedTrustCrypto !== undefined ? { trustCrypto: resolvedTrustCrypto } : {}),
       ...(resolvedStateCache !== undefined ? { stateCache: resolvedStateCache } : {}),
