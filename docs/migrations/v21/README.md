@@ -173,14 +173,17 @@ for an admitted nonce while its timestamp is still fresh. Once the timestamp is 
 freshness interval, verification returns `403 EXPIRED`, including after the
 expired marker is swept.
 
-Freshness is measured with the runtime's `ClockPort`. Nonce retention is
-measured by the Git runtime's replay store on host time. The replay guarantee
-holds only when the runtime clock is the host wall clock (`HostClockAdapter`,
-the default). A caller-supplied `clock` that loses 1 ms or more against host
-time across the 600,000 ms acceptance interval can let a marker expire while its
-request still reads as fresh.
-[#1152](https://github.com/git-stunts/git-warp/issues/1152) tracks putting both
-under one injected clock.
+The runtime's `ClockPort` signs requests and gives the early refusal. The final
+freshness verdict and nonce retention both use the replay store's own time,
+which is host time in the Git runtime. In enforce mode the server admits a
+reserved request only when its signed timestamp is at most 300,000 ms after the
+store time read on reservation entry and at most 300,000 ms before the store
+time read after the store answers, both inclusive. Otherwise it returns
+`403 EXPIRED` and retains the nonce. A caller-supplied `clock` therefore cannot
+reopen the replay window. A request must be fresh on both clocks, so a `clock`
+that disagrees with host time can refuse valid requests. A custom
+`SyncReplayProtectionPort` must return both readings, `reservedAtMs` and
+`completedAtMs`, from the clock that decides its expiry.
 
 This replaces the process-local highest-Lamport check. Restarting a client does
 not require preserving a signing counter. These guarantees assume synchronized
@@ -201,6 +204,8 @@ which covers every mode.
 | Retired signature | `HttpSyncServer.auth.test.ts`: refuses signature v2 in every mode | HTTP `400 SIG_VERSION_RETIRED`; no graph work in enforce, `log-only`, and explicit unauthenticated localhost modes. |
 | Durable boundary | `GitCasSyncReplayProtectionAdapter.integration.test.ts`: future-dated request after storage restart | At 600,000 ms, sweep removes zero and replay is refused; at 600,001 ms, sweep removes one and timestamp is expired. |
 | Storage await crosses expiry | `GitCasSyncReplayFreshness.integration.test.ts`: advances both clocks while a real storage sweep waits | Sweep removes the old marker and storage admits the nonce; HTTP still returns `403 EXPIRED`, with only the original graph request recorded. |
+| Store-time verdict | `SyncAuthService.storeTime.test.ts`: both store readings at and one millisecond beyond their bounds | Each exact bound passes; one millisecond beyond returns `EXPIRED` with the nonce still reserved. |
+| Stopped runtime clock | `GitCasSyncReplayFreshness.integration.test.ts`: injected clock stands still while host time passes marker expiry, and while a storage wait crosses it | HTTP `403 EXPIRED` in both cases, with only the original graph request recorded. |
 | Post-reservation freshness | `SyncAuthService.reservationClock.test.ts`: unit clock crosses the inclusive boundary during reservation | `EXPIRED` after the wait; nonce remains reserved and the rate-limit token remains available. |
 | Restart after window | `SyncAuthService.restart.test.ts`: captured request after restart | The expired marker is swept and the captured request returns `EXPIRED`. |
 

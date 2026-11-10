@@ -54,7 +54,7 @@ The HTTP sync protocol supports optional HMAC-SHA256 request signing with replay
 6. Server resolves the key by key-id, recomputes HMAC, and compares with constant-time equality
 7. Server checks the signed timestamp against its injected clock (inclusive five-minute skew allowance)
 8. Server reserves the nonce atomically and durably (prevents replay)
-9. Server checks freshness again after reservation completes; enforce mode refuses an expired request and its nonce remains reserved
+9. Server checks freshness again after reservation completes, on the replay store's time and on its injected clock; enforce mode refuses an expired request and its nonce remains reserved
 10. Server applies the configured per-key rate limit before graph work
 
 ### Enforcement Modes
@@ -89,17 +89,21 @@ extra millisecond keeps its nonce reserved at the inclusive freshness boundary.
 git-cas preserves millisecond expiry and treats a marker as expired when its
 expiry is at or before the current time.
 
-Freshness and retention read different clocks. The verifier measures freshness
-with the runtime's `ClockPort`. The Git runtime's replay store measures nonce
-retention on host time. The replay guarantee therefore holds only when the
-runtime clock is the host wall clock (`HostClockAdapter`, the default). A
-caller-supplied clock that loses 1 ms or more against host time across the
-600,000 ms acceptance interval can let a marker expire while its request still
-reads as fresh, so a captured request can be admitted a second time.
-[#1152](https://github.com/git-stunts/git-warp/issues/1152) tracks putting both
-under one injected clock.
+The runtime's `ClockPort` signs requests and gives the early refusal. The final
+freshness verdict and nonce retention both use the replay store's own time,
+which is host time in the Git runtime. Each reservation reports two readings of
+store time: one on entry, which sets the marker expiry, and one after the store
+answers. In enforce mode the server admits a reserved request only when its
+signed timestamp is at most 300,000 ms after the entry reading and at most
+300,000 ms before the completion reading, both inclusive. Otherwise it returns
+`403 EXPIRED` and the nonce stays reserved. A marker expires 600,001 ms after
+its entry reading; from then on the completion bound refuses every timestamp
+that the entry bound accepted. A caller-supplied runtime clock therefore cannot
+reopen the replay window. A request must be fresh on both clocks, so a runtime
+clock that disagrees with store time can refuse valid requests.
 
-In enforce mode, a server restart preserves nonce refusal during that interval. Once the
+In enforce mode, a server restart preserves nonce refusal during the 600,001 ms
+retention interval. Once the
 reservation expires and is swept, the signed timestamp is already outside the
 accepted interval. The server checks freshness again after the asynchronous
 reservation. In enforce mode, crossing expiry while storage is awaited returns
