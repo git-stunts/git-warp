@@ -27,8 +27,8 @@ export default class Warp {
   }
 
   /**
-   * Opens the repository and changes nothing in it (#1078). A deny-all access port or a
-   * read-only clone opens. The write path (the cone, custody, the retention policy and the
+   * Opens the repository and changes nothing in it (#1078), so a deny-all access port
+   * opens. A repository this process cannot write to is not tested. The write path (the cone, custody, the retention policy and the
    * sweep of unfinished attempts) opens on the first granted write or reconcile. While it
    * cannot open, each granted write or reconcile rejects and the next one tries again. A
    * writer's host opens on its first granted write or stage. The sweep is graph-wide

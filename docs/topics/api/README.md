@@ -252,8 +252,9 @@ const warp = await Warp.open(WarpAddress.of(GitStorage.root(), 'todos'), access,
 ```
 
 `access` is your `WarpAccessPort`. `LogFields` is a read-only map from field
-names to `LogFieldValue`: strings, numbers, booleans, `null`, `undefined`,
-bigints, arrays and nested `LogFields`. Do not depend on the message text or
+names to `LogFieldValue`: `string`, `number`, `boolean`, `null`, `undefined`,
+`bigint`, `Uint8Array`, `Error`, `Date`, arrays of `LogFieldValue` and nested
+`LogFields`. Do not depend on the message text or
 on `context`. The node removal warning sends a message that starts with
 `[warp]` and no `context`. Other warnings from the writer's runtime differ:
 for example, a failed step after a commit sends a `[warp]` message with an

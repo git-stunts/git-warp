@@ -36,11 +36,12 @@ export default class AuthoredWarp {
    * Before those steps, a granted call opens this Warp's write path (cone and custody) if no
    * earlier call has (#1078). If the path cannot open, the call rejects, having published nothing,
    * and that includes an unavailable store. Every granted `execute` or `reconcile` rejects so until
-   * an open succeeds, and each one tries the open again. A retention store that did not open
-   * rejects with code `E_WARP_RETENTION_OPEN`: `refusal` is `policy-mismatch` when the graph's
-   * saved capacity differs, which no retry clears; otherwise a retry can succeed, and `cause` is
-   * the store's failure when it could not answer. A cone that did not open rejects with the
-   * storage failure it met.
+   * an open succeeds, and each one tries the open again. Only the retention store's failure is
+   * typed: it rejects with code `E_WARP_RETENTION_OPEN`, where `refusal` is `policy-mismatch` when
+   * the graph's saved capacity differs, which no retry clears; otherwise a retry can succeed, and
+   * `cause` is the store's failure when it could not answer. A cone store that did not open
+   * rejects with that store's own error, passed through and not classified. Nothing was
+   * published in either case, so calling again is safe.
    * A process that dies here leaves no receipt, and no way yet to ask what became of the write.
    */
   async execute(input: WriteIntentInput): Promise<WriteReceipt> {

@@ -572,12 +572,14 @@ step returns `write-basis-unavailable`. Until an open succeeds, every granted `e
 write path again after its first opening failed" and "carries a real held ledger
 lock as the cause of the retention rejection, then writes once it is released").
 So a rejection from this step is not in the class below that a caller must not
-retry. The error tells the cases apart. A retention store that did not open
+retry. Only the retention store's failure is typed. A retention store that did not open
 rejects as `RetentionStoreOpenError` with code `E_WARP_RETENTION_OPEN`: `refusal`
 is `policy-mismatch` for a saved capacity that differs, which no retry clears;
 `refusal` is `contention`, or `refusal` is `null` and `cause` holds the store's
-failure, when a retry can succeed. A cone that did not open rejects with the
-storage failure it met, which is not classified. On `main` before #1078 these
+failure, when a retry can succeed. A cone store that did not open rejects with that store's
+own error, passed through and not classified (ruling on #1078: it stays so). Nothing
+was published in either case, so both are safe to retry; a `policy-mismatch` only
+rejects again. On `main` before #1078 these
 failures rejected `Warp.open`, where no receipt rule applied.
 
 "Unavailable" is a positive verdict: the cone store adapter (`GitConeStoreHost`)

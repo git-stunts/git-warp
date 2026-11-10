@@ -73,13 +73,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `Warp.open` no longer writes to the repository, so a deny-all opener or a read-only clone opens.
-  The write path opens in a `Warp`'s first granted `execute` or `reconcile`, so errors from opening
-  it reject that call instead of `open`. Until the write path has opened, every granted `execute`
-  or `reconcile` rejects, having published nothing, and the next one tries the open again. This
-  step is outside the receipt rule of the `AuthoredWarp.execute()` entry below: an unavailable
-  store here rejects. A retention store that did not open rejects with `E_WARP_RETENTION_OPEN`,
-  and the error says why. Its `refusal` is `policy-mismatch` when the graph's saved retention
+- `Warp.open` no longer writes to the repository, so a deny-all opener opens and changes nothing.
+  Opening a repository that the process cannot write to is not tested. A granted `execute` or
+  `reconcile` opens the write path if no earlier call has, so an error from opening it rejects
+  that call instead of `open`. If the write path cannot open, the call rejects, having published
+  nothing. Each later granted `execute` or `reconcile` tries the open again, and rejects only
+  while the open still fails. This step is outside the receipt rule of the
+  `AuthoredWarp.execute()` entry below: an unavailable store here rejects. Only a retention store
+  that did not open has a typed error, `E_WARP_RETENTION_OPEN`, which says why; a cone store
+  that did not open rejects with its own error, which is not classified. Nothing was published
+  in either case, so it is safe to call again. Its `refusal` is `policy-mismatch` when the graph's saved retention
   capacity differs, which no retry clears, or `contention`, which a retry can clear. When the
   store could not answer, for example because of a held ref lock, `refusal` is `null` and `cause`
   is the store's failure; a retry can clear that too. In-flight write attempts and support under
