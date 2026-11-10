@@ -173,7 +173,7 @@ export function reducerReadsInEveryTailOrder(scenario: HarnessScenario): readonl
             ? null
             : register.eventId,
           baseAlive: checkpoint.nodeAlive.contains(HARNESS_NODE),
-          floatingTombstones: floatingTombstones(checkpoint),
+          floatingTombstones: receiptTombstones(checkpoint),
         },
         tailEntries: order.map(tailEntry),
         nodeId: HARNESS_NODE,
@@ -189,10 +189,9 @@ export function reducerReadsInEveryTailOrder(scenario: HarnessScenario): readonl
   });
 }
 
-/** Node tombstones whose dot no node entry of the state holds. */
-function floatingTombstones(state: WarpState): ReadonlySet<string> {
-  const held = new Set(state.nodeAlive.entryDotsIter());
-  return new Set([...state.nodeAlive.tombstonesIter()].filter((dot) => !held.has(dot)));
+/** Every tombstoned node dot of the state, as the node lifecycle receipt lists them. */
+function receiptTombstones(state: WarpState): ReadonlySet<string> {
+  return new Set(state.nodeAlive.tombstonesIter());
 }
 
 function tailEntry(patch: HarnessPatch): CheckpointTailPatchEntry {
