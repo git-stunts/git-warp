@@ -71,7 +71,6 @@ function buildMockPersistence() {
 const CLI_OPTIONS: CliOptions = {
   repo: '/tmp/test',
   lane: 'demo',
-  strand: null,
   json: true,
   jsonl: false,
   writer: 'cli',

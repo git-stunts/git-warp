@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import SurfaceRatchetHistory from '../../../scripts/public-surface/SurfaceRatchetHistory.ts';
 import { PUBLIC_SURFACE_RATCHET_PATH } from '../../../scripts/public-surface/SurfaceRatchet.ts';
 import SurfaceRefusal from '../../../scripts/public-surface/SurfaceRefusal.ts';
+import { PUBLIC_SURFACE_ROUTE_CHANGES_PATH } from '../../../scripts/public-surface/SurfaceRouteChange.ts';
 import SurfacePackageFixture from '../../helpers/SurfacePackageFixture.ts';
 
 const owned: SurfacePackageFixture[] = [];
@@ -49,6 +50,38 @@ describe('public surface history gate', () => {
     git(item, 'commit', '-m', 'grow inventory');
     git(item, 'commit', '--allow-empty', '-m', 'unrelated followup');
     expect(new SurfaceRatchetHistory(item.root).check('main')).toEqual(['1054\tnew']);
+  });
+
+  it('admits a listed route move of a removed base row', () => {
+    const item = fixture('1054\t. Lane Lane.old basis\n');
+    item.write(PUBLIC_SURFACE_RATCHET_PATH, '1054\t. Lane Lane.new basis\n');
+    item.write(PUBLIC_SURFACE_ROUTE_CHANGES_PATH, '# moved\n. Lane Lane.new basis\t. Lane Lane.old basis\n');
+    expect(new SurfaceRatchetHistory(item.root).check('main')).toEqual([]);
+  });
+
+  it('rejects a listed move whose old row is still present or never existed', () => {
+    const kept = fixture('1054\t. Lane Lane.old basis\n');
+    kept.write(PUBLIC_SURFACE_RATCHET_PATH, '1054\t. Lane Lane.old basis\n1054\t. Lane Lane.new basis\n');
+    kept.write(PUBLIC_SURFACE_ROUTE_CHANGES_PATH, '. Lane Lane.new basis\t. Lane Lane.old basis\n');
+    expect(new SurfaceRatchetHistory(kept.root).check('main')).toEqual(['1054\t. Lane Lane.new basis']);
+    const invented = fixture('1054\t. Lane Lane.other basis\n');
+    invented.write(PUBLIC_SURFACE_RATCHET_PATH, '1054\t. Lane Lane.new basis\n');
+    invented.write(PUBLIC_SURFACE_ROUTE_CHANGES_PATH, '. Lane Lane.new basis\t. Lane Lane.old basis\n');
+    expect(new SurfaceRatchetHistory(invented.root).check('main')).toEqual(['1054\t. Lane Lane.new basis']);
+  });
+
+  it.each([
+    ['another export', '. Lane Lane.new basis\t. Runtime Lane.old basis\n'],
+    ['another rule', '. Lane Lane.new basis\t. Lane Lane.old lane\n'],
+    ['an unchanged route', '. Lane Lane.old basis\t. Lane Lane.old basis\n'],
+    ['a malformed line', '. Lane Lane.new basis\n'],
+    ['a short key', '. Lane basis\t. Lane basis2\n'],
+    ['a duplicate move', '. Lane Lane.a basis\t. Lane Lane.old basis\n. Lane Lane.b basis\t. Lane Lane.old basis\n'],
+  ])('refuses a route change to %s', (_label, changes) => {
+    const item = fixture('1054\t. Lane Lane.old basis\n');
+    item.write(PUBLIC_SURFACE_RATCHET_PATH, '1054\t. Lane Lane.new basis\n');
+    item.write(PUBLIC_SURFACE_ROUTE_CHANGES_PATH, changes);
+    expect(new SurfaceRatchetHistory(item.root).check('main')).toBeInstanceOf(SurfaceRefusal);
   });
 
   it('refuses a missing comparison reference', () => {

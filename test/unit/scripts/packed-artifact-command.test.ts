@@ -107,7 +107,7 @@ it('rejects an exactly stamped hook without executable permissions', async () =>
 });
 
 const VALID_RESULTS = Object.freeze({
-  'write.json': '{"lane":"events","intent":{"kind":"property.set"}}',
+  'write.json': '{"outcome":{"kind":"derived"}}',
   'observe.json': '{"readings":[{"value":"admin","reducerVersion":"observed-remove/node-lww-clear"}],"receipt":{"reducerVersion":"observed-remove/node-lww-clear"}}',
   'doctor-before.json': '{"findings":[{"id":"hooks-installed","code":"HOOKS_MISSING","status":"warn"}]}',
   'doctor-after.json': '{"findings":[{"id":"hooks-installed","code":"HOOKS_OK","status":"ok"}]}',

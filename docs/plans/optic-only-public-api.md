@@ -39,9 +39,9 @@ representations; schema generation belongs at transport boundaries.
 | --- | --- | --- |
 | `GitStorage` | `root()` resolves the current repository; `at(path)` selects one explicitly | Host discovery and I/O are adapter-owned; no graph, ref, or cache methods |
 | `WarpAddress` | `of(storage, name)` validates the storage/name pair | Reject malformed or reserved names; contains no writer or observer |
-| `Warp` | `open(address, access)` opens resources; `forObserver(identity)`, `as(writer)`, `close()` | `access` is an injected `WarpAccessPort`; opening does not grant data access |
+| `Warp` | `open(address, access)` opens resources; `forObserver(identity)`, `as(writer)`, `close()` | `access` is an injected `WarpAccessPort`; opening does not grant data access and changes nothing in the repository. The write path opens in the first granted `execute` or `reconcile` (#1078) |
 | `ObservedWarp` | Returned only by `forObserver`; accepted by `Optic`; `fork(coordinate)` | Binds an observer identity; current rights are checked on execution |
-| `AuthoredWarp` | Returned only by `as`; `execute(intentOrIntents): Promise<WriteReceipt>`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation and returns the write receipt variant specified in section 7. While it fixes the basis or reads the premise records, an unavailable store returns `UnpublishedWriteReceipt`, and invalid input, a throwing injected access port, a defect, a broken invariant, corruption or a store failure the adapter cannot identify as transient rejects. The attempt-journal and custody-support steps are not yet classified by type (#1109) (section 11) |
+| `AuthoredWarp` | Returned only by `as`; `execute(intentOrIntents): Promise<WriteReceipt>`, `settle(plan)` | Authorizes the writer and operation; `execute` obtains its own bounded admission observation and returns the write receipt variant specified in section 7. While it fixes the basis or reads the premise records, an unavailable store returns `UnpublishedWriteReceipt`, and invalid input, a throwing injected access port, a defect, a broken invariant, corruption or a store failure the adapter cannot identify as transient rejects. The attempt-journal and custody-support steps are not yet classified by type (#1109). Before those steps, a granted `execute` or `reconcile` opens the Warp's write path if it is not open yet; any failure there rejects, an unavailable store included, and the next granted operation tries the open again (#1078) (section 11) |
 | `ObserverIdentity` | `of(namespace, subject)` validates a principal name | A name is not an authentication credential or a grant |
 | `Purpose` | `of(namespace, name, version)` will validate a registered purpose identifier (#1052) | Will refuse unknown or undeclared purposes by policy. There is no runtime purpose registry; the runtime-backed `Purpose` class arrives with caller-supplied purposes in #1052 (section 11) |
 | `ReadBudget` | `of(limits)` validates named finite limits for records, emitted bytes, and work | Invalid limits fail construction; execution accounts for aggregate work |
@@ -310,6 +310,8 @@ A new invocation's latency, telemetry, or wall-clock time belongs outside those
 bytes. Revocation or missing evidence produces a new refusal record without
 rewriting the historical receipt. Replaying a write receipt verifies the retained
 write and its justifying observation; it never executes the intent again.
+A write core in layout version 1 (pre-#1072, clones of unreleased `main` only)
+is unsupported: replay refuses it and never reads its missing races as `[]`.
 
 A write's Coordinate binds the observation that justified that intent, including
 its actual read-before-write basis. The resulting write receipt separately binds
@@ -545,9 +547,10 @@ code reached only by its own tests. The budget is not raised. Measured with
 | --- | ---: | ---: | ---: | ---: |
 | Before #1079 (`origin/main` at d78c33d99) | 3,295,830 | 4,170 | 713,417 | 1,229 |
 | After #1079 | 3,282,914 | 17,086 | 711,234 | 1,225 |
+| After #1072 (PR #1095) | 3,294,515 | 5,485 | 714,158 | 1,230 |
 
 #1052 is expected to be close to #1051 in size, and #1051 added about 323,000
-unpacked bytes. 17,086 free bytes do not cover that. **Decided (2026-11-08):**
+unpacked bytes. 17,086 free bytes did not cover that, and after #1072 5,485 remain. **Decided (2026-11-08):**
 #1054 runs before #1052 and is recorded as a GitHub dependency, so #1052 starts
 with the bytes the legacy deletion frees. Measure again after #1054. If #1052
 still needs more, it deletes the legacy code it replaces in its own PR, or it gets
@@ -556,6 +559,29 @@ a separate budget decision.
 **Pre-permission I/O.** At the basis-open and premise-read steps, only an
 unavailable store gives a typed failure result instead of a rejection. The
 attempt-journal and custody-support steps are not yet classified by type (#1109).
+
+**Opening the write path is outside that rule (#1078).** A
+Warp opens its write path (the cone with its substrate marker, custody with its
+retention policy, and the sweep) inside its first granted `execute` or
+`reconcile`, before the basis-open step. Any failure of that open rejects the
+call, having published nothing, and an unavailable store is not an exception: a
+held ref lock met there rejects, while a held ref lock met at the basis-open
+step returns `write-basis-unavailable`. Until an open succeeds, every granted `execute` or
+`reconcile` rejects, and each one tries the open again
+(`test/integration/application/Warp.writes.faults.integration.test.ts`: "opens the
+write path again after its first opening failed" and "carries a real held ledger
+lock as the cause of the retention rejection, then writes once it is released").
+So a rejection from this step is not in the class below that a caller must not
+retry. Only the retention store's failure is typed. A retention store that did not open
+rejects as `RetentionStoreOpenError` with code `E_WARP_RETENTION_OPEN`: `refusal`
+is `policy-mismatch` for a saved capacity that differs, which no retry clears;
+`refusal` is `contention`, or `refusal` is `null` and `cause` holds the store's
+failure, when a retry can succeed. A cone store that did not open rejects with that store's
+own error, passed through and not classified (ruling on #1078: it stays so). Nothing
+was published in either case, so both are safe to retry; a `policy-mismatch` only
+rejects again. On `main` before #1078 these
+failures rejected `Warp.open`, where no receipt rule applied.
+
 "Unavailable" is a positive verdict: the cone store adapter (`GitConeStoreHost`)
 gives it only to a failure it can identify as transient, as its real producer
 throws it, and nothing else. The list (`TRANSIENT_PERSISTENCE_CODES` and

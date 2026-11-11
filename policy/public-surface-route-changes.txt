@@ -1,0 +1,15 @@
+# Public surface rows whose recorded route moved when #1054 removed an earlier route.
+# Each line is <new key><TAB><old key>: same subpath, export and rule, and the old row is gone.
+# The scanner records each type once, so removing one route can expose the same capability under another.
+# A listed move admits no new capability. #1054 front-office decision 2; the route-insensitive guard is a separate tooling card.
+. Lane Lane%3Adeclared.receipt%3Adeclared%3Adeclared%3C0%3E.basis basis	. Lane Lane%3Adeclared.evidence%3C0%3E.basis basis
+. Receipt Receipt.lane lane	. Receipt Receipt%3Adeclared%3Adeclared%3Adeclared.lane lane
+. Receipt Receipt%3Adeclared%3C0%3E.basis basis	. Receipt Receipt%3Adeclared.evidence%3C0%3E.basis basis
+. Runtime Runtime%3Adeclared%3Adeclared.receipt%3Adeclared%3Adeclared%3C0%3E.basis basis	. Runtime Runtime%3Adeclared.evidence%3C0%3E.basis basis
+.%2Fadvanced captureCoordinate captureCoordinate%3Adeclared%3Adeclared.receipt%3Adeclared%3Adeclared%3C0%3E.basis basis	.%2Fadvanced captureCoordinate captureCoordinate%3Adeclared%3Adeclared.evidence%3C0%3E.basis basis
+.%2Fadvanced captureCoordinate captureCoordinate%3Adeclared%3Adeclared%3Adeclared%3Adeclared._indexStore%3Adeclared%3C1%3E uninspectable-type	.%2Fadvanced captureCoordinate captureCoordinate%3Adeclared%3Adeclared%3C1%3E uninspectable-type
+.%2Fadvanced captureCoordinate captureCoordinate%3Adeclared%3Adeclared%3Adeclared%3Adeclared._indexStore%3Adeclared%3C2%3E uninspectable-type	.%2Fadvanced captureCoordinate captureCoordinate%3Adeclared%3Adeclared%3C2%3E uninspectable-type
+.%2Ftesting createRuntimeHarness createRuntimeHarness%3Adeclared%3C0%3E.runtime%3Adeclared%3Adeclared.receipt%3Adeclared%3Adeclared%3C0%3E.basis basis	.%2Ftesting createRuntimeHarness createRuntimeHarness%3Adeclared%3C0%3E.runtime%3Adeclared.evidence%3C0%3E.basis basis
+.%2Ftesting createRuntimeHarnessWithHost createRuntimeHarnessWithHost%3Adeclared%3C0%3E%3Adeclared%3Adeclared%3Adeclared.receipt%3Adeclared%3Adeclared%3C0%3E.basis basis	.%2Ftesting createRuntimeHarnessWithHost createRuntimeHarnessWithHost%3Adeclared%3C0%3E%3Adeclared%3Adeclared.evidence%3C0%3E.basis basis
+.%2Ftesting RuntimeHarness RuntimeHarness%3Adeclared%3Adeclared%3Adeclared.receipt%3Adeclared%3Adeclared%3C0%3E.basis basis	.%2Ftesting RuntimeHarness RuntimeHarness%3Adeclared%3Adeclared.evidence%3C0%3E.basis basis
+.%2Ftesting RuntimeHarnessHost RuntimeHarnessHost%3Adeclared%3Adeclared%3Adeclared.receipt%3Adeclared%3Adeclared%3C0%3E.basis basis	.%2Ftesting RuntimeHarnessHost RuntimeHarnessHost%3Adeclared%3Adeclared.evidence%3C0%3E.basis basis

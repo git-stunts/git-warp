@@ -18,10 +18,86 @@ wildcard in either direction:
   have yet, including this clone's unpublished writer chain.
 - A wildcard push publishes refs this clone does not own, such as its derived
   checkpoint head.
-- A wildcard fetch also copies `refs/warp/<graph>/write-attempts/`, which is clone-local. The
-  reservation ledger under `refs/cas/` does not come with it, so a copied record can later be answered wrongly as cancelled.
+- In-flight `Warp` state lives under `refs/warp-local/<graph>/`: write attempts in
+  `write-attempts/` and support under construction in `observations/construction/`.
+  Each of these refs names a reservation in this clone's ledger under `refs/cas/`, so
+  it has meaning only beside that ledger. A `refs/warp/*` lane wildcard does not copy
+  these refs. A copy of every ref, such as a mirror clone or a full backup, carries
+  them together with the ledger, and a `Warp` that writes on that copy sweeps them
+  as its own unfinished attempts. Do not copy `refs/warp-local/` refs into a clone that has
+  its own ledger, for example with a `refs/*` fetch into an existing clone: the sweep
+  of that clone would treat the attempts of another clone as its own.
+- A clone that ran a pre-release build of `main` can hold in-flight refs at the old
+  location under `refs/warp/<graph>/`, and a lane wildcard still copies those. See
+  [Finish in-flight refs from pre-release builds](#finish-in-flight-refs-from-pre-release-builds).
 - Never add `+` to a WARP refspec. A forced update can move another writer's
   chain backward.
+
+## Finish in-flight refs from pre-release builds
+
+Use this procedure only for a clone that ran a build of `main` from before the
+`refs/warp-local/` layout ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
+No release wrote the old location, so a clone that ran only released versions has
+nothing to do.
+
+Those builds saved each unfinished write attempt at
+`refs/warp/<graph>/write-attempts/<attempt>` and support under construction at
+`refs/warp/<graph>/observations/construction/<attempt>`. This build does not read
+either location:
+
+- The recovery sweep does not see an attempt record there.
+- `warp.as(writer).reconcile(attempt)` returns `null` for it, although the record
+  still exists. In this case `null` does not mean that the attempt was answered.
+- No error names the ref. `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED` is raised only for a
+  record under `refs/warp-local/`.
+
+List the refs:
+
+```bash
+git for-each-ref --format='%(refname)' refs/warp/ \
+  | grep -E '/(write-attempts|observations/construction)/[0-9a-f]{32}$'
+```
+
+Do not use a glob such as `refs/warp/*/write-attempts/` in its place:
+`git for-each-ref` matches nothing with it. No output from the listing means that
+the clone holds no such ref.
+
+> Warning: `git update-ref -d` on a `write-attempts` ref that you have not finished
+> or moved abandons the answer of that attempt. This cannot be undone. The write may
+> have published; a patch that it published stays on the chain of its writer. Its
+> receipt is lost, and its reservation stays charged in the ledger, which is harmless
+> at the current unlimited retention capacity. Delete such a ref only when you accept
+> that loss.
+
+For each `write-attempts` ref, finish the attempt before you delete anything. Use
+one of these two ways:
+
+- Run `reconcile` for the attempt with the build that wrote it.
+- Move the ref to the new location. Run both commands in the repository that holds
+  the graph, with your graph name in place of `todos` and the attempt id from the
+  listing in place of the example id:
+
+  ```bash
+  git update-ref refs/warp-local/todos/write-attempts/0123456789abcdef0123456789abcdef \
+    refs/warp/todos/write-attempts/0123456789abcdef0123456789abcdef
+  git update-ref -d refs/warp/todos/write-attempts/0123456789abcdef0123456789abcdef
+  ```
+
+  The first command points the new ref at the same record. The second deletes only
+  the old ref, which loses nothing, because the new ref now holds the record. Quote
+  a ref whose graph name holds characters that your shell interprets. After the
+  move, this build treats the attempt like any other unfinished attempt: a sweep
+  resolves one that nobody holds a receipt for, and `reconcile` answers the writer
+  that holds one. If the moved record
+  has layout 1, `reconcile` rejects with `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`: only
+  the build that wrote it can finish it. The error message prints the command that
+  deletes that ref, and the warning above applies to it.
+
+An old `observations/construction` ref holds only support that was under
+construction. Recovery does not read it. Delete each one with
+`git update-ref -d` and the ref from the listing.
+
+To verify, run the listing again. It prints nothing when no old ref remains.
 
 ## Ownership and transport
 
@@ -115,6 +191,42 @@ earn a separately reviewed public boundary.
 
 The supported transport today is Git's ref/object transfer, using the recipes
 above.
+
+## CBOR input limits
+
+Treat received repository blobs as untrusted. The shared CBOR decoder checks
+each blob before the general decoder interprets its contents:
+
+| Limit | Maximum |
+| --- | --- |
+| Encoded blob | 5 MiB (5,242,880 bytes) |
+| Nesting depth | 32, with the top-level value at depth zero |
+| Total items, including container keys and tagged contents | 1,000,000 |
+| Entries declared by one container | 1,000,000 |
+
+Only tags 0 and 1 (dates), 2 and 3 (big integers), and 64 (`Uint8Array`)
+are accepted over supported content encodings. Tag 1 accepts smaller integer
+and floating epoch encodings. Eight-byte integer representations under tag 1
+are refused before the full decoder; untagged eight-byte integers are unchanged.
+These checks do not establish the semantic validity of every Date value. Other tags,
+including regular expressions, sets, explicit maps, records, and shared
+references, are refused before they can construct objects or cycles. Ordinary
+untagged maps remain supported. Indefinite lengths and truncated values are
+also refused.
+
+The existing limits remain unchanged. The fixture measurements recorded in
+[#1088](https://github.com/git-stunts/git-warp/issues/1088#issuecomment-6726313391)
+reached 201,753 encoded bytes, depth 10, 11,268 total items, and 1,023 entries
+in one container. These measurements describe that corpus, not every possible
+repository. The tag-focused fixture check finds no new tag refusals in released
+fixture blobs; it does not prove that every previously accepted blob still decodes.
+
+A structural preflight refusal from the shared decoder has code
+`E_CBOR_DECODE_BOUNDS` and a `reason` in its context. Index-shard readers that
+request strict structure limits retain their `E_INDEX_SHARD_MALFORMED` preflight
+error boundary. Preserve the offending object and
+its identity when diagnosing a refusal; do not remove the checks to read it.
+HTTP JSON body limits are separate from these repository-blob limits.
 
 ## Verify
 
