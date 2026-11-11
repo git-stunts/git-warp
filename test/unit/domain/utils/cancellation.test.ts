@@ -1,21 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.ts';
-import { checkAborted as _checkAborted, createTimeoutSignal } from '../../../../src/domain/utils/cancellation.ts';
+import { checkAborted as _checkAborted } from '../../../../src/domain/utils/cancellation.ts';
 
 const checkAborted = (_checkAborted) as any;
-
-// AbortSignal.timeout() runs on Node's internal timers, which Vitest fake
-// timers cannot reach. This installs fake timers and replaces it with an
-// equivalent signal on the faked global timer, so time moves only when a test
-// advances it.
-function installFakeTimeoutSignal(): void {
-  vi.useFakeTimers();
-  vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) => {
-    const controller = new AbortController();
-    fakeAbortAfter(controller, ms);
-    return controller.signal;
-  });
-}
 
 function fakeAbortAfter(controller: AbortController, ms: number): void {
   // eslint-disable-next-line no-restricted-syntax -- fake timers: callers install vi.useFakeTimers() first
@@ -142,63 +129,6 @@ describe('Cancellation', () => {
     });
   });
 
-  describe('createTimeoutSignal', () => {
-    beforeEach(() => {
-      installFakeTimeoutSignal();
-    });
-
-    afterEach(() => {
-      vi.restoreAllMocks();
-      vi.useRealTimers();
-    });
-
-    it('returns an AbortSignal', () => {
-      const signal = createTimeoutSignal(1000);
-
-      expect(signal).toBeInstanceOf(AbortSignal);
-    });
-
-    it('is not aborted immediately after creation', () => {
-      const signal = createTimeoutSignal(1000);
-
-      expect(signal.aborted).toBe(false);
-    });
-
-    it('aborts when the timeout elapses and not one millisecond earlier', async () => {
-      const signal = createTimeoutSignal(20);
-
-      await vi.advanceTimersByTimeAsync(19);
-      expect(signal.aborted).toBe(false);
-
-      await vi.advanceTimersByTimeAsync(1);
-      expect(signal.aborted).toBe(true);
-    });
-
-    it('works with checkAborted after timeout', async () => {
-      const signal = createTimeoutSignal(20);
-
-      expect(() => checkAborted(signal, 'test')).not.toThrow();
-
-      await vi.advanceTimersByTimeAsync(20);
-
-      expect(() => checkAborted(signal, 'test')).toThrow(OperationAbortedError);
-    });
-
-    it('creates independent signals', async () => {
-      const signal1 = createTimeoutSignal(20);
-      const signal2 = createTimeoutSignal(60);
-
-      await vi.advanceTimersByTimeAsync(20);
-
-      expect(signal1.aborted).toBe(true);
-      expect(signal2.aborted).toBe(false);
-
-      await vi.advanceTimersByTimeAsync(40);
-
-      expect(signal2.aborted).toBe(true);
-    });
-  });
-
   describe('Integration: iterateNodes with abort signal', () => {
     it('abort signal can be used to stop iteration', async () => {
       const controller = new AbortController();
@@ -282,11 +212,10 @@ describe('Cancellation', () => {
 
   describe('Integration: rebuild with abort signal', () => {
     beforeEach(() => {
-      installFakeTimeoutSignal();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      vi.restoreAllMocks();
       vi.useRealTimers();
     });
 
@@ -361,10 +290,11 @@ describe('Cancellation', () => {
         return 'tree-oid';
       }
 
-      // Oracle: nodes start at 0, 5, 10, 15, 20, and 25 ms. The 30 ms timeout
+      // Oracle: nodes start at 0, 5, 10, 15, 20, and 25 ms. The 30 ms abort
       // fires before the sixth node's work ends, so exactly six nodes run.
-      const signal = createTimeoutSignal(30);
-      const rebuild = mockLongRebuild({ signal });
+      const controller = new AbortController();
+      fakeAbortAfter(controller, 30);
+      const rebuild = mockLongRebuild({ signal: controller.signal });
       const outcome = expect(rebuild).rejects.toBeInstanceOf(OperationAbortedError);
       await vi.advanceTimersByTimeAsync(30);
 
