@@ -66,9 +66,25 @@ describe('readStreamBody', () => {
 // ── toPortRequest ────────────────────────────────────────────────────────────
 
 describe('toPortRequest', () => {
+  it('passes the transport peer address through to the port request', async () => {
+    const req = new Request('http://localhost:3000/sync', {
+      method: 'POST',
+      body: 'x',
+      headers: { 'x-forwarded-for': '198.51.100.99' },
+    });
+    const result = await toPortRequest(req, '203.0.113.5');
+    expect(result.peerAddress).toBe('203.0.113.5');
+  });
+
+  it('leaves the peer address undefined when the transport reports none', async () => {
+    const req = new Request('http://localhost:3000/sync', { method: 'GET' });
+    const result = await toPortRequest(req, undefined);
+    expect(result.peerAddress).toBeUndefined();
+  });
+
   it('converts a GET request with no body', async () => {
     const req = new Request('http://localhost:3000/foo?bar=1', { method: 'GET' });
-    const result = await toPortRequest(req);
+    const result = await toPortRequest(req, undefined);
     expect(result.method).toBe('GET');
     expect(result.url).toBe('/foo?bar=1');
     expect(result.body).toBeUndefined();
@@ -81,7 +97,7 @@ describe('toPortRequest', () => {
       body: payload,
       headers: { 'content-type': 'application/json' },
     });
-    const result = await toPortRequest(req);
+    const result = await toPortRequest(req, undefined);
     expect(result.method).toBe('POST');
     expect(result.url).toBe('/api');
     expect(result.body).toBeInstanceOf(Uint8Array);
@@ -95,13 +111,13 @@ describe('toPortRequest', () => {
       body: 'x',
       headers: { 'content-length': String(MAX_BODY_BYTES + 1) },
     });
-    await expect(toPortRequest(req))
+    await expect(toPortRequest(req, undefined))
       .rejects.toMatchObject({ message: 'Payload Too Large', status: 413 });
   });
 
   it('skips body reading for HEAD requests', async () => {
     const req = new Request('http://localhost:3000/', { method: 'HEAD' });
-    const result = await toPortRequest(req);
+    const result = await toPortRequest(req, undefined);
     expect(result.body).toBeUndefined();
   });
 });

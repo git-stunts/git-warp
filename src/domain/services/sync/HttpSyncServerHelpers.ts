@@ -14,6 +14,7 @@ import SyncError from '../../errors/SyncError.ts';
 import { validateSyncRequest } from './SyncPayloadSchema.ts';
 import SyncSecret from './SyncSecret.ts';
 import type { SyncRateLimitConfig } from './SyncRateLimiter.ts';
+import type { SyncPeerRateLimit } from './SyncPeerRateLimiter.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type HttpServerPort from '../../../ports/HttpServerPort.ts';
@@ -38,6 +39,12 @@ export const INTERNAL_SYNC_ERROR_CODE = 'E_SYNC_INTERNAL';
 
 // ── Zod schemas ──────────────────────────────────────────────────────────────
 
+const clockPort = (name: string): z.ZodType<ClockPort> => z.custom<ClockPort>(
+  (v) => v !== null && v !== undefined && typeof v === 'object'
+    && typeof Reflect.get(v, 'nowMs') === 'function',
+  `${name} must provide nowMs()`,
+);
+
 export const authSchema = z.object({
   mode: z.enum(['enforce', 'log-only']).default('enforce'),
   keys: z.record(z.string(), z.custom<SyncSecret>((v) => v instanceof SyncSecret, 'auth.keys values must be SyncSecret')).refine(
@@ -51,11 +58,7 @@ export const authSchema = z.object({
       && typeof Reflect.get(v, 'reserve') === 'function',
     'auth.replayProtection must provide atomic reserve()',
   ),
-  clock: z.custom<ClockPort>(
-    (v) => v !== null && v !== undefined && typeof v === 'object'
-      && typeof Reflect.get(v, 'nowMs') === 'function',
-    'auth.clock must provide nowMs()',
-  ),
+  clock: clockPort('auth.clock'),
   rateLimit: z.object({
     capacity: z.number().int().positive(),
     refillTokensPerSecond: z.number().positive(),
@@ -82,6 +85,12 @@ export const optionsSchema = z.object({
   maxRequestBytes: z.number().int().positive().max(MAX_REQUEST_BYTES_CEILING).default(DEFAULT_MAX_REQUEST_BYTES),
   path: z.string().startsWith('/').default('/sync'),
   host: z.string().min(1).default('127.0.0.1'),
+  clock: clockPort('clock'),
+  peerRateLimit: z.object({
+    capacity: z.number(),
+    refillTokensPerSecond: z.number(),
+    maxTrackedPeers: z.number(),
+  }).strict().optional(),
   auth: authSchema.optional(),
   unsafeAllowUnauthenticatedLocalhost: z.boolean().default(false),
   allowedWriters: z.array(z.string()).optional(),
@@ -204,6 +213,12 @@ export function errorResponse(status: number, message: string): JsonHttpResponse
     headers: { 'content-type': 'application/json' },
     body: canonicalStringify({ error: message }),
   };
+}
+
+/** Typed refusal of the pre-authentication peer gate. */
+export function peerRateLimitedResponse(retryAfterSeconds: number): JsonHttpResponse {
+  const refusal = errorResponse(429, 'PEER_RATE_LIMITED');
+  return { ...refusal, headers: { ...refusal.headers, 'retry-after': String(retryAfterSeconds) } };
 }
 
 export function internalSyncErrorResponse(): JsonHttpResponse {
@@ -423,6 +438,18 @@ export interface HttpSyncServerOptions {
   path?: string;
   host?: string;
   maxRequestBytes?: number;
+  /**
+   * Clock for the peer admission gate. The server does not require it to be
+   * `auth.clock`; launchSyncServer passes the same host clock to both, and a
+   * direct caller should do the same so that both read one time source.
+   */
+  clock: ClockPort;
+  /**
+   * Pre-authentication limit for each socket peer address. On by default
+   * with DEFAULT_SYNC_PEER_RATE_LIMIT (a burst of 60 requests, a refill of 10
+   * requests per second, at most 4096 tracked peers); it cannot be turned off.
+   */
+  peerRateLimit?: SyncPeerRateLimit;
   auth?: {
     keys: Record<string, SyncSecret>;
     mode?: 'enforce' | 'log-only';
