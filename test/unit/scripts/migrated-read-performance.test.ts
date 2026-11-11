@@ -141,7 +141,7 @@ describe('migrated v18-to-v19 retained-read performance', () => {
         graph: 'v18-medium-retained-substrate',
         patchCount: 18,
       },
-      generatedAt: new Date().toISOString(),
+      generatedAt: '2026-01-01T00:00:00.000Z',
       measuredRuns: 1,
       migration: { status: 'migrated', wallMs: 15_000 },
       policy: POLICY,

@@ -39,6 +39,9 @@ interface CommitRecord {
   readonly date: string;
 }
 
+/** Commit time when no clock is injected: fixed, so the fake never reads the wall clock. */
+const DEFAULT_COMMIT_EPOCH_MS = 0;
+
 interface InMemoryAdapterOptions {
   readonly author?: string;
   readonly clock?: { now(): number };
@@ -80,7 +83,7 @@ export default class InMemoryGraphAdapter extends GraphPersistencePort {
     super();
     const opts = options ?? {};
     this._author = (opts.author !== undefined && opts.author.length > 0) ? opts.author : 'InMemory <inmemory@test>';
-    this._clock = opts.clock ?? { now: () => Date.now() };
+    this._clock = opts.clock ?? { now: () => DEFAULT_COMMIT_EPOCH_MS };
     this._hash = prepareHash(opts.hash);
   }
 

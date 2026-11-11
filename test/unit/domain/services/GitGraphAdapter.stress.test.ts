@@ -1,3 +1,4 @@
+import { setImmediate as nextTurn } from 'node:timers/promises';
 import { describe, it, expect, vi } from 'vitest';
 import GitTimelineHistoryAdapter, { type GitPlumbing } from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 
@@ -13,8 +14,11 @@ describe('GitTimelineHistoryAdapter Concurrency Stress Test', () => {
         if (args[0] !== 'commit-tree') { throw new Error('Unexpected Git command'); }
         expect(args[1]).toBe(emptyTree);
         const id = ++callCounter;
-        // Simulate deterministic latency: 0, 2, or 4ms based on call id
-        await new Promise(r => setTimeout(r, (id % 3) * 2));
+        // Simulate latency of 0, 1, or 2 event-loop turns based on call id.
+        // Turns, not milliseconds, so the completion order is the same on every run.
+        for (let turn = 0; turn < id % 3; turn += 1) {
+          await nextTurn();
+        }
         // Return unique SHA for each call (valid hex format)
         return id.toString(16).padStart(oidLength, '0');
       }),
@@ -48,7 +52,7 @@ describe('GitTimelineHistoryAdapter Concurrency Stress Test', () => {
     const mockPlumbing = {
       emptyTree: '4b825dc642cb6eb9a060e54bf8d69288fbee4904',
       execute: vi.fn<GitPlumbing['execute']>().mockImplementation(async ({ args }) => {
-        await new Promise(r => setTimeout(r, 0));
+        await nextTurn();
         if (args[0] === 'mktree') return '1'.repeat(40);
         if (args[0] === 'commit-tree') return '2'.repeat(40);
         if (args[0] === 'show') return 'message content';

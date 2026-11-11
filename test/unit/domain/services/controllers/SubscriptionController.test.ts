@@ -268,8 +268,11 @@ describe('SubscriptionController', () => {
 
       it('accepts poll exactly 1000', () => {
         vi.useFakeTimers();
-        expect(() => ctrl.watch('*', { onChange: vi.fn(), poll: 1000 })).not.toThrow();
-        vi.useRealTimers();
+        try {
+          expect(() => ctrl.watch('*', { onChange: vi.fn(), poll: 1000 })).not.toThrow();
+        } finally {
+          vi.useRealTimers();
+        }
       });
 
       it('accepts an empty string pattern (matches only empty-string node IDs)', () => {

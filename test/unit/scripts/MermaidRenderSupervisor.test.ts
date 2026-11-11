@@ -6,6 +6,7 @@ import childProcess from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 import MermaidRenderSupervisor from '../../../scripts/mermaid/MermaidRenderSupervisor.ts';
 import MermaidValidationDeadline from '../../../scripts/mermaid/MermaidValidationDeadline.ts';
+import { waitForCondition } from '../../helpers/waitForCondition.ts';
 
 const worker = fileURLToPath(new URL('../../fixtures/mermaid-worker-probe.mjs', import.meta.url));
 const budgets = new MermaidValidationDeadline(500, 200, 100);
@@ -100,7 +101,7 @@ describe('Owned Mermaid worker lifecycle', () => {
     const supervisor = new MermaidRenderSupervisor(new MermaidValidationDeadline(2000, 2000, 100), worker, null);
     const running = supervisor.render('render-stall', marker);
     try {
-      await vi.waitFor(async () => { expect(await readFile(marker, 'utf8')).toMatch(/^\d+$/); });
+      await waitForCondition(async () => /^\d+$/.test(await readFile(marker, 'utf8').catch(() => '')));
       const interrupt = process.listeners(signal).find(listener => !previous.includes(listener));
       expect(interrupt).toBeDefined();
       interrupt?.(signal);
