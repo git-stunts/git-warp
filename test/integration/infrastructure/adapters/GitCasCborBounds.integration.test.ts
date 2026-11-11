@@ -30,6 +30,8 @@ type OpenedRepository = {
   readonly repository: GitCasRepositoryAdapter;
 };
 
+type RootReference = { readonly oid: string; readonly chunkCount: number; readonly startIndex: number };
+
 const GRAPH = 'bounds';
 /** git-cas splits a manifest with more chunks than this into Merkle sub-manifests. */
 const GIT_CAS_MERKLE_THRESHOLD = 1_000;
@@ -37,6 +39,51 @@ const MAX_CBOR_DECODE_BYTES = 5 * 1024 * 1024;
 const MANIFEST_ENTRY = 'manifest.cbor';
 const SUB_MANIFEST_ENTRY = 'sub-manifest-0.cbor';
 const BUNDLE_ROOT_ENTRY = 'bundle.cbor';
+/** git-cas ManifestSchema admits at most this many sub-manifest references. */
+const GIT_CAS_MAX_SUB_MANIFESTS = 10_000;
+/** The total chunk limit git-warp sets for one Merkle asset. */
+const MAX_MERKLE_ASSET_CHUNKS = 1_048_576;
+const NOT_CONTIGUOUS = 'sub-manifest references do not cover the chunks contiguously from zero';
+const ROOT_REFERENCE_CASES: ReadonlyArray<{ readonly name: string; readonly references: RootReference[]; readonly reason: string }> = [
+  {
+    name: 'more references than git-cas admits',
+    references: absentReferences(Array.from({ length: GIT_CAS_MAX_SUB_MANIFESTS + 1 }, () => 1)),
+    reason: 'sub-manifest reference count exceeds the maximum',
+  },
+  {
+    name: 'a repeated object id',
+    references: absentReferences(Array.from({ length: 20 }, () => GIT_CAS_MERKLE_THRESHOLD))
+      .map((reference) => ({ ...reference, oid: absentObjectId(1) })),
+    reason: 'a sub-manifest reference repeats an object id',
+  },
+  {
+    name: 'a gap between ranges',
+    references: absentReferences([10, 10]).map((reference, index) => ({ ...reference, startIndex: index * 11 })),
+    reason: NOT_CONTIGUOUS,
+  },
+  {
+    name: 'overlapping ranges',
+    references: absentReferences([10, 10]).map((reference, index) => ({ ...reference, startIndex: index * 5 })),
+    reason: NOT_CONTIGUOUS,
+  },
+  {
+    name: 'a first range that does not start at zero',
+    references: absentReferences([10]).map((reference) => ({ ...reference, startIndex: 1 })),
+    reason: NOT_CONTIGUOUS,
+  },
+  {
+    name: 'more chunks in total than the asset limit',
+    references: absentReferences(
+      Array.from({ length: MAX_MERKLE_ASSET_CHUNKS / GIT_CAS_MERKLE_THRESHOLD + 1 }, () => GIT_CAS_MERKLE_THRESHOLD),
+    ),
+    reason: 'total chunk count exceeds the maximum',
+  },
+  {
+    name: 'more chunks in one reference than git-cas writes',
+    references: absentReferences([GIT_CAS_MERKLE_THRESHOLD + 1]),
+    reason: 'a sub-manifest reference declares more chunks than the maximum',
+  },
+];
 const opened: OpenedRepository[] = [];
 const tempDirectories: string[] = [];
 
@@ -69,8 +116,65 @@ describe('git-cas CBOR decode bounds in the default GitCasRepositoryAdapter runt
 
     const treeOid = await writeMerkleAsset(plumbing, content);
 
-    expect(Object.keys(await history.readTreeOids(treeOid))).toContain(SUB_MANIFEST_ENTRY);
+    expect(Object.keys(await history.readTreeOids(treeOid))).toEqual(
+      expect.arrayContaining([SUB_MANIFEST_ENTRY, 'sub-manifest-1.cbor']),
+    );
     expect(await readAsset(repository, treeOid)).toEqual(content);
+  });
+
+  it('refuses a Merkle root manifest whose references repeat a written sub-manifest', async () => {
+    const { plumbing, history, repository } = await openRepository();
+    const merkleTreeOid = await writeMerkleAsset(plumbing, deterministicBytes(300_000));
+    const [first] = await readRootReferences(history, merkleTreeOid);
+    const repeated = Array.from({ length: 20 }, (_, startIndex) => ({ oid: first?.oid ?? '', chunkCount: 1, startIndex }));
+
+    const read = readAsset(repository, await replaceRootReferences(history, merkleTreeOid, repeated));
+
+    await expect(read).rejects.toBeInstanceOf(MessageCodecError);
+    await expect(read).rejects.toMatchObject({
+      code: 'E_CAS_MANIFEST_SHAPE',
+      context: { reason: 'a sub-manifest reference repeats an object id' },
+    });
+  });
+
+  it.each(ROOT_REFERENCE_CASES)('refuses a Merkle root manifest with $name before it reads a sub-manifest', async ({
+    references,
+    reason,
+  }) => {
+    const { plumbing, history, repository } = await openRepository();
+    const merkleTreeOid = await writeMerkleAsset(plumbing, deterministicBytes(300_000));
+
+    const read = readAsset(repository, await replaceRootReferences(history, merkleTreeOid, references));
+
+    await expect(read).rejects.toBeInstanceOf(MessageCodecError);
+    await expect(read).rejects.toMatchObject({ code: 'E_CAS_MANIFEST_SHAPE', context: { reason } });
+  });
+
+  it('passes a well-formed Merkle root manifest on to git-cas, which then reads its sub-manifests', async () => {
+    const { plumbing, history, repository } = await openRepository();
+    const merkleTreeOid = await writeMerkleAsset(plumbing, deterministicBytes(300_000));
+
+    const read = readAsset(repository, await replaceRootReferences(history, merkleTreeOid, absentReferences([1_000, 1])));
+
+    await expect(read).rejects.toMatchObject({
+      code: 'HANDLE_TARGET_MISSING',
+      meta: { originalError: { code: 'GIT_OBJECT_NOT_FOUND', meta: { oid: absentObjectId(1) } } },
+    });
+  });
+
+  it('reads a bundle that git-cas wrote', async () => {
+    const { plumbing, repository } = await openRepository();
+    const bundleHandle = await writeBundle(plumbing);
+    const services = await repository.createRuntimeStorageServices({
+      timelineName: GRAPH,
+      codec: warpCborCodec,
+      crypto: new NodeCryptoAdapter(),
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+    });
+
+    const handles = await services.indexes.readShardHandles(new BundleHandle(bundleHandle.toString()));
+
+    expect(Object.keys(handles)).toEqual(['member']);
   });
 
   it.each(OUT_OF_BOUNDS_CBOR)('refuses a Merkle sub-manifest with $name', async ({ bytes, reason }) => {
@@ -203,25 +307,63 @@ async function replaceSubManifest(
   treeOid: string,
   bytes: Uint8Array,
 ): Promise<string> {
-  const codec = new GitCasCborCodec();
   const subManifestOid = await history.writeBlob(bytes);
+  const references = await readRootReferences(history, treeOid);
+  const replaced = references.map((reference, index) => (index === 0 ? { ...reference, oid: subManifestOid } : reference));
+  return await replaceRootReferences(history, treeOid, replaced, [[SUB_MANIFEST_ENTRY, subManifestOid]]);
+}
+
+async function readRootReferences(history: GitTimelineHistoryAdapter, treeOid: string): Promise<RootReference[]> {
+  const rootOid = (await history.readTreeOids(treeOid))[MANIFEST_ENTRY] ?? '';
+  const subManifests: unknown = Reflect.get(new GitCasCborCodec().decode(await history.readBlob(rootOid)), 'subManifests');
+  const references: unknown[] = Array.isArray(subManifests) ? subManifests : [];
+  return references.map((reference) => {
+    const fields = typeof reference === 'object' && reference !== null ? reference : {};
+    return {
+      oid: String(Reflect.get(fields, 'oid')),
+      chunkCount: Number(Reflect.get(fields, 'chunkCount')),
+      startIndex: Number(Reflect.get(fields, 'startIndex')),
+    };
+  });
+}
+
+/**
+ * The Merkle tree with a root manifest that lists `references` under a valid manifest hash, and with `blobs`
+ * replacing tree entries of the same name.
+ */
+async function replaceRootReferences(
+  history: GitTimelineHistoryAdapter,
+  treeOid: string,
+  references: readonly RootReference[],
+  blobs: ReadonlyArray<readonly [string, string]> = [],
+): Promise<string> {
+  const codec = new GitCasCborCodec();
   const entries = await history.readTreeObjectEntries(treeOid);
   const rootOid = entries.find((entry) => entry.name === MANIFEST_ENTRY)?.oid ?? '';
-  const root = codec.decode(await history.readBlob(rootOid));
-  const subManifests: unknown = Reflect.get(root, 'subManifests');
-  const refs: unknown[] = Array.isArray(subManifests) ? subManifests : [];
-  const unhashed = {
-    ...root,
-    subManifests: refs.map((ref, index) => (index === 0 && typeof ref === 'object' ? { ...ref, oid: subManifestOid } : ref)),
-  };
+  const unhashed = { ...codec.decode(await history.readBlob(rootOid)), subManifests: references };
   Reflect.deleteProperty(unhashed, 'manifestHash');
   const manifestHash = createHash('sha256').update(codec.encode(unhashed)).digest('hex');
   const rootManifestOid = await history.writeBlob(codec.encode({ ...unhashed, manifestHash }));
-  const replaced = new Map([[MANIFEST_ENTRY, rootManifestOid], [SUB_MANIFEST_ENTRY, subManifestOid]]);
+  const replaced = new Map([[MANIFEST_ENTRY, rootManifestOid], ...blobs]);
   return await history.writeTree(entries.map((entry) => {
     const oid = replaced.get(entry.name) ?? entry.oid;
     return `${entry.mode} ${entry.type} ${oid}\t${entry.name}`;
   }));
+}
+
+/** An object id that no object in the test repository has. */
+function absentObjectId(position: number): string {
+  return `ff${position.toString(16).padStart(38, '0')}`;
+}
+
+/** Contiguous references from zero to absent objects, one per chunk count. */
+function absentReferences(chunkCounts: readonly number[]): RootReference[] {
+  let startIndex = 0;
+  return chunkCounts.map((chunkCount, position) => {
+    const reference = { oid: absentObjectId(position + 1), chunkCount, startIndex };
+    startIndex += chunkCount;
+    return reference;
+  });
 }
 
 /** A one-member bundle written by git-cas's own store. */
