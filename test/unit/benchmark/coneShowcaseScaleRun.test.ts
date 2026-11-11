@@ -11,7 +11,9 @@ import WitnessReport from '../../../benchmarks/cone-showcase/WitnessReport.ts';
 import { COLD_OPENS, MARGINS_READS, MEASURED_SAVES } from '../../../benchmarks/cone-showcase/WitnessWorkload.ts';
 import ConeShowcaseReportOutput from '../../fixtures/ConeShowcaseReportOutput.ts';
 
-const RUN_TIMEOUT_MS = 120_000;
+// A process bound, not an oracle: the one-thread run starts thousands of real
+// Git processes and took 92-121 s on CI runners. #1177 shrinks the run.
+const RUN_TIMEOUT_MS = 300_000;
 
 afterEach(() => {
   vi.unstubAllEnvs();
