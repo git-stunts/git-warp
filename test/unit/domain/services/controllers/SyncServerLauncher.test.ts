@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import RuntimeHost from '../../../../../src/domain/RuntimeHost.ts';
 import type { ServeOptions } from '../../../../../src/domain/capabilities/SyncCapability.ts';
 import { signSyncRequest } from '../../../../../src/domain/services/sync/SyncAuthService.ts';
@@ -6,7 +6,7 @@ import SyncSecret from '../../../../../src/domain/services/sync/SyncSecret.ts';
 import defaultCrypto from '../../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import { HttpRequest, type HttpResponse, type HttpServerHandle } from '../../../../../src/ports/HttpServerPort.ts';
 import InMemoryGraphAdapter from '../../../../helpers/InMemoryGraphAdapter.ts';
-import ManualClock, { MANUAL_CLOCK_EPOCH_MS } from '../../../../helpers/ManualClock.ts';
+import ManualClock from '../../../../helpers/ManualClock.ts';
 import { openMemoryRuntimeHostProduct } from '../../../../helpers/MemoryRuntimeHost.ts';
 import SeededRandomPort from '../../../../helpers/SeededRandomPort.ts';
 import { MemoryHttpPort } from '../../../../helpers/SyncHttpFixture.ts';
@@ -72,13 +72,6 @@ async function serve(options: Partial<ServeOptions> = {}): Promise<Served> {
 }
 
 describe('serve() options reach the HTTP sync server', () => {
-  // The memory runtime's replay store reads host time, so `Date` is held on the manual clock.
-  beforeEach(() => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(MANUAL_CLOCK_EPOCH_MS);
-  });
-  afterEach(() => { vi.useRealTimers(); });
-
   describe('allowedWriters', () => {
     it('refuses a signed request from a peer that holds a patch by an unlisted writer', async () => {
       const { http, clock } = await serve({ allowedWriters: ['alice'] });
