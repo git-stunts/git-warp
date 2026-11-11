@@ -41,6 +41,8 @@ const SUB_MANIFEST_ENTRY = 'sub-manifest-0.cbor';
 const BUNDLE_ROOT_ENTRY = 'bundle.cbor';
 /** git-cas ManifestSchema admits at most this many sub-manifest references. */
 const GIT_CAS_MAX_SUB_MANIFESTS = 10_000;
+/** git-warp limits one stored asset to this many chunks. */
+const MAX_ASSET_CHUNKS = 1_048_576;
 const NOT_CONTIGUOUS = 'sub-manifest references do not cover the chunks contiguously from zero';
 const ROOT_REFERENCE_CASES: ReadonlyArray<{ readonly name: string; readonly references: RootReference[]; readonly reason: string }> = [
   {
@@ -68,6 +70,13 @@ const ROOT_REFERENCE_CASES: ReadonlyArray<{ readonly name: string; readonly refe
     name: 'a first range that does not start at zero',
     references: absentReferences([10]).map((reference) => ({ ...reference, startIndex: 1 })),
     reason: NOT_CONTIGUOUS,
+  },
+  {
+    name: 'more chunks in total than the asset limit',
+    references: absentReferences(
+      Array.from({ length: Math.floor(MAX_ASSET_CHUNKS / GIT_CAS_MERKLE_THRESHOLD) + 1 }, () => GIT_CAS_MERKLE_THRESHOLD),
+    ),
+    reason: 'total chunk count exceeds the maximum',
   },
   {
     name: 'more chunks in one reference than git-cas writes',

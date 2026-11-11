@@ -1,6 +1,7 @@
 import { CborCodec as GitCasCborCodec } from '@git-stunts/git-cas';
 import { describe, expect, it } from 'vitest';
 
+import AssetTooLargeError from '../../../../src/domain/errors/AssetTooLargeError.ts';
 import MessageCodecError from '../../../../src/domain/errors/MessageCodecError.ts';
 import BoundedGitCasCborCodec from '../../../../src/infrastructure/adapters/BoundedGitCasCborCodec.ts';
 
@@ -8,6 +9,12 @@ import BoundedGitCasCborCodec from '../../../../src/infrastructure/adapters/Boun
 const MAX_REFERENCES = 10_000;
 /** git-cas writes at most this many chunks into one sub-manifest (its default `merkleThreshold`). */
 const MAX_REFERENCE_CHUNKS = 1_000;
+/** git-warp limits one stored asset to this many chunks. */
+const MAX_TOTAL_CHUNKS = 1_048_576;
+/** Full references, as git-cas writes them, then one smaller last reference. */
+const FULL_REFERENCES = Array.from({ length: Math.floor(MAX_TOTAL_CHUNKS / MAX_REFERENCE_CHUNKS) }, () => MAX_REFERENCE_CHUNKS);
+const AT_LIMIT = contiguous([...FULL_REFERENCES, MAX_TOTAL_CHUNKS % MAX_REFERENCE_CHUNKS]);
+const OVER_LIMIT = contiguous([...FULL_REFERENCES, (MAX_TOTAL_CHUNKS % MAX_REFERENCE_CHUNKS) + 1]);
 
 const gitCasCodec = new GitCasCborCodec();
 const codec = new BoundedGitCasCborCodec();
@@ -31,7 +38,11 @@ function contiguous(chunkCounts: readonly number[]): Reference[] {
 }
 
 function rootManifest(subManifests: object): Uint8Array {
-  return gitCasCodec.encode({
+  return gitCasCodec.encode(rootManifestData(subManifests));
+}
+
+function rootManifestData(subManifests: object): object {
+  return {
     version: 2,
     slug: 'asset',
     filename: 'asset.bin',
@@ -39,7 +50,7 @@ function rootManifest(subManifests: object): Uint8Array {
     chunks: [],
     subManifests,
     manifestHash: DIGEST,
-  });
+  };
 }
 
 function refusal(bytes: Uint8Array): MessageCodecError {
@@ -70,6 +81,10 @@ const REFUSED: ReadonlyArray<readonly [string, object, string]> = [
   ['a first range that does not start at zero',
     [{ oid: objectId(1), chunkCount: 10, startIndex: 1 }],
     'sub-manifest references do not cover the chunks contiguously from zero'],
+  ['one chunk more in total than the asset limit', OVER_LIMIT, 'total chunk count exceeds the maximum'],
+  ['the most references git-cas admits, every reference full',
+    contiguous(Array.from({ length: MAX_REFERENCES }, () => MAX_REFERENCE_CHUNKS)),
+    'total chunk count exceeds the maximum'],
   ['more chunks in one reference than git-cas writes',
     contiguous([MAX_REFERENCE_CHUNKS + 1]),
     'a sub-manifest reference declares more chunks than the maximum'],
@@ -87,8 +102,7 @@ const REFUSED: ReadonlyArray<readonly [string, object, string]> = [
 
 const ADMITTED: ReadonlyArray<readonly [string, object]> = [
   ['the most references git-cas admits', contiguous(Array.from({ length: MAX_REFERENCES }, () => 1))],
-  ['the largest asset git-cas admits (every reference full)',
-    contiguous(Array.from({ length: MAX_REFERENCES }, () => MAX_REFERENCE_CHUNKS))],
+  ['exactly the total chunk limit', AT_LIMIT],
   ['the ranges git-cas writes for 2,500 chunks', contiguous([MAX_REFERENCE_CHUNKS, MAX_REFERENCE_CHUNKS, 500])],
   ['a 64-hex object id', [{ oid: 'c'.repeat(64), chunkCount: 1, startIndex: 0 }]],
   ['no references', []],
@@ -123,5 +137,40 @@ describe('BoundedGitCasCborCodec Merkle root manifest shape', () => {
     ['a number', Uint8Array.of(0x07)],
   ])('leaves %s, which git-cas does not resolve, unchanged', (_name, bytes) => {
     expect(codec.decode(bytes)).toEqual(gitCasCodec.decode(bytes));
+  });
+});
+
+describe('BoundedGitCasCborCodec stored asset chunk limit', () => {
+  function writeRefusal(data: object): AssetTooLargeError {
+    try {
+      codec.encode(data);
+    } catch (error) {
+      if (error instanceof AssetTooLargeError) {
+        return error;
+      }
+      throw error;
+    }
+    throw new Error('expected the bounded codec to refuse to encode the root manifest');
+  }
+
+  it('refuses to encode a root manifest with one chunk more than the asset limit', () => {
+    const error = writeRefusal(rootManifestData(OVER_LIMIT));
+
+    expect(error.code).toBe('E_ASSET_TOO_LARGE');
+    expect(error.context).toEqual({ chunkCount: MAX_TOTAL_CHUNKS + 1, maxChunkCount: MAX_TOTAL_CHUNKS });
+    expect([error.chunkCount, error.maxChunkCount]).toEqual([MAX_TOTAL_CHUNKS + 1, MAX_TOTAL_CHUNKS]);
+  });
+
+  it('encodes a root manifest with exactly the asset limit to the bytes git-cas writes', () => {
+    const data = rootManifestData(AT_LIMIT);
+
+    expect(codec.encode(data)).toEqual(gitCasCodec.encode(data));
+  });
+
+  it.each([
+    ['a flat manifest', { version: 1, chunks: [], subManifests: OVER_LIMIT }],
+    ['a root manifest without references', { version: 2, chunks: [] }],
+  ])('encodes %s, which has no references git-cas resolves, unchanged', (_name, data) => {
+    expect(codec.encode(data)).toEqual(gitCasCodec.encode(data));
   });
 });
