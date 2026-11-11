@@ -7,6 +7,7 @@ import { computeStateHash } from '../../src/domain/services/state/StateSerialize
 import WarpState from '../../src/domain/services/state/WarpState.ts';
 import { buildCheckpointRef } from '../../src/domain/utils/RefLayout.ts';
 import GitCasRepositoryAdapter from '../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import HostClockAdapter from '../../src/infrastructure/adapters/HostClockAdapter.ts';
 import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { openDefaultGitPlumbing } from '../../src/infrastructure/adapters/GitPlumbingRuntimeAdapter.ts';
 import defaultCrypto from '../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
@@ -71,7 +72,7 @@ export async function seedV18Checkpoint(options: Readonly<{
       message: 'loading retained v18 checkpoint state',
       phase: 'scratch',
     });
-    repository = new GitCasRepositoryAdapter({ plumbing, history });
+    repository = new GitCasRepositoryAdapter({ plumbing, history, clock: new HostClockAdapter() });
     const storage = await openCheckpointMigrationStore(repository, options.graph);
     const payload = await new LegacyCheckpointStorageReader({
       persistence: history,

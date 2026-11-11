@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import Plumbing from '@git-stunts/plumbing';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import { getDefaultRuntimeHostNodePorts } from '../../../../src/application/RuntimeHostNodeDefaults.ts';
 import WarpCore from '../../../../src/domain/WarpCore.ts';
 import WebCryptoAdapter from '../../../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -31,7 +32,11 @@ export async function createTestRepo(label = 'api-test') {
     await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
     await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
     const persistence = new GitTimelineHistoryAdapter({ plumbing });
-    const runtimeStorage = new GitCasRepositoryAdapter({ plumbing, history: persistence });
+    const runtimeStorage = new GitCasRepositoryAdapter({
+      plumbing,
+      history: persistence,
+      clock: getDefaultRuntimeHostNodePorts().clock,
+    });
 
     /**
      * Opens a graph core with WebCryptoAdapter pre-configured.

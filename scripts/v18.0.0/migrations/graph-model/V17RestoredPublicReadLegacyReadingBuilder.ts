@@ -16,6 +16,7 @@ import { CONTENT_PROPERTY_KEY }
   from '../../../../src/domain/services/KeyCodec.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import HostClockAdapter from '../../../../src/infrastructure/adapters/HostClockAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -160,6 +161,7 @@ class RuntimeContentOidResolver {
       runtimeStorage = new GitCasRepositoryAdapter({
         plumbing,
         history,
+        clock: new HostClockAdapter(),
       });
       const services = await runtimeStorage.createRuntimeStorageServices({
         timelineName: 'migration-content',

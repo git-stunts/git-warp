@@ -16,6 +16,7 @@ import { decodeCanonicalWarpFullState } from '../../../src/infrastructure/adapte
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import { getDefaultRuntimeHostNodePorts } from '../../../src/application/RuntimeHostNodeDefaults.ts';
 import type RuntimeStorageProviderPort from '../../../src/ports/RuntimeStorageProviderPort.ts';
 import type { RuntimeStorageRequest, RuntimeStorageServices } from '../../../src/ports/RuntimeStorageProviderPort.ts';
 import { createTestRepo } from './helpers/setup.ts';
@@ -217,7 +218,11 @@ describe('API: checkpoint written before descriptor schema 6', () => {
 
     // materializeAt() runs only on a runtime without a trie store; the
     // session-backed line refuses it before reading any checkpoint.
-    const storage = new GitCasRepositoryAdapter({ plumbing: repo.plumbing, history: repo.persistence });
+    const storage = new GitCasRepositoryAdapter({
+      plumbing: repo.plumbing,
+      history: repo.persistence,
+      clock: getDefaultRuntimeHostNodePorts().clock,
+    });
     try {
       const reader = await repo.openGraph(GRAPH, 'w1', { runtimeStorage: withoutTrieStore(storage) });
       const state = await reader.materializeAt(forged.checkpointSha);

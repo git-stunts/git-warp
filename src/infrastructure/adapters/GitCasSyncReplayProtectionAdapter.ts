@@ -57,7 +57,7 @@ export default class GitCasSyncReplayProtectionAdapter implements SyncReplayProt
     });
     // Both readings come from this adapter's clock. The freshness verdict built on
     // them assumes that this clock and the git-cas set's clock are the same
-    // non-decreasing host time, which the default composition provides.
+    // non-decreasing time; GitCasRepositoryAdapter gives both one ClockPort.
     return Object.freeze({
       admitted: result.admitted,
       expiresAt: result.marker?.expiresAt ?? expiresAt,

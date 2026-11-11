@@ -15,6 +15,8 @@ let GitTimelineHistoryAdapter: any;
 // deno-lint-ignore no-explicit-any
 let GitCasRepositoryAdapter: any;
 // deno-lint-ignore no-explicit-any
+let HostClockAdapter: any;
+// deno-lint-ignore no-explicit-any
 let WarpCore: any;
 // deno-lint-ignore no-explicit-any
 let WebCryptoAdapter: any;
@@ -35,18 +37,20 @@ export async function loadModules() {
   const runtimeDefaultsModule = await import(join(root, "src/application/RuntimeHostBrowserDefaults.ts"));
   const gitGraphAdapterModule = (await import(join(root, "src/infrastructure/adapters/GitTimelineHistoryAdapter.ts"))).default;
   const gitCasRepositoryAdapterModule = (await import(join(root, "src/infrastructure/adapters/GitCasRepositoryAdapter.ts"))).default;
+  const hostClockAdapterModule = (await import(join(root, "src/infrastructure/adapters/HostClockAdapter.ts"))).default;
   const warpCoreModule = (await import(join(root, "src/domain/WarpCore.ts"))).default;
   const webCryptoAdapterModule = (await import(join(root, "src/infrastructure/adapters/WebCryptoAdapter.ts"))).default;
   runtimeDefaultsModule.installDefaultRuntimeHostBrowserPorts();
   Plumbing = plumbingModule;
   GitTimelineHistoryAdapter = gitGraphAdapterModule;
   GitCasRepositoryAdapter = gitCasRepositoryAdapterModule;
+  HostClockAdapter = hostClockAdapterModule;
   WarpCore = warpCoreModule;
   WebCryptoAdapter = webCryptoAdapterModule;
 }
 
 export async function createTestRepo(label = "deno-test") {
-  if (!Plumbing || !GitTimelineHistoryAdapter || !GitCasRepositoryAdapter || !WarpCore || !WebCryptoAdapter) {
+  if (!Plumbing || !GitTimelineHistoryAdapter || !GitCasRepositoryAdapter || !HostClockAdapter || !WarpCore || !WebCryptoAdapter) {
     await loadModules();
   }
 
@@ -58,7 +62,11 @@ export async function createTestRepo(label = "deno-test") {
   await plumbing.execute({ args: ["config", "user.email", "test@test.com"] });
   await plumbing.execute({ args: ["config", "user.name", "Test"] });
   const persistence = new GitTimelineHistoryAdapter({ plumbing });
-  const runtimeStorage = new GitCasRepositoryAdapter({ plumbing, history: persistence });
+  const runtimeStorage = new GitCasRepositoryAdapter({
+    plumbing,
+    history: persistence,
+    clock: new HostClockAdapter(),
+  });
 
   // deno-lint-ignore no-explicit-any
   async function openGraph(graphName: string, writerId: string, opts: Record<string, any> = {}) {

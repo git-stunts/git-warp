@@ -5,6 +5,7 @@ import RuntimeHost from '../../../src/domain/RuntimeHost.ts';
 import type MaterializationCoordinate from '../../../src/domain/materialization/MaterializationCoordinate.ts';
 import type MaterializationHandle from '../../../src/domain/materialization/MaterializationHandle.ts';
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import { getDefaultRuntimeHostNodePorts } from '../../../src/application/RuntimeHostNodeDefaults.ts';
 import MaterializationStorePort, {
   type MaterializationAcquisition,
   type MaterializationPredecessorPredicate,
@@ -371,6 +372,7 @@ function recordingProvider(
   const provider = new RecordingRuntimeStorageProvider(new GitCasRepositoryAdapter({
     plumbing: repo.plumbing,
     history: repo.persistence,
+    clock: getDefaultRuntimeHostNodePorts().clock,
   }));
   providers.push(provider);
   return provider;

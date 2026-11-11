@@ -38,9 +38,9 @@ async function visible(repository: string, graph: string): Promise<string[]> {
 async function appendPendingRemove(repository: string, graph: string, node: string, observedDot: string): Promise<void> {
   const plumbing = await openDefaultGitPlumbing(repository);
   const history = new GitTimelineHistoryAdapter({ plumbing });
-  const repo = new GitCasRepositoryAdapter({ plumbing, history });
+  const ports = getDefaultRuntimeHostNodePorts();
+  const repo = new GitCasRepositoryAdapter({ plumbing, history, clock: ports.clock });
   try {
-    const ports = getDefaultRuntimeHostNodePorts();
     const services = repo.createMigrationStorageServices({
       timelineName: graph, codec: ports.codec, crypto: ports.crypto, commitMessageCodec: ports.commitMessageCodec,
     });

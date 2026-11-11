@@ -5,6 +5,7 @@ import Plumbing from '@git-stunts/plumbing';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import HostClockAdapter from '../../../../src/infrastructure/adapters/HostClockAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import type SeekCursorStorePort from '../../../../src/ports/SeekCursorStorePort.ts';
 
@@ -82,7 +83,7 @@ async function createRepository(): Promise<string> {
 async function openStorage(tempDirectory: string): Promise<OpenedStorage> {
   const plumbing = await Plumbing.createDefault({ cwd: tempDirectory });
   const history = new GitTimelineHistoryAdapter({ plumbing });
-  const repository = new GitCasRepositoryAdapter({ plumbing, history });
+  const repository = new GitCasRepositoryAdapter({ plumbing, history, clock: new HostClockAdapter() });
   const result: OpenedStorage = {
     cursorStore: await repository.createSeekCursorStore('events'),
     history,
