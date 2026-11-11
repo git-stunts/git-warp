@@ -228,6 +228,18 @@ error boundary. Preserve the offending object and
 its identity when diagnosing a refusal; do not remove the checks to read it.
 HTTP JSON body limits are separate from these repository-blob limits.
 
+The same limits apply to the asset manifests, Merkle sub-manifests, bundle descriptors
+and trust records that git-cas stores for git-warp
+([#1186](https://github.com/git-stunts/git-warp/issues/1186)). The check runs when
+git-warp decodes a blob, not when Git transfers it. A refused blob stays in the
+repository, and every read that needs it fails again. A refused manifest, sub-manifest
+or trust record fails with `E_CBOR_DECODE_BOUNDS`. A refused bundle descriptor fails
+with a git-cas `BUNDLE_CORRUPT` error whose `meta.originalError` is the
+`E_CBOR_DECODE_BOUNDS` error. If the tip of a graph's trust chain is refused, appending
+a new trust record to that chain also fails. Do not delete or move the trust ref to get
+past the refusal. Keep the record and its commit, and do not fetch from that peer
+again until you know why it sent the record.
+
 ## Verify
 
 Run bounded diagnostics against the same Lane on both clones:
