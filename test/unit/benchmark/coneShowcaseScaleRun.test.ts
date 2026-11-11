@@ -8,12 +8,14 @@ import GitProcessCounter, { TRACE_FILE_LIMIT } from '../../../benchmarks/cone-sh
 import MarginCorpus from '../../../benchmarks/cone-showcase/MarginCorpus.ts';
 import { expectedBulkPatches, runScale } from '../../../benchmarks/cone-showcase/ScaleRun.ts';
 import WitnessReport from '../../../benchmarks/cone-showcase/WitnessReport.ts';
-import { COLD_OPENS, MARGINS_READS, MEASURED_SAVES } from '../../../benchmarks/cone-showcase/WitnessWorkload.ts';
+import { WITNESS_PLAN } from '../../../benchmarks/cone-showcase/WitnessWorkload.ts';
+import WorkloadPlan from '../../../benchmarks/cone-showcase/WorkloadPlan.ts';
 import ConeShowcaseReportOutput from '../../fixtures/ConeShowcaseReportOutput.ts';
 
-// A process bound, not an oracle: the one-thread run starts thousands of real
-// Git processes and took 92-121 s on CI runners. #1177 shrinks the run.
-const RUN_TIMEOUT_MS = 300_000;
+// A process bound, not an oracle. The small plan keeps every phase of the witness
+// but starts few real Git processes; the full plan took 92-121 s on CI runners (#1177).
+const RUN_TIMEOUT_MS = 120_000;
+const SMALL_PLAN = new WorkloadPlan({ measuredSaves: 2, marginsReads: 2, coldOpens: 1 });
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -38,7 +40,7 @@ describe('cone-showcase scale run', () => {
       const traces = traceConfiguration(scratch);
       writeFileSync(join(scratch, 'occupied'), '');
       const output = new ConeShowcaseReportOutput();
-      const run = runScale(join(scratch, 'occupied', 'repo'), 1, new GitProcessCounter(traces), new WitnessReport(1, output));
+      const run = runScale(join(scratch, 'occupied', 'repo'), 1, new GitProcessCounter(traces), new WitnessReport(1, output), WITNESS_PLAN);
       await expect(run).rejects.toThrow('repository setup did not complete');
       expect(output.lines[0]?.split('\t').slice(0, 9)).toEqual(['sample', '1', '0', 'setup', 'init-repository', '', '', '1', 'error']);
     } finally {
@@ -55,7 +57,7 @@ describe('cone-showcase scale run', () => {
       writeFileSync(emptyConfig, '');
       vi.stubEnv('GIT_CONFIG_GLOBAL', emptyConfig);
       const output = new ConeShowcaseReportOutput();
-      const run = runScale(join(scratch, 'repo'), 1, new GitProcessCounter(traces), new WitnessReport(1, output));
+      const run = runScale(join(scratch, 'repo'), 1, new GitProcessCounter(traces), new WitnessReport(1, output), WITNESS_PLAN);
       await expect(run).rejects.toThrow('trace calibration did not observe the three real Git setup invocations');
       expect(output.lines).toEqual(['sample\t1\t0\tsetup\tinit-repository\t\t\t0\tcompleted\t', 'sample-end\t0']);
     } finally {
@@ -65,8 +67,9 @@ describe('cone-showcase scale run', () => {
 
   // Oracle: the README "What the witness asserts today" (specified): every write is
   // retained and every planned sample has an actual count, but Lane.observe refuses
-  // a Warp-written lane, so all 35 reads are unchecked and the scale is incomplete.
-  // #1052 must change this case to verified reads and a complete scale.
+  // a Warp-written lane, so every planned read is unchecked and the scale is incomplete.
+  // The expected counts come from the small plan. #1052 must change this case to
+  // verified reads and a complete scale.
   it('counts every planned sample of a one-thread run, and reports its refused reads', async () => {
     const scratch = mkdtempSync(join(tmpdir(), 'cone-scale-run-'));
     try {
@@ -74,12 +77,12 @@ describe('cone-showcase scale run', () => {
       const output = new ConeShowcaseReportOutput();
       const bulk = expectedBulkPatches(new MarginCorpus(1), 1);
 
-      const result = await runScale(join(scratch, 'repo'), 1, new GitProcessCounter(traces), new WitnessReport(1, output));
+      const result = await runScale(join(scratch, 'repo'), 1, new GitProcessCounter(traces), new WitnessReport(1, output), SMALL_PLAN);
 
       const phases = result.samples.map((sample) => sample.phase);
       const count = (phase: string): number => phases.filter((each) => each === phase).length;
       expect([count('setup'), count('bulk'), count('save'), count('close'), count('margins'), count('cold')])
-        .toEqual([4, bulk, MEASURED_SAVES, 2, MARGINS_READS, COLD_OPENS]);
+        .toEqual([4, bulk, SMALL_PLAN.measuredSaves, 2, SMALL_PLAN.marginsReads, SMALL_PLAN.coldOpens]);
       expect(result.samples.map((sample) => sample.sequence)).toEqual(phases.map((_phase, index) => index));
       expect(result.samples.every((sample) => sample.count !== null)).toBe(true);
       expect(result.samples[0]?.count?.total).toBe(3);
@@ -90,8 +93,9 @@ describe('cone-showcase scale run', () => {
       expect(new Set(result.samples.filter((sample) => sample.phase === 'margins' || sample.phase === 'cold')
         .map((sample) => sample.outcome.detail))).toEqual(new Set(['obstructed: missing_bounded_basis']));
       expect(result.isComplete()).toBe(false);
+      const reads = String(SMALL_PLAN.plannedReads);
       expect(result.summary().split('\n').slice(-3)).toEqual([
-        'read-check\t1\tunchecked\t0/35\tobstructed%3A%20missing_bounded_basis=35', 'scale-end\t1\tincomplete', '',
+        'read-check\t1\tunchecked\t0/' + reads + '\tobstructed%3A%20missing_bounded_basis=' + reads, 'scale-end\t1\tincomplete', '',
       ]);
       expect(output.lines.filter((line) => line.startsWith('sample-end\t'))).toHaveLength(result.samples.length);
       expect(readdirSync(traces)).toEqual([]);

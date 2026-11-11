@@ -16,10 +16,11 @@ import SeededRandom from './SeededRandom.ts';
 import WitnessAccess from './WitnessAccess.ts';
 import WitnessOutcome from './WitnessOutcome.ts';
 import type WitnessReport from './WitnessReport.ts';
-import { BULK_THREADS_PER_PATCH, MEASURED_SAVES, MARGINS_READS, COLD_OPENS, CORPUS_SEED } from './WitnessWorkload.ts';
+import { BULK_THREADS_PER_PATCH, CORPUS_SEED } from './WitnessWorkload.ts';
+import type WorkloadPlan from './WorkloadPlan.ts';
 import writeResult from './WriteResult.ts';
 
-export { BULK_THREADS_PER_PATCH, MEASURED_SAVES, MARGINS_READS, COLD_OPENS } from './WitnessWorkload.ts';
+export { BULK_THREADS_PER_PATCH } from './WitnessWorkload.ts';
 
 const COLD_OPEN_TIMEOUT_MS = 120_000;
 const SETUP_TIMEOUT_MS = 15_000;
@@ -86,8 +87,10 @@ async function bulkLoad(warp: Warp, corpus: MarginCorpus, recorder: SampleRecord
   }
 }
 
-/** Count exact operation intervals; close handles before trace lifecycle cleanup. */
-export async function runScale(repository: string, threads: number, counter: GitProcessCounter, report: WitnessReport): Promise<ScaleResult> {
+/** Count exact operation intervals of the planned workload; close handles before trace lifecycle cleanup. */
+export async function runScale(
+  repository: string, threads: number, counter: GitProcessCounter, report: WitnessReport, workload: WorkloadPlan,
+): Promise<ScaleResult> {
   const corpus = new MarginCorpus(threads);
   const expectedBulk = expectedBulkPatches(corpus, threads);
   const random = new SeededRandom(CORPUS_SEED);
@@ -108,7 +111,7 @@ export async function runScale(repository: string, threads: number, counter: Git
     await recorder.measure({ phase: 'setup', operation: 'warp-open', documentId: '', subjectId: '' },
       () => new WitnessOutcome('completed', ''));
     await bulkLoad(warp, corpus, recorder);
-    for (let index = 0; index < MEASURED_SAVES; index += 1) {
+    for (let index = 0; index < workload.measuredSaves; index += 1) {
       const author = writer(index % WRITERS.length);
       const action = corpus.nextSave(random, index % WRITERS.length);
       await recorder.measure({
@@ -136,7 +139,7 @@ export async function runScale(repository: string, threads: number, counter: Git
     await recorder.measure({ phase: 'setup', operation: 'lane-open', documentId: '', subjectId: MARGINS_LANE },
       () => new WitnessOutcome('completed', ''));
     const reader = new MarginReader(lane);
-    for (let index = 0; index < MARGINS_READS; index += 1) {
+    for (let index = 0; index < workload.marginsReads; index += 1) {
       const documentId = random.pick(corpus.documents);
       await recorder.measure({ phase: 'margins', operation: 'read-margins', documentId, subjectId: documentId },
         async () => readOutcome(await reader.margins(documentId), documentId, corpus));
@@ -152,7 +155,7 @@ export async function runScale(repository: string, threads: number, counter: Git
   }
   counter.cleanupAfterWritersClosed();
 
-  for (let index = 0; index < COLD_OPENS; index += 1) {
+  for (let index = 0; index < workload.coldOpens; index += 1) {
     const documentId = random.pick(corpus.documents);
     const outcome = await recorder.measure({ phase: 'cold', operation: 'cold-open-read-close', documentId, subjectId: documentId }, () => {
       const output = execFileSync(process.execPath, [COLD_OPEN_SCRIPT, repository, writer(0), documentId], {
@@ -165,5 +168,5 @@ export async function runScale(repository: string, threads: number, counter: Git
     }
     counter.cleanupAfterWritersClosed();
   }
-  return new ScaleResult(threads, corpus.documents.length, report.samples, expectedBulk);
+  return new ScaleResult(threads, corpus.documents.length, report.samples, expectedBulk, workload);
 }
