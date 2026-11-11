@@ -1,3 +1,4 @@
+import AssetTooLargeError from '../../domain/errors/AssetTooLargeError.ts';
 import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
 
 /** git-cas resolves the `subManifests` of a decoded manifest only when its `version` is this value. */
@@ -12,6 +13,16 @@ const MAX_SUB_MANIFEST_REFERENCES = 10_000;
  */
 const MAX_SUB_MANIFEST_CHUNKS = 1_000;
 
+/**
+ * The most chunks one stored asset may have (2^20), on write and on read.
+ *
+ * git-warp's largest exercised asset is the 2 GiB attachment of the storage memory witness. git-cas
+ * content-defined chunking makes chunks of at least 64 KiB (only the last chunk can be smaller), so this
+ * limit admits every asset up to 64 GiB, and about 256 GiB at the 256 KiB target chunk size. A read
+ * keeps about 244 bytes of heap per chunk, so this limit bounds one manifest read near 244 MiB.
+ */
+const MAX_ASSET_CHUNKS = 1_048_576;
+
 /** git-cas `ManifestSchema` accepts only lowercase 40- or 64-character hex object ids. */
 const GIT_OBJECT_ID = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/u;
 
@@ -24,9 +35,7 @@ const MALFORMED_REFERENCE = 'a sub-manifest reference is malformed';
  * git-cas reads and merges every referenced sub-manifest before its schema runs. This guard admits a
  * root manifest only when its references are at most {@link MAX_SUB_MANIFEST_REFERENCES}, each has a
  * distinct object id and declares 1 to {@link MAX_SUB_MANIFEST_CHUNKS} chunks, their ranges cover the
- * chunks contiguously from index zero. Together these bound a root manifest at 10,000 references of
- * at most 1,000 chunks each, git-cas's reference limit times its write threshold, with no repeated
- * sub-manifest. Other
+ * chunks contiguously from index zero, and the total is at most {@link MAX_ASSET_CHUNKS}. Other
  * decoded values (flat manifests, sub-manifests, bundle descriptors, trust records) have no
  * `subManifests` that git-cas resolves and pass unchanged.
  */
@@ -49,6 +58,26 @@ export default class GitCasManifestShapeGuard {
     }
     checkReferences(references);
   }
+
+  /** Throws `E_ASSET_TOO_LARGE` when `manifest` is a Merkle root manifest with more than the most chunks. */
+  checkStored(manifest: object): void {
+    const references = merkleRootReferences(manifest);
+    if (!Array.isArray(references)) {
+      return;
+    }
+    const chunkCount = totalChunkCount(references);
+    if (chunkCount > MAX_ASSET_CHUNKS) {
+      throw new AssetTooLargeError(chunkCount, MAX_ASSET_CHUNKS);
+    }
+  }
+}
+
+function totalChunkCount(references: readonly unknown[]): number {
+  let total = 0;
+  for (const value of references) {
+    total += readReference(value).chunkCount;
+  }
+  return total;
 }
 
 /** A sub-manifest reference whose fields have the types and ranges git-cas's schema requires. */
@@ -73,6 +102,9 @@ function checkReferences(references: readonly unknown[]): void {
     }
     objectIds.add(reference.oid);
     nextIndex += reference.chunkCount;
+    if (nextIndex > MAX_ASSET_CHUNKS) {
+      throw manifestShapeError('total chunk count exceeds the maximum');
+    }
   }
 }
 
