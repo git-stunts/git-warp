@@ -616,6 +616,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Bound the CBOR that git-warp reads through git-cas's CBOR codec. Asset manifests, Merkle
+  sub-manifests, bundle descriptors and trust records now pass the same decode limits as
+  git-warp's other repository blobs before cbor-x reads them: 5 MiB, depth 32, 1,000,000
+  items, 1,000,000 entries in one container, definite lengths only, and the tag allow-list.
+  Before, only git-cas's 10 MiB blob limit applied to these blobs, which peers replicate.
+  The `git-warp-v18-to-v19` migration reads legacy manifests with the same limits.
+  Encoding is unchanged, so manifest bytes and tree OIDs do not change. A read of a
+  refused manifest, sub-manifest or trust record fails with `E_CBOR_DECODE_BOUNDS`; for a
+  bundle descriptor, git-cas reports a `BUNDLE_CORRUPT` error whose `meta.originalError`
+  is that `E_CBOR_DECODE_BOUNDS` error. See
+  [CBOR input limits](docs/topics/sync.md#cbor-input-limits)
+  ([#1186](https://github.com/git-stunts/git-warp/issues/1186)).
 - `serve()` now passes `allowedWriters` to the HTTP sync server. From v11.0.0 to v20.0.0
   it did not, so the writer list that `.github/SECURITY.md` documents had no effect: the
   server answered a signed request whose frontier named an unlisted writer, and an invalid
