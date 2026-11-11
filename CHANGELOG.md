@@ -96,6 +96,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Close the four accepted risks in `.github/SECURITY.md` whose acceptance
+  expired on 2026-08-01, as the Option B decision on
+  [#1032](https://github.com/git-stunts/git-warp/issues/1032) requires:
+  `roaring-wasm` bitmap faults (closed by #1128), the `cbor-x` parser on
+  untrusted payloads (#1148), the nonce cache lost on restart (#1149), and
+  no rate limiting on the sync endpoint (#1162). Each closed row cites the
+  source files that hold its mitigation. Two narrower rows record what
+  remains, and each requires maintainer acceptance before release: the full
+  in-process expansion of one admitted edge bitmap and the unmatched writer
+  shard size ([#1159](https://github.com/git-stunts/git-warp/issues/1159),
+  Medium), and senders with more addresses than the peer admission limit
+  tracks, with no global flood bound
+  ([#1165](https://github.com/git-stunts/git-warp/issues/1165),
+  [#1164](https://github.com/git-stunts/git-warp/issues/1164), Low). The
+  Availability boundary and the `cbor-x` dependency row now describe the
+  shipped limits, and the Writer Authorization section states that `serve()`
+  does not yet enforce `allowedWriters`
+  ([#1163](https://github.com/git-stunts/git-warp/issues/1163)).
+
 - Validate every serialized Roaring bitmap before the bitmap library reads
   it, and bound it
   ([#1087](https://github.com/git-stunts/git-warp/issues/1087)). The bitmap
