@@ -3,16 +3,20 @@ import EncryptionError from '../../../src/domain/errors/EncryptionError.ts';
 import { openMemoryRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import MemoryRuntimeStorageAdapter from '../../helpers/MemoryRuntimeStorageAdapter.ts';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.ts';
+import ManualClock from '../../helpers/ManualClock.ts';
 
 describe('git-cas patch encryption composition', () => {
   it('records encrypted git-cas storage metadata and round-trips the patch', async () => {
     const repo = createInMemoryRepo();
+    const clock = new ManualClock();
     const runtimeStorage = new MemoryRuntimeStorageAdapter({
       history: repo.persistence,
+      clock,
       encrypted: true,
     });
     const runtime = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
+      clock,
       runtimeStorage,
       graphName: 'encrypted-events',
       writerId: 'writer-1',
@@ -40,12 +44,15 @@ describe('git-cas patch encryption composition', () => {
 
   it('rejects encrypted patch history opened with a different key', async () => {
     const repo = createInMemoryRepo();
+    const clock = new ManualClock();
     const writerStorage = new MemoryRuntimeStorageAdapter({
       history: repo.persistence,
+      clock,
       encryptionKey: new Uint8Array(32).fill(0x11),
     });
     const writer = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
+      clock,
       runtimeStorage: writerStorage,
       graphName: 'encrypted-wrong-key',
       writerId: 'writer-1',
@@ -55,11 +62,13 @@ describe('git-cas patch encryption composition', () => {
     });
     const readerStorage = new MemoryRuntimeStorageAdapter({
       history: repo.persistence,
+      clock,
       encryptionKey: new Uint8Array(32).fill(0x22),
       backing: writerStorage.backing,
     });
     const reader = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
+      clock,
       runtimeStorage: readerStorage,
       graphName: 'encrypted-wrong-key',
       writerId: 'reader',
@@ -73,12 +82,15 @@ describe('git-cas patch encryption composition', () => {
 
   it('rejects corrupted encrypted patch bytes', async () => {
     const repo = createInMemoryRepo();
+    const clock = new ManualClock();
     const writerStorage = new MemoryRuntimeStorageAdapter({
       history: repo.persistence,
+      clock,
       encrypted: true,
     });
     const writer = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
+      clock,
       runtimeStorage: writerStorage,
       graphName: 'encrypted-corrupt',
       writerId: 'writer-1',
@@ -96,11 +108,13 @@ describe('git-cas patch encryption composition', () => {
     writerStorage.backing.replace(message.patchHandle, corrupted);
     const readerStorage = new MemoryRuntimeStorageAdapter({
       history: repo.persistence,
+      clock,
       encrypted: true,
       backing: writerStorage.backing,
     });
     const reader = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
+      clock,
       runtimeStorage: readerStorage,
       graphName: 'encrypted-corrupt',
       writerId: 'reader',
@@ -114,12 +128,15 @@ describe('git-cas patch encryption composition', () => {
 
   it('reopens encrypted patch history through the same repository storage provider', async () => {
     const repo = createInMemoryRepo();
+    const clock = new ManualClock();
     const runtimeStorage = new MemoryRuntimeStorageAdapter({
       history: repo.persistence,
+      clock,
       encrypted: true,
     });
     const writer = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
+      clock,
       runtimeStorage,
       graphName: 'encrypted-reopen',
       writerId: 'writer-1',
@@ -131,6 +148,7 @@ describe('git-cas patch encryption composition', () => {
 
     const reader = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
+      clock,
       runtimeStorage,
       graphName: 'encrypted-reopen',
       writerId: 'reader',
@@ -143,12 +161,15 @@ describe('git-cas patch encryption composition', () => {
 
   it('keeps provenance reads on the semantic patch journal', async () => {
     const repo = createInMemoryRepo();
+    const clock = new ManualClock();
     const runtimeStorage = new MemoryRuntimeStorageAdapter({
       history: repo.persistence,
+      clock,
       encrypted: true,
     });
     const runtime = await openMemoryRuntimeHostProduct({
       persistence: repo.persistence,
+      clock,
       runtimeStorage,
       graphName: 'encrypted-provenance',
       writerId: 'writer-1',

@@ -1,8 +1,20 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.ts';
-import { checkAborted as _checkAborted, createTimeoutSignal } from '../../../../src/domain/utils/cancellation.ts';
+import { checkAborted as _checkAborted } from '../../../../src/domain/utils/cancellation.ts';
 
 const checkAborted = (_checkAborted) as any;
+
+function fakeAbortAfter(controller: AbortController, ms: number): void {
+  // eslint-disable-next-line no-restricted-syntax -- fake timers: callers install vi.useFakeTimers() first
+  setTimeout(() => controller.abort(), ms);
+}
+
+function fakeSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    // eslint-disable-next-line no-restricted-syntax -- fake timers: callers install vi.useFakeTimers() first
+    setTimeout(resolve, ms);
+  });
+}
 
 describe('Cancellation', () => {
   describe('OperationAbortedError', () => {
@@ -117,72 +129,6 @@ describe('Cancellation', () => {
     });
   });
 
-  describe('createTimeoutSignal', () => {
-    // Note: AbortSignal.timeout() uses internal timers that don't work with
-    // fake timers, so these tests use real timers with short timeouts.
-
-    it('returns an AbortSignal', () => {
-      const signal = createTimeoutSignal(1000);
-
-      expect(signal).toBeInstanceOf(AbortSignal);
-    });
-
-    it('is not aborted immediately after creation', () => {
-      const signal = createTimeoutSignal(1000);
-
-      expect(signal.aborted).toBe(false);
-    });
-
-    it('aborts after the specified timeout', async () => {
-      const signal = createTimeoutSignal(20);
-
-      expect(signal.aborted).toBe(false);
-
-      // Wait for the timeout to elapse
-      await new Promise((resolve) => setTimeout(resolve, 30));
-
-      expect(signal.aborted).toBe(true);
-    });
-
-    it('does not abort before timeout', async () => {
-      const signal = createTimeoutSignal(100);
-
-      // Wait a short time that's less than the timeout
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      expect(signal.aborted).toBe(false);
-    });
-
-    it('works with checkAborted after timeout', async () => {
-      const signal = createTimeoutSignal(20);
-
-      // Before timeout - should not throw
-      expect(() => checkAborted(signal, 'test')).not.toThrow();
-
-      // Wait for the timeout to elapse
-      await new Promise((resolve) => setTimeout(resolve, 30));
-
-      // After timeout - should throw
-      expect(() => checkAborted(signal, 'test')).toThrow(OperationAbortedError);
-    });
-
-    it('creates independent signals', async () => {
-      const signal1 = createTimeoutSignal(20);
-      const signal2 = createTimeoutSignal(60);
-
-      // Wait for first signal to timeout but not second
-      await new Promise((resolve) => setTimeout(resolve, 35));
-
-      expect(signal1.aborted).toBe(true);
-      expect(signal2.aborted).toBe(false);
-
-      // Wait for second signal to timeout
-      await new Promise((resolve) => setTimeout(resolve, 35));
-
-      expect(signal2.aborted).toBe(true);
-    });
-  });
-
   describe('Integration: iterateNodes with abort signal', () => {
     it('abort signal can be used to stop iteration', async () => {
       const controller = new AbortController();
@@ -265,11 +211,19 @@ describe('Cancellation', () => {
   });
 
   describe('Integration: rebuild with abort signal', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('abort signal can be used to cancel rebuild', async () => {
       const controller = new AbortController();
       let processedCount = 0;
 
-      // Simulate rebuild loop that checks abort signal
+      // Simulate a rebuild loop that checks the signal and spends 1 ms per node.
       async function mockRebuild(/** @type {any} */ options) {
         const nodes = [
           { sha: 'sha1', parents: [] },
@@ -281,25 +235,21 @@ describe('Cancellation', () => {
         for (const _node of nodes) {
           checkAborted(options.signal, 'rebuild');
           processedCount++;
-          // Simulate some processing time
-          await Promise.resolve();
+          await fakeSleep(1);
         }
 
         return 'tree-oid';
       }
 
-      // Abort after a short delay
-      setTimeout(() => controller.abort(), 0);
+      // The abort timer is due at 1 ms, before the first node's work ends.
+      fakeAbortAfter(controller, 1);
+      const rebuild = mockRebuild({ signal: controller.signal });
+      const outcome = expect(rebuild).rejects.toThrow(/Operation 'rebuild' aborted/);
+      await vi.advanceTimersByTimeAsync(1);
 
-      try {
-        await mockRebuild({ signal: controller.signal });
-        // Might complete if abort happens after all nodes
-      } catch (/** @type {any} */ err) {
-        expect(err).toBeInstanceOf(OperationAbortedError);
-        expect((err as any).message).toContain('rebuild');
-        // Should have processed at least one node but not all
-        expect(processedCount).toBeLessThanOrEqual(4);
-      }
+      await outcome;
+      await expect(rebuild).rejects.toBeInstanceOf(OperationAbortedError);
+      expect(processedCount).toBe(1);
     });
 
     it('rebuild completes when signal is not aborted', async () => {
@@ -323,11 +273,7 @@ describe('Cancellation', () => {
     });
 
     it('rebuild with timeout signal aborts after time limit', async () => {
-      // Note: AbortSignal.timeout() uses internal timers that don't work with
-      // fake timers, so this test uses real timers with short timeouts.
-
       let processedCount = 0;
-      let abortError = null;
 
       async function mockLongRebuild(/** @type {any} */ options) {
         const manyNodes = Array.from({ length: 100 }, (_, i) => ({
@@ -338,26 +284,22 @@ describe('Cancellation', () => {
         for (const _node of manyNodes) {
           checkAborted(options.signal, 'rebuild');
           processedCount++;
-          // Simulate 5ms per node
-          await new Promise((resolve) => setTimeout(resolve, 5));
+          await fakeSleep(5);
         }
 
         return 'tree-oid';
       }
 
-      // Create a 30ms timeout signal (should process ~6 nodes before abort)
-      const signal = createTimeoutSignal(30);
+      // Oracle: nodes start at 0, 5, 10, 15, 20, and 25 ms. The 30 ms abort
+      // fires before the sixth node's work ends, so exactly six nodes run.
+      const controller = new AbortController();
+      fakeAbortAfter(controller, 30);
+      const rebuild = mockLongRebuild({ signal: controller.signal });
+      const outcome = expect(rebuild).rejects.toBeInstanceOf(OperationAbortedError);
+      await vi.advanceTimersByTimeAsync(30);
 
-      // Run the rebuild and catch the abort error
-      await mockLongRebuild({ signal }).catch((err) => {
-        abortError = err;
-      });
-
-      // Should have aborted
-      expect(abortError).toBeInstanceOf(OperationAbortedError);
-      // Should have processed some nodes but not all
-      expect(processedCount).toBeGreaterThan(0);
-      expect(processedCount).toBeLessThan(100);
+      await outcome;
+      expect(processedCount).toBe(6);
     });
   });
 
@@ -387,7 +329,7 @@ describe('Cancellation', () => {
       const error = new OperationAbortedError('fullTest', {
         reason: 'User cancelled',
         code: 'USER_CANCELLED',
-        context: { userId: 123, timestamp: Date.now() },
+        context: { userId: 123, timestamp: 1_767_225_600_000 },
       });
 
       expect(error.operation).toBe('fullTest');

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { openWarpGraphRuntime } from '../../../src/domain/warp/WarpGraphRuntimeBridge.ts';
 import { createMemoryRuntimeStorage } from '../../helpers/MemoryRuntimeHost.ts';
 import { createInMemoryRepo } from '../../helpers/warpGraphTestUtils.ts';
+import ManualClock from '../../helpers/ManualClock.ts';
 
 const bridgePath = fileURLToPath(
   new URL('../../../src/domain/warp/WarpGraphRuntimeBridge.ts', import.meta.url),
@@ -43,11 +44,13 @@ describe('openWarpRuntime bridge closeout', () => {
 
   it('constructs the graph runtime bridge through the supported host product', async () => {
     const repo = createInMemoryRepo();
+    const clock = new ManualClock();
 
     try {
       const runtime = await openWarpGraphRuntime({
         persistence: repo.persistence,
-        runtimeStorage: createMemoryRuntimeStorage(repo.persistence),
+        clock,
+        runtimeStorage: createMemoryRuntimeStorage(repo.persistence, clock),
         graphName: 'bridge-closeout',
         writerId: 'alice',
       });

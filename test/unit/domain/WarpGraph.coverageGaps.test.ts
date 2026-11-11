@@ -8,6 +8,9 @@ import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../src/domain/utils/EventId.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 
+// Commit dates are opaque here; a fixed value keeps the fixture deterministic.
+const FIXED_COMMIT_DATE = '2026-01-01T00:00:00.000Z';
+
 const crypto = new NodeCryptoAdapter();
 
 function createMockPersistence() {
@@ -63,7 +66,7 @@ function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, par
       sha,
       message,
       author: 'Test <test@example.com>',
-      date: new Date().toISOString(),
+      date: FIXED_COMMIT_DATE,
       parents: parentSha ? [parentSha] : [],
     },
   };

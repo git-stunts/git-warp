@@ -15,6 +15,7 @@ import type {
 } from '../../src/ports/RuntimeStorageProviderPort.ts';
 import InMemoryGraphAdapter from '../../test/helpers/InMemoryGraphAdapter.ts';
 import MemoryRuntimeStorageAdapter from '../../test/helpers/MemoryRuntimeStorageAdapter.ts';
+import ManualClock from '../helpers/ManualClock.ts';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../helpers/MemoryRuntimeHost.ts';
 
 const NODE_ID = 'event:honesty';
@@ -149,11 +150,13 @@ function prepareOpticBasisImplementation(): string {
 describe('v18 first-use optics honesty gate', () => {
   it('reads an existing checkpoint-tail basis without full residency or writes', async () => {
     const history = new InMemoryGraphAdapter();
+    const clock = new ManualClock();
     const runtimeStorage = new FirstUseOpticsTrapStorage(
-      new MemoryRuntimeStorageAdapter({ history }),
+      new MemoryRuntimeStorageAdapter({ history, clock }),
     );
     const runtime = await openRuntimeHostProduct({
       persistence: history,
+      clock,
       runtimeStorage,
       graphName: 'v18-first-use-optics-honesty',
       writerId: 'app',
