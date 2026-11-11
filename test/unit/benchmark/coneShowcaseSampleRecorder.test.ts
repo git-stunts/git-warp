@@ -41,16 +41,25 @@ describe('cone-showcase sample attribution', () => {
     const report = new WitnessReport(200);
     const recorder = new SampleRecorder(new GitProcessCounter(traces), report);
 
-    await recorder.measure(SAVE, () => {
+    // Real Warp operations spawn Git only after their first await, so each
+    // operation here yields before it traces: a capture taken before the
+    // operation settles would miss these processes.
+    await recorder.measure(SAVE, async () => {
+      await Promise.resolve();
       traceProcess('during-0a');
+      await Promise.resolve();
       traceProcess('during-0b');
       return new WitnessOutcome('retained', '');
     });
     traceProcess('after-0');
-    await recorder.measure(SAVE, () => new WitnessOutcome('retained', ''));
+    await recorder.measure(SAVE, async () => {
+      await Promise.resolve();
+      traceProcess('during-1');
+      return new WitnessOutcome('retained', '');
+    });
     await recorder.measure(SAVE, () => new WitnessOutcome('retained', ''));
 
-    expect(filesPerSample(report.samples)).toEqual([['during-0a', 'during-0b'], ['after-0'], []]);
+    expect(filesPerSample(report.samples)).toEqual([['during-0a', 'during-0b'], ['after-0', 'during-1'], []]);
     expect(report.samples.map((sample) => sample.sequence)).toEqual([0, 1, 2]);
   });
 
