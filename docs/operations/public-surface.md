@@ -80,7 +80,9 @@ permitted; changed removal owners are additions. The scanner records each type o
 route can record a remaining exposure under another route.
 `policy/public-surface-route-changes.txt` lists such moves as `<new key><TAB><old key>`.
 A listed row is admitted only when both keys share subpath, export and rule, the old row
-was in the merge base, and it is gone now. #1054 uses it for 11 rows. Missing/shallow/ambiguous
+was in the merge base, and it is gone now. #1054 uses it for 11 rows. The list itself is
+pinned to the merge base: a move that the merge-base list does not hold is reported as
+`NEW route change` and is not admitted, and removal of listed moves passes (#1155). Missing/shallow/ambiguous
 history refuses the check. The first introduction is allowed only when neither
 guard nor baseline exists anywhere in the comparison base's history. Deleting
 them cannot reset this condition. The bootstrap check uses `git log --full-history`
