@@ -632,7 +632,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a refused root manifest fails with `E_CAS_MANIFEST_SHAPE`. git-warp limits one stored
   asset to 1,048,576 chunks, at least 64 GiB at git-cas's smallest chunk size of 64 KiB:
   a write of a larger asset fails with `E_ASSET_TOO_LARGE`, and a read of a Merkle root
-  manifest that lists more chunks fails with `E_CAS_MANIFEST_SHAPE`.
+  manifest that lists more chunks fails with `E_CAS_MANIFEST_SHAPE`. An asset of more than
+  1,048,576 chunks that an earlier version stored can no longer be read; read or copy it
+  with v20 before you upgrade.
   See [CBOR input limits](docs/topics/sync.md#cbor-input-limits)
   ([#1186](https://github.com/git-stunts/git-warp/issues/1186)).
 - `serve()` now passes `allowedWriters` to the HTTP sync server. From v11.0.0 to v20.0.0
