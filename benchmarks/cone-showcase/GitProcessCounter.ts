@@ -4,21 +4,21 @@ import { join } from 'node:path';
 import GitProcessCount from './GitProcessCount.ts';
 
 /**
- * Per-lifecycle trace reserve. Basis: the 2026-11-11 200-thread pilot measured
- * at most 194 Git processes per write and about 4.1 KiB allocated per trace
- * file. The largest Warp lifecycle is the 2,000-thread scale: 124 bulk writes
- * plus 60 saves. The reserve doubles both measurements as margin.
+ * Per-lifecycle trace reserve. Basis: the 2026-11-11 Docker runs measured at
+ * most 196 Git processes per write (a 200-thread bulk write) and about 4.1 KiB
+ * allocated per trace file. The largest Warp lifecycle is the 2,000-thread
+ * scale: 124 bulk writes plus 60 saves. The reserve doubles both measurements.
  */
-const MEASURED_PROCESSES_PER_WRITE = 194;
+const MEASURED_PROCESSES_PER_WRITE = 196;
 const LARGEST_LIFECYCLE_WRITES = 124 + 60;
 const RESERVE_MARGIN = 2;
 const TRACE_FILE_BYTES = 8 * 1024;
 
-/** 184 * 194 * 2 = 71,392 files, rounded up to 71,680 (70 Ki), which also covers setup and close. */
+/** 184 * 196 * 2 = 72,128 files, rounded up to 72,704 (71 Ki): 2.02 times 36,064, with room for setup and close. */
 export const TRACE_FILE_LIMIT = Math.ceil(
   (LARGEST_LIFECYCLE_WRITES * MEASURED_PROCESSES_PER_WRITE * RESERVE_MARGIN) / 1024,
 ) * 1024;
-/** 71,680 files at 8 KiB each: 560 MiB of logical or allocated trace bytes. */
+/** 72,704 files at 8 KiB each: 568 MiB of logical or allocated trace bytes. */
 export const TRACE_BYTE_LIMIT = TRACE_FILE_LIMIT * TRACE_FILE_BYTES;
 
 /**

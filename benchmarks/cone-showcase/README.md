@@ -43,12 +43,13 @@ processes, and configured descendants.
 
 The sampler rejects missing directories, discarded output, nonregular or aliased
 files, empty files, incomplete final records, and disappeared or replaced file
-identities. The per-lifecycle reserve is 71,680 files and 560 MiB of logical or
-allocated file bytes, checked at each sample. Git also receives a 71,679-file
+identities. The per-lifecycle reserve is 72,704 files and 568 MiB of logical or
+allocated file bytes, checked at each sample. Git also receives a 72,703-file
 limit, leaving a slot for its discard marker. The reserve is twice the largest
-measured lifecycle: 184 writes at the 2,000-thread scale, at most 194 Git
-processes per write in the 200-thread pilot, and 8 KiB per trace file. The outer Docker guard bounds
-growth during operations; the sample checks are not a filesystem quota.
+measured lifecycle: 184 writes at the 2,000-thread scale, at most 196 Git
+processes per write measured at 200 threads, and 8 KiB per trace file. The
+outer Docker guard bounds growth during operations; the sample checks are not a
+filesystem quota.
 
 Sample records are retained before cleanup. Trace files remain while a warm
 session can hold them open. Cleanup follows awaited `Warp.close`,
@@ -101,7 +102,7 @@ with `obstructed: missing_bounded_basis`, so every run ends with
 head `a5971b5e5` on 2026-11-11, Docker runs measured these values (two runs at
 200 threads, shown as ranges; one run at 2,000):
 
-| Threads | Samples | Git processes per bulk write (min/median/max) | Git processes per save (min/median/max) | Per warm read | Per cold read | Peak container bytes | Wall time |
+| Threads | Samples | Git processes per bulk write (min/median/max) | Git processes per save (min/median/max) | Per refused warm read | Per refused cold read | Peak container bytes | Wall time |
 | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: |
 | 200 | 117 | 189 / 193 / 194–196 | 194 / 194 / 194 | 2 | 14 | 70,066,176–84,156,416 | 56–82 s |
 | 2,000 | 225 | 189 / 193 / 195 | 194 / 194 / 195 | 2 | 14 | 234,156,032 | about 290 s |
