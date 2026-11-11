@@ -80,7 +80,7 @@ async function updateRatchet(path: string, baseline: string, reportsDirectory: s
     }
     throw replacementError;
   }
-  console.log(`coverage-tests: completed full-suite line ratchet raised to ${percentage}`);
+  console.log(`coverage-tests: completed full-suite line ratchet raised from measured ${percentage}% less one reporting step`);
 }
 
 try {

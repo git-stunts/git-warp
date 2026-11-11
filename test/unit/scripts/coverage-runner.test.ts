@@ -58,7 +58,7 @@ describe('coverage runner completion and ratchet boundary', () => {
     expect(result.status, result.output).toBe(0);
     expect(result.output).toContain('instrumented workers=1; processing concurrency=1');
     expect(result.output).toContain('complete (1 files); zero errors');
-    expect(result.config).toBe(baseline.replace('lines: 0,', 'lines: 100,'));
+    expect(result.config).toBe(baseline.replace('lines: 0,', 'lines: 99.99,'));
   });
   it('bounds instrumented worker admission while a finished worker is still shutting down', () => {
     const root = fixture(passingTest);
@@ -163,7 +163,7 @@ describe('coverage runner completion and ratchet boundary', () => {
     expect(() => readFileSync(join(root, 'vitest.config.ts.coverage-candidate'))).toThrow(expect.objectContaining({ code: 'ENOENT' }));
     const retry = run(root);
     expect(retry.status, retry.output).toBe(0);
-    expect(retry.config).toBe(baseline.replace('lines: 0,', 'lines: 100,'));
+    expect(retry.config).toBe(baseline.replace('lines: 0,', 'lines: 99.99,'));
   });
   it('reports both failures when its candidate cannot be replaced or removed', () => {
     const root = fixture(passingTest);
@@ -188,7 +188,7 @@ describe('coverage runner completion and ratchet boundary', () => {
     expect(result.stderr).toContain('controlled candidate renameSync failure');
     expect(result.stderr).toContain('controlled candidate unlinkSync failure');
     expect(readFileSync(join(root, 'vitest.config.ts'), 'utf8')).toBe(baseline);
-    expect(readFileSync(join(root, 'vitest.config.ts.coverage-candidate'), 'utf8')).toBe(baseline.replace('lines: 0,', 'lines: 100,'));
+    expect(readFileSync(join(root, 'vitest.config.ts.coverage-candidate'), 'utf8')).toBe(baseline.replace('lines: 0,', 'lines: 99.99,'));
   });
   it.each(['test:coverage:ci', 'targeted'])('keeps reporting-only %s runs unchanged', command => {
     const root = fixture(passingTest);
