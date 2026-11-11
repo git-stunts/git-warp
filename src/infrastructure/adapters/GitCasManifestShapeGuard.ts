@@ -24,8 +24,9 @@ const MALFORMED_REFERENCE = 'a sub-manifest reference is malformed';
  * git-cas reads and merges every referenced sub-manifest before its schema runs. This guard admits a
  * root manifest only when its references are at most {@link MAX_SUB_MANIFEST_REFERENCES}, each has a
  * distinct object id and declares 1 to {@link MAX_SUB_MANIFEST_CHUNKS} chunks, their ranges cover the
- * chunks contiguously from index zero. Together these bound a root manifest at the total git-cas itself
- * admits (references times chunks per reference), with no repeated sub-manifest. Other
+ * chunks contiguously from index zero. Together these bound a root manifest at 10,000 references of
+ * at most 1,000 chunks each, git-cas's reference limit times its write threshold, with no repeated
+ * sub-manifest. Other
  * decoded values (flat manifests, sub-manifests, bundle descriptors, trust records) have no
  * `subManifests` that git-cas resolves and pass unchanged.
  */
