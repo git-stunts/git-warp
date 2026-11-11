@@ -10,13 +10,15 @@ import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../../src/infrastructure/
 import { CborCodec } from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import InMemoryGraphAdapter from '../../../../helpers/InMemoryGraphAdapter.ts';
 import MemoryRuntimeStorageAdapter from '../../../../helpers/MemoryRuntimeStorageAdapter.ts';
+import ManualClock from '../../../../helpers/ManualClock.ts';
 import HistoryOnlyKernel from '../../../../helpers/HistoryOnlyKernel.ts';
 import ReadOnlyConfigurationKernel from '../../../../helpers/ReadOnlyConfigurationKernel.ts';
 
 async function fixture() {
   const history = new InMemoryGraphAdapter();
+  const clock = new ManualClock();
   const host = await openRuntimeHost({
-    persistence: history, runtimeStorage: new MemoryRuntimeStorageAdapter({ history }),
+    persistence: history, clock, runtimeStorage: new MemoryRuntimeStorageAdapter({ history, clock }),
     graphName: 'events', writerId: 'alice', checkpointPolicy: null,
     codec: new CborCodec(), commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC, logger: nullLogger,
   });
