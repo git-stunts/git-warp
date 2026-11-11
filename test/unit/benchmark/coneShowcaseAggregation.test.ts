@@ -7,6 +7,7 @@ import PhaseCounts from '../../../benchmarks/cone-showcase/PhaseCounts.ts';
 import { ScaleResult } from '../../../benchmarks/cone-showcase/ScaleResult.ts';
 import WitnessOutcome from '../../../benchmarks/cone-showcase/WitnessOutcome.ts';
 import WitnessSample, { type WitnessPhase } from '../../../benchmarks/cone-showcase/WitnessSample.ts';
+import { WITNESS_PLAN } from '../../../benchmarks/cone-showcase/WitnessWorkload.ts';
 
 function sample(sequence: number, phase: WitnessPhase, count: GitProcessCount | null, outcome: WitnessOutcome): WitnessSample {
   return new WitnessSample({ sequence, phase, operation: phase, documentId: 'd0', subjectId: 't0', count, outcome });
@@ -52,7 +53,7 @@ describe('cone-showcase aggregate evidence', () => {
     const first = samples[0];
     if (first === undefined) throw new TypeError('the literal complete fixture is empty');
     samples[0] = sample(0, 'setup', new GitProcessCount(Array.from({ length: 500 }, (_, index) => 'process-' + String(index))), first.outcome);
-    const result = new ScaleResult(200, 1, samples, 1);
+    const result = new ScaleResult(200, 1, samples, 1, WITNESS_PLAN);
     expect(result.isComplete()).toBe(true);
     expect(result.summary()).toContain('aggregate\t200\tsave\t60\t60\t0\t0\t0\tretained=60\n');
     expect(result.summary()).toContain('scale-end\t200\tcomplete\n');
@@ -70,7 +71,7 @@ describe('cone-showcase aggregate evidence', () => {
       if (fault === 'no-membership') samples[index] = sample(index, 'cold', original.count, new WitnessOutcome('verified', ''));
       if (fault === 'wrong-sequence') samples[index] = sample(index + 1, 'cold', original.count, original.outcome);
       if (fault === 'missing-sample') samples.splice(index, 1);
-      const result = new ScaleResult(200, 1, samples, 1);
+      const result = new ScaleResult(200, 1, samples, 1, WITNESS_PLAN);
       expect(result.isComplete()).toBe(false);
       expect(result.summary()).toContain('scale-end\t200\tincomplete\n');
     },

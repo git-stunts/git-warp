@@ -16,6 +16,7 @@ import { Margins, MarginsUnavailable, type MarginsRead } from '../../../benchmar
 import ReadCheck from '../../../benchmarks/cone-showcase/ReadCheck.ts';
 import { initRepository, openWarp, readOutcome } from '../../../benchmarks/cone-showcase/ScaleRun.ts';
 import WitnessSample from '../../../benchmarks/cone-showcase/WitnessSample.ts';
+import { WITNESS_PLAN } from '../../../benchmarks/cone-showcase/WitnessWorkload.ts';
 import writeResult from '../../../benchmarks/cone-showcase/WriteResult.ts';
 
 const COLD_OPEN = fileURLToPath(new URL('../../../benchmarks/cone-showcase/ColdOpen.ts', import.meta.url));
@@ -27,7 +28,7 @@ function readCheckLine(read: MarginsRead, corpus: MarginCorpus): string {
     sequence: 0, phase: 'margins', operation: 'read-margins', documentId: 'd0', subjectId: 'd0',
     count: new GitProcessCount([]), outcome: readOutcome(read, 'd0', corpus),
   });
-  return new ReadCheck(200, [sample]).line();
+  return new ReadCheck(200, [sample], WITNESS_PLAN).line();
 }
 
 describe('cone-showcase refused reads', () => {
