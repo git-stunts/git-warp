@@ -7,11 +7,13 @@ import defaultCrypto from '../../../src/infrastructure/adapters/NodeCryptoSingle
 import { openMemoryRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import InMemoryGraphAdapter from '../../helpers/InMemoryGraphAdapter.ts';
 import MemoryRuntimeStorageAdapter from '../../helpers/MemoryRuntimeStorageAdapter.ts';
+import ManualClock from '../../helpers/ManualClock.ts';
 
 describe('runtime storage composition', () => {
   it('obtains semantic content storage from the repository provider', async () => {
     const history = new InMemoryGraphAdapter();
-    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history });
+    const clock = new ManualClock();
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history, clock });
     const services = await runtimeStorage.createRuntimeStorageServices({
       timelineName: 'events',
       codec: defaultCodec,
@@ -21,6 +23,7 @@ describe('runtime storage composition', () => {
 
     const runtime = await openMemoryRuntimeHostProduct({
       persistence: history,
+      clock,
       runtimeStorage,
       graphName: 'events',
       writerId: 'writer-1',

@@ -11,6 +11,7 @@ import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { createMockPersistence } from '../../../helpers/warpGraphTestUtils.ts';
 import { createMemoryRuntimeStorage } from '../../../helpers/MemoryRuntimeHost.ts';
+import ManualClock from '../../../helpers/ManualClock.ts';
 import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
 
 describe('WarpOpenOptions', () => {
@@ -96,9 +97,11 @@ describe('WarpOpenOptions', () => {
 
   it('keeps raw object compatibility at the construction resolver boundary', async () => {
     const persistence = createMockPersistence();
+    const clock = new ManualClock();
     const { options } = await resolveRuntimeHostConstructionOptions({
       persistence,
-      runtimeStorage: createMemoryRuntimeStorage(persistence),
+      clock,
+      runtimeStorage: createMemoryRuntimeStorage(persistence, clock),
       graphName: 'raw-options',
       writerId: 'writer-1',
     });
@@ -111,9 +114,11 @@ describe('WarpOpenOptions', () => {
 
   it('opens runtime products from a parsed options instance', async () => {
     const persistence = createMockPersistence();
+    const clock = new ManualClock();
     const runtime = await openRuntimeHostProduct(new WarpOpenOptions({
       persistence,
-      runtimeStorage: createMemoryRuntimeStorage(persistence),
+      clock,
+      runtimeStorage: createMemoryRuntimeStorage(persistence, clock),
       graphName: 'parsed-runtime',
       writerId: 'writer-1',
       onDeleteWithData: 'cascade',

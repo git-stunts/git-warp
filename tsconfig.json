@@ -4,6 +4,7 @@
     "src/**/*.ts",
     "src/globals.d.ts",
     "bin/**/*.ts",
+    "benchmarks/cone-showcase/**/*.ts",
     "scripts/**/*.ts",
     "test/**/*.ts"
   ],
