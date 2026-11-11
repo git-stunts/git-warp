@@ -164,8 +164,11 @@ staging. The returned storage receipt is checked independently for unencrypted a
 Encrypted CAS receipts describe stored ciphertext size; WARP records the fully
 consumed plaintext count instead. Storage cannot return success before input EOF.
 
-An absent declaration retains streaming storage behavior without imposing an
-arbitrary attachment-size cap. This boundary does not collect the asset and
+An absent declaration retains streaming storage behavior. git-warp limits one
+stored asset to 1,048,576 chunks, at least 64 GiB at git-cas's smallest chunk
+size of 64 KiB. Staging a larger asset fails with `E_ASSET_TOO_LARGE` after
+git-cas has written its chunks but before it writes the asset tree, so no
+handle or ref reaches those objects. This boundary does not collect the asset and
 cannot prevent a producer from allocating an oversized chunk before yielding
 it. Producer allocation limits and bounded convenience collectors are separate
 requirements of issue #818.
