@@ -11,7 +11,6 @@ const ALLOWANCE_REASONS = Object.freeze([
   'process bound',
   'fake timers',
   'benchmark measurement',
-  'host clock default',
 ]);
 
 const ALLOWANCE_PATTERN = new RegExp(
