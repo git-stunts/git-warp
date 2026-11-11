@@ -9,10 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- Remove the legacy write, strand and settlement capabilities of `Runtime` and `Lane`
+  ([#1054](https://github.com/git-stunts/git-warp/issues/1054)). Write with
+  `warp.as(writer).execute(intent)`. `Runtime` keeps only the read path until #1052 adds
+  the Optic read: `Runtime.open()`, `runtime.lane()`, `Lane.observe()`, the legacy
+  `Optic` read through `captureCoordinate`, and `close()`. Removed: `Lane.write`,
+  `Lane.stageContent` (`AuthoredWarp.stage` stages text), the `Lane` identity getters,
+  `Runtime.writer`, `Runtime.fork`, `Runtime.strand`, `Runtime.previewSettlement`,
+  `Runtime.settle`, the v20 `WriteReceipt`, `AdmissionOutcome`, `EntityOccurrence`,
+  `EntityCausalRelation`, `ContentInput`, the `Lane` descriptor and reference types, the
+  settlement types and the fork, strand and settlement options. `AuthoredWriteReceipt` is
+  renamed `WriteReceipt`. The CLI loses `write`, `fork`, `settle` and `--strand`; MCP
+  loses `warp_lane_describe`, `warp_intent_write`, `warp_settlement_preview` and
+  `warp_settlement_apply`. Iterator and content stream signatures declare their
+  completion types. See [the v21 migration guide](docs/migrations/v21/README.md#api-changes).
+  A new `lint:source-reachability` gate fails on any `src/` file that no package entry point
+  reaches; the 255 existing ones are listed with their owning issue in
+  `policy/unreachable-source-allowlist.txt`, and the list can only shrink. The package entry
+  ceiling falls (see Packaging).
 - Reserve `write-attempts` as a graph-name segment for clone-local write attempt refs.
   Patch commits made through `Warp` carry an `eg-publication-attempt` trailer; existing
   decoders read only the trailers they know
-  ([#1051](https://github.com/git-stunts/git-warp/issues/1051)).
+  ([#1051](https://github.com/git-stunts/git-warp/issues/1051)). A released v20 reader
+  refuses a v21 repository on its substrate marker (`E_SUBSTRATE_VERSION_UNSUPPORTED`)
+  before it reads any patch; v20's commit message decoder ignores the trailer
+  ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
 - Reserve `cone` as a graph-name segment for clone-local cone basis refs
   ([#1062](https://github.com/git-stunts/git-warp/issues/1062)).
 - Give every strand an immutable id and every strand writer its own dots.
@@ -31,9 +52,200 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `E_SUBSTRATE_MIGRATION_REQUIRED` until the v20-to-v21 migration
   ([#1015](https://github.com/git-stunts/git-warp/issues/1015)) has run
   ([#1014](https://github.com/git-stunts/git-warp/issues/1014)).
+- The HTTP sync server limits the request rate of each socket peer before it
+  parses the body or does authentication work, and the limit is on by default
+  ([#1090](https://github.com/git-stunts/git-warp/issues/1090)): a burst of 60
+  requests and a refill of 10 requests per second for each peer address, with at
+  most 4096 tracked peers. There is no off switch. A peer over its limit receives
+  `429` with `{"error":"PEER_RATE_LIMITED"}` and a `Retry-After` header;
+  `syncWith` reports it as a non-retried `E_SYNC_PROTOCOL` "Protocol error: 429".
+  Before you upgrade a server whose clients reach it through a reverse proxy or
+  one NAT gateway, raise
+  `peerRateLimit` on `serve()` or `HttpSyncServer`: all its clients share one
+  budget, and one of them can use all of it. `HttpRequest` has a new
+  `peerAddress` field that the Node, Bun and Deno adapters fill from the
+  connected socket; forwarding headers such as `X-Forwarded-For` are never read.
+  A custom `HttpServerPort` adapter must fill `peerAddress` from the connected
+  socket, or all its clients share one budget (the server logs one warning when it has a logger). When
+  the runtime has a logger, each refusal is logged. A caller that constructs
+  `HttpSyncServer` directly can read the count as
+  `HttpSyncServer.getMetrics().peerRateLimitRejects`; `serve()` exposes no
+  metrics.
+  `HttpSyncServer` now requires a top-level `clock` (`ClockPort`); `serve()`
+  supplies the runtime clock. The per-key `auth.rateLimit` is unchanged, and the
+  limiter is not distributed. See
+  [Peer Admission Limit](.github/SECURITY.md#peer-admission-limit).
+- HTTP sync authentication moves to signature v3. The client signs a wall-clock
+  epoch-millisecond timestamp instead of a Lamport counter, and the server
+  accepts it within an inclusive 300,000 ms of its own clock. The durable nonce
+  reservation lasts 600,001 ms, so a captured request stays refused across a
+  server restart while its timestamp is fresh. A v21 server refuses signature v2
+  with `400 SIG_VERSION_RETIRED` in every mode, and a v20 server in enforce mode
+  refuses signature v3 with `400 INVALID_VERSION`, so authenticated HTTP sync
+  between a v20 peer and a v21 peer fails in both directions: upgrade both.
+  `signSyncRequest` takes an injected `ClockPort` in place of the `lamport`
+  parameter. `SyncAuthService` requires `clock` and refuses to construct without
+  one (`E_SYNC_AUTH_CLOCK`). A `SyncReplayProtectionPort` reservation must report
+  the store time on entry and after the store answers (`reservedAtMs`,
+  `completedAtMs`); the server judges a reserved request on those readings, so a
+  caller-supplied runtime clock cannot reopen the replay window. Opening a
+  runtime with no `clock` and no installed default runtime ports is refused with
+  `E_CLOCK_REQUIRED`. See the
+  [v21 sync authentication migration](docs/migrations/v21/README.md#http-sync-authentication)
+  ([#1089](https://github.com/git-stunts/git-warp/issues/1089)).
 
 ### Changed
 
+- Validate every serialized Roaring bitmap before the bitmap library reads
+  it, and bound it
+  ([#1087](https://github.com/git-stunts/git-warp/issues/1087)). The bitmap
+  loader throws `RoaringShardRejectedError`. The class is not a package
+  export, so match on `error.code`:
+  - `E_ROARING_SHARD_MALFORMED`: the stored value is not a byte string, or
+    the bytes are not a valid portable encoding (no bytes, truncated bytes,
+    unknown cookie, unordered keys, wrong offsets, unordered array values,
+    bitmap or run contents that disagree with the header, or trailing bytes).
+  - `E_ROARING_SHARD_CARDINALITY`: an alive bitmap (the live nodes of one
+    meta shard) holds more than 2^24 values, which is more than one meta
+    shard can address.
+  - `E_ROARING_SHARD_TOO_LARGE`: one bitmap has more than 34,086,920 bytes.
+    With the default CBOR codec a stored bitmap cannot reach that size: the
+    codec refuses an index shard file above 5 MiB first, with its own error.
+  - `E_ROARING_SHARD_FORMAT`: a caller asked for a format other than the
+    portable format.
+
+  Alive bitmaps are bounded at 2^24 values. Edge bitmaps (the neighbours of
+  one node in one bucket) are bounded by bytes and by structure, not by
+  cardinality, because neighbours come from every meta shard. No write is
+  refused: the boundary checks a bitmap only when it is read. The byte limit
+  applies to one bitmap, not to an index shard file such as
+  `fwd_<shard>.cbor` or `shards_*.cbor`. One file holds many bitmaps, and
+  memory still grows with the number of bitmaps in a file. A large edge
+  bitmap can still make an index shard file larger than the 5 MiB that the
+  default codec reads; that limit is older than this change. An in-process
+  read that expands a very large edge bitmap into an array is not bounded by
+  this change; [#1159](https://github.com/git-stunts/git-warp/issues/1159)
+  tracks it. A checkpoint neighbourhood page does bounded work: it visits at
+  most 4 × `limit` + 256 stored candidates. When a stored edge bitmap names
+  many ids that are not live nodes, a page can therefore be `truncated` with
+  fewer than `limit` edges, or with none; its cursor continues the read.
+  `LogicalIndexReader` and the index updaters do not catch a rejection. When
+  the runtime builds or updates its in-memory view index, it catches any error
+  from them, logs the warning `index build failed` and continues without the
+  index. The incremental index update reads its shards
+  through the shard tree adapter, which refuses a stored value that is not a
+  byte string with `IndexError` `E_INDEX_SHARD_MALFORMED` and not with
+  `E_ROARING_SHARD_MALFORMED`; malformed bytes and an alive bitmap above the
+  bound still raise `RoaringShardRejectedError` there. Checkpoint shard reads (node liveness and
+  neighbourhood) report it as `QueryError` `E_OPTIC_NO_BOUNDED_BASIS` with
+  reason `checkpoint-shard-invalid` and keep the rejection as `cause`.
+  `BitmapIndexReader` also catches it: in strict mode (the default) it throws
+  `ShardCorruptionError` with the rejection message in
+  `context.originalError`, and in non-strict mode it logs a warning and
+  returns no neighbours from that bitmap. It reports a stored value that is
+  not a byte string the same way, without the `E_ROARING_SHARD_MALFORMED`
+  code. No consumer change is necessary. An index that a released writer
+  produced is read as before.
+- `Warp.open` no longer writes to the repository, so a deny-all opener opens and changes nothing.
+  Opening a repository that the process cannot write to is not tested. A granted `execute` or
+  `reconcile` opens the write path if no earlier call has, so an error from opening it rejects
+  that call instead of `open`. If the write path cannot open, the call rejects, having published
+  nothing. Each later granted `execute` or `reconcile` tries the open again, and rejects only
+  while the open still fails. This step is outside the receipt rule of the
+  `AuthoredWarp.execute()` entry below: an unavailable store here rejects. Only a retention store
+  that did not open has a typed error, `E_WARP_RETENTION_OPEN`, which says why; a cone store
+  that did not open rejects with its own error, which is not classified. Nothing was published
+  in either case, so it is safe to call again. The `refusal` of `E_WARP_RETENTION_OPEN` is
+  `policy-mismatch` when the graph's saved retention capacity differs, which no retry clears, or
+  `contention`, which a retry can clear. When the
+  store could not answer, for example because of a held ref lock, `refusal` is `null` and `cause`
+  is the store's failure; a retry can clear that too. In-flight write attempts and support under
+  construction move to `refs/warp-local/<graph>/`, so a `refs/warp/*` lane fetch no longer copies
+  them ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
+- Operator note: a clone that ran a build of `main` after #1051 and before this change can hold
+  in-flight refs under `refs/warp/<graph>/write-attempts/` and
+  `refs/warp/<graph>/observations/construction/`. No release wrote them, so there is no automatic
+  migration. This build does not read them: the sweep does not see them, `reconcile` returns
+  `null` for such an attempt although its record still exists, and no error names the ref.
+  Deleting a `write-attempts` ref abandons that attempt's answer: the write may have published,
+  and its receipt is lost. Before you delete one, finish the attempt with the build that wrote
+  it, or move the ref to `refs/warp-local/`. The listing and move commands are in
+  [Finish in-flight refs from pre-release builds](docs/topics/sync.md#finish-in-flight-refs-from-pre-release-builds)
+  ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
+- The `git-warp-v18-to-v19` migrator checks the `--repo` path before discovery
+  ([#811](https://github.com/git-stunts/git-warp/issues/811)). A path that does not exist,
+  is not a directory, or is not a Git repository stops with `Repository not found: <path>`
+  and the reason. If Git refuses the path for another reason, the error reads
+  `Could not open <path> as a Git repository` and keeps the Git diagnostic as its cause.
+  Before, these cases gave a Git process-spawn error or a raw Git diagnostic. An empty value
+  for a flag that takes one, such as `--repo ""` from an unset shell variable, is refused
+  with `<flag> requires a non-empty value`; before, an empty `--repo` selected the current
+  directory. `--help` lists `--repo` and `--graph`, says when the command lists graphs,
+  says that `--yes` without `--dry-run` migrates and promotes without asking, and names the
+  rollback after a failed verification. The migration guides quote the help text and five
+  command outcomes from this source, and say how the pinned `19.1.0` package differs.
+- `AuthoredWarp.execute()` reports an unavailable store while it fixes the write
+  basis or reads the premise records as an `UnpublishedWriteReceipt`
+  (`write-basis-unavailable`, `write-premise-unavailable`) and does not reject.
+  At those steps, invalid input, a throwing access port, defects, broken
+  invariants and repository corruption reject, and a store failure that the
+  adapter cannot identify as transient rejects. The attempt-journal and
+  custody-support steps still turn any failure into `attempt-journal-unavailable`
+  or `retention-unavailable` until #1109 classifies them by type. Corrupt patch
+  history met while reading the premise rejects as `WriteHistoryCorruptError`
+  instead of a missing-basis refusal. Every failure of the patch feed or the
+  writer's runtime host now rejects too, transient or not, until #1109 classifies
+  them, and so does an error the fast-import writer creates above the store host;
+  on unreleased `main` such a failure returned `write-basis-unavailable`. A held
+  lock during fast-import still gives `write-basis-unavailable`. A git-cas `GIT_OBJECT_NOT_FOUND` read through the
+  history adapter is now typed as `PersistenceError` `E_MISSING_OBJECT`, so on the
+  checkpoint-shard read it becomes `E_OPTIC_NO_BOUNDED_BASIS`
+  (`checkpoint-shard-unavailable`)
+  ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
+- Generated writer ids, default strand names, fork names, index-verification
+  seeds, and sync request nonces now come from the runtime's injected entropy
+  source instead of host crypto globals. Their formats and validation are
+  unchanged. `Runtime.open`, `createRuntimeHarness` and the CLI supply the
+  default entropy source, so code that uses the package entry points needs no
+  change. Only code that imports internal modules directly, such as this
+  repository's scripts and tests, can open a runtime host with its own ports.
+  If such code installs no default ports, it now fails with
+  `E_RANDOM_REQUIRED`. Fix it by passing `random: new HostRandomAdapter()`
+  beside `crypto`, or by calling `installDefaultRuntimeHostNodePorts()` first.
+  The package entry points export neither name
+  ([#184](https://github.com/git-stunts/git-warp/issues/184)).
+- Move incremental index shard encoding behind `IndexStorePort`. The new
+  `IndexStorePort.openShardTree()` opens a synchronous typed view over an
+  in-memory index tree; `IncrementalIndexUpdater` now reads and returns
+  `MetaShard`, `EdgeShard`, `LabelShard`, and `PropertyShard` values and
+  never encodes or decodes shard bytes. `MaterializedViewService` still
+  decodes the updated tree to rebuild its reader; removing that decode belongs
+  with the legacy encoder under
+  [#228](https://github.com/git-stunts/git-warp/issues/228). The adapter
+  refuses a malformed meta, edge, or label shard with
+  `E_INDEX_SHARD_MALFORMED`. A refusal does not fail the materialize or the
+  local commit that updates the index: the runtime marks the index degraded,
+  logs the warning `index build failed` when a logger is configured, and
+  rebuilds the index on a later materialize or local commit. Query results stay
+  correct in between. The tree given to `openShardTree()` is always one that the running
+  process built, so index shards stored in existing repositories do not pass
+  through the new validation at this release. Rewritten index trees stay
+  byte-identical.
+  `IndexStorePort` implementations must add `openShardTree()`, and
+  `MaterializedViewService.applyDiff()` requires the `indexStore` option. No
+  package entry point exports `IndexStorePort` or `MaterializedViewService`,
+  so only implementations in this repository need the change
+  ([#192](https://github.com/git-stunts/git-warp/issues/192)).
+- Document garbage collection for repositories that git-warp writes to. The
+  runtime never runs `git gc` and starts no `git gc --auto`. Measured with
+  git-cas 7.2.0 and Git 2.39.5, a retained write adds about 55 loose objects
+  (about 220 KiB on a filesystem with 4 KiB blocks) and one permanent ref.
+  Schedule `git gc --cruft` (Git 2.37 or later), for example daily; on Git
+  2.37 to 2.40 also set `gc.cruftPacks=true`. See
+  [Operations: Garbage collection](docs/operations/README.md#garbage-collection).
+  When #1052 Slice 3b lands, a read will retain, at about 30 objects and one
+  ref, only when its query asks for a Coordinate
+  ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)
   trees instead of 64 ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
@@ -75,6 +287,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Warp.open(address, access, { logger })` accepts an optional `LoggerPort`, now exported from
+  the package root with the `LogFields`, `LogFieldValue` and `WarpOpenOptions` types. The `warn`
+  removal policy reports to it, and a logger that throws or rejects cannot affect a write. Without a
+  logger, a `Warp` prints nothing. Options that are not a plain object, or that name an unknown
+  option, are refused with `E_WARP_OPEN_OPTIONS`, and a logger that is not a `LoggerPort` with
+  callable methods with `E_WARP_OPEN_LOGGER`
+  ([#1078](https://github.com/git-stunts/git-warp/issues/1078)).
+- Add the internal retained graph manifest over the cone basis: a schema-1
+  commitment over the record-trie layout, ordinal geometry and writer frontier,
+  equal for every fold order that reaches that frontier, plus graph-local
+  ordinals (one dot of the node or edge OR-Set) that resolve through one
+  bounded 256-counter dot page each. A retained checkpoint and the live head of
+  the same basis are one manifest. No persisted record or basis format changes.
+  A cone basis whose `records` entry is not a tree now refuses with
+  `ConeRecordError` `E_CONE_RECORD_CORRUPT` when it opens. A records root or
+  trie directory whose object is not a tree refuses with the same code at the
+  first read. Both used to fail with an untyped git-cas error.
+  See [Retained graph manifests](docs/topics/retained-manifests.md)
+  ([#815](https://github.com/git-stunts/git-warp/issues/815)).
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
   with an injected `WarpAccessPort` and no implicit access. `execute` returns
@@ -141,6 +372,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#1015](https://github.com/git-stunts/git-warp/issues/1015)).
 
 ### Fixed
+
+- A write receipt rebuilt by `AuthoredWarp.reconcile` after an interrupted write now
+  reports the same `outcome.races` as the original receipt, rather than none. Retained
+  receipts keep their races as durable evidence. `outcome.races` is now always in one
+  canonical order, on every receipt, and each race names each writer once, sorted, by a
+  valid writer id. A saved race that names an invalid writer id fails closed
+  ([#1072](https://github.com/git-stunts/git-warp/issues/1072)).
+- A write attempt record in a non-negative integer layout version other than 2 is not read.
+  Attempt records live under `refs/warp-local/<graph>/write-attempts/`
+  ([#1078](https://github.com/git-stunts/git-warp/issues/1078), under Changed).
+  `AuthoredWarp.reconcile` of such an attempt rejects with code
+  `E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`, and the error names the ref and the remedy. A record whose layout version is not a non-negative integer cannot be decoded: it
+  rejects with `AdapterValidationError`, names no ref, and is kept.
+  - Layout 1 came only from clones built from `main` before this fix. Those builds saved it
+    under `refs/warp/<graph>/write-attempts/`, which this build does not read: there,
+    `reconcile` returns `null` and no error names the ref (see the operator note under
+    Changed). So this error names a layout-1 record only after its ref was moved to
+    `refs/warp-local/`. Delete only the ref the
+    error names: run the `git update-ref -d` command that the error message prints, in the
+    repository that holds the graph. That command quotes the ref for the shell, so do not
+    retype it from a template. The ref holds only that attempt's recovery record, not graph
+    data: a patch the attempt published stays on its writer's chain, and only that attempt's
+    receipt is lost. Do not delete the whole `refs/warp-local/<graph>/write-attempts/`
+    prefix, which can also hold current attempts. Deleting the ref frees nothing in custody; it abandons that attempt's fate,
+    which is harmless at the current unlimited retention capacity.
+  - A newer layout came from a newer git-warp. Keep the ref and finish the attempt with that
+    build.
+  - Any other layout, such as 0, was never written by a release: the record is corrupt. Keep
+    the ref and report it.
+
+  The recovery sweep passes over at most one page of these refs without counting them
+  against that page, and does not report them yet
+  ([#1072](https://github.com/git-stunts/git-warp/issues/1072); reporting is [#1107](https://github.com/git-stunts/git-warp/issues/1107)).
+- `AuthoredWarp.reconcile` rejects with code `E_WRITE_CORE_MISMATCH` when a saved write
+  attempt record does not rebuild, byte for byte, the receipt core that custody retained for
+  it. The record is altered or corrupt, so it is kept. Report it. The sweep does not report it
+  yet ([#1072](https://github.com/git-stunts/git-warp/issues/1072); reporting is [#1107](https://github.com/git-stunts/git-warp/issues/1107)).
+  - Recovery builds a receipt from the record's races only when custody reports that it holds
+    no settlement for the attempt, or when custody's retained core matched the record.
+  - In every other case, such as a failed custody read, the attempt stays indeterminate and the
+    record is kept. A later ask that can read custody's copy makes the comparison.
+  - After custody reports no settlement, recovery calls `settle`, and its outcome stands as
+    before: a final outcome such as `evidence-too-large` gives an unretained receipt and removes
+    the record, because custody holds no core for those races to disagree with. A `settle`
+    conflict is the exception: it answers indeterminate and keeps the record.
+  - After custody reports no settlement, recovery trusts the record's races, because custody
+    holds nothing to compare them with. So a tampered record's races can be retained. The
+    receipt and the retained core then agree, so a rebuilt receipt still never disagrees with
+    the retained core.
+
+- Refuse unexpected CBOR tags before decoding peer-controlled repository
+  blobs. Only supported Date, bigint, and `Uint8Array` tag encodings are
+  accepted; regular expressions, shared references and other tag extensions
+  fail with a typed bounds error. Tag 1 now refuses eight-byte integer epoch
+  encodings with the owning boundary's typed error instead of a raw TypeError;
+  smaller integer and floating epoch encodings remain supported. Existing byte,
+  depth and item limits remain unchanged
+  ([#1088](https://github.com/git-stunts/git-warp/issues/1088)).
+
+- Run the installed `npm run upgrade` command directly from its compiled
+  entry, without rebuilding or deleting the package's `dist` directory.
+  Source-checkout operators must run `npm run build` first. The packed smoke
+  now covers the npm command and verifies that help and dry-run preserve the
+  installed package ([#1136](https://github.com/git-stunts/git-warp/issues/1136)).
 
 - Discover every supported test file recursively under `test/unit/` before
   partitioning the default unit run. New directories no longer need a runner
@@ -321,8 +616,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Packaging
 
-- The published root now reaches `Warp` as well as `Runtime`, so the entry ceiling rises. The
-  ceilings are 760,000 compressed bytes, 3,300,000 unpacked bytes and 1,300 entries.
+- The published root reaches `Warp` as well as `Runtime`. After #1054 removed the legacy write,
+  strand and settlement surface, the ceilings are 760,000 compressed bytes, 3,300,000 unpacked
+  bytes and 1,250 entries.
 
 ## [20.0.0] - 2026-10-03
 

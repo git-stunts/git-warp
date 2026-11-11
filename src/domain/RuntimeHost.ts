@@ -56,6 +56,8 @@ import { requireCommitMessageCodec } from './services/codec/CommitMessageCodecRe
 import type { CorePersistence } from './types/WarpPersistence.ts';
 import type LoggerPort from '../ports/LoggerPort.ts';
 import type CryptoPort from '../ports/CryptoPort.ts';
+import type RandomPort from '../ports/RandomPort.ts';
+import type ClockPort from '../ports/ClockPort.ts';
 import type CodecPort from '../ports/CodecPort.ts';
 import type TrustCryptoPort from '../ports/TrustCryptoPort.ts';
 import type WarpStateCachePort from '../ports/WarpStateCachePort.ts';
@@ -227,6 +229,8 @@ export default class RuntimeHost {
   _lastFrontier: Map<string, string> | null;
   _logger: LoggerPort | null;
   _crypto: CryptoPort;
+  _random: RandomPort;
+  _clock: ClockPort;
   _codec: CodecPort;
   _trustCrypto: TrustCryptoPort | null;
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
@@ -298,6 +302,8 @@ export default class RuntimeHost {
       onDeleteWithData = 'warn',
       logger,
       crypto,
+      random,
+      clock,
       codec,
       trustCrypto,
       stateCache,
@@ -343,6 +349,8 @@ export default class RuntimeHost {
     this._lastFrontier = null;
     this._logger = logger || null;
     this._crypto = crypto;
+    this._random = random;
+    this._clock = clock;
     this._codec = codec;
     this._trustCrypto = trustCrypto ?? null;
     this._onDeleteWithData = onDeleteWithData;
@@ -595,6 +603,7 @@ export default class RuntimeHost {
     return this._viewService.verifyIndex({
       state: this._cachedState,
       logicalIndex: this._logicalIndex,
+      random: this._random,
       ...(options !== undefined ? { options } : {}),
     });
   }

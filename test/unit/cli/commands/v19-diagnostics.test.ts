@@ -38,7 +38,6 @@ const handleDoctor =
 const CLI_OPTIONS: CliOptions = {
   repo: '/tmp/repo',
   lane: 'users',
-  strand: null,
   writer: 'agent',
   writerExplicit: true,
   json: true,

@@ -12,6 +12,7 @@ interface HttpRequestOptions {
   readonly url: string;
   readonly headers: Record<string, string>;
   readonly body?: Uint8Array | undefined;
+  readonly peerAddress?: string | undefined;
 }
 
 interface HttpResponseOptions {
@@ -35,16 +36,24 @@ export class HttpRequest {
   readonly headers: Record<string, string>;
   /** Raw body bytes (undefined for bodiless requests) */
   readonly body: Uint8Array | undefined;
+  /**
+   * Address of the connected socket peer, as the transport reports it.
+   * Adapters never derive it from request headers such as X-Forwarded-For.
+   * Undefined when the transport has no network peer address.
+   */
+  readonly peerAddress: string | undefined;
 
   constructor(options: HttpRequestOptions) {
     assertRequestOptions(options);
     assertNonEmptyString(options.method, 'method');
     assertNonEmptyString(options.url, 'url');
     assertBody(options.body, 'body');
+    assertPeerAddress(options.peerAddress);
     this.method = options.method;
     this.url = options.url;
     this.headers = validatedHeaders(options.headers);
     this.body = options.body;
+    this.peerAddress = options.peerAddress;
     Object.freeze(this);
   }
 
@@ -106,6 +115,12 @@ function assertStatus(status: number | undefined): void {
 function assertBody(body: Uint8Array | undefined, field: string): void {
   if (body !== undefined && !(body instanceof Uint8Array)) {
     throw new HttpBoundaryError(`HTTP ${field} must be Uint8Array or undefined`, field);
+  }
+}
+
+function assertPeerAddress(peerAddress: string | undefined): void {
+  if (peerAddress !== undefined) {
+    assertNonEmptyString(peerAddress, 'peerAddress');
   }
 }
 

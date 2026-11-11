@@ -42,6 +42,10 @@ function restoreDenoRuntime(runtime: InstalledDenoRuntime): void {
   });
 }
 
+const TCP_PEER_INFO: Parameters<DenoRequestHandler>[1] = {
+  remoteAddr: { transport: 'tcp', hostname: '203.0.113.50', port: 50124 },
+};
+
 function firstRequestFrom(handler: MockedFunction<AdapterHandler>): HttpRequest {
   const [request] = expectCaptured(handler.mock.calls[0] ?? null, 'request handler call');
   return request;
@@ -246,7 +250,7 @@ describe('DenoHttpAdapter', () => {
         body: 'hello body',
       });
 
-      const response = await denoHandler(request);
+      const response = await denoHandler(request, TCP_PEER_INFO);
 
       expect(handler).toHaveBeenCalledTimes(1);
       const arg = firstRequestFrom(handler);
@@ -264,6 +268,27 @@ describe('DenoHttpAdapter', () => {
       expect(text).toBe('{"ok":true}');
     });
 
+    it('passes the TCP peer address from the serve info to the port request', async () => {
+      const handler = vi.fn(async () => ({ status: 204 }));
+      new DenoHttpAdapter().createServer(handler).listen(3000);
+
+      const request = new Request('http://localhost:3000/sync', { headers: { 'x-forwarded-for': '198.51.100.99' } });
+      await getCapturedHandler()(request, TCP_PEER_INFO);
+
+      expect(firstRequestFrom(handler).peerAddress).toBe('203.0.113.50');
+    });
+
+    it('leaves the peer address undefined for a unix-socket peer', async () => {
+      const handler = vi.fn(async () => ({ status: 204 }));
+      new DenoHttpAdapter().createServer(handler).listen(3000);
+
+      await getCapturedHandler()(new Request('http://localhost:3000/sync'), {
+        remoteAddr: { transport: 'unix', hostname: '', port: 0 },
+      });
+
+      expect(firstRequestFrom(handler).peerAddress).toBeUndefined();
+    });
+
     it('sets body to undefined for empty-body requests', async () => {
       const handler = vi.fn(async () => ({ status: 204 }));
       const adapter = new DenoHttpAdapter();
@@ -275,7 +300,7 @@ describe('DenoHttpAdapter', () => {
         method: 'GET',
       });
 
-      await denoHandler(request);
+      await denoHandler(request, TCP_PEER_INFO);
 
       const arg = firstRequestFrom(handler);
       expect(arg.body).toBeUndefined();
@@ -290,7 +315,7 @@ describe('DenoHttpAdapter', () => {
       const denoHandler = getCapturedHandler();
       const request = new Request('http://localhost:3000/');
 
-      const response = await denoHandler(request);
+      const response = await denoHandler(request, TCP_PEER_INFO);
 
       expect(response.status).toBe(200);
     });
@@ -309,7 +334,7 @@ describe('DenoHttpAdapter', () => {
       const denoHandler = getCapturedHandler();
       const request = new Request('http://localhost:3000/fail');
 
-      const response = await denoHandler(request);
+      const response = await denoHandler(request, TCP_PEER_INFO);
 
       expect(response.status).toBe(500);
       expect(response.headers.get('Content-Type')).toBe('text/plain');
@@ -330,7 +355,7 @@ describe('DenoHttpAdapter', () => {
       const denoHandler = getCapturedHandler();
       const request = new Request('http://localhost:3000/fail');
 
-      await denoHandler(request);
+      await denoHandler(request, TCP_PEER_INFO);
 
       expect(logger.error).toHaveBeenCalledWith('DenoHttpAdapter dispatch error', err);
     });
@@ -346,7 +371,7 @@ describe('DenoHttpAdapter', () => {
       const denoHandler = getCapturedHandler();
       const request = new Request('http://localhost:3000/fail');
 
-      const response = await denoHandler(request);
+      const response = await denoHandler(request, TCP_PEER_INFO);
 
       expect(response.status).toBe(500);
     });
@@ -449,7 +474,7 @@ describe('DenoHttpAdapter', () => {
         body: 'small',
       });
 
-      const response = await denoHandler(request);
+      const response = await denoHandler(request, TCP_PEER_INFO);
 
       expect(response.status).toBe(413);
       expect(handler).not.toHaveBeenCalled();
@@ -480,7 +505,7 @@ describe('DenoHttpAdapter', () => {
       const arrayBufferSpy = vi.fn();
       const request = new StreamingLimitRequest(stream, arrayBufferSpy);
 
-      const response = await denoHandler(request);
+      const response = await denoHandler(request, TCP_PEER_INFO);
 
       expect(response.status).toBe(413);
       expect(handler).not.toHaveBeenCalled();

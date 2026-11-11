@@ -4,10 +4,20 @@ import AssetHandle from '../../../src/domain/storage/AssetHandle.ts';
 import BundleHandle from '../../../src/domain/storage/BundleHandle.ts';
 import WarpStream from '../../../src/domain/stream/WarpStream.ts';
 import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
+import IndexShardTreePort, { type EncodedIndexTree } from '../../../src/ports/IndexShardTreePort.ts';
 import IndexStorePort, {
   type IndexShardDecodeOptions,
   type IndexShardWriteOptions,
 } from '../../../src/ports/IndexStorePort.ts';
+
+class TestShardTree extends IndexShardTreePort {
+  constructor(private readonly tree: EncodedIndexTree) { super(); }
+  readMeta() { return null; }
+  readEdges() { return null; }
+  readLabels() { return null; }
+  readProperties() { return null; }
+  withShards(_shards: readonly IndexShard[]) { return { ...this.tree, 'shard.cbor': new Uint8Array([1]) }; }
+}
 
 describe('IndexStorePort', () => {
   it('declares opaque-handle streaming methods', () => {
@@ -20,6 +30,7 @@ describe('IndexStorePort', () => {
     expect(IndexStorePort.prototype.openShardAt).toBeUndefined();
     expect(IndexStorePort.prototype.decodeShard).toBeUndefined();
     expect(IndexStorePort.prototype.decodeShardAt).toBeUndefined();
+    expect(IndexStorePort.prototype.openShardTree).toBeUndefined();
   });
 
   it('models page storage and structural limits as complete option states', () => {
@@ -84,6 +95,7 @@ describe('IndexStorePort', () => {
       ): Promise<TDecoded | null> {
         return path === 'shard.cbor' ? Object.freeze({}) as TDecoded : null;
       }
+      openShardTree(tree: EncodedIndexTree) { return new TestShardTree(tree); }
     }
 
     const store = new TestStore();
@@ -95,5 +107,6 @@ describe('IndexStorePort', () => {
       .resolves.toBe(store.shardHandle);
     await expect(store.decodeShardAt(store.bundleHandle, 'shard.cbor'))
       .resolves.toEqual({});
+    expect(store.openShardTree({}).withShards([])).toEqual({ 'shard.cbor': new Uint8Array([1]) });
   });
 });

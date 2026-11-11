@@ -1,4 +1,12 @@
-import { Runtime } from '@git-stunts/git-warp';
+import {
+  GitStorage,
+  RetainedWriteReceipt,
+  Warp,
+  WarpAccessPort,
+  WarpAddress,
+  WarpWriteGrant,
+  type WarpWriteRequest,
+} from '@git-stunts/git-warp';
 
 import { users } from './users.generated.js';
 
@@ -26,14 +34,19 @@ requireThrows(
   'empty subject validation',
 );
 
-const runtime = await Runtime.open({
-  at: './runtime-repo',
-  writer: 'generated-sdk-smoke',
-});
+class SmokeAccess extends WarpAccessPort {
+  override authorizeWrite(request: WarpWriteRequest): Promise<WarpWriteGrant> {
+    return Promise.resolve(new WarpWriteGrant({
+      authority: `generated-sdk-smoke:${request.writer}`,
+      budget: { records: 256, bytes: 1024 * 1024, work: 10_000 },
+    }));
+  }
+}
+
+const warp = await Warp.open(WarpAddress.of(GitStorage.at('./runtime-repo'), 'users'), new SmokeAccess());
 
 try {
-  const lane = await runtime.lane('users');
-  await lane.write([
+  const receipt = await warp.as('generated-sdk-smoke').execute([
     users.intents.registerUser({ subject: 'user:alice' }),
     users.intents.assignRole({
       subject: 'user:alice',
@@ -45,6 +58,9 @@ try {
       role: 'editor',
     }),
   ]);
+  if (!(receipt instanceof RetainedWriteReceipt)) {
+    throw new GeneratedSdkWriteSmokeError(`write was not retained: ${receipt.constructor.name}`);
+  }
 } finally {
-  await runtime.close();
+  await warp.close();
 }

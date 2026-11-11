@@ -31,6 +31,11 @@ interface DenoServeOptions {
   onListen?: (addr?: { port: number; hostname: string }) => void;
 }
 
+/** Per-request connection info; `remoteAddr` is the connected socket peer. */
+interface DenoServeHandlerInfo {
+  remoteAddr: { transport: string; hostname?: string; port?: number };
+}
+
 interface DenoEnv {
   get(name: string): string | undefined;
 }
@@ -39,7 +44,7 @@ declare namespace Deno {
   const env: DenoEnv;
   function serve(
     options: DenoServeOptions,
-    handler: (request: Request) => Promise<Response> | Response,
+    handler: (request: Request, info: DenoServeHandlerInfo) => Promise<Response> | Response,
   ): DenoServer;
 }
 
@@ -51,6 +56,8 @@ interface BunServer {
   stop(closeActiveConnections?: boolean): Promise<void>;
   hostname: string;
   port: number;
+  /** Socket peer of the request; null when the connection has none (closed or a unix socket). */
+  requestIP(request: Request): { address: string } | null;
 }
 
 interface BunServeOptions {
@@ -73,6 +80,20 @@ declare var Deno: typeof Deno | undefined;
 /* ------------------------------------------------------------------ */
 /*  Untyped substrate packages                                        */
 /* ------------------------------------------------------------------ */
+
+declare module '@git-stunts/plumbing/errors' {
+  export class GitPlumbingError extends Error {
+    constructor(_message: string, _operation: string, _details?: object);
+    readonly operation: string;
+    readonly details: object;
+  }
+
+  /** Thrown by plumbing's own classifier when a Git command fails on a held lock file. */
+  export class GitRepositoryLockedError extends GitPlumbingError {}
+
+  /** Thrown when a long-lived Git process ends or answers out of protocol. */
+  export class GitProtocolError extends GitPlumbingError {}
+}
 
 declare module '@git-stunts/plumbing' {
   export type GitObjectInfo = Readonly<{

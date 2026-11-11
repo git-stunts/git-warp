@@ -11,6 +11,7 @@ import ForkError from '../../errors/ForkError.ts';
 import { isCurrentCheckpointSchema } from '../state/checkpointHelpers.ts';
 import { validateGraphName, validateWriterId, buildWriterRef, buildWritersPrefix } from '../../utils/RefLayout.ts';
 import { generateWriterId } from '../../utils/WriterId.ts';
+import { drawEntropy } from '../../utils/EntropyDraw.ts';
 import { createWormhole as createWormholeImpl } from '../WormholeService.ts';
 import {
   openRuntimeHostProduct,
@@ -22,6 +23,8 @@ import type { LoadedCheckpoint } from '../state/checkpointLoad.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type RandomPort from '../../../ports/RandomPort.ts';
+import type ClockPort from '../../../ports/ClockPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type GCPolicy from '../GCPolicy.ts';
@@ -30,14 +33,15 @@ import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type CheckpointPolicy from '../../warp/CheckpointPolicy.ts';
 
 const HEX_CHARS = '0123456789abcdef';
+/** Entropy behind a generated fork-name suffix: 32 bits, rendered as 8 hex chars. */
+const FORK_SUFFIX_ENTROPY_BYTES = 4;
 type ForkRuntimeOpenOptions = RuntimeHostOpenOptions;
 type ForkedGraph = RuntimeHostProduct;
 type ForkPersistence = ForkRuntimeOpenOptions['persistence'];
 
-/** Generates an 8-char hex suffix using crypto-grade randomness. */
-function randomSuffix(): string {
-  const bytes = new Uint8Array(4);
-  globalThis.crypto.getRandomValues(bytes);
+/** Generates an 8-char hex suffix from injected entropy. */
+function randomSuffix(random: RandomPort): string {
+  const bytes = drawEntropy(random, FORK_SUFFIX_ENTROPY_BYTES);
   let out = '';
   for (const b of bytes) {
     out += HEX_CHARS.charAt(b >>> 4) + HEX_CHARS.charAt(b & 0x0f);
@@ -55,6 +59,8 @@ type ForkHost = {
   _onDeleteWithData: 'reject' | 'cascade' | 'warn';
   _logger: LoggerPort | null;
   _crypto: CryptoPort;
+  _random: RandomPort;
+  _clock: ClockPort;
   _codec: CodecPort;
   _assetStorage: AssetStoragePort | null;
   _patchJournal: PatchJournalPort;
@@ -121,7 +127,7 @@ export default class ForkController {
     }
 
     const resolvedForkName =
-      forkName ?? `${host._graphName}-fork-${randomSuffix()}`;
+      forkName ?? `${host._graphName}-fork-${randomSuffix(host._random)}`;
     try {
       validateGraphName(resolvedForkName);
     } catch (error) {
@@ -143,7 +149,7 @@ export default class ForkController {
       });
     }
 
-    const resolvedForkWriterId = (forkWriterId !== undefined && forkWriterId !== null && forkWriterId !== '') ? forkWriterId : generateWriterId();
+    const resolvedForkWriterId = (forkWriterId !== undefined && forkWriterId !== null && forkWriterId !== '') ? forkWriterId : generateWriterId(host._random);
     try {
       validateWriterId(resolvedForkWriterId);
     } catch (error) {
@@ -173,6 +179,8 @@ export default class ForkController {
         onDeleteWithData: host._onDeleteWithData,
         ...(host._logger ? { logger: host._logger } : {}),
         crypto: host._crypto,
+        random: host._random,
+        clock: host._clock,
         codec: host._codec,
       });
     } catch (openErr) {

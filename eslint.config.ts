@@ -57,6 +57,8 @@ export default tseslint.config(
       "!scripts/package-payload/**",
       "!scripts/public-surface",
       "!scripts/public-surface/**",
+      "!scripts/source-reachability",
+      "!scripts/source-reachability/**",
       ".claude/**",
       ".obsidian/**",
       "test/type-check/**",
@@ -110,10 +112,10 @@ export default tseslint.config(
     },
   },
 
-  // Package-payload and public-surface code execute merge/release law, so they receive the normal
+  // Package-payload, public-surface and source-reachability code execute merge/release law, so they receive the normal
   // typed structural caps instead of the global maintainer-script exclusion.
   {
-    files: ["scripts/package-payload/**/*.ts", "scripts/public-surface/**/*.ts"],
+    files: ["scripts/package-payload/**/*.ts", "scripts/public-surface/**/*.ts", "scripts/source-reachability/**/*.ts"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -500,7 +502,6 @@ export default tseslint.config(
       // Index
       "src/domain/services/index/BitmapIndexBuilder.ts",
       "src/domain/services/index/BitmapNeighborProvider.ts",
-      "src/domain/services/index/IncrementalIndexUpdater.ts",
       "src/domain/services/index/LogicalBitmapIndexBuilder.ts",
       "src/domain/services/index/LogicalIndexBuildService.ts",
       // Provenance
