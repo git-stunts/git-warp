@@ -15,7 +15,11 @@ const codec = new BoundedGitCasCborCodec();
 const DIGEST = 'ab'.repeat(32);
 const BLOB = '0123456789abcdef0123456789abcdef01234567';
 
-/** Shapes git-warp hands git-cas: asset manifests (flat, Merkle, encrypted), bundle descriptors, trust records. */
+/**
+ * Shapes git-cas encodes for git-warp: asset manifests (flat, Merkle, encrypted), bundle root and leaf
+ * descriptors (as git-cas 7.2.0 `BundleFanoutBuilder` writes them) and trust records; and one value with
+ * non-JSON types.
+ */
 const WRITTEN_VALUES: ReadonlyArray<readonly [string, object]> = [
   ['a flat asset manifest', {
     version: 1,
@@ -45,9 +49,32 @@ const WRITTEN_VALUES: ReadonlyArray<readonly [string, object]> = [
     chunks: [{ index: 0, size: 19, digest: DIGEST, blob: BLOB }],
     encryption: { algorithm: 'aes-256-gcm', scheme: 'framed', frameBytes: 65_536, encrypted: true },
   }],
-  ['a bundle descriptor with bytes, dates and big integers', {
+  ['a bundle root descriptor', {
+    version: 1,
+    kind: 'bundle',
+    layout: 'fanout-v1',
     codec: 'cbor',
-    members: [{ path: 'a/b', handle: `asset:cbor:${BLOB}`, bytes: Uint8Array.from([1, 2, 3]) }],
+    memberCount: 1,
+    index: { entry: 'index', depth: 1, firstPath: 'patch', lastPath: 'patch' },
+    limits: {
+      maxMembers: 100_000,
+      maxMemberPathBytes: 512,
+      maxDescriptorBytes: 64 * 1024 * 1024,
+      maxFanoutEntries: 1024,
+      maxFanoutDepth: 8,
+    },
+  }],
+  ['a bundle leaf descriptor', {
+    version: 1,
+    kind: 'leaf',
+    depth: 1,
+    count: 1,
+    firstPath: 'patch',
+    lastPath: 'patch',
+    entries: [{ path: 'patch', slot: 'slot-000000', handle: `asset:cbor:${BLOB}`, type: 'tree', size: null }],
+  }],
+  ['a value with bytes, dates and big integers (not a git-cas shape)', {
+    bytes: Uint8Array.from([1, 2, 3]),
     observedAt: new Date(0),
     count: 2n ** 64n,
     ratio: 0.1,

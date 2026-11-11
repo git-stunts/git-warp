@@ -1,8 +1,12 @@
+import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Plumbing from '@git-stunts/plumbing';
-import ContentAddressableStore, { CborCodec as GitCasCborCodec } from '@git-stunts/git-cas';
+import ContentAddressableStore, {
+  BundleHandle as GitCasBundleHandle,
+  CborCodec as GitCasCborCodec,
+} from '@git-stunts/git-cas';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import GitCasRepositoryAdapter, {
@@ -12,6 +16,9 @@ import BoundedGitCasCborCodec from '../../../../src/infrastructure/adapters/Boun
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import MessageCodecError from '../../../../src/domain/errors/MessageCodecError.ts';
+import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
+import warpCborCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { buildTrustRecordRef } from '../../../../src/domain/utils/RefLayout.ts';
 import { OUT_OF_BOUNDS_CBOR } from '../../../helpers/OutOfBoundsCborCorpus.ts';
 
@@ -28,6 +35,8 @@ const GRAPH = 'bounds';
 const GIT_CAS_MERKLE_THRESHOLD = 1_000;
 const MAX_CBOR_DECODE_BYTES = 5 * 1024 * 1024;
 const MANIFEST_ENTRY = 'manifest.cbor';
+const SUB_MANIFEST_ENTRY = 'sub-manifest-0.cbor';
+const BUNDLE_ROOT_ENTRY = 'bundle.cbor';
 const opened: OpenedRepository[] = [];
 const tempDirectories: string[] = [];
 
@@ -52,6 +61,48 @@ describe('git-cas CBOR decode bounds in the default GitCasRepositoryAdapter runt
 
     await expect(read).rejects.toBeInstanceOf(MessageCodecError);
     await expect(read).rejects.toMatchObject({ code: 'E_CBOR_DECODE_BOUNDS', context: { reason } });
+  });
+
+  it('reads a Merkle asset that git-cas wrote', async () => {
+    const { plumbing, history, repository } = await openRepository();
+    const content = deterministicBytes(300_000);
+
+    const treeOid = await writeMerkleAsset(plumbing, content);
+
+    expect(Object.keys(await history.readTreeOids(treeOid))).toContain(SUB_MANIFEST_ENTRY);
+    expect(await readAsset(repository, treeOid)).toEqual(content);
+  });
+
+  it.each(OUT_OF_BOUNDS_CBOR)('refuses a Merkle sub-manifest with $name', async ({ bytes, reason }) => {
+    const { plumbing, history, repository } = await openRepository();
+    const merkleTreeOid = await writeMerkleAsset(plumbing, deterministicBytes(300_000));
+    const treeOid = await replaceSubManifest(history, merkleTreeOid, bytes);
+
+    const read = readAsset(repository, treeOid);
+
+    await expect(read).rejects.toBeInstanceOf(MessageCodecError);
+    await expect(read).rejects.toMatchObject({ code: 'E_CBOR_DECODE_BOUNDS', context: { reason } });
+  });
+
+  it.each(OUT_OF_BOUNDS_CBOR)('refuses a bundle root descriptor with $name', async ({ bytes, reason }) => {
+    const { plumbing, history, repository } = await openRepository();
+    const bundleHandle = await replaceBundleRootDescriptor(history, await writeBundle(plumbing), bytes);
+    const services = await repository.createRuntimeStorageServices({
+      timelineName: GRAPH,
+      codec: warpCborCodec,
+      crypto: new NodeCryptoAdapter(),
+      commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
+    });
+
+    const read = services.indexes.readShardHandles(bundleHandle);
+
+    await expect(read).rejects.toMatchObject({
+      code: 'BUNDLE_CORRUPT',
+      meta: {
+        descriptorKind: 'root',
+        originalError: { name: 'MessageCodecError', code: 'E_CBOR_DECODE_BOUNDS', context: { reason } },
+      },
+    });
   });
 
   it.each(OUT_OF_BOUNDS_CBOR)('refuses a trust record with $name', async ({ bytes, reason }) => {
@@ -129,6 +180,79 @@ async function openRepository(): Promise<OpenedRepository> {
   const entry: OpenedRepository = { plumbing, history, repository };
   opened.push(entry);
   return entry;
+}
+
+/** An asset written by git-cas's own store with a Merkle threshold of one chunk, so it has sub-manifests. */
+async function writeMerkleAsset(plumbing: PlumbingInstance, content: Uint8Array): Promise<string> {
+  const writer = ContentAddressableStore.createCbor({
+    plumbing,
+    chunking: { strategy: 'cdc' },
+    merkleThreshold: 1,
+    applicationRefPrefixes: [...WARP_APPLICATION_REF_PREFIXES],
+  });
+  try {
+    return (await writer.assets.put(assetOptions(content))).handle.oid;
+  } finally {
+    await writer.close();
+  }
+}
+
+/** The Merkle tree with its first sub-manifest blob replaced by `bytes`, and a root manifest that points at it. */
+async function replaceSubManifest(
+  history: GitTimelineHistoryAdapter,
+  treeOid: string,
+  bytes: Uint8Array,
+): Promise<string> {
+  const codec = new GitCasCborCodec();
+  const subManifestOid = await history.writeBlob(bytes);
+  const entries = await history.readTreeObjectEntries(treeOid);
+  const rootOid = entries.find((entry) => entry.name === MANIFEST_ENTRY)?.oid ?? '';
+  const root = codec.decode(await history.readBlob(rootOid));
+  const subManifests: unknown = Reflect.get(root, 'subManifests');
+  const refs: unknown[] = Array.isArray(subManifests) ? subManifests : [];
+  const unhashed = {
+    ...root,
+    subManifests: refs.map((ref, index) => (index === 0 && typeof ref === 'object' ? { ...ref, oid: subManifestOid } : ref)),
+  };
+  Reflect.deleteProperty(unhashed, 'manifestHash');
+  const manifestHash = createHash('sha256').update(codec.encode(unhashed)).digest('hex');
+  const rootManifestOid = await history.writeBlob(codec.encode({ ...unhashed, manifestHash }));
+  const replaced = new Map([[MANIFEST_ENTRY, rootManifestOid], [SUB_MANIFEST_ENTRY, subManifestOid]]);
+  return await history.writeTree(entries.map((entry) => {
+    const oid = replaced.get(entry.name) ?? entry.oid;
+    return `${entry.mode} ${entry.type} ${oid}\t${entry.name}`;
+  }));
+}
+
+/** A one-member bundle written by git-cas's own store. */
+async function writeBundle(plumbing: PlumbingInstance): Promise<GitCasBundleHandle> {
+  const writer = ContentAddressableStore.createCbor({
+    plumbing,
+    chunking: { strategy: 'cdc' },
+    applicationRefPrefixes: [...WARP_APPLICATION_REF_PREFIXES],
+  });
+  try {
+    const member = await writer.assets.put(assetOptions(deterministicBytes(1_000)));
+    return (await writer.bundles.putOrdered({ members: [['member', member.handle.toString()]] })).handle;
+  } finally {
+    await writer.close();
+  }
+}
+
+/** The bundle with its root descriptor blob replaced by `bytes`. */
+async function replaceBundleRootDescriptor(
+  history: GitTimelineHistoryAdapter,
+  handle: GitCasBundleHandle,
+  bytes: Uint8Array,
+): Promise<BundleHandle> {
+  const descriptorOid = await history.writeBlob(bytes);
+  const entries = await history.readTreeObjectEntries(handle.oid);
+  expect(entries.map((entry) => entry.name)).toContain(BUNDLE_ROOT_ENTRY);
+  const treeOid = await history.writeTree(entries.map((entry) => {
+    const oid = entry.name === BUNDLE_ROOT_ENTRY ? descriptorOid : entry.oid;
+    return `${entry.mode} ${entry.type} ${oid}\t${entry.name}`;
+  }));
+  return new BundleHandle(new GitCasBundleHandle({ codec: handle.codec, oid: treeOid }).toString());
 }
 
 async function writeManifestTree(history: GitTimelineHistoryAdapter, bytes: Uint8Array): Promise<string> {
