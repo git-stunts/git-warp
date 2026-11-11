@@ -2,11 +2,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 // Oracle: the Option B decision on #1032 (2026-11-08). v21.0.0 ships only
-// when the four risks that expired on 2026-08-01 are eliminated in code, and
-// every residual exposure waits for the maintainer to accept it.
+// when the four risks that expired on 2026-08-01 are eliminated in code. The
+// maintainer accepted the two residual exposures on 2026-11-11; each
+// acceptance expires on the review date below.
 
 const SECURITY_DOCUMENT = readFileSync('.github/SECURITY.md', 'utf8');
-const AWAITING_ACCEPTANCE = 'requires maintainer acceptance';
+const RESIDUAL_ACCEPTANCE = 'accepted by the maintainer on 2026-11-11';
+const RESIDUAL_REVIEW_DATE = '2027-05-01';
 const CLOSED_EXPIRY = 'Not applicable: closed';
 
 type RiskRow = {
@@ -143,13 +145,13 @@ describe('the Accepted Risks register', () => {
     expect(header).toBe(RISK_TABLE_HEADER);
   });
 
-  it('has no expired row: each row is closed or waits for maintainer acceptance', () => {
+  it('has no expired row: each row is closed or accepted with a review date', () => {
     const rows = riskRows(SECURITY_DOCUMENT);
 
     for (const row of rows) {
       expect(row.expiry, row.risk).not.toMatch(/EXPIRED/iu);
       // An accepted row carries its acceptance expiry as an ISO date.
-      expect(row.expiry, row.risk).toMatch(/^(Not applicable: closed|\*\*None: requires maintainer acceptance\*\*|\d{4}-\d{2}-\d{2})$/u);
+      expect(row.expiry, row.risk).toMatch(/^(Not applicable: closed|\d{4}-\d{2}-\d{2})$/u);
       expect(row.owner, row.risk).toBe('@flyingrobots');
     }
     expect(rows).toHaveLength(CLOSED_RISKS.length + RESIDUAL_RISKS.length);
@@ -172,12 +174,14 @@ describe('the Accepted Risks register', () => {
     }
   });
 
-  it.each(RESIDUAL_RISKS)('records "$risk" as open, tracked and awaiting acceptance', (expected) => {
+  it.each(RESIDUAL_RISKS)('records "$risk" as open, tracked and accepted until review', (expected) => {
     const row = rowFor(riskRows(SECURITY_DOCUMENT), expected.risk);
 
     expect(row.severity).toBe(expected.severity);
     expect(row.status).toMatch(/^Open/u);
-    expect(row.expiry).toBe(`**None: ${AWAITING_ACCEPTANCE}**`);
+    expect(row.status).toContain(RESIDUAL_ACCEPTANCE);
+    expect(row.expiry).toBe(RESIDUAL_REVIEW_DATE);
+    expect(row.evidence).not.toContain('Proposed severity');
     for (const issue of expected.issues) {
       expect(row.status).toContain(issue);
     }
@@ -188,6 +192,17 @@ describe('statements that depend on the register', () => {
   it('no longer defers the register update to #1032', () => {
     expect(SECURITY_DOCUMENT).not.toContain('updates the row');
     expect(SECURITY_DOCUMENT).not.toContain('#1032](https://github.com/git-stunts/git-warp/issues/1032) updates them');
+  });
+
+  it('leaves no residual row waiting for maintainer acceptance', () => {
+    expect(SECURITY_DOCUMENT).not.toMatch(/(awaits|requires) maintainer acceptance/u);
+  });
+
+  it('records the serve() allowedWriters defect as fixed, not open', () => {
+    const writerAuthorization = section(SECURITY_DOCUMENT, '## Writer Authorization');
+
+    expect(writerAuthorization).not.toMatch(/known defect/iu);
+    expect(writerAuthorization).toContain('Before v21.0.0, `serve()` did not pass `allowedWriters`');
   });
 
   it('puts the sync rate limits in scope for availability', () => {
