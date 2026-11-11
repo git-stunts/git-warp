@@ -59,6 +59,40 @@ describe('cold membership transport', () => {
     expect(() => parseColdOpenResult(COMPLETE, 'd1')).toThrow();
   });
 
+  it('rejects a header without a trailer', () => {
+    expect(() => parseColdOpenResult('cone-margins-v1\tcompleted\td0\n', 'd0')).toThrow('a cold result must have one matching header and trailer');
+  });
+
+  it.each([
+    'cone-margins-v1\tincomplete\td0\nend\td0\t0\t0\n',
+    'cone-margins-v1\tincomplete\td0\nreason\tobserver\trefused\nend\td0\t0\t0\n',
+    'cone-margins-v1\tincomplete\td0\nreason\tobserver\trefused\tno%20page\nreason\tobserver\trefused\tno%20page\nend\td0\t0\t0\n',
+    'cone-margins-v1\tincomplete\td0\nreason\tobserver\trefused\tno%20page\nend\td0\t1\t0\n',
+    'cone-margins-v1\tincomplete\td0\nreason\tobserver\trefused\tno%20page\nend\td0\t0\t1\n',
+    'cone-margins-v1\tincomplete\td0\nthread\tobserver\trefused\tno%20page\nend\td0\t0\t0\n',
+  ])('refuses an incomplete result without exactly one reason and zero counts', (output) => {
+    expect(() => parseColdOpenResult(output, 'd0')).toThrow('an incomplete cold result must retain exactly one reason');
+  });
+
+  it('keeps a thread that has no comments', () => {
+    const read = parseColdOpenResult('cone-margins-v1\tcompleted\td0\nthread\tt0\t\nend\td0\t1\t0\n', 'd0');
+    if (!(read instanceof Margins)) throw new TypeError('expected actual membership');
+    expect([...read.threads]).toEqual([['t0', []]]);
+  });
+
+  it('writes a refused read with its encoded context, and reads it back', () => {
+    const refused = new MarginsUnavailable('observer', 'obstructed', 'missing bounded\tbasis');
+    const output = formatColdOpenResult('d0', refused);
+    expect(output).toBe('cone-margins-v1\tincomplete\td0\nreason\tobserver\tobstructed\tmissing%20bounded%09basis\nend\td0\t0\t0\n');
+    expect(parseColdOpenResult(output, 'd0')).toEqual(refused);
+  });
+
+  it('refuses to write a result for a malformed or different document', () => {
+    const margins = new Margins('d1', new Map([['t0', ['c0']]]));
+    expect(() => formatColdOpenResult('document-1', margins)).toThrow('a cold result needs a corpus document identity');
+    expect(() => formatColdOpenResult('d0', margins)).toThrow('a cold read returned another document');
+  });
+
   it('keeps captured membership stable when its source or returned map changes', () => {
     const source = new Map([['t0', ['c0']]]);
     const margins = new Margins('d0', source);

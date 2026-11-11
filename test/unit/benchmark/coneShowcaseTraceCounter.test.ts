@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, symlinkSync, truncateSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -103,6 +103,61 @@ describe('cone-showcase Trace2 process metric', () => {
       }
       expect(() => new GitProcessCounter(traces).capture()).toThrow(errorClass);
       expect(() => new GitProcessCounter(traces).capture()).toThrow(message);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses an unnamed directory, and a trace path that is not a directory', () => {
+    expect(() => new GitProcessCounter('')).toThrow('a Git trace counter needs its owned directory');
+    const scratch = mkdtempSync(join(tmpdir(), 'cone-trace-file-'));
+    try {
+      const traces = join(scratch, 'trace');
+      writeFileSync(traces, TRACE_RECORD);
+      expect(() => new GitProcessCounter(traces).capture()).toThrow('Git trace directory is missing or not a real directory');
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  it.each(['removed', 'replaced'])('stops when a retained trace file is %s before cleanup', (fault) => {
+    const scratch = mkdtempSync(join(tmpdir(), 'cone-trace-identity-'));
+    try {
+      const traces = join(scratch, 'trace');
+      mkdirSync(traces);
+      writeFileSync(join(traces, 'retained'), TRACE_RECORD);
+      const counter = new GitProcessCounter(traces);
+      expect(counter.capture().files).toEqual(['retained']);
+      if (fault === 'removed') {
+        unlinkSync(join(traces, 'retained'));
+      } else {
+        writeFileSync(join(traces, 'other'), TRACE_RECORD);
+        renameSync(join(traces, 'other'), join(traces, 'retained'));
+      }
+      expect(() => counter.capture()).toThrow('a retained Git trace file disappeared or changed identity before lifecycle cleanup');
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  // Oracle: the README cleanup contract (specified): cleanup follows retained samples,
+  // and never removes a trace identity that no sample retained.
+  it('cleans up only retained traces, then counts the next lifecycle from empty', () => {
+    const scratch = mkdtempSync(join(tmpdir(), 'cone-trace-cleanup-'));
+    try {
+      const traces = join(scratch, 'trace');
+      mkdirSync(traces);
+      const counter = new GitProcessCounter(traces);
+      writeFileSync(join(traces, 'first'), TRACE_RECORD);
+      expect(counter.capture().files).toEqual(['first']);
+      writeFileSync(join(traces, 'unretained'), TRACE_RECORD);
+      expect(() => counter.cleanupAfterWritersClosed()).toThrow('Git trace cleanup refused unretained process identities');
+      expect(readdirSync(traces).sort()).toEqual(['first', 'unretained']);
+      expect(counter.capture().files).toEqual(['unretained']);
+      counter.cleanupAfterWritersClosed();
+      expect(readdirSync(traces)).toEqual([]);
+      writeFileSync(join(traces, 'first'), TRACE_RECORD);
+      expect(counter.capture().files).toEqual(['first']);
     } finally {
       rmSync(scratch, { recursive: true, force: true });
     }
