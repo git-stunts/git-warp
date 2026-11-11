@@ -286,10 +286,11 @@ they do not repeat these rules.
     integration files it names). Coverage that only the full integration suite
     gives does not count. Map each touched line from `git diff -U0 origin/main`
     onto `coverage/clover.xml`. List each counted file and its numbers in the PR
-    body. A change that only deletes a branch, guard, call, or export has no
-    added line to map. For it, map the surviving lines that the deleted code
-    guarded or fed, and name the test that shows their behavior after the
-    deletion.
+    body. For each deleted branch, guard, call, or export that remaining code
+    depended on, also map the surviving lines that it guarded or fed, even when
+    the same file or PR adds other lines, and name the test that shows their
+    behavior after the deletion. These lines count as touched; they do not go
+    to a debt issue.
   - The default report includes `src/**/*.ts`, but excludes `src/ports/**/*.ts`
     and `src/**/*.d.ts`. Scripts and tests are outside its include pattern.
     List excluded touched files and their evidence in the PR body. For executable
@@ -309,6 +310,10 @@ they do not repeat these rules.
     and behavior; this method is invalid if the changed file identity changes
     behavior. Otherwise move executable helpers to an ordinary module and
     measure that module. Remove temporary copies and wrappers after the run.
+    The Docker image holds only tracked files, so pass each temporary wrapper,
+    copy, and config to `scripts/run-in-docker.sh` with `--import-file`.
+    Register a setup-file wrapper in a separate temporary Vitest config passed
+    with `--config`; never edit `vitest.config.ts` for these reports.
     Do not change the ratchet for these reports. For declarations with no
     executable lines, record coverage as not applicable and cite the relevant
     type checks. For test assertions, also record the intended behavior,
