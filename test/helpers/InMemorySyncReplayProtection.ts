@@ -16,6 +16,7 @@ export default class InMemorySyncReplayProtection implements SyncReplayProtectio
   private readonly _entries = new Map<string, RetainedReplay>();
   private _generation = 0;
 
+  // eslint-disable-next-line no-restricted-syntax -- host clock default: mirrors GitCasSyncReplayProtectionAdapter; MemoryRuntimeStorageAdapter pairs it with the runtime's host clock, and time-dependent tests inject a clock
   constructor(clock: () => number = Date.now) {
     this._clock = clock;
   }

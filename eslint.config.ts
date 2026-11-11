@@ -879,6 +879,51 @@ export default tseslint.config(
     },
   },
 
+  // ── Test files: no wall clock and no real timer waits ──────────────────────
+  // A test that reads the wall clock or waits on a real timer depends on
+  // machine load. Inject a clock, or install Vitest fake timers. A real
+  // timer that only bounds a child process is allowed: disable this rule
+  // on that line with a `-- process bound: <why>` description.
+  // test/unit/scripts/test-wall-clock-allowances.test.ts requires that
+  // description. test/benchmark/** is out of scope: real time is the
+  // measurement there.
+  {
+    files: ["test/**/*.ts"],
+    ignores: ["test/benchmark/**"],
+    rules: {
+      "no-restricted-syntax": ["error",
+        {
+          "selector": "MemberExpression[object.name='Date'][property.name='now']",
+          "message": "Tests must not read the wall clock. Inject a clock or use vi.useFakeTimers().",
+        },
+        {
+          "selector": "NewExpression[callee.name='Date'][arguments.length=0]",
+          "message": "Tests must not read the wall clock. Use a fixed date, an injected clock, or vi.useFakeTimers().",
+        },
+        {
+          "selector": "CallExpression[callee.name='Date']",
+          "message": "Tests must not read the wall clock. Use a fixed date, an injected clock, or vi.useFakeTimers().",
+        },
+        {
+          "selector": "MemberExpression[object.name='performance'][property.name='now']",
+          "message": "Tests must not read the wall clock. Inject a clock or use vi.useFakeTimers().",
+        },
+        {
+          "selector": "CallExpression[callee.name=/^set(Timeout|Interval)$/]",
+          "message": "Tests must not wait on real timers. Use vi.useFakeTimers(), an injected scheduler, or wait on a condition.",
+        },
+        {
+          "selector": "MemberExpression[property.name=/^set(Timeout|Interval)$/]",
+          "message": "Tests must not wait on real timers. Use vi.useFakeTimers(), an injected scheduler, or wait on a condition.",
+        },
+        {
+          "selector": "ImportSpecifier[imported.name=/^set(Timeout|Interval)$/]",
+          "message": "Tests must not wait on real timers. Use vi.useFakeTimers(), an injected scheduler, or wait on a condition.",
+        },
+      ],
+    },
+  },
+
   // ── Benchmarks ─────────────────────────────────────────────────────────────
   {
     files: ["test/benchmark/**/*.ts"],
