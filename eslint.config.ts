@@ -4,6 +4,7 @@ import jsdoc from "eslint-plugin-jsdoc";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync } from "node:fs";
+import { TEST_WALL_CLOCK_SELECTORS } from "./scripts/TestWallClockSelectors.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -881,47 +882,24 @@ export default tseslint.config(
 
   // ── Test files: no wall clock and no real timer waits ──────────────────────
   // A test that reads the wall clock or waits on a real timer depends on
-  // machine load. Inject a clock, or install Vitest fake timers. A real
-  // timer that only bounds a child process is allowed: disable this rule
-  // on that line with a `-- process bound: <why>` description.
-  // test/unit/scripts/test-wall-clock-allowances.test.ts requires that
-  // description. test/benchmark/** is out of scope: real time is the
-  // measurement there.
+  // machine load. Inject a clock, or install Vitest fake timers. A line may
+  // opt out only with `// eslint-disable-next-line no-restricted-syntax --
+  // <reason>: <why>`; test/unit/scripts/test-wall-clock-allowances.test.ts
+  // checks that form. The selectors live in scripts/TestWallClockSelectors.ts.
+  // Scope: every TS and JS test file under test/ except test/benchmark/**,
+  // where real time is the measurement. test/runtime/** and test/type-check/**
+  // are in the global ignores above, so test/unit/scripts/
+  // test-wall-clock-guard.test.ts applies the same selectors to them.
   {
-    files: ["test/**/*.ts"],
+    files: ["test/**/*.{ts,mts,cts,js,mjs,cjs}"],
     ignores: ["test/benchmark/**"],
     rules: {
-      "no-restricted-syntax": ["error",
-        {
-          "selector": "MemberExpression[object.name='Date'][property.name='now']",
-          "message": "Tests must not read the wall clock. Inject a clock or use vi.useFakeTimers().",
-        },
-        {
-          "selector": "NewExpression[callee.name='Date'][arguments.length=0]",
-          "message": "Tests must not read the wall clock. Use a fixed date, an injected clock, or vi.useFakeTimers().",
-        },
-        {
-          "selector": "CallExpression[callee.name='Date']",
-          "message": "Tests must not read the wall clock. Use a fixed date, an injected clock, or vi.useFakeTimers().",
-        },
-        {
-          "selector": "MemberExpression[object.name='performance'][property.name='now']",
-          "message": "Tests must not read the wall clock. Inject a clock or use vi.useFakeTimers().",
-        },
-        {
-          "selector": "CallExpression[callee.name=/^set(Timeout|Interval)$/]",
-          "message": "Tests must not wait on real timers. Use vi.useFakeTimers(), an injected scheduler, or wait on a condition.",
-        },
-        {
-          "selector": "MemberExpression[property.name=/^set(Timeout|Interval)$/]",
-          "message": "Tests must not wait on real timers. Use vi.useFakeTimers(), an injected scheduler, or wait on a condition.",
-        },
-        {
-          "selector": "ImportSpecifier[imported.name=/^set(Timeout|Interval)$/]",
-          "message": "Tests must not wait on real timers. Use vi.useFakeTimers(), an injected scheduler, or wait on a condition.",
-        },
-      ],
+      "no-restricted-syntax": ["error", ...TEST_WALL_CLOCK_SELECTORS],
     },
+  },
+  {
+    files: ["test/**/*.{mts,cts}"],
+    languageOptions: { parser: tseslint.parser },
   },
 
   // ── Benchmarks ─────────────────────────────────────────────────────────────
