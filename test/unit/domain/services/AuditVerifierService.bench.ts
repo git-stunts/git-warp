@@ -24,6 +24,7 @@ const CHAIN_LENGTH = 1000;
 
 
 console.log(`Building ${CHAIN_LENGTH}-receipt chain...`);
+// eslint-disable-next-line no-restricted-syntax -- benchmark measurement: this standalone script measures real elapsed time
 const t0 = performance.now();
 
 const auditLog = new InMemoryAuditLogAdapter();
@@ -48,12 +49,14 @@ for (let i = 1; i <= CHAIN_LENGTH; i++) {
   }));
 }
 
+// eslint-disable-next-line no-restricted-syntax -- benchmark measurement: this standalone script measures real elapsed time
 const buildMs = performance.now() - t0;
 
 console.log(`Chain built in ${buildMs.toFixed(0)}ms`);
 
 
 console.log(`Verifying ${CHAIN_LENGTH}-receipt chain...`);
+// eslint-disable-next-line no-restricted-syntax -- benchmark measurement: this standalone script measures real elapsed time
 const t1 = performance.now();
 
 const verifier = new AuditVerifierService({
@@ -62,6 +65,7 @@ const verifier = new AuditVerifierService({
 });
 const result = await verifier.verifyChain('bench', 'alice');
 
+// eslint-disable-next-line no-restricted-syntax -- benchmark measurement: this standalone script measures real elapsed time
 const verifyMs = performance.now() - t1;
 
 console.log(`Verified in ${verifyMs.toFixed(0)}ms — status: ${result.status}, receipts: ${result.receiptsVerified}`);

@@ -248,7 +248,7 @@ await graph.serve({
   port: 3000,
   httpPort: new NodeHttpAdapter(),
   auth: {
-    keys: { default: 'your-shared-secret' },
+    keys: { default: SyncSecret.fromString('your-shared-secret') },
     mode: 'enforce', // or 'log-only'
   },
 });
@@ -258,7 +258,7 @@ await graph.serve({
 ```js
 await graph.syncWith('http://peer:3000', {
   auth: {
-    secret: 'your-shared-secret',
+    secret: SyncSecret.fromString('your-shared-secret'),
     keyId: 'default',
   },
 });
@@ -307,14 +307,24 @@ yet, so they have no expiry date.
 |---|---|---|
 | **Data integrity** | CRDT convergence, CAS ref updates, patch ordering | Filesystem corruption, disk failure |
 | **Authentication** | HMAC-SHA256 sync auth, key rotation, replay protection | User identity management, OAuth/OIDC |
-| **Authorization** | Writer whitelist (per-graph allowed writers) | Role-based access control, per-node ACLs |
+| **Authorization** | None for sync: any valid sync key reads every writer's patches, and the sync server accepts no writes. `allowedWriters` only refuses a requester that reports an unlisted writer (see Writer Authorization) | Role-based access control, per-node ACLs, per-writer read or write limits |
 | **Transport** | Body signing, tamper detection | TLS termination (delegated to reverse proxy) |
 | **Availability** | Body size limits, the peer admission limit before authentication, the per-key rate limit (required on hosts that are not local), streaming for large graphs | DDoS protection and a global bound on traffic from many addresses ([#1164](https://github.com/git-stunts/git-warp/issues/1164)); provide these at a reverse proxy or firewall |
 | **Supply chain** | `npm audit` in CI, pinned dependencies via lockfile | Runtime SCA scanning, SBOM generation |
 
 ## Writer Authorization
 
-The sync server supports an optional writer whitelist that restricts which writer IDs can submit patches through the HTTP sync protocol.
+The built-in sync server supports an optional writer list, `allowedWriters`. A sync
+request carries the frontier of the requester (writer ID to tip SHA), not patches; the
+server sends patches in its response and does not apply patches from a request. The
+server refuses a request whose frontier names a writer ID that is not in the list.
+
+The list does not limit what the server sends. A peer with a valid key that sends an
+empty frontier, or leaves unlisted writers out of its frontier, receives the patches of
+every writer, listed or not. The list is therefore not an access control for reads or for
+writes. To limit who can read a graph, limit who holds its sync keys.
+
+No package entry point exposes `serve()` in v19.0.0, v20.0.0 or v21.0.0.
 
 ### Configuration
 
@@ -323,7 +333,7 @@ await graph.serve({
   port: 3000,
   httpPort: new NodeHttpAdapter(),
   auth: {
-    keys: { default: 'your-shared-secret' },
+    keys: { default: SyncSecret.fromString('your-shared-secret') },
     mode: 'enforce',
   },
   allowedWriters: ['alice', 'bob', 'node-1'],
@@ -332,12 +342,21 @@ await graph.serve({
 
 ### Rules
 
-- Writer ID matching is **case-sensitive** and follows the pattern `[A-Za-z0-9._-]+` (1–64 characters)
-- Writer IDs are validated at server startup; invalid IDs throw immediately
-- When `allowedWriters` is not set (default), all authenticated writers are permitted
-- When set, sync requests containing patches from unlisted writers receive HTTP 403 (`FORBIDDEN_WRITER`)
-- The `forbiddenWriterRejects` metric tracks rejected requests
-- Known defect: `serve()` does not pass `allowedWriters` to the sync server, so a server started through `serve()` does not enforce the whitelist and permits every authenticated writer. A caller that constructs `HttpSyncServer` directly is not affected. [#1163](https://github.com/git-stunts/git-warp/issues/1163) tracks the fix
+- Writer ID matching is **case-sensitive**. Each listed ID must match `[A-Za-z0-9._-]+`,
+  have 1–64 characters and not contain `..`
+- A non-empty list requires `auth`; without it `serve()` refuses to start. With `auth`,
+  `serve()` refuses to start if a listed ID is invalid (`E_INVALID_WRITER_ID`) or the list
+  is empty (`E_SYNC_AUTH_EMPTY_ALLOWED_WRITERS`)
+- When `allowedWriters` is not set (default), the frontier is not checked
+- When set, a request whose frontier names an unlisted writer receives HTTP 403
+  (`FORBIDDEN_WRITER`) in `enforce` mode. In `log-only` mode the server answers the
+  request and, if the runtime has a logger, logs a warning. Without a logger, and because
+  `serve()` does not expose the metric, `log-only` gives no signal
+- A request with an empty frontier names no writer, so this check passes it
+- The sync auth service counts each frontier that fails the check in its
+  `forbiddenWriterRejects` metric, in both modes. `serve()` does not expose this metric
+- Before v21.0.0, `serve()` did not pass `allowedWriters` to the server, so the list had
+  no effect ([#1163](https://github.com/git-stunts/git-warp/issues/1163))
 
 ## Reporting a Vulnerability
 

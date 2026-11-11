@@ -2,15 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { openWarpGraphRuntime } from '../../../../src/domain/warp/WarpGraphRuntimeBridge.ts';
 import { createMemoryRuntimeStorage } from '../../../helpers/MemoryRuntimeHost.ts';
 import { createInMemoryRepo } from '../../../helpers/warpGraphTestUtils.ts';
+import ManualClock from '../../../helpers/ManualClock.ts';
 
 describe('WarpGraphRuntimeBridge', () => {
   it('returns a graph runtime surface with the structural graph methods', async () => {
     const repo = createInMemoryRepo();
+    const clock = new ManualClock();
 
     try {
       const runtimeSurface = await openWarpGraphRuntime({
         persistence: repo.persistence,
-        runtimeStorage: createMemoryRuntimeStorage(repo.persistence),
+        clock,
+        runtimeStorage: createMemoryRuntimeStorage(repo.persistence, clock),
         graphName: 'shared',
         writerId: 'alice',
       });

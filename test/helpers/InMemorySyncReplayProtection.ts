@@ -16,7 +16,8 @@ export default class InMemorySyncReplayProtection implements SyncReplayProtectio
   private readonly _entries = new Map<string, RetainedReplay>();
   private _generation = 0;
 
-  constructor(clock: () => number = Date.now) {
+  /** `clock` is the store's time: pass the clock that the runtime under test uses. */
+  constructor(clock: () => number) {
     this._clock = clock;
   }
 

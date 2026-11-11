@@ -175,7 +175,10 @@ DTO and stop there**. Do not hallucinate fake domain models.
 - Release gates must count GitHub Issues by the simplified labels and
   milestones. Missing required labels or milestones are gate failures, never
   proof that the count is zero.
-- End every turn with the compact progress footer:
+- End every turn that changed the work state with the compact progress footer.
+  A change is a commit, a push, a PR state change, a merge, a review decision,
+  or a filed or closed issue. A turn that only reports that work is still
+  running does not need the footer:
 
   ```text
   ═══ ⋆★⋆ Progress Report ⋆★⋆ ═══
@@ -200,6 +203,49 @@ DTO and stop there**. Do not hallucinate fake domain models.
   - `🏁 [#N](url)` when a PR was merged.
   - `🐇 [#N](url)` when waiting for Code Rabbit.
   - `🧪 [#N](url)` when CI is not finished yet.
+
+## Delegated Agents
+
+These rules apply to every agent that a session dispatches. Briefs add the task;
+they do not repeat these rules.
+
+- Never run `rm` or `rmdir` on the host yourself. Put scratch data in the session
+  scratchpad or inside containers. Report leftover files and worktrees; do not
+  delete them. Repository tooling that cleans up its own temporary files (for
+  example `scripts/run-in-docker.sh` and the Git hooks) is allowed.
+- Link `node_modules` in a worktree with a relative symlink to the main
+  checkout's `node_modules`, for example `ln -s ../git-warp/node_modules
+  node_modules` for a worktree next to the main checkout. The path lint refuses
+  an absolute link.
+- The host has no `timeout` command. Bound each run inside the container.
+- Implementing and reviewing agents do not hold delegated decision authority.
+  At a Decision card, a design fork the issue does not settle, or a format or
+  compatibility question, stop and report the options with evidence. The
+  orchestrating session or the maintainer decides and records it on GitHub.
+- Before you push for review, run `git fetch origin`. If `origin/main` has
+  commits that the branch does not contain, merge it into the branch with a
+  merge commit. If `origin/main` is already an ancestor, no merge is needed.
+  Report any conflicts and how you resolved them.
+- Locks follow the maintainer's global rule (`~/.claude/CLAUDE.md`, "Shared
+  resources"). Locks protect scoped assets only. Work in your own isolated
+  worktree needs no lock. Take a lock when you share a worktree or a Docker
+  container with other agents, or when you use a shared resource that has
+  exclusive access or a capacity. `host/heavy-work` is for long, machine-scale
+  campaigns (multi-hour fuzz, benchmark or soak runs), not for a bounded check
+  in a per-run container. Take `.git/` for worktree creation, moves and removal.
+  Commits, fetches and merges in your own worktree need no lock.
+
+### Scope and review size
+
+- A defect found while a PR is under review gets its own issue. If its fix needs
+  a design choice, a time-boxed Spike measures the options first. Do not widen
+  the PR under review until the design is measured and decided.
+- Size the review to the risk. A docs-only or test-only PR needs a Baker Street
+  triage case. A PR that changes runtime semantics, persistence, the wire
+  format, the public surface, or security needs a standard case. A PR that
+  changes only tooling, CI, or scripts needs a focused case. The merge gate
+  requires a current case decision READY and green CI for the exact head to be
+  merged. After new commits, reassess the case and record which head it covers.
 
 ## Engineering Doctrine
 
@@ -232,6 +278,51 @@ DTO and stop there**. Do not hallucinate fake domain models.
 ## Refactor Gates
 
 - For any refactor slice, touched code must reach `100%` test coverage before the slice is considered done.
+  - A file counts as touched if its diff adds or changes a line that is not an
+    import or a comment, or deletes a branch, guard, call, or export that
+    remaining code depended on. A file that only loses unused code, or only
+    changes imports or comments, does not count.
+  - Measure with `npm run test:coverage` (the unit suite, plus the few
+    integration files it names). Coverage that only the full integration suite
+    gives does not count. Map each touched line from `git diff -U0 origin/main`
+    onto `coverage/clover.xml`. List each counted file and its numbers in the PR
+    body. For each deleted branch, guard, call, or export that remaining code
+    depended on, also map the surviving lines that it guarded or fed, even when
+    the same file or PR adds other lines, and name the test that shows their
+    behavior after the deletion. These lines count as touched; they do not go
+    to a debt issue.
+  - The default report includes `src/**/*.ts`, but excludes `src/ports/**/*.ts`
+    and `src/**/*.d.ts`. Scripts and tests are outside its include pattern.
+    List excluded touched files and their evidence in the PR body. For executable
+    code, including runtime code in ports, scripts or test support, use a
+    separate Docker coverage report from the same unit harness with explicit
+    include and exclude patterns. Map its touched lines and record its command
+    and report path. Vitest excludes registered setup files even when coverage
+    patterns include them. For this separate report, replace each affected
+    setup-file registration with a wrapper that imports the original file;
+    preserve setup order and behavior, include the original file in coverage,
+    and verify that its executable lines appear in the report. Registered test
+    files are also excluded. To measure one, make a temporary byte-identical
+    copy beside it with a name outside the test include patterns. Select only
+    a temporary registered test wrapper that imports that copy. Include the
+    copy in coverage, verify its executable lines, and map them back by line
+    number and source hash. Preserve relative imports, setup, test selection,
+    and behavior; this method is invalid if the changed file identity changes
+    behavior. Otherwise move executable helpers to an ordinary module and
+    measure that module. Remove temporary copies and wrappers after the run.
+    The Docker image holds only tracked files, so pass each temporary wrapper,
+    copy, and config to `scripts/run-in-docker.sh` with `--import-file`.
+    Register a setup-file wrapper in a separate temporary Vitest config passed
+    with `--config`; never edit `vitest.config.ts` for these reports.
+    Do not change the ratchet for these reports. For declarations with no
+    executable lines, record coverage as not applicable and cite the relevant
+    type checks. For test assertions, also record the intended behavior,
+    diagnostic assertion failure and passing run. This oracle evidence does
+    not replace executable-line coverage, and assertion execution does not
+    prove its oracle. Full-integration-only coverage still does not count.
+    Missing instrumentation leaves the coverage gate unmet.
+  - The gate covers touched lines. Older uncovered lines in a counted file go to
+    a debt issue, not into the slice.
 - Run an SSJS scorecard on every slice. Until an automated scorecard exists, use a manual checklist and require all green on touched files:
   - runtime-backed forms for new concepts
   - boundary validation stays at boundaries
@@ -264,8 +355,15 @@ DTO and stop there**. Do not hallucinate fake domain models.
   - `npm run typecheck`
 - Coverage ratchet policy:
   - Only `npm run test:coverage` is allowed to update coverage thresholds.
-  - Targeted or ad hoc coverage runs must not rewrite `vitest.config.js`.
+  - Targeted or ad hoc coverage runs must not rewrite `vitest.config.ts`.
 - Critical multi-writer regression suite: `test/unit/domain/WarpGraph.noCoordination.test.js`.
+- Package payload: the limits in `scripts/package-payload/PackagePayloadPolicy.ts`
+  (unpacked bytes, packed bytes, and entry count) are a budget that every PR
+  shares. Before you open a PR, run
+  `bash scripts/run-in-docker.sh npm run check:package-payload` and state the
+  deltas in the PR body. PR CI fails over the limit (`preflight`, `type-firewall-packed-consumer`,
+  and the BATS cases in `test-node (22)`). Do not raise the limit. A PR that does
+  not fit waits for headroom or frees bytes itself.
 
 ## Release Hygiene
 

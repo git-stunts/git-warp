@@ -1,0 +1,42 @@
+import type WitnessSample from './WitnessSample.ts';
+import type WorkloadPlan from './WorkloadPlan.ts';
+
+export type ReadCheckState = 'verified' | 'unchecked' | 'mismatch';
+
+const MISSING_SAMPLE = 'missing-sample';
+
+/**
+ * Whether read membership was checked at one scale, and why not.
+ * Any mismatch outranks unchecked reads; a missing read sample is unchecked.
+ */
+export default class ReadCheck {
+  readonly threads: number;
+  readonly planned: number;
+  readonly state: ReadCheckState;
+  readonly verified: number;
+  readonly reasons: ReadonlyMap<string, number>;
+
+  constructor(threads: number, samples: readonly WitnessSample[], workload: WorkloadPlan) {
+    const reads = samples.filter((sample) => sample.phase === 'margins' || sample.phase === 'cold');
+    const reasons = new Map<string, number>();
+    for (const read of reads.filter((sample) => sample.outcome.status !== 'verified')) {
+      reasons.set(read.outcome.detail, (reasons.get(read.outcome.detail) ?? 0) + 1);
+    }
+    if (reads.length < workload.plannedReads) {
+      reasons.set(MISSING_SAMPLE, workload.plannedReads - reads.length);
+    }
+    this.threads = threads;
+    this.planned = workload.plannedReads;
+    this.verified = reads.filter((sample) => sample.outcome.status === 'verified').length;
+    this.reasons = reasons;
+    this.state = reads.some((sample) => sample.outcome.status === 'mismatch') ? 'mismatch'
+      : reasons.size === 0 ? 'verified' : 'unchecked';
+    Object.freeze(this);
+  }
+
+  /** `read-check`, threads, state, verified/planned, and percent-encoded reason=count pairs or `-`. */
+  line(): string {
+    const reasons = [...this.reasons].map(([reason, count]) => encodeURIComponent(reason) + '=' + String(count)).join(',');
+    return ['read-check', String(this.threads), this.state, String(this.verified) + '/' + String(this.planned), reasons || '-'].join('\t');
+  }
+}

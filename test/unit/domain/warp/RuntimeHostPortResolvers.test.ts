@@ -10,6 +10,7 @@ import CommitMessageCodecPort, {
 import TrustCryptoPort, { type TrustSignatureVerification } from '../../../../src/ports/TrustCryptoPort.ts';
 import InMemoryGraphAdapter from '../../../../test/helpers/InMemoryGraphAdapter.ts';
 import MemoryRuntimeStorageAdapter from '../../../../test/helpers/MemoryRuntimeStorageAdapter.ts';
+import ManualClock from '../../../helpers/ManualClock.ts';
 import { createFakeCodecPort, createMockCrypto } from '../../../helpers/mockPorts.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
@@ -102,7 +103,7 @@ describe('RuntimeHostPortResolvers', () => {
     const crypto = createMockCrypto();
     const trustCrypto = new TestTrustCrypto();
     const history = new InMemoryGraphAdapter();
-    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history });
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history, clock: new ManualClock() });
 
     await expect(resolvers.resolveConfiguredCommitMessageCodec(commitMessageCodec))
       .resolves.toBe(commitMessageCodec);
