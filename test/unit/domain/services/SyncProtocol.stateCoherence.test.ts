@@ -29,6 +29,9 @@ const SHA_B = 'b'.repeat(40);
 const SHA_C = 'c'.repeat(40);
 const SHA_D = 'd'.repeat(40);
 
+// Commit dates are opaque here; a fixed value keeps the fixture deterministic.
+const FIXED_COMMIT_DATE = '2026-01-01T00:00:00.000Z';
+
 /**
  * Shorthand: build a patch object inline.
  * Context is a plain object (SyncProtocol normalizes it to a Map).
@@ -276,7 +279,7 @@ describe('SyncProtocol — state coherence (Phase 4, Invariant 5)', () => {
             sha,
             message: commits[sha].message,
             author: 'test',
-            date: new Date().toISOString(),
+            date: FIXED_COMMIT_DATE,
             parents: commits[sha].parents || [],
           };
         }

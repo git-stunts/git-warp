@@ -6,6 +6,9 @@ import { LIVE_LENS, REPLAY_LENS, type ExternalizationPolicy } from '../../../../
 import type { DeliveryObservation } from '../../../../src/domain/types/DeliveryObservation.ts';
 import EffectSinkPort from '../../../../src/ports/EffectSinkPort.ts';
 
+// Observation timestamps are opaque here; a fixed value keeps the fixture deterministic.
+const FIXED_OBSERVATION_MS = 1_767_225_600_000;
+
 /** @returns {import('../../../../src/domain/types/EffectEmission.ts').EffectEmission} */
 function makeEmission(id = 'em-1') {
   return createEffectEmission({
@@ -43,7 +46,7 @@ class StubSink extends EffectSinkPort {
       emissionId: (emission).id,
       sinkId: this._id,
       outcome: 'delivered',
-      timestamp: Date.now(),
+      timestamp: FIXED_OBSERVATION_MS,
       lens: (lens),
     })];
   }
@@ -64,7 +67,7 @@ class FailingSink extends EffectSinkPort {
       sinkId: 'failing',
       outcome: 'failed',
       reason: 'boom',
-      timestamp: Date.now(),
+      timestamp: FIXED_OBSERVATION_MS,
       lens: (lens),
     })];
   }
