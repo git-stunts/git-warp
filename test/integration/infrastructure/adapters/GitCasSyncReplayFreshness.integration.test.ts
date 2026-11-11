@@ -65,7 +65,7 @@ async function openServer(directory: string, clock: ManualClock, graph: SyncInbo
     } } },
   });
   const http = new MemoryHttpPort();
-  const server = new HttpSyncServer({ httpPort: http, graph,
+  const server = new HttpSyncServer({ httpPort: http, graph, clock,
     auth: { keys: { default: SECRET }, crypto: CRYPTO, clock, replayProtection: replay } });
   await server.listen(9999);
   return { store, replay, http, gates };

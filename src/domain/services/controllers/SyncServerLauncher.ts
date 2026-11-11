@@ -14,6 +14,7 @@ import type HttpServerPort from '../../../ports/HttpServerPort.ts';
 import type { SyncHost } from './SyncController.ts';
 import type SyncSecret from '../sync/SyncSecret.ts';
 import type { SyncRateLimitConfig } from '../sync/SyncRateLimiter.ts';
+import type { SyncPeerRateLimit } from '../sync/SyncPeerRateLimiter.ts';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,12 @@ export interface ServeOptions {
   auth?: { keys: Record<string, SyncSecret>; mode?: 'enforce' | 'log-only'; rateLimit?: SyncRateLimitConfig };
   unsafeAllowUnauthenticatedLocalhost?: boolean;
   allowedWriters?: string[];
+  /**
+   * Pre-authentication limit for each socket peer address. On by default
+   * with DEFAULT_SYNC_PEER_RATE_LIMIT (a burst of 60 requests, a refill of 10
+   * requests per second, at most 4096 tracked peers); it cannot be turned off.
+   */
+  peerRateLimit?: SyncPeerRateLimit;
 }
 
 export interface ServerHandle {
@@ -60,6 +67,7 @@ export async function launchSyncServer(
     auth,
     unsafeAllowUnauthenticatedLocalhost,
     allowedWriters,
+    peerRateLimit,
   } = options;
 
   if (typeof port !== 'number') {
@@ -93,9 +101,11 @@ export async function launchSyncServer(
     path,
     host: hostname,
     maxRequestBytes,
+    clock: host._clock,
     ...(authConfig !== undefined ? { auth: authConfig } : {}),
     ...(unsafeAllowUnauthenticatedLocalhost !== undefined ? { unsafeAllowUnauthenticatedLocalhost } : {}),
     ...(allowedWriters !== undefined ? { allowedWriters } : {}),
+    ...(peerRateLimit !== undefined ? { peerRateLimit } : {}),
   });
 
   return await httpServer.listen(port);

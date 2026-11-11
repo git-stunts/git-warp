@@ -147,6 +147,14 @@ describe('serve() options reach the HTTP sync server', () => {
       const { http } = await start({ unsafeAllowUnauthenticatedLocalhost: true });
       expect((await http.request()).status).toBe(200);
     },
+    // One token and a stopped clock: the default limit (60 tokens) would answer the second request.
+    peerRateLimit: async () => {
+      const { http } = await start({ unsafeAllowUnauthenticatedLocalhost: true,
+        peerRateLimit: { capacity: 1, refillTokensPerSecond: 1, maxTrackedPeers: 1 } });
+      expect((await http.request()).status).toBe(200);
+      const second = await http.request();
+      expect({ status: second.status, body: second.body }).toEqual({ status: 429, body: '{"error":"PEER_RATE_LIMITED"}' });
+    },
     allowedWriters: async () => {
       const { http, clock } = await serve({ allowedWriters: ['alice'] });
       const body = await requestFromPeerHolding('bob', clock);
