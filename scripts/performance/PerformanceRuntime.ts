@@ -64,8 +64,9 @@ export async function openPerformanceRuntime(
     args: ['config', 'user.name', 'git-warp performance'],
   });
   const persistence = new GitTimelineHistoryAdapter({ plumbing });
+  const clock = new HostClockAdapter();
   const runtimeStorage = new RecordingRuntimeStorageProvider(
-    new GitCasRepositoryAdapter({ plumbing, history: persistence }),
+    new GitCasRepositoryAdapter({ plumbing, history: persistence, clock }),
   );
   const runtime = await RuntimeHost.open({
     persistence,
@@ -75,7 +76,7 @@ export async function openPerformanceRuntime(
     codec: defaultCodec,
     crypto: new WebCryptoAdapter(),
     random: new HostRandomAdapter(),
-    clock: new HostClockAdapter(),
+    clock,
     commitMessageCodec: new TrailerCommitMessageCodecAdapter(),
     autoMaterialize: false,
   });

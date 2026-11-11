@@ -13,6 +13,7 @@ import GitCasRepositoryAdapter from '../../dist/src/infrastructure/adapters/GitC
 import WarpCore from '../../dist/src/domain/WarpCore.js';
 import WebCryptoAdapter from '../../dist/src/infrastructure/adapters/WebCryptoAdapter.js';
 import HostRandomAdapter from '../../dist/src/infrastructure/adapters/HostRandomAdapter.js';
+import HostClockAdapter from '../../dist/src/infrastructure/adapters/HostClockAdapter.js';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../dist/src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.js';
 import CasContentEncryptionPolicy from '../../dist/src/infrastructure/adapters/CasContentEncryptionPolicy.js';
 import codec from '../../dist/src/infrastructure/codecs/CborCodec.js';
@@ -46,7 +47,7 @@ if (mode === 'eager') {
   const contentEncryption = mode === 'framed'
     ? CasContentEncryptionPolicy.fromInternalResolvedKey({ encryptionKey: new Uint8Array(32).fill(7), scheme: 'framed', frameBytes: CHUNK })
     : CasContentEncryptionPolicy.disabled();
-  const storage = new GitCasRepositoryAdapter({ plumbing, history: persistence, contentEncryption });
+  const storage = new GitCasRepositoryAdapter({ plumbing, history: persistence, contentEncryption, clock: new HostClockAdapter() });
   await runAttachmentMemoryWitnessWithCleanup(async () => {
     const graph = await WarpCore.open({ runtimeStorage: storage, stateCache: null, persistence,
       graphName: 'memory', writerId: 'writer', commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC, codec, crypto: new WebCryptoAdapter(), random: new HostRandomAdapter() });

@@ -19,7 +19,8 @@ export async function openScratchGraph(
 }>> {
   const plumbing = await Plumbing.createDefault({ cwd: repositoryPath });
   const history = new GitTimelineHistoryAdapter({ plumbing });
-  const storage = new GitCasRepositoryAdapter({ plumbing, history });
+  const clock = new HostClockAdapter();
+  const storage = new GitCasRepositoryAdapter({ plumbing, history, clock });
   try {
     const graphRuntime = await WarpCore.open({
       runtimeStorage: storage,
@@ -31,7 +32,7 @@ export async function openScratchGraph(
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       crypto: new WebCryptoAdapter(),
       random: new HostRandomAdapter(),
-      clock: new HostClockAdapter(),
+      clock,
     });
     return Object.freeze({
       graph: graphRuntime,

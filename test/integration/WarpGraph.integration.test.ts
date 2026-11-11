@@ -4,6 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import Plumbing from '@git-stunts/plumbing';
 import GitCasRepositoryAdapter from '../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import { getDefaultRuntimeHostNodePorts } from '../../src/application/RuntimeHostNodeDefaults.ts';
 import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { openRuntimeHostProduct as openRuntimeHostProductBase } from '../../src/domain/warp/RuntimeHostProduct.ts';
 import type { RuntimeHostOpenOptions } from '../../src/domain/warp/RuntimeHostBoot.ts';
@@ -32,7 +33,11 @@ describe('WarpCore Integration', () => {
     await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
     await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
     persistence = new GitTimelineHistoryAdapter({ plumbing });
-    runtimeStorage = new GitCasRepositoryAdapter({ plumbing, history: persistence });
+    runtimeStorage = new GitCasRepositoryAdapter({
+      plumbing,
+      history: persistence,
+      clock: getDefaultRuntimeHostNodePorts().clock,
+    });
   });
 
   afterEach(async () => {

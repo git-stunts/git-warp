@@ -12,6 +12,7 @@ import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import CryptoPort from '../../../../src/ports/CryptoPort.ts';
 import InMemoryBlobStorageAdapter from '../../../helpers/InMemoryBlobStorageAdapter.ts';
 import InMemoryGitCasFacade from '../../../helpers/InMemoryGitCasFacade.ts';
+import ManualClock from '../../../helpers/ManualClock.ts';
 
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
@@ -91,7 +92,7 @@ describe('GitCasRepositoryAdapter', () => {
       createTree,
       close: closeCas,
     };
-    const repository = new GitCasRepositoryAdapter({ plumbing, history, cas });
+    const repository = new GitCasRepositoryAdapter({ plumbing, history, cas, clock: new ManualClock() });
     const services = await repository.createRuntimeStorageServices({
       timelineName: 'events',
       codec: defaultCodec,

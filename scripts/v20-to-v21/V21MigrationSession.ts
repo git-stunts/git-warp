@@ -1,5 +1,6 @@
 import { getDefaultRuntimeHostNodePorts } from '../../src/application/RuntimeHostNodeDefaults.ts';
 import GitCasRepositoryAdapter from '../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import HostClockAdapter from '../../src/infrastructure/adapters/HostClockAdapter.ts';
 import { openDefaultGitPlumbing } from '../../src/infrastructure/adapters/GitPlumbingRuntimeAdapter.ts';
 import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import V21LateWrites, { type V21LateWriteReport } from './V21LateWrites.ts';
@@ -19,7 +20,7 @@ export default class V21MigrationSession {
   static async open(repositoryPath: string): Promise<V21MigrationSession> {
     const plumbing = await openDefaultGitPlumbing(repositoryPath);
     const history = new GitTimelineHistoryAdapter({ plumbing });
-    return new V21MigrationSession(history, new GitCasRepositoryAdapter({ plumbing, history }));
+    return new V21MigrationSession(history, new GitCasRepositoryAdapter({ plumbing, history, clock: new HostClockAdapter() }));
   }
 
   /** Graph names with a substrate marker or legacy writer refs under `refs/warp/`. */

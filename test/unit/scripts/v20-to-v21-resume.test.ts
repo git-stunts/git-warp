@@ -41,9 +41,9 @@ function strandIds(outcome: V21MigrationOutcome): string[] {
 async function appendLegacyLanePatch(repository: string, graph: string, writerId: string, counter: number): Promise<string> {
   const plumbing = await openDefaultGitPlumbing(repository);
   const history = new GitTimelineHistoryAdapter({ plumbing });
-  const repo = new GitCasRepositoryAdapter({ plumbing, history });
+  const ports = getDefaultRuntimeHostNodePorts();
+  const repo = new GitCasRepositoryAdapter({ plumbing, history, clock: ports.clock });
   try {
-    const ports = getDefaultRuntimeHostNodePorts();
     const services = repo.createMigrationStorageServices({
       timelineName: graph, codec: ports.codec, crypto: ports.crypto, commitMessageCodec: ports.commitMessageCodec,
     });

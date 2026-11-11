@@ -6,6 +6,7 @@ import GitTimelineHistoryAdapter, {
 } from '../infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { openDefaultGitPlumbing } from '../infrastructure/adapters/GitPlumbingRuntimeAdapter.ts';
 import PlumbingHookPathAdapter from '../infrastructure/adapters/PlumbingHookPathAdapter.ts';
+import { getDefaultRuntimeHostNodePorts } from './RuntimeHostNodeDefaults.ts';
 import { locateGitStorage } from './GitStorageLocation.ts';
 import WarpStorage from './WarpStorage.ts';
 import { bindWarpStorage } from './WarpStorageRegistry.ts';
@@ -101,7 +102,11 @@ async function openHistoryStorage(
   let repository: GitCasRepositoryAdapter | null = null;
   try {
     await requireAvailableHistory(cwd, history);
-    repository = new GitCasRepositoryAdapter({ plumbing, history });
+    repository = new GitCasRepositoryAdapter({
+      plumbing,
+      history,
+      clock: getDefaultRuntimeHostNodePorts().clock,
+    });
     return bindGitStorage({ ...options, repository });
   } catch (error) {
     const openFailure = error instanceof Error

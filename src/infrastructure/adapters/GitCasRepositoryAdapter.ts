@@ -8,6 +8,7 @@ import ContentAddressableStore, {
   type ReservationCapability,
 } from '@git-stunts/git-cas';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
+import type ClockPort from '../../ports/ClockPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type RuntimeStorageProviderPort from '../../ports/RuntimeStorageProviderPort.ts';
@@ -86,6 +87,11 @@ export type ObservationStorage = {
 export type GitCasRepositoryAdapterOptions = {
   readonly plumbing: GitPlumbing;
   readonly history: GitTimelineHistoryAdapter;
+  /**
+   * Time for every git-cas stamp and expiry in this repository. When `cas` is
+   * given, its owner must build that store on this same clock.
+   */
+  readonly clock: ClockPort;
   readonly policy?: GitCasPolicy;
   readonly logger?: LoggerPort;
   readonly cas?: GitCasFacade;
@@ -105,6 +111,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   private readonly _cas: GitCasFacade;
   private readonly _closeCas: (() => Promise<void>) | null;
   private readonly _cbor: InstanceType<typeof CborCodec>;
+  private readonly _clockMs: () => number;
   private readonly _contentEncryption: CasContentEncryptionPolicy | undefined;
   private readonly _substrateVersionGate: SubstrateVersionGate;
   private readonly _materializations = new Set<GitCasMaterializationStoreAdapter>();
@@ -115,9 +122,12 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   constructor(options: GitCasRepositoryAdapterOptions) {
     this._plumbing = options.plumbing;
     this._history = options.history;
+    const { clock } = options;
+    this._clockMs = () => clock.nowMs();
     if (options.cas === undefined) {
       const cas = ContentAddressableStore.createCbor({
         plumbing: options.plumbing,
+        clock: { now: () => new Date(clock.nowMs()) },
         chunking: { strategy: 'cdc' },
         applicationRefPrefixes: [...WARP_APPLICATION_REF_PREFIXES],
         ...(options.policy === undefined ? {} : { policy: options.policy }),
@@ -177,17 +187,25 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       checkpoints: this._createCheckpointStore(request),
       indexes: this._createIndexStore(request, content),
       materializations,
-      materializationCacheDiagnostics: new GitCasMaterializationCacheDiagnosticsAdapter({
-        cas: this._cas,
-        codec: request.codec,
-        crypto: request.crypto,
-        laneName: request.timelineName,
-      }),
+      materializationCacheDiagnostics: this._createMaterializationCacheDiagnostics(request),
       syncReplayProtection: new GitCasSyncReplayProtectionAdapter({
         cas: this._cas,
         graphName: request.timelineName,
+        wallClockMs: this._clockMs,
       }),
       trie: new GitCasTrieStoreAdapter({ cas: this._cas }),
+    });
+  }
+
+  private _createMaterializationCacheDiagnostics(
+    request: RuntimeStorageRequest,
+  ): GitCasMaterializationCacheDiagnosticsAdapter {
+    return new GitCasMaterializationCacheDiagnosticsAdapter({
+      cas: this._cas,
+      codec: request.codec,
+      crypto: request.crypto,
+      laneName: request.timelineName,
+      wallClockMs: this._clockMs,
     });
   }
 
@@ -204,6 +222,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
         pages: this._cas.pages,
       },
       graphName: timelineName,
+      wallClockMs: this._clockMs,
     });
     this._seekCursors.set(timelineName, created);
     return created;
