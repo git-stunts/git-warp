@@ -27,7 +27,7 @@ async function boot(options: Partial<HttpSyncServerOptions> = {}) {
   const clock = new ManualClock();
   const http = new MemoryHttpPort();
   const graph = new SyncInbox();
-  const server = new HttpSyncServer({ httpPort: http, graph,
+  const server = new HttpSyncServer({ httpPort: http, graph, clock,
     auth: { keys: KEYS, crypto: defaultCrypto, clock,
       replayProtection: new InMemorySyncReplayProtection(clock.read) }, ...options });
   await server.listen(9999);
@@ -96,13 +96,13 @@ describe('HttpSyncServer authenticated admission', () => {
   });
   it('rejects an invalid auth mode at construction', () => {
     const clock = new ManualClock();
-    expect(() => new HttpSyncServer({ httpPort: new MemoryHttpPort(), graph: new SyncInbox(),
+    expect(() => new HttpSyncServer({ httpPort: new MemoryHttpPort(), graph: new SyncInbox(), clock,
       // @ts-expect-error Exercise an untyped caller with an invalid mode.
       auth: { ...auth(clock, 'enforce'), mode: 'typo' } })).toThrow(/HttpSyncServer config/);
   });
   it.each([null, undefined, {}, 0])('rejects an invalid clock port at construction: %s', invalidClock => {
     const clock = new ManualClock();
-    expect(() => new HttpSyncServer({ httpPort: new MemoryHttpPort(), graph: new SyncInbox(),
+    expect(() => new HttpSyncServer({ httpPort: new MemoryHttpPort(), graph: new SyncInbox(), clock,
       // @ts-expect-error Exercise malformed clock input at the HTTP configuration boundary.
       auth: { ...auth(clock, 'enforce'), clock: invalidClock } })).toThrow(/HttpSyncServer config/);
   });
@@ -174,7 +174,8 @@ describe('HttpSyncServer explicitly permissive operation', () => {
   it.each(['signed', 'unsigned'])('admits a %s request with explicit unsafe localhost mode', async mode => {
     const http = new MemoryHttpPort();
     const graph = new SyncInbox();
-    const server = new HttpSyncServer({ httpPort: http, graph, unsafeAllowUnauthenticatedLocalhost: true });
+    const server = new HttpSyncServer({ httpPort: http, graph, clock: new ManualClock(),
+      unsafeAllowUnauthenticatedLocalhost: true });
     await server.listen(9999);
     const headers = mode === 'signed' ? await signed(new ManualClock()) : {};
     expect(await http.request(headers)).toMatchObject({ status: 200 });
@@ -183,7 +184,8 @@ describe('HttpSyncServer explicitly permissive operation', () => {
   it('refuses retired signature versions with explicit unsafe localhost mode', async () => {
     const http = new MemoryHttpPort();
     const graph = new SyncInbox();
-    const server = new HttpSyncServer({ httpPort: http, graph, unsafeAllowUnauthenticatedLocalhost: true });
+    const server = new HttpSyncServer({ httpPort: http, graph, clock: new ManualClock(),
+      unsafeAllowUnauthenticatedLocalhost: true });
     await server.listen(9999);
     const headers = { ...await signed(new ManualClock()), 'x-warp-sig-version': '2' };
     expect(await http.request(headers)).toMatchObject({ status: 400, body: '{"error":"SIG_VERSION_RETIRED"}' });

@@ -15,7 +15,8 @@ const BODY = new TextEncoder().encode('{"type":"sync-request","frontier":{}}');
 function configured(options: Partial<HttpSyncServerOptions> = {}) {
   const http = new MemoryHttpPort();
   const graph = new SyncInbox();
-  const server = new HttpSyncServer({ httpPort: http, graph, unsafeAllowUnauthenticatedLocalhost: true, ...options });
+  const server = new HttpSyncServer({ httpPort: http, graph, clock: new ManualClock(),
+    unsafeAllowUnauthenticatedLocalhost: true, ...options });
   return { http, graph, server };
 }
 function authentication() {
@@ -50,7 +51,7 @@ describe('HttpSyncServer configuration', () => {
     await handle.close();
   });
   it('requires explicit unsafe mode for localhost without auth', () => {
-    expect(() => new HttpSyncServer({ httpPort: new MemoryHttpPort(), graph: new SyncInbox() }))
+    expect(() => new HttpSyncServer({ httpPort: new MemoryHttpPort(), graph: new SyncInbox(), clock: new ManualClock() }))
       .toThrow(/unsafeAllowUnauthenticatedLocalhost/);
   });
   it('allows explicit unsafe localhost mode', () => { expect(() => configured()).not.toThrow(); });

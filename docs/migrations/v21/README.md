@@ -218,6 +218,15 @@ argument. Direct `SyncAuthService` and `HttpSyncServer` users must provide `cloc
 alongside `replayProtection`. The port's `nowMs()` returns a non-negative safe
 integer epoch millisecond. Tests should supply a clock that advances explicitly.
 
+`HttpSyncServer` now requires a top-level `clock`; `serve()` passes the runtime
+clock. A per-address limit is on and cannot be turned off: a burst of 60
+requests, then 10 per second, then HTTP `429` `{"error":"PEER_RATE_LIMITED"}`,
+which `syncWith` reports as `E_SYNC_PROTOCOL` "Protocol error: 429" without a
+retry. Behind a reverse proxy or NAT, all clients share one budget and one
+client can use it all: raise `peerRateLimit` before you upgrade. A custom
+`HttpServerPort` adapter must set `HttpRequest.peerAddress` from the socket, or
+all its clients share one budget.
+
 ### Wire changes
 
 `x-warp-sig-version` is `3`. `x-warp-timestamp` contains wall-clock epoch
