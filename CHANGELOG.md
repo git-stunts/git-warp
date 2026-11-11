@@ -620,7 +620,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sub-manifests, bundle descriptors and trust records now pass the same decode limits as
   git-warp's other repository blobs before cbor-x reads them: 5 MiB, depth 32, 1,000,000
   items, 1,000,000 entries in one container, definite lengths only, and the tag allow-list.
-  Before, only git-cas's 10 MiB blob limit applied to these blobs, which peers replicate.
+  Before, only a blob size limit applied to these blobs, which peers replicate: 10 MiB for
+  manifests and sub-manifests, and 64 MiB for bundle descriptors and trust records.
   The `git-warp-v18-to-v19` migration reads legacy manifests with the same limits.
   Encoding is unchanged, so manifest bytes and tree OIDs do not change. A read of a
   refused manifest, sub-manifest or trust record fails with `E_CBOR_DECODE_BOUNDS`; for a
