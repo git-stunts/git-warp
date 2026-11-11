@@ -93,11 +93,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `E_CLOCK_REQUIRED`. See the
   [v21 sync authentication migration](docs/migrations/v21/README.md#http-sync-authentication)
   ([#1089](https://github.com/git-stunts/git-warp/issues/1089)).
-- The built-in sync server now enforces `allowedWriters` when it is started through
-  `serve()`. A server with this option set now refuses, with HTTP 403 `FORBIDDEN_WRITER`,
-  requests it answered before, and refuses to start with a list it accepted before (see
-  Fixed). No package entry point has exposed `serve()` since v19.0.0
-  ([#1163](https://github.com/git-stunts/git-warp/issues/1163)).
 
 ### Changed
 
