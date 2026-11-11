@@ -71,6 +71,11 @@ Output uses newline-terminated TSV records. Fields in `sample`, `trace`,
   reads. `sample-end` completes one sample record group.
 - `aggregate` records derive sample count, measured count, minimum, nearest-rank
   median, maximum, and outcome totals for each workload phase.
+- One `read-check` record precedes `scale-end`. It contains scale, state,
+  verified/planned reads, and percent-encoded `reason=count` pairs, or `-`.
+  The state is `verified` only when all 35 planned reads match the corpus. Any
+  mismatch makes it `mismatch`. Otherwise an obstructed, failed, or missing read
+  makes it `unchecked`, and the reasons say why.
 - `scale-end` records contain `complete` or `incomplete`. A failed scale that
   cannot safely finish emits `scale-error` without a completion footer.
 
@@ -83,8 +88,26 @@ mismatched read cannot become a successful empty result.
 Exit status 0 requires every planned sample, retained writes, successful setup
 and close operations, actual counts, and verified read membership. Status 1
 means incomplete or failed evidence. Counts have no invented performance
-ceiling: issue #1041 owns performance limits. These criteria describe the
-prepared implementation; the guarded pilot must establish its actual behavior.
+ceiling: issue #1041 owns performance limits.
+
+## What the witness asserts today
+
+Today the witness asserts save cost and sample counts: every write is retained
+and every planned sample has an actual Git process count. It does not assert
+read membership. `Lane.observe` refuses a lane written only through `Warp`
+with `obstructed: missing_bounded_basis`, so every run ends with
+`read-check <scale> unchecked 0/35 obstructed%3A%20missing_bounded_basis=35`,
+`scale-end <scale> incomplete`, and status 1. Issue #1052 owns the read fix. At
+head `a5971b5e5` on 2026-11-11, Docker runs measured these values (two runs at
+200 threads, shown as ranges; one run at 2,000):
+
+| Threads | Samples | Git processes per bulk write (min/median/max) | Git processes per save (min/median/max) | Per warm read | Per cold read | Peak container bytes | Wall time |
+| ---: | ---: | --- | --- | ---: | ---: | ---: | ---: |
+| 200 | 117 | 189 / 193 / 194–196 | 194 / 194 / 194 | 2 | 14 | 70,066,176–84,156,416 | 56–82 s |
+| 2,000 | 225 | 189 / 193 / 195 | 194 / 194 / 195 | 2 | 14 | 234,156,032 | about 290 s |
+
+Wall time includes the Docker image build. The witness does not record time
+per save.
 
 The launcher bounds each scale child's output at 4 MiB, the 200-thread child at
 15 minutes, and the 2,000-thread child at 25 minutes. A cold child has a

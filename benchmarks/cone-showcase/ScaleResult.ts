@@ -1,4 +1,5 @@
 import PhaseCounts from './PhaseCounts.ts';
+import ReadCheck from './ReadCheck.ts';
 import { Margins } from './Margins.ts';
 import type WitnessSample from './WitnessSample.ts';
 import { MEASURED_SAVES, MARGINS_READS, COLD_OPENS } from './WitnessWorkload.ts';
@@ -43,6 +44,7 @@ export class ScaleResult {
         String(counts.gitProcesses.min), String(counts.gitProcesses.p50), String(counts.gitProcesses.max), outcomes,
       ].join('\t');
     });
+    rows.push(new ReadCheck(this.threads, this.samples).line());
     rows.push(['scale-end', String(this.threads), this.isComplete() ? 'complete' : 'incomplete'].join('\t'));
     return rows.join('\n') + '\n';
   }
