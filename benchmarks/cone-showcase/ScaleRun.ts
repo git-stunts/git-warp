@@ -44,7 +44,8 @@ function writer(index: number): string {
   return name;
 }
 
-function readOutcome(read: MarginsRead, documentId: string, corpus: MarginCorpus): WitnessOutcome {
+/** Classifies one read against the independent corpus; an unavailable read is never verified. */
+export function readOutcome(read: MarginsRead, documentId: string, corpus: MarginCorpus): WitnessOutcome {
   if (read instanceof Margins) {
     const matches = matchesCorpus(read, documentId, corpus);
     return new WitnessOutcome(matches ? 'verified' : 'mismatch', matches ? '' : 'actual membership differs from corpus', read);
@@ -58,7 +59,7 @@ async function write(warp: Warp, author: string, intents: readonly Intent[]): Pr
 }
 
 /** Independent planned batch count, without calling the mutating reply generator. */
-function expectedBulkPatches(corpus: MarginCorpus, threads: number): number {
+export function expectedBulkPatches(corpus: MarginCorpus, threads: number): number {
   return 1 + [...WRITERS.keys()].reduce((total, index) => {
     const own = corpus.openings(index).length;
     return total + Math.ceil(own / BULK_THREADS_PER_PATCH) + Math.ceil((threads - own) / BULK_THREADS_PER_PATCH);
