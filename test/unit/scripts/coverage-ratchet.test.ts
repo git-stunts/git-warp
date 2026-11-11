@@ -9,7 +9,27 @@ const configuration = 'thresholds: {\n  lines: 93.48,\n  autoUpdate: false,\n}\n
 
 describe('coverage ratchet threshold candidate', () => {
   it('raises only the line number and preserves all surrounding configuration', () => {
-    expect(raisedLineThreshold(configuration, 94.25)).toBe(configuration.replace('93.48', '94.25'));
+    expect(raisedLineThreshold(configuration, 94.25)).toBe(configuration.replace('93.48', '94.24'));
+  });
+  // Oracle: #1133. CI measured 94.5% on the commit where the local run wrote 94.51.
+  // The written threshold stays one Istanbul reporting step (0.01) below the measurement.
+  it.each([
+    [94.51, '94.5'],
+    [94.5, '94.49'],
+    [93.5, '93.49'],
+    [100, '99.99'],
+  ])('writes measured %s minus one reporting step as %s', (percentage, written) => {
+    expect(raisedLineThreshold(configuration, percentage)).toBe(configuration.replace('93.48', written));
+  });
+  it('floors a measurement finer than the reporting step before it subtracts the step', () => {
+    expect(raisedLineThreshold(configuration, 94.5101)).toBe(configuration.replace('93.48', '94.5'));
+  });
+  it.each([[0.29, '0.28'], [4.02, '4.01']])('does not lose a step when binary %s times 100 falls below the integer', (percentage, written) => {
+    const low = configuration.replace('93.48', '0');
+    expect(raisedLineThreshold(low, percentage)).toBe(low.replace('lines: 0,', `lines: ${written},`));
+  });
+  it.each([93.49, 93.4999])('does not rewrite when measured %s minus one step is not above the threshold', percentage => {
+    expect(raisedLineThreshold(configuration, percentage)).toBe(configuration);
   });
   it.each([0, 93, 93.48])('does not lower or rewrite a threshold at %s', percentage => {
     expect(raisedLineThreshold(configuration, percentage)).toBe(configuration);
