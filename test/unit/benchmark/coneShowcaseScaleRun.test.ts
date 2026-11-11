@@ -14,8 +14,9 @@ import ConeShowcaseReportOutput from '../../fixtures/ConeShowcaseReportOutput.ts
 
 // A process bound, not an oracle. The small plan keeps every phase of the witness
 // but starts few real Git processes; the full plan took 92-121 s on CI runners (#1177).
+// Its three counts all differ, so a loop that uses the wrong limit changes a count.
 const RUN_TIMEOUT_MS = 120_000;
-const SMALL_PLAN = new WorkloadPlan({ measuredSaves: 2, marginsReads: 2, coldOpens: 1 });
+const SMALL_PLAN = new WorkloadPlan({ measuredSaves: 3, marginsReads: 2, coldOpens: 1 });
 
 afterEach(() => {
   vi.unstubAllEnvs();
