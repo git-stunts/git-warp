@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -12,6 +12,7 @@ import GitProcessCounter, { TRACE_BYTE_LIMIT, TRACE_FILE_LIMIT } from '../../../
 const CALIBRATION = fileURLToPath(new URL('../../fixtures/coneShowcaseCounterCalibration.ts', import.meta.url));
 const CHILD_TIMEOUT_MS = 15_000;
 const CHILD_OUTPUT_BYTES = 65_536;
+const TRACE_RECORD = '{"event":"exit","code":0}\n';
 
 describe('cone-showcase Trace2 process metric', () => {
   it.each(['standard', 'missing-git'])('checks known real process outcomes: %s', (mode) => {
@@ -57,7 +58,7 @@ describe('cone-showcase Trace2 process metric', () => {
     }
   });
 
-  it.each(['missing', 'directory', 'symlink', 'discard', 'empty', 'truncated', 'byte-reserve', 'inode-reserve'])(
+  it.each(['missing', 'directory', 'symlink', 'empty', 'truncated'])(
     'refuses damaged or exhausted trace evidence: %s', (fault) => {
       const scratch = mkdtempSync(join(tmpdir(), 'cone-trace-fault-'));
       try {
@@ -65,23 +66,45 @@ describe('cone-showcase Trace2 process metric', () => {
         if (fault !== 'missing') mkdirSync(traces);
         if (fault === 'directory') mkdirSync(join(traces, 'unexpected'));
         if (fault === 'symlink') symlinkSync('../outside', join(traces, 'unexpected'));
-        if (fault === 'discard') writeFileSync(join(traces, 'git-trace2-discard'), '');
         if (fault === 'empty') writeFileSync(join(traces, 'partial'), '');
         if (fault === 'truncated') writeFileSync(join(traces, 'partial'), '{');
-        if (fault === 'byte-reserve') {
-          const partial = join(traces, 'oversized');
-          writeFileSync(partial, '\n');
-          truncateSync(partial, TRACE_BYTE_LIMIT + 1);
-        }
-        if (fault === 'inode-reserve') {
-          for (let index = 0; index <= TRACE_FILE_LIMIT; index += 1) {
-            writeFileSync(join(traces, String(index)), '');
-          }
-        }
         expect(() => new GitProcessCounter(traces).capture()).toThrow();
       } finally {
         rmSync(scratch, { recursive: true, force: true });
       }
     },
   );
+
+  // Each fixture below is valid trace evidence except for the one guard it names,
+  // so it fails only at that guard, with that guard's own error.
+  it.each([
+    ['discard', TypeError, 'Git trace contains a discarded or nonregular result'],
+    ['byte-reserve', RangeError, 'Git trace byte reserve exhausted; sample is incomplete'],
+    ['inode-reserve', RangeError, 'Git trace file reserve exhausted; sample is incomplete'],
+  ] as const)('stops at the %s guard with its own error', (fault, errorClass, message) => {
+    const scratch = mkdtempSync(join(tmpdir(), 'cone-trace-guard-'));
+    try {
+      const traces = join(scratch, 'trace');
+      mkdirSync(traces);
+      if (fault === 'discard') {
+        // Git writes the tripping process's events into the sentinel, so it is a nonempty, complete record.
+        writeFileSync(join(traces, 'git-trace2-discard'), TRACE_RECORD);
+      }
+      if (fault === 'byte-reserve') {
+        const oversized = join(traces, 'oversized');
+        writeFileSync(oversized, '');
+        truncateSync(oversized, TRACE_BYTE_LIMIT);
+        appendFileSync(oversized, '\n');
+      }
+      if (fault === 'inode-reserve') {
+        for (let index = 0; index <= TRACE_FILE_LIMIT; index += 1) {
+          writeFileSync(join(traces, String(index)), TRACE_RECORD);
+        }
+      }
+      expect(() => new GitProcessCounter(traces).capture()).toThrow(errorClass);
+      expect(() => new GitProcessCounter(traces).capture()).toThrow(message);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
 });
