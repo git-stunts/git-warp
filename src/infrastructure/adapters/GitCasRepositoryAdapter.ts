@@ -88,6 +88,10 @@ export type GitCasRepositoryAdapterOptions = {
   readonly history: GitTimelineHistoryAdapter;
   readonly policy?: GitCasPolicy;
   readonly logger?: LoggerPort;
+  /**
+   * A prebuilt git-cas store, for tests. Build it with BoundedGitCasCborCodec: a store with git-cas's own
+   * codec (createCbor) decodes peer manifests and bundle descriptors without git-warp's CBOR bounds (#1186).
+   */
   readonly cas?: GitCasFacade;
   readonly contentEncryption?: CasContentEncryptionPolicy;
 };
