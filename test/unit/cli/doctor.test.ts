@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CODES } from '../../../bin/cli/commands/doctor/codes.ts';
 import { DOCTOR_EXIT_CODES } from '../../../bin/cli/commands/doctor/types.ts';
 import {
@@ -26,6 +26,12 @@ const _shared = await import('../../../bin/cli/shared.ts');
 const createPersistence = _shared.createPersistence as unknown as any;
 const resolveGraphName = _shared.resolveGraphName as unknown as any;
 const createHookInstaller = _shared.createHookInstaller as unknown as any;
+
+// The doctor reads host time for checkpoint age and for its run budget. The
+// tests hold a fake `Date` at this instant, so those readings are exact.
+const DOCTOR_NOW_ISO = '2026-01-08T00:00:00.000Z';
+const DOCTOR_NOW_MS = Date.parse(DOCTOR_NOW_ISO);
+const HOUR_MS = 60 * 60 * 1000;
 
 /**
  * Builds a mock persistence object that simulates a healthy graph
@@ -59,7 +65,7 @@ function buildMockPersistence() {
     isAncestor: vi.fn().mockResolvedValue(true),
     getNodeInfo: vi.fn().mockResolvedValue({
       sha: 'bbbb000000000000000000000000000000000000',
-      date: new Date().toISOString(),
+      date: DOCTOR_NOW_ISO,
       author: 'Test',
       message: '',
       parents: [],
@@ -99,6 +105,8 @@ describe('doctor command', () => {
   let mockRuntimeStorage;
 
   beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(DOCTOR_NOW_MS);
     vi.clearAllMocks();
     mockPersistence = buildMockPersistence();
     mockRuntimeStorage = {
@@ -125,6 +133,32 @@ describe('doctor command', () => {
     handleDoctor = mod.default;
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // Oracle: the default policy allows a checkpoint age of 168 hours, and
+  // only an age greater than that limit is stale.
+  it.each([
+    { ageHours: 168, code: CODES.CHECKPOINT_OK, status: 'ok' },
+    { ageHours: 169, code: CODES.CHECKPOINT_STALE, status: 'warn' },
+  ])('reports a $ageHours-hour checkpoint as $status', async ({ ageHours, code, status }) => {
+    mockPersistence.getNodeInfo.mockResolvedValue({
+      sha: 'bbbb000000000000000000000000000000000000',
+      date: new Date(DOCTOR_NOW_MS - ageHours * HOUR_MS).toISOString(),
+      author: 'Test',
+      message: '',
+      parents: [],
+    });
+
+    const result = await handleDoctor({ options: CLI_OPTIONS });
+    const finding = (result.payload as any).findings.find(
+      (/** @type {*} */ f) => f.id === 'checkpoint-fresh',
+    );
+
+    expect(finding).toMatchObject({ code, status });
+  });
+
   it('produces valid payload for a healthy graph', async () => {
     const result = await handleDoctor({ options: CLI_OPTIONS });
     const payload = result.payload as any;
@@ -138,8 +172,8 @@ describe('doctor command', () => {
     expect(payload.graph).toBe('demo');
     expect(payload.repo).toBe('/tmp/test');
     expect(payload.health).toBe('ok');
-    expect(typeof payload.checkedAt).toBe('string');
-    expect(typeof payload.durationMs).toBe('number');
+    expect(payload.checkedAt).toBe(DOCTOR_NOW_ISO);
+    expect(payload.durationMs).toBe(0);
 
     // Policy echo
     expect(payload.policy.strict).toBe(false);
@@ -285,7 +319,7 @@ describe('individual check guards', () => {
       persistence: {
         getNodeInfo: vi.fn().mockResolvedValue({
           sha: 'bbbb000000000000000000000000000000000000',
-          date: new Date().toISOString(),
+          date: DOCTOR_NOW_ISO,
           author: 'Test',
           message: '',
           parents: [],

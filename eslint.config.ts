@@ -4,6 +4,7 @@ import jsdoc from "eslint-plugin-jsdoc";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync } from "node:fs";
+import { TEST_WALL_CLOCK_SELECTORS } from "./scripts/TestWallClockSelectors.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -877,6 +878,28 @@ export default tseslint.config(
       "arrow-body-style": "off",
       "no-empty-function": "off",
     },
+  },
+
+  // ── Test files: no wall clock and no real timer waits ──────────────────────
+  // A test that reads the wall clock or waits on a real timer depends on
+  // machine load. Inject a clock, or install Vitest fake timers. A line may
+  // opt out only with `// eslint-disable-next-line no-restricted-syntax --
+  // <reason>: <why>`; test/unit/scripts/test-wall-clock-allowances.test.ts
+  // checks that form. The selectors live in scripts/TestWallClockSelectors.ts.
+  // Scope: every TS and JS test file under test/ except test/benchmark/**,
+  // where real time is the measurement. test/runtime/** and test/type-check/**
+  // are in the global ignores above, so test/unit/scripts/
+  // test-wall-clock-guard.test.ts applies the same selectors to them.
+  {
+    files: ["test/**/*.{ts,mts,cts,js,mjs,cjs}"],
+    ignores: ["test/benchmark/**"],
+    rules: {
+      "no-restricted-syntax": ["error", ...TEST_WALL_CLOCK_SELECTORS],
+    },
+  },
+  {
+    files: ["test/**/*.{mts,cts}"],
+    languageOptions: { parser: tseslint.parser },
   },
 
   // ── Benchmarks ─────────────────────────────────────────────────────────────

@@ -24,13 +24,3 @@ export function checkAborted(signal?: AbortSignal, operation?: string): void {
     throw new OperationAbortedError(opName, { context: { operation: opName } });
   }
 }
-
-/**
- * Creates an AbortSignal that will abort after the specified timeout.
- *
- * Note: This signal cannot be manually cancelled. If callers need early
- * cancellation, they should use AbortController directly.
- */
-export function createTimeoutSignal(ms: number): AbortSignal {
-  return AbortSignal.timeout(ms);
-}
