@@ -138,9 +138,17 @@ export default class MarginCorpus {
   #commentIntents(threadId: string, commentId: string, writer: number): readonly Intent[] {
     return [
       intent.node.add({ subject: commentNode(commentId) }),
-      intent.property.set({ subject: commentNode(commentId), key: 'author', value: WRITERS[writer] ?? 'alice' }),
+      intent.property.set({ subject: commentNode(commentId), key: 'author', value: authorOf(writer) }),
       intent.property.set({ subject: commentNode(commentId), key: 'body', value: `note ${commentId}` }),
       intent.edge.add({ from: threadNode(threadId), to: commentNode(commentId), label: COMMENT_LABEL }),
     ];
   }
+}
+
+function authorOf(writer: number): string {
+  const author = WRITERS[writer];
+  if (author === undefined) {
+    throw new RangeError(`no witness writer at ${String(writer)}`);
+  }
+  return author;
 }

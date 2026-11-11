@@ -100,4 +100,12 @@ describe('cone-showcase margin actions', () => {
     }
     expect(kinds).toEqual(new Set(['openThread', 'reply', 'editComment']));
   });
+
+  // Oracle: every comment author is one of the three witness writers; an index
+  // outside WRITERS is refused rather than attributed to a fallback writer.
+  it('refuses a reply from a writer index outside the witness writers', () => {
+    const corpus = new MarginCorpus(3);
+    expect(() => corpus.replies(7)).toThrow(new RangeError('no witness writer at 7'));
+    expect(() => corpus.replies(-1)).toThrow(new RangeError('no witness writer at -1'));
+  });
 });
