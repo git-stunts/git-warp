@@ -13,6 +13,8 @@ bash scripts/run-in-docker.sh node benchmarks/cone-showcase/ConeShowcaseWitness.
 bash scripts/run-in-docker.sh node benchmarks/cone-showcase/ConeShowcaseWitness.ts
 ```
 
+`npm run benchmark:cone-showcase -- 200` runs the same pilot command.
+
 The first command is the 200-thread pilot. With no arguments, the witness runs
 200 and 2,000 threads. Explicit arguments can select either scale once. Invalid
 arguments exit with status 2 before scratch creation or Git startup. There is
@@ -41,9 +43,11 @@ processes, and configured descendants.
 
 The sampler rejects missing directories, discarded output, nonregular or aliased
 files, empty files, incomplete final records, and disappeared or replaced file
-identities. The per-lifecycle reserve is 4,096 files and 16 MiB of logical or
-allocated file bytes, checked at each sample. Git also receives a 4,095-file
-limit, leaving a slot for its discard marker. The outer Docker guard bounds
+identities. The per-lifecycle reserve is 71,680 files and 560 MiB of logical or
+allocated file bytes, checked at each sample. Git also receives a 71,679-file
+limit, leaving a slot for its discard marker. The reserve is twice the largest
+measured lifecycle: 184 writes at the 2,000-thread scale, at most 194 Git
+processes per write in the 200-thread pilot, and 8 KiB per trace file. The outer Docker guard bounds
 growth during operations; the sample checks are not a filesystem quota.
 
 Sample records are retained before cleanup. Trace files remain while a warm
