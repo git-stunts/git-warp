@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import RuntimeHost from '../../../src/domain/RuntimeHost.ts';
 import HttpSyncServer from '../../../src/domain/services/sync/HttpSyncServer.ts';
 import { SYNC_CLOCK_SKEW_ALLOWANCE_MS } from '../../../src/domain/services/sync/SyncAuthService.ts';
@@ -7,9 +7,10 @@ import NodeHttpAdapter from '../../../src/infrastructure/adapters/NodeHttpAdapte
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import InMemoryGraphAdapter from '../../helpers/InMemoryGraphAdapter.ts';
 import InMemorySyncReplayProtection from '../../helpers/InMemorySyncReplayProtection.ts';
-import ManualClock, { MANUAL_CLOCK_EPOCH_MS } from '../../helpers/ManualClock.ts';
+import ManualClock from '../../helpers/ManualClock.ts';
 import SeededRandomPort from '../../helpers/SeededRandomPort.ts';
 import { openMemoryRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
+import MemoryRuntimeStorageAdapter from '../../helpers/MemoryRuntimeStorageAdapter.ts';
 import { SyncInbox } from '../../helpers/SyncHttpFixture.ts';
 
 const SECRET = SyncSecret.fromString('runtime-clock-composition-secret');
@@ -32,15 +33,16 @@ describe('authenticated HTTP runtime clock composition', () => {
     }
   });
 
-  // Oracle: the memory runtime's replay store runs on host time, here a fake `Date` held
-  // 300000 ms ahead of the server's injected clock. A request signed on the server clock
-  // is fresh on both. A request signed 300001 ms ahead of the server clock is fresh on
-  // store time only, so its refusal shows that the launcher consults the injected clock.
+  // Oracle: the server's replay store runs on its own injected clock, held 300000 ms
+  // ahead of the server's runtime clock. A request signed on the runtime clock is fresh
+  // on both. A request signed 300001 ms ahead of the runtime clock is fresh on store
+  // time only, so its refusal shows that the launcher consults the runtime clock.
   it('uses the configured server clock through the runtime launcher', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(MANUAL_CLOCK_EPOCH_MS + SYNC_CLOCK_SKEW_ALLOWANCE_MS);
     const clock = new ManualClock();
-    const server = await openMemoryRuntimeHostProduct({ persistence: new InMemoryGraphAdapter(),
+    const storeClock = new ManualClock(clock.nowMs() + SYNC_CLOCK_SKEW_ALLOWANCE_MS);
+    const serverHistory = new InMemoryGraphAdapter();
+    const server = await openMemoryRuntimeHostProduct({ persistence: serverHistory,
+      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: serverHistory, clock: storeClock }),
       graphName: 'clock-server', writerId: 'server', clock });
     if (!(server instanceof RuntimeHost)) { throw new Error('expected the runtime host'); }
     const handle = await server.serve({ port: 0, httpPort: new NodeHttpAdapter(),
@@ -57,7 +59,6 @@ describe('authenticated HTTP runtime clock composition', () => {
         .rejects.toMatchObject({ code: 'E_SYNC_PROTOCOL', context: { status: 403 } });
     } finally {
       await handle.close();
-      vi.useRealTimers();
     }
   });
 });

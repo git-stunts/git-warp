@@ -8,6 +8,7 @@ import packageJson from '../../../package.json' with { type: 'json' };
 import publishTsconfig from '../../../tsconfig.publish.json' with { type: 'json' };
 import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import MemoryRuntimeStorageAdapter from '../../helpers/MemoryRuntimeStorageAdapter.ts';
+import ManualClock from '../../helpers/ManualClock.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -88,7 +89,7 @@ describe('v16 to v17 top-level upgrade utility', () => {
 
     const result = await upgradeV16ToV17({
       persistence,
-      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
+      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence, clock: new ManualClock() }),
       graphNames: ['alpha'],
       dryRun: true,
     });
@@ -104,7 +105,7 @@ describe('v16 to v17 top-level upgrade utility', () => {
 
   it('deletes rebuildable cache refs while leaving checkpoint refs under checkpoint migration control', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence });
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence, clock: new ManualClock() });
     const services = await runtimeStorage.createRuntimeStorageServices({
       timelineName: 'alpha',
       codec: defaultCodec,
