@@ -18,7 +18,7 @@ if (threads === undefined) {
 }
 
 try {
-  const result = await runScale(repository, threads, new GitProcessCounter(traceDirectory), new WitnessReport(threads));
+  const result = await runScale(repository, threads, new GitProcessCounter(traceDirectory), new WitnessReport(threads, process.stdout));
   process.stdout.write(result.summary());
   process.exitCode = result.isComplete() ? 0 : 1;
 } catch (error) {

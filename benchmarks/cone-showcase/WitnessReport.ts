@@ -1,15 +1,18 @@
-import process from 'node:process';
-
 import { Margins, MarginsUnavailable } from './Margins.ts';
 import type WitnessSample from './WitnessSample.ts';
+
+/** Where framed records go: the scale worker passes its standard output. */
+export type ReportOutput = Pick<NodeJS.WritableStream, 'write'>;
 
 /** Writes complete framed sample records before any trace lifecycle cleanup. */
 export default class WitnessReport {
   readonly #scale: number;
+  readonly #output: ReportOutput;
   readonly #samples: WitnessSample[] = [];
 
-  constructor(scale: number) {
+  constructor(scale: number, output: ReportOutput) {
     this.#scale = scale;
+    this.#output = output;
   }
 
   get samples(): readonly WitnessSample[] {
@@ -38,7 +41,7 @@ export default class WitnessReport {
     rows.push(['sample-end', sequence].join('\t'));
     const chunk = rows.join('\n') + '\n';
     await new Promise<void>((resolve, reject) => {
-      process.stdout.write(chunk, (error) => error === null || error === undefined ? resolve() : reject(error));
+      this.#output.write(chunk, (error) => error === null || error === undefined ? resolve() : reject(error));
     });
     this.#samples.push(sample);
   }
