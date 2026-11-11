@@ -248,7 +248,7 @@ await graph.serve({
   port: 3000,
   httpPort: new NodeHttpAdapter(),
   auth: {
-    keys: { default: 'your-shared-secret' },
+    keys: { default: SyncSecret.fromString('your-shared-secret') },
     mode: 'enforce', // or 'log-only'
   },
 });
@@ -258,7 +258,7 @@ await graph.serve({
 ```js
 await graph.syncWith('http://peer:3000', {
   auth: {
-    secret: 'your-shared-secret',
+    secret: SyncSecret.fromString('your-shared-secret'),
     keyId: 'default',
   },
 });
@@ -296,7 +296,7 @@ await graph.syncWith('http://peer:3000', {
 |---|---|---|
 | **Data integrity** | CRDT convergence, CAS ref updates, patch ordering | Filesystem corruption, disk failure |
 | **Authentication** | HMAC-SHA256 sync auth, key rotation, replay protection | User identity management, OAuth/OIDC |
-| **Authorization** | Writer whitelist (per-graph allowed writers) | Role-based access control, per-node ACLs |
+| **Authorization** | None for sync: any valid sync key reads every writer's patches, and the sync server accepts no writes. `allowedWriters` only refuses a requester that reports an unlisted writer (see Writer Authorization) | Role-based access control, per-node ACLs, per-writer read or write limits |
 | **Transport** | Body signing, tamper detection | TLS termination (delegated to reverse proxy) |
 | **Availability** | Body size limits, streaming for large graphs | DDoS protection, rate limiting (delegated to infrastructure) |
 | **Supply chain** | `npm audit` in CI, pinned dependencies via lockfile | Runtime SCA scanning, SBOM generation |
@@ -306,8 +306,14 @@ await graph.syncWith('http://peer:3000', {
 The built-in sync server supports an optional writer list, `allowedWriters`. A sync
 request carries the frontier of the requester (writer ID to tip SHA), not patches; the
 server sends patches in its response and does not apply patches from a request. The
-server refuses a request whose frontier names a writer ID that is not in the list. No
-package entry point has exposed `serve()` since v19.0.0.
+server refuses a request whose frontier names a writer ID that is not in the list.
+
+The list does not limit what the server sends. A peer with a valid key that sends an
+empty frontier, or leaves unlisted writers out of its frontier, receives the patches of
+every writer, listed or not. The list is therefore not an access control for reads or for
+writes. To limit who can read a graph, limit who holds its sync keys.
+
+No package entry point exposes `serve()` in v19.0.0, v20.0.0 or v21.0.0.
 
 ### Configuration
 
@@ -332,8 +338,9 @@ await graph.serve({
   is empty (`E_SYNC_AUTH_EMPTY_ALLOWED_WRITERS`)
 - When `allowedWriters` is not set (default), the frontier is not checked
 - When set, a request whose frontier names an unlisted writer receives HTTP 403
-  (`FORBIDDEN_WRITER`) in `enforce` mode. In `log-only` mode the server logs it and
-  answers the request
+  (`FORBIDDEN_WRITER`) in `enforce` mode. In `log-only` mode the server answers the
+  request and, if the runtime has a logger, logs a warning. Without a logger, and because
+  `serve()` does not expose the metric, `log-only` gives no signal
 - A request with an empty frontier names no writer, so this check passes it
 - The sync auth service counts each frontier that fails the check in its
   `forbiddenWriterRejects` metric, in both modes. `serve()` does not expose this metric
