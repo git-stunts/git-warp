@@ -614,6 +614,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mathematical rendering, TOML configuration, and bounded indexed source maps
   ([#987](https://github.com/git-stunts/git-warp/issues/987)).
 
+### Security
+
+- `serve()` now passes `allowedWriters` to the HTTP sync server. From v11.0.0 to v20.0.0
+  it did not, so the writer list that `.github/SECURITY.md` documents had no effect: the
+  server answered a signed request whose frontier named an unlisted writer, and an invalid
+  or empty list, or a list without `auth`, did not stop the server from starting. In
+  v11.0.0 to v18.2.1 `serve()` was public: on `WarpGraph` in v11.0.0 to v14.16.2 and through
+  `openWarpGraph()` in v17.0.0 to v18.2.1, and on `WarpCore` in v15.0.0 to v18.2.1. v18.1.0 to
+  v18.2.1 also passed `git warp serve --allow-writer` to it. v19.0.0, v20.0.0 and v21.0.0 publish no
+  route to `serve()`; the fix applies when a route is published again. An operator who set `allowedWriters` now gets the documented behaviour: a
+  request whose frontier names an unlisted writer gets HTTP 403 `FORBIDDEN_WRITER` in
+  `enforce` mode, and an invalid list stops `serve()` at startup. `.github/SECURITY.md`
+  now states that the check reads the requester's frontier, that a request with an empty
+  frontier passes it, and that `serve()` does not expose the `forbiddenWriterRejects`
+  metric ([#1163](https://github.com/git-stunts/git-warp/issues/1163)).
+  The list does not limit which patches the server sends; see `.github/SECURITY.md`.
+
 ### Packaging
 
 - The published root reaches `Warp` as well as `Runtime`. After #1054 removed the legacy write,
