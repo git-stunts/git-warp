@@ -8,8 +8,6 @@ import BoundedGitCasCborCodec from '../../../../src/infrastructure/adapters/Boun
 const MAX_REFERENCES = 10_000;
 /** git-cas writes at most this many chunks into one sub-manifest (its default `merkleThreshold`). */
 const MAX_REFERENCE_CHUNKS = 1_000;
-/** The total chunk limit git-warp sets for one Merkle asset. */
-const MAX_TOTAL_CHUNKS = 1_048_576;
 
 const gitCasCodec = new GitCasCborCodec();
 const codec = new BoundedGitCasCborCodec();
@@ -72,9 +70,6 @@ const REFUSED: ReadonlyArray<readonly [string, object, string]> = [
   ['a first range that does not start at zero',
     [{ oid: objectId(1), chunkCount: 10, startIndex: 1 }],
     'sub-manifest references do not cover the chunks contiguously from zero'],
-  ['more chunks in total than the asset limit',
-    contiguous(Array.from({ length: MAX_TOTAL_CHUNKS / MAX_REFERENCE_CHUNKS + 1 }, () => MAX_REFERENCE_CHUNKS)),
-    'total chunk count exceeds the maximum'],
   ['more chunks in one reference than git-cas writes',
     contiguous([MAX_REFERENCE_CHUNKS + 1]),
     'a sub-manifest reference declares more chunks than the maximum'],
@@ -92,10 +87,8 @@ const REFUSED: ReadonlyArray<readonly [string, object, string]> = [
 
 const ADMITTED: ReadonlyArray<readonly [string, object]> = [
   ['the most references git-cas admits', contiguous(Array.from({ length: MAX_REFERENCES }, () => 1))],
-  ['exactly the total chunk limit', contiguous([
-    ...Array.from({ length: Math.floor(MAX_TOTAL_CHUNKS / MAX_REFERENCE_CHUNKS) }, () => MAX_REFERENCE_CHUNKS),
-    MAX_TOTAL_CHUNKS % MAX_REFERENCE_CHUNKS,
-  ])],
+  ['the largest asset git-cas admits (every reference full)',
+    contiguous(Array.from({ length: MAX_REFERENCES }, () => MAX_REFERENCE_CHUNKS))],
   ['the ranges git-cas writes for 2,500 chunks', contiguous([MAX_REFERENCE_CHUNKS, MAX_REFERENCE_CHUNKS, 500])],
   ['a 64-hex object id', [{ oid: 'c'.repeat(64), chunkCount: 1, startIndex: 0 }]],
   ['no references', []],

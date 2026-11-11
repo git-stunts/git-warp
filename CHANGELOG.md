@@ -628,8 +628,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bundle descriptor, git-cas reports a `BUNDLE_CORRUPT` error whose `meta.originalError`
   is that `E_CBOR_DECODE_BOUNDS` error. git-warp also validates a Merkle root manifest
   before git-cas reads its sub-manifests: at most 10,000 sub-manifest references, unique
-  references, contiguous coverage from chunk 0, at most 1,000 chunks per reference and at
-  most 1,048,576 chunks in total; a refused root manifest fails with `E_CAS_MANIFEST_SHAPE`.
+  references, contiguous coverage from chunk 0 and at most 1,000 chunks per reference;
+  a refused root manifest fails with `E_CAS_MANIFEST_SHAPE`.
   See [CBOR input limits](docs/topics/sync.md#cbor-input-limits)
   ([#1186](https://github.com/git-stunts/git-warp/issues/1186)).
 - `serve()` now passes `allowedWriters` to the HTTP sync server. From v11.0.0 to v20.0.0

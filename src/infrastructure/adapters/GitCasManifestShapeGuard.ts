@@ -12,17 +12,6 @@ const MAX_SUB_MANIFEST_REFERENCES = 10_000;
  */
 const MAX_SUB_MANIFEST_CHUNKS = 1_000;
 
-/**
- * The most chunks one Merkle asset may have (2^20).
- *
- * git-warp sets no attachment size limit, and its largest exercised asset is the 2 GiB attachment of the
- * storage memory witness. git-warp stores assets with git-cas content-defined chunking, whose smallest
- * chunk is 64 KiB (only the last chunk can be smaller), so 2 GiB is at most 32,768 chunks. This limit is
- * 32 times that: every asset up to 64 GiB fits even when every chunk is the smallest size, and an asset
- * of about 256 GiB fits at the 256 KiB target chunk size.
- */
-const MAX_MERKLE_ASSET_CHUNKS = 1_048_576;
-
 /** git-cas `ManifestSchema` accepts only lowercase 40- or 64-character hex object ids. */
 const GIT_OBJECT_ID = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/u;
 
@@ -35,7 +24,8 @@ const MALFORMED_REFERENCE = 'a sub-manifest reference is malformed';
  * git-cas reads and merges every referenced sub-manifest before its schema runs. This guard admits a
  * root manifest only when its references are at most {@link MAX_SUB_MANIFEST_REFERENCES}, each has a
  * distinct object id and declares 1 to {@link MAX_SUB_MANIFEST_CHUNKS} chunks, their ranges cover the
- * chunks contiguously from index zero, and the total is at most {@link MAX_MERKLE_ASSET_CHUNKS}. Other
+ * chunks contiguously from index zero. Together these bound a root manifest at the total git-cas itself
+ * admits (references times chunks per reference), with no repeated sub-manifest. Other
  * decoded values (flat manifests, sub-manifests, bundle descriptors, trust records) have no
  * `subManifests` that git-cas resolves and pass unchanged.
  */
@@ -82,9 +72,6 @@ function checkReferences(references: readonly unknown[]): void {
     }
     objectIds.add(reference.oid);
     nextIndex += reference.chunkCount;
-    if (nextIndex > MAX_MERKLE_ASSET_CHUNKS) {
-      throw manifestShapeError('total chunk count exceeds the maximum');
-    }
   }
 }
 

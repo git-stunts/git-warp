@@ -235,7 +235,7 @@ git-warp decodes a blob, not when Git transfers it. A refused blob stays in the
 repository, and every read that needs it fails again. A refused manifest, sub-manifest
 or trust record fails with `E_CBOR_DECODE_BOUNDS`. A Merkle root manifest must also list
 at most 10,000 sub-manifests, with unique object IDs, contiguous chunk ranges from index 0,
-at most 1,000 chunks each and at most 1,048,576 chunks in total; otherwise the read fails
+and at most 1,000 chunks each; otherwise the read fails
 with `E_CAS_MANIFEST_SHAPE` before git-cas reads a sub-manifest. A refused bundle descriptor fails
 with a git-cas `BUNDLE_CORRUPT` error whose `meta.originalError` is the
 `E_CBOR_DECODE_BOUNDS` error. If the tip of a graph's trust chain is refused, appending
