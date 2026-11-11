@@ -1,10 +1,10 @@
 import {
   IndeterminateWriteReceipt, RetainedWriteReceipt, UnpublishedWriteReceipt, UnretainedWriteReceipt,
-  type AuthoredWriteReceipt,
+  type WriteReceipt,
 } from '../../index.ts';
 
 /** Names a write receipt by its class, and an unpublished one by its cause too. */
-export default function writeResult(receipt: AuthoredWriteReceipt): string {
+export default function writeResult(receipt: WriteReceipt): string {
   if (receipt instanceof RetainedWriteReceipt) {
     return 'retained';
   }
