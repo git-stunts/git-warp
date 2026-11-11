@@ -74,10 +74,10 @@ export default tseslint.config(
   // only to src/ and bin/ files via the parser/rules block below, not globally.
   // Global application crashes on files without type info (benchmarks, etc.).
 
-  // Performance scripts are merge controls, so they receive their own typed
+  // Performance scripts and the cone witness receive their own typed
   // lint surface without inheriting domain-only error and JSDoc laws.
   {
-    files: ["scripts/performance/**/*.ts"],
+    files: ["scripts/performance/**/*.ts", "benchmarks/cone-showcase/**/*.ts"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
