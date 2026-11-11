@@ -33,9 +33,15 @@ def exchange(process, identifier, method, params):
     try:
         if not ready.select(20):
             raise ReadinessRefused('Actual MCP did not answer ' + method)
-        response = json.loads(process.stdout.readline())
+        line = process.stdout.readline()
     finally:
         ready.close()
+    try:
+        response = json.loads(line)
+    except json.JSONDecodeError:
+        raise ReadinessRefused('Actual MCP sent no JSON answer to ' + method + ': ' + repr(line[:200])) from None
+    if not isinstance(response, dict):
+        raise ReadinessRefused('Actual MCP sent a non-object answer to ' + method)
     if response.get('id') != identifier or 'error' in response:
         raise ReadinessRefused('Actual MCP refused readiness request ' + method + ': ' + json.dumps(response.get('error')))
     return response
