@@ -27,7 +27,7 @@ import WarpStream from '../../domain/stream/WarpStream.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type {
   AssetCapability,
-  CborCodec,
+  CodecPort as GitCasCodecPort,
   PublicationCapability,
   PublicationResult,
 } from '@git-stunts/git-cas';
@@ -122,9 +122,9 @@ function computeSignaturePayloadBytes(
   return textEncode(signaturePayload(record));
 }
 
-// -- CBOR codec (uses git-cas's CborCodec) ------------------------------------
+// -- CBOR codec (git-cas encoding; the repository adapter bounds decoding) ---
 
-type CborCodecInstance = InstanceType<typeof CborCodec>;
+type CborCodecInstance = GitCasCodecPort;
 
 // -- Adapter ------------------------------------------------------------------
 

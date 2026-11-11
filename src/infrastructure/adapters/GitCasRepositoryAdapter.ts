@@ -1,5 +1,4 @@
 import ContentAddressableStore, {
-  CborCodec,
   type AssetCapability,
   type BundleCapability,
   type CacheCapability,
@@ -28,6 +27,7 @@ import { CborIndexStoreAdapter } from './CborIndexStoreAdapter.ts';
 import { CborPatchJournalAdapter } from './CborPatchJournalAdapter.ts';
 import GitCasTrieStoreAdapter from './GitCasTrieStoreAdapter.ts';
 import GitTrustChainAdapter from './GitTrustChainAdapter.ts';
+import BoundedGitCasCborCodec from './BoundedGitCasCborCodec.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
 import type GitTimelineHistoryAdapter from './GitTimelineHistoryAdapter.ts';
@@ -104,7 +104,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   private readonly _history: GitTimelineHistoryAdapter;
   private readonly _cas: GitCasFacade;
   private readonly _closeCas: (() => Promise<void>) | null;
-  private readonly _cbor: InstanceType<typeof CborCodec>;
+  private readonly _cbor = new BoundedGitCasCborCodec();
   private readonly _contentEncryption: CasContentEncryptionPolicy | undefined;
   private readonly _substrateVersionGate: SubstrateVersionGate;
   private readonly _materializations = new Set<GitCasMaterializationStoreAdapter>();
@@ -116,8 +116,10 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
     this._plumbing = options.plumbing;
     this._history = options.history;
     if (options.cas === undefined) {
-      const cas = ContentAddressableStore.createCbor({
+      // createCbor with git-warp's bounded CBOR codec in place of git-cas's own (#1186).
+      const cas = new ContentAddressableStore({
         plumbing: options.plumbing,
+        codec: this._cbor,
         chunking: { strategy: 'cdc' },
         applicationRefPrefixes: [...WARP_APPLICATION_REF_PREFIXES],
         ...(options.policy === undefined ? {} : { policy: options.policy }),
@@ -131,7 +133,6 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       this._cas = options.cas;
       this._closeCas = null;
     }
-    this._cbor = new CborCodec();
     this._contentEncryption = options.contentEncryption;
     this._substrateVersionGate = new SubstrateVersionGate(this._history, DEFAULT_COMMIT_MESSAGE_CODEC);
   }

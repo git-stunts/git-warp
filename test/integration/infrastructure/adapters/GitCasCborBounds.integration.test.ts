@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import GitCasRepositoryAdapter, {
   WARP_APPLICATION_REF_PREFIXES,
 } from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import BoundedGitCasCborCodec from '../../../../src/infrastructure/adapters/BoundedGitCasCborCodec.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import MessageCodecError from '../../../../src/domain/errors/MessageCodecError.ts';
@@ -23,6 +24,9 @@ type OpenedRepository = {
 };
 
 const GRAPH = 'bounds';
+/** git-cas splits a manifest with more chunks than this into Merkle sub-manifests. */
+const GIT_CAS_MERKLE_THRESHOLD = 1_000;
+const MAX_CBOR_DECODE_BYTES = 5 * 1024 * 1024;
 const MANIFEST_ENTRY = 'manifest.cbor';
 const opened: OpenedRepository[] = [];
 const tempDirectories: string[] = [];
@@ -91,6 +95,25 @@ describe('git-cas CBOR decode bounds in the default GitCasRepositoryAdapter runt
     const chunks: unknown = Reflect.get(manifest, 'chunks');
     expect(Array.isArray(chunks) && chunks.length > 1).toBe(true);
     expect(await readAsset(repository, bounded.handle.oid)).toEqual(content);
+  });
+
+  it('admits a flat manifest at the git-cas Merkle threshold built from a written chunk entry', async () => {
+    const { history, repository } = await openRepository();
+    const staged = await repository.observationStorage().assets.put(assetOptions(deterministicBytes(300_000)));
+    const manifestOid = (await history.readTreeOids(staged.handle.oid))[MANIFEST_ENTRY] ?? '';
+    const manifest = new GitCasCborCodec().decode(await history.readBlob(manifestOid));
+    const writtenChunks: unknown = Reflect.get(manifest, 'chunks');
+    const chunk: unknown = Array.isArray(writtenChunks) ? writtenChunks[0] : null;
+    const thresholdChunks = Array.from({ length: GIT_CAS_MERKLE_THRESHOLD }, (_, index) => ({
+      ...(typeof chunk === 'object' ? chunk : {}),
+      index,
+    }));
+    const codec = new BoundedGitCasCborCodec();
+
+    const bytes = codec.encode({ ...manifest, chunks: thresholdChunks });
+
+    expect(Reflect.get(codec.decode(bytes), 'chunks')).toHaveLength(GIT_CAS_MERKLE_THRESHOLD);
+    expect(bytes.byteLength).toBeLessThan(MAX_CBOR_DECODE_BYTES / 10);
   });
 });
 
