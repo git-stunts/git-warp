@@ -1,0 +1,391 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+import MessageCodecError from '../../../src/domain/errors/MessageCodecError.ts';
+import { DEFAULT_SYNC_PEER_RATE_LIMIT } from '../../../src/domain/services/sync/SyncPeerRateLimiter.ts';
+import { SYNC_REPLAY_ACCEPTANCE_WINDOW_MS } from '../../../src/domain/services/sync/SyncRequestFreshness.ts';
+import BoundedGitCasCborCodec from '../../../src/infrastructure/adapters/BoundedGitCasCborCodec.ts';
+import RoaringShardBounds from '../../../src/infrastructure/adapters/RoaringShardBounds.ts';
+import { MAX_BODY_BYTES } from '../../../src/infrastructure/adapters/httpAdapterUtils.ts';
+import { requireBoundedCbor } from '../../../src/infrastructure/codecs/CborCodec.ts';
+import v18CheckpointMigrationCodec, {
+  V18_CHECKPOINT_MAX_DECODE_BYTES,
+} from '../../../scripts/v18-to-v19/V18CheckpointMigrationCodec.ts';
+import { arraysOfZeros, nestedArrays } from '../../helpers/OutOfBoundsCborCorpus.ts';
+
+// Oracle: the Option B decision on #1032 (2026-11-08). v21.0.0 ships only
+// when the four risks that expired on 2026-08-01 are eliminated in code. The
+// maintainer accepted the two residual exposures on 2026-11-11; each
+// acceptance expires on the review date below.
+
+const SECURITY_DOCUMENT = readFileSync('.github/SECURITY.md', 'utf8');
+const RESIDUAL_ACCEPTANCE = 'accepted by the maintainer on 2026-11-11';
+const RESIDUAL_REVIEW_DATE = '2027-05-01';
+const CLOSED_EXPIRY = 'Not applicable: closed';
+
+type RiskRow = {
+  readonly risk: string;
+  readonly severity: string;
+  readonly owner: string;
+  readonly status: string;
+  readonly expiry: string;
+  readonly evidence: string;
+};
+
+function section(document: string, heading: string): string {
+  const start = document.indexOf(`\n${heading}\n`);
+  expect(start, `missing heading ${heading}`).toBeGreaterThanOrEqual(0);
+  const rest = document.slice(start + heading.length + 2);
+  const end = rest.search(/^## /mu);
+  return end === -1 ? rest : rest.slice(0, end);
+}
+
+function tableCells(line: string): string[] {
+  return line.slice(1, -1).split(' | ').map((cell) => cell.trim());
+}
+
+const RISK_TABLE_HEADER = '| Risk | Severity | Owner | Status | Expiry | Evidence |';
+
+function riskTableLines(document: string): string[] {
+  return section(document, '## Accepted Risks').split('\n').filter((line) => line.startsWith('| '));
+}
+
+/** Reads each row by column name, so a missing column reads as an empty cell. */
+function riskRows(document: string): RiskRow[] {
+  const [header = '', ...rows] = riskTableLines(document);
+  const names = tableCells(header);
+  return rows.map((line) => {
+    const cells = tableCells(line);
+    expect(cells, line).toHaveLength(names.length);
+    const named = (name: string): string => cells[names.indexOf(name)] ?? '';
+    return {
+      risk: named('Risk'),
+      severity: named('Severity'),
+      owner: named('Owner'),
+      status: named('Status'),
+      expiry: named('Expiry'),
+      evidence: named('Evidence'),
+    };
+  });
+}
+
+function rowFor(rows: readonly RiskRow[], risk: string): RiskRow {
+  const matches = rows.filter((row) => row.risk === risk);
+  expect(matches, `rows for ${risk}`).toHaveLength(1);
+  const [match] = matches;
+  if (match === undefined) {
+    throw new Error(`no row for ${risk}`);
+  }
+  return match;
+}
+
+type ClosedRisk = {
+  readonly risk: string;
+  readonly severity: string;
+  readonly closedBy: readonly string[];
+  readonly evidence: readonly (readonly [path: string, symbol: string])[];
+};
+
+type ResidualRisk = {
+  readonly risk: string;
+  readonly severity: string;
+  readonly issues: readonly string[];
+};
+
+const CLOSED_RISKS: readonly ClosedRisk[] = [
+  {
+    risk: '`roaring-wasm` bitmap faults could corrupt results or exhaust resources',
+    severity: 'Medium',
+    closedBy: ['#1087', '#1128'],
+    evidence: [
+      ['src/infrastructure/adapters/BoundedRoaringConstructor.ts', 'boundRoaringConstructor'],
+      ['src/infrastructure/adapters/PortableRoaringShardInspector.ts', 'inspectPortableRoaringShard'],
+      ['src/infrastructure/adapters/RoaringShardBounds.ts', 'MAX_ALIVE_CARDINALITY'],
+      ['src/domain/artifacts/RoaringShardBytes.ts', 'requireRoaringShardBytes'],
+      ['src/domain/services/optic/NeighborhoodPageCursor.ts', 'neighborhoodCandidateBudget'],
+    ],
+  },
+  {
+    risk: '`cbor-x` parser handles untrusted sync payloads',
+    severity: 'Medium',
+    closedBy: ['#1088', '#1148', '#1186', '#1187'],
+    evidence: [
+      ['src/infrastructure/codecs/CborCodec.ts', 'MAX_CBOR_DECODE_BYTES'],
+      ['src/infrastructure/adapters/BoundedCborValidation.ts', 'ALLOWED_TAG_CONTENT'],
+      ['src/infrastructure/adapters/BoundedCborValidation.ts', 'validateGenericBoundedCbor'],
+      ['src/infrastructure/adapters/BoundedGitCasCborCodec.ts', 'BoundedGitCasCborCodec'],
+      ['src/infrastructure/adapters/GitCasRepositoryAdapter.ts', 'GitCasRepositoryAdapter'],
+      ['src/infrastructure/adapters/GitCasManifestShapeGuard.ts', 'GitCasManifestShapeGuard'],
+      ['scripts/v18-to-v19/V18CheckpointMigrationCodec.ts', 'V18_CHECKPOINT_MAX_DECODE_BYTES'],
+    ],
+  },
+  {
+    risk: 'Nonce cache lost on restart allows replay within clock skew window',
+    severity: 'Low',
+    closedBy: ['#1089', '#1149'],
+    evidence: [
+      ['src/infrastructure/adapters/GitCasSyncReplayProtectionAdapter.ts', 'GitCasSyncReplayProtectionAdapter'],
+      ['src/domain/services/sync/SyncRequestFreshness.ts', 'isFreshOnStoreTime'],
+      ['src/domain/services/sync/SyncRequestFreshness.ts', 'SYNC_REPLAY_ACCEPTANCE_WINDOW_MS'],
+      ['src/domain/services/sync/SyncAuthService.ts', 'SyncAuthService'],
+    ],
+  },
+  {
+    risk: 'No rate limiting on sync endpoint',
+    severity: 'Low',
+    closedBy: ['#1090', '#1162'],
+    evidence: [
+      ['src/domain/services/sync/SyncPeerRateLimiter.ts', 'DEFAULT_SYNC_PEER_RATE_LIMIT'],
+      ['src/domain/services/sync/SyncRateLimiter.ts', 'SyncRateLimiter'],
+      ['src/domain/services/sync/HttpSyncServerHelpers.ts', 'validateNonLocalRateLimit'],
+    ],
+  },
+];
+
+const RESIDUAL_RISKS: readonly ResidualRisk[] = [
+  {
+    risk: 'One admitted edge bitmap can be expanded in full on some in-process reads, and a writer can store an index shard file that the default codec refuses to read',
+    severity: 'Medium',
+    issues: ['#1159'],
+  },
+  {
+    risk: 'A sender with more distinct socket addresses than `maxTrackedPeers` is not limited by the peer admission limit, and the server has no global bound on unauthenticated work',
+    severity: 'Low',
+    issues: ['#1165', '#1164'],
+  },
+];
+
+describe('the Accepted Risks register', () => {
+  it('gives each row a status, an expiry and its evidence', () => {
+    const [header] = riskTableLines(SECURITY_DOCUMENT);
+    expect(header).toBe(RISK_TABLE_HEADER);
+  });
+
+  it('has no expired row: each row is closed or accepted with a review date', () => {
+    const rows = riskRows(SECURITY_DOCUMENT);
+
+    for (const row of rows) {
+      expect(row.expiry, row.risk).not.toMatch(/EXPIRED/iu);
+      // An accepted row carries its acceptance expiry as an ISO date.
+      expect(row.expiry, row.risk).toMatch(/^(Not applicable: closed|\d{4}-\d{2}-\d{2})$/u);
+      expect(row.owner, row.risk).toBe('@flyingrobots');
+    }
+    expect(rows).toHaveLength(CLOSED_RISKS.length + RESIDUAL_RISKS.length);
+  });
+
+  it.each(CLOSED_RISKS)('closes "$risk" with its remediation and cites live source', (expected) => {
+    const row = rowFor(riskRows(SECURITY_DOCUMENT), expected.risk);
+
+    expect(row.severity).toBe(expected.severity);
+    expect(row.status).toMatch(/^\*\*CLOSED\*\* /u);
+    expect(row.expiry).toBe(CLOSED_EXPIRY);
+    for (const reference of expected.closedBy) {
+      expect(row.status).toContain(reference);
+    }
+    for (const [path, symbol] of expected.evidence) {
+      expect(row.evidence, `${expected.risk} cites ${path}`).toContain(`\`${path}\``);
+      expect(row.evidence, `${expected.risk} names ${symbol}`).toContain(`\`${symbol}\``);
+      expect(existsSync(path), `${path} exists`).toBe(true);
+      expect(readFileSync(path, 'utf8'), `${path} defines ${symbol}`).toContain(symbol);
+    }
+  });
+
+  it.each(RESIDUAL_RISKS)('records "$risk" as open, tracked and accepted until review', (expected) => {
+    const row = rowFor(riskRows(SECURITY_DOCUMENT), expected.risk);
+
+    expect(row.severity).toBe(expected.severity);
+    expect(row.status).toMatch(/^Open/u);
+    expect(row.status).toContain(RESIDUAL_ACCEPTANCE);
+    expect(row.expiry).toBe(RESIDUAL_REVIEW_DATE);
+    expect(row.evidence).not.toContain('Proposed severity');
+    for (const issue of expected.issues) {
+      expect(row.status).toContain(issue);
+    }
+  });
+});
+
+// Oracle for the next block: the code. Each closed row states limits in
+// prose; each test reads the number from the row and checks it against the
+// exported constant, or against the refusal that the code makes at that
+// number. A row that states a wrong limit, or code that changes a limit
+// without the row, fails here.
+
+const MIB = 1024 * 1024;
+const CBOR_BOUNDS_CODE = 'E_CBOR_DECODE_BOUNDS';
+
+function evidenceOf(risk: string): string {
+  return rowFor(riskRows(SECURITY_DOCUMENT), risk).evidence;
+}
+
+/** The first capture group of `pattern` in `text`, which must match. */
+function stated(text: string, pattern: RegExp): string {
+  const match = pattern.exec(text);
+  expect(match, `register states ${String(pattern)}`).not.toBeNull();
+  return match?.[1] ?? '';
+}
+
+/** A number written with thousands separators, such as 34,086,920. */
+function statedCount(text: string, pattern: RegExp): number {
+  return Number(stated(text, pattern).replaceAll(',', ''));
+}
+
+/** A literal such as `maxItems: 20_000_000` in a source file that does not export it. */
+function sourceLiteral(path: string, name: string): number {
+  return Number(stated(readFileSync(path, 'utf8'), new RegExp(`${name}: ([\\d_]+),`, 'u')).replaceAll('_', ''));
+}
+
+/** A definite byte string whose whole encoding is `totalLength` bytes. */
+function byteStringOfTotalLength(totalLength: number): Uint8Array {
+  const length = totalLength - 5;
+  const bytes = new Uint8Array(totalLength);
+  bytes.set([0x5a, (length >>> 24) & 0xff, (length >>> 16) & 0xff, (length >>> 8) & 0xff, length & 0xff]);
+  return bytes;
+}
+
+/** The error code of the refusal, or null when `decode` admits the bytes. */
+function refusalCode(decode: (bytes: Uint8Array) => void, bytes: Uint8Array): string | null {
+  try {
+    decode(bytes);
+    return null;
+  } catch (error) {
+    if (error instanceof MessageCodecError) {
+      return error.code;
+    }
+    throw error;
+  }
+}
+
+/** Tag `tag` around a text string, an integer and a byte string. */
+function taggedProbes(tag: number): Uint8Array[] {
+  const header = tag < 24 ? [0xc0 + tag] : [0xd8, tag];
+  return [[0x60], [0x00], [0x40]].map((content) => Uint8Array.from([...header, ...content]));
+}
+
+const CBOR_RISK = '`cbor-x` parser handles untrusted sync payloads';
+
+describe('the limits that the closed rows state', () => {
+  it('states the roaring-wasm bounds that RoaringShardBounds enforces', () => {
+    const evidence = evidenceOf('`roaring-wasm` bitmap faults could corrupt results or exhaust resources');
+
+    expect(statedCount(evidence, /`MAX_BYTES` \(([\d,]+) bytes\)/u)).toBe(RoaringShardBounds.MAX_BYTES);
+    expect(2 ** statedCount(evidence, /`MAX_ALIVE_CARDINALITY` \(2\^(\d+) values\)/u))
+      .toBe(RoaringShardBounds.MAX_ALIVE_CARDINALITY);
+  });
+
+  it('states the CBOR size bound at which both runtime codecs start to refuse', () => {
+    const maxBytes = statedCount(evidenceOf(CBOR_RISK), /`MAX_CBOR_DECODE_BYTES` \((\d+) MiB\)/u) * MIB;
+    const gitCasCodec = new BoundedGitCasCborCodec();
+
+    expect(refusalCode(requireBoundedCbor, byteStringOfTotalLength(maxBytes))).toBeNull();
+    expect(refusalCode(requireBoundedCbor, byteStringOfTotalLength(maxBytes + 1))).toBe(CBOR_BOUNDS_CODE);
+    expect(refusalCode((bytes) => gitCasCodec.decode(bytes), byteStringOfTotalLength(maxBytes + 1)))
+      .toBe(CBOR_BOUNDS_CODE);
+  });
+
+  it('states the CBOR depth and item bounds at which the shared check starts to refuse', () => {
+    const evidence = evidenceOf(CBOR_RISK);
+    const maxDepth = statedCount(evidence, /refuses nesting deeper than (\d+),/u);
+    const maxItems = statedCount(evidence, /more than ([\d,]+) items or container entries/u);
+
+    expect(refusalCode(requireBoundedCbor, nestedArrays(maxDepth))).toBeNull();
+    expect(refusalCode(requireBoundedCbor, nestedArrays(maxDepth + 1))).toBe(CBOR_BOUNDS_CODE);
+    expect(refusalCode(requireBoundedCbor, arraysOfZeros(maxItems))).toBeNull();
+    expect(refusalCode(requireBoundedCbor, arraysOfZeros(maxItems + 1))).toBe(CBOR_BOUNDS_CODE);
+  });
+
+  it('states exactly the CBOR tags that the shared check admits', () => {
+    const statedTags = stated(evidenceOf(CBOR_RISK), /`ALLOWED_TAG_CONTENT` \(tags ([\d, and]+)\)/u)
+      .split(/, | and /u)
+      .map(Number);
+    const tagValues = Array.from({ length: 256 }, (_, tag) => tag);
+
+    const admitted = tagValues.filter((tag) => taggedProbes(tag)
+      .some((bytes) => refusalCode(requireBoundedCbor, bytes) === null));
+
+    expect(admitted).toEqual(statedTags);
+  });
+
+  it('states the wider limits of the v18 checkpoint migration decoder and its unchanged depth limit', () => {
+    const evidence = evidenceOf(CBOR_RISK);
+    const migrationCodec = 'scripts/v18-to-v19/V18CheckpointMigrationCodec.ts';
+    const sharedDepth = statedCount(evidence, /refuses nesting deeper than (\d+),/u);
+
+    expect(statedCount(evidence, /`V18_CHECKPOINT_MAX_DECODE_BYTES` \((\d+) MiB\)/u) * MIB)
+      .toBe(V18_CHECKPOINT_MAX_DECODE_BYTES);
+    expect(statedCount(evidence, /`V18_CHECKPOINT_MAX_DECODE_BYTES` \(\d+ MiB\), ([\d,]+) items/u))
+      .toBe(sourceLiteral(migrationCodec, 'maxItems'));
+    expect(statedCount(evidence, /items and ([\d,]+) container entries/u))
+      .toBe(sourceLiteral(migrationCodec, 'maxContainerEntries'));
+    expect(statedCount(evidence, /Its depth limit of (\d+),/u)).toBe(sharedDepth);
+    expect(refusalCode((bytes) => v18CheckpointMigrationCodec.decode(bytes), nestedArrays(sharedDepth + 1)))
+      .toBe('E_V18_CHECKPOINT_CBOR_BOUNDS');
+  });
+
+  it('states the replay window that SyncRequestFreshness keeps each nonce for', () => {
+    const evidence = evidenceOf('Nonce cache lost on restart allows replay within clock skew window');
+
+    expect(statedCount(evidence, /`SYNC_REPLAY_ACCEPTANCE_WINDOW_MS` \(([\d,]+) ms\)/u))
+      .toBe(SYNC_REPLAY_ACCEPTANCE_WINDOW_MS);
+  });
+
+  it('states the default peer rate limit of SyncPeerRateLimiter', () => {
+    const evidence = evidenceOf('No rate limiting on sync endpoint');
+
+    expect({
+      capacity: statedCount(evidence, /a burst of ([\d,]+),/u),
+      refillTokensPerSecond: statedCount(evidence, /a refill of ([\d,]+) requests per second/u),
+      maxTrackedPeers: statedCount(evidence, /and ([\d,]+) tracked peers/u),
+    }).toEqual(DEFAULT_SYNC_PEER_RATE_LIMIT);
+  });
+
+  it('states the request body limit that the HTTP adapters read before the peer limit', () => {
+    const evidence = evidenceOf(
+      'A sender with more distinct socket addresses than `maxTrackedPeers` is not limited by the peer admission limit, and the server has no global bound on unauthenticated work',
+    );
+
+    expect(statedCount(evidence, /up to (\d+) MiB \(`MAX_BODY_BYTES`\)/u) * MIB).toBe(MAX_BODY_BYTES);
+  });
+});
+
+describe('statements that depend on the register', () => {
+  it('no longer defers the register update to #1032', () => {
+    expect(SECURITY_DOCUMENT).not.toContain('updates the row');
+    expect(SECURITY_DOCUMENT).not.toContain('#1032](https://github.com/git-stunts/git-warp/issues/1032) updates them');
+  });
+
+  it('leaves no residual row waiting for maintainer acceptance', () => {
+    expect(SECURITY_DOCUMENT).not.toMatch(/(awaits|requires) maintainer acceptance/u);
+  });
+
+  it('records the serve() allowedWriters defect as fixed, not open', () => {
+    const writerAuthorization = section(SECURITY_DOCUMENT, '## Writer Authorization');
+
+    expect(writerAuthorization).not.toMatch(/known defect/iu);
+    expect(writerAuthorization).toContain('Before v21.0.0, `serve()` did not pass `allowedWriters`');
+  });
+
+  it('puts the sync rate limits in scope for availability', () => {
+    const availability = section(SECURITY_DOCUMENT, '## Threat Model Boundaries')
+      .split('\n')
+      .filter((line) => line.startsWith('| **Availability** |'));
+    expect(availability).toHaveLength(1);
+    const [, inScope = '', outOfScope = ''] = tableCells(availability[0] ?? '');
+
+    expect(inScope).toContain('peer admission limit');
+    expect(inScope).toContain('per-key rate limit');
+    expect(outOfScope).not.toContain('rate limiting (delegated to infrastructure)');
+    expect(outOfScope).toContain('#1164');
+  });
+
+  it('describes cbor-x input as repository blobs behind the shared decoder bounds', () => {
+    const rows = section(SECURITY_DOCUMENT, '## Dependency Risk Assessment')
+      .split('\n')
+      .filter((line) => line.startsWith('| `cbor-x` |'));
+    expect(rows).toHaveLength(1);
+    const [row = ''] = rows;
+
+    expect(row).not.toContain('4 MB default');
+    expect(row).toContain('`src/infrastructure/codecs/CborCodec.ts`');
+    expect(row).toContain('repository blobs');
+  });
+});
