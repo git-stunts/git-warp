@@ -228,6 +228,26 @@ error boundary. Preserve the offending object and
 its identity when diagnosing a refusal; do not remove the checks to read it.
 HTTP JSON body limits are separate from these repository-blob limits.
 
+The same limits apply to the asset manifests, Merkle sub-manifests, bundle descriptors
+and trust records that git-cas stores for git-warp
+([#1186](https://github.com/git-stunts/git-warp/issues/1186)). The check runs when
+git-warp decodes a blob, not when Git transfers it. A refused blob stays in the
+repository, and every read that needs it fails again. A refused manifest, sub-manifest
+or trust record fails with `E_CBOR_DECODE_BOUNDS`. A Merkle root manifest must also list
+at most 10,000 sub-manifests, with unique object IDs, contiguous chunk ranges from index 0,
+and at most 1,000 chunks each; otherwise the read fails
+with `E_CAS_MANIFEST_SHAPE` before git-cas reads a sub-manifest. git-warp limits one
+stored asset to 1,048,576 chunks, at least 64 GiB at git-cas's smallest chunk size of
+64 KiB: a write of a larger asset fails with `E_ASSET_TOO_LARGE`, and a read of a Merkle
+root manifest that lists more chunks fails with `E_CAS_MANIFEST_SHAPE`. An asset of more than
+1,048,576 chunks that an earlier version stored can no longer be read; read or copy it with
+v20 before you upgrade. A refused bundle descriptor fails
+with a git-cas `BUNDLE_CORRUPT` error whose `meta.originalError` is the
+`E_CBOR_DECODE_BOUNDS` error. If the tip of a graph's trust chain is refused, appending
+a new trust record to that chain also fails. Do not delete or move the trust ref to get
+past the refusal. Keep the record and its commit, and do not fetch from that peer
+again until you know why it sent the record.
+
 ## Verify
 
 Run bounded diagnostics against the same Lane on both clones:
