@@ -94,6 +94,7 @@ describe('ConeWritePublisher before permission', () => {
     const receipt = await publisher.publish(lowered, NOT_REVOKED);
 
     expect(receipt instanceof UnpublishedWriteReceipt ? receipt.cause : '').toBe('retention-refused-writer-limit');
+    expect(receipt instanceof UnpublishedWriteReceipt ? receipt.repairHints.map((hint) => hint.code) : []).toEqual(['compact_writer_frontier']);
     expect(cancel).toHaveBeenCalledOnce();
     expect(remove).toHaveBeenCalledOnce();
   });

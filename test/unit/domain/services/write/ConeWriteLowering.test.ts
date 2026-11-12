@@ -23,6 +23,15 @@ import LaneConeScope from '../../../../../src/domain/services/cone/LaneConeScope
 import ContentStagingAuthority from '../../../../../src/domain/services/ContentStagingAuthority.ts';
 import { PatchBuilder } from '../../../../../src/domain/services/PatchBuilder.ts';
 import ConeWriteLowering from '../../../../../src/domain/services/write/ConeWriteLowering.ts';
+import LoweredConeWrite from '../../../../../src/domain/services/write/LoweredConeWrite.ts';
+import WriterFrontierLimit from '../../../../../src/domain/services/write/WriterFrontierLimit.ts';
+import { WARP_SUPPORT_LIMITS } from '../../../../../src/application/WarpWriteComposition.ts';
+import ConeBasis from '../../../../../src/domain/services/cone/ConeBasis.ts';
+import ConeFrontier from '../../../../../src/domain/services/cone/ConeFrontier.ts';
+import ConeRoot from '../../../../../src/domain/services/cone/ConeRoot.ts';
+import ConeWritePremiseRecord from '../../../../../src/domain/services/cone/ConeWritePremise.ts';
+import ConeWriterPosition from '../../../../../src/domain/services/cone/ConeWriterPosition.ts';
+import StoredConeBasis from '../../../../../src/domain/services/cone/StoredConeBasis.ts';
 import { EventId } from '../../../../../src/domain/utils/EventId.ts';
 import NodeCryptoAdapter from '../../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import InMemoryConeRecordStore from '../../../../helpers/InMemoryConeRecordStore.ts';
@@ -64,6 +73,7 @@ function lowering(fields: { readonly premise?: Premise; readonly patch?: PatchBu
     cone: cone(fields.premise ?? (async (published) => await published())),
     content: new ContentStagingAuthority(),
     crypto: new NodeCryptoAdapter(),
+    writers: new WriterFrontierLimit(WARP_SUPPORT_LIMITS.writers),
     openPatch: fields.openPatch ?? (async () => await Promise.resolve(patch)),
   });
 }
@@ -177,5 +187,60 @@ describe('ConeWriteLowering', () => {
       vi.spyOn(patch, 'addNode').mockImplementation(() => { throw failure; });
       await expect(lowering({ patch }).lower(request)).rejects.toBe(failure);
     }
+  });
+});
+
+/** A basis whose frontier holds `count` writer chains, `w0` to `w<count - 1>`, each with a head of its own. */
+function basisOf(count: number): ConeBasis {
+  const position = (index: number): ConeWriterPosition => new ConeWriterPosition(index.toString(16).padStart(40, '0'), 1);
+  return new ConeBasis(ConeRoot.empty(), new ConeFrontier(new Map(Array.from({ length: count }, (_, index) => [`w${index}`, position(index)]))));
+}
+
+function repairsOf(lowered: object): readonly string[] {
+  return lowered instanceof UnpublishedWriteReceipt ? lowered.repairHints.map((hint) => hint.code) : [];
+}
+
+/** The premise the cone would publish, with its stored basis replaced by `basis`. */
+function onto(basis: ConeBasis): Premise {
+  return async (published) => {
+    const premise = await published();
+    if (!(premise instanceof ConeWritePremiseRecord)) {
+      return premise;
+    }
+    return new ConeWritePremiseRecord({ from: premise.from, stored: new StoredConeBasis(basis, premise.stored.revision), reader: premise.reader });
+  };
+}
+
+describe('ConeWriteLowering at the writer limit (#1075)', () => {
+  it('holds 4,096 writers, so one write retains every head', () => {
+    expect(WARP_SUPPORT_LIMITS.writers).toBe(4096);
+  });
+
+  it('admits the 4,096th writer and keeps every writer already in a full frontier writing', async () => {
+    await expect(lowering({ premise: onto(basisOf(4095)) }).lower(request)).resolves.toBeInstanceOf(LoweredConeWrite);
+    const full = basisOf(4095);
+    const withAlice = new ConeBasis(full.root, full.frontier.advanced('alice', new ConeWriterPosition('e'.repeat(40), 1)));
+    expect(withAlice.writerHeads().size).toBe(4096);
+    await expect(lowering({ premise: onto(withAlice) }).lower(request)).resolves.toBeInstanceOf(LoweredConeWrite);
+  });
+
+  it('refuses the 4,097th writer before anything is reserved, with the repair', async () => {
+    const lowered = await lowering({ premise: onto(basisOf(4096)) }).lower(request);
+
+    expect(causeOf(lowered)).toBe('writer-limit-reached');
+    expect(repairsOf(lowered)).toEqual(['reuse_writer_id']);
+  });
+
+  it('does not tell a new writer to reuse a writer ID on a frontier past the limit, where no ID can write', async () => {
+    const lowered = await lowering({ premise: onto(basisOf(4097)) }).lower(request);
+
+    expect(causeOf(lowered)).toBe('retention-refused-writer-limit');
+    expect(repairsOf(lowered)).toEqual(['compact_writer_frontier']);
+    expect(lowered instanceof UnpublishedWriteReceipt ? lowered.repairHints[0]?.message : '').toContain('cannot do that yet: issue #1044');
+  });
+
+  it('refuses a limit that is not a count', () => {
+    expect(() => new WriterFrontierLimit(-1)).toThrow('count');
+    expect(() => new WriterFrontierLimit(0.5)).toThrow('count');
   });
 });

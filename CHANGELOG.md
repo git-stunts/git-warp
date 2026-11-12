@@ -96,6 +96,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bound crash recovery's publication probe and the writer frontier
+  ([#1075](https://github.com/git-stunts/git-warp/issues/1075)). The probe
+  reads a writer chain in one `git log` (three Git processes a probe, however
+  deep the chain), and the probes of one sweep list at most 16,388
+  commits. A Warp sweeps once, inside its first granted `execute` or `reconcile`. An unresolved attempt whose predecessor lies more than 4,096
+  commits behind its writer's tip, armed or not, gets the indeterminate
+  requirement `publication-walk-exhausted`. Recovery keeps its record and
+  does not abandon it; it reports the attempt cancelled only when custody already
+  holds a cancellation. Once that answer is saved, later sweeps do not
+  read for it again. `reconcile` runs the same bounded probe and returns the
+  same indeterminate answer, unless custody already holds the attempt's outcome.
+  Nothing resolves such an attempt yet, so asking again does not help. A new
+  writer on a graph whose frontier already holds 4,096 writers is refused
+  before anything is reserved, with cause `writer-limit-reached` and repair
+  `reuse_writer_id`; writers already in the frontier keep writing. A frontier
+  can still pass the limit: through first writes that new writers make at the
+  same time, or through writer chains fetched from another clone. Such a graph
+  refuses every write by every writer ID, with cause
+  `retention-refused-writer-limit` and repair `compact_writer_frontier`.
+  Frontier compaction is not available yet
+  ([#1044](https://github.com/git-stunts/git-warp/issues/1044)), so until then
+  that graph accepts no writes.
 - Validate every serialized Roaring bitmap before the bitmap library reads
   it, and bound it
   ([#1087](https://github.com/git-stunts/git-warp/issues/1087)). The bitmap
