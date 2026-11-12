@@ -100,10 +100,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   expired on 2026-08-01, as the Option B decision on
   [#1032](https://github.com/git-stunts/git-warp/issues/1032) requires:
   `roaring-wasm` bitmap faults (closed by #1128), the `cbor-x` parser on
-  untrusted payloads (#1148), the nonce cache lost on restart (#1149), and
-  no rate limiting on the sync endpoint (#1162). Each closed row cites the
-  source files that hold its mitigation. Two narrower rows record what
-  remains; the maintainer accepted both on 2026-11-11, with a review date of
+  untrusted payloads (#1148 for git-warp's own codec, #1187 for the blobs
+  that git-cas decodes for git-warp), the nonce cache lost on restart
+  (#1149), and no rate limiting on the sync endpoint (#1162). Each closed row
+  cites the source files that hold its mitigation, and a test compares the
+  limits that each closed row states with the code. The `cbor-x` row records
+  the v18-to-v19 checkpoint migration decoder, which an operator runs once and
+  which has wider size and item limits, as a documented exception. Two
+  narrower rows record what remains; the maintainer accepted both on 2026-11-11, with a review date of
   2027-05-01: the full
   in-process expansion of one admitted edge bitmap and the unmatched writer
   shard size ([#1159](https://github.com/git-stunts/git-warp/issues/1159),
