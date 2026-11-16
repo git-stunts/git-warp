@@ -20,6 +20,8 @@ import type {
   DetachedOpenOptions,
 } from '../../../src/domain/services/controllers/detachedOpen.ts';
 import type { DetachedGraphInternalReadSurface } from '../../../src/domain/capabilities/DetachedGraphFactory.ts';
+import SequenceRandomPort from '../../helpers/SequenceRandomPort.ts';
+import ManualClock from '../../helpers/ManualClock.ts';
 
 describe('strand and runtime host seams', () => {
   it('uses StrandError as the public speculative-lane error noun', () => {
@@ -155,9 +157,10 @@ describe('strand and runtime host seams', () => {
 
 function createDetachedHost(): DetachedOpenHost {
   const persistence = new InMemoryGraphAdapter();
+  const clock = new ManualClock();
   return {
     _persistence: persistence,
-    _runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
+    _runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence, clock }),
     _graphName: 'detached-runtime',
     _writerId: 'agent-1',
     _gcPolicy: GCPolicy.DEFAULT,
@@ -166,6 +169,8 @@ function createDetachedHost(): DetachedOpenHost {
     _trustConfig: { mode: 'off', pin: null },
     _onDeleteWithData: 'reject',
     _crypto: defaultCrypto,
+    _random: new SequenceRandomPort(),
+    _clock: clock,
     _codec: defaultCodec,
   };
 }

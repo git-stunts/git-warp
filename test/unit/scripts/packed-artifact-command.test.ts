@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
+import { waitForCondition } from '../../helpers/waitForCondition.ts';
 
 const roots: string[] = [];
 const originalArgv = process.argv;
@@ -26,9 +27,7 @@ async function check(args: readonly string[]) {
   process.exitCode = undefined;
   vi.resetModules();
   await import('../../../scripts/package-payload/CheckPackedArtifact.ts');
-  await vi.waitFor(() => {
-    expect(stdout.mock.calls.length + stderr.mock.calls.length).toBeGreaterThan(0);
-  });
+  await waitForCondition(() => stdout.mock.calls.length + stderr.mock.calls.length > 0);
   return {
     stdout: stdout.mock.calls.map(([chunk]) => String(chunk)).join(''),
     stderr: stderr.mock.calls.map(([chunk]) => String(chunk)).join(''),
@@ -107,7 +106,7 @@ it('rejects an exactly stamped hook without executable permissions', async () =>
 });
 
 const VALID_RESULTS = Object.freeze({
-  'write.json': '{"lane":"events","intent":{"kind":"property.set"}}',
+  'write.json': '{"outcome":{"kind":"derived"}}',
   'observe.json': '{"readings":[{"value":"admin","reducerVersion":"observed-remove/node-lww-clear"}],"receipt":{"reducerVersion":"observed-remove/node-lww-clear"}}',
   'doctor-before.json': '{"findings":[{"id":"hooks-installed","code":"HOOKS_MISSING","status":"warn"}]}',
   'doctor-after.json': '{"findings":[{"id":"hooks-installed","code":"HOOKS_OK","status":"ok"}]}',

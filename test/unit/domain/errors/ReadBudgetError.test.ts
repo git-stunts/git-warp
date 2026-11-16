@@ -24,7 +24,7 @@ describe('ReadBudgetError', () => {
   });
 
   it('handles null and undefined options safely', () => {
-    const err1 = new ReadBudgetError('null opts', null as unknown as undefined);
+    const err1 = new ReadBudgetError('null opts', null);
     expect(err1.code).toBe('E_READ_BUDGET');
     expect(err1.context).toEqual({});
 

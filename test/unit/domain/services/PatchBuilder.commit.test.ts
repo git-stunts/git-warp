@@ -11,6 +11,7 @@ import {
   createPatchJournal,
   RecordingAssetStorage,
 } from './PatchBuilderTestHarness.ts';
+import { waitForCondition } from '../../../helpers/waitForCondition.ts';
 
 describe('PatchBuilder semantic commit', () => {
   it('publishes one causal patch request and returns its commit identity', async () => {
@@ -167,7 +168,8 @@ describe('PatchBuilder semantic commit', () => {
     builder.addNode('node:a');
 
     const attachment = builder.attachContent('node:a', 'content');
-    await vi.waitFor(() => expect(stage).toHaveBeenCalledOnce());
+    await waitForCondition(() => stage.mock.calls.length > 0);
+    expect(stage).toHaveBeenCalledOnce();
     await builder.commit();
     staged.resolve(
       Object.freeze({

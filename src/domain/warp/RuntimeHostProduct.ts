@@ -1,5 +1,6 @@
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
+import type RandomPort from '../../ports/RandomPort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import type RuntimeStorageProviderPort from '../../ports/RuntimeStorageProviderPort.ts';
 import type CommitMessageCodecPort from '../../ports/CommitMessageCodecPort.ts';
@@ -172,6 +173,7 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   materializeAt(checkpointSha: string): Promise<SnapshotWarpState>;
   _effectPipeline: EffectPipeline | null;
   readonly _crypto: CryptoPort;
+  readonly _random: RandomPort;
   readonly _codec: CodecPort;
   readonly _commitMessageCodec: CommitMessageCodecPort;
   _setMaterializedState(

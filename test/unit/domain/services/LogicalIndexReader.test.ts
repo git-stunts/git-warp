@@ -247,7 +247,7 @@ describe('LogicalIndexReader', () => {
       expect(registry.has('owns')).toBe(true);
     });
 
-    it('accepts meta.alive encoded as a plain number array', () => {
+    it('refuses meta.alive encoded as a plain number array', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
       const service = new MaterializedViewService({ codec: defaultCodec });
       const { tree } = service.build(state);
@@ -265,9 +265,13 @@ describe('LogicalIndexReader', () => {
         }).slice();
       }
 
-      const idx = new LogicalIndexReader({ codec: defaultCodec }).loadFromTree(legacyTree).toLogicalIndex();
-      expect(idx.isAlive('A')).toBe(true);
-      expect(idx.isAlive('B')).toBe(true);
+      // No released writer stores bitmap bytes as a CBOR array, so the reader
+      // admits a byte string only.
+      expect(() => new LogicalIndexReader({ codec: defaultCodec }).loadFromTree(legacyTree))
+        .toThrow(expect.objectContaining({
+          code: 'E_ROARING_SHARD_MALFORMED',
+          context: { fault: 'not-bytes' },
+        }));
     });
   });
 

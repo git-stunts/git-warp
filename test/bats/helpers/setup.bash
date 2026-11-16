@@ -34,12 +34,10 @@ assert_failure() {
   [ "$status" -ne 0 ]
 }
 
+# The CLI has no write command in v21: the fixture writes through the package's Warp.
 write_user() {
-  run "${CLI[@]}" write \
-    --lane users \
-    --writer bats \
-    --json \
-    --intent '{"kind":"node.add","subject":"user:alice"}'
+  run node "${PROJECT_ROOT}/test/fixtures/packed-warp-write.mjs" \
+    "${TEST_REPO}" users bats node.add user:alice
   assert_success
 }
 

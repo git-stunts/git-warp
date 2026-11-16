@@ -4,7 +4,6 @@ import { openWarp } from '../../../src/application/openWarp.ts';
 import RuntimeActivity from '../../../src/application/RuntimeActivity.ts';
 import { createWorldlineLane } from '../../../src/application/RuntimeLaneAdapter.ts';
 import Intent from '../../../src/domain/api/Intent.ts';
-import { requireLaneRuntime } from '../../../src/domain/api/LaneRuntime.ts';
 import {
   createManyObserver,
   createObserver,
@@ -22,8 +21,8 @@ describe('Runtime Lane adapter', () => {
       const warp = await openWarp({ storage, writer: 'agent-1' });
       const timeline = await warp.timeline('events');
       const lane = createWorldlineLane(timeline, new RuntimeActivity());
-      await lane.write(Intent.addNode({ subject: 'user:alice' }));
-      await lane.write(Intent.setProperty({
+      await timeline.write(Intent.addNode({ subject: 'user:alice' }));
+      await timeline.write(Intent.setProperty({
         subject: 'user:alice',
         key: 'role',
         value: 'admin',
@@ -66,197 +65,6 @@ describe('Runtime Lane adapter', () => {
     }
   });
 
-  it('forks an exact parent coordinate and observes strand overlays through bounded optics', async () => {
-    const storage = MemoryStorage.create();
-    try {
-      const warp = await openWarp({ storage, writer: 'agent-1' });
-      const timeline = await warp.timeline('events');
-      const lane = createWorldlineLane(timeline, new RuntimeActivity());
-      await lane.write(Intent.addNode({ subject: 'user:alice' }));
-      await lane.write(Intent.setProperty({
-        subject: 'user:alice',
-        key: 'role',
-        value: 'member',
-      }));
-      await createBoundedReadBasis(storage, 'events');
-
-      const fork = requireLaneRuntime(lane).fork;
-      if (fork === null) {
-        throw new Error('worldline Lane is missing its fork port');
-      }
-      const strand = await fork('try-admin-role');
-      expect(strand.descriptor).toMatchObject({
-        kind: 'strand',
-        name: 'try-admin-role',
-        parent: { kind: 'worldline', name: 'events' },
-        forkedAt: {
-          lane: { kind: 'worldline', name: 'events' },
-        },
-      });
-
-      await lane.write(Intent.setProperty({
-        subject: 'user:alice',
-        key: 'role',
-        value: 'owner',
-      }));
-      const roleObserver = createObserver<string>(
-        'users.role-of',
-        LegacyReading.property({ subject: 'user:alice', key: 'role' }),
-        (value) => {
-          if (typeof value !== 'string') {
-            throw new TypeError('users.role-of expected a string');
-          }
-          return value;
-        },
-      );
-
-      await expect(strand.observe(roleObserver).one()).resolves.toMatchObject({
-        value: 'member',
-        coordinate: { lane: 'try-admin-role' },
-      });
-      await strand.write(Intent.setProperty({
-        subject: 'user:alice',
-        key: 'role',
-        value: 'admin',
-      }));
-      const observation = strand.observe(roleObserver);
-      await expect(observation.one()).resolves.toMatchObject({
-        value: 'admin',
-        coordinate: { lane: 'try-admin-role' },
-      });
-      await expect(observation.receipt).resolves.toMatchObject({
-        lane: 'try-admin-role',
-        status: 'completed',
-        writer: 'agent-1',
-      });
-      await expect(lane.observe(roleObserver).one()).resolves.toMatchObject({
-        value: 'owner',
-        coordinate: { lane: 'events' },
-      });
-      await expect(captureCoordinate(strand)).rejects.toMatchObject({
-        code: 'E_LANE_COORDINATE_KIND',
-      });
-    } finally {
-      await storage.close();
-    }
-  });
-
-  it('binds a strand settlement port through the shared mutation gate', async () => {
-    const storage = MemoryStorage.create();
-    try {
-      const warp = await openWarp({ storage, writer: 'agent-1' });
-      const timeline = await warp.timeline('events');
-      const lane = createWorldlineLane(timeline, new RuntimeActivity());
-      await lane.write(Intent.addNode({ subject: 'user:alice' }));
-      const fork = requireLaneRuntime(lane).fork;
-      if (fork === null) {
-        throw new Error('worldline Lane is missing its fork port');
-      }
-      const strand = await fork('try-admin-role');
-      const settlement = requireLaneRuntime(strand).settlement;
-      if (settlement.kind !== 'source') {
-        throw new Error('strand Lane is missing its settlement source port');
-      }
-
-      await expect(settlement.capture()).resolves.toMatchObject({
-        status: 'empty',
-      });
-      await strand.write(Intent.setProperty({
-        subject: 'user:alice',
-        key: 'role',
-        value: 'admin',
-      }));
-      await expect(settlement.capture()).resolves.toMatchObject({
-        baseTargetFrontierRef: expect.stringMatching(/^admission:/u),
-        frontierRef: expect.stringMatching(/^admission:/u),
-        proposalDigest: expect.stringMatching(/^admission:/u),
-        status: 'ready',
-        targetFrontierRef: expect.stringMatching(/^admission:/u),
-      });
-
-      const promotion = await settlement.runExclusive(async (execution) => {
-        const snapshot = await execution.capture();
-        const digest = await execution.digest(['test', 'settlement']);
-        const result = await execution.promote();
-        return { digest, result, snapshot };
-      });
-      expect(promotion).toMatchObject({
-        digest: expect.stringMatching(/^admission:/u),
-        result: { accepted: true },
-        snapshot: { status: 'ready' },
-      });
-      await expect(settlement.capture()).resolves.toMatchObject({
-        status: 'settled',
-      });
-    } finally {
-      await storage.close();
-    }
-  });
-
-  it('pins one strand overlay frontier across lazy Observer demand', async () => {
-    const storage = MemoryStorage.create();
-    try {
-      const warp = await openWarp({ storage, writer: 'agent-1' });
-      const timeline = await warp.timeline('events');
-      const activity = new RuntimeActivity();
-      const lane = createWorldlineLane(timeline, activity);
-      for (const subject of ['user:alice', 'user:bob']) {
-        await lane.write(Intent.addNode({ subject }));
-        await lane.write(Intent.setProperty({
-          subject,
-          key: 'rank',
-          value: 1,
-        }));
-      }
-      await createBoundedReadBasis(storage, 'events');
-      const fork = requireLaneRuntime(lane).fork;
-      if (fork === null) {
-        throw new Error('worldline Lane is missing its fork port');
-      }
-      const strand = await fork('ranking-experiment');
-      const observer = createManyObserver<number>(
-        'users.ranks',
-        function* () {
-          yield LegacyReading.property({ subject: 'user:alice', key: 'rank' });
-          yield LegacyReading.property({ subject: 'user:bob', key: 'rank' });
-        },
-        (value) => {
-          if (typeof value !== 'number') {
-            throw new TypeError('users.ranks expected a number');
-          }
-          return value;
-        },
-      );
-      const observation = strand.observe(observer);
-      const iterator = observation[Symbol.asyncIterator]();
-
-      const first = await iterator.next();
-      expect(first).toMatchObject({ done: false, value: { value: 1 } });
-      await strand.write(Intent.setProperty({
-        subject: 'user:bob',
-        key: 'rank',
-        value: 2,
-      }));
-      const second = await iterator.next();
-      expect(second).toMatchObject({ done: false, value: { value: 1 } });
-      const tickIds = [first, second].map((result) =>
-        result.done === false ? result.value.coordinate.tick?.id : undefined
-      );
-      expect(new Set(tickIds).size).toBe(1);
-      await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
-      const latest: unknown[] = [];
-      for await (const reading of strand.observe(observer)) {
-        latest.push(reading);
-      }
-      expect(latest).toMatchObject([
-        { value: 1 },
-        { value: 2 },
-      ]);
-    } finally {
-      await storage.close();
-    }
-  });
-
   it('records a missing bounded basis as obstruction rather than runtime failure', async () => {
     const storage = MemoryStorage.create();
     try {
@@ -292,8 +100,8 @@ describe('Runtime Lane adapter', () => {
       const lane = createWorldlineLane(timeline, new RuntimeActivity());
       const subjects = ['user:alice', 'user:bob', 'user:carol'];
       for (const [index, subject] of subjects.entries()) {
-        await lane.write(Intent.addNode({ subject }));
-        await lane.write(Intent.setProperty({
+        await timeline.write(Intent.addNode({ subject }));
+        await timeline.write(Intent.setProperty({
           subject,
           key: 'rank',
           value: index + 1,
@@ -352,7 +160,7 @@ describe('Runtime Lane adapter', () => {
       const lane = createWorldlineLane(timeline, new RuntimeActivity());
       const subjects = ['user:alice', 'user:bob', 'user:carol'];
       for (const subject of subjects) {
-        await lane.write(Intent.addNode({ subject }));
+        await timeline.write(Intent.addNode({ subject }));
       }
       await createBoundedReadBasis(storage, 'events');
       let planned = 0;
@@ -392,7 +200,7 @@ describe('Runtime Lane adapter', () => {
       const warp = await openWarp({ storage, writer: 'agent-1' });
       const timeline = await warp.timeline('events');
       const lane = createWorldlineLane(timeline, new RuntimeActivity());
-      await lane.write(Intent.addNode({ subject: 'user:alice' }));
+      await timeline.write(Intent.addNode({ subject: 'user:alice' }));
       await createBoundedReadBasis(storage, 'events');
       const observer = createManyObserver<boolean>(
         'users.empty',
@@ -446,7 +254,7 @@ describe('Runtime Lane adapter', () => {
       const timeline = await warp.timeline('events');
       const activity = new RuntimeActivity();
       const lane = createWorldlineLane(timeline, activity);
-      await lane.write(Intent.addNode({ subject: 'user:alice' }));
+      await timeline.write(Intent.addNode({ subject: 'user:alice' }));
       await createBoundedReadBasis(storage, 'events');
       const observer = createManyObserver<boolean>(
         'users.exist',
@@ -486,8 +294,8 @@ describe('Runtime Lane adapter', () => {
       const warp = await openWarp({ storage, writer: 'agent-1' });
       const timeline = await warp.timeline('events');
       const lane = createWorldlineLane(timeline, new RuntimeActivity());
-      await lane.write(Intent.addNode({ subject: 'user:alice' }));
-      await lane.write(Intent.setProperty({
+      await timeline.write(Intent.addNode({ subject: 'user:alice' }));
+      await timeline.write(Intent.setProperty({
         subject: 'user:alice',
         key: 'role',
         value: 42,
@@ -512,23 +320,16 @@ describe('Runtime Lane adapter', () => {
     }
   });
 
-  it('guards advanced coordinate capture and fork ports with the Runtime lifecycle', async () => {
+  it('guards advanced coordinate capture with the Runtime lifecycle', async () => {
     const storage = MemoryStorage.create();
     try {
       const warp = await openWarp({ storage, writer: 'agent-1' });
       const timeline = await warp.timeline('events');
       const activity = new RuntimeActivity();
       const lane = createWorldlineLane(timeline, activity);
-      const fork = requireLaneRuntime(lane).fork;
-      if (fork === null) {
-        throw new Error('worldline Lane is missing its fork port');
-      }
       await activity.close(async () => {});
 
       await expect(captureCoordinate(lane)).rejects.toMatchObject({
-        code: 'E_RUNTIME_CLOSED',
-      });
-      await expect(fork('closed-fork')).rejects.toMatchObject({
         code: 'E_RUNTIME_CLOSED',
       });
     } finally {

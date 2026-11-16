@@ -9,7 +9,7 @@ type ContentAttachmentFields = Readonly<{
   mime: string | null;
   size: number | null;
   owner: ContentOwnerDescriptor;
-  open: () => AsyncIterable<Uint8Array>;
+  open: () => AsyncIterable<Uint8Array, void, undefined>;
 }>;
 
 /** One captured attachment identity and its stream-opening capability. No payload bytes are retained. */
@@ -18,7 +18,7 @@ export default class ContentAttachment {
   readonly mime: string | null;
   readonly size: number | null;
   readonly owner: ContentOwnerDescriptor;
-  readonly #open: () => AsyncIterable<Uint8Array>;
+  readonly #open: () => AsyncIterable<Uint8Array, void, undefined>;
 
   constructor(fields: ContentAttachmentFields | null | undefined) {
     if (fields === null || fields === undefined) {
@@ -39,7 +39,7 @@ export default class ContentAttachment {
   }
 
   /** Opens the captured bytes, even when the current owner has since changed. */
-  open(): AsyncIterable<Uint8Array> { return this.#open(); }
+  open(): AsyncIterable<Uint8Array, void, undefined> { return this.#open(); }
 }
 
 function requireSize(size: number | null): number | null {

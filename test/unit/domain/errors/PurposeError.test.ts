@@ -24,7 +24,7 @@ describe('PurposeError', () => {
   });
 
   it('handles null and undefined options safely', () => {
-    const err1 = new PurposeError('null opts', null as unknown as undefined);
+    const err1 = new PurposeError('null opts', null);
     expect(err1.code).toBe('E_PURPOSE');
     expect(err1.context).toEqual({});
 

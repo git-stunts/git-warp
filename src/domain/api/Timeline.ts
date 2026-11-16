@@ -8,7 +8,7 @@ import Reading from './Reading.ts';
 import type { default as ReadingResult, ReadingValue } from './ReadingResult.ts';
 import Tick from './Tick.ts';
 import type TimelineView from './TimelineView.ts';
-import type WriteReceipt from './WriteReceipt.ts';
+import type TimelineWriteReceipt from './TimelineWriteReceipt.ts';
 
 const DETERMINISTIC_JOIN_POLICY: 'deterministic' = 'deterministic';
 const DEFAULT_JOIN_OPTIONS: JoinOptions = Object.freeze({ policy: DETERMINISTIC_JOIN_POLICY });
@@ -36,7 +36,7 @@ type CaptureTick = () => Promise<Tick>;
 type OpenDraft = (name: string) => Promise<DraftTimeline>;
 type OpenView = (tick: Tick) => TimelineView;
 type ReadReading = (reading: Reading) => Promise<ReadingResult>;
-type WriteIntent = (intent: WriteIntentInput) => Promise<WriteReceipt<WriteIntentInput>>;
+type WriteIntent = (intent: WriteIntentInput) => Promise<TimelineWriteReceipt<WriteIntentInput>>;
 type TimelinePortErrorCode =
   | 'E_TIMELINE_JOINER'
   | 'E_TIMELINE_TICK_READER'
@@ -162,10 +162,10 @@ export default class Timeline {
     return result.value;
   }
 
-  write(intent: Intent): Promise<WriteReceipt>;
-  write(intents: readonly Intent[]): Promise<WriteReceipt<readonly Intent[]>>;
-  write(intent: WriteIntentInput): Promise<WriteReceipt<WriteIntentInput>>;
-  async write(intent: WriteIntentInput): Promise<WriteReceipt<WriteIntentInput>> {
+  write(intent: Intent): Promise<TimelineWriteReceipt>;
+  write(intents: readonly Intent[]): Promise<TimelineWriteReceipt<readonly Intent[]>>;
+  write(intent: WriteIntentInput): Promise<TimelineWriteReceipt<WriteIntentInput>>;
+  async write(intent: WriteIntentInput): Promise<TimelineWriteReceipt<WriteIntentInput>> {
     assertIntentInput(intent);
     if (this.#writeIntent === null) {
       throw new WarpError('Timeline was not opened by openWarp', 'E_TIMELINE_RUNTIME_UNAVAILABLE');

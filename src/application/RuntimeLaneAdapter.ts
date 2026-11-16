@@ -1,9 +1,6 @@
 import { contentObserverOwner } from '../domain/api/ContentObserverRuntime.ts';
-import { startContentObservation, startStrandContentObservation } from './RuntimeContentObservation.ts';
+import { startContentObservation } from './RuntimeContentObservation.ts';
 import type ReadingResult from '../domain/api/ReadingResult.ts';
-import type DraftTimeline from '../domain/api/DraftTimeline.ts';
-import { createDraftReadingTarget } from '../domain/api/DraftTimelineRuntime.ts';
-import type { DraftReadingTarget } from '../domain/api/DraftReadingTarget.ts';
 import type Timeline from '../domain/api/Timeline.ts';
 import type TimelineView from '../domain/api/TimelineView.ts';
 import {
@@ -26,21 +23,8 @@ import type Tick from '../domain/api/Tick.ts';
 import WarpError from '../domain/errors/WarpError.ts';
 import WarpStream from '../domain/stream/WarpStream.ts';
 import type RuntimeActivity from './RuntimeActivity.ts';
-import ContentStagingAuthority from '../domain/services/ContentStagingAuthority.ts';
-import RuntimeContentStaging from './RuntimeContentStaging.ts';
 import type { RuntimeActivityLease } from './RuntimeActivity.ts';
-import RuntimeMutationGate from './RuntimeMutationGate.ts';
-import { bindStrandLaneRuntime } from './RuntimeStrandLaneBinding.ts';
-import {
-  forkWorldlineLane,
-  openWorldlineStrandLane,
-  type StrandLaneOptions,
-  type WorldlineLaneSource,
-} from './RuntimeStrandLaneOpening.ts';
-import {
-  startEntityAdmissionInventory,
-  unsupportedStrandEntityAdmissionInventory,
-} from './RuntimeEntityAdmissionInventory.ts';
+import { startEntityAdmissionInventory } from './RuntimeEntityAdmissionInventory.ts';
 
 type ReceiptSettlement = Readonly<{
   promise: Promise<ObservationReceipt>;
@@ -55,83 +39,20 @@ type ObservationLane = Readonly<{
 type ReadingStreamOutcome =
   | Readonly<{ kind: 'completed'; receipt: ReadReceipt | null }>
   | Readonly<{ kind: 'settled' }>;
-type RuntimeLaneOptions = Readonly<{
-  readonly content?: ContentStagingAuthority;
-  readonly mutations?: RuntimeMutationGate;
-  readonly owner?: object;
-}>;
 
+/** Wraps one worldline timeline as a read-only Lane. */
 export function createWorldlineLane(
   timeline: Timeline,
   activity: RuntimeActivity,
-  options: RuntimeLaneOptions = {},
 ): Lane {
-  const mutations = options.mutations ?? new RuntimeMutationGate();
-  const owner = options.owner ?? Object.freeze({});
-  const content = createContentStaging(timeline, activity, options.content);
   const lane = new Lane({
-    stageContent: content.stage.bind(content),
-    descriptor: { kind: 'worldline', name: timeline.name },
-    writer: timeline.writer,
-    writeIntent: async (intent) =>
-      await activity.run(async () =>
-        await mutations.run(async () => await timeline.write(intent))
-      ),
     startObserver: <TValue extends ReadingValue>(observer: Observer<TValue>) =>
       startObserver(timeline, observer, activity),
   });
-  bindWorldlineLaneRuntime({
-    content,
-    activity,
-    lane,
-    mutations,
-    owner,
-    parent: worldlineParent(timeline.name),
-    timeline,
+  bindLaneRuntime(lane, {
+    captureCoordinate: async () => await captureWorldlineCoordinate(timeline, activity),
   });
   return lane;
-}
-
-function createContentStaging(
-  timeline: Timeline, activity: RuntimeActivity, authority = new ContentStagingAuthority(),
-): RuntimeContentStaging {
-  return new RuntimeContentStaging({
-    activity, authority,
-    storage: () => requireTimelineRuntime(timeline).assetStorage, slug: timeline.name,
-  });
-}
-
-function worldlineParent(name: string): Readonly<{ kind: 'worldline'; name: string }> {
-  return Object.freeze({ kind: 'worldline', name });
-}
-
-function bindWorldlineLaneRuntime(options: {
-  readonly content: RuntimeContentStaging;
-  readonly activity: RuntimeActivity;
-  readonly lane: Lane;
-  readonly mutations: RuntimeMutationGate;
-  readonly owner: object;
-  readonly parent: Readonly<{ readonly kind: 'worldline'; readonly name: string }>;
-  readonly timeline: Timeline;
-}): void {
-  const source: WorldlineLaneSource = Object.freeze({
-    content: options.content,
-    activity: options.activity,
-    mutations: options.mutations,
-    owner: options.owner,
-    parent: options.parent,
-    timeline: options.timeline,
-  });
-  bindLaneRuntime(options.lane, {
-    captureCoordinate: async () =>
-      await captureWorldlineCoordinate(source.timeline, source.activity),
-    fork: async (name) =>
-      await forkWorldlineLane(source, name, createStrandLane),
-    openStrand: async (name) =>
-      await openWorldlineStrandLane(source, name, createStrandLane),
-    owner: source.owner,
-    settlement: Object.freeze({ kind: 'target' }),
-  });
 }
 
 async function captureWorldlineCoordinate(
@@ -143,34 +64,6 @@ async function captureWorldlineCoordinate(
     await runtime.prepareOpticBasis();
     return await runtime.coordinate();
   });
-}
-
-function createStrandLane(options: StrandLaneOptions): Lane {
-  const { activity, draft, mutations } = options;
-  const lane = new Lane({
-    ...(options.content === undefined ? {} : { stageContent: options.content.stage.bind(options.content) }),
-    descriptor: {
-      kind: 'strand',
-      name: draft.name,
-      parent: options.parent,
-      forkedAt: options.forkedAt,
-    },
-    writer: draft.writer,
-    writeIntent: async (intent) =>
-      await activity.run(async () =>
-        await mutations.run(async () => await draft.write(intent))
-      ),
-    startObserver: <TValue extends ReadingValue>(observer: Observer<TValue>) =>
-      startStrandObserver(draft, observer, activity),
-  });
-  bindStrandLaneRuntime({
-    activity,
-    draft,
-    lane,
-    mutations,
-    owner: options.owner,
-  });
-  return lane;
 }
 
 function startObserver<TValue extends ReadingValue>(
@@ -205,37 +98,6 @@ async function startBoundedObserver<TValue extends ReadingValue>(
         tick,
         timeline,
         target: tick === null ? timeline : timeline.at(tick),
-      })),
-      receipt: settlement.promise,
-    });
-  } catch (error) {
-    lease.release();
-    throw error;
-  }
-}
-
-async function startStrandObserver<TValue extends ReadingValue>(
-  draft: DraftTimeline,
-  observer: Observer<TValue>,
-  activity: RuntimeActivity,
-): Promise<ObservationExecution<TValue>> {
-  const owner = contentObserverOwner(observer);
-  if (owner !== null) { return await startStrandContentObservation({ draft, observer, owner, activity }); }
-  if (isEntityAdmissionInventoryObserver(observer)) {
-    return unsupportedStrandEntityAdmissionInventory(draft, observer);
-  }
-  const lease = activity.acquire();
-  try {
-    const target: DraftReadingTarget = await createDraftReadingTarget(draft);
-    const settlement = createReceiptSettlement();
-    return Object.freeze({
-      readings: WarpStream.from(streamReadings({
-        lease,
-        observer,
-        settlement,
-        tick: target.tick,
-        timeline: draft,
-        target,
       })),
       receipt: settlement.promise,
     });

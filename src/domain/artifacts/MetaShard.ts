@@ -1,4 +1,5 @@
 import { IndexShard } from './IndexShard.ts';
+import requireRoaringShardBytes from './RoaringShardBytes.ts';
 
 /** Node-to-global-ID mappings + alive bitmap for a shard. */
 export class MetaShard extends IndexShard {
@@ -16,7 +17,7 @@ export class MetaShard extends IndexShard {
     super({ shardKey, schemaVersion });
     this.nodeToGlobal = nodeToGlobal;
     this.nextLocalId = nextLocalId;
-    this.alive = alive;
+    this.alive = requireRoaringShardBytes(alive);
     Object.freeze(this);
   }
 }

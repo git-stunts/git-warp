@@ -10,10 +10,7 @@ import {
 import { COMMANDS } from '../../../bin/cli/commands/registry.ts';
 
 const ACCEPTED_COMMANDS = [
-  'write',
   'observe',
-  'fork',
-  'settle',
   'receipt',
   'doctor',
   'repair',
@@ -22,6 +19,9 @@ const ACCEPTED_COMMANDS = [
 ] as const;
 
 const REMOVED_COMMANDS = [
+  'write',
+  'fork',
+  'settle',
   'query',
   'path',
   'optic',
@@ -36,15 +36,12 @@ const COMMAND_SOURCE_FILES = [
   'MaterializationRepair.ts',
   'audit.ts',
   'doctor-v19.ts',
-  'fork.ts',
   'mcp.ts',
   'observe.ts',
   'receipt.ts',
   'registry.ts',
   'repair.ts',
-  'settle.ts',
   'verify-audit.ts',
-  'write.ts',
 ] as const;
 
 const CLI_ENTRYPOINT_SOURCE = readFileSync(

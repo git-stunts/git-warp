@@ -34,6 +34,7 @@ import type Patch from '../../types/Patch.ts';
 import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type ConfigPort from '../../../ports/ConfigPort.ts';
+import type RandomPort from '../../../ports/RandomPort.ts';
 import MissingWriterConfigurationError from '../../errors/MissingWriterConfigurationError.ts';
 import type { PatchDiff } from '../../types/PatchDiff.ts';
 import type { TickReceipt } from '../../types/TickReceipt.ts';
@@ -70,6 +71,7 @@ export interface PatchHost extends PatchDiscoveryHost {
   _allocationFloors: AllocationFloorStorePort | null;
   _dotRepairs: DotRepairStorePort | null;
   _writerId: string;
+  _random: RandomPort;
   _versionVector: VersionVector;
   _cachedState: WarpState | null;
   _stateDirty: boolean;
@@ -344,9 +346,7 @@ export default class PatchController {
 
   // ── Writer lifecycle ────────────────────────────────────────────────────────
 
-  /**
-   * Creates a Writer bound to an existing (or resolved) writer ID.
-   */
+  /** Creates a Writer bound to an existing (or resolved) writer ID. */
   async writer(writerId?: string): Promise<Writer> {
     const h = this._host;
     const configGet = async (key: string): Promise<string | null> => {
@@ -359,10 +359,7 @@ export default class PatchController {
     };
 
     const resolvedWriterId = await resolveWriterId({
-      graphName: h._graphName,
-      explicitWriterId: writerId,
-      configGet,
-      configSet,
+      random: h._random, graphName: h._graphName, explicitWriterId: writerId, configGet, configSet,
     });
     return this._writerFor(resolvedWriterId);
   }

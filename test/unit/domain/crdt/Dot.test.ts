@@ -4,7 +4,6 @@ import {
   dotsEqual,
   encodeDot,
   decodeDot,
-  compareDots,
 } from '../../../../src/domain/crdt/Dot.ts';
 
 describe('Dot', () => {
@@ -214,75 +213,6 @@ describe('Dot', () => {
       const decoded = decodeDot(encoded);
 
       expect(dotsEqual(original, decoded)).toBe(true);
-    });
-  });
-
-  describe('compareDots', () => {
-    it('returns 0 for equal dots', () => {
-      const a = Dot.create('alice', 1);
-      const b = Dot.create('alice', 1);
-
-      expect(compareDots(a, b)).toBe(0);
-    });
-
-    it('compares by writerId first', () => {
-      const alice = Dot.create('alice', 100);
-      const bob = Dot.create('bob', 1);
-
-      expect(compareDots(alice, bob)).toBe(-1);
-      expect(compareDots(bob, alice)).toBe(1);
-    });
-
-    it('compares by counter when writerIds are equal', () => {
-      const first = Dot.create('alice', 1);
-      const second = Dot.create('alice', 2);
-
-      expect(compareDots(first, second)).toBe(-1);
-      expect(compareDots(second, first)).toBe(1);
-    });
-
-    it('is reflexive (a == a)', () => {
-      const dot = Dot.create('alice', 1);
-
-      expect(compareDots(dot, dot)).toBe(0);
-    });
-
-    it('is antisymmetric (if a < b then b > a)', () => {
-      const a = Dot.create('alice', 1);
-      const b = Dot.create('bob', 2);
-
-      const cmpAB = compareDots(a, b);
-      const cmpBA = compareDots(b, a);
-
-      expect(cmpAB).toBe(-cmpBA);
-    });
-
-    it('is transitive (a < b < c implies a < c)', () => {
-      const a = Dot.create('alice', 1);
-      const b = Dot.create('bob', 1);
-      const c = Dot.create('charlie', 1);
-
-      expect(compareDots(a, b)).toBe(-1);
-      expect(compareDots(b, c)).toBe(-1);
-      expect(compareDots(a, c)).toBe(-1);
-    });
-
-    it('can be used for sorting', () => {
-      const dots = [
-        Dot.create('charlie', 2),
-        Dot.create('alice', 1),
-        Dot.create('bob', 3),
-        Dot.create('alice', 2),
-      ];
-
-      dots.sort(compareDots);
-
-      expect(dots).toEqual([
-        Dot.create('alice', 1),
-        Dot.create('alice', 2),
-        Dot.create('bob', 3),
-        Dot.create('charlie', 2),
-      ]);
     });
   });
 

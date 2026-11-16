@@ -2,7 +2,7 @@ import WarpError from '../errors/WarpError.ts';
 import { requireNonEmptyString } from '../utils/scalarValidation.ts';
 import type Evidence from './Evidence.ts';
 import { freezeEvidence } from './EvidenceRuntime.ts';
-import type { LaneReference } from './Lane.ts';
+import type { LaneReference } from './LaneReference.ts';
 
 type EntityAdmissionInventoryCertificateOptions = Readonly<{
   admissionCount: number;

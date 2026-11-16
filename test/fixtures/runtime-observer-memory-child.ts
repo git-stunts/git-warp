@@ -1,4 +1,5 @@
 import { getHeapStatistics } from 'node:v8';
+// eslint-disable-next-line no-restricted-syntax -- process bound: this child process samples its own peak memory; time decides no assertion
 import { clearInterval, setInterval } from 'node:timers';
 
 import { Runtime } from '../../index.ts';
@@ -25,6 +26,7 @@ const sampleMemory = (): void => {
   peakHeapUsedBytes = Math.max(peakHeapUsedBytes, memory.heapUsed);
   peakRssBytes = Math.max(peakRssBytes, memory.rss);
 };
+// eslint-disable-next-line no-restricted-syntax -- process bound: memory sampling cadence in this child process; time decides no assertion
 const sampler = setInterval(sampleMemory, 5);
 sampler.unref();
 sampleMemory();

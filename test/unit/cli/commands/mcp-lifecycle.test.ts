@@ -37,7 +37,6 @@ describe('MCP command lifecycle', () => {
       options: {
         repo: '.',
         lane: 'demo',
-        strand: null,
         writer: 'cli',
         writerExplicit: true,
         json: false,

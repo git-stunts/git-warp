@@ -91,7 +91,7 @@ describe('coverage update intent through the actual Docker command and exporter'
     expect(result.error).toBeUndefined();
     expect(result.status, result.stdout + result.stderr).toBe(0);
     expect(result.stdout).toContain('complete (1 files); zero errors');
-    expect(readFileSync(join(input.root, 'vitest.config.ts'), 'utf8')).toBe(baseline.replace('lines: 0,', 'lines: 100,'));
+    expect(readFileSync(join(input.root, 'vitest.config.ts'), 'utf8')).toBe(baseline.replace('lines: 0,', 'lines: 99.99,'));
   });
   it.each(['ci', 'targeted'])('keeps the %s threshold unchanged without lifecycle metadata', mode => {
     const input = fixture('passed');

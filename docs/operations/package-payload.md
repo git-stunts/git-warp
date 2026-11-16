@@ -64,11 +64,11 @@ any file is removed. JavaScript and supported assets remain unchanged.
 The resulting artifact contains 993 files, 716,164 compressed bytes, and
 3,143,572 unpacked bytes.
 
-| Ceiling          | Value at that audit | Headroom over that artifact |
-| ---------------- | ------------------- | --------------------------- |
-| Compressed bytes | 760,000             | 43,836 bytes (6.1%)         |
-| Unpacked bytes   | 3,300,000           | 156,428 bytes (5.0%)        |
-| Entries          | 1,050               | 57 entries (5.7%)           |
+| Ceiling          | Value     | Headroom over the measured artifact |
+| ---------------- | --------- | ----------------------------------- |
+| Compressed bytes | 760,000   | 43,836 bytes (6.1%)                 |
+| Unpacked bytes   | 3,300,000 | 156,428 bytes (5.0%)                |
+| Entries          | 1,250     | 48 entries (3.8%) at #1054          |
 
 By October 2026 source growth had used that headroom: the artifact measured
 756,533 compressed and 3,297,802 unpacked bytes, and a single new source file
@@ -86,23 +86,10 @@ Composing `Warp` from the package root brought the cone engine and observation c
 into the published closure alongside the legacy `Runtime`
 ([#1051](https://github.com/git-stunts/git-warp/issues/1051)). The artifact measured 1,229
 entries, so the entry ceiling rose to 1,300, and only about 4,200 unpacked bytes
-of headroom remain. Removing the legacy surface under
-[#1054](https://github.com/git-stunts/git-warp/issues/1054) should allow it to fall again.
-
-Bounded optic reads ([#1052](https://github.com/git-stunts/git-warp/issues/1052))
-then measured 1,254 entries, 719,742 compressed bytes and 3,319,627 unpacked
-bytes, over the unpacked ceiling. These ceilings are regression tripwires, not
-a size budget: each was set at about 5% over a measured artifact, and the path
-allowlist below is what keeps unsupported files out. The unpacked ceiling rose
-to 3,490,000 bytes and the entry ceiling to 1,320, again about 5% over the
-measurement. The compressed ceiling still had 5.6% headroom and stays. #1054
-deletes the legacy surface and should set them from a fresh measurement.
-
-| Ceiling          | Current value | Headroom over the #1052 artifact |
-| ---------------- | ------------- | -------------------------------- |
-| Compressed bytes | 760,000       | 40,258 bytes (5.6%)              |
-| Unpacked bytes   | 3,490,000     | 170,373 bytes (5.1%)             |
-| Entries          | 1,320         | 66 entries (5.3%)                |
+of headroom remain. Removing the legacy write, strand and settlement surface under
+[#1054](https://github.com/git-stunts/git-warp/issues/1054) brought the artifact to 1,202
+entries and 3,212,039 unpacked bytes, so the entry ceiling fell to 1,250. #814 owns the
+next reduction.
 
 ## Allowlist
 
@@ -201,6 +188,16 @@ manifest export `import`/`default` conditions and published executables. The
 TypeScript fallback is not a published runtime. The supported legacy upgrade
 command is an additional explicit root. Unrecognized export shapes or launcher
 paths fail validation rather than silently disappearing from the root set.
+
+The installed `npm run upgrade -- ...` command runs the compiled migration
+directly. It does not build or change the installed package. To invoke it from
+another directory, use `npm --prefix <installed-package> run upgrade -- ...`
+and pass `--repo <repository>` explicitly. In a source checkout, run
+`npm run build` before `npm run upgrade`. Build needs the checkout's source,
+compiler configuration, and development dependencies; these are not part of
+the installed runtime. The packed smoke runs the npm command for help and
+dry-run, and verifies that the installed file bytes and repository refs stay
+unchanged.
 
 NFT traces literal dynamic imports and filesystem references. Trace warnings,
 missing roots, and computed dynamic imports block pruning before deletion.

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Runtime } from '../../../index.ts';
+import { writeThroughWarp } from '../../helpers/WarpSeed.ts';
 import { intent } from '../../../advanced.ts';
 import AdapterValidationError from '../../../src/domain/errors/AdapterValidationError.ts';
 import { createGitRepo } from '../../helpers/WarpGraphTestRepositories.ts';
@@ -75,21 +76,15 @@ describe.each(['sha1', 'sha256'])('ref CAS in %s repositories', (format) => {
     } finally { await repo.cleanup(); }
   }, CASE_TIMEOUT_MS);
 
-  it('opens a fresh public Lane, publishes a marker, and admits writes across reopen', async () => {
+  it('writes through a fresh public Warp, publishes a marker, and admits writes across reopen', async () => {
     const repo = await repository();
     try {
-      const runtime = await Runtime.open({ at: repo.tempDir, writer: 'writer' });
-      try {
-        const lane = await runtime.lane('L');
-        expect((await lane.write(intent.node.add({ subject: 'n' }))).outcome.kind).toBe('derived');
-        expect(await repo.persistence.readRef('refs/warp/L/substrate-version')).not.toBeNull();
-      } finally { await runtime.close(); }
-      const reopened = await Runtime.open({ at: repo.tempDir, writer: 'writer' });
-      try {
-        const lane = await reopened.lane('L');
-        expect((await lane.write(intent.property.set({ subject: 'n', key: 'v', value: 'ok' }))).outcome.kind).toBe('derived');
-        expect(await repo.persistence.readRef('refs/warp/L/writers/writer')).not.toBeNull();
-      } finally { await reopened.close(); }
+      expect((await writeThroughWarp(repo.tempDir, 'L', 'writer', intent.node.add({ subject: 'n' }))).outcome.kind).toBe('derived');
+      expect(await repo.persistence.readRef('refs/warp/L/substrate-version')).not.toBeNull();
+      expect((await writeThroughWarp(repo.tempDir, 'L', 'writer', intent.property.set({ subject: 'n', key: 'v', value: 'ok' }))).outcome.kind).toBe('derived');
+      expect(await repo.persistence.readRef('refs/warp/L/writers/writer')).not.toBeNull();
+      const runtime = await Runtime.open({ at: repo.tempDir, writer: 'reader' });
+      await runtime.close();
     } finally { await repo.cleanup(); }
   }, CASE_TIMEOUT_MS);
 });

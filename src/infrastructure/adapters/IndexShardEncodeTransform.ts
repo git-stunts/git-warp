@@ -52,14 +52,14 @@ export class IndexShardEncodeTransform extends Transform<IndexShard, [string, Ui
 
   override async *apply(source: AsyncIterable<IndexShard>): AsyncIterable<[string, Uint8Array]> {
     for await (const shard of source) {
-      yield this._encode(shard);
+      yield this.encodeShard(shard);
     }
   }
 
   /**
    * Maps a single IndexShard to [path, bytes].
    */
-  private _encode(shard: IndexShard): [string, Uint8Array] {
+  encodeShard(shard: IndexShard): [string, Uint8Array] {
     if (shard instanceof MetaShard) {
       return this._encodePayload(
         `meta_${shard.shardKey}.cbor`,
@@ -147,6 +147,7 @@ function propertyShardPayload(
   };
 }
 
+/** Orders the keys of one property bag; keys are unique, so two never compare equal. */
 function compareStrings(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
+  return left < right ? -1 : 1;
 }

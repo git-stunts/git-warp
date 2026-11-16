@@ -31,7 +31,12 @@ configuration writes are always disabled.
 The runner first verifies a nonempty selected manifest, a terminal result for
 every selected file, at least one passing test, zero unhandled errors and a
 successful teardown. It then validates the fresh coverage summary and raises
-the line threshold only when coverage improves. Ambiguous configuration,
+the line threshold only when coverage improves. The written threshold is the
+measured line percentage floored to hundredths, minus one hundredth. Istanbul
+reports hundredths, and some lines are covered or not depending on run timing,
+so CI can measure a commit slightly lower than a local run did (#1133). The
+one-step margin absorbs up to 0.01% of that variance; larger variance is a
+nondeterministic test to fix, not a reason to widen the margin. Ambiguous configuration,
 invalid reports or a configuration edited during the run refuse the update.
 
 `npm run test:coverage:ci` and coverage commands with extra arguments report

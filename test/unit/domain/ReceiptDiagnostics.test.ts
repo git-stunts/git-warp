@@ -6,7 +6,7 @@ import { createApiRuntimeContext } from '../../../src/application/ReceiptProvena
 import { projectAdmissionOutcome } from '../../../src/domain/api/AdmissionOutcomeRuntime.ts';
 import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import { reading } from '../../../src/domain/api/ReadingBuilders.ts';
-import WriteReceipt from '../../../src/domain/api/WriteReceipt.ts';
+import TimelineWriteReceipt from '../../../src/domain/api/TimelineWriteReceipt.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import MemoryStorage from '../../helpers/MemoryStorage.ts';
 import { createBoundedReadBasis } from '../../helpers/BoundedReadBasis.ts';
@@ -161,7 +161,7 @@ describe('receipt diagnostics', () => {
   });
 
   it('rejects receipts that were not issued by a Runtime', () => {
-    const receipt = new WriteReceipt({
+    const receipt = new TimelineWriteReceipt({
       lane: 'events',
       writer: 'agent-1',
       intent: intent.node.add({ subject: 'user:alice' }),
@@ -178,7 +178,7 @@ describe('receipt diagnostics', () => {
   it('binds raw receipt provenance exactly once', () => {
     const storage = MemoryStorage.create();
     const context = createApiRuntimeContext(storage, new NodeCryptoAdapter());
-    const receipt = new WriteReceipt({
+    const receipt = new TimelineWriteReceipt({
       lane: 'events',
       writer: 'agent-1',
       intent: intent.node.add({ subject: 'user:alice' }),

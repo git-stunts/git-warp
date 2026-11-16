@@ -15,6 +15,8 @@ import type { SyncRequest, SyncResponse } from '../domain/services/sync/SyncProt
 import type SyncSecret from '../domain/services/sync/SyncSecret.ts';
 import type { SyncAuthScheme } from '../domain/services/sync/SyncAuthService.ts';
 import type CryptoPort from './CryptoPort.ts';
+import type RandomPort from './RandomPort.ts';
+import type ClockPort from './ClockPort.ts';
 
 /**
  * Auth configuration carried on a sync exchange; the adapter uses
@@ -24,8 +26,11 @@ export interface SyncHttpAuth {
   readonly scheme: SyncAuthScheme;
   readonly secret: SyncSecret;
   readonly keyId?: string;
-  readonly lamport: number;
   readonly crypto: CryptoPort;
+  /** Entropy for the per-request nonce. */
+  readonly random: RandomPort;
+  /** Wall clock for the signed request timestamp. */
+  readonly clock: ClockPort;
 }
 
 /** Input to a single sync HTTP exchange. */

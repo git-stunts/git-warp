@@ -39,6 +39,8 @@ describe('GitCasSyncReplayProtectionAdapter', () => {
       admitted: true,
       expiresAt: new Date(61_000).toISOString(),
       generation: 'generation-1',
+      reservedAtMs: 1_000,
+      completedAtMs: 1_000,
     });
     expect(await adapter.sweep()).toEqual({
       removed: 2,
@@ -74,6 +76,8 @@ describe('GitCasSyncReplayProtectionAdapter', () => {
       admitted: false,
       expiresAt: retainedExpiry,
       generation: 'generation-existing',
+      reservedAtMs: 0,
+      completedAtMs: 0,
     });
   });
 

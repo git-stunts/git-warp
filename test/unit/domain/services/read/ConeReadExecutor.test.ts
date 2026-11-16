@@ -39,7 +39,7 @@ function createFixture(decision: WarpReadGrant | WarpAccessDenied) {
   const feed = new MemoryConeFeed(LANE);
   const cone = ConeLaneBasis.ofLane({ store, feed, lane: LANE });
   const access = new StaticReadAccess(decision);
-  const executor = new ConeReadExecutor({ graph: 'graph-1', access, cone });
+  const executor = new ConeReadExecutor({ graph: 'graph-1', access, cone: async () => await Promise.resolve(cone) });
   return { store, feed, cone, access, executor };
 }
 
@@ -79,7 +79,7 @@ describe('ConeReadExecutor', () => {
     const store = new InMemoryConeRecordStore();
     const feed = new MemoryConeFeed(LANE);
     const cone = ConeLaneBasis.ofLane({ store, feed, lane: LANE });
-    const executor = new ConeReadExecutor({ graph: 'graph-1', access: malformedAccess, cone });
+    const executor = new ConeReadExecutor({ graph: 'graph-1', access: malformedAccess, cone: async () => await Promise.resolve(cone) });
 
     const observation = await executor.read({
       observer,
@@ -308,7 +308,7 @@ describe('ConeReadExecutor', () => {
     expect(blobReceipt.status).toBe('budget-exhausted');
 
     const nestedAccess = new StaticReadAccess(new WarpReadGrant({ authority: 'auth-1', budget: ReadBudget.of({ records: 1, bytes: 1024, work: 1 }) }));
-    const nestedExecutor = new ConeReadExecutor({ graph: 'graph-1', access: nestedAccess, cone });
+    const nestedExecutor = new ConeReadExecutor({ graph: 'graph-1', access: nestedAccess, cone: async () => await Promise.resolve(cone) });
     const nestedObs = await nestedExecutor.read({
       observer,
       purpose,
@@ -319,7 +319,7 @@ describe('ConeReadExecutor', () => {
 
     const oneByteBudget = ReadBudget.of({ records: 1, bytes: 1, work: 1 });
     const oneByteAccess = new StaticReadAccess(new WarpReadGrant({ authority: 'auth-1', budget: oneByteBudget }));
-    const oneByteExecutor = new ConeReadExecutor({ graph: 'graph-1', access: oneByteAccess, cone });
+    const oneByteExecutor = new ConeReadExecutor({ graph: 'graph-1', access: oneByteAccess, cone: async () => await Promise.resolve(cone) });
     const presenceObs = await oneByteExecutor.read({
       observer,
       purpose,

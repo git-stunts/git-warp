@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Runtime } from '../../../index.ts';
+import { writeThroughWarp } from '../../helpers/WarpSeed.ts';
 import Intent from '../../../src/domain/api/Intent.ts';
 import { createTestRepo } from '../api/helpers/setup.ts';
 
@@ -97,12 +98,7 @@ function plantForeignMarker(hubPath: string): string {
 }
 
 async function write(target: Clone, writer: string, subject: string): Promise<void> {
-  const runtime = await Runtime.open({ at: target.tempDir, writer });
-  try {
-    await (await runtime.lane(LANE)).write(Intent.addEntity({ subject, properties: { by: writer } }));
-  } finally {
-    await runtime.close();
-  }
+  await writeThroughWarp(target.tempDir, LANE, writer, Intent.addEntity({ subject, properties: { by: writer } }));
 }
 
 async function nodes(target: Clone): Promise<string[]> {

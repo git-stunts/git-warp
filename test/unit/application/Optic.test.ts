@@ -23,12 +23,7 @@ describe('Optic', () => {
     // @ts-expect-error Testing invalid view
     expect(() => Optic({})).toThrow(OpticError);
 
-    try {
-      // @ts-expect-error Testing invalid view
-      Optic('not-a-view');
-    } catch (err) {
-      expect(err).toBeInstanceOf(OpticError);
-      expect((err as OpticError).code).toBe('E_OPTIC_VIEW');
-    }
+    // @ts-expect-error The runtime boundary must reject a string view.
+    expect(() => Optic('not-a-view')).toThrow(expect.objectContaining({ code: 'E_OPTIC_VIEW' }));
   });
 });

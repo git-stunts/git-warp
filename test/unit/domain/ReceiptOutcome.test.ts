@@ -14,7 +14,7 @@ import { intent } from '../../../src/domain/api/IntentBuilders.ts';
 import { freezeEvidence } from '../../../src/domain/api/EvidenceRuntime.ts';
 import JoinReceipt from '../../../src/domain/api/JoinReceipt.ts';
 import { READ_JOIN_RECEIPT_OUTCOMES } from '../../../src/domain/api/ReceiptOutcome.ts';
-import WriteReceipt from '../../../src/domain/api/WriteReceipt.ts';
+import TimelineWriteReceipt from '../../../src/domain/api/TimelineWriteReceipt.ts';
 import { Dot } from '../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../src/domain/utils/EventId.ts';
 import {
@@ -112,7 +112,7 @@ describe('receipt outcomes', () => {
       testObstructedIntentAdmissionReceipt('manual-write', 'git-warp.test.policy-rejected').outcome,
       EVIDENCE.basis
     );
-    const receipt = new WriteReceipt({
+    const receipt = new TimelineWriteReceipt({
       lane: 'events',
       writer: 'agent-1',
       intent: intent.node.add({ subject: 'user:alice' }),
@@ -135,7 +135,7 @@ describe('receipt outcomes', () => {
 
     expect(
       () =>
-        new WriteReceipt({
+        new TimelineWriteReceipt({
           lane: 'events',
           writer: 'agent-1',
           intent: intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } }),
@@ -155,8 +155,8 @@ describe('receipt outcomes', () => {
       evidence: EVIDENCE,
     };
 
-    expect(new WriteReceipt(fields).occurrence).toBeUndefined();
-    expect(() => new WriteReceipt({ ...fields, occurrence: entityOccurrence() })).toThrowError(
+    expect(new TimelineWriteReceipt(fields).occurrence).toBeUndefined();
+    expect(() => new TimelineWriteReceipt({ ...fields, occurrence: entityOccurrence() })).toThrowError(
       expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' })
     );
   });
@@ -174,7 +174,7 @@ describe('receipt outcomes', () => {
 
     expect(
       () =>
-        new WriteReceipt({
+        new TimelineWriteReceipt({
           lane: 'events',
           writer: 'agent-1',
           intent: intent.node.add({ subject: 'entry:1' }),
@@ -185,7 +185,7 @@ describe('receipt outcomes', () => {
     ).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
     expect(
       () =>
-        new WriteReceipt({
+        new TimelineWriteReceipt({
           lane: 'events',
           writer: 'agent-1',
           intent: intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } }),
@@ -199,7 +199,7 @@ describe('receipt outcomes', () => {
   it('retains the substrate occurrence on an admitted entity receipt', () => {
     const entityIntent = intent.entity.add({ subject: 'entry:1', properties: { kind: 'capture' } });
     const occurrence = entityOccurrence(entityIntent);
-    const receipt = new WriteReceipt({
+    const receipt = new TimelineWriteReceipt({
       lane: 'events',
       writer: 'agent-1',
       intent: entityIntent,
@@ -249,20 +249,20 @@ describe('receipt outcomes', () => {
       evidence: EVIDENCE,
     };
 
-    const receipt = new WriteReceipt({ ...fields, occurrences: [first, second] });
+    const receipt = new TimelineWriteReceipt({ ...fields, occurrences: [first, second] });
 
     expect(receipt.occurrence).toBeUndefined();
     expect(receipt.occurrences).toEqual([first, second]);
     expect(receipt.intents).toEqual(fields.intent);
-    expect(() => new WriteReceipt({ ...fields, occurrences: [second, first] })).toThrowError(
+    expect(() => new TimelineWriteReceipt({ ...fields, occurrences: [second, first] })).toThrowError(
       expect.objectContaining({ code: 'E_ENTITY_OCCURRENCE_RECEIPT_MISMATCH' }),
     );
-    expect(() => new WriteReceipt({ ...fields, occurrences: [first] })).toThrowError(
+    expect(() => new TimelineWriteReceipt({ ...fields, occurrences: [first] })).toThrowError(
       expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }),
     );
     const sparseOccurrences = new Array<EntityOccurrence>(2);
     sparseOccurrences[0] = first;
-    expect(() => new WriteReceipt({ ...fields, occurrences: sparseOccurrences })).toThrowError(
+    expect(() => new TimelineWriteReceipt({ ...fields, occurrences: sparseOccurrences })).toThrowError(
       expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }),
     );
   });
@@ -272,7 +272,7 @@ describe('receipt outcomes', () => {
       intent.node.add({ subject: 'entry:1' }),
       intent.node.add({ subject: 'entry:2' }),
     ];
-    const receipt = new WriteReceipt({
+    const receipt = new TimelineWriteReceipt({
       lane: 'events',
       writer: 'agent-1',
       intent: intents,
@@ -306,17 +306,17 @@ describe('receipt outcomes', () => {
       evidence: EVIDENCE,
     };
 
-    expect(() => new WriteReceipt({
+    expect(() => new TimelineWriteReceipt({
       ...fields,
       occurrence,
       occurrences: [occurrence],
     })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
-    expect(() => new WriteReceipt({
+    expect(() => new TimelineWriteReceipt({
       ...fields,
       // @ts-expect-error Exercise the JavaScript boundary.
       occurrences: {},
     })).toThrowError(expect.objectContaining({ code: 'E_WRITE_RECEIPT_ENTITY_OCCURRENCE' }));
-    expect(() => new WriteReceipt(null)).toThrowError(
+    expect(() => new TimelineWriteReceipt(null)).toThrowError(
       expect.objectContaining({ code: 'E_WRITE_RECEIPT_OPTIONS' }),
     );
   });
@@ -327,7 +327,7 @@ describe('receipt outcomes', () => {
       coordinateWriter: 'strand-overlay',
       receiptWriter: 'agent-1',
     });
-    const receipt = new WriteReceipt({
+    const receipt = new TimelineWriteReceipt({
       lane: 'events',
       writer: 'agent-1',
       intent: entityIntent,
@@ -374,7 +374,7 @@ describe('receipt outcomes', () => {
     ];
 
     for (const mismatch of mismatches) {
-      expect(() => new WriteReceipt(mismatch)).toThrowError(
+      expect(() => new TimelineWriteReceipt(mismatch)).toThrowError(
         expect.objectContaining({
           code: 'E_ENTITY_OCCURRENCE_RECEIPT_MISMATCH',
         })
@@ -391,7 +391,7 @@ describe('receipt outcomes', () => {
 
     expect(
       () =>
-        new WriteReceipt({
+        new TimelineWriteReceipt({
           lane: 'events',
           writer: 'agent-1',
           intent: intent.entity.add({
@@ -411,7 +411,7 @@ describe('receipt outcomes', () => {
   it('rejects legacy string write outcomes at runtime', () => {
     expect(
       () =>
-        new WriteReceipt({
+        new TimelineWriteReceipt({
           lane: 'events',
           writer: 'agent-1',
           intent: intent.node.add({ subject: 'user:alice' }),
@@ -444,7 +444,7 @@ describe('receipt outcomes', () => {
     );
     expect(
       () =>
-        new WriteReceipt({
+        new TimelineWriteReceipt({
           lane: 'events',
           writer: 'agent-1',
           intent: intent.node.add({ subject: 'user:alice' }),

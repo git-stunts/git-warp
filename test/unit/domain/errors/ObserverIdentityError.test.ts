@@ -24,7 +24,7 @@ describe('ObserverIdentityError', () => {
   });
 
   it('handles null and undefined options safely', () => {
-    const err1 = new ObserverIdentityError('null opts', null as unknown as undefined);
+    const err1 = new ObserverIdentityError('null opts', null);
     expect(err1.code).toBe('E_OBSERVER_IDENTITY');
     expect(err1.context).toEqual({});
 

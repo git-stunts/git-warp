@@ -3,6 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Plumbing from '@git-stunts/plumbing';
+import { GitPlumbingError, GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
+import ConeStoreUnavailableError from '../../../../src/domain/errors/ConeStoreUnavailableError.ts';
+import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 import ConeBasis from '../../../../src/domain/services/cone/ConeBasis.ts';
 import ConeEdgeRecord from '../../../../src/domain/services/cone/ConeEdgeRecord.ts';
 import ConeFrontier from '../../../../src/domain/services/cone/ConeFrontier.ts';
@@ -19,6 +22,13 @@ import ConeBasisHead from '../../../../src/domain/services/cone/ConeBasisHead.ts
 import StoredConeBasis from '../../../../src/domain/services/cone/StoredConeBasis.ts';
 
 const LANE = 'events';
+
+/** The envelope plumbing's own classifier throws when a Git command meets a held lock file. */
+function locked(): GitRepositoryLockedError {
+  return new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', {
+    code: 128, stderr: "fatal: cannot lock ref 'refs/warp/events/cone/head': Unable to create 'refs/warp/events/cone/head.lock': File exists.",
+  });
+}
 const HEAD_OF_LANE = ConeBasisHead.forLane(LANE);
 const HEAD = `refs/warp/${LANE}/cone/head`;
 const directories: string[] = [];
@@ -203,8 +213,8 @@ describe('GitConeRecordStoreAdapter', () => {
 
   it('refuses heads of an unknown layout or without a frontier, and surfaces ref failures', async () => {
     const { history, store } = await fixture();
-    const failure = vi.spyOn(history, 'compareAndSwapRef').mockRejectedValueOnce(new Error('disk full'));
-    await expect(store.publishBasis(HEAD_OF_LANE, ConeBasis.empty(), null)).rejects.toThrow('disk full');
+    const failure = vi.spyOn(history, 'compareAndSwapRef').mockRejectedValueOnce(locked());
+    await expect(store.publishBasis(HEAD_OF_LANE, ConeBasis.empty(), null)).rejects.toThrow(ConeStoreUnavailableError);
     failure.mockRestore();
     await history.updateRef(HEAD, await history.writeTree([]));
     await expect(store.readBasis(HEAD_OF_LANE)).rejects.toMatchObject({ code: 'E_CONE_LAYOUT_UNSUPPORTED', context: { layout: '(unmarked)' } });
@@ -337,5 +347,75 @@ describe('GitConeRecordStoreAdapter strand heads, retained bases and dropped hea
     await store.dropBasis(head);
     expect(await history.readRef(head.ref())).toBeNull();
     expect(await store.readBasis(head)).toBeNull();
+  });
+});
+
+describe('GitConeRecordStoreAdapter host failures (#1079)', () => {
+  async function unavailability(read: Promise<object | null>, failure: Error): Promise<void> {
+    const rejected = await read.then(() => null, (error: Error) => error);
+    expect(rejected).toBeInstanceOf(ConeStoreUnavailableError);
+    expect(rejected).toMatchObject({ code: 'E_CONE_STORE_UNAVAILABLE', cause: failure });
+  }
+
+  it('reports a held lock beneath a record or basis read as an unavailable store, keeping its cause', async () => {
+    const { history, store } = await fixture();
+    const root = await store.writeRecords(ConeRoot.empty(), [node('a')]);
+    const blob = locked();
+    vi.spyOn(history, 'readBlob').mockRejectedValueOnce(blob);
+    await unavailability(store.readRecords(root, [ConeRecordKey.forNode('a')]), blob);
+    const ref = locked();
+    vi.spyOn(history, 'readRef').mockRejectedValueOnce(ref);
+    await unavailability(store.readBasis(HEAD_OF_LANE), ref);
+  });
+
+  it('reports a ref that cannot be locked or read for permission as an unavailable store', async () => {
+    const { history, store } = await fixture();
+    const locked = new PersistenceError('Ref I/O error: cone head', PersistenceError.E_REF_IO);
+    vi.spyOn(history, 'readRef').mockRejectedValueOnce(locked);
+    await unavailability(store.readBasis(HEAD_OF_LANE), locked);
+  });
+
+  it('reports a host failure deleting a basis head as an unavailable store', async () => {
+    const { history, store } = await fixture();
+    await store.publishBasis(HEAD_OF_LANE, ConeBasis.empty(), null);
+    const busy = locked();
+    vi.spyOn(history, 'deleteRef').mockRejectedValueOnce(busy);
+    await unavailability(store.dropBasis(HEAD_OF_LANE).then(() => null), busy);
+  });
+
+  it('refuses a stored record that does not decode as corruption, keeping defects as they are', async () => {
+    const { history, store } = await fixture();
+    const garbage = await history.writeBlob('not a cbor cone record');
+    const family = await history.writeTree([`100644 blob ${garbage}\t${ConeRecordKey.forNode('b').route}`]);
+    const forged = ConeRoot.at(await history.writeTree([`040000 tree ${family}\tn`]));
+    await expect(store.readRecords(forged, [ConeRecordKey.forNode('b')])).rejects.toMatchObject({ name: 'ConeRecordError', code: 'E_CONE_RECORD_CORRUPT' });
+    const defect = new TypeError('a decoder defect');
+    vi.spyOn(CborCodec.prototype, 'decode').mockImplementationOnce(() => { throw defect; });
+    await expect(store.readRecords(forged, [ConeRecordKey.forNode('b')])).rejects.toBe(defect);
+  });
+
+  it('reports a held lock beneath a write as unavailable, and rejects a Git process failure it cannot identify', async () => {
+    const { history, store } = await fixture();
+    const held = locked();
+    const execute = vi.spyOn(history.plumbing, 'execute').mockRejectedValueOnce(held);
+    await unavailability(store.writeRecords(ConeRoot.empty(), [node('a')]), held);
+    const spawn = new GitPlumbingError('spawn git EAGAIN', 'ExecutionOrchestrator.orchestrate', {
+      originalError: Object.assign(new Error('spawn git EAGAIN'), { code: 'EAGAIN' }),
+    });
+    execute.mockRejectedValueOnce(spawn);
+    await expect(store.writeRecords(ConeRoot.empty(), [node('a')])).rejects.toBe(spawn);
+  });
+
+  it('passes typed failures and defects through unchanged, and refuses a thrown non-error as a defect', async () => {
+    const { history, store } = await fixture();
+    const root = await store.writeRecords(ConeRoot.empty(), [node('a')]);
+    const missing = new PersistenceError('object missing', PersistenceError.E_MISSING_OBJECT);
+    const reads = vi.spyOn(history, 'readTreeObjectEntries').mockRejectedValueOnce(missing);
+    await expect(store.readRecords(root, [ConeRecordKey.forNode('a')])).rejects.toBe(missing);
+    const defect = new RangeError('a defect');
+    reads.mockRejectedValueOnce(defect);
+    await expect(store.readRecords(root, [ConeRecordKey.forNode('a')])).rejects.toBe(defect);
+    reads.mockImplementationOnce(() => { throw 'not an error'; });
+    await expect(store.readRecords(root, [ConeRecordKey.forNode('a')])).rejects.toMatchObject({ code: 'E_CONE_STORE_HOST_DEFECT' });
   });
 });

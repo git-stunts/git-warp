@@ -1,7 +1,5 @@
 import type Timeline from '../domain/api/Timeline.ts';
-import type DraftTimeline from '../domain/api/DraftTimeline.ts';
 import { requireTimelineContext, requireTimelineRuntime } from '../domain/api/TimelineRuntime.ts';
-import { requireDraftStateForReading } from '../domain/api/DraftTimelineRuntime.ts';
 import type Observer from '../domain/api/Observer.ts';
 import type ContentOwner from '../domain/api/ContentOwner.ts';
 import type { ReadingValue } from '../domain/api/ReadingValue.ts';
@@ -13,7 +11,7 @@ import ObservationReceipt from '../domain/api/ObservationReceipt.ts';
 import Tick from '../domain/api/Tick.ts';
 import { decodeObserverValue } from '../domain/api/ObserverRuntime.ts';
 import { freezeEvidence } from '../domain/api/EvidenceRuntime.ts';
-import ContentReadBasis from '../domain/services/ContentReadBasis.ts';
+import type ContentReadBasis from '../domain/services/ContentReadBasis.ts';
 import { NODE_PROPERTY_CLEAR_SEMANTICS } from '../domain/services/state/NodeLifecycle.ts';
 import { captureContentReadBasis, projectContent } from '../domain/services/ContentReadRuntime.ts';
 import WarpStream from '../domain/stream/WarpStream.ts';
@@ -41,25 +39,6 @@ export function startContentObservation<TValue extends ReadingValue>(fields: {
     } catch (error) {
       if (!(error instanceof WarpError)) { throw error; }
       return contentFailure(fields.timeline, fields.observer, error.code);
-    }
-  });
-}
-
-export function startStrandContentObservation<TValue extends ReadingValue>(fields: {
-  draft: DraftTimeline; observer: Observer<TValue>; owner: ContentOwner; activity: RuntimeActivity;
-}): Promise<ObservationExecution<TValue>> {
-  return fields.activity.run(async () => {
-    try {
-      const state = requireDraftStateForReading(fields.draft);
-      if (state.forkedAt === null) { throw new WarpError('Strand has no captured coordinate', 'E_CONTENT_READ_BASIS'); }
-      const captured = await state.runtime.prepareStrandOptic(fields.draft.name, state.forkedAt.checkpointSha);
-      return await observeContent({ ...fields, source: {
-        lane: fields.draft, runtime: state.runtime, context: state.context,
-        basis: new ContentReadBasis(new Map(captured.frontierEntries.map(({ writerId, patchSha }) => [writerId, patchSha]))),
-      } });
-    } catch (error) {
-      if (!(error instanceof WarpError)) { throw error; }
-      return contentFailure(fields.draft, fields.observer, error.code);
     }
   });
 }

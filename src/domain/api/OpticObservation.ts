@@ -20,14 +20,19 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
   readonly #execution: OpticExecution;
   readonly #settled: Promise<OpticReceipt>;
   #settle: (receipt: OpticReceipt) => void = () => undefined;
-  #terminal: OpticReceipt | null = null;
+  #terminal: (() => OpticReceipt) | null = null;
   #consumed = false;
+  #readings: AsyncGenerator<OpticReading, OpticReceipt, undefined> | null = null;
+  #closing: Promise<void> | null = null;
+  #published = false;
 
   constructor(execution: OpticExecution) {
     this.#execution = execution;
     this.#settled = new Promise((resolve) => { this.#settle = resolve; });
-    if (execution.decided !== undefined) {
-      this.#finish(execution.decided);
+    const { decided } = execution;
+    if (decided !== undefined) {
+      this.#decide(() => decided);
+      this.#publish(decided);
     }
     Object.freeze(this);
   }
@@ -42,7 +47,7 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
 
   /** Stops the read. If a terminal result already won, this returns it unchanged. */
   async cancel(): Promise<OpticReceipt> {
-    this.#finish(this.#execution.cancelled());
+    await this.#closeExecution(this.#decide(() => this.#execution.cancelled()));
     return await this.#settled;
   }
 
@@ -60,8 +65,9 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
     if (this.#terminal !== null) {
       return undefined;
     }
-    const readings = this.#execution.readings();
     try {
+      const readings = this.#execution.readings();
+      this.#readings = readings;
       let next = await readings.next();
       while (this.#shouldYield(next)) {
         yield next.value;
@@ -69,10 +75,10 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
       }
       this.#finishCompleted(next);
     } catch (error) {
-      this.#finishFailed(error instanceof Error ? error.message : '');
+      this.#finishFailed();
       throw error;
     } finally {
-      this.#finish(this.#execution.cancelled());
+      await this.#closeExecution(this.#decide(() => this.#execution.cancelled()));
     }
     return undefined;
   }
@@ -83,14 +89,15 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
 
   #finishCompleted(next: IteratorResult<OpticReading, OpticReceipt>): void {
     if (next.done === true) {
-      this.#finish(next.value);
+      const receipt = next.value;
+      this.#decide(() => receipt);
     }
   }
 
-  #finishFailed(message: string): void {
-    const cause = message.length > 0 ? message : 'observation-failed';
+  #finishFailed(): void {
+    const cause = 'observation-failed';
     const receipt = this.#execution.failed !== undefined ? this.#execution.failed(cause) : this.#execution.cancelled();
-    this.#finish(receipt);
+    this.#decide(() => receipt);
   }
 
   async #drain(): Promise<void> {
@@ -105,9 +112,28 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
     }
   }
 
-  #finish(receipt: OpticReceipt): void {
-    if (this.#terminal === null) {
-      this.#terminal = receipt;
+  /** Selects the terminal outcome now; cancellation's counters finish with its owned work. */
+  #decide(receipt: () => OpticReceipt): () => OpticReceipt {
+    this.#terminal ??= receipt;
+    return this.#terminal;
+  }
+
+  async #closeExecution(receipt: () => OpticReceipt): Promise<void> {
+    this.#closing ??= this.#closeReadings(receipt);
+    await this.#closing;
+  }
+
+  async #closeReadings(receipt: () => OpticReceipt): Promise<void> {
+    try {
+      await this.#readings?.return(receipt());
+    } finally {
+      this.#publish(receipt());
+    }
+  }
+
+  #publish(receipt: OpticReceipt): void {
+    if (!this.#published) {
+      this.#published = true;
       this.#settle(receipt);
       this.#execution.onSettled?.();
     }

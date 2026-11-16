@@ -20,8 +20,7 @@
  *   remain available, so an immutable-entity lifetime is a law an application
  *   must adopt, not one this constructor imposes.
  * - **Subject guard, not occurrence identity.** The local uniqueness
- *   guard refuses ids the builder can see, and a lane writer can see nothing.
- *   See {@link assertEntityAbsent}.
+ *   guard refuses only ids the builder can see. See {@link assertEntityAbsent}.
  *
  * See `docs/READINGS_AND_OPTICS.md` §4 and §8.
  *
@@ -142,21 +141,15 @@ function invalidPayloadError(nodeId: string): PatchError {
  * "Can see" is the whole promise: an id added earlier in this same patch, or
  * one alive in the materialized basis the builder was opened against.
  *
- * **On the `Runtime` → `Lane.write` path this guard never fires**, because a
- * lane writer has neither. `Runtime` exposes no materialization, so the basis
- * is always null; and one intent lowers to one patch, with validation running
- * before the node is added, so nothing precedes the entity in its own patch
- * either. Both arms are therefore unreachable there — measured, not inferred:
- * see `test/integration/application/Runtime.entityCapture.concurrent.test.ts`,
- * where one writer re-creates the same id on one lane and is admitted.
+ * A builder that has no materialized basis and has not yet added the id sees
+ * nothing, so the guard does not fire for it:
+ * `test/unit/domain/services/PatchBuilder.entity.test.ts` covers both arms.
  *
- * What remains is a guard for a direct `PatchBuilder` opened against a
- * materialized state, which is the advanced and testing surface. It catches a
- * mistake a caller could have seen; it is not uniqueness, and it is not a
- * race detector. Applications that truly mean one creation per semantic
- * subject must enforce that domain invariant separately. Applications with no
- * independent semantic key should use substrate allocation instead of
- * maintaining a shadow counter.
+ * The guard catches a mistake a caller could have seen; it is not uniqueness,
+ * and it is not a race detector. Applications that truly mean one creation
+ * per semantic subject must enforce that domain invariant separately.
+ * Applications with no independent semantic key should use substrate
+ * allocation instead of maintaining a shadow counter.
  */
 function assertEntityAbsent(nodeId: string, scope: EntityCaptureScope): void {
   if (!scope.added.has(nodeId) && !(scope.state?.nodeAlive.contains(nodeId) ?? false)) {

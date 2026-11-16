@@ -1,28 +1,25 @@
-/** v19 root consumer contract -- compile-only. */
+/** v21 root consumer contract -- compile-only. Writes go through Warp; reads keep the legacy Runtime path until #1052. */
 
 import {
+  GitStorage,
+  RetainedWriteReceipt,
   Runtime,
-  type ContentInput,
+  Warp,
+  WarpAccessDenied,
+  WarpAccessPort,
+  WarpAddress,
   type ContentMetadataInput,
   type StagedContent,
-  type AdmissionOutcome,
   type EntityAdmission,
   type Evidence,
-  type EvidenceHandle,
   type Intent,
   type Lane,
-  type LaneDescriptor,
   type Observation,
   type ObservationReceipt,
   type Observer,
   type Reading,
   type Receipt,
-  type RuntimeForkOptions,
   type RuntimeOpenOptions,
-  type RuntimeSettlementOptions,
-  type SettlementPlan,
-  type SettlementPreview,
-  type SettlementReceipt,
   type SupportReport,
   type Tick,
   type WriteIntentInput,
@@ -31,34 +28,33 @@ import {
 import { users } from '../fixtures/generated-sdk/users.generated.ts';
 import { intent as buildIntent } from '../../advanced.ts';
 
-const options: RuntimeOpenOptions = { at: '.', writer: 'agent-1' };
-const runtime: Runtime = await Runtime.open(options);
-const lane: Lane = await runtime.lane('events');
-const forkOptions: RuntimeForkOptions = { name: 'try-admin-role' };
-const strand: Lane = await runtime.fork(lane, forkOptions);
+declare const access: WarpAccessPort;
+const warp: Warp = await Warp.open(WarpAddress.of(GitStorage.root(), 'events'), access);
 const intent: Intent = users.intents.assignRole({
   subject: 'user:alice',
   role: 'admin',
 });
-const write: WriteReceipt = await lane.write(intent);
+const write: WriteReceipt = await warp.as('agent-1').execute(intent);
 const intents: Intent[] = [intent, intent];
-const atomicWrite = await lane.write(intents);
-const atomicIntentCount: number = atomicWrite.intents.length;
-declare const normalizedArrayReceipt: WriteReceipt<Intent[]>;
-// @ts-expect-error WriteReceipt retains an immutable normalized array snapshot.
-normalizedArrayReceipt.intent.push(intent);
 const writeInput: WriteIntentInput = intents;
-const genericWrite = await lane.write(writeInput);
-const admission: AdmissionOutcome = write.outcome;
+const atomicWrite: WriteReceipt = await warp.as('agent-1').execute(writeInput);
+if (write instanceof RetainedWriteReceipt) {
+  const subject: string | undefined = write.occurrences[0]?.subject;
+  void subject;
+  void write.coordinate.toString();
+}
 declare const entityAdmission: EntityAdmission;
-const writeEvidence: Evidence = write.evidence;
-const writeLane: string = write.lane;
+
+const options: RuntimeOpenOptions = { at: '.', writer: 'agent-1' };
+const runtime: Runtime = await Runtime.open(options);
+const lane: Lane = await runtime.lane('events');
 const observer: Observer<string> = users.observers.roleOf({ subject: 'user:alice' });
 const observation: Observation<string> = lane.observe(observer);
 const emitted: Reading<string> = await observation.one();
 const support: SupportReport = emitted.support;
 const observationReceipt: ObservationReceipt = await observation.receipt;
 const receipt: Receipt = observationReceipt;
+const evidence: Evidence | undefined = observationReceipt.evidence;
 const manyObservation: Observation<string> = lane.observe(users.observers.rolesOf({
   subjects: ['user:alice', 'user:bob'],
 }));
@@ -67,41 +63,15 @@ for await (const reading of manyObservation) {
   void value;
 }
 const manyReceipt: ObservationReceipt = await manyObservation.receipt;
-const settlementOptions: RuntimeSettlementOptions = {
-  source: strand,
-  target: lane,
-};
-const settlementPreview: SettlementPreview =
-  await runtime.previewSettlement(settlementOptions);
-const settlementPlan: SettlementPlan = settlementPreview.plan;
-const settlementReceipt: SettlementReceipt =
-  await runtime.settle(settlementPlan);
-const settlementPublicReceipt: Receipt = settlementReceipt;
-
-function admissionWitnessHandle(value: AdmissionOutcome): EvidenceHandle {
-  switch (value.kind) {
-    case 'derived':
-      return value.witness.resultingFrontier;
-    case 'plural':
-      return value.witness.localCoordinate;
-    case 'conflict':
-      return value.witness.conflict;
-    case 'obstruction':
-      return value.witness.failedCondition;
-  }
-  const unreachable: never = value;
-  return unreachable;
-}
-
-function laneName(descriptor: LaneDescriptor): string {
-  if (descriptor.kind === 'worldline') {
-    return descriptor.name;
-  }
-  return `${descriptor.parent.name}/${descriptor.name}@${descriptor.forkedAt.id}`;
-}
 
 // @ts-expect-error Runtime does not expose transitional timelines.
 await runtime.timeline('events');
+
+// @ts-expect-error Lane has no writes in v21; write through Warp.
+await lane.write(intent);
+
+// @ts-expect-error Runtime has no forks in v21.
+await runtime.fork(lane, { name: 'draft' });
 
 // @ts-expect-error Lane observations require a runtime-backed Observer.
 lane.observe({ id: 'loose-plan' });
@@ -109,34 +79,29 @@ lane.observe({ id: 'loose-plan' });
 // @ts-expect-error Observation receipts carry status, not admission outcome.
 observationReceipt.outcome;
 
-// @ts-expect-error Canonical write receipts name their Lane, not a Timeline.
-write.timeline;
-
 // @ts-expect-error Entity admissions expose only their named domain fields.
 entityAdmission['arbitraryField'];
 
 const readingTick: Tick | undefined = emitted.coordinate.tick;
 
-void admissionWitnessHandle(admission);
-void laneName(lane.descriptor);
-void laneName(strand.descriptor);
-void writeEvidence;
-void writeLane;
 void atomicWrite;
-void atomicIntentCount;
 void readingTick;
+void evidence;
 void emitted.coordinate;
 void emitted.witnessRefs;
 void support;
 void receipt;
 void manyReceipt;
-void settlementPublicReceipt;
 await runtime.close();
+await warp.close();
 
 /** Portable staging metadata is available without importing storage implementation types. */
-async function stageContent(lane: Lane, content: ContentInput, metadata: ContentMetadataInput): Promise<StagedContent> {
-  const staged = await lane.stageContent(content, metadata);
-  await lane.write([
+async function stageContent(content: string, metadata: ContentMetadataInput): Promise<StagedContent | null> {
+  const staged = await warp.as('agent-1').stage(content, metadata);
+  if (staged instanceof WarpAccessDenied) {
+    return null;
+  }
+  await warp.as('agent-1').execute([
     buildIntent.node.attachContent({ subject: 'document', content: staged }),
     buildIntent.edge.attachContent({ from: 'document', to: 'related', label: 'links', content: staged }),
     buildIntent.node.clearContent({ subject: 'document' }),
@@ -148,8 +113,6 @@ async function stageContent(lane: Lane, content: ContentInput, metadata: Content
   buildIntent.edge.attachContent({ from: 'document', content: staged });
   // @ts-expect-error Staged metadata is immutable.
   staged.size = 42;
-  // @ts-expect-error Raw ArrayBuffer is not a supported byte source.
-  await lane.stageContent(new ArrayBuffer(4));
   return staged;
 }
 
@@ -167,3 +130,6 @@ async function readContent(lane: Lane): Promise<void> {
     reading.value.bytes();
   }
 }
+
+void stageContent;
+void readContent;

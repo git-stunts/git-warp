@@ -51,10 +51,6 @@ export const V19_PUBLIC_VOCABULARY = {
     {
       "name": "Receipt",
       "summary": "Records the durable outcome of an operation."
-    },
-    {
-      "name": "Settlement",
-      "summary": "Revalidates and applies an immutable plan between Lanes."
     }
   ],
   "forbiddenTerms": [
@@ -164,24 +160,9 @@ export const V19_PUBLIC_VOCABULARY = {
   ],
   "cli": [
     {
-      "command": "write",
-      "summary": "Write one Intent to a Lane.",
-      "usage": "git warp write --lane <name> [--strand <name>] --intent <json>"
-    },
-    {
       "command": "observe",
       "summary": "Run one bounded Observer over a Lane.",
-      "usage": "git warp observe --lane <name> [--strand <name>] --observer <id> --reading <json>"
-    },
-    {
-      "command": "fork",
-      "summary": "Fork a Lane into a named strand Lane.",
-      "usage": "git warp fork --lane <source> --name <strand>"
-    },
-    {
-      "command": "settle",
-      "summary": "Preview or apply an immutable Settlement plan.",
-      "usage": "git warp settle preview --source <lane> --strand <name> --target <lane> | settle apply --plan <path>"
+      "usage": "git warp observe --lane <name> --observer <id> --reading <json>"
     },
     {
       "command": "receipt",
@@ -218,6 +199,5 @@ export const V19_PUBLIC_NOUNS = {
   "Observer": "Observer",
   "Observation": "Observation",
   "Reading": "Reading",
-  "Receipt": "Receipt",
-  "Settlement": "Settlement"
+  "Receipt": "Receipt"
 } as const;

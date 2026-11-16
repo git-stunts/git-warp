@@ -68,10 +68,8 @@ export type { GitWarpBraidHologramFields } from './domain/continuum/GitWarpBraid
 export type { GitWarpBraidHologramMemberFields } from './domain/continuum/GitWarpBraidHologramMember.ts';
 export type { GitWarpReadingEnvelopePayloadFactFields } from './domain/continuum/GitWarpReadingEnvelopePayloadFact.ts';
 export type { GitWarpReadingEnvelopeSourceFactsFields } from './domain/continuum/GitWarpReadingEnvelopeSourceFacts.ts';
-export type {
-  GitWarpReceiptEnvelopeAnchor,
-  GitWarpReceiptEnvelopeBoundaryFields,
-} from './domain/continuum/GitWarpReceiptEnvelopeBoundary.ts';
+export type { GitWarpReceiptEnvelopeAnchor } from './domain/continuum/GitWarpReceiptEnvelopeAnchor.ts';
+export type { GitWarpReceiptEnvelopeBoundaryFields } from './domain/continuum/GitWarpReceiptEnvelopeBoundary.ts';
 export type { GitWarpReceiptSourceFactsFields } from './domain/continuum/GitWarpReceiptSourceFacts.ts';
 export type { GitWarpSuffixTransformHologramFields } from './domain/continuum/GitWarpSuffixTransformHologram.ts';
 export type { GitWarpTickHologramFields } from './domain/continuum/GitWarpTickHologram.ts';

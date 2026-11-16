@@ -30,6 +30,18 @@ describe('InMemoryGraphAdapter specifics', () => {
     expect(info.date).toBe(new Date(1000).toISOString());
   });
 
+  // Oracle: without an injected clock, the fake must not read the wall clock.
+  // Its default clock is fixed at the Unix epoch, so two adapters built at
+  // different times write the same commit date and the same commit SHA.
+  it('defaults commit dates to the fixed Unix epoch', async () => {
+    const first = new InMemoryGraphAdapter();
+    const second = new InMemoryGraphAdapter();
+    const sha = await first.commitNode({ message: 'untimed' });
+    const info = await first.getNodeInfo(sha);
+    expect(info.date).toBe('1970-01-01T00:00:00.000Z');
+    expect(await second.commitNode({ message: 'untimed' })).toBe(sha);
+  });
+
   it('uses injected author string', async () => {
     const adapter = new InMemoryGraphAdapter({ author: 'Alice <alice@test>' });
     const sha = await adapter.commitNode({ message: 'authored' });

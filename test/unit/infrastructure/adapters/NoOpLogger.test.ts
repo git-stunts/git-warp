@@ -79,21 +79,40 @@ describe('NoOpLogger', () => {
   });
 
   describe('zero overhead', () => {
-    it('handles large context objects without performance issues (sanity check)', () => {
+    // Oracle: a no-op logger does no work per call, so it never reads the
+    // context. A wall-clock budget cannot show that and flakes under load;
+    // a count of context reads shows it exactly.
+    it('never reads the context it is given', () => {
       const logger = new NoOpLogger();
-            const largeContext = ({}) as Record<string, string>;
-      for (let i = 0; i < 1000; i++) {
-        largeContext[`key${i}`] = `value${i}`;
-      }
+      let reads = 0;
+      const context = new Proxy<Record<string, string>>({ key: 'value' }, {
+        get(target, property, receiver) {
+          reads += 1;
+          return Reflect.get(target, property, receiver);
+        },
+        has(target, property) {
+          reads += 1;
+          return Reflect.has(target, property);
+        },
+        ownKeys(target) {
+          reads += 1;
+          return Reflect.ownKeys(target);
+        },
+        getOwnPropertyDescriptor(target, property) {
+          reads += 1;
+          return Reflect.getOwnPropertyDescriptor(target, property);
+        },
+      });
 
-      const start = Date.now();
-      for (let i = 0; i < 10000; i++) {
-        logger.info('test message', largeContext);
+      for (let i = 0; i < 10_000; i++) {
+        logger.debug('test message', context);
+        logger.info('test message', context);
+        logger.warn('test message', context);
+        logger.error('test message', context);
       }
-      const duration = Date.now() - start;
+      logger.child(context).info('test message', context);
 
-      // Generous threshold for CI environments with variable performance
-      expect(duration).toBeLessThan(500);
+      expect(reads).toBe(0);
     });
   });
 });

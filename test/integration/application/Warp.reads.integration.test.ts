@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
-import { ObserverIdentity, Optic, OpticReceipt, Purpose, ReadBudget, Warp, WarpAccessDenied, WarpAccessPort, WarpWriteGrant } from '../../../index.ts';
+import { ObserverIdentity, Optic, OpticReceipt, Purpose, ReadBudget, Warp, WarpAccessPort, WarpWriteGrant } from '../../../index.ts';
 import type { OpticObservation, OpticReading } from '../../../index.ts';
 import ConeReader from '../../../src/domain/services/cone/ConeReader.ts';
 import RuntimeHost from '../../../src/domain/RuntimeHost.ts';
@@ -127,7 +127,8 @@ describe('access comes before evaluation', () => {
 
     expect((await (await Optic(warp.forObserver(READER)).forPurpose(DISPLAY).node('a').read()).receipt).status).toBe('refused');
 
-    vi.spyOn(writeOnly, 'authorizeRead').mockResolvedValue({ authority: 'looks right' } as unknown as WarpAccessDenied);
+    // @ts-expect-error JavaScript access ports can return a grant-shaped plain object.
+    vi.spyOn(writeOnly, 'authorizeRead').mockResolvedValue({ authority: 'looks right' });
     const confused = await (await Optic(warp.forObserver(READER)).forPurpose(DISPLAY).node('a').read()).receipt;
     expect(confused.cause).toContain('no grant');
   });
@@ -172,7 +173,7 @@ describe('one execution, one consumer, one terminal result', () => {
       break;
     }
 
-    expect((await observed.receipt).status).toBe('cancelled');
+    expect(await observed.receipt).toMatchObject({ status: 'cancelled', records: 1 });
   });
 
   it('settles cancel and receipt to one result, and never overturns a finished one', async () => {
@@ -181,6 +182,7 @@ describe('one execution, one consumer, one terminal result', () => {
     expect(first).toBe(second);
     expect(first).toBeInstanceOf(OpticReceipt);
     expect(first.status).toBe('cancelled');
+    expect(first.records).toBe(0);
     expect(await drained(cancelled)).toMatchObject({ readings: [], receipt: { status: 'cancelled' } });
 
     const finished = (await observation()).observed;
@@ -219,8 +221,10 @@ describe('building a question', () => {
     expect(() => base.prop('k')).toThrow('before one of its properties');
     expect(() => base.node('')).toThrow('subject');
     expect(() => base.node('a').prop('')).toThrow('key');
-    expect(() => Optic(warp as unknown as Parameters<typeof Optic>[0])).toThrow('forObserver');
-    expect(() => warp.forObserver('me' as unknown as ObserverIdentity)).toThrow('ObserverIdentity');
+    // @ts-expect-error The runtime boundary must reject an unbound Warp.
+    expect(() => Optic(warp)).toThrow('forObserver');
+    // @ts-expect-error The runtime boundary must reject an unvalidated identity.
+    expect(() => warp.forObserver('me')).toThrow('ObserverIdentity');
     expect(() => ObserverIdentity.of('', 'x')).toThrow('namespace');
     expect(() => Purpose.of('a', 'b', 0)).toThrow('positive version');
     expect(() => ReadBudget.of({ records: 0, bytes: 1, work: 1 })).toThrow('finite positive');

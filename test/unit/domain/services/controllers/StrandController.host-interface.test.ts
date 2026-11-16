@@ -10,6 +10,7 @@ import CryptoPort from '../../../../../src/ports/CryptoPort.ts';
 
 import type Patch from '../../../../../src/domain/types/Patch.ts';
 import type { HashablePayload } from '../../../../../src/domain/types/conflict/HashablePayload.ts';
+import SequenceRandomPort from '../../../../helpers/SequenceRandomPort.ts';
 
 class StrandControllerCrypto extends CryptoPort {
   async hash(_algorithm: string, _data: string | Uint8Array): Promise<string> {
@@ -34,6 +35,7 @@ function createStrandHost(): StrandHost {
     _allocationFloors: new GitAllocationFloorStoreAdapter({ history: persistence, graphName: 'strand-host-interface' }),
     _dotRepairs: null,
     _crypto: new StrandControllerCrypto(),
+    _random: new SequenceRandomPort(),
     _loadPatchChainFromSha: async (_sha: string): Promise<Array<{ patch: Patch; sha: string }>> => [],
     _loadWriterPatches: async (_writerId: string): Promise<Array<{ patch: Patch; sha: string }>> => [],
     _maxObservedLamport: 0,

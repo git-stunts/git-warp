@@ -9,7 +9,6 @@
  */
 
 import computeShardKey from '../../utils/shardKey.ts';
-import toBytes from '../../utils/toBytes.ts';
 import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roaring.ts';
 import type { WorkingMetaShard, EdgeShardData } from './types.ts';
 import type { EdgeDiffEntry } from '../../types/PatchDiff.ts';
@@ -94,10 +93,7 @@ export default class IndexEdgeUpdater {
   deserializeBitmap(data: EdgeShardData, bucket: string, ownerStr: string): RoaringBitmapSubset {
     const RoaringBitmap32 = getRoaringBitmap32();
     if (data[bucket] && data[bucket][ownerStr]) {
-      return RoaringBitmap32.deserialize(
-        toBytes(data[bucket][ownerStr]),
-        true,
-      );
+      return RoaringBitmap32.deserialize(data[bucket][ownerStr], true);
     }
     return new RoaringBitmap32();
   }
@@ -154,10 +150,7 @@ export default class IndexEdgeUpdater {
     for (const labelId of Object.values(labels)) {
       const bucket = String(labelId);
       if (data[bucket] && data[bucket][ownerStr]) {
-        const bm = RoaringBitmap32.deserialize(
-          toBytes(data[bucket][ownerStr]),
-          true,
-        );
+        const bm = RoaringBitmap32.deserialize(data[bucket][ownerStr], true);
         merged.orInPlace(bm);
       }
     }

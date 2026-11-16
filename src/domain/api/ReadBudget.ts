@@ -27,4 +27,3 @@ function isValidLimits(limits: { readonly records: number; readonly bytes: numbe
   }
   return [limits.records, limits.bytes, limits.work].every((limit) => Number.isSafeInteger(limit) && limit > 0);
 }
-

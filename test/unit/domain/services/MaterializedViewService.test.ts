@@ -5,6 +5,8 @@ import { applyPatchOp, createEmptyState } from '../../../../src/domain/services/
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import { createEmptyDiff, PatchDiff } from '../../../../src/domain/types/PatchDiff.ts';
+import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 
 function buildTestState() {
   const state = createEmptyState();
@@ -73,6 +75,41 @@ describe('MaterializedViewService', () => {
 
     expect(logicalIndex.getEdges('A', 'out').map((edge) => edge.label).sort())
       .toEqual(['manages', 'owns']);
+  });
+
+  it('fails closed when applyDiff has no index store to open the tree', () => {
+    const service = new MaterializedViewService({ codec: defaultCodec });
+    const { tree } = service.build(buildTestState());
+
+    expect(() => service.applyDiff({ existingTree: tree, diff: createEmptyDiff(), state: buildTestState() }))
+      .toThrow(expect.objectContaining({ code: 'E_INVALID_DEPENDENCY' }));
+  });
+
+  it('applies a diff through typed shards that the index store encodes', () => {
+    const service = new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
+    const { tree } = service.build(buildTestState());
+    const diff = new PatchDiff({
+      nodesAdded: [], nodesRemoved: ['C'], edgesAdded: [], edgesRemoved: [], propsChanged: [], nodesCleared: [],
+    });
+
+    const result = service.applyDiff({ existingTree: tree, diff, state: buildTestState() });
+
+    expect(result.logicalIndex.isAlive('C')).toBe(false);
+    expect(result.tree['labels.cbor']).toBe(tree['labels.cbor']);
+  });
+
+  it('requires a codec when constructed without options', () => {
+    expect(() => new MaterializedViewService()).toThrow(expect.objectContaining({ code: 'E_CODEC_REQUIRED' }));
+  });
+
+  it('returns an empty receipt for an incremental tree without a receipt shard', () => {
+    const service = new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
+    const { tree } = service.build(buildTestState());
+    const { 'receipt.cbor': _receipt, ...withoutReceipt } = tree;
+
+    const result = service.applyDiff({ existingTree: withoutReceipt, diff: createEmptyDiff(), state: buildTestState() });
+
+    expect(result.receipt).toEqual({});
   });
 
   it('does not expose physical persistence methods', () => {

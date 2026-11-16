@@ -6,6 +6,7 @@
  * the adapter under the 500 LOC limit.
  */
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
+import { readGitCasErrorCode } from './GitCasErrorCode.ts';
 import type { OperationPolicyExecuteOptions } from '../../ports/OperationPolicyPort.ts';
 
 // ---------------------------------------------------------------------------
@@ -129,6 +130,9 @@ export function isDanglingObjectError(err: GitError): boolean {
   );
 }
 
+/** The code git-cas persistence reports for an absent object, which carries no Git exit code. */
+const GIT_CAS_OBJECT_NOT_FOUND = 'GIT_OBJECT_NOT_FOUND';
+
 /** Does the error indicate a missing Git object? */
 function isMissingObjectError(err: GitError): boolean {
   const code = getExitCode(err);
@@ -172,7 +176,7 @@ interface GitErrorHint {
  * matches a known pattern. Returns the original error unchanged otherwise.
  */
 export function wrapGitError(err: GitError, hint: GitErrorHint = {}): GitError | PersistenceError {
-  if (isMissingObjectError(err)) {
+  if (readGitCasErrorCode(err) === GIT_CAS_OBJECT_NOT_FOUND || isMissingObjectError(err)) {
     return new PersistenceError(
       (hint.oid !== undefined && hint.oid.length > 0) ? `Missing Git object: ${hint.oid}` : err.message,
       PersistenceError.E_MISSING_OBJECT,

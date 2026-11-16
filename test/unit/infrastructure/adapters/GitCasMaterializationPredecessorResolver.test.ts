@@ -19,6 +19,15 @@ import type {
 const LANE_PREFIX = 'v4:lane-digest:';
 const TARGET = coordinate('b'.repeat(40));
 const PREDECESSOR = coordinate('a'.repeat(40));
+const EARLY = '2026-07-24T00:00:01.000Z';
+const LATE = '2026-07-24T00:00:02.000Z';
+/** Label, cache entries in inspection order as [tip, createdAt], and the expected winning tip. */
+const SELECTION_CASES: readonly (readonly [string, readonly (readonly [string, string])[], string])[] = [
+  ['the newer entry comes first', [['c', LATE], ['d', EARLY]], 'c'],
+  ['the newer entry comes last', [['c', EARLY], ['d', LATE]], 'd'],
+  ['a tie lists the greater key first', [['d', EARLY], ['c', EARLY]], 'd'],
+  ['a tie lists the greater key last', [['c', EARLY], ['d', EARLY]], 'd'],
+];
 
 describe('GitCasMaterializationPredecessorResolver', () => {
   it('excludes other lanes before descriptor reads and budget accounting', async () => {
@@ -49,7 +58,39 @@ describe('GitCasMaterializationPredecessorResolver', () => {
 
     expect(readDescriptor).not.toHaveBeenCalled();
   });
+
+  // Oracle: the resolver contract, newest retained predecessor first and the greater
+  // cache key on a createdAt tie. Fixed timestamps keep this branch covered in every
+  // run; wall-clock git-cas timestamps covered it only in some runs (#1133).
+  it.each(SELECTION_CASES)('selects the newest compatible predecessor when %s', async (_label, listed, winner) => {
+    const entries = listed.map(([tip, createdAt]) => timedCacheEntry(tip, createdAt));
+    const resolver = resolverKeyedByTip(entries);
+
+    await expect(resolver.find(TARGET, () => Promise.resolve(true))).resolves.toEqual(
+      coordinate(winner.repeat(40)),
+    );
+  });
 });
+
+function timedCacheEntry(tip: string, createdAt: string): CacheEntryMetadata {
+  return Object.freeze({ ...cacheEntry(`${LANE_PREFIX}${tip}`, tip), createdAt });
+}
+
+/** Keys each coordinate by the first character of its single writer tip. */
+function resolverKeyedByTip(
+  entries: readonly CacheEntryMetadata[],
+): GitCasMaterializationPredecessorResolver {
+  const cache = {
+    inspect: () => Promise.resolve(inspection(entries, null)),
+  } satisfies Pick<CacheSet, 'inspect'>;
+  return new GitCasMaterializationPredecessorResolver({
+    openCache: () => Promise.resolve(cache),
+    laneName: 'events',
+    readDescriptor: handle => Promise.resolve(descriptor(coordinate(handle.toString().repeat(40)))),
+    cacheKey: candidate => Promise.resolve(`${LANE_PREFIX}${String(candidate.frontier().get('writer-1')).charAt(0)}`),
+    cacheKeyPrefix: () => Promise.resolve(LANE_PREFIX),
+  });
+}
 
 function resolverFor(
   entries: readonly CacheEntryMetadata[],

@@ -142,7 +142,7 @@ function createMockPatch({ sha, graphName, writerId, lamport, patchOid, ops, par
       sha,
       message,
       author: 'Test <test@example.com>',
-      date: new Date().toISOString(),
+      date: '2026-01-01T00:00:00.000Z', // opaque; fixed so the fixture is deterministic
       parents: parentSha ? [parentSha] : [],
     },
   };

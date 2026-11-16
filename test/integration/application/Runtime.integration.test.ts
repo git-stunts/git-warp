@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { Runtime } from '../../../index.ts';
-import Intent from '../../../src/domain/api/Intent.ts';
+import { createEntityAdmissionInventoryObserver, intent } from '../../../advanced.ts';
+import { admittedSubject, writeThroughWarp } from '../../helpers/WarpSeed.ts';
 import { createGitRepo, type GitRepoFixture } from '../../helpers/WarpGraphTestRepositories.ts';
 
 describe('Runtime public composition', () => {
@@ -15,16 +16,20 @@ describe('Runtime public composition', () => {
     await repository.cleanup();
   });
 
-  it('owns a real repository and writes through a Lane', async () => {
-    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'agent-1' });
+  it('owns a real repository and reads what Warp wrote through a Lane', async () => {
+    const written = await writeThroughWarp(repository.tempDir, 'events', 'agent-1',
+      intent.entity.addAuto({ namespace: 'user', properties: { role: 'admin' } }));
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'reader' });
     try {
       const lane = await runtime.lane('events');
+      const observation = lane.observe(createEntityAdmissionInventoryObserver('users.inventory'));
+      const subjects: string[] = [];
+      for await (const reading of observation) {
+        subjects.push(reading.value.representation.subject);
+      }
 
-      const receipt = await lane.write(Intent.addNode({ subject: 'user:alice' }));
-
-      expect(receipt.outcome.kind).toBe('derived');
-      expect(receipt.lane).toBe('events');
-      expect(lane.kind).toBe('worldline');
+      expect(subjects).toEqual([admittedSubject(written)]);
+      expect((await observation.receipt).status).toBe('completed');
       expect(await repository.persistence.listRefs('refs/warp/events/writers/')).toEqual([
         'refs/warp/events/writers/agent-1',
       ]);

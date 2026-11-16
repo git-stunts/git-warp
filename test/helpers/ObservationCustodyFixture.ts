@@ -27,11 +27,13 @@ import ConeFrontierCborCodec from '../../src/infrastructure/adapters/ConeFrontie
 import EntropyObservationAttemptSource from '../../src/infrastructure/adapters/EntropyObservationAttemptSource.ts';
 import GitCasObservationCustodyAdapter from '../../src/infrastructure/adapters/GitCasObservationCustodyAdapter.ts';
 import GitCasObservationSupportAdapter from '../../src/infrastructure/adapters/GitCasObservationSupportAdapter.ts';
+import { WARP_APPLICATION_REF_PREFIXES } from '../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import ObservationCustodyCborCodec from '../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
 import codec from '../../src/infrastructure/codecs/CborCodec.ts';
 import type ObservationCustodyPort from '../../src/ports/ObservationCustodyPort.ts';
+import type ObservationSupportPort from '../../src/ports/ObservationSupportPort.ts';
 
 export const FIXTURE_GRAPH = 'custody-fixture';
 export const FIXTURE_DIGEST = new ObservationDigest('ab'.repeat(32));
@@ -80,14 +82,15 @@ export default class ObservationCustodyFixture {
     return path;
   }
 
-  /** Opens production services; `wrap` may interpose faults on the custody port. */
+  /** Opens production services; `wrap` and `wrapSupport` may interpose on the custody and support ports. */
   async open(path: string, options: {
     readonly limit: number;
     readonly limits?: ObservationSupportLimits;
     readonly wrap?: (custody: ObservationCustodyPort) => ObservationCustodyPort;
+    readonly wrapSupport?: (support: ObservationSupportPort) => ObservationSupportPort;
   }): Promise<OpenedCustody> {
     const plumbing = await Plumbing.createDefault({ cwd: path });
-    const store = ContentAddressableStore.createCbor({ plumbing, applicationRefPrefixes: ['refs/warp/'] });
+    const store = ContentAddressableStore.createCbor({ plumbing, applicationRefPrefixes: [...WARP_APPLICATION_REF_PREFIXES] });
     this.#stores.add(store);
     const crypto = new NodeCryptoAdapter();
     const custody = await GitCasObservationCustodyAdapter.open({
@@ -114,7 +117,7 @@ export default class ObservationCustodyFixture {
     });
     const service = new ObservationCustodyService({
       custody: options.wrap === undefined ? custody : options.wrap(custody),
-      support,
+      support: options.wrapSupport === undefined ? support : options.wrapSupport(support),
       codec: new ObservationCustodyCborCodec(codec),
       crypto,
       attempts: new EntropyObservationAttemptSource(),

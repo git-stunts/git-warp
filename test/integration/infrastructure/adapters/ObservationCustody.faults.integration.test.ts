@@ -1,4 +1,4 @@
-import { clearInterval, setInterval } from 'node:timers';
+import { setImmediate as nextTurn } from 'node:timers/promises';
 import { afterEach, describe, expect, it } from 'vitest';
 import ObservationAdmitted from '../../../../src/domain/services/custody/ObservationAdmitted.ts';
 import type ObservationAttempt from '../../../../src/domain/services/custody/ObservationAttempt.ts';
@@ -200,18 +200,11 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
     const path = await fixture.repository(format);
     const opened = await faulted(path, 2);
     const { attempt } = narrowed(await opened.service.begin(writeBindings(basisTree(path, 'owned', writerCommits(path, 200)))), ObservationAdmitted);
-    let reachedFirstCarrier: () => void = () => undefined;
-    const firstCarrier = new Promise<void>((resolve) => {
-      reachedFirstCarrier = resolve;
-    });
-    const watching = setInterval(() => {
-      if (opened.carriersPublished() > 0) {
-        reachedFirstCarrier();
-      }
-    }, 1);
     const preparing = opened.service.prepare(attempt, sources());
-    await firstCarrier;
-    clearInterval(watching);
+    // Wait on the condition, one event-loop turn at a time, not on a timer.
+    while (opened.carriersPublished() === 0) {
+      await nextTurn();
+    }
     const cancelled = await opened.service.cancel(attempt);
     const carriersAtCancel = opened.carriersPublished();
     expect(cancelled).toBeInstanceOf(ObservationKnownUnpublished);

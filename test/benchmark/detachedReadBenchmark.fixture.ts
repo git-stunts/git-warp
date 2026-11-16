@@ -5,6 +5,7 @@ import WarpCore from '../../src/domain/WarpCore.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../src/domain/crdt/VersionVector.ts';
 import MemoryRuntimeStorageAdapter from '../../test/helpers/MemoryRuntimeStorageAdapter.ts';
+import ManualClock from '../../test/helpers/ManualClock.ts';
 
 /** @typedef {any} WarpCoreRuntime */
 
@@ -196,9 +197,11 @@ export async function seedDetachedReadBenchmarkFixture({
 }) {
   const persistence = createMockPersistence();
   const graphName = `detached-read-bench-${patchCount}`;
-  const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence });
+  const clock = new ManualClock();
+  const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence, clock });
   const graph = /** @type {WarpCoreRuntime} */ await WarpCore.open({
     persistence,
+    clock,
     runtimeStorage,
     graphName,
     writerId: 'bench',

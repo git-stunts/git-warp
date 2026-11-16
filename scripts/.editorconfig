@@ -1,0 +1,5 @@
+# Formatter authority for the scoped upgrade smoke and its Docker entry.
+[{smoke-packed-upgrade.sh,SmokeTestDockerEntry.sh}]
+indent_style = space
+indent_size = 2
+shell_variant = bash

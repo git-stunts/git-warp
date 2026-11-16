@@ -89,11 +89,12 @@ not contain the checkpoint needed to reconstruct its parent coordinate. Run the
 one-shot v18-to-v19 migration for legacy repositories. Do not invent a
 coordinate from current live state.
 
-## A Settlement artifact is stale
+## A saved Settlement artifact cannot be applied
 
-`settle apply` derives a fresh Runtime-owned plan and compares it with the saved
-review artifact. If the source or target moved, preview again and review the new
-artifact. Never edit a plan digest to bypass revalidation.
+v21 removed settlement, including the `git warp settle` command
+([#1054](https://github.com/git-stunts/git-warp/issues/1054)). v21 has no
+replacement, so a plan artifact saved by v20 cannot be applied. See the
+[v21 migration guide](../migrations/v21/README.md#api-changes).
 
 ## CAS content cannot be restored
 

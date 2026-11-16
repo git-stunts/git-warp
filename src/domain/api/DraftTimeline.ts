@@ -2,7 +2,7 @@ import WarpError from '../errors/WarpError.ts';
 import { assertTimelineNameIdentity, assertWriterIdentity } from './assertIdentity.ts';
 import Intent from './Intent.ts';
 import IntentSequence, { type WriteIntentInput } from './IntentSequence.ts';
-import type WriteReceipt from './WriteReceipt.ts';
+import type TimelineWriteReceipt from './TimelineWriteReceipt.ts';
 
 type DraftTimelineConstructionOptions = {
   readonly name: string;
@@ -11,7 +11,7 @@ type DraftTimelineConstructionOptions = {
   readonly writeDraft?: WriteDraft;
 };
 
-type WriteDraft = (intent: WriteIntentInput) => Promise<WriteReceipt<WriteIntentInput>>;
+type WriteDraft = (intent: WriteIntentInput) => Promise<TimelineWriteReceipt<WriteIntentInput>>;
 
 export default class DraftTimeline {
   readonly #name: string;
@@ -52,10 +52,10 @@ export default class DraftTimeline {
     return this.#writer;
   }
 
-  write(intent: Intent): Promise<WriteReceipt>;
-  write(intents: readonly Intent[]): Promise<WriteReceipt<readonly Intent[]>>;
-  write(intent: WriteIntentInput): Promise<WriteReceipt<WriteIntentInput>>;
-  async write(intent: WriteIntentInput): Promise<WriteReceipt<WriteIntentInput>> {
+  write(intent: Intent): Promise<TimelineWriteReceipt>;
+  write(intents: readonly Intent[]): Promise<TimelineWriteReceipt<readonly Intent[]>>;
+  write(intent: WriteIntentInput): Promise<TimelineWriteReceipt<WriteIntentInput>>;
+  async write(intent: WriteIntentInput): Promise<TimelineWriteReceipt<WriteIntentInput>> {
     if (!(intent instanceof Intent) && !Array.isArray(intent)) {
       throw new WarpError('DraftTimeline.write requires an Intent', 'E_DRAFT_WRITE_INTENT');
     }

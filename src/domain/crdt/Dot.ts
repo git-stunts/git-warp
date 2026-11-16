@@ -200,8 +200,3 @@ export function encodeDot(dot: Dot): string {
 export function decodeDot(encoded: string): Dot {
   return Dot.decode(encoded);
 }
-
-/** @deprecated Use {@link Dot.compare} */
-export function compareDots(a: Dot, b: Dot): number {
-  return Dot.compare(a, b);
-}

@@ -17,6 +17,9 @@ const SHA_C = 'c'.repeat(40);
 const OID_A = '1'.repeat(40);
 const OID_B = '2'.repeat(40);
 
+// Commit dates are opaque here; a fixed value keeps the fixture deterministic.
+const FIXED_COMMIT_DATE = '2026-01-01T00:00:00.000Z';
+
 function createTestPatch(/** @type {any} */ { writer, lamport }) {
   return { schema: 2, writer, lamport, ops: [], context: VersionVector.empty() };
 }
@@ -43,7 +46,7 @@ function createMockPersistence(/** @type {Record<string, any>} */ commits = {}, 
     }),
     getNodeInfo: vi.fn(async (/** @type {any} */ sha) => {
       if (commits[sha]) {
-        return { sha, message: commits[sha].message, author: 'test', date: new Date().toISOString(), parents: commits[sha].parents || [] };
+        return { sha, message: commits[sha].message, author: 'test', date: FIXED_COMMIT_DATE, parents: commits[sha].parents || [] };
       }
       throw new Error(`Commit not found: ${sha}`);
     }),

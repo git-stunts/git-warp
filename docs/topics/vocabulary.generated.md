@@ -13,4 +13,3 @@ Write intents. Observe lanes. Keep receipts.
 | Observation | Executes an Observer once and streams Readings. |
 | Reading | Carries a canonical value with bounded support. |
 | Receipt | Records the durable outcome of an operation. |
-| Settlement | Revalidates and applies an immutable plan between Lanes. |

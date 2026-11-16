@@ -71,10 +71,9 @@ export function partitionShardHandles(
 /**
  * Maps an IndexShard to its tree path and serializable payload.
  *
- * P5-LEGACY: Duplicates IndexShardEncodeTransform._encode() in
+ * P5-LEGACY: Duplicates IndexShardEncodeTransform.encodeShard() in
  * infrastructure. Exists only to support _encodeShardsToTree() for
- * the applyDiff() legacy path. Dies when IncrementalIndexUpdater
- * is migrated to IndexStorePort.
+ * the build() legacy path. Dies with the legacy bridge (#228).
  */
 export function shardToEntry(shard: IndexShard): { path: string; payload: unknown } { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
   if (shard instanceof MetaShard) {

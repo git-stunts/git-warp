@@ -578,7 +578,7 @@ describe('CborIndexStoreAdapter opaque shard boundary', () => {
     ['text string', new Uint8Array([0x61, 0x61])],
     ['array', new Uint8Array([0x81, 0x00])],
     ['map', new Uint8Array([0xa1, 0x61, 0x61, 0x00])],
-    ['tagged value', new Uint8Array([0xc0, 0x00])],
+    ['tagged epoch date', new Uint8Array([0xc1, 0x00])],
     ['simple value', new Uint8Array([0xf4])],
     ['wide simple value', new Uint8Array([0xf9, 0x00, 0x00])],
   ])('preflights a bounded %s CBOR value', (_name, bytes) => {

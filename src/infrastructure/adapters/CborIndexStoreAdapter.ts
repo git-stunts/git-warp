@@ -29,6 +29,8 @@ import { materializationPropertyShardKey } from '../../domain/materialization/Ma
 import { validateBoundedCbor } from './BoundedCborValidation.ts';
 import { decodeRoutedPropertyShardArtifact } from '../../domain/services/index/PropertyIndexReader.ts';
 import { writeCborIndexShards } from './CborIndexShardWriter.ts';
+import CborIndexShardTree from './CborIndexShardTree.ts';
+import type { default as IndexShardTreePort, EncodedIndexTree } from '../../ports/IndexShardTreePort.ts';
 import {
   optionalCborStructureLimits,
   optionalPositiveInteger,
@@ -42,13 +44,16 @@ export type GitCasIndexFacade = {
   readonly pages: Pick<PageCapability, 'get' | 'put'>;
 };
 
+const NO_ALIVE_BITMAP = new Uint8Array(0);
+
+/** A meta shard without an alive bitmap reads like one with no alive node. */
 function classifyMeta(match: RegExpMatchArray, data: unknown): MetaShard {
-  const d = data as { nodeToGlobal: Array<[string, number]>; nextLocalId: number; alive: Uint8Array };
+  const d = data as { nodeToGlobal: Array<[string, number]>; nextLocalId: number; alive?: Uint8Array | null };
   return new MetaShard({
     shardKey: match[1] as string,
     nodeToGlobal: d.nodeToGlobal,
     nextLocalId: d.nextLocalId,
-    alive: d.alive,
+    alive: d.alive ?? NO_ALIVE_BITMAP,
   });
 }
 
@@ -277,6 +282,10 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     });
     validateRequestedStructure(bytes, options);
     return this._codec.decode<TDecoded>(bytes);
+  }
+
+  override openShardTree(tree: EncodedIndexTree): IndexShardTreePort {
+    return new CborIndexShardTree({ codec: this._codec, tree });
   }
 }
 

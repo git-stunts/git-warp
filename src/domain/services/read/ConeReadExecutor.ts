@@ -19,6 +19,7 @@ import type ConeLaneBasis from '../cone/ConeLaneBasis.ts';
 import ConeObstruction from '../cone/ConeObstruction.ts';
 import { hydrateConeState } from '../cone/ConeStateHydration.ts';
 import { createStateReader } from '../state/StateReader.ts';
+import readOperationalFailure from './ReadOperationalFailure.ts';
 
 export type ConeReadRequest = {
   readonly observer: ObserverIdentity;
@@ -40,9 +41,9 @@ const RECORDS_PER_EXACT_READ = 1;
 export default class ConeReadExecutor {
   readonly #graph: string;
   readonly #access: WarpAccessPort;
-  readonly #cone: ConeLaneBasis;
+  readonly #cone: () => Promise<ConeLaneBasis>;
 
-  constructor(fields: { readonly graph: string; readonly access: WarpAccessPort; readonly cone: ConeLaneBasis }) {
+  constructor(fields: { readonly graph: string; readonly access: WarpAccessPort; readonly cone: () => Promise<ConeLaneBasis> }) {
     this.#graph = fields.graph;
     this.#access = fields.access;
     this.#cone = fields.cone;
@@ -58,28 +59,57 @@ export default class ConeReadExecutor {
     if (!(grant instanceof WarpReadGrant)) {
       return ended(receipt, receipt('refused', { cause: deniedCause(grant) }), request.onSettled);
     }
-    const basis = await this.#cone.advance();
+    const cone = await this.#openCone(receipt, request.onSettled);
+    if (cone instanceof OpticObservation) {
+      return cone;
+    }
+    const basis = await this.#advance(cone, receipt, request.onSettled);
+    if (basis instanceof OpticObservation) { return basis; }
     if (basis instanceof ConeObstruction) {
       const failure = coneObstructionFailure(basis);
       return ended(receipt, receipt('failed', { cause: failure.reason, repairHints: failure.repairHints }), request.onSettled);
     }
-    return new OpticObservation(this.#execution({ request, grant, basis, receipt }));
+    return new OpticObservation(this.#execution({ request, grant, cone, basis, receipt }));
+  }
+
+  async #advance(cone: ConeLaneBasis, receipt: ReceiptMaker, onSettled?: () => void): Promise<ConeBasis | ConeObstruction | OpticObservation> {
+    try {
+      return await cone.advance();
+    } catch (error) {
+      const cause = error instanceof Error ? readOperationalFailure(error, 'reading') : null;
+      if (cause === null) { throw error; }
+      return ended(receipt, receipt('failed', { cause }), onSettled);
+    }
+  }
+
+  async #openCone(receipt: ReceiptMaker, onSettled?: () => void): Promise<ConeLaneBasis | OpticObservation> {
+    try {
+      return await this.#cone();
+    } catch (error) {
+      const cause = error instanceof Error ? readOperationalFailure(error, 'opening') : null;
+      if (cause === null) { throw error; }
+      return ended(receipt, receipt('failed', { cause }), onSettled);
+    }
   }
 
   #execution(run: {
     readonly request: ConeReadRequest;
     readonly grant: WarpReadGrant;
+    readonly cone: ConeLaneBasis;
     readonly basis: ConeBasis;
     readonly receipt: ReceiptMaker;
   }): OpticExecution {
     const { receipt } = run;
-    const answered = this.#answered.bind(this);
+    const answered = this.#reading.bind(this);
+    let records = 0;
     return {
       ...(run.request.onSettled === undefined ? {} : { onSettled: run.request.onSettled }),
-      cancelled: () => receipt('cancelled', { cause: 'cancelled' }),
-      failed: (cause: string) => receipt('failed', { cause }),
+      cancelled: () => receipt('cancelled', { cause: 'cancelled', records }),
+      failed: (cause: string) => receipt('failed', { cause, records }),
       async *readings(): AsyncGenerator<OpticReading, OpticReceipt, undefined> {
-        const reading = await answered(run.request.question, run.basis);
+        const reading = await answered(run.request.question, run, receipt);
+        if (reading instanceof OpticReceipt) { return reading; }
+        records += RECORDS_PER_EXACT_READ;
         if (encodedSize(reading) > run.grant.budget.bytes) {
           return receipt('budget-exhausted', { cause: 'budget-exhausted', records: RECORDS_PER_EXACT_READ });
         }
@@ -89,8 +119,18 @@ export default class ConeReadExecutor {
     };
   }
 
-  async #answered(question: OpticQuestion, basis: ConeBasis): Promise<OpticReading> {
-    const record = await this.#cone.reader.node(basis.root, question.subject);
+  async #reading(question: OpticQuestion, scope: { readonly cone: ConeLaneBasis; readonly basis: ConeBasis }, receipt: ReceiptMaker): Promise<OpticReading | OpticReceipt> {
+    try {
+      return await this.#answered(question, scope.cone, scope.basis);
+    } catch (error) {
+      const cause = error instanceof Error ? readOperationalFailure(error, 'reading') : null;
+      if (cause === null) { throw error; }
+      return receipt('failed', { cause });
+    }
+  }
+
+  async #answered(question: OpticQuestion, cone: ConeLaneBasis, basis: ConeBasis): Promise<OpticReading> {
+    const record = await cone.reader.node(basis.root, question.subject);
     const state = createStateReader(hydrateConeState([record], []));
     const alive = state.hasNode(question.subject);
     if (question.key === null) {

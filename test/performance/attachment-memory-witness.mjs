@@ -12,6 +12,7 @@ import GitTimelineHistoryAdapter from '../../dist/src/infrastructure/adapters/Gi
 import GitCasRepositoryAdapter from '../../dist/src/infrastructure/adapters/GitCasRepositoryAdapter.js';
 import WarpCore from '../../dist/src/domain/WarpCore.js';
 import WebCryptoAdapter from '../../dist/src/infrastructure/adapters/WebCryptoAdapter.js';
+import HostRandomAdapter from '../../dist/src/infrastructure/adapters/HostRandomAdapter.js';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../dist/src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.js';
 import CasContentEncryptionPolicy from '../../dist/src/infrastructure/adapters/CasContentEncryptionPolicy.js';
 import codec from '../../dist/src/infrastructure/codecs/CborCodec.js';
@@ -48,7 +49,7 @@ if (mode === 'eager') {
   const storage = new GitCasRepositoryAdapter({ plumbing, history: persistence, contentEncryption });
   await runAttachmentMemoryWitnessWithCleanup(async () => {
     const graph = await WarpCore.open({ runtimeStorage: storage, stateCache: null, persistence,
-      graphName: 'memory', writerId: 'writer', commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC, codec, crypto: new WebCryptoAdapter() });
+      graphName: 'memory', writerId: 'writer', commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC, codec, crypto: new WebCryptoAdapter(), random: new HostRandomAdapter() });
     const patch = await graph.createPatch();
     patch.addNode('large');
     await patch.attachContent('large', source(), { size: TOTAL });

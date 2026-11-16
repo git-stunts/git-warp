@@ -6,6 +6,7 @@ import {
   type EntityAdmissionInventoryCertificate,
   type ObservationReceipt,
   type Reading,
+  type WriteIntentInput,
 } from '../../../index.ts';
 import {
   createEntityAdmissionInventoryObserver,
@@ -17,6 +18,7 @@ import type { McpJsonValue } from '../../../bin/cli/commands/mcp/McpJsonValue.ts
 import type { CliOptions } from '../../../bin/cli/types.ts';
 import { receiptEnvelope } from '../../../bin/presenters/V19ReadingReceipt.ts';
 import { createTestRepo } from '../api/helpers/setup.ts';
+import { writeThroughWarp } from '../../helpers/WarpSeed.ts';
 
 const LANE = 'captures';
 
@@ -52,13 +54,10 @@ describe('Runtime entity admission inventory', () => {
   });
 
   it('recovers births rather than current nodes or operation-shaped guesses', async () => {
-    let runtime: Runtime | null = await Runtime.open({
-      at: repository.tempDir,
-      writer: 'writer-a',
-    });
+    const seed = async (input: WriteIntentInput) => await writeThroughWarp(repository.tempDir, LANE, 'writer-a', input);
+    let runtime: Runtime | null = null;
     try {
-      const lane = await runtime.lane(LANE);
-      await lane.write([
+      await seed([
         intent.entity.add({
           subject: 'capture:marked',
           properties: { body: 'original', profile: 'think.capture.v1' },
@@ -70,11 +69,11 @@ describe('Runtime entity admission inventory', () => {
           value: 'operation-shaped but not an entity admission',
         }),
       ]);
-      await lane.write(intent.entity.addAuto({
+      await seed(intent.entity.addAuto({
         namespace: 'capture',
         properties: { body: 'equal' },
       }));
-      await lane.write(intent.entity.addAuto({
+      await seed(intent.entity.addAuto({
         namespace: 'capture',
         properties: { body: 'equal' },
       }));
@@ -82,14 +81,14 @@ describe('Runtime entity admission inventory', () => {
         subject: 'capture:repeated',
         properties: { body: 'same subject' },
       });
-      await lane.write(repeated);
-      await lane.write(repeated);
-      await lane.write(intent.property.set({
+      await seed(repeated);
+      await seed(repeated);
+      await seed(intent.property.set({
         subject: 'capture:marked',
         key: 'body',
         value: 'later mutation',
       }));
-      await lane.write([
+      await seed([
         intent.node.add({ subject: 'capture:manual-only' }),
         intent.property.set({
           subject: 'capture:manual-only',
@@ -97,7 +96,6 @@ describe('Runtime entity admission inventory', () => {
           value: 'must retain an empty classification marker',
         }),
       ]);
-      await runtime.close();
       runtime = await Runtime.open({ at: repository.tempDir, writer: 'reader' });
 
       const reopened = await runtime.lane(LANE);
@@ -135,13 +133,11 @@ describe('Runtime entity admission inventory', () => {
   });
 
   it('pins one basis and reproduces its complete digest after restart', async () => {
-    const writerA = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
-    const writerB = await Runtime.open({ at: repository.tempDir, writer: 'writer-b' });
+    const writerA = await Runtime.open({ at: repository.tempDir, writer: 'reader-a' });
     try {
       const laneA = await writerA.lane(LANE);
-      const laneB = await writerB.lane(LANE);
-      await laneA.write(entity('capture:a'));
-      await laneB.write(entity('capture:b'));
+      await writeThroughWarp(repository.tempDir, LANE, 'writer-a', entity('capture:a'));
+      await writeThroughWarp(repository.tempDir, LANE, 'writer-b', entity('capture:b'));
 
       const observation = laneA.observe(
         createEntityAdmissionInventoryObserver('basis-f'),
@@ -149,7 +145,7 @@ describe('Runtime entity admission inventory', () => {
       const iterator = observation[Symbol.asyncIterator]();
       const first = await iterator.next();
       expect(first.done).toBe(false);
-      await laneB.write(entity('capture:after-f'));
+      await writeThroughWarp(repository.tempDir, LANE, 'writer-b', entity('capture:after-f'));
       const atF = [requireReadingValue(first), ...await drainValues(iterator)];
       const receiptAtF = await observation.receipt;
       const certificateAtF = requireEntityAdmissionInventoryCertificate(receiptAtF);
@@ -169,7 +165,6 @@ describe('Runtime entity admission inventory', () => {
       expect(repeatedAtF2.certificate.streamDigest)
         .toBe(atF2.certificate.streamDigest);
 
-      await writerB.close();
       await writerA.close();
       const reopened = await Runtime.open({ at: repository.tempDir, writer: 'reader' });
       try {
@@ -188,17 +183,16 @@ describe('Runtime entity admission inventory', () => {
         await reopened.close();
       }
     } finally {
-      await writerB.close();
       await writerA.close();
     }
   });
 
-  it('withholds completeness after cancellation and on a Strand', async () => {
-    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
+  it('withholds completeness after cancellation', async () => {
+    await writeThroughWarp(repository.tempDir, LANE, 'writer-a', entity('capture:one'));
+    await writeThroughWarp(repository.tempDir, LANE, 'writer-a', entity('capture:two'));
+    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'reader' });
     try {
       const lane = await runtime.lane(LANE);
-      await lane.write(entity('capture:one'));
-      await lane.write(entity('capture:two'));
       const observation = lane.observe(
         createEntityAdmissionInventoryObserver('cancelled-inventory'),
       );
@@ -216,51 +210,13 @@ describe('Runtime entity admission inventory', () => {
           code: 'E_ENTITY_ADMISSION_INVENTORY_CERTIFICATE',
         }));
 
-      const strand = await runtime.fork(lane, { name: 'candidate' });
-      const strandInventory = strand.observe(
-        createEntityAdmissionInventoryObserver('strand-inventory'),
-      );
-      expect(await strandInventory.receipt).toMatchObject({
-        status: 'obstructed',
-        reason: 'entity_admission_inventory_strand_unavailable',
-      });
-    } finally {
-      await runtime.close();
-    }
-  });
-
-  it('recovers an auto-allocated admission after Strand settlement', async () => {
-    const runtime = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
-    try {
-      const parent = await runtime.lane(LANE);
-      const strand = await runtime.fork(parent, { name: 'candidate' });
-      await strand.write(intent.entity.addAuto({
-        namespace: 'capture',
-        properties: { body: 'settled' },
-      }));
-
-      const preview = await runtime.previewSettlement({ source: strand, target: parent });
-      await runtime.settle(preview.plan);
-      const inventory = await consumeInventory(parent);
-
-      expect(inventory.admissions).toHaveLength(1);
-      expect(inventory.admissions[0]?.origin).toEqual({
-        kind: 'allocated',
-        namespace: 'capture',
-      });
     } finally {
       await runtime.close();
     }
   });
 
   it('exposes the same streamed records and certificate through the CLI', async () => {
-    const writer = await Runtime.open({ at: repository.tempDir, writer: 'writer-a' });
-    try {
-      const lane = await writer.lane(LANE);
-      await lane.write(entity('capture:cli'));
-    } finally {
-      await writer.close();
-    }
+    await writeThroughWarp(repository.tempDir, LANE, 'writer-a', entity('capture:cli'));
 
     const result = await handleObserve({
       options: cliOptions(repository.tempDir),
@@ -306,7 +262,6 @@ function cliOptions(repo: string): CliOptions {
   return {
     repo,
     lane: LANE,
-    strand: null,
     writer: 'cli-reader',
     writerExplicit: true,
     json: false,

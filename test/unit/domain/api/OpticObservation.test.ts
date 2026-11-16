@@ -94,12 +94,12 @@ describe('OpticObservation', () => {
     }).rejects.toThrow('storage-io-error');
     const receipt1 = await obs1.receipt;
     expect(receipt1.status).toBe('failed');
-    expect(receipt1.cause).toBe('storage-io-error');
+    expect(receipt1.cause).toBe('observation-failed');
 
     const obs2 = new OpticObservation(failingExecution);
     const receipt2 = await obs2.receipt;
     expect(receipt2.status).toBe('failed');
-    expect(receipt2.cause).toBe('storage-io-error');
+    expect(receipt2.cause).toBe('observation-failed');
   });
 
   it('refuses multiple consumers with OpticError (E_OBSERVATION_CONSUMED)', async () => {

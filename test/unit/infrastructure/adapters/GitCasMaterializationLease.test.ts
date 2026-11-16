@@ -1,3 +1,4 @@
+import { setImmediate as nextTurn } from 'node:timers/promises';
 import type { CacheAcquisition } from '@git-stunts/git-cas';
 import { describe, expect, it, vi } from 'vitest';
 import MaterializationCoordinate from '../../../../src/domain/materialization/MaterializationCoordinate.ts';
@@ -14,7 +15,7 @@ describe('GitCasMaterializationLease', () => {
 
     await expect(Promise.race([
       first.release().then(() => 'released'),
-      new Promise<string>((resolve) => setTimeout(() => resolve('blocked'), 0)),
+      nextTurn('blocked'),
     ])).resolves.toBe('released');
     expect(release).not.toHaveBeenCalled();
 

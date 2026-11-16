@@ -2,25 +2,14 @@ import GitWarpTickReceiptShell from './GitWarpTickReceiptShell.ts';
 import GitWarpTickReceiptWitnessCore from './GitWarpTickReceiptWitnessCore.ts';
 import WarpError from '../errors/WarpError.ts';
 import { TickReceipt } from '../types/TickReceipt.ts';
-
-export const GIT_WARP_RECEIPT_ENVELOPE_BOUNDARY_VERSION = 'git-warp.receipt-envelope-boundary/v1';
-export const GIT_WARP_RECEIPT_ENVELOPE_FACT_KIND = 'git-warp.tick-receipt';
+import {
+  GIT_WARP_RECEIPT_ENVELOPE_BOUNDARY_VERSION,
+  GIT_WARP_RECEIPT_ENVELOPE_FACT_KIND,
+  type GitWarpReceiptEnvelopeAnchor,
+} from './GitWarpReceiptEnvelopeAnchor.ts';
 
 export type GitWarpReceiptEnvelopeBoundaryFields = {
   readonly receipt: TickReceipt;
-};
-
-export type GitWarpReceiptEnvelopeAnchor = {
-  readonly boundaryVersion: typeof GIT_WARP_RECEIPT_ENVELOPE_BOUNDARY_VERSION;
-  readonly substrateFactKind: typeof GIT_WARP_RECEIPT_ENVELOPE_FACT_KIND;
-  readonly patchSha: string;
-  readonly writer: string;
-  readonly lamport: number;
-  readonly outcomeCount: number;
-  readonly appliedCount: number;
-  readonly supersededCount: number;
-  readonly redundantCount: number;
-  readonly hasExplanatoryReasons: boolean;
 };
 
 /** Stable substrate-owned receipt anchors for external envelope consumers. */

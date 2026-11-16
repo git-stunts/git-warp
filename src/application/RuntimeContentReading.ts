@@ -23,7 +23,7 @@ export function createContentReadingValue(fields: {
 
 async function* openContent(
   storage: AssetStoragePort, handle: AssetHandle, activity: RuntimeActivity,
-): AsyncIterable<Uint8Array> {
+): AsyncGenerator<Uint8Array, void, undefined> {
   const lease = activity.acquire();
   try { yield* storage.open(handle); }
   finally { lease.release(); }

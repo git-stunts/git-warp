@@ -9,6 +9,7 @@ import StrandError from '../../errors/StrandError.ts';
 import { validateWriterId } from '../../utils/RefLayout.ts';
 import { generateWriterId } from '../../utils/WriterId.ts';
 import { normalizeOptionalString, compareStrings } from './strandShared.ts';
+import type RandomPort from '../../../ports/RandomPort.ts';
 
 /** Convert a frontier Map to a sorted plain object. */
 export function frontierToRecord(frontier: Map<string, string>): Record<string, string> {
@@ -59,8 +60,8 @@ export function normalizeWritable(value: boolean | null | undefined): boolean | 
   return value;
 }
 
-/** Resolve a strand ID, generating a fresh one if not provided. */
-export function resolveStrandId(strandId: string | undefined | null): string {
+/** Resolve a strand ID, minting a fresh one from injected entropy if not provided. */
+export function resolveStrandId(strandId: string | undefined | null, random: RandomPort): string {
   if (strandId !== undefined && strandId !== null) {
     try {
       validateWriterId(strandId);
@@ -72,7 +73,7 @@ export function resolveStrandId(strandId: string | undefined | null): string {
       });
     }
   }
-  const fresh = generateWriterId().replace(/^w_/, 'ws_');
+  const fresh = generateWriterId(random).replace(/^w_/, 'ws_');
   validateWriterId(fresh);
   return fresh;
 }
@@ -106,9 +107,9 @@ export function normalizeCreateOptions(options: {
   scope?: string | null;
   leaseExpiresAt?: string | null;
   baseCheckpointSha?: string;
-}): NormalizedCreateOptions {
+}, random: RandomPort): NormalizedCreateOptions {
   return {
-    strandId: resolveStrandId(options.strandId),
+    strandId: resolveStrandId(options.strandId, random),
     lamportCeiling: normalizeLamportCeiling(options.lamportCeiling),
     owner: normalizeOptionalString(options.owner, 'owner'),
     scope: normalizeOptionalString(options.scope, 'scope'),

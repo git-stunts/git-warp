@@ -77,6 +77,44 @@ describe('HttpRequest', () => {
   });
 });
 
+describe('HttpRequest peer address', () => {
+  it('carries the socket peer address reported by the adapter', () => {
+    const request = new HttpRequest({
+      method: 'POST',
+      url: '/sync',
+      headers: {},
+      peerAddress: '203.0.113.7',
+    });
+
+    expect(request.peerAddress).toBe('203.0.113.7');
+    expect(Object.isFrozen(request)).toBe(true);
+  });
+
+  it('leaves the peer address undefined when the transport reports none', () => {
+    const request = new HttpRequest({ method: 'GET', url: '/sync', headers: {} });
+
+    expect(request.peerAddress).toBeUndefined();
+    expect(HttpRequest.from({ method: 'GET', url: '/sync', headers: {}, peerAddress: undefined }).peerAddress)
+      .toBeUndefined();
+  });
+
+  it('rejects an empty or non-string peer address', () => {
+    expect(() => new HttpRequest({
+      method: 'GET',
+      url: '/sync',
+      headers: {},
+      peerAddress: '',
+    })).toThrow(HttpBoundaryError);
+    expect(() => new HttpRequest({
+      method: 'GET',
+      url: '/sync',
+      headers: {},
+      // @ts-expect-error runtime boundary validation covers untrusted adapters.
+      peerAddress: 42,
+    })).toThrow(HttpBoundaryError);
+  });
+});
+
 describe('HttpResponse', () => {
   it('validates and freezes response fields', () => {
     const response = new HttpResponse({
@@ -213,5 +251,27 @@ describe('NodeHttpAdapter', () => {
     expect(response.status).toBe(201);
     expect(response.headers.get('content-type')).toBe('application/json');
     expect(await response.text()).toBe('POST|/nodes/A?verbose=1|text/plain|hello');
+  });
+
+  it('reports the socket peer address and ignores X-Forwarded-For', async () => {
+    let seenPeer: string | undefined = 'not-called';
+    server = adapter.createServer(async (req: HttpRequest) => {
+      seenPeer = req.peerAddress;
+      return { status: 204 };
+    });
+    const activeServer = server;
+
+    await listenOnLoopback(activeServer);
+
+    const address = activeServer.address();
+    if (address === null) {
+      throw new Error('expected server address after listen');
+    }
+    const response = await fetch(`http://${address.address}:${address.port}/sync`, {
+      headers: { 'x-forwarded-for': '198.51.100.99' },
+    });
+
+    expect(response.status).toBe(204);
+    expect(seenPeer).toBe('127.0.0.1');
   });
 });

@@ -8,6 +8,7 @@
  */
 
 import computeShardKey from '../../utils/shardKey.ts';
+import type CodecValue from '../../types/codec/CodecValue.ts';
 import type { RoaringBitmapSubset } from '../../utils/roaring.ts';
 import type { NeighborEdge } from '../../../ports/NeighborProviderPort.ts';
 
@@ -36,7 +37,7 @@ export interface ShardItem {
 /** A shard file's path + decoded data (port path). */
 export interface DecodedItem {
   path: string;
-  data: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  data: CodecValue;
 }
 
 /**
@@ -91,28 +92,6 @@ export function classifyShards(items: ShardItem[]): { meta: ShardItem[]; labels:
       meta.push(item);
     } else if (path === 'labels.cbor') {
       labels = item.buf;
-    } else if (isEdgeShard(path)) {
-      edges.push(item);
-    }
-  }
-
-  return { meta, labels, edges };
-}
-
-/**
- * Classifies pre-decoded path/data pairs into meta, labels, and edge buckets.
- */
-export function classifyDecoded(items: DecodedItem[]): ClassifiedDecoded {
-  const meta: DecodedItem[] = [];
-  let labels: unknown = null; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  const edges: DecodedItem[] = [];
-
-  for (const item of items) {
-    const { path } = item;
-    if (isMetaShard(path)) {
-      meta.push(item);
-    } else if (path === 'labels.cbor') {
-      labels = item.data;
     } else if (isEdgeShard(path)) {
       edges.push(item);
     }

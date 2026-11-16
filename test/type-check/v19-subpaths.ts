@@ -6,12 +6,9 @@
  */
 
 import {
-  type EntityCausalRelation,
-  type EntityOccurrence,
   type Intent,
   type Lane,
   type Observer,
-  type WriteReceipt,
 } from '../../index.ts';
 import {
   captureCoordinate,
@@ -58,12 +55,7 @@ const advancedObserver: Observer<string> = createObserver(
     return value;
   }
 );
-declare const receipt: WriteReceipt;
-declare const otherOccurrence: EntityOccurrence;
-const occurrenceRelation: EntityCausalRelation | undefined =
-  receipt.occurrence?.relationTo(otherOccurrence);
-const occurrenceOrder: number | undefined = receipt.occurrence?.compare(otherOccurrence);
-const occurrenceSubject: string | undefined = receipt.occurrence?.subject;
+declare const receipt: Parameters<typeof inspectReceipt>[0];
 const inspection: ReceiptInspection = inspectReceipt(receipt);
 const inspectedLane: string = inspection.lane;
 const substrate: ReceiptSubstrateInspection = inspection.substrate;
@@ -93,8 +85,5 @@ void advancedObserver;
 void inspection;
 void inspectedLane;
 void substrate;
-void occurrenceRelation;
-void occurrenceOrder;
-void occurrenceSubject;
 void chart;
 void isRuntimeChart;
