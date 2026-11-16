@@ -270,6 +270,12 @@ describe('the limits that the closed rows state', () => {
       .toBe(RoaringShardBounds.MAX_ALIVE_CARDINALITY);
   });
 
+  it('limits the closed bitmap row to candidate visits', () => {
+    const evidence = evidenceOf('`roaring-wasm` bitmap faults could corrupt results or exhaust resources');
+
+    expect(evidence).toContain('bounds stored-candidate visits for one checkpoint neighbourhood page');
+  });
+
   it('states the CBOR size bound at which both runtime codecs start to refuse', () => {
     const maxBytes = statedCount(evidenceOf(CBOR_RISK), /`MAX_CBOR_DECODE_BYTES` \((\d+) MiB\)/u) * MIB;
     const gitCasCodec = new BoundedGitCasCborCodec();
@@ -380,6 +386,15 @@ describe('the residual exposure that the register states', () => {
 });
 
 describe('statements that depend on the register', () => {
+  it('limits the unreleased bitmap changelog to candidate visits', () => {
+    const unreleased = section(readFileSync('CHANGELOG.md', 'utf8'), '## [Unreleased]')
+      .replace(/\s+/gu, ' ');
+
+    expect(unreleased).toContain('The budget bounds only stored-candidate visits, not total page work.');
+    expect(unreleased).toContain('Whole shards are decoded before candidate selection.');
+    expect(unreleased).not.toContain('A checkpoint neighbourhood page does bounded work');
+  });
+
   it('no longer defers the register update to #1032', () => {
     expect(SECURITY_DOCUMENT).not.toContain('updates the row');
     expect(SECURITY_DOCUMENT).not.toContain('#1032](https://github.com/git-stunts/git-warp/issues/1032) updates them');
