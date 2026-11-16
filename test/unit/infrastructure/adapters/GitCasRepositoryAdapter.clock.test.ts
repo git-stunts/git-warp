@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -97,9 +98,10 @@ describe('GitCasRepositoryAdapter clock', () => {
   it('dates sync replay markers with the injected clock', async () => {
     const fixture = await openFixture();
     const replay = fixture.services.syncReplayProtection;
-    if (replay === undefined) {
-      throw new Error('Git runtime storage must provide sync replay protection');
-    }
+    assert.ok(
+      replay !== undefined,
+      'Git runtime storage must provide sync replay protection',
+    );
 
     const reservation = await replay.reserve({ keyId: 'default', nonce: 'clock', ttlMs: MINUTE_MS });
 
@@ -172,9 +174,10 @@ function requireDiagnostics(
   services: RuntimeStorageServices,
 ): NonNullable<RuntimeStorageServices['materializationCacheDiagnostics']> {
   const diagnostics = services.materializationCacheDiagnostics;
-  if (diagnostics === undefined) {
-    throw new Error('Git runtime storage must provide materialization cache diagnostics');
-  }
+  assert.ok(
+    diagnostics !== undefined,
+    'Git runtime storage must provide materialization cache diagnostics',
+  );
   return diagnostics;
 }
 
