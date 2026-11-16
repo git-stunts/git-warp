@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import RoaringShardRejectedError from '../../../src/domain/errors/RoaringShardRejectedError.ts';
 import { getRoaringBitmap32 } from '../../../src/domain/utils/roaring.ts';
@@ -38,15 +38,15 @@ describe('peer-controlled bitmap shards meet the boundary before the bitmap libr
   const golden = new Bitmap([1, 2, 3, 70_000, 4_000_000_000]).serialize(true);
 
   function rejection(bytes: Uint8Array): RoaringShardRejectedError {
+    let rejected: RoaringShardRejectedError | undefined;
     try {
       Bitmap.deserialize(bytes, true);
     } catch (error) {
-      if (error instanceof RoaringShardRejectedError) {
-        return error;
-      }
-      throw error;
+      assert(error instanceof RoaringShardRejectedError, 'expected a RoaringShardRejectedError from the bitmap boundary');
+      rejected = error;
     }
-    throw new Error('the shard was admitted');
+    assert.isDefined(rejected, 'the shard was admitted');
+    return rejected;
   }
 
   it('round-trips a valid shard', () => {
@@ -70,15 +70,15 @@ describe('peer-controlled bitmap shards meet the boundary before the bitmap libr
   });
 
   function aliveRejection(bytes: Uint8Array): RoaringShardRejectedError {
+    let rejected: RoaringShardRejectedError | undefined;
     try {
       Bitmap.deserializeAlive(bytes);
     } catch (error) {
-      if (error instanceof RoaringShardRejectedError) {
-        return error;
-      }
-      throw error;
+      assert(error instanceof RoaringShardRejectedError, 'expected a RoaringShardRejectedError from the bitmap boundary');
+      rejected = error;
     }
-    throw new Error('the alive bitmap was admitted');
+    assert.isDefined(rejected, 'the alive bitmap was admitted');
+    return rejected;
   }
 
   it('admits an alive bitmap that holds exactly the id space of one meta shard', () => {

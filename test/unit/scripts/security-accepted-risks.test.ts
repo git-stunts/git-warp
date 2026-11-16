@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 
 import MessageCodecError from '../../../src/domain/errors/MessageCodecError.ts';
 import { getRoaringBitmap32 } from '../../../src/domain/utils/roaring.ts';
@@ -73,11 +73,9 @@ function riskRows(document: string): RiskRow[] {
 
 function rowFor(rows: readonly RiskRow[], risk: string): RiskRow {
   const matches = rows.filter((row) => row.risk === risk);
-  expect(matches, `rows for ${risk}`).toHaveLength(1);
   const [match] = matches;
-  if (match === undefined) {
-    throw new Error(`no row for ${risk}`);
-  }
+  assert.isDefined(match, `no row for ${risk}`);
+  expect(matches, `rows for ${risk}`).toHaveLength(1);
   return match;
 }
 
@@ -250,10 +248,8 @@ function refusalCode(decode: (bytes: Uint8Array) => void, bytes: Uint8Array): st
     decode(bytes);
     return null;
   } catch (error) {
-    if (error instanceof MessageCodecError) {
-      return error.code;
-    }
-    throw error;
+    assert.instanceOf(error, MessageCodecError);
+    return error.code;
   }
 }
 
