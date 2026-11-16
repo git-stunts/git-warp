@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, symlinkSync, truncateSync, unlinkSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import GitProcessCounter, { TRACE_BYTE_LIMIT, TRACE_FILE_LIMIT } from '../../../benchmarks/cone-showcase/GitProcessCounter.ts';
+import GitTraceReserve from '../../../benchmarks/cone-showcase/GitTraceReserve.ts';
 
 const CALIBRATION = fileURLToPath(new URL('../../fixtures/coneShowcaseCounterCalibration.ts', import.meta.url));
 const CHILD_TIMEOUT_MS = 15_000;
@@ -75,38 +76,89 @@ describe('cone-showcase Trace2 process metric', () => {
     },
   );
 
-  // Each fixture below is valid trace evidence except for the one guard it names,
-  // so it fails only at that guard, with that guard's own error.
-  it.each([
-    ['discard', TypeError, 'Git trace contains a discarded or nonregular result'],
-    ['byte-reserve', RangeError, 'Git trace byte reserve exhausted; sample is incomplete'],
-    ['inode-reserve', RangeError, 'Git trace file reserve exhausted; sample is incomplete'],
-  ] as const)('stops at the %s guard with its own error', (fault, errorClass, message) => {
+  it('stops at the discard guard with its own error', () => {
     const scratch = mkdtempSync(join(tmpdir(), 'cone-trace-guard-'));
     try {
       const traces = join(scratch, 'trace');
       mkdirSync(traces);
-      if (fault === 'discard') {
-        // Git writes the tripping process's events into the sentinel, so it is a nonempty, complete record.
-        writeFileSync(join(traces, 'git-trace2-discard'), TRACE_RECORD);
-      }
-      if (fault === 'byte-reserve') {
-        const oversized = join(traces, 'oversized');
-        writeFileSync(oversized, '');
-        truncateSync(oversized, TRACE_BYTE_LIMIT);
-        appendFileSync(oversized, '\n');
-      }
-      if (fault === 'inode-reserve') {
-        for (let index = 0; index <= TRACE_FILE_LIMIT; index += 1) {
-          writeFileSync(join(traces, String(index)), TRACE_RECORD);
-        }
-      }
-      expect(() => new GitProcessCounter(traces).capture()).toThrow(errorClass);
-      expect(() => new GitProcessCounter(traces).capture()).toThrow(message);
+      // Git writes the tripping process's events into the sentinel, so it is a nonempty, complete record.
+      writeFileSync(join(traces, 'git-trace2-discard'), TRACE_RECORD);
+      expect(() => new GitProcessCounter(traces).capture()).toThrow(
+        new TypeError('Git trace contains a discarded or nonregular result'),
+      );
     } finally {
       rmSync(scratch, { recursive: true, force: true });
     }
   });
+
+  it('admits exact byte capacity and refuses one byte beyond it', () => {
+    const scratch = mkdtempSync(join(tmpdir(), 'cone-trace-byte-reserve-'));
+    try {
+      writeFileSync(join(scratch, 'first'), TRACE_RECORD);
+      writeFileSync(join(scratch, 'second'), TRACE_RECORD);
+      const first = lstatSync(join(scratch, 'first'));
+      const second = lstatSync(join(scratch, 'second'));
+      const occupied = Math.max(first.size, first.blocks * 512) + Math.max(second.size, second.blocks * 512);
+      const exact = new GitTraceReserve({ bytes: occupied, files: 2 });
+      const exceeded = new GitTraceReserve({ bytes: occupied - 1, files: 2 });
+
+      expect(new GitProcessCounter(scratch, exact).capture().total).toBe(2);
+      expect(() => new GitProcessCounter(scratch, exceeded).capture()).toThrow(
+        new RangeError('Git trace byte reserve exhausted; sample is incomplete'),
+      );
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  it('admits exact file capacity and refuses one file beyond it', () => {
+    const scratch = mkdtempSync(join(tmpdir(), 'cone-trace-file-reserve-'));
+    try {
+      const reserve = new GitTraceReserve({ bytes: TRACE_BYTE_LIMIT, files: 2 });
+      const counter = new GitProcessCounter(scratch, reserve);
+      writeFileSync(join(scratch, 'first'), TRACE_RECORD);
+      writeFileSync(join(scratch, 'second'), TRACE_RECORD);
+      expect(counter.capture().total).toBe(2);
+
+      writeFileSync(join(scratch, 'third'), TRACE_RECORD);
+      expect(() => counter.capture()).toThrow(
+        new RangeError('Git trace file reserve exhausted; sample is incomplete'),
+      );
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps the production reserve at 568 MiB and 72,704 files', () => {
+    const reserve = GitTraceReserve.production();
+    expect(reserve.bytes).toBe(568 * 1024 * 1024);
+    expect(reserve.files).toBe(72_704);
+    expect(TRACE_BYTE_LIMIT).toBe(reserve.bytes);
+    expect(TRACE_FILE_LIMIT).toBe(reserve.files);
+    expect(Object.isFrozen(reserve)).toBe(true);
+  });
+
+  it('refuses an unvalidated reserve before counter work', () => {
+    expect(() => new GitProcessCounter('', { bytes: 1, files: 1 })).toThrow(
+      new TypeError('a Git trace counter needs a validated trace reserve'),
+    );
+  });
+
+  it.each([0, -1, 0.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1, TRACE_BYTE_LIMIT + 1])(
+    'refuses invalid byte reserve %s before counter work', (bytes) => {
+      expect(() => new GitProcessCounter('', new GitTraceReserve({ bytes, files: 1 }))).toThrow(
+        new RangeError('Git trace byte reserve must be a positive safe integer at or below its production maximum'),
+      );
+    },
+  );
+
+  it.each([0, -1, 0.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1, TRACE_FILE_LIMIT + 1])(
+    'refuses invalid file reserve %s before counter work', (files) => {
+      expect(() => new GitProcessCounter('', new GitTraceReserve({ bytes: 1, files }))).toThrow(
+        new RangeError('Git trace file reserve must be a positive safe integer at or below its production maximum'),
+      );
+    },
+  );
 
   it('refuses an unnamed directory, and a trace path that is not a directory', () => {
     expect(() => new GitProcessCounter('')).toThrow('a Git trace counter needs its owned directory');
