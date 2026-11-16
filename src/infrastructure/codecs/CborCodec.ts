@@ -199,7 +199,8 @@ export function decode(buffer: Uint8Array): unknown {
   return cborDecode(buffer);
 }
 
-function requireBoundedCbor(buffer: Uint8Array): void {
+/** Refuses a CBOR blob that breaks the decode bounds above, before any decoder reads it. */
+export function requireBoundedCbor(buffer: Uint8Array): void {
   if (buffer.byteLength > MAX_CBOR_DECODE_BYTES) {
     throw boundedDecodeError(
       `encoded byte length ${String(buffer.byteLength)} exceeds ${String(MAX_CBOR_DECODE_BYTES)}`,

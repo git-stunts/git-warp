@@ -6,6 +6,7 @@ import GitProcessCounter from './GitProcessCounter.ts';
 import { runScale } from './ScaleRun.ts';
 import WitnessArguments from './WitnessArguments.ts';
 import WitnessReport from './WitnessReport.ts';
+import { WITNESS_PLAN } from './WitnessWorkload.ts';
 
 const [repository, threadsText, traceDirectory, ...extra] = process.argv.slice(2);
 if (repository === undefined || threadsText === undefined || traceDirectory === undefined || extra.length !== 0) {
@@ -18,7 +19,7 @@ if (threads === undefined) {
 }
 
 try {
-  const result = await runScale(repository, threads, new GitProcessCounter(traceDirectory), new WitnessReport(threads, process.stdout));
+  const result = await runScale(repository, threads, new GitProcessCounter(traceDirectory), new WitnessReport(threads, process.stdout), WITNESS_PLAN);
   process.stdout.write(result.summary());
   process.exitCode = result.isComplete() ? 0 : 1;
 } catch (error) {

@@ -2,7 +2,7 @@ import PhaseCounts from './PhaseCounts.ts';
 import ReadCheck from './ReadCheck.ts';
 import { Margins } from './Margins.ts';
 import type WitnessSample from './WitnessSample.ts';
-import { MEASURED_SAVES, MARGINS_READS, COLD_OPENS } from './WitnessWorkload.ts';
+import type WorkloadPlan from './WorkloadPlan.ts';
 
 /** Exact retained evidence for one scale, with no performance ceiling. */
 export class ScaleResult {
@@ -10,8 +10,9 @@ export class ScaleResult {
   readonly documents: number;
   readonly samples: readonly WitnessSample[];
   readonly expectedBulk: number;
+  readonly workload: WorkloadPlan;
 
-  constructor(threads: number, documents: number, samples: readonly WitnessSample[], expectedBulk: number) {
+  constructor(threads: number, documents: number, samples: readonly WitnessSample[], expectedBulk: number, workload: WorkloadPlan) {
     if (![threads, documents, expectedBulk].every((value) => Number.isSafeInteger(value) && value > 0)) {
       throw new RangeError('a scale result needs positive finite corpus and bulk counts');
     }
@@ -19,12 +20,14 @@ export class ScaleResult {
     this.documents = documents;
     this.samples = Object.freeze([...samples]);
     this.expectedBulk = expectedBulk;
+    this.workload = workload;
     Object.freeze(this);
   }
 
   isComplete(): boolean {
     const count = (phase: string): number => this.samples.filter((sample) => sample.phase === phase).length;
-    return count('bulk') === this.expectedBulk && count('save') === MEASURED_SAVES && count('margins') === MARGINS_READS && count('cold') === COLD_OPENS
+    return count('bulk') === this.expectedBulk && count('save') === this.workload.measuredSaves
+      && count('margins') === this.workload.marginsReads && count('cold') === this.workload.coldOpens
       && count('setup') === 4 && count('close') === 2
       && this.samples.every((sample, index) => {
         const expected = sample.phase === 'bulk' || sample.phase === 'save' ? 'retained'
@@ -44,7 +47,7 @@ export class ScaleResult {
         String(counts.gitProcesses.min), String(counts.gitProcesses.p50), String(counts.gitProcesses.max), outcomes,
       ].join('\t');
     });
-    rows.push(new ReadCheck(this.threads, this.samples).line());
+    rows.push(new ReadCheck(this.threads, this.samples, this.workload).line());
     rows.push(['scale-end', String(this.threads), this.isComplete() ? 'complete' : 'incomplete'].join('\t'));
     return rows.join('\n') + '\n';
   }

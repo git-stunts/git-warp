@@ -614,6 +614,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mathematical rendering, TOML configuration, and bounded indexed source maps
   ([#987](https://github.com/git-stunts/git-warp/issues/987)).
 
+### Security
+
+- Bound the CBOR that git-warp reads through git-cas's CBOR codec. Asset manifests, Merkle
+  sub-manifests, bundle descriptors and trust records now pass the same decode limits as
+  git-warp's other repository blobs before cbor-x reads them: 5 MiB, depth 32, 1,000,000
+  items, 1,000,000 entries in one container, definite lengths only, and the tag allow-list.
+  Before, only a blob size limit applied to these blobs, which peers replicate: 10 MiB for
+  manifests and sub-manifests, and 64 MiB for bundle descriptors and trust records.
+  The `git-warp-v18-to-v19` migration reads legacy manifests with the same limits.
+  Encoded bytes are unchanged, so manifest bytes and tree OIDs do not change. A read of a
+  refused manifest, sub-manifest or trust record fails with `E_CBOR_DECODE_BOUNDS`; for a
+  bundle descriptor, git-cas reports a `BUNDLE_CORRUPT` error whose `meta.originalError`
+  is that `E_CBOR_DECODE_BOUNDS` error. git-warp also validates a Merkle root manifest
+  before git-cas reads its sub-manifests: at most 10,000 sub-manifest references, unique
+  references, contiguous coverage from chunk 0 and at most 1,000 chunks per reference;
+  a refused root manifest fails with `E_CAS_MANIFEST_SHAPE`. git-warp limits one stored
+  asset to 1,048,576 chunks, at least 64 GiB at git-cas's smallest chunk size of 64 KiB:
+  a write of a larger asset fails with `E_ASSET_TOO_LARGE`, and a read of a Merkle root
+  manifest that lists more chunks fails with `E_CAS_MANIFEST_SHAPE`. An asset of more than
+  1,048,576 chunks that an earlier version stored can no longer be read; read or copy it
+  with v20 before you upgrade.
+  See [CBOR input limits](docs/topics/sync.md#cbor-input-limits)
+  ([#1186](https://github.com/git-stunts/git-warp/issues/1186)).
+- `serve()` now passes `allowedWriters` to the HTTP sync server. From v11.0.0 to v20.0.0
+  it did not, so the writer list that `.github/SECURITY.md` documents had no effect: the
+  server answered a signed request whose frontier named an unlisted writer, and an invalid
+  or empty list, or a list without `auth`, did not stop the server from starting. In
+  v11.0.0 to v18.2.1 `serve()` was public: on `WarpGraph` in v11.0.0 to v14.16.2 and through
+  `openWarpGraph()` in v17.0.0 to v18.2.1, and on `WarpCore` in v15.0.0 to v18.2.1. v18.1.0 to
+  v18.2.1 also passed `git warp serve --allow-writer` to it. v19.0.0, v20.0.0 and v21.0.0 publish no
+  route to `serve()`; the fix applies when a route is published again. An operator who set `allowedWriters` now gets the documented behaviour: a
+  request whose frontier names an unlisted writer gets HTTP 403 `FORBIDDEN_WRITER` in
+  `enforce` mode, and an invalid list stops `serve()` at startup. `.github/SECURITY.md`
+  now states that the check reads the requester's frontier, that a request with an empty
+  frontier passes it, and that `serve()` does not expose the `forbiddenWriterRejects`
+  metric ([#1163](https://github.com/git-stunts/git-warp/issues/1163)).
+  The list does not limit which patches the server sends; see `.github/SECURITY.md`.
+
 ### Packaging
 
 - The published root reaches `Warp` as well as `Runtime`. After #1054 removed the legacy write,

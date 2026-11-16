@@ -8,6 +8,7 @@ import { ScaleResult } from '../../../benchmarks/cone-showcase/ScaleResult.ts';
 import WitnessOutcome, { type OutcomeStatus } from '../../../benchmarks/cone-showcase/WitnessOutcome.ts';
 import WitnessReport from '../../../benchmarks/cone-showcase/WitnessReport.ts';
 import WitnessSample from '../../../benchmarks/cone-showcase/WitnessSample.ts';
+import { WITNESS_PLAN } from '../../../benchmarks/cone-showcase/WitnessWorkload.ts';
 import ConeShowcaseReportOutput from '../../fixtures/ConeShowcaseReportOutput.ts';
 
 // Oracle: the README "Output and completion" contract (specified): newline-terminated
@@ -90,7 +91,7 @@ describe('cone-showcase evidence values', () => {
   });
 
   it.each([[0, 1, 1], [1, 0, 1], [1, 1, 0], [1.5, 1, 1]])('refuses a scale result with corpus counts %d, %d, %d', (threads, documents, bulk) => {
-    expect(() => new ScaleResult(threads, documents, [], bulk)).toThrow('a scale result needs positive finite corpus and bulk counts');
+    expect(() => new ScaleResult(threads, documents, [], bulk, WITNESS_PLAN)).toThrow('a scale result needs positive finite corpus and bulk counts');
   });
 
   it('refuses margins that are not corpus identities, or share one comment between threads', () => {
