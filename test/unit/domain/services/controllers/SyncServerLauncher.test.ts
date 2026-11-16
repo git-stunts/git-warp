@@ -1,19 +1,53 @@
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import RuntimeHost from '../../../../../src/domain/RuntimeHost.ts';
-import type { ServeOptions } from '../../../../../src/domain/capabilities/SyncCapability.ts';
 import { signSyncRequest } from '../../../../../src/domain/services/sync/SyncAuthService.ts';
 import SyncSecret from '../../../../../src/domain/services/sync/SyncSecret.ts';
 import defaultCrypto from '../../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import { HttpRequest, type HttpResponse, type HttpServerHandle } from '../../../../../src/ports/HttpServerPort.ts';
+import type RuntimeStorageProviderPort from '../../../../../src/ports/RuntimeStorageProviderPort.ts';
+import type { RuntimeStorageRequest, RuntimeStorageServices } from '../../../../../src/ports/RuntimeStorageProviderPort.ts';
 import InMemoryGraphAdapter from '../../../../helpers/InMemoryGraphAdapter.ts';
 import ManualClock from '../../../../helpers/ManualClock.ts';
 import { openMemoryRuntimeHostProduct } from '../../../../helpers/MemoryRuntimeHost.ts';
+import MemoryRuntimeStorageAdapter from '../../../../helpers/MemoryRuntimeStorageAdapter.ts';
 import SeededRandomPort from '../../../../helpers/SeededRandomPort.ts';
 import { MemoryHttpPort } from '../../../../helpers/SyncHttpFixture.ts';
 
 // Every case starts the server through the public `serve()` method of a real runtime host,
 // so each one observes what `launchSyncServer` hands to the HTTP sync server.
 // Oracle: `.github/SECURITY.md` "Writer Authorization" and the `ServeOptions` declaration.
+
+/** The options type that `serve()` accepts: the guard below is keyed to it, not to a copy. */
+type ServeOptions = Parameters<RuntimeHost['serve']>[0];
+type ServeAuth = NonNullable<ServeOptions['auth']>;
+type DeclaredServeFields = { readonly options: string[]; readonly auth: string[] };
+
+const RUNTIME_HOST_SOURCE = fileURLToPath(new URL('../../../../../src/domain/RuntimeHost.ts', import.meta.url));
+
+/**
+ * Reads the field names of the `serve()` parameter with the TypeScript checker, so that a
+ * field without a probe fails this test at run time and not only under `tsc`.
+ */
+function declaredServeFields(): DeclaredServeFields {
+  const program = ts.createProgram([RUNTIME_HOST_SOURCE],
+    { strict: true, noEmit: true, allowImportingTsExtensions: true, types: [] });
+  const checker = program.getTypeChecker();
+  const source = program.getSourceFile(RUNTIME_HOST_SOURCE);
+  const runtimeHost = source?.statements.find((statement) => ts.isClassDeclaration(statement)
+    && statement.name?.text === 'RuntimeHost');
+  if (runtimeHost === undefined) { throw new Error('RuntimeHost class declaration not found'); }
+  const serve = checker.getPropertyOfType(checker.getTypeAtLocation(runtimeHost), 'serve');
+  const options = serve === undefined ? undefined
+    : checker.getTypeOfSymbol(serve).getCallSignatures()[0]?.getParameters()[0];
+  if (options === undefined) { throw new Error('RuntimeHost.serve has no options parameter'); }
+  const optionsType = checker.getTypeOfSymbol(options);
+  const auth = checker.getPropertyOfType(optionsType, 'auth');
+  const authType = auth === undefined ? undefined : checker.getNonNullableType(checker.getTypeOfSymbol(auth));
+  return { options: optionsType.getProperties().map((field) => field.name).sort(),
+    auth: authType === undefined ? [] : authType.getProperties().map((field) => field.name).sort() };
+}
 
 const SECRET = SyncSecret.fromString('serve-options-secret');
 const EMPTY_FRONTIER = new TextEncoder().encode('{"type":"sync-request","frontier":{}}');
@@ -30,6 +64,19 @@ class ListeningHttpPort extends MemoryHttpPort {
         this.listens.push({ port, host: typeof host === 'string' ? host : '' });
         inner.listen(port, host, callback);
       } };
+  }
+}
+
+/** Memory storage that supplies every service except a durable sync replay store. */
+class StorageWithoutReplayProtection implements RuntimeStorageProviderPort {
+  readonly #inner: MemoryRuntimeStorageAdapter;
+  constructor(history: InMemoryGraphAdapter, clock: ManualClock) {
+    this.#inner = new MemoryRuntimeStorageAdapter({ history, clock });
+  }
+  async createRuntimeStorageServices(request: RuntimeStorageRequest): Promise<RuntimeStorageServices> {
+    const { syncReplayProtection, ...services } = await this.#inner.createRuntimeStorageServices(request);
+    expect(syncReplayProtection).toBeDefined();
+    return services;
   }
 }
 
@@ -72,6 +119,16 @@ async function serve(options: Partial<ServeOptions> = {}): Promise<Served> {
 }
 
 describe('serve() options reach the HTTP sync server', () => {
+  it('refuses to start with auth when the runtime has no durable replay store', async () => {
+    const clock = new ManualClock();
+    const history = new InMemoryGraphAdapter();
+    const host = await openMemoryRuntimeHostProduct({ persistence: history,
+      runtimeStorage: new StorageWithoutReplayProtection(history, clock), graphName: 'serve-options',
+      writerId: 'server', clock, random: new SeededRandomPort(1163) });
+    await expect(host.serve({ port: 0, httpPort: new ListeningHttpPort(), auth: { keys: { default: SECRET } } }))
+      .rejects.toMatchObject({ code: 'E_SYNC_AUTH_REPLAY_STORE' });
+  });
+
   describe('allowedWriters', () => {
     it('refuses a signed request from a peer that holds a patch by an unlisted writer', async () => {
       const { http, clock } = await serve({ allowedWriters: ['alice'] });
@@ -130,11 +187,11 @@ describe('serve() options reach the HTTP sync server', () => {
       const { http, clock } = await serve();
       expect((await http.request(await signed(clock, EMPTY_FRONTIER))).status).toBe(200);
     },
+    // An unsigned request carries no signature version header, so the auth check refuses it first.
     auth: async () => {
-      const { http, clock } = await serve();
-      const wrong = await signed(clock, EMPTY_FRONTIER, SyncSecret.fromString('another-secret'));
-      const response = await http.request(wrong);
-      expect({ status: response.status, body: response.body }).toEqual({ status: 401, body: '{"error":"INVALID_SIGNATURE"}' });
+      const { http } = await serve();
+      const response = await http.request();
+      expect({ status: response.status, body: response.body }).toEqual({ status: 400, body: '{"error":"INVALID_VERSION"}' });
     },
     unsafeAllowUnauthenticatedLocalhost: async () => {
       const { http } = await start({ unsafeAllowUnauthenticatedLocalhost: true });
@@ -155,22 +212,41 @@ describe('serve() options reach the HTTP sync server', () => {
     },
   };
 
+  // One probe per field of the nested `auth` object, under the same two guards.
+  const AUTH_FIELD_PROBES: Record<keyof ServeAuth, () => Promise<void>> = {
+    keys: async () => {
+      const { http, clock } = await serve({ auth: { keys: { default: SECRET } } });
+      expect((await http.request(await signed(clock, EMPTY_FRONTIER))).status).toBe(200);
+      const wrong = await signed(clock, EMPTY_FRONTIER, SyncSecret.fromString('another-secret'));
+      const response = await http.request(wrong);
+      expect({ status: response.status, body: response.body }).toEqual({ status: 401, body: '{"error":"INVALID_SIGNATURE"}' });
+    },
+    mode: async () => {
+      const { http } = await serve({ auth: { keys: { default: SECRET }, mode: 'log-only' } });
+      expect((await http.request()).status).toBe(200);
+    },
+    rateLimit: async () => {
+      const limiter = new ManualClock();
+      const { http, clock } = await serve({ auth: { keys: { default: SECRET },
+        rateLimit: { capacity: 1, refillTokensPerSecond: 1, clock: limiter.read } } });
+      expect((await http.request(await signed(clock, EMPTY_FRONTIER))).status).toBe(200);
+      clock.advance(1);
+      const second = await http.request(await signed(clock, EMPTY_FRONTIER));
+      expect({ status: second.status, body: second.body }).toEqual({ status: 429, body: '{"error":"RATE_LIMITED"}' });
+    },
+  };
+
+  // `Record<keyof ...>` above fails `tsc`; this case fails the unit run in PR CI as well.
+  it('has a probe for every declared field of the serve() options and of auth', () => {
+    expect({ options: Object.keys(FIELD_PROBES).sort(), auth: Object.keys(AUTH_FIELD_PROBES).sort() })
+      .toEqual(declaredServeFields());
+  });
+
   it.each(Object.entries(FIELD_PROBES))('forwards %s', async (_field, probe) => {
     await probe();
   });
 
-  it('forwards auth.mode', async () => {
-    const { http } = await serve({ auth: { keys: { default: SECRET }, mode: 'log-only' } });
-    expect((await http.request()).status).toBe(200);
-  });
-
-  it('forwards auth.rateLimit', async () => {
-    const limiter = new ManualClock();
-    const { http, clock } = await serve({ auth: { keys: { default: SECRET },
-      rateLimit: { capacity: 1, refillTokensPerSecond: 1, clock: limiter.read } } });
-    expect((await http.request(await signed(clock, EMPTY_FRONTIER))).status).toBe(200);
-    clock.advance(1);
-    const second = await http.request(await signed(clock, EMPTY_FRONTIER));
-    expect({ status: second.status, body: second.body }).toEqual({ status: 429, body: '{"error":"RATE_LIMITED"}' });
+  it.each(Object.entries(AUTH_FIELD_PROBES))('forwards auth.%s', async (_field, probe) => {
+    await probe();
   });
 });
