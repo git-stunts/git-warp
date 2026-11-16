@@ -2,24 +2,9 @@ import { closeSync, fstatSync, lstatSync, openSync, readdirSync, readSync, unlin
 import { join } from 'node:path';
 
 import GitProcessCount from './GitProcessCount.ts';
+import GitTraceReserve from './GitTraceReserve.ts';
 
-/**
- * Per-lifecycle trace reserve. Basis: the 2026-11-11 Docker runs measured at
- * most 196 Git processes per write (a 200-thread bulk write) and about 4.1 KiB
- * allocated per trace file. The largest Warp lifecycle is the 2,000-thread
- * scale: 124 bulk writes plus 60 saves. The reserve doubles both measurements.
- */
-const MEASURED_PROCESSES_PER_WRITE = 196;
-const LARGEST_LIFECYCLE_WRITES = 124 + 60;
-const RESERVE_MARGIN = 2;
-const TRACE_FILE_BYTES = 8 * 1024;
-
-/** 184 * 196 * 2 = 72,128 files, rounded up to 72,704 (71 Ki): 2.02 times 36,064, with room for setup and close. */
-export const TRACE_FILE_LIMIT = Math.ceil(
-  (LARGEST_LIFECYCLE_WRITES * MEASURED_PROCESSES_PER_WRITE * RESERVE_MARGIN) / 1024,
-) * 1024;
-/** 72,704 files at 8 KiB each: 568 MiB of logical or allocated trace bytes. */
-export const TRACE_BYTE_LIMIT = TRACE_FILE_LIMIT * TRACE_FILE_BYTES;
+export { TRACE_BYTE_LIMIT, TRACE_FILE_LIMIT } from './GitTraceReserve.ts';
 
 /**
  * Counts unique Git Trace2 files, including configured Git descendants.
@@ -28,13 +13,18 @@ export const TRACE_BYTE_LIMIT = TRACE_FILE_LIMIT * TRACE_FILE_BYTES;
  */
 export default class GitProcessCounter {
   readonly #directory: string;
+  readonly #reserve: GitTraceReserve;
   readonly #seen = new Map<string, string>();
 
-  constructor(directory: string) {
+  constructor(directory: string, reserve: GitTraceReserve = GitTraceReserve.production()) {
+    if (!(reserve instanceof GitTraceReserve)) {
+      throw new TypeError('a Git trace counter needs a validated trace reserve');
+    }
     if (directory.length === 0) {
       throw new TypeError('a Git trace counter needs its owned directory');
     }
     this.#directory = directory;
+    this.#reserve = reserve;
   }
 
   capture(): GitProcessCount {
@@ -63,7 +53,7 @@ export default class GitProcessCounter {
       throw new TypeError('Git trace directory is missing or not a real directory');
     }
     const entries = readdirSync(this.#directory, { withFileTypes: true });
-    if (entries.length > TRACE_FILE_LIMIT) {
+    if (entries.length > this.#reserve.files) {
       throw new RangeError('Git trace file reserve exhausted; sample is incomplete');
     }
     const files = new Map<string, string>();
@@ -88,7 +78,7 @@ export default class GitProcessCounter {
       throw new TypeError('Git trace file is nonregular, aliased, or incomplete');
     }
     let allocated = allocatedBefore + Math.max(info.size, info.blocks * 512);
-    if (allocated > TRACE_BYTE_LIMIT) {
+    if (allocated > this.#reserve.bytes) {
       throw new RangeError('Git trace byte reserve exhausted; sample is incomplete');
     }
     const file = openSync(path, 'r');
@@ -98,7 +88,7 @@ export default class GitProcessCounter {
         throw new TypeError('Git trace file identity changed during sampling');
       }
       allocated += Math.max(opened.size, opened.blocks * 512) - Math.max(info.size, info.blocks * 512);
-      if (allocated > TRACE_BYTE_LIMIT || opened.size === 0) {
+      if (allocated > this.#reserve.bytes || opened.size === 0) {
         throw new RangeError('Git trace grew beyond its reserve or became incomplete while sampling');
       }
       const end = new Uint8Array(1);
