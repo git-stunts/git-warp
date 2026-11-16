@@ -350,6 +350,17 @@ describe('the limits that the closed rows state', () => {
 });
 
 describe('the residual exposure that the register states', () => {
+  it('states the shard decode limit that still applies to checkpoint neighbourhood pages', () => {
+    const evidence = evidenceOf(
+      'One admitted edge bitmap can be expanded in full on some in-process reads, and a writer can store an index shard file that the default codec refuses to read',
+    );
+    const maxBytes = statedCount(evidence,
+      /Checkpoint neighbourhood pages bound candidate expansion, but still refuse shards above the (\d+) MiB default codec limit/u) * MIB;
+
+    expect(refusalCode(requireBoundedCbor, byteStringOfTotalLength(maxBytes))).toBeNull();
+    expect(refusalCode(requireBoundedCbor, byteStringOfTotalLength(maxBytes + 1))).toBe(CBOR_BOUNDS_CODE);
+  });
+
   it('states the full edge-bitmap cardinality that the boundary admits', () => {
     const evidence = evidenceOf(
       'One admitted edge bitmap can be expanded in full on some in-process reads, and a writer can store an index shard file that the default codec refuses to read',
