@@ -6,6 +6,7 @@ import '../../../scripts/RequireDockerTests.ts';
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import HostClockAdapter from "../../../../src/infrastructure/adapters/HostClockAdapter.ts";
 
 // Use relative imports from the project root
 // deno-lint-ignore no-explicit-any
@@ -14,8 +15,6 @@ let Plumbing: any;
 let GitTimelineHistoryAdapter: any;
 // deno-lint-ignore no-explicit-any
 let GitCasRepositoryAdapter: any;
-// deno-lint-ignore no-explicit-any
-let HostClockAdapter: any;
 // deno-lint-ignore no-explicit-any
 let WarpCore: any;
 // deno-lint-ignore no-explicit-any
@@ -37,20 +36,18 @@ export async function loadModules() {
   const runtimeDefaultsModule = await import(join(root, "src/application/RuntimeHostBrowserDefaults.ts"));
   const gitGraphAdapterModule = (await import(join(root, "src/infrastructure/adapters/GitTimelineHistoryAdapter.ts"))).default;
   const gitCasRepositoryAdapterModule = (await import(join(root, "src/infrastructure/adapters/GitCasRepositoryAdapter.ts"))).default;
-  const hostClockAdapterModule = (await import(join(root, "src/infrastructure/adapters/HostClockAdapter.ts"))).default;
   const warpCoreModule = (await import(join(root, "src/domain/WarpCore.ts"))).default;
   const webCryptoAdapterModule = (await import(join(root, "src/infrastructure/adapters/WebCryptoAdapter.ts"))).default;
   runtimeDefaultsModule.installDefaultRuntimeHostBrowserPorts();
   Plumbing = plumbingModule;
   GitTimelineHistoryAdapter = gitGraphAdapterModule;
   GitCasRepositoryAdapter = gitCasRepositoryAdapterModule;
-  HostClockAdapter = hostClockAdapterModule;
   WarpCore = warpCoreModule;
   WebCryptoAdapter = webCryptoAdapterModule;
 }
 
 export async function createTestRepo(label = "deno-test") {
-  if (!Plumbing || !GitTimelineHistoryAdapter || !GitCasRepositoryAdapter || !HostClockAdapter || !WarpCore || !WebCryptoAdapter) {
+  if (!Plumbing || !GitTimelineHistoryAdapter || !GitCasRepositoryAdapter || !WarpCore || !WebCryptoAdapter) {
     await loadModules();
   }
 
