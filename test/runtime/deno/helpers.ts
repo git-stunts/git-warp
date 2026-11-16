@@ -6,7 +6,7 @@ import '../../../scripts/RequireDockerTests.ts';
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import HostClockAdapter from "../../../../src/infrastructure/adapters/HostClockAdapter.ts";
+import HostClockAdapter from "../../../src/infrastructure/adapters/HostClockAdapter.ts";
 
 // Use relative imports from the project root
 // deno-lint-ignore no-explicit-any
