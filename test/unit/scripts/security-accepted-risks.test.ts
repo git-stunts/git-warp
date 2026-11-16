@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import MessageCodecError from '../../../src/domain/errors/MessageCodecError.ts';
+import { getRoaringBitmap32 } from '../../../src/domain/utils/roaring.ts';
 import { DEFAULT_SYNC_PEER_RATE_LIMIT } from '../../../src/domain/services/sync/SyncPeerRateLimiter.ts';
 import { SYNC_REPLAY_ACCEPTANCE_WINDOW_MS } from '../../../src/domain/services/sync/SyncRequestFreshness.ts';
 import BoundedGitCasCborCodec from '../../../src/infrastructure/adapters/BoundedGitCasCborCodec.ts';
@@ -12,6 +13,7 @@ import v18CheckpointMigrationCodec, {
   V18_CHECKPOINT_MAX_DECODE_BYTES,
 } from '../../../scripts/v18-to-v19/V18CheckpointMigrationCodec.ts';
 import { arraysOfZeros, nestedArrays } from '../../helpers/OutOfBoundsCborCorpus.ts';
+import { encodePortableShard, fullRunContainers } from '../../helpers/PortableRoaringShardFixture.ts';
 
 // Oracle: the Option B decision on #1032 (2026-11-08). v21.0.0 ships only
 // when the four risks that expired on 2026-08-01 are eliminated in code. The
@@ -20,7 +22,7 @@ import { arraysOfZeros, nestedArrays } from '../../helpers/OutOfBoundsCborCorpus
 
 const SECURITY_DOCUMENT = readFileSync('.github/SECURITY.md', 'utf8');
 const RESIDUAL_ACCEPTANCE = 'accepted by the maintainer on 2026-11-11';
-const RESIDUAL_REVIEW_DATE = '2027-05-01';
+const RESIDUAL_REVIEW_DATE = '2027-02-16';
 const CLOSED_EXPIRY = 'Not applicable: closed';
 
 type RiskRow = {
@@ -344,6 +346,22 @@ describe('the limits that the closed rows state', () => {
     );
 
     expect(statedCount(evidence, /up to (\d+) MiB \(`MAX_BODY_BYTES`\)/u) * MIB).toBe(MAX_BODY_BYTES);
+  });
+});
+
+describe('the residual exposure that the register states', () => {
+  it('states the full edge-bitmap cardinality that the boundary admits', () => {
+    const evidence = evidenceOf(
+      'One admitted edge bitmap can be expanded in full on some in-process reads, and a writer can store an index shard file that the default codec refuses to read',
+    );
+    // The portable 32-bit format has 2^16 container keys, each with 2^16 values.
+    const wholeIdSpace = encodePortableShard(fullRunContainers(2 ** 16));
+    const Bitmap = getRoaringBitmap32();
+    const admitted = Bitmap.deserialize(wholeIdSpace, true);
+
+    expect(admitted.size).toBe(2 ** 32);
+    expect(2 ** statedCount(evidence, /A run-encoded bitmap of 2\^(\d+) values/u))
+      .toBe(admitted.size);
   });
 });
 

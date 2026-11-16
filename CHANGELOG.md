@@ -107,9 +107,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   limits that each closed row states with the code. The `cbor-x` row records
   the v18-to-v19 checkpoint migration decoder, which an operator runs once and
   which has wider size and item limits, as a documented exception. Two
-  narrower rows record what remains; the maintainer accepted both on 2026-11-11, with a review date of
-  2027-05-01: the full
-  in-process expansion of one admitted edge bitmap and the unmatched writer
+  narrower rows record what remains; the maintainer accepted both on 2026-11-11.
+  Their review date is 2027-02-16, with reassessment required before v21.0.0
+  ships if earlier. They cover the full in-process expansion of one admitted
+  edge bitmap (up to 2^32 values) and the unmatched writer
   shard size ([#1159](https://github.com/git-stunts/git-warp/issues/1159),
   Medium), and senders with more addresses than the peer admission limit
   tracks, with no global flood bound
