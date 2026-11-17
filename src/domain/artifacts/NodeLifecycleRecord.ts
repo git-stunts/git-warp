@@ -1,3 +1,4 @@
+import { Dot } from '../crdt/Dot.ts';
 import WarpError from '../errors/WarpError.ts';
 import { EventId } from '../utils/EventId.ts';
 import LegacyEventId from '../utils/LegacyEventId.ts';
@@ -12,12 +13,20 @@ import LegacyEventId from '../utils/LegacyEventId.ts';
  * and a later write it beats is stale too, so it never decides a read.
  * Registers are kept whether or not the node is live, because a later add
  * can make a later-ordered register visible again.
+ *
+ * `tombstonedDots` lists, in ascending order, the tombstoned dots that the
+ * node's entry holds. A reducer session keeps a remove that came before the
+ * add it observed by reserving the dot under the named node (#1119), so the
+ * add can still arrive as checkpoint tail; a bounded read of the node checks
+ * a tail add's dot against this list. The list lives with the node, so it
+ * grows with the node's own removes, not with the graph's.
  */
 export class NodeLifecycleRecord {
   readonly nodeId: string;
   readonly birth: EventId | null;
   readonly clear: EventId | null;
   readonly pendingRemoves: readonly EventId[];
+  readonly tombstonedDots: readonly string[];
   /** Property key to register EventId, in ascending key order. */
   readonly #registers: ReadonlyMap<string, EventId | LegacyEventId>;
 
@@ -27,6 +36,7 @@ export class NodeLifecycleRecord {
     readonly clear: EventId | null;
     readonly pendingRemoves: readonly EventId[];
     readonly registers: readonly (readonly [string, EventId | LegacyEventId])[];
+    readonly tombstonedDots: readonly string[];
   }) {
     requireNodeId(fields.nodeId);
     this.nodeId = fields.nodeId;
@@ -34,6 +44,7 @@ export class NodeLifecycleRecord {
     this.clear = requireOptionalEvent(fields.clear, 'clear');
     this.pendingRemoves = requirePendingRemoves(fields.pendingRemoves);
     this.#registers = requireRegisters(fields.registers);
+    this.tombstonedDots = requireTombstonedDots(fields.tombstonedDots);
     Object.freeze(this);
   }
 
@@ -83,6 +94,18 @@ function requireRegisters(
     previous = key;
   }
   return map;
+}
+
+function requireTombstonedDots(dots: readonly string[]): readonly string[] {
+  let previous: string | null = null;
+  for (const dot of dots) {
+    Dot.decode(dot);
+    if (previous !== null && previous >= dot) {
+      throw recordError('tombstonedDots must be strictly ascending');
+    }
+    previous = dot;
+  }
+  return Object.freeze([...dots]);
 }
 
 function requireRegisterKey(key: string, previous: string): void {

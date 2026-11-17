@@ -19,9 +19,14 @@ import { MATERIALIZATION_INDEX_SHARD_LIMITS } from '../../../../src/domain/mater
 import { applyPatchOp, createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.ts';
 import NodeLifecycleIndexBuilder from '../../../../src/domain/services/index/NodeLifecycleIndexBuilder.ts';
-import { isNodeLifecycleShardPath } from '../../../../src/domain/services/index/NodeLifecycleShardReader.ts';
+import {
+  decodeNodeLifecycleShard,
+  isNodeLifecycleShardPath,
+  NODE_LIFECYCLE_RECEIPT_PATH,
+} from '../../../../src/domain/services/index/NodeLifecycleShardReader.ts';
 import type WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
+import type CodecValue from '../../../../src/domain/types/codec/CodecValue.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
@@ -104,14 +109,15 @@ async function largestLifecycleShard(shape: Shape): Promise<LargestShard> {
 }
 
 describe('node lifecycle shard size at 10,000 nodes', () => {
-  // A live record is 25 CBOR items and a removed one 15, plus 5 for the
+  // A live record is 26 CBOR items and a removed one 17 (its tombstoned-dot
+  // list holds the node's one removed dot), plus 5 for the
   // shard envelope; the largest shard holds 50 of the 10,000 nodes.
   it('pins the largest lifecycle shard when every node is live', async () => {
-    await expect(largestLifecycleShard('once')).resolves.toEqual({ bytes: 8_828, nodes: 50, items: 1_255 });
+    await expect(largestLifecycleShard('once')).resolves.toEqual({ bytes: 8_878, nodes: 50, items: 1_305 });
   });
 
   it('pins the largest lifecycle shard when every node was removed and never added again', async () => {
-    await expect(largestLifecycleShard('removed')).resolves.toEqual({ bytes: 5_728, nodes: 50, items: 755 });
+    await expect(largestLifecycleShard('removed')).resolves.toEqual({ bytes: 6_125, nodes: 50, items: 855 });
   });
 
   it('pins the largest logical meta shard of the same live graph', async () => {
@@ -151,20 +157,53 @@ describe('node lifecycle shard ceiling', () => {
     return sizes;
   }
 
-  // A cleared record is 15 CBOR items. The envelope costs 5, so
-  // floor((2,000,000 - 5) / 15) = 133,333 records fit the item limit.
+  // A cleared record is 17 CBOR items: 15, plus its tombstoned-dot list and
+  // the one dot in it. The envelope costs 5, so
+  // floor((2,000,000 - 5) / 17) = 117,646 records fit the item limit.
   // This fixture crosses the separate byte limit first.
-  it('admits one shard of 133,333 removed-node records under the item limit', async () => {
-    const sizes = await encodeWithinIndexLimits(removedInOneShard(133_333));
+  it('admits one shard of 117,646 removed-node records under the item limit', async () => {
+    const sizes = await encodeWithinIndexLimits(removedInOneShard(117_646));
     expect([...sizes.keys()]).toEqual(['life_aa.cbor', 'life_receipt.cbor']);
-    expect(sizes.get('life_aa.cbor')).toBe(19_667_643);
+    expect(sizes.get('life_aa.cbor')).toBe(18_411_322);
     expect(sizes.get('life_aa.cbor')).toBeGreaterThan(MATERIALIZATION_INDEX_SHARD_LIMITS.maxBytes);
   }, 60_000);
 
-  it('refuses one shard of 133,334 removed-node records', async () => {
-    await expect(encodeWithinIndexLimits(removedInOneShard(133_334))).rejects.toMatchObject({
+  it('refuses one shard of 117,647 removed-node records', async () => {
+    await expect(encodeWithinIndexLimits(removedInOneShard(117_647))).rejects.toMatchObject({
       code: 'E_INDEX_SHARD_MALFORMED',
       context: { reason: 'decoded item count exceeds the configured maximum' },
     });
   }, 60_000);
+});
+
+describe('node lifecycle tombstones at 10,000 removed nodes', () => {
+  // Oracle: each fixture node `node:N` is added with dot `w:N+1` and that dot
+  // is removed, so its entry holds exactly that tombstoned dot.
+  function expectedDots(): ReadonlyMap<string, readonly string[]> {
+    return new Map(Array.from({ length: NODES }, (_, index) => [
+      `node:${String(index).padStart(6, '0')}`, [encodeDot(Dot.create('w', index + 1))],
+    ]));
+  }
+
+  it('keeps the receipt bytes of the live graph: no removed node dot reaches the receipt', async () => {
+    const live = await encoded(NodeLifecycleIndexBuilder.fromState(build('once')).yieldShards());
+    const removed = await encoded(NodeLifecycleIndexBuilder.fromState(build('removed')).yieldShards());
+
+    expect(removed.get(NODE_LIFECYCLE_RECEIPT_PATH)).toEqual(live.get(NODE_LIFECYCLE_RECEIPT_PATH));
+  });
+
+  it('lists each removed node dot in that node record and nowhere else', async () => {
+    const members = await encoded(NodeLifecycleIndexBuilder.fromState(build('removed')).yieldShards());
+    const listed = new Map<string, readonly string[]>();
+    for (const [path, bytes] of members) {
+      if (isNodeLifecycleShardPath(path)) {
+        for (const record of decodeNodeLifecycleShard(codec.decode<CodecValue>(bytes), path).values()) {
+          listed.set(record.nodeId, record.tombstonedDots);
+        }
+      }
+    }
+
+    expect(listed.size).toBe(NODES);
+    expect(listed).toEqual(expectedDots());
+  });
 });

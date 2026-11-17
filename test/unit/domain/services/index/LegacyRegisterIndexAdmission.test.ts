@@ -77,7 +77,7 @@ it('admits validated modern snapshot records without accepting historical node b
 });
 
 it('refuses unsupported receipt versions and invalid transport prototypes', () => {
-  const receipt = { schemaVersion: 3, nodeCount: 0, shardCount: 0, floatingTombstones: [] };
+  const receipt = { schemaVersion: 4, nodeCount: 0, shardCount: 0, floatingTombstones: [] };
   expect(() => decodeNodeLifecycleReceipt(receipt, []))
     .toThrow(expect.objectContaining({ code: 'E_INDEX_SHARD_MALFORMED' }));
   const envelope = { schemaVersion: 2, entries: [] };
