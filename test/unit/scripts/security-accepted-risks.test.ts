@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { assert, describe, expect, it } from 'vitest';
 
 import MessageCodecError from '../../../src/domain/errors/MessageCodecError.ts';
+import { INDEX_SHARD_LIMITS } from '../../../src/domain/materialization/IndexShardLimits.ts';
 import { getRoaringBitmap32 } from '../../../src/domain/utils/roaring.ts';
 import { DEFAULT_SYNC_PEER_RATE_LIMIT } from '../../../src/domain/services/sync/SyncPeerRateLimiter.ts';
 import { SYNC_REPLAY_ACCEPTANCE_WINDOW_MS } from '../../../src/domain/services/sync/SyncRequestFreshness.ts';
@@ -24,6 +25,7 @@ const SECURITY_DOCUMENT = readFileSync('.github/SECURITY.md', 'utf8');
 const RESIDUAL_ACCEPTANCE = 'accepted by the maintainer on 2026-11-11';
 const RESIDUAL_REVIEW_DATE = '2027-02-16';
 const CLOSED_EXPIRY = 'Not applicable: closed';
+const BITMAP_READ_RISK = 'One admitted edge bitmap can be expanded in full on some in-process reads, and a writer can store an index shard file that the default codec refuses to read';
 
 type RiskRow = {
   readonly risk: string;
@@ -140,14 +142,21 @@ const CLOSED_RISKS: readonly ClosedRisk[] = [
       ['src/domain/services/sync/HttpSyncServerHelpers.ts', 'validateNonLocalRateLimit'],
     ],
   },
+  {
+    risk: BITMAP_READ_RISK,
+    severity: 'Medium',
+    closedBy: ['#1159', '#1214'],
+    evidence: [
+      ['src/domain/services/index/BitmapIndexReader.ts', 'orderedByFirstBitmap'],
+      ['src/domain/services/index/logicalIndexHelpers.ts', 'neighbourGlobalIds'],
+      ['src/domain/services/index/IndexNodeUpdater.ts', 'IndexNodeUpdater'],
+      ['src/domain/materialization/IndexShardLimits.ts', 'INDEX_SHARD_LIMITS'],
+      ['src/infrastructure/adapters/IndexShardBound.ts', 'decodeIndexShard'],
+    ],
+  },
 ];
 
 const RESIDUAL_RISKS: readonly ResidualRisk[] = [
-  {
-    risk: 'One admitted edge bitmap can be expanded in full on some in-process reads, and a writer can store an index shard file that the default codec refuses to read',
-    severity: 'Medium',
-    issues: ['#1159'],
-  },
   {
     risk: 'A sender with more distinct socket addresses than `maxTrackedPeers` is not limited by the peer admission limit, and the server has no global bound on unauthenticated work',
     severity: 'Low',
@@ -351,37 +360,31 @@ describe('the limits that the closed rows state', () => {
   });
 });
 
-describe('the residual exposure that the register states', () => {
-  it('states the shard decode limit and candidate-only checkpoint page assurance', () => {
-    const evidence = evidenceOf(
-      'One admitted edge bitmap can be expanded in full on some in-process reads, and a writer can store an index shard file that the default codec refuses to read',
-    );
-    const maxBytes = statedCount(evidence,
-      /Checkpoint neighbourhood pages bound candidate expansion, but still refuse shards above the (\d+) MiB default codec limit/u) * MIB;
+describe('the bitmap read and shard size row that #1159 closes', () => {
+  it('states the index-shard bound that writers and readers share, and the candidate-only page assurance', () => {
+    const evidence = evidenceOf(BITMAP_READ_RISK);
     const protection = section(SECURITY_DOCUMENT, '## 🌊 Resource Protection');
 
+    expect(statedCount(evidence, /`INDEX_SHARD_LIMITS` \(`[^`]+`\), (\d+) MiB/u) * MIB).toBe(INDEX_SHARD_LIMITS.maxBytes);
+    expect(statedCount(evidence, /MiB and ([\d,]+) CBOR items/u)).toBe(INDEX_SHARD_LIMITS.structureLimits.maxItems);
+    expect(statedCount(protection, /index-shard readers refuse shard files above (\d+) MiB/u) * MIB)
+      .toBe(INDEX_SHARD_LIMITS.maxBytes);
     expect(protection).toContain('This bound applies only to stored-candidate visits');
     expect(protection).toContain('it does not bound total page work or guarantee cursor completion');
     expect(protection).toContain('Complete shards are decoded before candidate selection');
-    expect(statedCount(protection, /the default CBOR codec refuses shard files above (\d+) MiB/u) * MIB)
-      .toBe(maxBytes);
-
-    expect(refusalCode(requireBoundedCbor, byteStringOfTotalLength(maxBytes))).toBeNull();
-    expect(refusalCode(requireBoundedCbor, byteStringOfTotalLength(maxBytes + 1))).toBe(CBOR_BOUNDS_CODE);
   });
 
   it('states the full edge-bitmap cardinality that the boundary admits', () => {
-    const evidence = evidenceOf(
-      'One admitted edge bitmap can be expanded in full on some in-process reads, and a writer can store an index shard file that the default codec refuses to read',
-    );
+    const evidence = evidenceOf(BITMAP_READ_RISK);
     // The portable 32-bit format has 2^16 container keys, each with 2^16 values.
     const wholeIdSpace = encodePortableShard(fullRunContainers(2 ** 16));
     const Bitmap = getRoaringBitmap32();
     const admitted = Bitmap.deserialize(wholeIdSpace, true);
 
     expect(admitted.size).toBe(2 ** 32);
-    expect(2 ** statedCount(evidence, /A run-encoded bitmap of 2\^(\d+) values/u))
+    expect(2 ** statedCount(evidence, /a run-encoded bitmap of 2\^(\d+) values/u))
       .toBe(admitted.size);
+    expect(statedCount(evidence, /passes the boundary in ([\d,]+) bytes/u)).toBe(wholeIdSpace.byteLength);
   });
 });
 

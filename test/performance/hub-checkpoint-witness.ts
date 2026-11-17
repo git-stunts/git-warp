@@ -61,7 +61,8 @@ async function main(): Promise<void> {
   installDefaultRuntimeHostNodePorts();
   const directory = await mkdtemp(join(tmpdir(), 'hub-checkpoint-witness-'));
   spawnSync('git', ['init', '--quiet', directory], { stdio: 'inherit' });
-  const binding = resolveWarpStorage(await GitStorage.open({ cwd: directory }));
+  const storage = await GitStorage.open({ cwd: directory });
+  const binding = resolveWarpStorage(storage);
   const graph = await openRuntimeHostProduct({
     persistence: binding.history,
     runtimeStorage: binding.runtimeStorage,
@@ -96,6 +97,7 @@ async function main(): Promise<void> {
     hubs, neighbours, outcomes,
     maxRssBytes: process.resourceUsage().maxRSS * 1024,
   })}`);
+  await storage.close();
 }
 
 async function readAllNeighbours(graph: RuntimeHostProduct, hub: string): Promise<Outcome> {

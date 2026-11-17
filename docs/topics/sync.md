@@ -225,10 +225,19 @@ in one container. These measurements describe that corpus, not every possible
 repository. The tag-focused fixture check finds no new tag refusals in released
 fixture blobs; it does not prove that every previously accepted blob still decodes.
 
+Index shards, the files of the bitmap, node lifecycle and property indexes that
+checkpoints and materialization retain, have one wider bound of their own that
+their writers and readers share
+([#1159](https://github.com/git-stunts/git-warp/issues/1159)): 16 MiB
+(16,777,216 bytes) and 2,000,000 total items, with the same depth, container
+entry and tag checks. A writer refuses a shard above it, and a reader refuses
+one above it the same way: `E_INDEX_SHARD_TOO_LARGE` above the byte limit and
+`E_INDEX_SHARD_MALFORMED` above a structure limit. Decoding one index shard at
+the bound takes about 70 MiB of heap when its entries are bitmaps, and about
+215 MiB at 2.58 million small items.
+
 A structural preflight refusal from the shared decoder has code
-`E_CBOR_DECODE_BOUNDS` and a `reason` in its context. Index-shard readers that
-request strict structure limits retain their `E_INDEX_SHARD_MALFORMED` preflight
-error boundary. Preserve the offending object and
+`E_CBOR_DECODE_BOUNDS` and a `reason` in its context. Preserve the offending object and
 its identity when diagnosing a refusal; do not remove the checks to read it.
 HTTP JSON body limits are separate from these repository-blob limits.
 
