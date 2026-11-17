@@ -1,6 +1,10 @@
 import ReadBudgetError from '../errors/ReadBudgetError.ts';
 
-/** Finite limits on one read: records it may read, bytes it may emit, and work it may do. */
+/**
+ * Finite limits on one read: records it may read, bytes it may emit, and work it may do. A read
+ * checks each reading against `bytes`, and a node or property read takes one record, which every
+ * budget allows. `work` is validated but not enforced yet.
+ */
 export default class ReadBudget {
   readonly records: number;
   readonly bytes: number;

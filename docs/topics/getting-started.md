@@ -26,14 +26,15 @@ two-stage generation scripts and expected files, and runs the small executable
 v21 writes go through `Warp`
 ([#1054](https://github.com/git-stunts/git-warp/issues/1054)). `Warp.open`
 requires a `WarpAccessPort` that your application implements. Opening a Warp
-grants nothing: the port decides each write.
+grants nothing: the port decides each write and each read. A port that does not
+override `authorizeRead` refuses every read.
 
 ```typescript
 import {
-  GitStorage, RetainedWriteReceipt, Runtime, Warp, WarpAccessPort,
-  WarpAddress, WarpWriteGrant,
+  GitStorage, ReadBudget, RetainedWriteReceipt, Runtime, Warp, WarpAccessPort,
+  WarpAddress, WarpReadGrant, WarpWriteGrant,
 } from '@git-stunts/git-warp';
-import type { WarpWriteRequest } from '@git-stunts/git-warp';
+import type { WarpReadRequest, WarpWriteRequest } from '@git-stunts/git-warp';
 import { users } from './users.generated.js';
 
 class LocalAccess extends WarpAccessPort {
@@ -41,6 +42,13 @@ class LocalAccess extends WarpAccessPort {
     return Promise.resolve(new WarpWriteGrant({
       authority: `local:${request.writer}`,
       budget: { records: 256, bytes: 1_048_576, work: 10_000 },
+    }));
+  }
+
+  override authorizeRead(request: WarpReadRequest): Promise<WarpReadGrant> {
+    return Promise.resolve(new WarpReadGrant({
+      authority: `local:${request.observer.toString()}`,
+      budget: request.budget ?? ReadBudget.of({ records: 64, bytes: 65_536, work: 64 }),
     }));
   }
 }
@@ -94,6 +102,18 @@ subject of each `entity.add` by intent position.
 answers node presence and property questions. Generated Observers read through
 `Runtime.open()`, `runtime.lane()` and `lane.observe()` until the rest of
 [#1052](https://github.com/git-stunts/git-warp/issues/1052) lands. A Lane has no writes.
+
+The port's `authorizeRead` gets a `WarpReadRequest` that names the observer,
+purpose, question, `subject` and `key`, so it can allow one node or property and
+refuse another. A reading larger than the granted `bytes` limit ends the read
+with status `budget-exhausted`. The `work` limit is validated but not enforced
+yet.
+
+A granted read can write refs, although it changes no graph data. On a graph that
+has no refs under `refs/warp/<graph>/`, it writes the substrate marker
+`refs/warp/<graph>/substrate-version`. When writer patches are not yet folded
+into the read cone, it folds them and moves `refs/warp/<graph>/cone/head`. Writes
+make the same refs. A refused read writes nothing.
 
 Prepare a missing local basis explicitly:
 
