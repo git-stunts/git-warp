@@ -1,9 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
-import { Dot } from '../../../../src/domain/crdt/Dot.ts';
+import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
+
+/** Seed the verifier derives from the bytes 0x00 0x01 0x02 0x03: 0x00010203 >>> 1. */
+const SEQUENCE_SEED = 33_025;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +52,7 @@ describe('MaterializedViewService.verifyIndex', () => {
     const result = service.verifyIndex({
       state,
       logicalIndex,
+      random: new SequenceRandomPort(),
       options: { sampleRate: 1.0, seed: 42 },
     });
 
@@ -78,6 +84,7 @@ describe('MaterializedViewService.verifyIndex', () => {
     const result = service.verifyIndex({
       state,
       logicalIndex,
+      random: new SequenceRandomPort(),
       options: { sampleRate: 1.0, seed: 99 },
     });
 
@@ -112,6 +119,7 @@ describe('MaterializedViewService.verifyIndex', () => {
     const result = service.verifyIndex({
       state,
       logicalIndex: (corruptedIndex),
+      random: new SequenceRandomPort(),
       options: { sampleRate: 1.0, seed: 777 },
     });
 
@@ -126,8 +134,8 @@ describe('MaterializedViewService.verifyIndex', () => {
 
     const opts = { sampleRate: 0.5, seed: 12345 };
 
-    const r1 = service.verifyIndex({ state, logicalIndex, options: opts });
-    const r2 = service.verifyIndex({ state, logicalIndex, options: opts });
+    const r1 = service.verifyIndex({ state, logicalIndex, random: new SequenceRandomPort(), options: opts });
+    const r2 = service.verifyIndex({ state, logicalIndex, random: new SequenceRandomPort(), options: opts });
 
     expect(r1.passed).toBe(r2.passed);
     expect(r1.failed).toBe(r2.failed);
@@ -143,22 +151,37 @@ describe('MaterializedViewService.verifyIndex', () => {
     const result = service.verifyIndex({
       state,
       logicalIndex,
+      random: new SequenceRandomPort(),
       options: { sampleRate: 0.001, seed: 42 },
     });
 
     expect(result.passed + result.failed).toBeGreaterThan(0);
   });
 
-  it('uses default seed and sampleRate when options omitted', () => {
+  it('derives the default seed only from the injected port', () => {
     const service = new MaterializedViewService({ codec: defaultCodec });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
+    const random = new SequenceRandomPort(0);
 
-    const result = service.verifyIndex({ state, logicalIndex });
+    const result = service.verifyIndex({ state, logicalIndex, random });
+    const replay = service.verifyIndex({ state, logicalIndex, random: new SequenceRandomPort(0) });
 
-    expect(typeof result.seed).toBe('number');
+    expect(result.seed).toBe(SEQUENCE_SEED);
+    expect(replay).toEqual(result);
+    expect(random.requests).toEqual([4]);
     expect(result.failed).toBe(0);
     expect(result.errors).toEqual([]);
+  });
+
+  it('does not draw entropy when the caller supplies a seed', () => {
+    const service = new MaterializedViewService({ codec: defaultCodec });
+    const state = buildTestState();
+    const { logicalIndex } = service.build(state);
+    const random = new SequenceRandomPort(0);
+
+    expect(service.verifyIndex({ state, logicalIndex, random, options: { seed: 5 } }).seed).toBe(5);
+    expect(random.requests).toEqual([]);
   });
 
   it('handles empty state without errors', () => {
@@ -169,6 +192,7 @@ describe('MaterializedViewService.verifyIndex', () => {
     const result = service.verifyIndex({
       state,
       logicalIndex,
+      random: new SequenceRandomPort(),
       options: { sampleRate: 1.0, seed: 1 },
     });
 
@@ -205,10 +229,40 @@ describe('MaterializedViewService.verifyIndex', () => {
     const result = service.verifyIndex({
       state,
       logicalIndex: (corruptedIndex),
+      random: new SequenceRandomPort(),
       options: { sampleRate: 1.0, seed: 123 },
     });
 
     expect(result.failed).toBeGreaterThan(0);
     expect(result.errors.some((e) => e.nodeId === 'ISO' && e.direction === 'alive')).toBe(true);
+  });
+
+  it('samples nothing at a zero rate or from an empty graph', () => {
+    const service = new MaterializedViewService({ codec: defaultCodec });
+    const state = buildTestState();
+    const { logicalIndex } = service.build(state);
+    const empty = createEmptyState();
+
+    expect(service.verifyIndex({ state, logicalIndex, random: new SequenceRandomPort(), options: { sampleRate: 0, seed: 1 } }))
+      .toMatchObject({ passed: 0, failed: 0 });
+    expect(service.verifyIndex({
+      state: empty, logicalIndex: service.build(empty).logicalIndex, random: new SequenceRandomPort(), options: { sampleRate: 0.5, seed: 1 },
+    })).toMatchObject({ passed: 0, failed: 0 });
+  });
+
+  it('ignores edges to removed nodes and merges labels for one neighbor', () => {
+    const service = new MaterializedViewService({ codec: defaultCodec });
+    const state = buildTestState();
+    const sha = 'b'.repeat(40);
+    applyPatchOp(state, { type: 'EdgeAdd', from: 'A', to: 'B', label: 'reports', dot: Dot.create('w2', 1) }, new EventId(1, 'w2', sha, 0));
+    applyPatchOp(state, { type: 'NodeAdd', node: 'E', dot: Dot.create('w2', 2) }, new EventId(2, 'w2', sha, 1));
+    applyPatchOp(state, { type: 'EdgeAdd', from: 'A', to: 'E', label: 'stale', dot: Dot.create('w2', 3) }, new EventId(3, 'w2', sha, 2));
+    applyPatchOp(state, new NodeRemove('E', [encodeDot(Dot.create('w2', 2))]), new EventId(4, 'w2', sha, 3));
+    const { logicalIndex } = service.build(state);
+
+    const result = service.verifyIndex({ state, logicalIndex, random: new SequenceRandomPort(), options: { sampleRate: 1, seed: 1 } });
+
+    expect(result.failed).toBe(0);
+    expect(result.passed).toBeGreaterThan(0);
   });
 });

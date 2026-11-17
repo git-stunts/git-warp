@@ -15,11 +15,13 @@ import { createEmptyState } from '../../../../src/domain/services/JoinReducer.ts
 import { computeStateHash } from '../../../../src/domain/services/state/StateSerializer.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import HostClockAdapter from '../../../../src/infrastructure/adapters/HostClockAdapter.ts';
 import GitCasTrieStoreAdapter from '../../../../src/infrastructure/adapters/GitCasTrieStoreAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import type ClockPort from '../../../../src/ports/ClockPort.ts';
 import type MaterializationStorePort from '../../../../src/ports/MaterializationStorePort.ts';
 import type {
   MaterializationAcquisition,
@@ -69,6 +71,7 @@ describe('GitCasMaterializationStoreAdapter integration', () => {
     const reopenedFixture = await createMaterializations(
       harness.plumbing,
       reopenedCas,
+      new HostClockAdapter(),
     );
     const reopened = reopenedFixture.materializations;
     let acquisition: MaterializationAcquisition | null = null;
@@ -257,14 +260,18 @@ type Harness = Readonly<{
   plumbing: Awaited<ReturnType<typeof Plumbing.createDefault>>;
 }>;
 
-async function createHarness(clock?: { readonly now: () => Date }): Promise<Harness> {
+async function createHarness(clock?: MutableClock): Promise<Harness> {
   const path = await mkdtemp(join(tmpdir(), 'git-warp-materializations-'));
   const plumbing = await Plumbing.createDefault({ cwd: path });
   await plumbing.execute({ args: ['init', '-q'] });
   await plumbing.execute({ args: ['config', 'user.email', 'test@example.com'] });
   await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
   const cas = createCas(plumbing, clock);
-  const materializationFixture = await createMaterializations(plumbing, cas);
+  const materializationFixture = await createMaterializations(
+    plumbing,
+    cas,
+    clock ?? new HostClockAdapter(),
+  );
   return Object.freeze({
     cas,
     history: materializationFixture.history,
@@ -289,12 +296,13 @@ function createCas(
 async function createMaterializations(
   plumbing: Awaited<ReturnType<typeof Plumbing.createDefault>>,
   cas: ContentAddressableStore,
+  clock: ClockPort,
 ): Promise<Readonly<{
   history: GitTimelineHistoryAdapter;
   materializations: MaterializationStorePort;
 }>> {
   const history = new GitTimelineHistoryAdapter({ plumbing });
-  const repository = new GitCasRepositoryAdapter({ plumbing, history, cas });
+  const repository = new GitCasRepositoryAdapter({ plumbing, history, cas, clock });
   const services = await repository.createRuntimeStorageServices({
     timelineName: 'events',
     codec: defaultCodec,
@@ -415,7 +423,8 @@ async function stateHash(state: ReturnType<typeof createEmptyState>): Promise<st
   });
 }
 
-class MutableClock {
+/** One time source in both shapes: git-cas reads `now()`, the repository adapter reads `nowMs()`. */
+class MutableClock implements ClockPort {
   #current: number;
 
   constructor(iso: string) {
@@ -424,6 +433,10 @@ class MutableClock {
 
   now(): Date {
     return new Date(this.#current);
+  }
+
+  nowMs(): number {
+    return this.#current;
   }
 
   advance(milliseconds: number): void {

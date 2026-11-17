@@ -1,6 +1,7 @@
 FROM node:22-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bats \
+    ca-certificates \
     chromium \
     jq \
     curl \
@@ -11,6 +12,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     g++ \
     && rm -rf /var/lib/apt/lists/*
+# Pinned static checks for the installed-upgrade smoke. Release-asset SHA-256s
+# are checked before either tool can execute; the same pins serve amd64/arm64.
+RUN set -eu; \
+    case "$(dpkg --print-architecture)" in \
+      amd64) sc_arch=x86_64; sh_arch=amd64; \
+        sc_sha=b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6; \
+        sh_sha=d9fbb2a9c33d13f47e7618cf362a914d029d02a6df124064fff04fd688a745ea ;; \
+      arm64) sc_arch=aarch64; sh_arch=arm64; \
+        sc_sha=68a8133197a50beb8803f8d42f9908d1af1c5540d4bb05fdfca8c1fa47decefc; \
+        sh_sha=5f3fe3fa6a9f766e6a182ba79a94bef8afedafc57db0b1ad32b0f67fae971ba4 ;; \
+      *) printf 'Unsupported shell-check architecture\n' >&2; exit 1 ;; \
+    esac; \
+    printf 'Downloading ShellCheck v0.11.0 (%s)\n' "$sc_arch"; \
+    curl --fail --silent --show-error --location \
+      --connect-timeout 15 --max-time 60 --retry 2 --retry-max-time 120 \
+      --output /tmp/warp-shellcheck.tar.gz \
+      "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.$sc_arch.tar.gz"; \
+    printf '%s  /tmp/warp-shellcheck.tar.gz\n' "$sc_sha" | sha256sum --check -; \
+    tar -xzf /tmp/warp-shellcheck.tar.gz -C /usr/local/bin --strip-components=1 shellcheck-v0.11.0/shellcheck; \
+    rm /tmp/warp-shellcheck.tar.gz; \
+    printf 'Downloading shfmt v3.12.0 (%s)\n' "$sh_arch"; \
+    curl --fail --silent --show-error --location \
+      --connect-timeout 15 --max-time 60 --retry 2 --retry-max-time 120 \
+      --output /usr/local/bin/shfmt \
+      "https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_linux_$sh_arch"; \
+    printf '%s  /usr/local/bin/shfmt\n' "$sh_sha" | sha256sum --check -; \
+    chmod +x /usr/local/bin/shfmt
 WORKDIR /app
 # System Chromium is available to every test user without a per-user download.
 ENV PUPPETEER_SKIP_DOWNLOAD=true \
@@ -21,6 +49,9 @@ COPY package*.json ./
 COPY scripts ./scripts
 COPY patches ./patches
 RUN npm ci
+# The released v20 package, run as an old reader by the #1079 compatibility witness.
+COPY test/fixtures/v20-reader/package*.json ./test/fixtures/v20-reader/
+RUN npm --prefix test/fixtures/v20-reader ci --ignore-scripts --no-audit --no-fund
 COPY . .
 RUN npm run build --silent
 RUN git init -q \

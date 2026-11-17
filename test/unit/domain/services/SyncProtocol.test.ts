@@ -35,6 +35,9 @@ const OID_A = '1'.repeat(40);
 const OID_B = '2'.repeat(40);
 const OID_C = '3'.repeat(40);
 
+// Commit dates are opaque here; a fixed value keeps the fixture deterministic.
+const FIXED_COMMIT_DATE = '2026-01-01T00:00:00.000Z';
+
 /**
  * Creates a test patch with the given operations.
  */
@@ -78,7 +81,7 @@ function createMockPersistence(commits: any = {}, blobs: any = {}): any {
           sha,
           message: commits[sha].message,
           author: 'test',
-          date: new Date().toISOString(),
+          date: FIXED_COMMIT_DATE,
           parents: commits[sha].parents || [],
         };
       }

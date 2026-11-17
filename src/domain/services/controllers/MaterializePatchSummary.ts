@@ -64,14 +64,3 @@ export class MaterializePatchSummaryAccumulator {
     });
   }
 }
-
-export function summarizeMaterializePatches(
-  patches: readonly PatchWithSha[],
-  provenanceBase?: ProvenanceIndex,
-): MaterializePatchSummary {
-  const accumulator = new MaterializePatchSummaryAccumulator(provenanceBase);
-  for (const entry of patches) {
-    accumulator.record(entry);
-  }
-  return accumulator.toSummary();
-}

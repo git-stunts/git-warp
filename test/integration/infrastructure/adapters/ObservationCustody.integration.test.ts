@@ -56,6 +56,9 @@ import ObservationCustodyFixture, {
   freezeLedger,
   preparationOf,
 } from '../../../helpers/ObservationCustodyFixture.ts';
+import type { LatchSide } from '../../../helpers/CallLatch.ts';
+import HeldObservationCustody from '../../../helpers/HeldObservationCustody.ts';
+import HeldObservationSupport from '../../../helpers/HeldObservationSupport.ts';
 
 const fixture = new ObservationCustodyFixture();
 
@@ -77,6 +80,46 @@ async function retainRead(
   return narrowed(await service.settle(attempt, { core: readCore(options.label), publication: null }), RetainedObservation);
 }
 
+/** One service whose custody and support calls a test can hold, with one admitted attempt over two writers. */
+async function heldAttempt(format: string, label: string): Promise<{
+  readonly service: ObservationCustodyService;
+  readonly attempt: ObservationAttempt;
+  readonly custody: HeldObservationCustody;
+  readonly support: HeldObservationSupport;
+}> {
+  const path = await fixture.repository(format);
+  let custody: HeldObservationCustody | null = null;
+  let support: HeldObservationSupport | null = null;
+  const opened = await fixture.open(path, {
+    limit: 4,
+    wrap: (inner) => {
+      custody = new HeldObservationCustody(inner);
+      return custody;
+    },
+    wrapSupport: (inner) => {
+      support = new HeldObservationSupport(inner);
+      return support;
+    },
+  });
+  const attempt = await admitted(opened.service, readBindings(basisTree(path, label, writerCommits(path, 2))));
+  return { service: opened.service, attempt, custody: narrowed(custody, HeldObservationCustody), support: narrowed(support, HeldObservationSupport) };
+}
+
+/** Prepares once more while the first prepare's store write is held on `side`, and returns both outcomes. */
+async function prepareAroundStoreWrite(format: string, side: LatchSide): Promise<readonly [ObservationPrepared, ObservationPrepared]> {
+  const { service, attempt, custody } = await heldAttempt(format, `write-${side}`);
+  const writing = custody.hold('prepare', side);
+  const first = service.prepare(attempt, sources());
+  let second: Awaited<ReturnType<ObservationCustodyService['prepare']>>;
+  try {
+    await writing.arrived();
+    second = await service.prepare(attempt, sources());
+  } finally {
+    writing.release();
+  }
+  return [narrowed(await first, ObservationPrepared), narrowed(second, ObservationPrepared)];
+}
+
 function parentCount(path: string, commit: string): number {
   return git(path, ['rev-list', '--parents', '-n', '1', commit]).split(/\s+/u).length - 1;
 }
@@ -86,7 +129,7 @@ function loosePath(path: string, oid: string): string {
 }
 
 function constructionRefs(path: string): string {
-  return git(path, ['for-each-ref', '--format=%(refname)', `refs/warp/${FIXTURE_GRAPH}/observations/`]);
+  return git(path, ['for-each-ref', '--format=%(refname)', `refs/warp-local/${FIXTURE_GRAPH}/observations/`]);
 }
 
 function missingOid(path: string, digit: string): string {
@@ -297,12 +340,28 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
   });
 
   it('refuses a second build of one attempt in one service, keeping the first owned', async () => {
-    const path = await fixture.repository(format);
-    const opened = await fixture.open(path, { limit: 4 });
-    const attempt = await admitted(opened.service, readBindings(basisTree(path, 'twice', writerCommits(path, 2))));
-    const [first, second] = await Promise.all([opened.service.prepare(attempt, sources()), opened.service.prepare(attempt, sources())]);
-    expect(first).toBeInstanceOf(ObservationPrepared);
+    const { service, attempt, support } = await heldAttempt(format, 'twice');
+    const building = support.holdRetain();
+    const first = service.prepare(attempt, sources());
+    let second: Awaited<ReturnType<ObservationCustodyService['prepare']>>;
+    try {
+      await building.arrived();
+      second = await service.prepare(attempt, sources());
+    } finally {
+      building.release();
+    }
     expect(second).toEqual(new ObservationRefused('construction-contended'));
+    expect(await first).toBeInstanceOf(ObservationPrepared);
+  });
+
+  it('lets a prepare that arrives after the build, before the store write, prepare the same evidence', async () => {
+    const [first, second] = await prepareAroundStoreWrite(format, 'before');
+    expect(second.roots).toEqual(first.roots);
+  });
+
+  it('lets a prepare that arrives after the store write, before its acknowledgement, recover the same evidence', async () => {
+    const [first, second] = await prepareAroundStoreWrite(format, 'after');
+    expect(second.roots).toEqual(first.roots);
   });
 
   it('refuses a producer whose stream does not match its bound claim, before arm', async () => {

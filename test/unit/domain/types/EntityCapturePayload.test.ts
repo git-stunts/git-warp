@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  entityCapturePayloadsEqual,
   isEntityCapturePayloadRecord,
 } from '../../../../src/domain/types/EntityCapturePayload.ts';
 import { propValuesEqual, type PropValue } from '../../../../src/domain/types/PropValue.ts';
@@ -23,17 +22,6 @@ describe('EntityCapturePayload', () => {
     expect(isEntityCapturePayloadRecord(new PayloadCarrier())).toBe(false);
   });
 
-  it('compares payload keys independently of construction order', () => {
-    expect(
-      entityCapturePayloadsEqual(
-        { kind: 'capture', text: 'hello' },
-        { text: 'hello', kind: 'capture' }
-      )
-    ).toBe(true);
-    expect(entityCapturePayloadsEqual({ kind: 'capture' }, {})).toBe(false);
-    expect(entityCapturePayloadsEqual({ kind: 'capture' }, { text: 'capture' })).toBe(false);
-    expect(entityCapturePayloadsEqual({ kind: 'capture' }, { kind: 'other' })).toBe(false);
-  });
 });
 
 describe('propValuesEqual', () => {

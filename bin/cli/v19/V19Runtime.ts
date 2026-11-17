@@ -47,16 +47,16 @@ async function closeAfterTaskFailure(
   throw taskFailure;
 }
 
-export async function openRequiredLane(
-  runtime: Runtime,
-  laneName: string | null,
-  strandName: string | null = null,
-): Promise<Lane> {
+export function requireLaneName(laneName: string | null): string {
   if (laneName === null || laneName.length === 0) {
     throw usageError('--lane <name> is required');
   }
-  const lane = await runtime.lane(laneName);
-  return strandName === null
-    ? lane
-    : await runtime.strand(lane, { name: strandName });
+  return laneName;
+}
+
+export async function openRequiredLane(
+  runtime: Runtime,
+  laneName: string | null,
+): Promise<Lane> {
+  return await runtime.lane(requireLaneName(laneName));
 }

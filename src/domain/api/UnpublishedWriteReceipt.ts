@@ -5,7 +5,13 @@ export default class UnpublishedWriteReceipt {
   readonly operation: 'write' = 'write';
   readonly graph: string;
   readonly writer: string;
-  /** The policy-safe reason, such as `stale-predecessor`. A denial reads `access-denied: <its cause>`. */
+  /**
+   * The policy-safe reason, such as `stale-predecessor`. A denial reads `access-denied: <its cause>`.
+   * An unavailable store at the basis-open or premise-read step reads `write-basis-unavailable` or
+   * `write-premise-unavailable`; a failed attempt-journal or custody-support step reads
+   * `attempt-journal-unavailable` or `retention-unavailable` (contract section 11 of
+   * `docs/plans/optic-only-public-api.md`).
+   */
   readonly cause: string;
   readonly repairHints: readonly RepairHint[];
 

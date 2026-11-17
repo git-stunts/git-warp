@@ -11,6 +11,9 @@ import EffectSinkPort from '../../../../src/ports/EffectSinkPort.ts';
 import { createDeliveryObservation, type DeliveryObservation } from '../../../../src/domain/types/DeliveryObservation.ts';
 import type { EffectEmission } from '../../../../src/domain/types/EffectEmission.ts';
 
+// Observation timestamps are opaque here; a fixed value keeps the fixture deterministic.
+const FIXED_OBSERVATION_MS = 1_767_225_600_000;
+
 class RecordingSink extends EffectSinkPort {
   _id: string;
   delivered: Array<{emission: unknown; lens: unknown}>;
@@ -31,7 +34,7 @@ class RecordingSink extends EffectSinkPort {
       sinkId: this._id,
       outcome: lens.suppressExternal ? 'suppressed' : 'delivered',
       ...(lens.suppressExternal ? { reason: `suppressed by ${lens.mode} lens` } : {}),
-      timestamp: Date.now(),
+      timestamp: FIXED_OBSERVATION_MS,
       lens,
     })];
   }

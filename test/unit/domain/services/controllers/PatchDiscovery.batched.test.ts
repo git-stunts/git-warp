@@ -1,3 +1,4 @@
+import { setImmediate as nextTurn } from 'node:timers/promises';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -329,10 +330,14 @@ class RecordingLogger extends LoggerPort {
   }
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+/**
+ * Yields for a number of event-loop turns. Reads that wait more turns settle
+ * later, so completion order is varied but the same on every run.
+ */
+async function turns(count: number): Promise<void> {
+  for (let turn = 0; turn < count; turn += 1) {
+    await nextTurn();
+  }
 }
 
 describe('PatchDiscovery batched chain reads', () => {
@@ -499,7 +504,7 @@ describe('PatchDiscovery batched chain reads', () => {
   it('preserves journal read order oldest-first regardless of read concurrency', async () => {
     const persistence = new FakePersistence({ commits: linearChain(20) });
     const journal = new FakeJournal(async (message) => {
-      await delay((message.lamport % 3) * 2);
+      await turns(message.lamport % 3);
       return patchFor(message.lamport);
     });
     const discovery = new PatchDiscovery(hostWith(persistence, journal));
@@ -518,7 +523,7 @@ describe('PatchDiscovery batched chain reads', () => {
     const persistence = new FakePersistence({ commits: linearChain(5) });
     const journal = new FakeJournal(async (message) => {
       if (message.lamport === 4) {
-        await delay(30);
+        await turns(3);
         throw new Error('slow failure at lamport 4');
       }
       if (message.lamport === 2) {

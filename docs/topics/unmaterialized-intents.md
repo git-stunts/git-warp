@@ -44,7 +44,7 @@ switch (receipt.outcome.kind) {
 
 Guard readings start in batches of at most four. Within one batch, guards for the same node property share a reading and its exact read identity; each guard still checks its own required value and failure tag in descriptor order. All speculative readings in that batch settle before evaluation returns, so a later read failure cannot override an earlier obstruction and no speculative read outlives admission. An obstruction prevents the next batch and journal publication. The cache ends with each batch and is never reused across admissions. This bounds concurrent storage work, while a failing early guard may wait for other readings already started in its batch; it is not a measured throughput guarantee.
 
-This descriptor API is a retained compatibility journal, not a canonical application write. New application code that needs an admitted intent recorded in causal history must use `Timeline.write(intent)`. That path lowers the public intent into normal committed patch history and returns a write receipt.
+This descriptor API is a retained compatibility journal, not a canonical application write. New application code that needs an admitted intent recorded in causal history must use `warp.as(writer).execute(intent)`. That path lowers the public intent into normal committed patch history and returns a `WriteReceipt`.
 
 ## Cost posture
 
@@ -85,7 +85,7 @@ Edict calculates its cryptographic nutrition labels (`bundleHash`, `coreHash`) d
 
 For a locally authored compatibility descriptor, source and destination admission bases both name the exact pre-append intent-journal frontier. The descriptor bundle and core hashes bind the proposal and law/profile inputs; the resulting receipt binds the append to its post-publication frontier. The retained descriptor artifact remains outside canonical graph history.
 
-Use `Timeline.write(intent)` when the requested transformation must become durable causal history. The timeline write path lowers the intent into a committed patch and keeps storage ownership behind the configured storage implementation.
+Use `warp.as(writer).execute(intent)` when the requested transformation must become durable causal history. That write path lowers the intent into a committed patch and keeps storage ownership behind the configured storage implementation.
 
 ## See also
 

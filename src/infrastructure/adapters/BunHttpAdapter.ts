@@ -20,6 +20,11 @@ function toResponse(portResponse: HttpResponse): Response {
   });
 }
 
+/** Reads the connected socket peer; headers never supply it. */
+function socketPeerAddress(server: BunServer, request: Request): string | undefined {
+  return server.requestIP(request)?.address;
+}
+
 /**
  * Creates the Bun fetch handler that bridges between Request/Response
  * and the HttpServerPort plain-object contract.
@@ -27,10 +32,10 @@ function toResponse(portResponse: HttpResponse): Response {
 function createFetchHandler(
   requestHandler: (request: HttpRequest) => Promise<HttpResponse>,
   logger: { error(...args: unknown[]): void },
-): (request: Request) => Promise<Response> {
-  return async (request) => {
+): BunServeOptions['fetch'] {
+  return async (request, server) => {
     try {
-      const portReq = await toPortRequest(request);
+      const portReq = await toPortRequest(request, socketPeerAddress(server, request));
       const portRes = await requestHandler(portReq);
       return toResponse(portRes);
     } catch (err) {
@@ -123,7 +128,7 @@ function resolveListenArgs(
  */
 function buildServeOptions(
   port: number,
-  fetchHandler: (request: Request) => Promise<Response>,
+  fetchHandler: BunServeOptions['fetch'],
   bindHost: string | undefined,
 ): BunServeOptions {
   const serveOptions: BunServeOptions = { port, fetch: fetchHandler };
@@ -135,7 +140,7 @@ function buildServeOptions(
 
 interface BunListenContext {
   state: { server: BunServer | null };
-  fetchHandler: (request: Request) => Promise<Response>;
+  fetchHandler: BunServeOptions['fetch'];
 }
 
 interface BunListenArgs {

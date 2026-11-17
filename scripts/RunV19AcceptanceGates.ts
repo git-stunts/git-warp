@@ -58,10 +58,7 @@ const GATES: readonly AcceptanceGate[] = [
   },
   {
     id: 9,
-    evidence: [
-      'test/unit/application/RuntimeSettlement.preview.test.ts',
-      'test/unit/domain/settlement/SettlementPlan.test.ts',
-    ],
+    evidence: ['test/unit/application/Runtime.test.ts'],
   },
   {
     id: 10,

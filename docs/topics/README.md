@@ -52,6 +52,8 @@ The named v19.1.0 performance witness below is historical evidence.
   compound retention, hosted performance, compatibility, and publication.
 - [Content and CAS](content-and-cas.md): handle content attachments,
   content-addressed storage, and encrypted CAS payloads.
+- [Retained graph manifests](retained-manifests.md): the cone basis as one
+  retained manifest, graph-local ordinals, page limits and refusals.
 - [Structural attachment ownership](structural-attachments.md): distinguish
   finite owned descendants from opaque bytes and external/live references.
 - [WARP state-cache materialization](cas-first-memoized-materialization.md):

@@ -5,6 +5,7 @@ import SchemaUnsupportedError from "../../../src/domain/errors/SchemaUnsupported
 import { resolveRuntimeHostConstructionOptions } from "../../../src/domain/warp/RuntimeHostBoot.ts";
 import MemoryRuntimeStorageAdapter from "../../../test/helpers/MemoryRuntimeStorageAdapter.ts";
 import InMemoryGraphAdapter from "../../../test/helpers/InMemoryGraphAdapter.ts";
+import ManualClock from "../../helpers/ManualClock.ts";
 import type RuntimeStorageProviderPort from "../../../src/ports/RuntimeStorageProviderPort.ts";
 import type { RuntimeStorageRequest } from "../../../src/ports/RuntimeStorageProviderPort.ts";
 import WarpStateCachePort, {
@@ -52,7 +53,8 @@ function makeMockPersistence(): InMemoryGraphAdapter {
 describe("WarpCore state-session auto-construction", () => {
   it("provisions a session-backed materialize controller when core trie storage is available", async () => {
     const persistence = makeMockPersistence();
-    const memoryStorage = new MemoryRuntimeStorageAdapter({ history: persistence });
+    const clock = new ManualClock();
+    const memoryStorage = new MemoryRuntimeStorageAdapter({ history: persistence, clock });
     const trie = new InMemoryTrieStore();
     const createRuntimeStorageServices = vi.fn(async (request: RuntimeStorageRequest) => Object.freeze({
       ...await memoryStorage.createRuntimeStorageServices(request),
@@ -61,6 +63,7 @@ describe("WarpCore state-session auto-construction", () => {
     const runtimeStorage: RuntimeStorageProviderPort = { createRuntimeStorageServices };
     const graph = await WarpCore.open({
       persistence,
+      clock,
       runtimeStorage,
       graphName: "test",
       writerId: "w1",
@@ -74,7 +77,8 @@ describe("WarpCore state-session auto-construction", () => {
 
   it("keeps explicit state cache and session ports ahead of storage defaults", async () => {
     const persistence = makeMockPersistence();
-    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence });
+    const clock = new ManualClock();
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence, clock });
     const stateCache = new TestStateCache();
     const openStateSession = vi.fn(async () => {
       throw new Error("unused explicit session");
@@ -82,6 +86,7 @@ describe("WarpCore state-session auto-construction", () => {
 
     const resolved = await resolveRuntimeHostConstructionOptions({
       persistence,
+      clock,
       runtimeStorage,
       graphName: "test",
       writerId: "w1",

@@ -11,7 +11,7 @@ import {
   WarpAddress,
   WarpWriteGrant,
 } from '../../../index.ts';
-import { composeWarpWrites, type WarpCompositionOverrides } from '../../../src/application/WarpWriteComposition.ts';
+import type { WarpCompositionOverrides } from '../../../src/application/WarpWriteComposition.ts';
 import ObservationCoordinate from '../../../src/domain/services/custody/ObservationCoordinate.ts';
 import type ResolvedObservation from '../../../src/domain/services/custody/ResolvedObservation.ts';
 import WritePublicationProbe from '../../../src/domain/services/write/WritePublicationProbe.ts';
@@ -31,12 +31,15 @@ import {
   GRAPH,
   TestAccess,
   attemptRefs,
+  composed,
+  crashingAt,
   disposeWarpFixtures,
   git,
   indeterminate,
   materialized,
   nodeProperties,
   open,
+  overrideWithFixedClock,
   repository,
   retained,
   tip,
@@ -146,7 +149,9 @@ describe('the journey as written', () => {
   it('opens the current repository from GitStorage.root', async () => {
     const path = await repository();
     vi.spyOn(process, 'cwd').mockReturnValue(path);
-    const warp = await Warp.open(WarpAddress.of(GitStorage.root(), GRAPH), new TestAccess());
+    const access = new TestAccess();
+    overrideWithFixedClock(access);
+    const warp = await Warp.open(WarpAddress.of(GitStorage.root(), GRAPH), access);
 
     const receipt = retained(await warp.as('alice').execute(intent.node.add({ subject: 'a' })));
     await warp.close();
@@ -250,8 +255,8 @@ describe('what a blind write observed', () => {
     const raced = retained(await warp.as('alice').execute(intent.property.set({ subject: 'doc', key: 'title', value: 'two' })));
     await warp.close();
 
-    const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
-    const resolved = await writes.custody.resolve(ObservationCoordinate.parse(raced.coordinate.toString()) as ObservationCoordinate);
+    const writes = await composed(path);
+    const resolved = await (await writes.openCustody()).resolve(ObservationCoordinate.parse(raced.coordinate.toString()) as ObservationCoordinate);
     await writes.close();
 
     const original = resolved as ResolvedObservation;
@@ -326,7 +331,7 @@ describe('refusals before publication', () => {
 
   it('stops admitting operations once closed', async () => {
     const path = await repository();
-    const warp = await Warp.open(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
+    const warp = await open(path);
     const writer = warp.as('alice');
     retained(await writer.execute(intent.node.add({ subject: 'a' })));
 
@@ -391,8 +396,8 @@ describe('the write premise is never recaptured', () => {
     const receipt = retained(await warp.as('alice').execute(intent.node.add({ subject: 'alices' })));
     const headAfter = git(path, ['rev-parse', `refs/warp/${GRAPH}/cone/head`]);
     await warp.close();
-    const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
-    const original = await writes.custody.resolve(ObservationCoordinate.parse(receipt.coordinate.toString()) as ObservationCoordinate) as ResolvedObservation;
+    const writes = await composed(path);
+    const original = await (await writes.openCustody()).resolve(ObservationCoordinate.parse(receipt.coordinate.toString()) as ObservationCoordinate) as ResolvedObservation;
     await writes.close();
 
     expect(original.preparation.bindings.basis).not.toBe(headAfter);
@@ -503,19 +508,7 @@ describe('uncertainty after permission', () => {
   });
 });
 
-describe('recovery on open', () => {
-  function crashingAt(step: string): (custody: ObservationCustodyPort) => ObservationCustodyPort {
-    return (custody) => new Proxy(custody, {
-      get(target: ObservationCustodyPort, name: string | symbol) {
-        if (name === step) {
-          return () => Promise.resolve(new CustodyIndeterminate(new Error('crash')));
-        }
-        const value = Reflect.get(target, name) as unknown;
-        return typeof value === 'function' ? value.bind(target) : value;
-      },
-    });
-  }
-
+describe('recovery on the first granted write', () => {
   it('leaves a young unarmed attempt alone, then frees its slot once it is old', async () => {
     const path = await repository();
     let now = 1_000;
@@ -525,14 +518,16 @@ describe('recovery on open', () => {
     await crashed.close();
 
     const young = await open(path, { limit: 1, clock });
+    expect(unpublished(await young.as('alice').execute(intent.node.add({ subject: 'full' }))).cause).toBe('retention-capacity-exhausted');
     expect(attemptRefs(path)).toHaveLength(1);
     await young.close();
 
     now += 2 * 60 * 60 * 1000;
     const old = await open(path, { limit: 1, clock });
+    expect(attemptRefs(path)).toHaveLength(1);
 
-    expect(attemptRefs(path)).toEqual([]);
     retained(await old.as('alice').execute(intent.node.add({ subject: 'fits' })));
+    expect(attemptRefs(path)).toEqual([]);
   });
 
   it('skips a saved record it cannot decode, leaving it for an operator', async () => {
@@ -549,8 +544,8 @@ describe('recovery on open', () => {
     now += 2 * 60 * 60 * 1000;
 
     const warp = await open(path, { clock });
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'unaffected' })));
 
     expect(attemptRefs(path)).toEqual([`${buildWriteAttemptsPrefix(GRAPH)}${'a'.repeat(32)}`]);
-    retained(await warp.as('alice').execute(intent.node.add({ subject: 'unaffected' })));
   });
 });

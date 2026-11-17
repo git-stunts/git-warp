@@ -33,6 +33,7 @@ import type StrandMaterializer from './StrandMaterializer.ts';
 import type StrandPatchService from './StrandPatchService.ts';
 import type StrandIntentService from './StrandIntentService.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
+import type RandomPort from '../../../ports/RandomPort.ts';
 import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
 import type { StrandDescriptor as ParsedStrandDescriptor } from '../../utils/parseStrandBlob.ts';
 import type Patch from '../../types/Patch.ts';
@@ -65,6 +66,8 @@ export type StrandCoordinatorDeps = {
   reserveCreation: () => Promise<number>;
   maxObservedLamport: () => number;
   crypto: CryptoPort;
+  /** Entropy for minting unnamed strand ids. */
+  random: RandomPort;
   persistence: GraphPersistencePort;
   descriptors: StrandDescriptorStore;
   materializer: StrandMaterializer;
@@ -206,7 +209,7 @@ export default class StrandCoordinator {
    */
   async create(options: StrandCreateOptions = {}): Promise<StrandDescriptor> {
     const name = options.name ?? options.strandId;
-    const normalized = normalizeCreateOptions(name === undefined ? options : { ...options, strandId: name });
+    const normalized = normalizeCreateOptions(name === undefined ? options : { ...options, strandId: name }, this._deps.random);
     const baseFrontier = normalizeBaseFrontier(options.baseFrontier);
     assertCapturedCoordinatePair(
       normalized.baseCheckpointSha,
@@ -246,7 +249,7 @@ export default class StrandCoordinator {
   /** Renames a strand. Its id and its mints never change. */
   async rename(strandId: string, name: string): Promise<StrandDescriptor> {
     const target = await this.getOrThrow(strandId);
-    const normalizedName = normalizeCreateOptions({ strandId: name }).strandId;
+    const normalizedName = normalizeCreateOptions({ strandId: name }, this._deps.random).strandId;
     if (normalizedName !== target.name) { await this._assertStrandDoesNotExist(normalizedName); }
     const next: StrandDescriptor = { ...target, name: normalizedName, updatedAt: String(this._deps.maxObservedLamport()) };
     await this._deps.descriptors.writeDescriptor(next);

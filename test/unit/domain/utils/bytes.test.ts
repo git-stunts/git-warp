@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   hexEncode,
   hexDecode,
-  base64Encode,
-  base64Decode,
   concatBytes,
   textEncode,
   textDecode,
@@ -56,45 +54,6 @@ describe('bytes utilities', () => {
 
     it('throws RangeError for mixed valid/invalid characters', () => {
       expect(() => hexDecode('abgh')).toThrow(RangeError);
-    });
-  });
-
-  describe('base64Encode', () => {
-    it('encodes empty array', () => {
-      expect(base64Encode(new Uint8Array(0))).toBe('');
-    });
-
-    it('encodes "Hello"', () => {
-      const bytes = new TextEncoder().encode('Hello');
-      expect(base64Encode(bytes)).toBe('SGVsbG8=');
-    });
-
-    it('round-trips through base64Decode', () => {
-      const original = new Uint8Array([0, 1, 2, 253, 254, 255]);
-      expect(base64Decode(base64Encode(original))).toEqual(original);
-    });
-  });
-
-  describe('base64Decode', () => {
-    it('decodes empty string', () => {
-      expect(base64Decode('')).toEqual(new Uint8Array(0));
-    });
-
-    it('decodes "SGVsbG8="', () => {
-      const result = base64Decode('SGVsbG8=');
-      expect(new TextDecoder().decode(result)).toBe('Hello');
-    });
-
-    it('rejects base64 with length % 4 === 1', () => {
-      expect(() => base64Decode('AAAAA')).toThrow(RangeError);
-      expect(() => base64Decode('A')).toThrow(RangeError);
-    });
-
-    it('decodes valid unpadded base64', () => {
-      // "AA" is 2 chars (length % 4 === 2) — valid, decodes to 1 byte
-      expect(base64Decode('AA')).toEqual(new Uint8Array([0]));
-      // "AAA" is 3 chars (length % 4 === 3) — valid, decodes to 2 bytes
-      expect(base64Decode('AAA')).toEqual(new Uint8Array([0, 0]));
     });
   });
 

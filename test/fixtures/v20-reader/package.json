@@ -1,0 +1,9 @@
+{
+  "name": "git-warp-v20-reader-fixture",
+  "private": true,
+  "description": "The released v20.0.0 package, run as an old reader by compatibility witnesses (#1079).",
+  "type": "module",
+  "dependencies": {
+    "@git-stunts/git-warp": "20.0.0"
+  }
+}

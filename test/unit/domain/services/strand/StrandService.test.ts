@@ -28,6 +28,7 @@ import {
   buildStrandWriterRef,
 } from '../../../../../src/domain/utils/RefLayout.ts';
 import { testRetentionWitness } from '../../../../helpers/storageRetention.ts';
+import SequenceRandomPort from '../../../../helpers/SequenceRandomPort.ts';
 
 /** @typedef {import('../../../../../src/domain/utils/parseStrandBlob.ts').StrandDescriptor} ParsedStrandBlob */
 /** @typedef {import('../../../../../src/domain/services/strand/strandTypes.ts').StrandQueuedIntent} StrandQueuedIntent */
@@ -454,6 +455,7 @@ function createMockGraph() {
     _crypto: {
       hash: vi.fn(async (_algo, data) => createHash('sha256').update(data).digest('hex')),
     },
+    _random: new SequenceRandomPort(),
     _cachedState: null,
     _patchInProgress: false,
     _maxObservedLamport: 0,
@@ -824,6 +826,8 @@ describe('StrandService', () => {
 
       expect(descriptor.strandId).toBeTruthy();
       expect(typeof descriptor.strandId).toBe('string');
+      // The unnamed strand's name is minted from the graph's injected RandomPort.
+      expect(descriptor.name).toBe('ws_000g40r40m30e209185gr38e1w');
     });
 
     it('throws E_STRAND_ALREADY_EXISTS when strand exists', async () => {

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { V18MigrationCommandReport } from '../../../scripts/v18-to-v19/V18MigrationCommand.ts';
 import V18MigrationExecutionMode from '../../../scripts/v18-to-v19/V18MigrationExecutionMode.ts';
-import { parseV18MigrationCliOptions } from '../../../scripts/v18-to-v19/migrate.ts';
+import { parseV18MigrationCliOptions } from '../../../scripts/v18-to-v19/V18MigrationCliOptions.ts';
 import { formatV18MigrationReport } from '../../../scripts/v18-to-v19/V18MigrationReport.ts';
 import { gitOk, MigrationTestDirectories } from './migrationTestEnvironment.ts';
 

@@ -8,6 +8,7 @@ import packageJson from '../../../package.json' with { type: 'json' };
 import publishTsconfig from '../../../tsconfig.publish.json' with { type: 'json' };
 import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import MemoryRuntimeStorageAdapter from '../../helpers/MemoryRuntimeStorageAdapter.ts';
+import ManualClock from '../../helpers/ManualClock.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import NodeCryptoAdapter from '../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -19,7 +20,6 @@ import {
   parseArgs,
   upgradeV16ToV17,
 } from '../../../scripts/upgrade-v16-to-v17.ts';
-import { parseUpgradeCommandEntrypoint } from '../../helpers/parseUpgradeCommandEntrypoint.ts';
 import retainUnavailableMaterialization from '../../helpers/retainUnavailableMaterialization.ts';
 
 function oid(hex: string): string {
@@ -89,7 +89,7 @@ describe('v16 to v17 top-level upgrade utility', () => {
 
     const result = await upgradeV16ToV17({
       persistence,
-      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence }),
+      runtimeStorage: new MemoryRuntimeStorageAdapter({ history: persistence, clock: new ManualClock() }),
       graphNames: ['alpha'],
       dryRun: true,
     });
@@ -105,7 +105,7 @@ describe('v16 to v17 top-level upgrade utility', () => {
 
   it('deletes rebuildable cache refs while leaving checkpoint refs under checkpoint migration control', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence });
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence, clock: new ManualClock() });
     const services = await runtimeStorage.createRuntimeStorageServices({
       timelineName: 'alpha',
       codec: defaultCodec,
@@ -152,7 +152,7 @@ describe('v16 to v17 top-level upgrade utility', () => {
   });
 
   it('wires npm run upgrade through the top-level operator script', () => {
-    expect(parseUpgradeCommandEntrypoint(packageJson.scripts.upgrade)).toBe('dist/scripts/upgrade-v16-to-v17.js');
+    expect(packageJson.scripts.upgrade).toBe('node dist/scripts/upgrade-v16-to-v17.js');
     expect(publishTsconfig.include).toContain('scripts/upgrade-v16-to-v17.ts');
     expect(packageJson.files).toContain('dist/scripts/upgrade-v16-to-v17.js');
     // The operator command is executable implementation; no public declaration

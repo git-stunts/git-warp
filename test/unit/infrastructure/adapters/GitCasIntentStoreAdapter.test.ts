@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import MessageCodecError from '../../../../src/domain/errors/MessageCodecError.ts';
 import type { WarpIntentDescriptor } from '../../../../src/domain/types/WarpIntentDescriptor.ts';
 import GitCasAssetStorageAdapter from '../../../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
 import GitCasIntentStoreAdapter from '../../../../src/infrastructure/adapters/GitCasIntentStoreAdapter.ts';
@@ -191,7 +192,7 @@ describe('GitCasIntentStoreAdapter', () => {
       ...descriptor('bad-payload'),
       suffixTransform: {
         op: 'append',
-        payload: { unsupported: new Set(['unsupported']) },
+        payload: 'not-a-record',
       },
     },
   ])('rejects malformed descriptor assets without partial hydration', async (value) => {
@@ -205,6 +206,29 @@ describe('GitCasIntentStoreAdapter', () => {
 
     await expect(journal.scan('events', 'queued', 'alice').collect())
       .rejects.toMatchObject({ code: 'E_INTENT_DESCRIPTOR_ASSET' });
+  });
+
+  it('refuses unsupported CBOR tags before descriptor validation', async () => {
+    const fixture = createFixture();
+    const value = {
+      ...descriptor('unsupported-tag'),
+      suffixTransform: {
+        op: 'append',
+        payload: { unsupported: new Set(['unsupported']) },
+      },
+    };
+    const staged = await fixture.assets.stage(singleChunk(fixture.codec.encode(value)), {
+      slug: 'unsupported-tag-intent',
+      filename: 'intent.cbor',
+    });
+    const journal = await journalWithHandle(fixture, fixture.assets, 'queued', staged.handle.toString());
+    const scan = journal.scan('events', 'queued', 'alice').collect();
+
+    await expect(scan).rejects.toMatchObject({
+      code: 'E_CBOR_DECODE_BOUNDS',
+      context: { reason: 'tag is not in the allowed tag set' },
+    });
+    await expect(scan).rejects.toBeInstanceOf(MessageCodecError);
   });
 });
 

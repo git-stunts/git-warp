@@ -128,10 +128,9 @@ async function signForRequest(
       body: bodyBuf,
       secret: auth.secret,
       keyId: auth.keyId !== undefined && auth.keyId !== '' ? auth.keyId : 'default',
-      lamport: auth.lamport,
       authScheme: auth.scheme,
     },
-    { crypto: auth.crypto },
+    { crypto: auth.crypto, random: auth.random, clock: auth.clock },
   );
 }
 

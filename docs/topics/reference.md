@@ -29,82 +29,71 @@ First-use product API: the `Warp` write surface and its receipts beside the lega
 
 ### Value exports
 
-Source: `index.ts`. Count: 12.
+Source: `index.ts`. Count: 13.
 
 ```text
-Coordinate @ index.ts#L24
-GitStorage @ index.ts#L18
-IndeterminateWriteReceipt @ index.ts#L28
-RetainedWriteReceipt @ index.ts#L25
-Runtime @ index.ts#L14
-UnpublishedWriteReceipt @ index.ts#L27
-UnretainedWriteReceipt @ index.ts#L26
-Warp @ index.ts#L15
-WarpAccessDenied @ index.ts#L22
-WarpAccessPort @ index.ts#L19
-WarpAddress @ index.ts#L17
-WarpWriteGrant @ index.ts#L20
+Coordinate @ index.ts#L25
+GitStorage @ index.ts#L19
+IndeterminateWriteReceipt @ index.ts#L29
+LoggerPort @ index.ts#L30
+RetainedWriteReceipt @ index.ts#L26
+Runtime @ index.ts#L15
+UnpublishedWriteReceipt @ index.ts#L28
+UnretainedWriteReceipt @ index.ts#L27
+Warp @ index.ts#L16
+WarpAccessDenied @ index.ts#L23
+WarpAccessPort @ index.ts#L20
+WarpAddress @ index.ts#L18
+WarpWriteGrant @ index.ts#L21
 ```
 
 ### Type exports
 
-Source: `index.ts`. Count: 54.
+Source: `index.ts`. Count: 42.
 
 ```text
-AdmissionOutcome @ index.ts#L83
-AuthoredWarp @ index.ts#L16
-AuthoredWriteReceipt @ index.ts#L29
-ContentAttachment @ index.ts#L87
-ContentInput @ index.ts#L44
-ContentMetadataInput @ index.ts#L45
-ContentOwnerDescriptor @ index.ts#L88
-CoordinateReference @ index.ts#L48
-EntityAdmission @ index.ts#L75
-EntityAdmissionInitialProperties @ index.ts#L76
-EntityAdmissionInventoryCertificate @ index.ts#L82
-EntityAdmissionOccurrenceReference @ index.ts#L77
-EntityAdmissionOrdering @ index.ts#L78
-EntityAdmissionOriginReading @ index.ts#L79
-EntityAdmissionRepresentationReference @ index.ts#L80
-EntityCausalRelation @ index.ts#L72
-EntityOccurrence @ index.ts#L71
+AuthoredWarp @ index.ts#L17
+ContentAttachment @ index.ts#L71
+ContentMetadataInput @ index.ts#L44
+ContentOwnerDescriptor @ index.ts#L72
+EntityAdmission @ index.ts#L60
+EntityAdmissionInitialProperties @ index.ts#L61
+EntityAdmissionInventoryCertificate @ index.ts#L67
+EntityAdmissionOccurrenceReference @ index.ts#L62
+EntityAdmissionOrdering @ index.ts#L63
+EntityAdmissionOriginReading @ index.ts#L64
+EntityAdmissionRepresentationReference @ index.ts#L65
 Evidence @ index.ts#L40
 EvidenceHandle @ index.ts#L40
 Intent @ index.ts#L41
 Lane @ index.ts#L43
-LaneDescriptor @ index.ts#L49
-LaneKind @ index.ts#L50
-LaneReference @ index.ts#L51
-Observation @ index.ts#L53
-ObservationReceipt @ index.ts#L54
-ObservationStatus @ index.ts#L55
-Observer @ index.ts#L56
-ObserverCardinality @ index.ts#L57
-Reading @ index.ts#L58
-ReadingCoordinate @ index.ts#L60
-ReadingValue @ index.ts#L61
-Receipt @ index.ts#L84
-RepairHint @ index.ts#L85
-RuntimeForkOptions @ index.ts#L35
-RuntimeOpenOptions @ index.ts#L36
-RuntimeSettlementOptions @ index.ts#L37
-RuntimeStrandOptions @ index.ts#L38
-SettlementPlan @ index.ts#L68
-SettlementPreview @ index.ts#L66
-SettlementReceipt @ index.ts#L67
-StagedContent @ index.ts#L46
-SupportReport @ index.ts#L62
-Tick @ index.ts#L65
-WarpWriteBudget @ index.ts#L21
-WarpWriteRequest @ index.ts#L23
-WitnessReference @ index.ts#L63
-WriteAdmission @ index.ts#L30
-WriteAdmissionKind @ index.ts#L30
+LogFields @ index.ts#L32
+LogFieldValue @ index.ts#L33
+Observation @ index.ts#L46
+ObservationReceipt @ index.ts#L47
+ObservationStatus @ index.ts#L48
+Observer @ index.ts#L49
+ObserverCardinality @ index.ts#L50
+Reading @ index.ts#L51
+ReadingCoordinate @ index.ts#L53
+ReadingValue @ index.ts#L54
+Receipt @ index.ts#L68
+RepairHint @ index.ts#L69
+RuntimeOpenOptions @ index.ts#L39
+StagedContent @ index.ts#L45
+SupportReport @ index.ts#L55
+Tick @ index.ts#L58
+WarpOpenOptions @ index.ts#L31
+WarpWriteBudget @ index.ts#L22
+WarpWriteRequest @ index.ts#L24
+WitnessReference @ index.ts#L56
+WriteAdmission @ index.ts#L35
+WriteAdmissionKind @ index.ts#L35
 WriteIntentInput @ index.ts#L42
-WriteOccurrence @ index.ts#L31
-WritePublication @ index.ts#L32
-WriteRace @ index.ts#L33
-WriteReceipt @ index.ts#L69
+WriteOccurrence @ index.ts#L36
+WritePublication @ index.ts#L37
+WriteRace @ index.ts#L38
+WriteReceipt @ index.ts#L34
 ```
 
 ## Advanced export surface
@@ -219,15 +208,12 @@ RuntimeHarnessOptions @ testing.ts#L27
 
 | Command | Handler | Source |
 | --- | --- | --- |
-| `write` | `handleWrite` | `bin/cli/commands/registry.ts#L37` |
-| `observe` | `handleObserve` | `bin/cli/commands/registry.ts#L38` |
-| `fork` | `handleFork` | `bin/cli/commands/registry.ts#L39` |
-| `settle` | `handleSettle` | `bin/cli/commands/registry.ts#L40` |
-| `receipt` | `handleReceipt` | `bin/cli/commands/registry.ts#L41` |
-| `doctor` | `handleDoctor` | `bin/cli/commands/registry.ts#L42` |
-| `repair` | `handleRepair` | `bin/cli/commands/registry.ts#L43` |
-| `audit` | `handleAudit` | `bin/cli/commands/registry.ts#L44` |
-| `mcp` | `handleMcp` | `bin/cli/commands/registry.ts#L45` |
+| `observe` | `handleObserve` | `bin/cli/commands/registry.ts#L34` |
+| `receipt` | `handleReceipt` | `bin/cli/commands/registry.ts#L35` |
+| `doctor` | `handleDoctor` | `bin/cli/commands/registry.ts#L36` |
+| `repair` | `handleRepair` | `bin/cli/commands/registry.ts#L37` |
+| `audit` | `handleAudit` | `bin/cli/commands/registry.ts#L38` |
+| `mcp` | `handleMcp` | `bin/cli/commands/registry.ts#L39` |
 
 Structured CLI errors retain `{ error: { code, message, cause? } }`.
 Additive `typedCode`, bounded `causes`, and `truncated` fields preserve typed

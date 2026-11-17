@@ -5,14 +5,12 @@
  */
 
 import {
-  createImmutableTickReceiptArraySnapshot,
   createSnapshotWarpState,
 } from '../ImmutableSnapshot.ts';
 import QueryError from '../../errors/QueryError.ts';
 import { decodeEdgeKey } from '../KeyCodec.ts';
 import type WarpState from '../state/WarpState.ts';
 import type SnapshotWarpState from '../snapshot/SnapshotWarpState.ts';
-import type { TickReceipt } from '../../types/TickReceipt.ts';
 import type StateSession from '../../orset/session/StateSession.ts';
 import {
   collectAliveNodeSetFromSession,
@@ -28,14 +26,6 @@ export function isNonEmptyPatchSha(value: string | undefined): value is string {
 /** Wraps materialized state in a frozen defensive copy. */
 export function freezePublicState(state: WarpState): SnapshotWarpState {
   return createSnapshotWarpState(state);
-}
-
-/** Wraps state+receipts in a frozen result. */
-export function freezeWithReceipts(state: WarpState, receipts: TickReceipt[]): { state: SnapshotWarpState; receipts: readonly TickReceipt[] } {
-  return Object.freeze({
-    state: freezePublicState(state),
-    receipts: createImmutableTickReceiptArraySnapshot(receipts),
-  });
 }
 
 // ── Input normalization ─────────────────────────────────────────────
@@ -97,18 +87,6 @@ export function normalizeFrontierInput(input: Map<string, string> | Record<strin
   }
   entries.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   return new Map(entries);
-}
-
-// ── Lamport tracking ────────────────────────────────────────────────
-
-/** Finds the maximum lamport tick in a patch list. */
-export function maxLamportInPatches(patches: Array<{ patch: { lamport?: number } }>): number {
-  let max = 0;
-  for (const { patch } of patches) {
-    const tick = patch.lamport ?? 0;
-    if (tick > max) { max = tick; }
-  }
-  return max;
 }
 
 /** Returns the greatest Lamport time already folded into a materialized state. */

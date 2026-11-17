@@ -4,6 +4,7 @@ import {
   closeCommandResources,
   emitWithCommandShutdown,
 } from '../../../bin/cli/lifecycle.ts';
+import { waitForCondition } from '../../helpers/waitForCondition.ts';
 
 const LIFECYCLE_SOURCE = readFileSync(
   new URL('../../../bin/cli/lifecycle.ts', import.meta.url),
@@ -28,7 +29,8 @@ describe('CLI long-running command lifecycle', () => {
     });
 
     const closing = closeCommandResources(closeCommand, closeStorage);
-    await vi.waitFor(() => expect(closeCommand).toHaveBeenCalledTimes(1));
+    await waitForCondition(() => closeCommand.mock.calls.length > 0);
+    expect(closeCommand).toHaveBeenCalledTimes(1);
     expect(closeStorage).not.toHaveBeenCalled();
     commandClosed.resolve();
     await closing;

@@ -19,6 +19,14 @@ function toDenoResponse(plain: HttpResponse): Response {
   });
 }
 
+type DenoServeHandler = Parameters<typeof Deno.serve>[1];
+
+/** Reads the connected socket peer; headers never supply it. A unix-socket peer has no address. */
+function socketPeerAddress(info: Parameters<DenoServeHandler>[1]): string | undefined {
+  const { transport, hostname } = info.remoteAddr;
+  return transport === 'tcp' ? hostname : undefined;
+}
+
 /**
  * Creates a Deno.serve-compatible handler that bridges to the
  * HttpServerPort request handler contract.
@@ -26,10 +34,10 @@ function toDenoResponse(plain: HttpResponse): Response {
 function createHandler(
   requestHandler: (request: HttpRequest) => Promise<HttpResponse>,
   logger: { error(...args: unknown[]): void },
-): (request: Request) => Promise<Response> {
-  return async (request) => {
+): DenoServeHandler {
+  return async (request, info) => {
     try {
-      const portReq = await toPortRequest(request);
+      const portReq = await toPortRequest(request, socketPeerAddress(info));
       const response = await requestHandler(portReq);
       return toDenoResponse(response);
     } catch (err) {
@@ -145,7 +153,7 @@ function buildDenoServeOptions(
 
 interface DenoListenContext {
   state: DenoServerState;
-  handler: (request: Request) => Promise<Response>;
+  handler: DenoServeHandler;
 }
 
 interface DenoListenArgs {

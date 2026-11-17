@@ -15,11 +15,46 @@ type CborStructureReaderOptions = {
   readonly malformed: CborValidationErrorFactory;
 };
 
+export const CBOR_TAG_REFUSED_REASON = 'tag is not in the allowed tag set';
+export const CBOR_TAG_CONTENT_REFUSED_REASON = 'tag content has a refused major type';
+
 const ARGUMENT_WIDTHS = new Map<number, number>([
   [24, 1],
   [25, 2],
   [26, 4],
   [27, 8],
+]);
+const MAJOR_TYPE_SHIFT = 5;
+const NEGATIVE_INTEGER_MAJOR = 1;
+const BYTE_STRING_MAJOR = 2;
+const TEXT_STRING_MAJOR = 3;
+const FLOAT_INITIAL_BYTES = new Set([0xf9, 0xfa, 0xfb]);
+const EIGHT_BYTE_INTEGER_INITIAL_BYTES = new Set([0x1b, 0x3b]);
+
+type CborTagContentRule = (initial: number) => boolean;
+
+const isByteString: CborTagContentRule = (initial) => initial >>> MAJOR_TYPE_SHIFT === BYTE_STRING_MAJOR;
+const isTextString: CborTagContentRule = (initial) => initial >>> MAJOR_TYPE_SHIFT === TEXT_STRING_MAJOR;
+const isEpochNumber: CborTagContentRule = (initial) =>
+  !EIGHT_BYTE_INTEGER_INITIAL_BYTES.has(initial) &&
+  (initial >>> MAJOR_TYPE_SHIFT <= NEGATIVE_INTEGER_MAJOR || FLOAT_INITIAL_BYTES.has(initial));
+
+/**
+ * The only CBOR tags any decoder may admit, each with the one content form
+ * its cbor-x extension reads: RFC 8949 date-time text (0), epoch seconds (1),
+ * unsigned and negative bignums (2, 3) and cbor-x's Uint8Array tag (64).
+ * Tag 1 admits smaller integer and floating encodings, but refuses eight-byte
+ * integers: cbor-x returns those as bigint while its epoch extension needs number.
+ * These are the tagged forms of the declared `CodecValue` type. Every other
+ * tag, including shared references (28, 29) and so every reference cycle,
+ * is refused before cbor-x can interpret it.
+ */
+const ALLOWED_TAG_CONTENT: ReadonlyMap<bigint, CborTagContentRule> = new Map([
+  [0n, isTextString],
+  [1n, isEpochNumber],
+  [2n, isByteString],
+  [3n, isByteString],
+  [64n, isByteString],
 ]);
 const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true });
 
@@ -81,10 +116,25 @@ class CborStructureReader {
       return;
     }
     if (major === 6) {
-      this.#readItem(depth + 1);
+      this.#readTaggedItem(argument, depth);
       return;
     }
     throw this.#malformed('unsupported major type');
+  }
+
+  #readTaggedItem(tag: bigint, depth: number): void {
+    const admitsContent = ALLOWED_TAG_CONTENT.get(tag);
+    if (admitsContent === undefined) {
+      throw this.#malformed(CBOR_TAG_REFUSED_REASON);
+    }
+    const contentInitial = this.#bytes[this.#offset];
+    if (contentInitial === undefined) {
+      throw this.#malformed('value is truncated');
+    }
+    if (!admitsContent(contentInitial)) {
+      throw this.#malformed(CBOR_TAG_CONTENT_REFUSED_REASON);
+    }
+    this.#readItem(depth + 1);
   }
 
   #readContainer(major: number, length: number, depth: number): void {

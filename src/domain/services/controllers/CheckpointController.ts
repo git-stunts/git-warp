@@ -9,7 +9,7 @@
 
 import QueryError from '../../errors/QueryError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
-import { SchemaUnsupportedError } from '../../errors/index.ts';
+import SchemaUnsupportedError from '../../errors/SchemaUnsupportedError.ts';
 import { buildWriterRef } from '../../utils/RefLayout.ts';
 import { createFrontier, updateFrontier, frontierFingerprint } from '../Frontier.ts';
 import {

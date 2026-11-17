@@ -88,9 +88,10 @@ export const PAYLOAD_TOO_LARGE_LENGTH = String(PAYLOAD_TOO_LARGE_BYTES.byteLengt
  * Converts a Web API Request into the HttpRequest instance expected by
  * HttpServerPort request handlers.
  *
- * Used by both BunHttpAdapter and DenoHttpAdapter.
+ * Used by both BunHttpAdapter and DenoHttpAdapter. `peerAddress` is the
+ * socket peer the runtime reports; headers never supply it.
  */
-export async function toPortRequest(request: Request): Promise<HttpRequest> {
+export async function toPortRequest(request: Request, peerAddress: string | undefined): Promise<HttpRequest> {
   const headers: Record<string, string> = {};
   request.headers.forEach((value, key) => {
     headers[key] = value;
@@ -104,6 +105,7 @@ export async function toPortRequest(request: Request): Promise<HttpRequest> {
     url: parsedUrl.pathname + parsedUrl.search,
     headers,
     body,
+    peerAddress: peerAddress === undefined || peerAddress.length === 0 ? undefined : peerAddress,
   });
 }
 

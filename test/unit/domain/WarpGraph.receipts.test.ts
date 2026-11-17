@@ -314,7 +314,7 @@ describe('WarpCore.materialize() with receipts', () => {
         graphName,
         writerId,
         lamport: 2,
-        ops: [{ type: 'NodeRemove', node: 'n1', observedDots: new Set([encoded]) }],
+        ops: [{ type: 'NodeRemove', node: 'n1', observedDots: [encoded] }],
       });
 
       const { receipts } = await graph.materialize({ receipts: true });
@@ -333,7 +333,7 @@ describe('WarpCore.materialize() with receipts', () => {
         graphName,
         writerId,
         lamport: 1,
-        ops: [{ type: 'NodeRemove', node: 'n1', observedDots: new Set([encoded]) }],
+        ops: [{ type: 'NodeRemove', node: 'n1', observedDots: [encoded] }],
       });
 
       const { receipts } = await graph.materialize({ receipts: true });
@@ -379,7 +379,7 @@ describe('WarpCore.materialize() with receipts', () => {
         graphName,
         writerId,
         lamport: 2,
-        ops: [{ type: 'EdgeRemove', from: 'a', to: 'b', label: 'rel', observedDots: new Set([encoded]) }],
+        ops: [{ type: 'EdgeRemove', from: 'a', to: 'b', label: 'rel', observedDots: [encoded] }],
       });
 
       const { receipts } = await graph.materialize({ receipts: true });

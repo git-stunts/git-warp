@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { EventId, compareEventIds, isGreater } from '../../../../src/domain/utils/EventId.ts';
+import { EventId, compareEventIds } from '../../../../src/domain/utils/EventId.ts';
 
 describe('EventId', () => {
   describe('new EventId()', () => {
@@ -218,50 +218,6 @@ describe('EventId', () => {
 
       // String comparison: '000a' > '0009' because 'a' > '9'
       expect(compareEventIds(a, b)).toBe(1);
-    });
-  });
-
-  describe('isGreater', () => {
-    it('returns true when a > b by lamport', () => {
-      const a = new EventId(5, 'writer', 'abcd1234', 0);
-      const b = new EventId(3, 'writer', 'abcd1234', 0);
-
-      expect(isGreater(a, b)).toBe(true);
-    });
-
-    it('returns false when a < b', () => {
-      const a = new EventId(1, 'writer', 'abcd1234', 0);
-      const b = new EventId(2, 'writer', 'abcd1234', 0);
-
-      expect(isGreater(a, b)).toBe(false);
-    });
-
-    it('returns false when a equals b', () => {
-      const a = new EventId(1, 'writer', 'abcd1234', 0);
-      const b = new EventId(1, 'writer', 'abcd1234', 0);
-
-      expect(isGreater(a, b)).toBe(false);
-    });
-
-    it('returns true when a > b by writerId (lamport equal)', () => {
-      const a = new EventId(1, 'zoe', 'abcd1234', 0);
-      const b = new EventId(1, 'alice', 'abcd1234', 0);
-
-      expect(isGreater(a, b)).toBe(true);
-    });
-
-    it('returns true when a > b by patchSha (lamport and writerId equal)', () => {
-      const a = new EventId(1, 'writer', 'ffff1234', 0);
-      const b = new EventId(1, 'writer', 'aaaa1234', 0);
-
-      expect(isGreater(a, b)).toBe(true);
-    });
-
-    it('returns true when a > b by opIndex (all else equal)', () => {
-      const a = new EventId(1, 'writer', 'abcd1234', 5);
-      const b = new EventId(1, 'writer', 'abcd1234', 2);
-
-      expect(isGreater(a, b)).toBe(true);
     });
   });
 

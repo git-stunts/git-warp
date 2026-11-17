@@ -6,67 +6,9 @@
  */
 
 import TraversalError from '../../errors/TraversalError.ts';
-import ORSet from '../../crdt/ORSet.ts';
-import type { Direction, NeighborEdge } from '../../../ports/NeighborProviderPort.ts';
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-/** Validated adjacency snapshot used by LogicalTraversal. */
-export interface AdjacencyMaps {
-  outgoing: Map<string, Array<{ neighborId: string; label: string }>>;
-  incoming: Map<string, Array<{ neighborId: string; label: string }>>;
-}
-
-/** Validated traversal state used by LogicalTraversal. */
-export interface TraversalState {
-  nodeAlive: ORSet;
-}
+import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-/**
- * Returns true when a value is a materialized adjacency record.
- */
-export function isAdjacencyMaps(adjacency: unknown): adjacency is AdjacencyMaps {
-  return (
-    adjacency !== null &&
-    typeof adjacency === 'object' &&
-    (adjacency as Record<string, unknown>)['outgoing'] instanceof Map && // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-    (adjacency as Record<string, unknown>)['incoming'] instanceof Map // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  );
-}
-
-/**
- * Validates the materialized adjacency boundary before traversal.
- *
- * @throws {TraversalError} code 'E_TRAVERSAL_ADJACENCY' if invalid
- */
-export function requireAdjacencyMaps(adjacency: unknown): AdjacencyMaps { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  if (!isAdjacencyMaps(adjacency)) {
-    throw new TraversalError('materialized traversal adjacency is invalid', {
-      code: 'E_TRAVERSAL_ADJACENCY',
-    });
-  }
-  return adjacency;
-}
-
-/**
- * Validates the materialized traversal state boundary before building the provider.
- *
- * @throws {TraversalError} code 'E_TRAVERSAL_STATE' if invalid
- */
-export function requireTraversalState(state: unknown): TraversalState { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  if (
-    state === null ||
-    typeof state !== 'object' ||
-    !((state as Record<string, unknown>)['nodeAlive'] instanceof ORSet) // nosemgrep: ts-no-record-string-unknown-outside-adapters -- 0025B; nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  ) {
-    throw new TraversalError('materialized traversal state is missing nodeAlive', {
-      code: 'E_TRAVERSAL_STATE',
-    });
-  }
-  return state as TraversalState;
-}
 
 /** Strips `undefined` from every property value type in T. */
 export type WithoutUndefined<T> = {
@@ -137,6 +79,3 @@ export function normalizeLabelFilter(
     context: { receivedType: typeof labelFilter },
   });
 }
-
-// Re-export for convenience of callers that need the edge shape alongside AdjacencyMaps.
-export type { NeighborEdge };

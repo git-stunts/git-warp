@@ -5,6 +5,8 @@ import GitCasRepositoryAdapter from '../../src/infrastructure/adapters/GitCasRep
 import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.ts';
+import HostRandomAdapter from '../../src/infrastructure/adapters/HostRandomAdapter.ts';
+import HostClockAdapter from '../../src/infrastructure/adapters/HostClockAdapter.ts';
 import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 
 export async function openScratchGraph(
@@ -17,7 +19,8 @@ export async function openScratchGraph(
 }>> {
   const plumbing = await Plumbing.createDefault({ cwd: repositoryPath });
   const history = new GitTimelineHistoryAdapter({ plumbing });
-  const storage = new GitCasRepositoryAdapter({ plumbing, history });
+  const clock = new HostClockAdapter();
+  const storage = new GitCasRepositoryAdapter({ plumbing, history, clock });
   try {
     const graphRuntime = await WarpCore.open({
       runtimeStorage: storage,
@@ -28,6 +31,8 @@ export async function openScratchGraph(
       codec: defaultCodec,
       commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC,
       crypto: new WebCryptoAdapter(),
+      random: new HostRandomAdapter(),
+      clock,
     });
     return Object.freeze({
       graph: graphRuntime,

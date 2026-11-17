@@ -6,6 +6,7 @@ import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
+import CborIndexShardTree from '../../../../src/infrastructure/adapters/CborIndexShardTree.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 
 /**
@@ -60,7 +61,7 @@ describe('Buffer-free index paths', () => {
       expect(logicalIndex.isAlive('A')).toBe(true);
       expect(logicalIndex.getEdges('A', 'out').map((e) => e.neighborId)).toEqual(['B']);
 
-      const updater = new IncrementalIndexUpdater({ codec: defaultCodec });
+      const updater = new IncrementalIndexUpdater();
       const diff = {
         nodesAdded: [],
         nodesRemoved: [],
@@ -69,14 +70,11 @@ describe('Buffer-free index paths', () => {
         propsChanged: [{ nodeId: 'A', key: 'role', value: 'lead', prevValue: undefined }],
         nodesCleared: [],
       };
-      const dirtyShards = updater.computeDirtyShards({
-        diff,
-        state,
-        loadShard: (path) => tree[path],
-      });
+      const shards = new CborIndexShardTree({ codec: defaultCodec, tree });
+      const dirtyTree = shards.withShards(updater.computeDirtyShards({ diff, state, shards }));
 
       const shardKey = computeShardKey('A');
-      expect(dirtyShards[`props_${shardKey}.cbor`]).toBeDefined();
+      expect(dirtyTree[`props_${shardKey}.cbor`]).not.toBe(tree[`props_${shardKey}.cbor`]);
     } finally {
       globalRef.Buffer = originalBuffer;
     }

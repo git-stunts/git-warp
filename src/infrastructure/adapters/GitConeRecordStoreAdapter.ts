@@ -1,4 +1,5 @@
 import ConeRecordError from '../../domain/errors/ConeRecordError.ts';
+import WarpError from '../../domain/errors/WarpError.ts';
 import ConeBasis from '../../domain/services/cone/ConeBasis.ts';
 import type ConeBasisHead from '../../domain/services/cone/ConeBasisHead.ts';
 import type { ConeRecord } from '../../domain/services/cone/ConeRecord.ts';
@@ -13,6 +14,8 @@ import ConeRecordStorePort from '../../ports/ConeRecordStorePort.ts';
 import ConeFrontierCborCodec from './ConeFrontierCborCodec.ts';
 import ConeRecordCborCodec from './ConeRecordCborCodec.ts';
 import GitConeRecordTrie from './GitConeRecordTrie.ts';
+import { readGitCasErrorCode } from './GitCasErrorCode.ts';
+import GitConeStoreHost from './GitConeStoreHost.ts';
 import GitFastImportTreeScript from './GitFastImportTreeScript.ts';
 import GitFastImportTreeWriter from './GitFastImportTreeWriter.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
@@ -33,6 +36,8 @@ const ROOT_DIRECTORIES: ReadonlySet<string> = new Set(Object.values(FAMILY_DIREC
 const FRONTIER_ENTRY = 'frontier';
 const LAYOUT_ENTRY = 'layout';
 const RECORDS_ENTRY = 'records';
+/** The git-cas code for an object read as a tree that is not one. */
+const GIT_CAS_TREE_PARSE_ERROR = 'TREE_PARSE_ERROR';
 /**
  * The trie layout this adapter reads and writes, stored in every basis head.
  * Layout 1 (slice 1, unmarked) used two fixed 256-way levels; layout 2 had
@@ -59,9 +64,11 @@ type BasisLocation = { readonly ref: string; readonly lane: string };
  * blobs named by their full route.
  *
  * Reads walk cached tree objects and read blobs through the history's
- * long-lived object session, so they start no Git process. A write of any
- * number of records, a basis tree and a retained-bases tree are each one
- * `git fast-import` process; untouched subtrees are shared.
+ * long-lived object session, so they start no Git process. A host or Git
+ * process failure beneath any call surfaces as `ConeStoreUnavailableError`
+ * (`GitConeStoreHost`); corruption keeps throwing `ConeRecordError`.
+ * A write of any number of records, a basis tree and a retained-bases tree
+ * are each one `git fast-import` process; untouched subtrees are shared.
  *
  * A basis head (`refs/warp/<lane>/cone/head`, or a strand's
  * `cone/strands/<id>/base` and `cone/strands/<id>/head`) points at a tree of
@@ -83,11 +90,15 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
 
   constructor(options: { readonly history: ConeTrieHistory; readonly codec: CodecPort }) {
     super();
-    this.#history = options.history;
+    this.#history = new GitConeStoreHost(options.history);
     this.#records = new ConeRecordCborCodec(options.codec);
     this.#frontiers = new ConeFrontierCborCodec(options.codec);
-    this.#trie = new GitConeRecordTrie(async (treeOid) => await this.#history.readTreeObjectEntries(treeOid));
-    this.#writer = new GitFastImportTreeWriter({ plumbing: options.history.plumbing });
+    this.#trie = new GitConeRecordTrie(async (treeOid) => await trieTreeEntries(this.#history, treeOid));
+    this.#writer = new GitFastImportTreeWriter({ plumbing: this.#history.plumbing });
+  }
+
+  override recordLayout(): string {
+    return CONE_TRIE_LAYOUT;
   }
 
   override async readRecords(root: ConeRoot, keys: readonly ConeRecordKey[]): Promise<ConeRecordSnapshot> {
@@ -209,7 +220,7 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
   /** The family directories of a records root, by name; the empty root has none. */
   async #familiesOf(root: ConeRoot): Promise<Map<string, string>> {
     const families = new Map<string, string>();
-    const entries = root.isEmpty() ? [] : await this.#history.readTreeObjectEntries(root.revision());
+    const entries = root.isEmpty() ? [] : await trieTreeEntries(this.#history, root.revision());
     for (const entry of entries) {
       if (!ROOT_DIRECTORIES.has(entry.name) || entry.type !== 'tree') {
         throw new ConeRecordError(`Cone records root holds an unknown entry ${entry.name}`, {
@@ -235,7 +246,7 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
   }
 
   #decodeRecord(bytes: Uint8Array, key: ConeRecordKey): ConeRecord {
-    const record = this.#records.decode(bytes);
+    const record = decodedRecord(this.#records, bytes, key);
     if (!record.key().equals(key)) {
       throw new ConeRecordError('Stored cone record does not match its trie path', {
         code: 'E_CONE_RECORD_CORRUPT',
@@ -253,7 +264,7 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
     if (frontier === undefined) {
       throw new ConeRecordError('Cone basis head has no frontier', { code: 'E_CONE_RECORD_CORRUPT', context: { ref } });
     }
-    const basis = new ConeBasis(recordsRoot(entries.get(RECORDS_ENTRY)), this.#frontiers.decode(await this.#history.readBlob(frontier.oid)));
+    const basis = new ConeBasis(recordsRoot(entries.get(RECORDS_ENTRY), { ref, lane }), this.#frontiers.decode(await this.#history.readBlob(frontier.oid)));
     return new StoredConeBasis(basis, revision);
   }
 
@@ -282,6 +293,20 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
   }
 }
 
+/** A stored record that fails to decode is corruption (#1079); a defect stays a defect. */
+function decodedRecord(codec: ConeRecordCborCodec, bytes: Uint8Array, key: ConeRecordKey): ConeRecord {
+  try {
+    return codec.decode(bytes);
+  } catch (error) {
+    if (error instanceof WarpError && !(error instanceof ConeRecordError)) {
+      throw new ConeRecordError(`Stored cone record does not decode: ${error.message}`, {
+        code: 'E_CONE_RECORD_CORRUPT', context: { key: key.toString(), decodeCode: error.code },
+      });
+    }
+    throw error;
+  }
+}
+
 /** Encoded records grouped by family directory, by route; a later record of the same key wins. */
 function byFamily(records: readonly ConeRecord[], codec: ConeRecordCborCodec): Map<string, Map<string, Uint8Array>> {
   const families = new Map<string, Map<string, Uint8Array>>();
@@ -295,9 +320,34 @@ function byFamily(records: readonly ConeRecord[], codec: ConeRecordCborCodec): M
   return families;
 }
 
-/** The records root a basis head names, or the empty root before anything is folded. */
-function recordsRoot(entry: GitTreeObjectEntry | undefined): ConeRoot {
-  return entry === undefined ? ConeRoot.empty() : ConeRoot.at(entry.oid);
+/** The records root a basis tree names, or the empty root before anything is folded; any other object kind is corruption. */
+function recordsRoot(entry: GitTreeObjectEntry | undefined, at: BasisLocation): ConeRoot {
+  if (entry === undefined) {
+    return ConeRoot.empty();
+  }
+  if (entry.type !== 'tree') {
+    throw new ConeRecordError(`Cone basis tree at ${at.ref} names a records entry of type ${entry.type}, not a tree`, {
+      code: 'E_CONE_RECORD_CORRUPT', context: { lane: at.lane, ref: at.ref, type: entry.type, oid: entry.oid },
+    });
+  }
+  return ConeRoot.at(entry.oid);
+}
+
+/**
+ * The entries of one tree of the records trie: the records root or any directory below it.
+ * git-cas reports an object that is not a tree as `TREE_PARSE_ERROR`, which is corruption.
+ */
+async function trieTreeEntries(history: ConeTrieHistory, treeOid: string): Promise<readonly GitTreeObjectEntry[]> {
+  try {
+    return await history.readTreeObjectEntries(treeOid);
+  } catch (error) {
+    if (readGitCasErrorCode(error) === GIT_CAS_TREE_PARSE_ERROR) {
+      throw new ConeRecordError(`Cone records trie tree ${treeOid} is not a tree`, {
+        code: 'E_CONE_RECORD_CORRUPT', context: { tree: treeOid },
+      });
+    }
+    throw error;
+  }
 }
 
 function layoutUnsupported(head: BasisLocation, marker: string | null): ConeRecordError {

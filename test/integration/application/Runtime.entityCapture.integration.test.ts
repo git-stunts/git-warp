@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { Runtime } from '../../../index.ts';
+import { writeThroughWarp } from '../../helpers/WarpSeed.ts';
 import Intent from '../../../src/domain/api/Intent.ts';
 import { intentFromPatch } from '../../../src/domain/api/IntentRuntime.ts';
 import type WarpState from '../../../src/domain/services/state/WarpState.ts';
@@ -94,14 +94,8 @@ describe('Runtime entity capture provenance', () => {
   });
 
   async function captureEntities(subjects: readonly string[]): Promise<void> {
-    const runtime = await Runtime.open({ at: repository.tempDir, writer: WRITER });
-    try {
-      const lane = await runtime.lane(LANE);
-      for (const subject of subjects) {
-        await lane.write(Intent.addEntity({ subject, properties: { ...MEMORY } }));
-      }
-    } finally {
-      await runtime.close();
+    for (const subject of subjects) {
+      await writeThroughWarp(repository.tempDir, LANE, WRITER, Intent.addEntity({ subject, properties: { ...MEMORY } }));
     }
   }
 });

@@ -1,55 +1,52 @@
 import type WarpAccessPort from '../../../ports/WarpAccessPort.ts';
-import type { AuthoredWriteReceipt } from '../../api/AuthoredWriteReceipt.ts';
+import type { WriteReceipt } from '../../api/WriteReceipt.ts';
 import IntentSequence, { type WriteIntentInput } from '../../api/IntentSequence.ts';
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import WarpAccessDenied from '../../api/WarpAccessDenied.ts';
 import WarpWriteGrant from '../../api/WarpWriteGrant.ts';
 import WarpWriteRequest from '../../api/WarpWriteRequest.ts';
-import { WRITE_PURPOSE, type default as ConeWriteLowering } from './ConeWriteLowering.ts';
-import type ConeWritePublisher from './ConeWritePublisher.ts';
-import type ConeWriteRecovery from './ConeWriteRecovery.ts';
+import { WRITE_PURPOSE } from './ConeWriteLowering.ts';
+import type ConeWritePath from './ConeWritePath.ts';
 
 const UNRECOGNIZED_DECISION = 'the access boundary gave no grant';
 
-/** One authored write: authorization before any read, then lowering, then the one publication. */
+/**
+ * One authored write: authorization before any read, then lowering, then the one publication.
+ * The write path opens only after a grant, so a denied caller changes nothing in the repository.
+ */
 export default class ConeWriteExecutor {
   readonly #graph: string;
   readonly #access: WarpAccessPort;
-  readonly #lowering: ConeWriteLowering;
-  readonly #publisher: ConeWritePublisher;
-  readonly #recovery: ConeWriteRecovery;
+  readonly #path: () => Promise<ConeWritePath>;
 
   constructor(fields: {
     readonly graph: string;
     readonly access: WarpAccessPort;
-    readonly lowering: ConeWriteLowering;
-    readonly publisher: ConeWritePublisher;
-    readonly recovery: ConeWriteRecovery;
+    readonly path: () => Promise<ConeWritePath>;
   }) {
     this.#graph = fields.graph;
     this.#access = fields.access;
-    this.#lowering = fields.lowering;
-    this.#publisher = fields.publisher;
-    this.#recovery = fields.recovery;
+    this.#path = fields.path;
     Object.freeze(this);
   }
 
-  async execute(writer: string, input: WriteIntentInput): Promise<AuthoredWriteReceipt> {
+  async execute(writer: string, input: WriteIntentInput): Promise<WriteReceipt> {
     const sequence = IntentSequence.from(input);
     const request = new WarpWriteRequest({ graph: this.#graph, writer, purpose: WRITE_PURPOSE, intents: sequence.intents });
     const grant = await this.#access.authorizeWrite(request);
     if (!(grant instanceof WarpWriteGrant)) {
       return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: accessDeniedCause(grant) });
     }
-    const lowered = await this.#lowering.lower({ writer, sequence, grant });
-    return lowered instanceof UnpublishedWriteReceipt ? lowered : await this.#publisher.publish(lowered, async () => await this.#revocation(request, grant));
+    const { lowering, publisher } = await this.#path();
+    const lowered = await lowering.lower({ writer, sequence, grant });
+    return lowered instanceof UnpublishedWriteReceipt ? lowered : await publisher.publish(lowered, async () => await this.#revocation(request, grant));
   }
 
   /** Asks again after a writer's indeterminate write. A writer denied now learns nothing of it, as if no record remained. */
-  async reconcile(writer: string, attempt: string): Promise<AuthoredWriteReceipt | null> {
+  async reconcile(writer: string, attempt: string): Promise<WriteReceipt | null> {
     const request = new WarpWriteRequest({ graph: this.#graph, writer, purpose: WRITE_PURPOSE, intents: [] });
     const grant = await this.#access.authorizeWrite(request);
-    return grant instanceof WarpWriteGrant ? await this.#recovery.reconcile(writer, attempt) : null;
+    return grant instanceof WarpWriteGrant ? await (await this.#path()).recovery.reconcile(writer, attempt) : null;
   }
 
   /** Asks whether a writer may stage content, which writes objects before any intent exists. */

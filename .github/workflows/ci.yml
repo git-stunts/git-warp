@@ -119,6 +119,8 @@ jobs:
         run: npm run lint:quarantine-graduate
       - name: 'Gate 4i: Public capability allowances only shrink from the merge base'
         run: node --experimental-strip-types scripts/public-surface/check-history.ts
+      - name: 'Gate 4j: Dead-source allowances only shrink from the accepted basis'
+        run: node --experimental-strip-types scripts/source-reachability/check-source-history.ts
 
   type-firewall-surface:
     runs-on: ubuntu-latest
@@ -171,7 +173,19 @@ jobs:
         with:
           persist-credentials: false
       - name: Installed-package public API and attachment consumer gate
-        run: bash scripts/smoke-packed-artifact.sh
+        run: |
+          bash scripts/run-in-docker.sh bash -c '
+            set -euo pipefail
+            bash --version
+            shellcheck --version
+            shfmt --version
+            for script in scripts/smoke-packed-upgrade.sh scripts/SmokeTestDockerEntry.sh; do
+              bash -n "$script"
+            done
+            shellcheck --rcfile=scripts/upgrade-smoke.shellcheckrc --shell=bash --severity=style --check-sourced scripts/smoke-packed-upgrade.sh
+            shfmt -d scripts/smoke-packed-upgrade.sh scripts/SmokeTestDockerEntry.sh
+            bash scripts/smoke-packed-artifact.sh
+          '
 
   type-firewall-docs:
     runs-on: ubuntu-latest

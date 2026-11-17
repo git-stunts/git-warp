@@ -1,6 +1,5 @@
 import Runtime from '../../../../src/application/Runtime.ts';
 import type { CliOptions } from '../../types.ts';
-import type { ReviewedSettlement } from '../../v19/V19SettlementReview.ts';
 import type { McpJsonValue } from './McpJsonValue.ts';
 import McpProtocolError from './McpProtocolError.ts';
 
@@ -22,11 +21,9 @@ type RetainedObservation = Readonly<{
 export default class McpRuntimeSession {
   readonly #at: string;
   readonly #observations = new Map<string, ObservationTransport>();
-  readonly #plans = new Map<string, ReviewedSettlement>();
   readonly #receipts = new Map<string, McpJsonValue>();
   readonly #writer: string;
   #nextObservation = 1;
-  #nextPlan = 1;
   #nextReceipt = 1;
   #runtime: Promise<Runtime> | null = null;
   #tail: Promise<void> = Promise.resolve();
@@ -69,24 +66,6 @@ export default class McpRuntimeSession {
       );
     }
     return receipt;
-  }
-
-  retainPlan(plan: ReviewedSettlement): string {
-    const reference = `plan-${this.#nextPlan}`;
-    this.#nextPlan += 1;
-    this.#plans.set(reference, plan);
-    return reference;
-  }
-
-  getPlan(reference: string): ReviewedSettlement {
-    const plan = this.#plans.get(reference);
-    if (plan === undefined) {
-      throw new McpProtocolError(
-        -32602,
-        `Settlement plan not found: ${reference}`,
-      );
-    }
-    return plan;
   }
 
   retainObservation(options: {
@@ -173,7 +152,6 @@ export default class McpRuntimeSession {
     return {
       repo: this.#at,
       lane,
-      strand: null,
       writer: this.#writer,
       writerExplicit: true,
       json: true,
@@ -190,7 +168,6 @@ export default class McpRuntimeSession {
       ),
     );
     this.#observations.clear();
-    this.#plans.clear();
     this.#receipts.clear();
     if (this.#runtime !== null) {
       await (await this.#runtime).close();

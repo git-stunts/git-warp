@@ -1,0 +1,89 @@
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+
+import { afterAll, describe, expect, it } from 'vitest';
+
+import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import MessageCodecError from '../../../../src/domain/errors/MessageCodecError.ts';
+import type CodecValue from '../../../../src/domain/types/codec/CodecValue.ts';
+import v19Manifest from '../../../../fixtures/v19/pre-worldline/manifest.json' with { type: 'json' };
+import v20Manifest from '../../../../fixtures/v20/late-writes/manifest.json' with { type: 'json' };
+import {
+  CBOR_TAG_CONTENT_REFUSED_REASON,
+  CBOR_TAG_REFUSED_REASON,
+} from '../../../../src/infrastructure/adapters/BoundedCborValidation.ts';
+
+type FixtureManifest = Readonly<{ bundlePath: string; bundleSha256: string }>;
+type CorpusCensus = { decoded: number; withBytes: number; tagRefusals: string[] };
+
+const CORPORA: ReadonlyArray<readonly [string, string, FixtureManifest, { holdsBytes: boolean }]> = [
+  ['v19 pre-worldline', resolve('fixtures/v19/pre-worldline'), v19Manifest, { holdsBytes: true }],
+  ['v20 late-writes', resolve('fixtures/v20/late-writes'), v20Manifest, { holdsBytes: false }],
+];
+const TAG_REASONS = new Set([CBOR_TAG_REFUSED_REASON, CBOR_TAG_CONTENT_REFUSED_REASON]);
+const restored: string[] = [];
+
+function git(cwd: string, args: readonly string[]): Buffer {
+  return execFileSync('git', ['-C', cwd, ...args], { maxBuffer: 64 * 1024 * 1024 });
+}
+
+async function restoreCorpus(directory: string, manifest: FixtureManifest): Promise<string> {
+  const bundle = join(directory, manifest.bundlePath);
+  expect(createHash('sha256').update(await readFile(bundle)).digest('hex')).toBe(manifest.bundleSha256);
+  const repository = await mkdtemp(join(tmpdir(), 'git-warp-cbor-corpus-'));
+  restored.push(repository);
+  git(repository, ['init', '-q', '--initial-branch=fixture']);
+  git(repository, ['fetch', '-q', bundle, '+refs/*:refs/*']);
+  return repository;
+}
+
+function blobIds(repository: string): string[] {
+  return git(repository, ['cat-file', '--batch-all-objects', '--batch-check=%(objectname) %(objecttype)'])
+    .toString('utf8')
+    .trim()
+    .split('\n')
+    .map((line) => line.split(' '))
+    .filter(([, type]) => type === 'blob')
+    .map(([oid]) => oid ?? '');
+}
+
+function containsBytes(value: CodecValue): boolean {
+  if (value instanceof Uint8Array) { return true; }
+  if (value === null || typeof value !== 'object') { return false; }
+  return Object.values(value).some(containsBytes);
+}
+
+function censusBlob(census: CorpusCensus, oid: string, bytes: Uint8Array): void {
+  try {
+    const value = defaultCodec.decode<CodecValue>(bytes);
+    census.decoded += 1;
+    if (containsBytes(value)) { census.withBytes += 1; }
+  } catch (error) {
+    if (!(error instanceof MessageCodecError)) { throw error; }
+    const reason = error.context['reason'];
+    if (typeof reason === 'string' && TAG_REASONS.has(reason)) { census.tagRefusals.push(oid); }
+  }
+}
+
+describe('CborCodec over the released fixture corpora', () => {
+  afterAll(async () => {
+    for (const repository of restored) { await rm(repository, { recursive: true, force: true }); }
+  });
+
+  // Other typed refusals are outside this tag-focused oracle; Git blobs need not be CBOR.
+  it.each(CORPORA)('finds no new tag refusal in %s fixture blobs', async (_name, directory, manifest, { holdsBytes }) => {
+    const repository = await restoreCorpus(directory, manifest);
+    const census: CorpusCensus = { decoded: 0, withBytes: 0, tagRefusals: [] };
+
+    for (const oid of blobIds(repository)) {
+      censusBlob(census, oid, new Uint8Array(git(repository, ['cat-file', 'blob', oid])));
+    }
+
+    expect(census.tagRefusals).toEqual([]);
+    expect(census.decoded).toBeGreaterThan(0);
+    expect(census.withBytes > 0).toBe(holdsBytes);
+  });
+});

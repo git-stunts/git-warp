@@ -12,7 +12,6 @@
 
 import StrandError from '../../errors/StrandError.ts';
 import { compareStrings, normalizeOptionalString, normalizeStringArray } from './strandShared.ts';
-import type { StrandDescriptor } from '../../utils/parseStrandBlob.ts';
 import type Patch from '../../types/Patch.ts';
 
 // ── Raw blob shape (type-guard narrowed) ─────────────────────────────────────
@@ -82,23 +81,6 @@ function narrowPositiveInt(value: RawValue, fallback: number): number {
  */
 function narrowNonNegativeInt(value: RawValue, fallback: number): number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : fallback;
-}
-
-/**
- * Typed normalizer: narrows a RawValue to a positive integer, else
- * returns the fallback. Public surface kept for backward
- * compatibility with the prior helper name.
- */
-export function normalizePositiveInteger(value: RawValue, fallback: number): number {
-  return narrowPositiveInt(value, fallback);
-}
-
-/**
- * Typed normalizer: narrows a RawValue to a non-negative integer,
- * else returns the fallback.
- */
-export function normalizeNonNegativeInteger(value: RawValue, fallback: number): number {
-  return narrowNonNegativeInt(value, fallback);
 }
 
 /**
@@ -175,19 +157,6 @@ function numberAt(bag: RawBag, key: string, fallback: number): number {
 }
 
 /**
- * Check whether two read-overlay arrays are structurally identical.
- */
-export function readOverlaysEqual(
-  left: StrandReadOverlayDescriptor[],
-  right: StrandReadOverlayDescriptor[],
-): boolean {
-  return (
-    left.length === right.length &&
-    left.every((overlay, index) => readOverlayEqual(overlay, right[index]))
-  );
-}
-
-/**
  * Check whether two read-overlay descriptors are structurally identical.
  */
 export function readOverlayEqual(
@@ -198,20 +167,6 @@ export function readOverlayEqual(
     return false;
   }
   return READ_OVERLAY_FIELDS.every((field) => overlay[field] === candidate[field]);
-}
-
-/**
- * Return true if descriptor overlay metadata matches the expected values.
- */
-export function overlayMetadataMatches(
-  descriptor: StrandDescriptor & { overlay: { writable: boolean } },
-  expected: { headPatchSha: string | null; patchCount: number; writable: boolean },
-): boolean {
-  return (
-    descriptor.overlay.headPatchSha === expected.headPatchSha &&
-    descriptor.overlay.patchCount === expected.patchCount &&
-    descriptor.overlay.writable === expected.writable
-  );
 }
 
 // ── Typed strand model returned by normalization ─────────────────────────────

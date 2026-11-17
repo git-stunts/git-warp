@@ -3,7 +3,7 @@ import {
   GIT_WARP_RECEIPT_ENVELOPE_BOUNDARY_VERSION,
   GIT_WARP_RECEIPT_ENVELOPE_FACT_KIND,
   type GitWarpReceiptEnvelopeAnchor,
-} from '../../continuum/GitWarpReceiptEnvelopeBoundary.ts';
+} from '../../continuum/GitWarpReceiptEnvelopeAnchor.ts';
 import ObserverEmission from './ObserverEmission.ts';
 import ObserverPlan from './ObserverPlan.ts';
 import type { WorldlineSource } from '../../capabilities/QueryCapability.ts';

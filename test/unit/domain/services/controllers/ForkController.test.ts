@@ -3,6 +3,7 @@ import ForkController from '../../../../../src/domain/services/controllers/ForkC
 import ForkError from '../../../../../src/domain/errors/ForkError.ts';
 import { CURRENT_CHECKPOINT_SCHEMA } from '../../../../../src/domain/services/state/checkpointHelpers.ts';
 import { buildWriterRef, buildWritersPrefix } from '../../../../../src/domain/utils/RefLayout.ts';
+import SequenceRandomPort from '../../../../helpers/SequenceRandomPort.ts';
 
 // ---------------------------------------------------------------------------
 // WormholeService mock
@@ -52,6 +53,7 @@ function createMockHost(overrides = {}) {
     _onDeleteWithData: 'throw',
     _logger: null,
     _crypto: null,
+    _random: new SequenceRandomPort(),
     _codec: null,
     _runtimeStorage: {
       createRuntimeStorageServices: vi.fn(),
