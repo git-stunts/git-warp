@@ -58,7 +58,16 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
       });
     }
     this.#consumed = true;
-    return this.#iterate();
+    const readings = this.#iterate();
+    return {
+      next: async () => await readings.next(),
+      // A generator closed before its first `next` never runs its `finally`, so closing also cancels.
+      return: async () => {
+        const closed = await readings.return(undefined);
+        await this.cancel();
+        return closed;
+      },
+    };
   }
 
   async *#iterate(): AsyncGenerator<OpticReading, undefined, undefined> {

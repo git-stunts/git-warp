@@ -102,6 +102,17 @@ describe('OpticObservation', () => {
     expect(receipt2.cause).toBe('observation-failed');
   });
 
+  it('cancels when its iterator is closed before the first next(), so the receipt settles', async () => {
+    const obs = new OpticObservation(makeExecution([new OpticReading({ subject: 'node-1', key: null, present: true, value: null })]));
+    const iterator = obs[Symbol.asyncIterator]();
+
+    expect(await iterator.return?.()).toEqual({ done: true, value: undefined });
+
+    // An already settled receipt wins the race; an unsettled one loses to the resolved marker.
+    expect(await Promise.race([obs.receipt, Promise.resolve('still pending')])).toMatchObject({ status: 'cancelled', cause: 'cancelled' });
+    expect(await iterator.next()).toEqual({ done: true, value: undefined });
+  });
+
   it('refuses multiple consumers with OpticError (E_OBSERVATION_CONSUMED)', async () => {
     const obs = new OpticObservation(makeExecution([]));
     const iterator = obs[Symbol.asyncIterator]();
