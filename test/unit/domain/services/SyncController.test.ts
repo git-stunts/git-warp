@@ -48,9 +48,9 @@ vi.mock('../../../../src/domain/services/sync/HttpSyncServer.ts', () => ({
 const { applySyncResponse: applySyncResponseMock, syncNeeded: syncNeededMock, processSyncRequest: processSyncRequestMock } =
   (await import('../../../../src/domain/services/sync/SyncProtocol.ts')) as any;
 
-/** A platform Response whose body is `body` as JSON, as a sync server sends it. */
-function syncResponseOf(body: object): Response {
-  return new Response(JSON.stringify(body), { status: 200 });
+/** A platform Response carrying a JSON body, as a sync server sends it. */
+function syncResponseOf(jsonBody: string): Response {
+  return new Response(jsonBody, { status: 200 });
 }
 
 /**
@@ -853,11 +853,7 @@ describe('SyncController', () => {
     });
 
     it('successful HTTP sync returns applied count', async () => {
-      const validResponse = {
-        type: 'sync-response',
-        frontier: { alice: 'sha-a' },
-        patches: [] as any[],
-      };
+      const validResponse = '{"type":"sync-response","frontier":{"alice":"sha-a"},"patches":[]}';
       fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validResponse)));
       const newFrontier = new Map([['alice', 'sha-a']]);
       applySyncResponseMock.mockReturnValue({
@@ -964,11 +960,7 @@ describe('SyncController', () => {
       };
       host['_crypto'] = mockCrypto;
 
-      const validResponse = {
-        type: 'sync-response',
-        frontier: {},
-        patches: [] as any[],
-      };
+      const validResponse = '{"type":"sync-response","frontier":{},"patches":[]}';
       fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validResponse)));
       applySyncResponseMock.mockReturnValue({
         state: host['_cachedState'],

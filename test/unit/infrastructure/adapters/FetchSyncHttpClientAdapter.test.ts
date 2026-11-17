@@ -149,13 +149,14 @@ function decodedSyncResponse(byteLength: number): object {
 /**
  * A pull-only body source. With a zero high-water mark the stream pulls
  * only for a pending read, so `pulledBytes` counts what the client read.
+ * A `cancelError` makes the cancellation of the body reject with it.
  */
 class BodySource {
   pulledBytes = 0;
   cancelled = false;
   readonly stream: ReadableStream<Uint8Array>;
 
-  constructor(chunks: readonly Uint8Array[]) {
+  constructor(chunks: readonly Uint8Array[], options: { readonly cancelError?: Error } = {}) {
     let next = 0;
     this.stream = new ReadableStream<Uint8Array>({
       pull: (controller) => {
@@ -165,16 +166,19 @@ class BodySource {
         this.pulledBytes += chunk.byteLength;
         controller.enqueue(chunk);
       },
-      cancel: () => { this.cancelled = true; },
+      cancel: () => {
+        this.cancelled = true;
+        if (options.cancelError !== undefined) { throw options.cancelError; }
+      },
     }, { highWaterMark: 0 });
   }
 
-  static of(bytes: Uint8Array): BodySource {
+  static of(bytes: Uint8Array, options: { readonly cancelError?: Error } = {}): BodySource {
     const chunks: Uint8Array[] = [];
     for (let offset = 0; offset < bytes.byteLength; offset += CHUNK_BYTES) {
       chunks.push(bytes.subarray(offset, offset + CHUNK_BYTES));
     }
-    return new BodySource(chunks);
+    return new BodySource(chunks, options);
   }
 }
 
@@ -218,6 +222,21 @@ describe('FetchSyncHttpClientAdapter response limit (#1135)', () => {
   it('refuses a response whose Content-Length understates its body', async () => {
     const bytes = syncResponseBytes(OVERSIZED_BYTES);
     respondWith(new Response(BodySource.of(bytes).stream, { headers: contentLength(LIMIT / 2) }));
+
+    expect(await exchangeWithLimit()).toEqual(TOO_LARGE);
+  });
+
+  it('refuses a declared oversized body although its cancellation fails', async () => {
+    const bytes = syncResponseBytes(OVERSIZED_BYTES);
+    const source = BodySource.of(bytes, { cancelError: new TypeError('cancel failed') });
+    respondWith(new Response(source.stream, { headers: contentLength(bytes.byteLength) }));
+
+    expect(await exchangeWithLimit()).toEqual(TOO_LARGE);
+  });
+
+  it('refuses a streamed oversized body although its cancellation fails', async () => {
+    const source = BodySource.of(syncResponseBytes(OVERSIZED_BYTES), { cancelError: new TypeError('cancel failed') });
+    respondWith(new Response(source.stream));
 
     expect(await exchangeWithLimit()).toEqual(TOO_LARGE);
   });

@@ -135,10 +135,13 @@ function validSyncResponse(extras: Record<string, unknown> = {}): any {
   };
 }
 
-/** A platform Response whose body is `body` as JSON, as a sync server sends it. */
-function syncResponseOf(body: object): Response {
-  return new Response(JSON.stringify(body), { status: 200 });
+/** A platform Response carrying a JSON body, as a sync server sends it. */
+function syncResponseOf(jsonBody: string): Response {
+  return new Response(jsonBody, { status: 200 });
 }
+
+/** The JSON body of `validSyncResponse()`. */
+const EMPTY_SYNC_RESPONSE_BODY = '{"type":"sync-response","frontier":{},"patches":[]}';
 
 /** Creates a direct peer mock (object with processSyncRequest method). */
 function createDirectPeer(response = validSyncResponse()) {
@@ -842,7 +845,7 @@ describe('SyncController', () => {
     });
 
     it('makes POST request to the correct URL', async () => {
-      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validSyncResponse())));
+      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(EMPTY_SYNC_RESPONSE_BODY)));
       applySyncResponseMock.mockReturnValue({ state: fakeState(), frontier: new Map(), applied: 0 });
 
       await ctrl.syncWith('http://peer:3000/sync');
@@ -856,7 +859,7 @@ describe('SyncController', () => {
     });
 
     it('appends /sync path when URL has no path', async () => {
-      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validSyncResponse())));
+      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(EMPTY_SYNC_RESPONSE_BODY)));
       applySyncResponseMock.mockReturnValue({ state: fakeState(), frontier: new Map(), applied: 0 });
 
       await ctrl.syncWith('http://peer:3000');
@@ -867,7 +870,7 @@ describe('SyncController', () => {
     });
 
     it('overrides URL path when path option is provided', async () => {
-      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validSyncResponse())));
+      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(EMPTY_SYNC_RESPONSE_BODY)));
       applySyncResponseMock.mockReturnValue({ state: fakeState(), frontier: new Map(), applied: 0 });
 
       await ctrl.syncWith('http://peer:3000/old-path', { path: '/new-path' });
@@ -878,7 +881,7 @@ describe('SyncController', () => {
     });
 
     it('successful HTTP sync returns applied count', async () => {
-      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validSyncResponse())));
+      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(EMPTY_SYNC_RESPONSE_BODY)));
       applySyncResponseMock.mockReturnValue({ state: fakeState(), frontier: new Map(), applied: 5 });
 
       const result = await ctrl.syncWith('http://peer:3000/sync');
@@ -942,7 +945,7 @@ describe('SyncController', () => {
     });
 
     it('accepts URL objects', async () => {
-      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validSyncResponse())));
+      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(EMPTY_SYNC_RESPONSE_BODY)));
       applySyncResponseMock.mockReturnValue({ state: fakeState(), frontier: new Map(), applied: 0 });
 
       const result = await ctrl.syncWith(new URL('http://peer:3000/sync'));
@@ -985,7 +988,7 @@ describe('SyncController', () => {
     // ── onStatus callbacks ──────────────────────────────────────────────
 
     it('emits onStatus events during successful sync', async () => {
-      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validSyncResponse())));
+      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(EMPTY_SYNC_RESPONSE_BODY)));
       applySyncResponseMock.mockReturnValue({ state: fakeState(), frontier: new Map(), applied: 1 });
 
       const events: Array<{type: string}> = [];
@@ -1060,7 +1063,7 @@ describe('SyncController', () => {
     // ── Auth headers ─────────────────────────────────────────────────────
 
     it('sends auth headers when auth option is provided', async () => {
-      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validSyncResponse())));
+      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(EMPTY_SYNC_RESPONSE_BODY)));
       applySyncResponseMock.mockReturnValue({ state: fakeState(), frontier: new Map(), applied: 0 });
 
       await ctrl.syncWith('http://peer:3000/sync', {
@@ -1075,7 +1078,7 @@ describe('SyncController', () => {
     });
 
     it('sends no auth headers when auth option is omitted', async () => {
-      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validSyncResponse())));
+      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(EMPTY_SYNC_RESPONSE_BODY)));
       applySyncResponseMock.mockReturnValue({ state: fakeState(), frontier: new Map(), applied: 0 });
 
       await ctrl.syncWith('http://peer:3000/sync');
@@ -1106,9 +1109,9 @@ describe('SyncController', () => {
       });
       ctrl = new SyncController((host as any), { trustGate: controllerGate });
 
-      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validSyncResponse({
-          patches: [{ writerId: 'untrusted', sha: 'sha-u', patch: { ops: [] } }],
-        }))));
+      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(
+        '{"type":"sync-response","frontier":{},"patches":[{"writerId":"untrusted","sha":"sha-u","patch":{"ops":[]}}]}',
+      )));
       applySyncResponseMock.mockReturnValue({ state: fakeState(), frontier: new Map(), applied: 1 });
 
       // Should NOT throw because per-call trust overrides to 'off'

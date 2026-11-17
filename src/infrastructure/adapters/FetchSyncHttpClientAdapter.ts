@@ -152,7 +152,7 @@ async function readBoundedBody(
     return new Uint8Array(0);
   }
   if (declaresMoreThan(response.headers, maxBytes)) {
-    await stream.cancel();
+    await cancelBody(stream);
     return refusal;
   }
   return await readCountedBody(stream.getReader(), refusal);
@@ -175,10 +175,25 @@ async function readCountedBody(
     }
     total += read.value.byteLength;
     if (total > refusal.maxBytes) {
-      await reader.cancel();
+      await cancelBody(reader);
       return refusal;
     }
     chunks.push(read.value);
+  }
+}
+
+/**
+ * Cancels a refused body to release the connection. The cancellation is
+ * best effort: the size refusal is already decided, so a failed cancel
+ * must not turn it into a decode failure.
+ */
+async function cancelBody(
+  body: ReadableStream<Uint8Array> | ReadableStreamDefaultReader<Uint8Array>,
+): Promise<void> {
+  try {
+    await body.cancel();
+  } catch {
+    // The refusal stands; the platform releases the connection when the body is collected.
   }
 }
 
