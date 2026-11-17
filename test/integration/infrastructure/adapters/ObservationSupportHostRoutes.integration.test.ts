@@ -15,7 +15,12 @@ import ObservationCustodyFixture, {
 import SeededRandomPort from '../../../helpers/SeededRandomPort.ts';
 
 const fixture = new ObservationCustodyFixture();
+/** History adapters this file opens. Each holds a Git object session until it is closed. */
+const histories: GitTimelineHistoryAdapter[] = [];
 afterEach(async () => {
+  await Promise.all(histories.splice(0).map(async (history) => {
+    await history.close();
+  }));
   await fixture.dispose();
 });
 
@@ -33,6 +38,7 @@ type FaultPoint = (call: 'execute' | 'readTreeObjectEntries' | 'assets.put', det
 async function supportFaultingAt(path: string, point: FaultPoint): Promise<GitCasObservationSupportAdapter> {
   const { store } = await fixture.open(path, { limit: 2 });
   const real = new GitTimelineHistoryAdapter({ plumbing: await Plumbing.createDefault({ cwd: path }) });
+  histories.push(real);
   let fired = false;
   const meet = (call: Parameters<FaultPoint>[0], detail: string): void => {
     if (!fired && point(call, detail)) {
