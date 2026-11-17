@@ -15,8 +15,12 @@ import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
 import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';
+import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.ts';
+import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.ts';
+import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.ts';
 import type { IndexShard } from '../../../../src/domain/artifacts/IndexShard.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
+import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -148,6 +152,14 @@ describe('LogicalIndexReader', () => {
       expect(idx.getEdges('X', 'out')).toEqual([{ neighborId: 'Y', label: 'owns' }]);
     });
 
+    it('reads a meta shard with an empty alive bitmap as one with no alive node', () => {
+      const meta = new MetaShard({ shardKey: computeShardKey('A'), nodeToGlobal: [['A', 3]], nextLocalId: 4, alive: new Uint8Array(0) });
+
+      const idx = new LogicalIndexReader().loadFromShards([meta]).toLogicalIndex();
+
+      expect([idx.getGlobalId('A'), idx.isAlive('A')]).toEqual([3, false]);
+    });
+
     it('preserves the loaded index when a replacement shard set cannot be loaded', () => {
       const reader = new LogicalIndexReader();
       reader.loadFromShards(indexShardsOf(treeOf(fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR))));
@@ -159,6 +171,57 @@ describe('LogicalIndexReader', () => {
 
       expect(reader.toLogicalIndex().isAlive('A')).toBe(true);
       expect(reader.toLogicalIndex().getEdges('A', 'out')).toHaveLength(2);
+    });
+  });
+
+  // Oracle: change detection of the query helpers. A neighbour id that no meta
+  // shard names is skipped, and a label id that the registry lacks is named
+  // with the empty string; a filtered label without a bitmap yields no edge.
+  describe('queries over shards that name ids the index does not know', () => {
+    /** A knows B under label 0; label id 5 is not registered; id 99 names no node. */
+    function shardsWithUnknownIds(): IndexShard[] {
+      const Bitmap = getRoaringBitmap32();
+      const bitmapOf = (ids: number[]): Uint8Array => {
+        const bitmap = new Bitmap();
+        for (const id of ids) {
+          bitmap.add(id);
+        }
+        return bitmap.serialize(true);
+      };
+      return [
+        new LabelShard({ labels: [['knows', 0]] }),
+        new MetaShard({ shardKey: computeShardKey('A'), nodeToGlobal: [['A', 1]], nextLocalId: 2, alive: new Uint8Array(0) }),
+        new MetaShard({ shardKey: computeShardKey('B'), nodeToGlobal: [['B', 2]], nextLocalId: 3, alive: new Uint8Array(0) }),
+        new EdgeShard({
+          shardKey: computeShardKey('A'),
+          direction: 'fwd',
+          buckets: { all: { '1': bitmapOf([2, 99]) }, '0': { '1': bitmapOf([2, 99]) }, '5': { '1': bitmapOf([2]) } },
+        }),
+      ];
+    }
+
+    it('skips a neighbour id that no meta shard names', () => {
+      const idx = new LogicalIndexReader().loadFromShards(shardsWithUnknownIds()).toLogicalIndex();
+
+      expect(idx.getEdges('A', 'out', [0])).toEqual([{ neighborId: 'B', label: 'knows' }]);
+    });
+
+    it('names an unregistered label id with the empty label in an unfiltered query', () => {
+      const idx = new LogicalIndexReader().loadFromShards(shardsWithUnknownIds()).toLogicalIndex();
+
+      expect(idx.getEdges('A', 'out')).toEqual([{ neighborId: 'B', label: 'knows' }, { neighborId: 'B', label: '' }]);
+    });
+
+    it('names an unregistered label id with the empty label in a filtered query', () => {
+      const idx = new LogicalIndexReader().loadFromShards(shardsWithUnknownIds()).toLogicalIndex();
+
+      expect(idx.getEdges('A', 'out', [5])).toEqual([{ neighborId: 'B', label: '' }]);
+    });
+
+    it('returns no edge for a filtered label that has no bitmap', () => {
+      const idx = new LogicalIndexReader().loadFromShards(shardsWithUnknownIds()).toLogicalIndex();
+
+      expect(idx.getEdges('A', 'out', [7])).toEqual([]);
     });
   });
 
@@ -190,6 +253,29 @@ describe('LogicalIndexReader', () => {
       expect(outEdges.length).toBe(2);
 
       expect(storage.writeBlob).toHaveBeenCalled();
+    });
+
+    // Stored index shards can still hold the legacy map forms and a meta
+    // shard without an alive bitmap; only the stored path decodes them now.
+    it('reads a stored legacy meta shard: a map-form id table and no alive bitmap', async () => {
+      const storage = new MockIndexStorage();
+      const meta = await storage.writeBlob(defaultCodec.encode({ nodeToGlobal: { A: 7 }, nextLocalId: 8 }));
+      const reader = new LogicalIndexReader({ indexStore: storage });
+
+      await reader.loadFromHandles({ [`meta_${computeShardKey('A')}.cbor`]: meta });
+      const idx = reader.toLogicalIndex();
+
+      expect([idx.getGlobalId('A'), idx.getNodeId(7), idx.isAlive('A')]).toEqual([7, 'A', false]);
+    });
+
+    it('reads stored labels in the legacy map form', async () => {
+      const storage = new MockIndexStorage();
+      const labels = await storage.writeBlob(defaultCodec.encode({ knows: 0, owns: 1 }));
+      const reader = new LogicalIndexReader({ indexStore: storage });
+
+      await reader.loadFromHandles({ 'labels.cbor': labels });
+
+      expect([...reader.toLogicalIndex().getLabelRegistry()]).toEqual([['knows', 0], ['owns', 1]]);
     });
 
     it('preserves the loaded index when a replacement asset cannot be decoded', async () => {

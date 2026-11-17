@@ -9,6 +9,7 @@ import {
 } from '../../../../src/domain/materialization/MaterializationPropertyProfile.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
+import type CodecValue from '../../../../src/domain/types/codec/CodecValue.ts';
 import CborIndexShardTree from '../../../../src/infrastructure/adapters/CborIndexShardTree.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { F10_PROTO_POLLUTION } from '../../../helpers/fixtureDsl.ts';
@@ -93,6 +94,24 @@ describe('PropertyIndex handle-backed reads', () => {
     reader.setupRoot(new BundleHandle('retained-properties'));
 
     await expect(reader.getNodeProps('node:1')).rejects.toMatchObject({ code: 'E_INDEX_NO_STORE' });
+  });
+
+  it('reads no property for a node whose retained root has no member', async () => {
+    const reader = new PropertyIndexReader({ indexStore: new MockIndexStorage() });
+    reader.setupRoot(new BundleHandle('retained-root-without-members'));
+
+    await expect(reader.getNodeProps('node:1')).resolves.toBeNull();
+  });
+
+  it('accepts a schema-v1 property bag that has no prototype', () => {
+    const nodeId = 'node:1';
+    const bag: { [key: string]: CodecValue } = { status: 'legacy' };
+    Reflect.setPrototypeOf(bag, null);
+
+    const decode = () => decodePropertyShard([[nodeId, bag]], `props_${computeShardKey(nodeId)}.cbor`);
+
+    expect(decode).not.toThrow();
+    expect(decode().get(nodeId)).toEqual({ status: 'legacy' });
   });
 
   it('has no codec decode path for an encoded in-memory tree', () => {
