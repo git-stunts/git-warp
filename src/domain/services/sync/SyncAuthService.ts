@@ -360,9 +360,11 @@ export default class SyncAuthService {
     keyId: string;
     timestamp: string;
     nonce: string;
+    /** The `x-warp-signature` header that `_validateHeaders` admitted: SIG_HEX_LENGTH lowercase hex digits. */
+    signature: string;
     authScheme: SyncAuthScheme | null;
   }): Promise<FailResult | OkResult> {
-    const { request, secret, keyId, timestamp, nonce, authScheme } = params;
+    const { request, secret, keyId, timestamp, nonce, signature, authScheme } = params;
     const body = request.body ?? new Uint8Array(0);
     const bodySha256 = await this._crypto.hash('sha256', body);
     const contentType = request.headers['content-type'] !== undefined ? request.headers['content-type'] : '';
@@ -380,14 +382,8 @@ export default class SyncAuthService {
     });
 
     const expectedBuf = await secret.hmac(this._crypto, HMAC_ALGO, canonical);
-    const receivedHex = request.headers['x-warp-signature'] ?? '';
-
-    let receivedBuf: Uint8Array;
-    try {
-      receivedBuf = hexDecode(receivedHex);
-    } catch {
-      return fail('INVALID_SIGNATURE', 401);
-    }
+    // The header check admitted only even-length lowercase hex, so this decode cannot fail.
+    const receivedBuf = hexDecode(signature);
 
     if (receivedBuf.length !== expectedBuf.length) { return fail('INVALID_SIGNATURE', 401); }
 
@@ -412,7 +408,7 @@ export default class SyncAuthService {
       return this._fail('header validation failed', { reason: headerResult.reason }, headerResult);
     }
 
-    const { timestamp, nonce, keyId, authScheme } = headerResult;
+    const { timestamp, nonce, keyId, signature, authScheme } = headerResult;
 
     const keyResult = this._resolveKey(keyId);
     if (!keyResult.ok) {
@@ -420,7 +416,7 @@ export default class SyncAuthService {
     }
 
     const sigResult = await this._verifySignature({
-      request, secret: keyResult.secret, keyId, timestamp, nonce, authScheme,
+      request, secret: keyResult.secret, keyId, timestamp, nonce, signature, authScheme,
     });
     if (!sigResult.ok) {
       return this._fail('signature mismatch', { keyId }, sigResult);

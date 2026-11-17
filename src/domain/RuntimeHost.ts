@@ -36,7 +36,7 @@ import type IntentCapability from './capabilities/IntentCapability.ts';
 import AuditVerifierService from './services/audit/AuditVerifierService.ts';
 import { E_NO_STATE_MSG } from './services/controllers/QueryStateMessages.ts';
 import type MaterializedViewService from './services/MaterializedViewService.ts';
-import StateHashService from './services/state/StateHashService.ts';
+import type StateHashService from './services/state/StateHashService.ts';
 import { computeStateHash } from './services/state/StateSerializer.ts';
 import MaterializeController, { type MaterializeResult } from './services/controllers/MaterializeController.ts';
 import RuntimePatchCollector from './warp/RuntimePatchCollector.ts';
@@ -49,7 +49,6 @@ import {
   maxObservedLamportInState,
 } from './services/controllers/MaterializeHelpers.ts';
 import { selectProvenanceAfterMaterialization } from './services/controllers/MaterializeProvenancePolicy.ts';
-import WarpError from './errors/WarpError.ts';
 import QueryError from './errors/QueryError.ts';
 import { requireCommitMessageCodec } from './services/codec/CommitMessageCodecRequirement.ts';
 
@@ -173,11 +172,8 @@ function canUseCachedMaterializedGraph(
 }
 
 function resolveMaterializedStateDiff(
-  optionsOrDiff: PatchDiff | MaterializedStateUpdateOptions | undefined,
+  optionsOrDiff: PatchDiff | MaterializedStateUpdateOptions,
 ): PatchDiff | undefined {
-  if (optionsOrDiff === null || optionsOrDiff === undefined) {
-    return undefined;
-  }
   if ('edgesAdded' in optionsOrDiff) {
     return optionsOrDiff;
   }
@@ -185,9 +181,9 @@ function resolveMaterializedStateDiff(
 }
 
 function resolveMaterializedStateCoordinate(
-  optionsOrDiff: PatchDiff | MaterializedStateUpdateOptions | undefined,
+  optionsOrDiff: PatchDiff | MaterializedStateUpdateOptions,
 ): WarpStateCoordinate | null {
-  if (optionsOrDiff === null || optionsOrDiff === undefined || 'edgesAdded' in optionsOrDiff) {
+  if ('edgesAdded' in optionsOrDiff) {
     return null;
   }
   return optionsOrDiff.coordinate ?? null;
@@ -277,7 +273,7 @@ export default class RuntimeHost {
   _checkpointStore: CheckpointStorePort;
   _indexStore: IndexStorePort;
   _intentStore: IntentStorePort;
-  _stateHashService: StateHashService | null;
+  _stateHashService: StateHashService;
   _auditService: AuditReceiptService | null;
   _materializations: MaterializationStorePort;
   _retainedMaterialization: MaterializationHandle | null;
@@ -371,7 +367,7 @@ export default class RuntimeHost {
     this._audit = !!audit;
     this._auditSkipCount = 0;
     this._trustConfig = normalizeTrustConfig(trust);
-    this._stateHashService = stateHashService || null;
+    this._stateHashService = stateHashService;
     this._syncReplayProtection = syncReplayProtection ?? null;
 
     this._createSyncTrustGate = (override) => {
@@ -402,31 +398,17 @@ export default class RuntimeHost {
     );
     this._provenanceController = new ProvenanceController(this);
     this._forkController = new ForkController(this);
+    // MaterializeController takes this factory too; only QueryController opens detached graphs with it.
+    const graphCloner = new RuntimeDetachedFactory(this, async (detachedOptions) => await RuntimeHost.open(detachedOptions));
     this._queryController = new QueryController({
       hostGraph: this,
-      graphCloner: new RuntimeDetachedFactory(this, async (detachedOptions) => await RuntimeHost.open(detachedOptions)),
-      hashState: async (state) => {
-        if (this._stateHashService !== null) {
-          return await this._stateHashService.compute(state);
-        }
-        return await new StateHashService({
-          crypto: this._crypto,
-          codec: this._codec,
-        }).compute(state);
-      },
+      graphCloner,
+      hashState: async (state) => await this._stateHashService.compute(state),
     });
     this.traverse = new LogicalTraversal(new LiveQueryReadModelProvider({
       ensureFreshState: async () => { await this._ensureFreshState(); },
       currentState: () => this._cachedState,
-      stateHash: async (state) => {
-        if (this._stateHashService !== null) {
-          return await this._stateHashService.compute(state);
-        }
-        return await new StateHashService({
-          crypto: this._crypto,
-          codec: this._codec,
-        }).compute(state);
-      },
+      stateHash: async (state) => await this._stateHashService.compute(state),
       neighborProvider: () => this._materializedGraph?.provider ?? null,
     }));
     this._patchController = new PatchController(this);
@@ -445,7 +427,7 @@ export default class RuntimeHost {
       getStateCache: () => this._stateCache ?? null,
       ...(openStateSession === undefined ? {} : { openStateSession }),
       patches: new RuntimePatchCollector(this),
-      graphCloner: new RuntimeDetachedFactory(this, async (detachedOptions) => await RuntimeHost.open(detachedOptions)),
+      graphCloner,
       graphName: this._graphName,
     });
     this._viewService = viewService;
@@ -578,7 +560,7 @@ export default class RuntimeHost {
 
   async _setMaterializedState(
     state: WarpState,
-    optionsOrDiff?: PatchDiff | MaterializedStateUpdateOptions,
+    optionsOrDiff: PatchDiff | MaterializedStateUpdateOptions,
   ): Promise<MaterializedGraph> {
     const stateHash = await computeStateHash(state, { crypto: this._crypto, codec: this._codec });
     const adjacency = this._buildAdjacency(state);
@@ -661,17 +643,10 @@ export default class RuntimeHost {
     strandId: string,
     options?: { receipts?: boolean; ceiling?: number | null },
   ): Promise<SnapshotWarpState | MaterializeReceiptsResult> {
-    const result = await this._strandController.materializeStrand(strandId, options);
     if (options?.receipts === true) {
-      if ('state' in result) {
-        return result;
-      }
-      throw new WarpError('strand materialization requested receipts but returned plain state', 'E_STRAND_RECEIPTS_MISSING');
+      return await this._strandController.materializeStrand(strandId, { ...options, receipts: true });
     }
-    if ('state' in result) {
-      throw new WarpError('strand materialization returned receipts without requesting them', 'E_STRAND_RECEIPTS_UNEXPECTED');
-    }
-    return result;
+    return await this._strandController.materializeStrand(strandId, { ...options, receipts: false });
   }
 
   createCheckpoint: CheckpointController['createCheckpoint'] = (...args) => this._checkpointController.createCheckpoint(...args);

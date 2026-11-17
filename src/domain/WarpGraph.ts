@@ -15,7 +15,6 @@
  * wires controllers, and returns a frozen capability bag organized by
  * architectural moment.
  */
-import WarpError from './errors/WarpError.ts';
 import { openWarpGraphRuntime, type WarpGraphRuntimeSurface } from './warp/WarpGraphRuntimeBridge.ts';
 import type QueryCapability from './capabilities/QueryCapability.ts';
 import type PatchCapability from './capabilities/PatchCapability.ts';
@@ -185,31 +184,7 @@ type SyncCapabilitySurface = Pick<
   'serve'
 >;
 
-function requireCapabilityMethod(owner: object, capabilityName: string, methodName: string): void {
-  if (typeof Reflect.get(owner, methodName) === 'function') {
-    return;
-  }
-  throw new WarpError(
-    `${capabilityName} is missing required method: ${methodName}()`,
-    `E_WARPGRAPH_${capabilityName.toUpperCase()}_MISSING_METHOD`,
-  );
-}
-
-function requireCapability(owner: object, capabilityName: string, methodNames: readonly string[]): void {
-  for (const methodName of methodNames) {
-    requireCapabilityMethod(owner, capabilityName, methodName);
-  }
-}
-
 function bindQueryCapability(runtime: WarpGraphRuntimeSurface): QueryCapability {
-  requireCapability(runtime, 'query', [
-    'hasNode', 'getNodeProps', 'getEdgeProps', 'neighbors',
-    'getStateSnapshot', 'getNodes', 'getEdges', 'getPropertyCount',
-    'query', 'worldline', 'observer', 'translationCost',
-    'getContentHandle', 'getContentMeta',
-    'getEdgeContentHandle', 'getEdgeContentMeta',
-    'getContentStream', 'getEdgeContentStream',
-  ]);
   return Object.freeze({
     hasNode: runtime.hasNode.bind(runtime),
     getNodeProps: runtime.getNodeProps.bind(runtime),
@@ -233,10 +208,6 @@ function bindQueryCapability(runtime: WarpGraphRuntimeSurface): QueryCapability 
 }
 
 function bindPatchCapability(runtime: WarpGraphRuntimeSurface): PatchCapability {
-  requireCapability(runtime, 'patch', [
-    'createPatch', 'patch', 'patchWithEvidence', 'patchMany', 'getWriterPatches',
-    'writer', 'previewDotRepair', 'applyDotRepair', 'discoverWriters', 'discoverTicks', 'join',
-  ]);
   return Object.freeze({
     createPatch: runtime.createPatch.bind(runtime),
     patch: runtime.patch.bind(runtime),
@@ -254,11 +225,6 @@ function bindPatchCapability(runtime: WarpGraphRuntimeSurface): PatchCapability 
 
 function bindSyncCapability(runtime: WarpGraphRuntimeSurface): SyncCapability {
   const syncSurface: SyncCapabilitySurface = runtime;
-  requireCapability(runtime, 'sync', [
-    'getFrontier', 'hasFrontierChanged', 'status', 'createSyncRequest',
-    'processSyncRequest', 'applySyncResponse', 'syncNeeded',
-    'syncWith', 'serve',
-  ]);
   return Object.freeze({
     getFrontier: syncSurface.getFrontier.bind(runtime),
     hasFrontierChanged: syncSurface.hasFrontierChanged.bind(runtime),
@@ -275,12 +241,6 @@ function bindSyncCapability(runtime: WarpGraphRuntimeSurface): SyncCapability {
 }
 
 function bindStrandCapability(runtime: WarpGraphRuntimeSurface): StrandCapability {
-  requireCapability(runtime, 'strand', [
-    'createStrand', 'braidStrand', 'getStrand', 'listStrands', 'renameStrand', 'dropStrand', 'resolveAllocationProvenance',
-    'materializeStrand', 'getStrandPatches', 'patchesForStrand',
-    'createStrandPatch', 'patchStrand', 'patchStrandWithEvidence', 'queueStrandIntent',
-    'listStrandIntents', 'tickStrand', 'analyzeConflicts',
-  ]);
   return Object.freeze({
     createStrand: runtime.createStrand.bind(runtime),
     braidStrand: runtime.braidStrand.bind(runtime),
@@ -303,9 +263,6 @@ function bindStrandCapability(runtime: WarpGraphRuntimeSurface): StrandCapabilit
 }
 
 function bindIntentCapability(runtime: WarpGraphRuntimeSurface): IntentCapability {
-  requireCapability(runtime, 'intent', [
-    'admitIntent', 'queueIntent', 'getWriterIntents',
-  ]);
   return Object.freeze({
     admitIntent: runtime.admitIntent.bind(runtime),
     queueIntent: runtime.queueIntent.bind(runtime),
@@ -314,9 +271,6 @@ function bindIntentCapability(runtime: WarpGraphRuntimeSurface): IntentCapabilit
 }
 
 function bindCheckpointCapability(runtime: WarpGraphRuntimeSurface): CheckpointCapability {
-  requireCapability(runtime, 'checkpoint', [
-    'createCheckpoint', 'syncCoverage', 'maybeRunGC', 'runGC', 'getGCMetrics',
-  ]);
   return Object.freeze({
     createCheckpoint: runtime.createCheckpoint.bind(runtime),
     syncCoverage: runtime.syncCoverage.bind(runtime),
@@ -327,9 +281,6 @@ function bindCheckpointCapability(runtime: WarpGraphRuntimeSurface): CheckpointC
 }
 
 function bindProvenanceCapability(runtime: WarpGraphRuntimeSurface): ProvenanceCapability {
-  requireCapability(runtime, 'provenance', [
-    'patchesFor', 'materializeSlice', 'loadPatchBySha',
-  ]);
   return Object.freeze({
     patchesFor: runtime.patchesFor.bind(runtime),
     materializeSlice: runtime.materializeSlice.bind(runtime),
@@ -338,10 +289,6 @@ function bindProvenanceCapability(runtime: WarpGraphRuntimeSurface): ProvenanceC
 }
 
 function bindComparisonCapability(runtime: WarpGraphRuntimeSurface): ComparisonCapability {
-  requireCapability(runtime, 'comparison', [
-    'buildPatchDivergence', 'compareStrand', 'planStrandTransfer',
-    'compareCoordinates', 'diff', 'planCoordinateTransfer',
-  ]);
   return Object.freeze({
     buildPatchDivergence: runtime.buildPatchDivergence.bind(runtime),
     compareStrand: runtime.compareStrand.bind(runtime),
@@ -353,7 +300,6 @@ function bindComparisonCapability(runtime: WarpGraphRuntimeSurface): ComparisonC
 }
 
 function bindSubscriptionCapability(runtime: WarpGraphRuntimeSurface): SubscriptionCapability {
-  requireCapability(runtime, 'subscription', ['subscribe', 'watch']);
   return Object.freeze({
     subscribe: runtime.subscribe.bind(runtime),
     watch: runtime.watch.bind(runtime),

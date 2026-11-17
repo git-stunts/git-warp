@@ -69,7 +69,9 @@ export function validateWriterIdCanonical(id: string): void {
 const WRITER_ID_ENTROPY_BYTES = 16;
 
 /**
- * Encodes bytes as Crockford Base32 (lowercase).
+ * Encodes the writer-id entropy as Crockford Base32 (lowercase). Its only input is
+ * `WRITER_ID_ENTROPY_BYTES` bytes: 128 bits are 25 full 5-bit symbols and 3 bits
+ * more, so the 26th symbol always holds those 3 bits padded with zeros.
  */
 function crockfordBase32(bytes: Uint8Array): string {
   let bits = 0;
@@ -86,10 +88,8 @@ function crockfordBase32(bytes: Uint8Array): string {
     }
   }
 
-  if (bits > 0) {
-    const idx = (value << (5 - bits)) & 31;
-    out += CROCKFORD32[idx];
-  }
+  const idx = (value << (5 - bits)) & 31;
+  out += CROCKFORD32[idx];
 
   return out;
 }

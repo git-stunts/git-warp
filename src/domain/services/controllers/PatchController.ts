@@ -53,7 +53,7 @@ type MaterializedAdjacency = {
 };
 type SetMaterializedState = (
   state: WarpState,
-  optionsOrDiff?: PatchDiff | MaterializedStateUpdateOptions,
+  optionsOrDiff: PatchDiff | MaterializedStateUpdateOptions,
 ) => Promise<{
   state: WarpState;
   stateHash: string;
