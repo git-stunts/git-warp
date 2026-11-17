@@ -2,8 +2,8 @@
  * Node-to-incident-edge adjacency over the alive edge set.
  *
  * The incremental index updater uses it to find the alive edges of a node
- * that is re-added, so it can restore their bitmaps. Build it once from the
- * alive edges, then keep it in sync by applying each later diff.
+ * that is added, so it can index the ones that became visible. Build it once
+ * from the alive edges, then keep it in sync by applying each later diff.
  *
  * @module domain/services/index/EdgeAdjacency
  */

@@ -30,11 +30,6 @@ export type DirtyShardRequest = {
   readonly shards: IndexShardTreePort;
 };
 
-type EdgeRestore = {
-  readonly workspace: IndexShardWorkspace;
-  readonly readded: ReadonlySet<string>;
-};
-
 export default class IncrementalIndexUpdater {
   readonly #adjacencyCache = new WeakMap<ORSet, EdgeAdjacency>();
   readonly #nodeUpdater = new IndexNodeUpdater();
@@ -48,9 +43,9 @@ export default class IncrementalIndexUpdater {
       return [];
     }
     const workspace = new IndexShardWorkspace(shards);
-    const readded = this.#applyNodeChanges(diff, workspace);
+    this.#applyNodeChanges(request, workspace);
     this.#applyEdgeChanges(request, workspace);
-    this.#restoreReaddedEdges(request, { workspace, readded });
+    this.#restoreIncidentEdges(request, workspace);
     const propertyShards = this.#propertyUpdater.computeDirtyPropertyShards({
       propsChanged: diff.propsChanged,
       nodesCleared: diff.nodesCleared,
@@ -59,26 +54,27 @@ export default class IncrementalIndexUpdater {
     return [...workspace.flush(), ...propertyShards];
   }
 
-  /** Applies node adds and removes; returns the added nodes that already had a global ID. */
-  #applyNodeChanges(diff: PatchDiff, workspace: IndexShardWorkspace): Set<string> {
-    // Brand-new nodes cannot have pre-existing indexed edges to restore.
-    const readded = new Set(diff.nodesAdded.filter(
-      (nodeId) => this.#nodeUpdater.findGlobalId(workspace.meta(computeShardKey(nodeId)), nodeId) !== undefined,
-    ));
+  /**
+   * Applies node adds and removes. A diff records every transition of every
+   * op, so one patch that removes a node and adds it again lists the node in
+   * both lists; the node is removed only when it is dead after the patch.
+   */
+  #applyNodeChanges({ diff, state }: DirtyShardRequest, workspace: IndexShardWorkspace): void {
     for (const nodeId of diff.nodesAdded) {
       const shardKey = computeShardKey(nodeId);
       this.#nodeUpdater.handleNodeAdd(nodeId, shardKey, workspace.meta(shardKey));
     }
-    for (const nodeId of diff.nodesRemoved) {
+    const removed = diff.nodesRemoved.filter((nodeId) => !state.nodeAlive.contains(nodeId));
+    for (const nodeId of removed) {
       this.#nodeUpdater.handleNodeRemove(nodeId, workspace.meta(computeShardKey(nodeId)));
     }
     // Purge edge bitmaps for removed nodes (dangling edge elimination).
-    for (const nodeId of diff.nodesRemoved) {
+    for (const nodeId of removed) {
       this.#nodeUpdater.purgeNodeEdges(nodeId, workspace.edgeContext());
     }
-    return readded;
   }
 
+  /** Applies edge adds and removes; like a node, an edge is removed only when it is dead after the patch. */
   #applyEdgeChanges({ diff, state }: DirtyShardRequest, workspace: IndexShardWorkspace): void {
     // Filter edgesAdded by endpoint alive-ness (matches edgeVisible).
     for (const edge of diff.edgesAdded) {
@@ -88,37 +84,48 @@ export default class IncrementalIndexUpdater {
       }
     }
     for (const edge of diff.edgesRemoved) {
-      this.#edgeUpdater.handleEdgeRemove(edge, workspace.edgeContext());
+      if (!state.edgeAlive.contains(encodeEdgeKey(edge.from, edge.to, edge.label))) {
+        this.#edgeUpdater.handleEdgeRemove(edge, workspace.edgeContext());
+      }
     }
   }
 
-  /** Re-indexes the alive edges of re-added nodes that the diff does not add itself. */
-  #restoreReaddedEdges(request: DirtyShardRequest, restore: EdgeRestore): void {
-    const adjacency = this.#syncAdjacency(request, restore.readded);
+  /**
+   * Indexes the alive edges of added nodes that the diff does not add itself.
+   *
+   * Every added node can have such edges. A re-added node's edges were purged
+   * when it was removed. A node added for the first time can be the endpoint
+   * of an edge that a patch added before any patch added the node, because
+   * adding an edge does not require its endpoints to exist; that edge was not
+   * indexed while the node was not alive.
+   */
+  #restoreIncidentEdges(request: DirtyShardRequest, workspace: IndexShardWorkspace): void {
+    const added = new Set(request.diff.nodesAdded);
+    const adjacency = this.#syncAdjacency(request, added);
     if (adjacency === null) {
       return;
     }
     const diffEdges = new Set(request.diff.edgesAdded.map((edge) => encodeEdgeKey(edge.from, edge.to, edge.label)));
-    for (const edgeKey of adjacency.incidentTo(restore.readded)) {
+    for (const edgeKey of adjacency.incidentTo(added)) {
       const edge = decodeEdgeKey(edgeKey);
       if (endpointsAlive(request.state, edge) && !diffEdges.has(encodeEdgeKey(edge.from, edge.to, edge.label))) {
-        restore.workspace.ensureLabel(edge.label);
-        this.#edgeUpdater.handleEdgeAdd(edge, restore.workspace.edgeContext());
+        workspace.ensureLabel(edge.label);
+        this.#edgeUpdater.handleEdgeAdd(edge, workspace.edgeContext());
       }
     }
   }
 
   /**
    * Returns the alive-edge adjacency, kept in sync for every diff once built.
-   * Builds it only when a node is re-added; returns null while it is not needed.
+   * Builds it only when a node is added; returns null while it is not needed.
    */
-  #syncAdjacency({ diff, state }: DirtyShardRequest, readded: ReadonlySet<string>): EdgeAdjacency | null {
+  #syncAdjacency({ diff, state }: DirtyShardRequest, added: ReadonlySet<string>): EdgeAdjacency | null {
     const cached = this.#adjacencyCache.get(state.edgeAlive);
     if (cached !== undefined) {
       cached.applyDiff(state.edgeAlive, diff);
       return cached;
     }
-    if (readded.size === 0) {
+    if (added.size === 0) {
       return null;
     }
     const adjacency = EdgeAdjacency.fromAliveEdges(state.edgeAlive);
