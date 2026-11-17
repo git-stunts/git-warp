@@ -409,8 +409,9 @@ Use this procedure when all of these are true:
   every writer ref reads it as removed.
 - An earlier version (v20.0.0, or a v21 build before
   [#1153](https://github.com/git-stunts/git-warp/issues/1153)) ran
-  `materialize()` on the host after the add arrived, and stored a state
-  without the tombstone in a retained materialization or a checkpoint.
+  `materialize()` on the host after the sync, and stored a state without
+  the tombstone in a retained materialization or a checkpoint. This is true
+  whether that materialize ran before or after the add arrived.
 
 The procedure is verified on Git storage in the default configuration, for
 nodes and for edges:
