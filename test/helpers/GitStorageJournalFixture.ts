@@ -47,7 +47,7 @@ export async function appendJournalPatch(cwd: string, patch: Patch, parent: stri
   const ports = getDefaultRuntimeHostNodePorts();
   const plumbing = await openDefaultGitPlumbing(cwd);
   const history = new GitTimelineHistoryAdapter({ plumbing });
-  const repo = new GitCasRepositoryAdapter({ plumbing, history });
+  const repo = new GitCasRepositoryAdapter({ plumbing, history, clock: ports.clock });
   try {
     const services = repo.createMigrationStorageServices({
       timelineName: JOURNAL_GRAPH,
