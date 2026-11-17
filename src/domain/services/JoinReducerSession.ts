@@ -2,6 +2,7 @@ import { Dot } from "../crdt/Dot.ts";
 import { LWWRegister } from "../crdt/LWW.ts";
 import VersionVector from "../crdt/VersionVector.ts";
 import PatchError from "../errors/PatchError.ts";
+import FloatingTombstones from "../orset/session/FloatingTombstones.ts";
 import StateSession from "../orset/session/StateSession.ts";
 import { createTickReceipt, type OpOutcome, type TickReceipt } from "../types/TickReceipt.ts";
 import BlobValue from "../types/ops/BlobValue.ts";
@@ -76,15 +77,22 @@ export class ReducerSessionFrame {
   readonly nodeClearEvent: Map<string, EventId>;
   readonly nodePendingRemoveEvents: Map<string, readonly EventId[]>;
   readonly edgeRemoveEvent: Map<string, EventId>;
+  /** Tombstones of the base state that no entry holds; the trie cannot store them (#1153). */
+  readonly floatingTombstones: FloatingTombstones;
 
   constructor(fields: StateLifecycleSource & {
     readonly session: StateSession;
     readonly prop: Map<string, LWWRegister<ReducerPropValue>>;
     readonly observedFrontier: VersionVector;
     readonly edgeBirthEvent: Map<string, EventId | LegacyEventId>;
+    readonly floatingTombstones?: FloatingTombstones;
   }) {
     if (!(fields.session instanceof StateSession)) {
       throw new PatchError("ReducerSessionFrame requires a StateSession");
+    }
+    const floatingTombstones = fields.floatingTombstones ?? FloatingTombstones.none();
+    if (!(floatingTombstones instanceof FloatingTombstones)) {
+      throw new PatchError("ReducerSessionFrame requires FloatingTombstones");
     }
     if (!(fields.prop instanceof Map)) {
       throw new PatchError("ReducerSessionFrame requires a prop Map");
@@ -103,6 +111,7 @@ export class ReducerSessionFrame {
     this.nodeClearEvent = optionalLifecycleMap(fields.nodeClearEvent, "nodeClearEvent");
     this.nodePendingRemoveEvents = optionalLifecycleMap(fields.nodePendingRemoveEvents, "nodePendingRemoveEvents");
     this.edgeRemoveEvent = optionalLifecycleMap(fields.edgeRemoveEvent, "edgeRemoveEvent");
+    this.floatingTombstones = floatingTombstones;
     Object.freeze(this);
   }
 
@@ -226,11 +235,14 @@ export async function joinFrames(
 ): Promise<ReducerSessionFrame> {
   await mergeLiveNodesInto(left.session, right.session);
   await mergeLiveEdgesInto(left.session, right.session);
+  const floatingTombstones = left.floatingTombstones.join(right.floatingTombstones);
+  await floatingTombstones.tombstoneHeldDots(left.session);
   return new ReducerSessionFrame({
     session: left.session,
     prop: mergePropMaps(left.prop, right.prop),
     observedFrontier: left.observedFrontier.merge(right.observedFrontier),
     ...joinStateLifecycles(left, right),
+    floatingTombstones,
   });
 }
 
@@ -387,7 +399,7 @@ async function mutateInSession(
   eventId: EventId,
 ): Promise<void> {
   if (op instanceof NodeAdd) {
-    await frame.session.addNode(op.node, op.dot);
+    await frame.floatingTombstones.addNode(frame.session, op.node, op.dot);
     return;
   }
   if (op instanceof NodeRemove) {
@@ -396,7 +408,7 @@ async function mutateInSession(
   }
   if (op instanceof EdgeAdd) {
     const edgeKey = encodeEdgeKey(op.from, op.to, op.label);
-    await frame.session.addEdge(edgeKey, op.dot);
+    await frame.floatingTombstones.addEdge(frame.session, edgeKey, op.dot);
     advanceLifecycleEvent(frame.edgeBirthEvent, edgeKey, eventId);
     return;
   }

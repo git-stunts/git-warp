@@ -138,6 +138,16 @@ ancestry, and resumes the newest compatible complete predecessor by replaying
 only the suffix. Receipt-producing reads still use the ordinary replay path, as
 do diff-producing predecessor reads.
 
+A session that starts from a whole state, seeded from a snapshot, a replay basis
+or a checkpoint, or reopened on retained roots beside one, also takes the
+state's tombstones that no entry holds. Sync applies a remove that arrives
+before its add with the in-memory reducer, so such a tombstone names no
+element, and the trie stores tombstones only under an element. The reducer
+keeps these tombstones beside the session: an add of one of their dots arrives
+removed, and the projected state lists them in its tombstone set, so the next
+snapshot, replay basis and checkpoint keep them
+([#1153](https://github.com/git-stunts/git-warp/issues/1153)).
+
 ### 3. Fall back to replay and publish
 
 When there is no usable cached snapshot, the runtime falls back to the existing

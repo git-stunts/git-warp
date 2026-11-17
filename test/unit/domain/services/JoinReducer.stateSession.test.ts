@@ -415,6 +415,45 @@ describe("JoinReducer session-backed path", () => {
         bob: 1,
       });
     });
+
+    it("applies each frame's floating tombstones to the other frame's live dots (#1153)", async () => {
+      // Oracle: an in-memory ORSet join is the union of entries and of
+      // tombstones, so a tombstone removes its dot whichever side holds it.
+      const { ReducerSessionFrame, joinFrames } =
+        await loadJoinReducerSessionModule();
+      const { default: FloatingTombstones } = await import(
+        "../../../../src/domain/orset/session/FloatingTombstones.ts"
+      );
+      const leftOpen = await openSession();
+      const rightOpen = await openSession();
+      await leftOpen.session.addNode("n1", new Dot("zed", 1));
+      await leftOpen.session.addNode("n3", new Dot("zed", 3));
+      await rightOpen.session.addNode("n2", new Dot("zed", 2));
+      await rightOpen.session.addEdge("n2\x00n3\x00rel", new Dot("zed", 4));
+      const frame = (session: StateSession, nodeDots: string[], edgeDots: string[]) => new ReducerSessionFrame({
+        session,
+        prop: new Map(),
+        observedFrontier: VersionVector.empty(),
+        edgeBirthEvent: new Map(),
+        floatingTombstones: new FloatingTombstones({ nodeDots, edgeDots }),
+      });
+
+      const merged = await joinFrames(
+        frame(leftOpen.session, ["zed:2"], ["zed:4"]),
+        frame(rightOpen.session, ["zed:1"], []),
+      );
+
+      expect({
+        n1: await merged.session.nodeContains("n1"),
+        n2: await merged.session.nodeContains("n2"),
+        n3: await merged.session.nodeContains("n3"),
+        edge: await merged.session.edgeContains("n2\x00n3\x00rel"),
+        floatingNodes: [...merged.floatingTombstones.nodeDots()].sort(),
+        floatingEdges: [...merged.floatingTombstones.edgeDots()],
+      }).toEqual({
+        n1: false, n2: false, n3: true, edge: false, floatingNodes: ["zed:1", "zed:2"], floatingEdges: ["zed:4"],
+      });
+    });
   });
 
   describe("known failure modes", () => {

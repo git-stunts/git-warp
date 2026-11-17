@@ -510,12 +510,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nodes in the graph. Lifecycle shards and the receipt move to schema 3 (a
   record gains a field; the receipt keys do not change), and schema 2 roots
   are still read. A node that is removed and re-added many times grows its
-  own record, as its trie leaf already does. One path is not fixed: a
-  session seeded from a state that holds the tombstone without the add drops
-  that tombstone, so the element is alive again when the add arrives. For
-  example, a host that receives the remove through `syncWith`, creates a
-  checkpoint, and then receives the add reports the element alive
-  ([#1153](https://github.com/git-stunts/git-warp/issues/1153)). Earlier
+  own record, as its trie leaf already does. A session seeded from a state
+  that holds the tombstone without the add is fixed separately (see the
+  #1153 entry below). Earlier
   versions can have stored the wrong state of a full replay in the
   checkpoint and in retained materializations, and the fix does not repair
   them. On an affected repository using the default Git storage
@@ -525,7 +522,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from history. A still-open host can retain the wrong state after both refs
   are deleted. The materializations cache ref is shared across graphs;
   preserve all writer refs and history, and close all runtimes using the
-  repository. This procedure does not cover custom state-snapshot caches
+  repository. This procedure does not cover custom state-snapshot caches.
+  It rebuilds the state from the writer refs, and sync writes no writer
+  ref, so it loses every patch that the host received only through
+  `syncWith`; where the checkpoint still holds such a patch's effect,
+  deleting it discards the only local copy. On such a host, use the
+  procedure in the #1153 entry below instead
   ([#1119](https://github.com/git-stunts/git-warp/issues/1119)).
 - Refuse a patch in which a remove lists an observed dot that the same patch
   adds to a different element, with `CrossOwnerRemoveError`
@@ -533,6 +535,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sync ingress. No git-warp writer produces this shape. A remove that lists
   another element's dot from an earlier patch is not refused yet
   ([#1120](https://github.com/git-stunts/git-warp/issues/1120)).
+- Keep a removed node or edge removed on Git storage when a materialize
+  starts from a state that holds the remove's tombstone but not the add it
+  observed. Sync applies patches with the in-memory reducer, so a host that
+  receives a remove through `syncWith` before its add holds such a
+  tombstone, and its checkpoint stores it. A session seeded from that state
+  (a checkpoint, a replay basis or a state-cache snapshot), or reopened on
+  retained trie roots beside it, copied entries only, so the tombstone was
+  lost: the materialized state dropped it, and the element came back in
+  `materialize()`, the cached state and `hasNode` when the add arrived
+  later, for example by a ref fetch. The bounded checkpoint-tail node read
+  already answered removed. The reducer frame now keeps such tombstones
+  beside its session: an add of one of their dots arrives tombstoned, as in
+  the in-memory reducer, and the projected state lists them again, so the
+  next checkpoint, replay basis and snapshot keep them. `materialize()` and
+  the cached state now agree with the in-memory reducer, and so does
+  `hasNode` once the host has materialized at that frontier. A host that has
+  not materialized since the add arrived answers `hasNode` from a bounded
+  replay of its writer refs; sync writes no writer ref, so that replay does
+  not hold a remove that arrived only through `syncWith`. No trie, state or
+  index format changes; the `full-v7` state already stores a tombstone that
+  no entry holds. A tombstone that is not a canonical dot (a sync peer's
+  malformed remove) is skipped, because no add can carry it. This fix does
+  not repair a state that an earlier version (v20.0.0, or a v21 build
+  before this fix) stored after such a materialize, in a retained
+  materialization or a later checkpoint: there the element is still alive.
+  The procedure below applies when a host that received patches through
+  `syncWith` reads a removed node or edge as alive, while a host that holds
+  every writer ref reads it removed. Verified on Git storage in the default
+  configuration, for nodes and edges: close the runtime hosts that use the
+  repository; from a peer that has them, fetch the writer refs of every
+  writer whose patches this host received through `syncWith`, for example
+  `git fetch <peer> 'refs/warp/<graph>/writers/*:refs/warp/<graph>/writers/*'`;
+  then reopen the hosts and run `materialize()`. The remove then replays
+  from history, the element is removed in `materialize()` and `hasNode`,
+  and the next `createCheckpoint()` stores the tombstone. No ref needs to be
+  deleted. Do not use the #1119 procedure here: it rebuilds the state from
+  the writer refs, which do not hold a remove that arrived only through
+  sync, so the element stays alive. Custom state-snapshot caches and HTTP sync were
+  not tested. See [Operations: A removed element is alive again after
+  sync](docs/operations/README.md#a-removed-element-is-alive-again-after-sync)
+  ([#1153](https://github.com/git-stunts/git-warp/issues/1153)).
 - A rebuilt cone head no longer names a tree that a concurrent `git gc` deletes, unless
   that GC selects what to delete while the rebuild's fast-import process runs or prunes
   with `--prune=now`. `git fast-import` uses an object that it finds in any pack, a
