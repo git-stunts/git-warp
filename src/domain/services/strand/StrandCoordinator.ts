@@ -26,7 +26,6 @@ import {
   STRAND_GENESIS_KIND,
   normalizeOptionalString,
 } from './strandShared.ts';
-import { buildStrandsPrefix } from '../../utils/RefLayout.ts';
 import { computeChecksum } from '../../utils/checksumUtils.ts';
 import type StrandDescriptorStore from './StrandDescriptorStore.ts';
 import type StrandMaterializer from './StrandMaterializer.ts';
@@ -48,13 +47,12 @@ import MintId from '../../crdt/MintId.ts';
 export { STRAND_SCHEMA_VERSION, STRAND_COORDINATE_VERSION, STRAND_OVERLAY_KIND };
 
 /**
- * Structural description of the graph runtime as seen by the
- * coordinator's test seam. Keep narrow: the coordinator only reads
- * `getFrontier` off the wider runtime; everything else stays inside
- * the sub-services.
+ * Structural description of the graph runtime as the coordinator sees it.
+ * Keep narrow: the coordinator only reads `getFrontier` off the wider
+ * runtime; everything else stays inside the sub-services.
  */
 export type StrandCoordinatorGraph = {
-  getFrontier?: () => Promise<Map<string, string>>;
+  getFrontier: () => Promise<Map<string, string>>;
 };
 
 /** Dependencies for StrandCoordinator. */
@@ -73,8 +71,8 @@ export type StrandCoordinatorDeps = {
   materializer: StrandMaterializer;
   patches: StrandPatchService;
   intents: StrandIntentService;
-  /** The full graph runtime, stored for test-seam access and forward compatibility. */
-  graph?: StrandCoordinatorGraph;
+  /** The graph runtime whose current frontier a strand created without a base frontier pins. */
+  graph: StrandCoordinatorGraph;
 };
 
 /**
@@ -169,7 +167,7 @@ export default class StrandCoordinator {
   }
 
   // ── Test seam accessors (private-by-convention) ─────────────────
-  get _graph(): StrandCoordinatorGraph | undefined { return this._deps.graph; }
+  get _graph(): StrandCoordinatorGraph { return this._deps.graph; }
   get _descriptorStore(): StrandDescriptorStore { return this._deps.descriptors; }
   get _materializer(): StrandMaterializer { return this._deps.materializer; }
   get _patchService(): StrandPatchService { return this._deps.patches; }
@@ -328,17 +326,6 @@ export default class StrandCoordinator {
 
   // ── Materialization (delegates) ─────────────────────────────────
 
-  async materializeLiveState(strandId: string, options: { receipts?: boolean; ceiling?: number | null } = {}): Promise<LiveMaterializedStrandResult> {
-    const descriptor = await this.getOrThrow(strandId);
-    const ceiling = normalizeLamportCeiling(options.ceiling);
-    const { state, receipts } = await this._deps.materializer.materializeDescriptor(descriptor, {
-      collectReceipts: options.receipts === true,
-      ceiling,
-      parentBasis: 'live',
-    });
-    return Object.freeze({ state, receipts });
-  }
-
   async materializeReadState(strandId: string, options: { receipts?: boolean; ceiling?: number | null } = {}): Promise<LiveMaterializedStrandResult> {
     const descriptor = await this.getOrThrow(strandId);
     const ceiling = normalizeLamportCeiling(options.ceiling);
@@ -366,7 +353,7 @@ export default class StrandCoordinator {
     if (descriptor.writers.length > 0) {
       return 'pinned';
     }
-    if ((descriptor.braid?.readOverlays ?? []).length > 0) {
+    if (descriptor.braid.readOverlays.length > 0) {
       return 'pinned';
     }
     return 'live';
@@ -466,16 +453,7 @@ export default class StrandCoordinator {
   }
 
   private async _getFrontier(): Promise<Map<string, string>> {
-    // Fetch the current frontier via persistence refs
-    const prefix = buildStrandsPrefix(this._deps.graphName);
-    // Use the graph's getFrontier if available (test seam)
-    const { graph } = this._deps;
-    if (graph !== undefined && typeof graph.getFrontier === 'function') {
-      return await graph.getFrontier();
-    }
-    // Fallback: return empty frontier
-    void prefix;
-    return new Map();
+    return await this._deps.graph.getFrontier();
   }
 }
 
