@@ -6,14 +6,13 @@ import {
 import type MaterializationWorkspacePort from '../../../ports/MaterializationWorkspacePort.ts';
 import MaterializationRoot from '../../materialization/MaterializationRoot.ts';
 import MaterializationRoots from '../../materialization/MaterializationRoots.ts';
+import { INDEX_SHARD_LIMITS } from '../../materialization/IndexShardLimits.ts';
 import {
-  MATERIALIZATION_INDEX_SHARD_LIMITS,
   MAX_MATERIALIZATION_INDEX_SHARDS,
   requireMaterializationIndexShardCount,
 } from '../../materialization/MaterializationIndexProfile.ts';
 import {
   materializationPropertyShardKey,
-  MATERIALIZATION_PROPERTY_SHARD_LIMITS,
   MAX_MATERIALIZATION_PROPERTY_SHARDS,
   requireMaterializationPropertyShardCount,
 } from '../../materialization/MaterializationPropertyProfile.ts';
@@ -166,8 +165,8 @@ function prepareIndexWrite(state: WarpState, store: IndexStorePort): PreparedInd
       expectedShardCount: shardCount,
       memberStorage: 'page',
       maxShardCount: MAX_MATERIALIZATION_INDEX_SHARDS,
-      maxShardBytes: MATERIALIZATION_INDEX_SHARD_LIMITS.maxBytes,
-      structureLimits: MATERIALIZATION_INDEX_SHARD_LIMITS.structureLimits,
+      maxShardBytes: INDEX_SHARD_LIMITS.maxBytes,
+      structureLimits: INDEX_SHARD_LIMITS.structureLimits,
     }),
   });
 }
@@ -202,8 +201,8 @@ function preparePropertyWrite(state: WarpState, store: IndexStorePort): Prepared
       expectedShardCount: shardCount,
       memberStorage: 'page',
       maxShardCount: MAX_MATERIALIZATION_PROPERTY_SHARDS,
-      maxShardBytes: MATERIALIZATION_PROPERTY_SHARD_LIMITS.maxBytes,
-      structureLimits: MATERIALIZATION_PROPERTY_SHARD_LIMITS.structureLimits,
+      maxShardBytes: INDEX_SHARD_LIMITS.maxBytes,
+      structureLimits: INDEX_SHARD_LIMITS.structureLimits,
     }),
   });
 }

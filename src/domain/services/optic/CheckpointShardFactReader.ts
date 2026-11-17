@@ -25,7 +25,7 @@ import type { ReadIdentityIndexShard } from './ReadIdentity.ts';
 import type AssetHandle from '../../storage/AssetHandle.ts';
 import type BundleHandle from '../../storage/BundleHandle.ts';
 import { collectAsyncIterable } from '../../utils/streamUtils.ts';
-import { MAX_MATERIALIZATION_INDEX_SHARD_BYTES } from '../../materialization/MaterializationIndexProfile.ts';
+import { INDEX_SHARD_LIMITS } from '../../materialization/IndexShardLimits.ts';
 import { materializationPropertyShardPath } from '../../materialization/MaterializationPropertyProfile.ts';
 
 export type {
@@ -236,7 +236,7 @@ export default class CheckpointShardFactReader {
       shard: requireBoundShard(basis, path, token),
     });
     try {
-      return decode(this._source._codec.decode<CodecValue>(bytes));
+      return decode(this._source._codec.decodeWithin<CodecValue>(bytes, INDEX_SHARD_LIMITS));
     } catch (error) {
       if (!(error instanceof Error)) {
         throw error;
@@ -357,7 +357,7 @@ async function readBoundShard(options: {
   readonly shard: BoundCheckpointShard;
 }): Promise<Uint8Array> {
   try {
-    return await collectAsyncIterable(openBoundShard(options), MAX_MATERIALIZATION_INDEX_SHARD_BYTES);
+    return await collectAsyncIterable(openBoundShard(options), INDEX_SHARD_LIMITS.maxBytes);
   } catch (error) {
     const failure = error instanceof Error
       ? checkpointLogicalShardReadFailure(error, {
@@ -381,7 +381,7 @@ function openBoundShard(options: {
   return options.shard.kind === 'asset'
     ? options.indexStore.openShard(options.shard.handle)
     : options.indexStore.openShardAt(options.shard.root, options.path, {
-      maxBytes: MAX_MATERIALIZATION_INDEX_SHARD_BYTES,
+      maxBytes: INDEX_SHARD_LIMITS.maxBytes,
     });
 }
 

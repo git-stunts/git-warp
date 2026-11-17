@@ -3,10 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import TrieMaterializationReader from '../../../../src/domain/materialization/TrieMaterializationReader.ts';
-import {
-  materializationPropertyShardKey,
-  MATERIALIZATION_PROPERTY_SHARD_LIMITS,
-} from '../../../../src/domain/materialization/MaterializationPropertyProfile.ts';
+import { INDEX_SHARD_LIMITS } from '../../../../src/domain/materialization/IndexShardLimits.ts';
+import { materializationPropertyShardKey } from '../../../../src/domain/materialization/MaterializationPropertyProfile.ts';
 import StateSession from '../../../../src/domain/orset/session/StateSession.ts';
 import TrieGeometry from '../../../../src/domain/orset/trie/TrieGeometry.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
@@ -139,7 +137,7 @@ describe('TrieMaterializationReader', () => {
     expect(decodeShardAt).toHaveBeenCalledWith(
       root,
       expect.stringContaining('props_'),
-      MATERIALIZATION_PROPERTY_SHARD_LIMITS,
+      INDEX_SHARD_LIMITS,
     );
     await expect(reader.getNodeProperties(root, 'node:missing')).resolves.toBeNull();
   });

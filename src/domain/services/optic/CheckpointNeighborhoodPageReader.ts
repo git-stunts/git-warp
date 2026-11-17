@@ -1,4 +1,5 @@
 import QueryError from '../../errors/QueryError.ts';
+import { INDEX_SHARD_LIMITS } from '../../materialization/IndexShardLimits.ts';
 import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roaring.ts';
 import computeShardKey from '../../utils/shardKey.ts';
 import requireEdgeShardBuckets from '../../artifacts/EdgeShardBuckets.ts';
@@ -121,7 +122,7 @@ class NeighborhoodShardLoader {
       throw missingLabelsError();
     }
     const bytes = await this._read(LABELS_PATH, oid);
-    return decodeLabels(this._codec.decode<DecodedLabels>(bytes));
+    return decodeLabels(this._codec.decodeWithin<DecodedLabels>(bytes, INDEX_SHARD_LIMITS));
   }
 
   async readCandidateHeap(options: {
@@ -138,7 +139,7 @@ class NeighborhoodShardLoader {
       return [];
     }
     const bytes = await this._read(path, oid);
-    const buckets = requireEdgeShardBuckets(this._codec.decode(bytes));
+    const buckets = requireEdgeShardBuckets(this._codec.decodeWithin(bytes, INDEX_SHARD_LIMITS));
     return createNeighborhoodCandidateHeap(buckets, options);
   }
 
@@ -160,7 +161,7 @@ class NeighborhoodShardLoader {
       return null;
     }
     const bytes = await this._read(path, oid);
-    const value = decodeMeta(this._codec.decode<DecodedMetaShard>(bytes));
+    const value = decodeMeta(this._codec.decodeWithin<DecodedMetaShard>(bytes, INDEX_SHARD_LIMITS));
     this._loadedMeta = { path, value };
     return value;
   }

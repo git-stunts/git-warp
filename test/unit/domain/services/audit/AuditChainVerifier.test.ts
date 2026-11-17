@@ -73,6 +73,10 @@ class ThrowingCodec extends CodecPort {
   override decode<TDecoded>(_bytes: Uint8Array): TDecoded {
     throw new Error('corrupt receipt bytes');
   }
+
+  override decodeWithin<TDecoded>(bytes: Uint8Array): TDecoded {
+    return this.decode<TDecoded>(bytes);
+  }
 }
 
 function receipt(overrides: Partial<Receipt> = {}): Receipt {

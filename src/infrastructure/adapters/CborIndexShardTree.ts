@@ -12,6 +12,8 @@ import IndexShardTreePort, {
   type IndexedPropertyEntries,
 } from '../../ports/IndexShardTreePort.ts';
 import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.ts';
+import { INDEX_SHARD_LIMITS } from '../../domain/materialization/IndexShardLimits.ts';
+import { decodeIndexShard, requireIndexShardBytes } from './IndexShardBound.ts';
 
 type EdgeBuckets = Record<string, Record<string, Uint8Array>>;
 
@@ -33,7 +35,9 @@ const EDGE_OWNER_KEY = /^\d+$/;
  * opens only the shards its diff touches. `readIndexShards()` reads every
  * index shard, so a reader rebuilt from it sees each one checked. Writes reuse
  * the index shard encoder, so rewritten shards keep the bytes that a full
- * build writes.
+ * build writes. Writes and reads apply the shared index-shard bound
+ * (`INDEX_SHARD_LIMITS`, #1159): the tree never holds a shard that it
+ * refuses to read.
  */
 export default class CborIndexShardTree extends IndexShardTreePort {
   readonly #codec: CodecPort;
@@ -44,14 +48,14 @@ export default class CborIndexShardTree extends IndexShardTreePort {
     super();
     this.#codec = options.codec;
     this.#tree = options.tree;
-    this.#encoder = new IndexShardEncodeTransform(options.codec);
+    this.#encoder = new IndexShardEncodeTransform(options.codec, INDEX_SHARD_LIMITS);
     Object.freeze(this);
   }
 
   override readMeta(shardKey: string): MetaShard | null {
     const path = `meta_${shardKey}.cbor`;
     const bytes = this.#tree[path];
-    return bytes === undefined ? null : parseMetaShard(this.#codec.decode<unknown>(bytes), shardKey, path);
+    return bytes === undefined ? null : parseMetaShard(this.#decode(path, bytes), shardKey, path);
   }
 
   override readEdges(direction: IndexEdgeDirection, shardKey: string): EdgeShard | null {
@@ -60,19 +64,19 @@ export default class CborIndexShardTree extends IndexShardTreePort {
     if (bytes === undefined) {
       return null;
     }
-    const buckets = parseEdgeBuckets(this.#codec.decode<unknown>(bytes), path);
+    const buckets = parseEdgeBuckets(this.#decode(path, bytes), path);
     return new EdgeShard({ shardKey, direction, buckets });
   }
 
   override readLabels(): LabelShard | null {
     const bytes = this.#tree[LABELS_PATH];
-    return bytes === undefined ? null : new LabelShard({ labels: parseLabels(this.#codec.decode<unknown>(bytes)) });
+    return bytes === undefined ? null : new LabelShard({ labels: parseLabels(this.#decode(LABELS_PATH, bytes)) });
   }
 
   override readProperties(shardKey: string): IndexedPropertyEntries | null {
     const path = `props_${shardKey}.cbor`;
     const bytes = this.#tree[path];
-    return bytes === undefined ? null : decodePropertyShard(this.#codec.decode<CodecValue>(bytes), path);
+    return bytes === undefined ? null : decodePropertyShard(this.#decode(path, bytes), path);
   }
 
   override readIndexShards(): IndexShardOfTree[] {
@@ -90,9 +94,14 @@ export default class CborIndexShardTree extends IndexShardTreePort {
     const tree: Record<string, Uint8Array> = { ...this.#tree };
     for (const shard of shards) {
       const [path, bytes] = this.#encoder.encodeShard(shard);
+      requireIndexShardBytes(path, bytes.byteLength, INDEX_SHARD_LIMITS.maxBytes);
       tree[path] = bytes.slice();
     }
     return tree;
+  }
+
+  #decode(path: string, bytes: Uint8Array): CodecValue {
+    return decodeIndexShard(this.#codec, { path, bytes }, INDEX_SHARD_LIMITS);
   }
 
   /** Reads the index shard stored at one present path; other members are not index shards. */

@@ -16,6 +16,7 @@ import {
   type CborIndexPageBatchStager,
 } from './CborIndexPageBatchStager.ts';
 import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.ts';
+import { indexShardBoundWithin, requireIndexShardBytes } from './IndexShardBound.ts';
 import {
   optionalCborStructureLimits,
   optionalNonNegativeInteger,
@@ -30,10 +31,10 @@ type IndexWriteFacade = Readonly<{
 type ValidatedWriteLimits = Readonly<{
   expectedShardCount: number | undefined;
   memberStorage: 'asset' | 'page';
-  maxShardBytes: number | undefined;
+  maxShardBytes: number;
   maxShardCount: number | undefined;
   staging: ArtifactStagingPort | undefined;
-  structureLimits: CborStructureLimits | undefined;
+  structureLimits: CborStructureLimits;
 }>;
 
 type ShardCollectionArgs = Readonly<{
@@ -122,7 +123,7 @@ async function collectEncodedShardMembers(
   for await (const [path, bytes] of args.shardStream.pipe(encoder)) {
     shardCount += 1;
     requireShardCountWithinLimit(shardCount, args.limits.maxShardCount);
-    requireShardSize(path, bytes.byteLength, args.limits.maxShardBytes);
+    requireIndexShardBytes(path, bytes.byteLength, args.limits.maxShardBytes);
     await appendShardMember({ path, bytes, collection: args, pageBatch, members });
   }
   await pageBatch?.flush(members);
@@ -135,10 +136,7 @@ function optionalPageBatch(
   if (limits.memberStorage !== 'page') {
     return undefined;
   }
-  return createCborIndexPageBatchStager(
-    limits.staging,
-    requirePageShardLimit(limits.maxShardBytes),
-  );
+  return createCborIndexPageBatchStager(limits.staging, limits.maxShardBytes);
 }
 
 function shardEncoder(
@@ -146,10 +144,8 @@ function shardEncoder(
   limits: ValidatedWriteLimits,
 ): IndexShardEncodeTransform {
   return new IndexShardEncodeTransform(codec, {
-    ...(limits.maxShardBytes === undefined ? {} : { maxBytes: limits.maxShardBytes }),
-    ...(limits.structureLimits === undefined
-      ? {}
-      : { structureLimits: limits.structureLimits }),
+    maxBytes: limits.maxShardBytes,
+    structureLimits: limits.structureLimits,
   });
 }
 
@@ -180,7 +176,7 @@ async function stageEncodedShard(
   },
 ): Promise<string> {
   if (args.limits.memberStorage === 'page') {
-    const maxBytes = requirePageShardLimit(args.limits.maxShardBytes);
+    const maxBytes = args.limits.maxShardBytes;
     return args.limits.staging === undefined
       ? (await args.cas.pages.put({ source: bytes, maxBytes })).handle.toString()
       : await args.limits.staging.stagePage(bytes, { maxBytes });
@@ -213,22 +209,29 @@ async function putShardBundle(
   return new BundleHandle(bundle.handle.toString());
 }
 
+/**
+ * Validates the caller's write options. The shared index-shard bound
+ * (`INDEX_SHARD_LIMITS`, #1159) applies to every write; a caller may only
+ * tighten it, so no writer stores a shard that its reader refuses.
+ */
 function validatedWriteLimits(options: IndexShardWriteOptions): ValidatedWriteLimits {
-  const limits = Object.freeze({
-    expectedShardCount: optionalNonNegativeInteger(
-      options.expectedShardCount,
-      'expectedShardCount',
-    ),
-    memberStorage: validatedMemberStorage(options.memberStorage),
-    maxShardCount: optionalNonNegativeInteger(options.maxShardCount, 'maxShardCount'),
-    maxShardBytes: optionalPositiveInteger(options.maxShardBytes, 'maxShardBytes'),
-    staging: validatedStaging(options.staging),
+  const memberStorage = validatedMemberStorage(options.memberStorage);
+  const maxShardBytes = optionalPositiveInteger(options.maxShardBytes, 'maxShardBytes');
+  if (memberStorage === 'page') {
+    requirePageShardLimit(maxShardBytes);
+  }
+  const bound = indexShardBoundWithin({
+    maxBytes: maxShardBytes,
     structureLimits: optionalCborStructureLimits(options.structureLimits),
   });
-  if (limits.memberStorage === 'page') {
-    requirePageShardLimit(limits.maxShardBytes);
-  }
-  return limits;
+  return Object.freeze({
+    expectedShardCount: optionalNonNegativeInteger(options.expectedShardCount, 'expectedShardCount'),
+    memberStorage,
+    maxShardCount: optionalNonNegativeInteger(options.maxShardCount, 'maxShardCount'),
+    maxShardBytes: bound.maxBytes,
+    staging: validatedStaging(options.staging),
+    structureLimits: bound.structureLimits,
+  });
 }
 
 function validatedStaging(
@@ -276,21 +279,11 @@ function validatedMemberStorage(value: unknown): 'asset' | 'page' {
   });
 }
 
-function requirePageShardLimit(value: number | undefined): number {
+function requirePageShardLimit(value: number | undefined): void {
   if (value === undefined) {
     throw new IndexError('Page-backed index shards require maxShardBytes', {
       code: 'E_INDEX_INVALID_LIMIT',
       context: { name: 'maxShardBytes' },
-    });
-  }
-  return value;
-}
-
-function requireShardSize(path: string, actual: number, maximum: number | undefined): void {
-  if (maximum !== undefined && actual > maximum) {
-    throw new IndexError(`Index shard exceeds the configured maximum: ${path}`, {
-      code: 'E_INDEX_SHARD_TOO_LARGE',
-      context: { path, actual, maximum },
     });
   }
 }

@@ -21,7 +21,9 @@ it('bounds asset-backed decodeShardAt when the caller omits a byte ceiling', asy
   async function* oversized() { try { yield part; yield part; } finally { finalized = true; } }
   const open = vi.spyOn(assets, 'open').mockImplementation(oversized);
   try {
-    await expect(indexes.decodeShardAt(handle, 'payload.cbor')).rejects.toMatchObject({ code: 'E_BYTE_COLLECTION_LIMIT' });
+    // The shared index-shard bound (#1159) applies when the caller names no ceiling.
+    await expect(indexes.decodeShardAt(handle, 'payload.cbor'))
+      .rejects.toMatchObject({ code: 'E_INDEX_SHARD_TOO_LARGE', context: { maximum: 16 * 1024 * 1024 } });
     expect(finalized).toBe(true);
   } finally { open.mockRestore(); }
 });

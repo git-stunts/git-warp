@@ -7,7 +7,7 @@ import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
 import type LogFields from '../../../src/domain/types/log/LogFields.ts';
 import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import AllocationProvenancePort from '../../../src/ports/AllocationProvenancePort.ts';
-import CodecPort from '../../../src/ports/CodecPort.ts';
+import CodecPort, { type CodecDecodeBound } from '../../../src/ports/CodecPort.ts';
 import LoggerPort from '../../../src/ports/LoggerPort.ts';
 import DotRepairStorePort from '../../../src/ports/DotRepairStorePort.ts';
 import type RuntimeStorageProviderPort from '../../../src/ports/RuntimeStorageProviderPort.ts';
@@ -50,6 +50,10 @@ class FaultingCodec extends CodecPort {
 
   override decode<TDecoded = CodecValue>(bytes: Uint8Array): TDecoded {
     return defaultCodec.decode<TDecoded>(bytes);
+  }
+
+  override decodeWithin<TDecoded = CodecValue>(bytes: Uint8Array, bound: CodecDecodeBound): TDecoded {
+    return defaultCodec.decodeWithin<TDecoded>(bytes, bound);
   }
 }
 

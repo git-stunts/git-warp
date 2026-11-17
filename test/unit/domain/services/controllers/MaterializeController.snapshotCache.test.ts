@@ -120,6 +120,7 @@ function createControllerFixtures() {
     codec: {
       encode: vi.fn().mockReturnValue(new Uint8Array([1])),
       decode: vi.fn().mockReturnValue({}),
+      decodeWithin: vi.fn().mockReturnValue({}),
     },
     crypto: {
       hash: vi.fn().mockResolvedValue('state-hash-1'),

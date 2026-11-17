@@ -245,6 +245,11 @@ export class FakeCodecPort extends CodecPort {
   decode<TDecoded = CodecValue>(bytes: Uint8Array): TDecoded {
     return fakeDecode(bytes) as TDecoded;
   }
+
+  /** The fake encoding has no default bound, so an explicit bound changes nothing. */
+  decodeWithin<TDecoded = CodecValue>(bytes: Uint8Array): TDecoded {
+    return this.decode<TDecoded>(bytes);
+  }
 }
 
 export function createFakeCodecPort(): CodecPort {

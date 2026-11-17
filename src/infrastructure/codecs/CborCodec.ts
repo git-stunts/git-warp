@@ -49,7 +49,7 @@
  */
 
 import { Encoder, decode as cborDecode } from 'cbor-x';
-import CodecPort from '../../ports/CodecPort.ts';
+import CodecPort, { type CodecDecodeBound } from '../../ports/CodecPort.ts';
 import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
 import {
   validateGenericBoundedCbor,
@@ -77,6 +77,11 @@ const CBOR_DECODE_STRUCTURE_LIMITS: CborStructureLimits = Object.freeze({
   maxContainerEntries: 1_000_000,
   maxDepth: 32,
   maxItems: 1_000_000,
+});
+/** The default decode bound of every repository blob that has no bound of its own. */
+const DEFAULT_DECODE_BOUND: CodecDecodeBound = Object.freeze({
+  maxBytes: MAX_CBOR_DECODE_BYTES,
+  structureLimits: CBOR_DECODE_STRUCTURE_LIMITS,
 });
 
 const CBOR_NATIVE_TYPES: ReadonlyArray<Function> = [Uint8Array, Date, RegExp, Set, Map];
@@ -196,12 +201,22 @@ export function encode(data: unknown): Uint8Array {
  * `RegExp`, `Set`, `Map` or shared references are refused.
  */
 export function decode(buffer: Uint8Array): unknown {
-  requireBoundedCbor(buffer);
+  return decodeWithin(buffer, DEFAULT_DECODE_BOUND);
+}
+
+/**
+ * Decodes CBOR bytes under `bound` in place of the default five MiB bound,
+ * with the same structural and tag checks. An artifact family whose writers
+ * refuse anything above its own bound (index shards, #1159) is read with it.
+ */
+export function decodeWithin(buffer: Uint8Array, bound: CodecDecodeBound): unknown {
+  requireBoundedCbor(buffer, boundedDecodeError, bound);
   return cborDecode(buffer);
 }
 
 /**
- * Refuses a CBOR blob that breaks the decode bounds above, before any decoder reads it.
+ * Refuses a CBOR blob that breaks `bound` (the default decode bound unless
+ * given), before any decoder reads it.
  *
  * `refuse` makes the error for a refusal reason. A reader keeps the default,
  * `E_CBOR_DECODE_BOUNDS`. A writer that must not store bytes that a reader
@@ -210,13 +225,14 @@ export function decode(buffer: Uint8Array): unknown {
 export function requireBoundedCbor(
   buffer: Uint8Array,
   refuse: CborValidationErrorFactory = boundedDecodeError,
+  bound: CodecDecodeBound = DEFAULT_DECODE_BOUND,
 ): void {
-  if (buffer.byteLength > MAX_CBOR_DECODE_BYTES) {
+  if (buffer.byteLength > bound.maxBytes) {
     throw refuse(
-      `encoded byte length ${String(buffer.byteLength)} exceeds ${String(MAX_CBOR_DECODE_BYTES)}`,
+      `encoded byte length ${String(buffer.byteLength)} exceeds ${String(bound.maxBytes)}`,
     );
   }
-  validateGenericBoundedCbor(buffer, CBOR_DECODE_STRUCTURE_LIMITS, refuse);
+  validateGenericBoundedCbor(buffer, bound.structureLimits, refuse);
 }
 
 function boundedDecodeError(reason: string): MessageCodecError {
@@ -245,6 +261,11 @@ export class CborCodec extends CodecPort {
    */
   override decode<TDecoded = unknown>(buffer: Uint8Array): TDecoded {
     return decode(buffer) as TDecoded;
+  }
+
+  /** Decodes CBOR bytes to a typed value under an explicit decode bound. */
+  override decodeWithin<TDecoded = unknown>(buffer: Uint8Array, bound: CodecDecodeBound): TDecoded {
+    return decodeWithin(buffer, bound) as TDecoded;
   }
 }
 

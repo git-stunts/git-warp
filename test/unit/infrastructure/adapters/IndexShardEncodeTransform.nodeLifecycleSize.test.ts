@@ -9,13 +9,13 @@
  * again, which retains a birth and clear but drops its two
  * registers. The logical `meta_XX` shards of the `once` state are measured
  * beside them, because both families share the same 256 shard keys and the
- * same limits (`MATERIALIZATION_INDEX_SHARD_LIMITS`).
+ * same limits (`INDEX_SHARD_LIMITS`).
  */
 
 import { describe, expect, it } from 'vitest';
 import type { IndexShard } from '../../../../src/domain/artifacts/IndexShard.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
-import { MATERIALIZATION_INDEX_SHARD_LIMITS } from '../../../../src/domain/materialization/MaterializationIndexProfile.ts';
+import { INDEX_SHARD_LIMITS } from '../../../../src/domain/materialization/IndexShardLimits.ts';
 import { applyPatchOp, createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.ts';
 import NodeLifecycleIndexBuilder from '../../../../src/domain/services/index/NodeLifecycleIndexBuilder.ts';
@@ -149,7 +149,7 @@ describe('node lifecycle shard ceiling', () => {
    * the 16 MiB byte limit separately, after encoding.
    */
   async function encodeWithinIndexLimits(state: WarpState): Promise<ReadonlyMap<string, number>> {
-    const transform = new IndexShardEncodeTransform(codec, MATERIALIZATION_INDEX_SHARD_LIMITS);
+    const transform = new IndexShardEncodeTransform(codec, INDEX_SHARD_LIMITS);
     const sizes = new Map<string, number>();
     for await (const [path, bytes] of WarpStream.from(NodeLifecycleIndexBuilder.fromState(state).yieldShards()).pipe(transform)) {
       sizes.set(path, bytes.length);
@@ -165,7 +165,7 @@ describe('node lifecycle shard ceiling', () => {
     const sizes = await encodeWithinIndexLimits(removedInOneShard(117_646));
     expect([...sizes.keys()]).toEqual(['life_aa.cbor', 'life_receipt.cbor']);
     expect(sizes.get('life_aa.cbor')).toBe(18_411_322);
-    expect(sizes.get('life_aa.cbor')).toBeGreaterThan(MATERIALIZATION_INDEX_SHARD_LIMITS.maxBytes);
+    expect(sizes.get('life_aa.cbor')).toBeGreaterThan(INDEX_SHARD_LIMITS.maxBytes);
   }, 60_000);
 
   it('refuses one shard of 117,647 removed-node records', async () => {

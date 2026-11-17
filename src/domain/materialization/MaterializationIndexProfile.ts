@@ -1,16 +1,6 @@
 import WarpError from '../errors/WarpError.ts';
 
-export const MAX_MATERIALIZATION_INDEX_SHARD_BYTES = 16 * 1024 * 1024;
 export const MAX_MATERIALIZATION_INDEX_SHARDS = 100_000;
-
-export const MATERIALIZATION_INDEX_SHARD_LIMITS = Object.freeze({
-  maxBytes: MAX_MATERIALIZATION_INDEX_SHARD_BYTES,
-  structureLimits: Object.freeze({
-    maxContainerEntries: 1_000_000,
-    maxDepth: 32,
-    maxItems: 2_000_000,
-  }),
-});
 
 export function requireMaterializationIndexShardCount(count: number): number {
   if (!Number.isSafeInteger(count) || count < 1) {

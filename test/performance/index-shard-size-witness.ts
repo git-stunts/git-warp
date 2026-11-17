@@ -14,7 +14,7 @@ import { EdgeShard } from '../../src/domain/artifacts/EdgeShard.ts';
 import LogicalBitmapIndexBuilder from '../../src/domain/services/index/LogicalBitmapIndexBuilder.ts';
 import { getRoaringBitmap32 } from '../../src/domain/utils/roaring.ts';
 import computeShardKey from '../../src/domain/utils/shardKey.ts';
-import { MATERIALIZATION_INDEX_SHARD_LIMITS } from '../../src/domain/materialization/MaterializationIndexProfile.ts';
+import { INDEX_SHARD_LIMITS } from '../../src/domain/materialization/IndexShardLimits.ts';
 import type { IndexShard } from '../../src/domain/artifacts/IndexShard.ts';
 import CborIndexShardTree from '../../src/infrastructure/adapters/CborIndexShardTree.ts';
 import { IndexShardEncodeTransform } from '../../src/infrastructure/adapters/IndexShardEncodeTransform.ts';
@@ -156,7 +156,7 @@ function measure(shape: string, graph: Graph): void {
   console.log(`SHARD_SIZE_WITNESS ${JSON.stringify({
     shape, nodes: graph.nodes.length, edges: edgeCount, labels: graph.labels.length,
     largestShardPath: largest.path, largestShardBytes: largest.bytes,
-    writerMaxShardBytes: MATERIALIZATION_INDEX_SHARD_LIMITS.maxBytes,
+    writerMaxShardBytes: INDEX_SHARD_LIMITS.maxBytes,
     filesOverDefaultReadLimit: overReadLimit,
     largestShardReadBack: readBack(largestBytes),
     inMemoryTreeReadBack: inMemoryTreeReadBack(shards),

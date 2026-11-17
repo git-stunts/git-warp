@@ -14,8 +14,8 @@ import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import type IndexShardTreePort from '../../../ports/IndexShardTreePort.ts';
 import type AssetHandle from '../../storage/AssetHandle.ts';
 import type BundleHandle from '../../storage/BundleHandle.ts';
+import { INDEX_SHARD_LIMITS } from '../../materialization/IndexShardLimits.ts';
 import {
-  MATERIALIZATION_PROPERTY_SHARD_LIMITS,
   materializationPropertyShardKey,
   materializationPropertyShardPath,
 } from '../../materialization/MaterializationPropertyProfile.ts';
@@ -356,7 +356,7 @@ export default class PropertyIndexReader {
     const decoded = await this._indexStore.decodeShardAt(
       root,
       path,
-      MATERIALIZATION_PROPERTY_SHARD_LIMITS,
+      INDEX_SHARD_LIMITS,
     );
     return decoded === null
       ? null

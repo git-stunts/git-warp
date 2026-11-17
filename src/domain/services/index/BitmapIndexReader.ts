@@ -1,3 +1,4 @@
+import { INDEX_SHARD_LIMITS } from '../../materialization/IndexShardLimits.ts';
 import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../storage/BufferedArtifactLimit.ts';
 import IndexError from '../../errors/IndexError.ts';
 import ShardCorruptionError from '../../errors/ShardCorruptionError.ts';
@@ -228,7 +229,7 @@ export default class BitmapIndexReader {
 
   private _decodeShard(buffer: Uint8Array, path: string, oid: string): LoadedShard {
     try {
-      const data = requireCodec(this._codec, 'BitmapIndexReader').decode<LoadedShard>(buffer);
+      const data = requireCodec(this._codec, 'BitmapIndexReader').decodeWithin<LoadedShard>(buffer, INDEX_SHARD_LIMITS);
       if (!isPlainLoadedShard(data)) {
         return this._handleInvalidShardShape(path, oid, 'shard_not_object');
       }

@@ -478,4 +478,8 @@ class FixedSizeCodec extends CodecPort {
   override decode<TDecoded>(_bytes: Uint8Array): TDecoded {
     throw new Error("decode is outside this write-bound test");
   }
+
+  override decodeWithin<TDecoded>(bytes: Uint8Array): TDecoded {
+    return this.decode<TDecoded>(bytes);
+  }
 }
