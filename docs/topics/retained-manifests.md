@@ -113,7 +113,9 @@ The codec decodes a block bitset by length and bit position only; no WASM code r
 | `E_CONE_RECORD_INVALID` (`ConeRecordError`) | A block's offsets do not ascend inside the block, or name counter 0, or its index is outside the chunk; a directory mask names a block outside the chunk; a directory page lists no entry, more than 256, or entries out of order |
 | `E_RETAINED_GEOMETRY_UNSUPPORTED` | A block or directory page to encode is of a selection geometry other than v1 |
 
-**Consistency checks.** The fold checks a block against its directory entry only when it next writes that block and the write moves the directory: the block gets its record, or gains its first or loses its last live member. A normal fold or a crash cannot make them disagree: publication happens only after the session commits, and every fold keeps each mask equal to the blocks with a live member. Only a corrupted store, such as a records root grafted from elsewhere or a store defect, can. S1 does not detect these three shapes of such a store:
+### Consistency checks
+
+The fold checks a block against its directory entry only when it next writes that block and the write moves the directory: the block gets its record, or gains its first or loses its last live member. A normal fold or a crash cannot make them disagree: publication happens only after the session commits, and every fold keeps each mask equal to the blocks with a live member. Only a corrupted store, such as a records root grafted from elsewhere or a store defect, can. S1 does not detect these three shapes of such a store:
 
 - a mask bit for a block whose record is absent, when the fold rewrites the page for a change to another block;
 - a block with live members whose mask bit is clear;
