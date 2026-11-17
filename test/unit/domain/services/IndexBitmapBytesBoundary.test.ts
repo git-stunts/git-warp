@@ -62,9 +62,13 @@ function metaShardWith(alive: CodecValue): Uint8Array {
   return defaultCodec.encode({ nodeToGlobal: [['A', 0]], nextLocalId: 1, alive });
 }
 
+function readIndexShards(tree: Record<string, Uint8Array>): void {
+  new CborIndexShardTree({ codec: defaultCodec, tree }).readIndexShards();
+}
+
 function builtTree(): Record<string, Uint8Array> {
   const state = fixtureToState(makeFixture({ nodes: ['A', 'B'], edges: [] }));
-  return new MaterializedViewService({ codec: defaultCodec }).build(state).tree;
+  return new MaterializedViewService({ indexStore: new MockIndexStorage() }).build(state).tree;
 }
 
 function globalIdOfA(tree: Record<string, Uint8Array>): number {
@@ -101,25 +105,37 @@ function addEdgeOver(tree: Record<string, Uint8Array>): void {
 }
 
 describe('index bitmap values that are not bytes', () => {
-  describe('LogicalIndexReader.loadFromTree', () => {
+  // An index update reads its whole updated tree back through the shard tree
+  // adapter. The adapter refuses a value that is not a byte string with its
+  // own typed error, before a shard constructor or the reader sees the value.
+  describe('CborIndexShardTree.readIndexShards over a whole in-memory tree', () => {
     it.each(NOT_BYTES)('refuses %s as an edge bitmap', (_name, value) => {
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
+      const failure = failureOf(() => readIndexShards({ [EDGE_PATH]: edgeShardWith(value) }));
 
-      expectNotBytes(failureOf(() => reader.loadFromTree({ [EDGE_PATH]: edgeShardWith(value) })));
+      expect(failure).toBeInstanceOf(IndexError);
+      expect(failure).toMatchObject({
+        code: 'E_INDEX_SHARD_MALFORMED',
+        context: { path: EDGE_PATH, reason: 'edge bitmap is not a byte string' },
+      });
     });
 
-    it('refuses a map that declares 2^28 bytes before the byte bound sees an expansion', () => {
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
+    it('refuses a map that declares 2^28 bytes before any step reads the length', () => {
+      const failure = failureOf(() => readIndexShards({ [EDGE_PATH]: edgeShardWith({ length: 2 ** 28 }) }));
 
-      expectNotBytes(failureOf(() => reader.loadFromTree({
-        [EDGE_PATH]: edgeShardWith({ length: 2 ** 28 }),
-      })));
+      expect(failure).toMatchObject({
+        code: 'E_INDEX_SHARD_MALFORMED',
+        context: { path: EDGE_PATH, reason: 'edge bitmap is not a byte string' },
+      });
     });
 
     it.each(PRESENT_NOT_BYTES)('refuses %s as an alive bitmap', (_name, value) => {
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
+      const failure = failureOf(() => readIndexShards({ [META_PATH]: metaShardWith(value) }));
 
-      expectNotBytes(failureOf(() => reader.loadFromTree({ [META_PATH]: metaShardWith(value) })));
+      expect(failure).toBeInstanceOf(IndexError);
+      expect(failure).toMatchObject({
+        code: 'E_INDEX_SHARD_MALFORMED',
+        context: { path: META_PATH, reason: 'alive bitmap is not a byte string' },
+      });
     });
   });
 

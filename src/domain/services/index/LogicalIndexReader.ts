@@ -1,6 +1,6 @@
 /**
- * Reads a serialized logical bitmap index from in-memory buffers or opaque
- * shard handles and produces a LogicalIndex interface.
+ * Builds a LogicalIndex interface from typed index shards, or from stored
+ * shards that an IndexStorePort reads and decodes.
  *
  * Extracted from test/helpers/fixtureDsl.js so that production code can
  * hydrate indexes stored inside checkpoints (Phase 3).
@@ -15,8 +15,6 @@ import { LabelShard } from '../../artifacts/LabelShard.ts';
 import requireEdgeShardBuckets, { type EdgeShardBuckets } from '../../artifacts/EdgeShardBuckets.ts';
 import requireRoaringShardBytes from '../../artifacts/RoaringShardBytes.ts';
 import IndexError from '../../errors/IndexError.ts';
-import { requireCodec } from '../codec/CodecRequirement.ts';
-import type CodecPort from '../../../ports/CodecPort.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import type AssetHandle from '../../storage/AssetHandle.ts';
 import type BundleHandle from '../../storage/BundleHandle.ts';
@@ -25,13 +23,9 @@ import type { IndexShard } from '../../artifacts/IndexShard.ts';
 import type CodecValue from '../../types/codec/CodecValue.ts';
 import {
   buildLogicalIndex,
-  classifyShards,
-  type ClassifiedDecoded,
-  type DecodedItem,
   isEdgeShard,
   isMetaShard,
   type LogicalIndex,
-  type ShardItem,
 } from './logicalIndexHelpers.ts';
 
 export type { LogicalIndex } from './logicalIndexHelpers.ts';
@@ -40,7 +34,6 @@ export type { LogicalIndex } from './logicalIndexHelpers.ts';
 type RoaringCtor = ReturnType<typeof getRoaringBitmap32>;
 
 export default class LogicalIndexReader {
-  private _codec: CodecPort | null;
   private _indexStore: IndexStorePort | null;
 
   private _nodeToGlobal: Map<string, number>;
@@ -54,13 +47,11 @@ export default class LogicalIndexReader {
   private _edgeByOwnerRev: Map<number, Array<{ labelId: number; bitmap: RoaringBitmapSubset }>>;
 
   /**
-   * Constructs a LogicalIndexReader with an optional CBOR codec override
-   * and/or an IndexStorePort for codec-free reads.
+   * Constructs a LogicalIndexReader, with an IndexStorePort for the reads
+   * of stored shards.
    */
-  constructor(options?: { codec?: CodecPort; indexStore?: IndexStorePort }) {
-    const { codec, indexStore } = options ?? {};
-    this._codec = codec ?? null;
-    this._indexStore = indexStore ?? null;
+  constructor(options?: { indexStore?: IndexStorePort }) {
+    this._indexStore = options?.indexStore ?? null;
 
     this._nodeToGlobal = new Map();
     this._globalToNode = new Map();
@@ -71,17 +62,6 @@ export default class LogicalIndexReader {
     this._edgeRev = new Map();
     this._edgeByOwnerFwd = new Map();
     this._edgeByOwnerRev = new Map();
-  }
-
-  /**
-   * Eagerly decodes all shards from an in-memory tree (Record<path, Uint8Array>).
-   */
-  loadFromTree(tree: Record<string, Uint8Array>): this {
-    const replacement = this._emptyReplacement();
-    const items: ShardItem[] = Object.entries(tree).map(([path, buf]) => ({ path, buf }));
-    replacement._processShards(items);
-    this._replaceState(replacement);
-    return this;
   }
 
   /**
@@ -141,8 +121,9 @@ export default class LogicalIndexReader {
   /**
    * Populates the reader directly from IndexShard domain objects.
    *
-   * This is the codec-free alternative to loadFromTree() and loadFromHandles().
-   * No CBOR decoding is needed — the shards already carry decoded data.
+   * No decoding is needed: the shards already carry decoded data. An
+   * in-memory index tree reaches this method through
+   * `IndexShardTreePort.readIndexShards()`.
    */
   loadFromShards(shards: Iterable<IndexShard>): this {
     const replacement = this._emptyReplacement();
@@ -195,35 +176,6 @@ export default class LogicalIndexReader {
 
   // ── Private ─────────────────────────────────────────────────────────────────
 
-  /** Processes classified shards in deterministic order (codec path). */
-  private _processShards(items: ShardItem[]): void {
-    const { meta, labels, edges } = classifyShards(items);
-    const codec = requireCodec(this._codec, 'LogicalIndexReader');
-    const decodedMeta: DecodedItem[] = meta.map(({ path, buf }) => ({ path, data: codec.decode(buf) }));
-    const decodedLabels = labels ? codec.decode(labels) : null;
-    const decodedEdges: DecodedItem[] = edges.map(({ path, buf }) => ({ path, data: codec.decode(buf) }));
-    this._loadClassified({ meta: decodedMeta, labels: decodedLabels, edges: decodedEdges });
-  }
-
-  /**
-   * Loads classified decoded data into the reader's maps.
-   *
-   * Shared by both the codec path (_processShards) and the
-   * port path (_processDecoded). No codec interaction here.
-   */
-  private _loadClassified({ meta, labels, edges }: ClassifiedDecoded): void {
-    const Ctor = getRoaringBitmap32();
-    for (const { path, data } of meta) {
-      this._loadDecodedMeta(path, data, Ctor);
-    }
-    if (labels !== null) {
-      this._loadDecodedLabels(labels);
-    }
-    for (const { path, data } of edges) {
-      this._loadEdgeBuckets(path.startsWith('fwd_') ? 'fwd' : 'rev', requireEdgeShardBuckets(data), Ctor);
-    }
-  }
-
   /** Populates node-to-global and alive bitmap maps from decoded meta data. */
   private _loadDecodedMeta(path: string, raw: unknown, Ctor: RoaringCtor): void { // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
     const meta = raw as {
@@ -274,12 +226,11 @@ export default class LogicalIndexReader {
     this._edgeByOwnerRev = replacement._edgeByOwnerRev;
   }
 
-  /** Creates an empty reader with the same decoding and storage dependencies. */
+  /** Creates an empty reader with the same storage dependency. */
   private _emptyReplacement(): LogicalIndexReader {
-    return new LogicalIndexReader({
-      ...(this._codec === null ? {} : { codec: this._codec }),
-      ...(this._indexStore === null ? {} : { indexStore: this._indexStore }),
-    });
+    return this._indexStore === null
+      ? new LogicalIndexReader()
+      : new LogicalIndexReader({ indexStore: this._indexStore });
   }
 
   /** Loads one decoded shard without retaining the other decoded payloads. */

@@ -15,7 +15,14 @@ import { IndexShardEncodeTransform } from './IndexShardEncodeTransform.ts';
 
 type EdgeBuckets = Record<string, Record<string, Uint8Array>>;
 
+type IndexShardOfTree = MetaShard | EdgeShard | LabelShard;
+
 const LABELS_PATH = 'labels.cbor';
+const META_PATH_PREFIX = 'meta_';
+const EDGE_DIRECTIONS: readonly IndexEdgeDirection[] = Object.freeze(['fwd', 'rev']);
+const SHARD_PATH_SUFFIX = '.cbor';
+/** The key layout of `computeShardKey`: two lowercase hex digits. */
+const SHARD_KEY = /^[0-9a-f]{2}$/;
 const EDGE_BUCKET_KEY = /^(?:all|\d+)$/;
 const EDGE_OWNER_KEY = /^\d+$/;
 
@@ -23,8 +30,10 @@ const EDGE_OWNER_KEY = /^\d+$/;
  * CBOR-backed semantic view over one in-memory encoded index tree.
  *
  * Reads decode and validate one shard at a time, so an incremental update
- * opens only the shards its diff touches. Writes reuse the index shard
- * encoder, so rewritten shards keep the bytes that a full build writes.
+ * opens only the shards its diff touches. `readIndexShards()` reads every
+ * index shard, so a reader rebuilt from it sees each one checked. Writes reuse
+ * the index shard encoder, so rewritten shards keep the bytes that a full
+ * build writes.
  */
 export default class CborIndexShardTree extends IndexShardTreePort {
   readonly #codec: CodecPort;
@@ -66,6 +75,17 @@ export default class CborIndexShardTree extends IndexShardTreePort {
     return bytes === undefined ? null : decodePropertyShard(this.#codec.decode<CodecValue>(bytes), path);
   }
 
+  override readIndexShards(): IndexShardOfTree[] {
+    const shards: IndexShardOfTree[] = [];
+    for (const path of Object.keys(this.#tree).sort(comparePaths)) {
+      const shard = this.#readIndexShardAt(path);
+      if (shard !== null) {
+        shards.push(shard);
+      }
+    }
+    return shards;
+  }
+
   override withShards(shards: readonly IndexShard[]): Record<string, Uint8Array> {
     const tree: Record<string, Uint8Array> = { ...this.#tree };
     for (const shard of shards) {
@@ -74,6 +94,32 @@ export default class CborIndexShardTree extends IndexShardTreePort {
     }
     return tree;
   }
+
+  /** Reads the index shard stored at one present path; other members are not index shards. */
+  #readIndexShardAt(path: string): IndexShardOfTree | null {
+    if (path === LABELS_PATH) {
+      return this.readLabels();
+    }
+    if (path.startsWith(META_PATH_PREFIX)) {
+      return this.readMeta(shardKeyOf(path, META_PATH_PREFIX));
+    }
+    const direction = EDGE_DIRECTIONS.find((candidate) => path.startsWith(`${candidate}_`));
+    return direction === undefined ? null : this.readEdges(direction, shardKeyOf(path, `${direction}_`));
+  }
+}
+
+/** Returns the shard key that an index shard path names, or refuses a key outside the layout. */
+function shardKeyOf(path: string, prefix: string): string {
+  const shardKey = path.slice(prefix.length, path.length - SHARD_PATH_SUFFIX.length);
+  if (!path.endsWith(SHARD_PATH_SUFFIX) || !SHARD_KEY.test(shardKey)) {
+    throw malformedShard(path, 'shard path does not name a two-digit hex shard key');
+  }
+  return shardKey;
+}
+
+/** Orders tree paths by code unit; paths of one tree are unique, so two never compare equal. */
+function comparePaths(left: string, right: string): number {
+  return left < right ? -1 : 1;
 }
 
 function parseMetaShard(decoded: unknown, shardKey: string, path: string): MetaShard {

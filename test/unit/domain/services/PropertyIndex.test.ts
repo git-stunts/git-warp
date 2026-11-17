@@ -9,6 +9,8 @@ import {
 } from '../../../../src/domain/materialization/MaterializationPropertyProfile.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
+import type CodecValue from '../../../../src/domain/types/codec/CodecValue.ts';
+import CborIndexShardTree from '../../../../src/infrastructure/adapters/CborIndexShardTree.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { F10_PROTO_POLLUTION } from '../../../helpers/fixtureDsl.ts';
 import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
@@ -24,6 +26,12 @@ async function storedReader(builder: PropertyIndexBuilder): Promise<PropertyInde
   const reader = new PropertyIndexReader({ indexStore: storage });
   reader.setupHandles(handles);
   return reader;
+}
+
+/** Encodes the builder's shards through the adapter and opens a typed view over them. */
+function shardTreeOf(builder: PropertyIndexBuilder): CborIndexShardTree {
+  const tree = new CborIndexShardTree({ codec: defaultCodec, tree: {} }).withShards([...builder.yieldShards()]);
+  return new CborIndexShardTree({ codec: defaultCodec, tree });
 }
 
 describe('PropertyIndex handle-backed reads', () => {
@@ -42,17 +50,72 @@ describe('PropertyIndex handle-backed reads', () => {
     await expect(reader.getProperty('missing', 'name')).resolves.toBeUndefined();
   });
 
-  it('reads freshly materialized in-memory shards without a storage adapter', async () => {
+  it('reads freshly materialized shards through an index shard tree view', async () => {
     const builder = new PropertyIndexBuilder();
     builder.addProperty('node:1', 'color', 'red');
-    const tree: Record<string, Uint8Array> = {};
-    for (const shard of builder.yieldShards()) {
-      tree[`props_${shard.shardKey}.cbor`] = defaultCodec.encode(shard.entries);
-    }
-    const reader = new PropertyIndexReader({ codec: defaultCodec });
-    reader.setupTree(tree);
+    const reader = new PropertyIndexReader();
+    reader.setupShardTree(shardTreeOf(builder));
 
     await expect(reader.getProperty('node:1', 'color')).resolves.toBe('red');
+    await expect(reader.getNodeProps('node:2')).resolves.toBeNull();
+  });
+
+  it('reads through a shard tree view that replaces stored handles', async () => {
+    const stored = new PropertyIndexBuilder();
+    stored.addProperty('node:1', 'color', 'stored');
+    const fresh = new PropertyIndexBuilder();
+    fresh.addProperty('node:1', 'color', 'fresh');
+    const reader = await storedReader(stored);
+
+    reader.setupShardTree(shardTreeOf(fresh));
+
+    await expect(reader.getProperty('node:1', 'color')).resolves.toBe('fresh');
+  });
+
+  it('reads stored handles that replace a shard tree view', async () => {
+    const fresh = new PropertyIndexBuilder();
+    fresh.addProperty('node:1', 'color', 'fresh');
+    const storage = new MockIndexStorage();
+    const handle = await storage.writeBlob(defaultCodec.encode([['node:1', { color: 'stored' }]]));
+    const reader = new PropertyIndexReader({ indexStore: storage });
+
+    reader.setupShardTree(shardTreeOf(fresh));
+    reader.setupHandles({ [`props_${computeShardKey('node:1')}.cbor`]: handle });
+
+    await expect(reader.getProperty('node:1', 'color')).resolves.toBe('stored');
+  });
+
+  it('reads a retained root that replaces a shard tree view', async () => {
+    const fresh = new PropertyIndexBuilder();
+    fresh.addProperty('node:1', 'color', 'fresh');
+    const reader = new PropertyIndexReader();
+
+    reader.setupShardTree(shardTreeOf(fresh));
+    reader.setupRoot(new BundleHandle('retained-properties'));
+
+    await expect(reader.getNodeProps('node:1')).rejects.toMatchObject({ code: 'E_INDEX_NO_STORE' });
+  });
+
+  it('reads no property for a node whose retained root has no member', async () => {
+    const reader = new PropertyIndexReader({ indexStore: new MockIndexStorage() });
+    reader.setupRoot(new BundleHandle('retained-root-without-members'));
+
+    await expect(reader.getNodeProps('node:1')).resolves.toBeNull();
+  });
+
+  it('accepts a schema-v1 property bag that has no prototype', () => {
+    const nodeId = 'node:1';
+    const bag: { [key: string]: CodecValue } = { status: 'legacy' };
+    Reflect.setPrototypeOf(bag, null);
+
+    const decode = () => decodePropertyShard([[nodeId, bag]], `props_${computeShardKey(nodeId)}.cbor`);
+
+    expect(decode).not.toThrow();
+    expect(decode().get(nodeId)).toEqual({ status: 'legacy' });
+  });
+
+  it('has no codec decode path for an encoded in-memory tree', () => {
+    expect('setupTree' in PropertyIndexReader.prototype).toBe(false);
   });
 
   it('delegates repeated shard residency to the index store', async () => {

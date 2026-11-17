@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
+import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
-import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
 
 /** Seed the verifier derives from the bytes 0x00 0x01 0x02 0x03: 0x00010203 >>> 1. */
@@ -45,7 +45,7 @@ function buildTestState() {
 
 describe('MaterializedViewService.verifyIndex', () => {
   it('reports all passed for a correct index', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
 
@@ -63,7 +63,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('detects mismatch when index is built from different state', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = buildTestState();
 
     // Build index from a smaller state (only 2 nodes, no edges)
@@ -93,7 +93,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('detects label mismatches for the same neighbor set', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
 
@@ -128,7 +128,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('produces reproducible results with the same seed', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
 
@@ -144,7 +144,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('verifies at least one node when sampleRate is positive on non-empty state', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
 
@@ -159,7 +159,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('derives the default seed only from the injected port', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
     const random = new SequenceRandomPort(0);
@@ -175,7 +175,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('does not draw entropy when the caller supplies a seed', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
     const random = new SequenceRandomPort(0);
@@ -185,7 +185,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('handles empty state without errors', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = createEmptyState();
     const { logicalIndex } = service.build(state);
 
@@ -202,7 +202,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('detects missing alive nodes even when edge signatures are empty', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = createEmptyState();
     const writer = 'w1';
     const sha = 'c'.repeat(40);
@@ -238,7 +238,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('samples nothing at a zero rate or from an empty graph', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = buildTestState();
     const { logicalIndex } = service.build(state);
     const empty = createEmptyState();
@@ -251,7 +251,7 @@ describe('MaterializedViewService.verifyIndex', () => {
   });
 
   it('ignores edges to removed nodes and merges labels for one neighbor', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = buildTestState();
     const sha = 'b'.repeat(40);
     applyPatchOp(state, { type: 'EdgeAdd', from: 'A', to: 'B', label: 'reports', dot: Dot.create('w2', 1) }, new EventId(1, 'w2', sha, 0));

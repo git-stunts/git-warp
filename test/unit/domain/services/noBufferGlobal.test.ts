@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.ts';
 import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
+import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
@@ -55,9 +56,11 @@ describe('Buffer-free index paths', () => {
       (globalRef as any).Buffer = undefined;
 
       const state = buildState();
-      const { tree } = new MaterializedViewService({ codec: defaultCodec }).build(state);
+      const { tree } = new MaterializedViewService({ indexStore: new MockIndexStorage() }).build(state);
 
-      const logicalIndex = new LogicalIndexReader({ codec: defaultCodec }).loadFromTree(tree).toLogicalIndex();
+      const logicalIndex = new LogicalIndexReader()
+        .loadFromShards(new CborIndexShardTree({ codec: defaultCodec, tree }).readIndexShards())
+        .toLogicalIndex();
       expect(logicalIndex.isAlive('A')).toBe(true);
       expect(logicalIndex.getEdges('A', 'out').map((e) => e.neighborId)).toEqual(['B']);
 

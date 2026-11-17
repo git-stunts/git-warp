@@ -16,6 +16,7 @@ class TestShardTree extends IndexShardTreePort {
   readEdges() { return null; }
   readLabels() { return null; }
   readProperties() { return null; }
+  readIndexShards() { return []; }
   withShards(_shards: readonly IndexShard[]) { return { ...this.tree, 'shard.cbor': new Uint8Array([1]) }; }
 }
 
