@@ -109,9 +109,17 @@ The codec decodes a block bitset by length and bit position only; no WASM code r
 | Code | When |
 | --- | --- |
 | `E_CONE_RECORD_CORRUPT` (`ConeRecordError`) | A stored block bitset is not exactly 128 bytes, or a stored directory mask is not exactly 8 bytes |
-| `E_CONE_RECORD_CORRUPT` (`ConeRecordError`) | The directory marks a block live whose record is absent, a block exists whose chunk the directory does not list, or the directory pages are not densely packed in ascending order. The fold refuses when it next changes that directory |
+| `E_CONE_RECORD_CORRUPT` (`ConeRecordError`) | The directory marks a block live whose record is absent, or a block exists whose chunk the directory does not list, found when the fold next writes that block and the write moves the directory; or the directory pages are not densely packed in ascending order, found when the fold next changes that OR-Set's directory. See [Consistency checks](#consistency-checks) for what S1 does not detect |
 | `E_CONE_RECORD_INVALID` (`ConeRecordError`) | A block's offsets do not ascend inside the block, or name counter 0, or its index is outside the chunk; a directory mask names a block outside the chunk; a directory page lists no entry, more than 256, or entries out of order |
 | `E_RETAINED_GEOMETRY_UNSUPPORTED` | A block or directory page to encode is of a selection geometry other than v1 |
+
+**Consistency checks.** The fold checks a block against its directory entry only when it next writes that block and the write moves the directory: the block gets its record, or gains its first or loses its last live member. A normal fold or a crash cannot make them disagree: publication happens only after the session commits, and every fold keeps each mask equal to the blocks with a live member. Only a corrupted store, such as a records root grafted from elsewhere or a store defect, can. S1 does not detect these three shapes of such a store:
+
+- a mask bit for a block whose record is absent, when the fold rewrites the page for a change to another block;
+- a block with live members whose mask bit is clear;
+- a block with live members whose chunk the directory does not list.
+
+The reader of #816 S4 must refuse a block that its mask marks when that block is absent or has no members. A mask that leaves out a live block cannot be found by a reader that opens only the masked blocks, so S4 or a later slice must own a separate consistency check for that shape.
 
 ## Refusals
 
