@@ -154,7 +154,7 @@ existing stricter gates.
 | `ts-no-record-string-unknown-outside-adapters` | Semgrep | bundle |
 | `ts-no-double-cast` (`as unknown as`) | Semgrep + ESLint | bundle |
 | `ts-no-json-parse-in-core` | Semgrep + ESLint | bundle |
-| `ts-no-json-stringify-in-core` | Semgrep + ESLint | bundle (merged with existing ban-nondeterminism) |
+| `ts-no-json-stringify-in-core` | Semgrep + ESLint | bundle (merged with existing ban-nondeterminism, which still enforces it in `src/domain` and honours its inline quarantine) |
 | `ts-no-fetch-in-core` | Semgrep + ESLint | bundle |
 | `ts-no-process-env-in-core` | Semgrep + ESLint | already ours (strengthen) |
 | `ts-no-date-now-in-core` | ESLint | already ours — keep stricter form |
@@ -183,10 +183,11 @@ existing stricter gates.
 
 1. **Author time — ESLint** flags ERRORs immediately in the editor.
 2. **Pre-commit hook** runs `npm run lint`, `npm run typecheck:policy`.
-3. **Pre-push hook** runs the full test suite and
-   `scripts/ban-nondeterminism.ts`.
+3. **Pre-push hook** runs the full test suite and `npm run lint`, which
+   chains `npm run lint:determinism` (`scripts/ban-nondeterminism.ts`).
 4. **CI (`ci.yml`) gates:**
-   - `lint` (ESLint)
+   - `lint` (ESLint, then the gates `npm run lint` chains, including
+     `lint:determinism`)
    - `lint:sludge` (shell: junk-drawer filenames + regex sweeps)
    - `lint:semgrep` (Semgrep pattern checks)
    - `lint:quarantine-graduate` (touched-file must graduate or
@@ -212,3 +213,4 @@ existing stricter gates.
 | 2026-04-16 | Initial adoption. Decisions 1-5 locked. |
 | 2026-04-23 | Activated `consistent-type-imports` and `restrict-template-expressions` as quarantine-backed hygiene rules. |
 | 2026-06-06 | Locked Runtime Truth standard into SSTS and anti-sludge policy as Decision 6. |
+| 2026-11-16 | Section 5: the determinism gate scans every `src/domain` file and runs through `npm run lint` ([#1084](https://github.com/git-stunts/git-warp/issues/1084)). |
