@@ -435,6 +435,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   9 characters. A clone past it refuses every write with
   `retention-refused-frontier-limit` and the hint `frontier_limit_reached`. The custody
   carrier format changes with this; it was not in a release.
+- git-warp no longer writes a trust record that its bounded CBOR reader refuses
+  ([#1188](https://github.com/git-stunts/git-warp/issues/1188)). Before, a record outside
+  the read limits, for example one with a `meta` of more than 5 MiB, was written, and then
+  every read of the chain tip failed with `E_CBOR_DECODE_BOUNDS`, so the trust chain could
+  not be read or appended to. The trust write now checks the encoded record against the
+  same limits as the reader: 5 MiB, depth 32, 1,000,000 items, 1,000,000 entries in one
+  container, definite lengths only, and the tag allow-list. A record outside them fails
+  with a `TrustError` whose code is `E_TRUST_RECORD_OUT_OF_BOUNDS`, and whose context holds
+  the `recordId` and the `reason`, before git-warp stores the record or moves the trust
+  ref. git-cas encoding and manifest writes do not change.
+  See [CBOR input limits](docs/topics/sync.md#cbor-input-limits).
 - The determinism gate scans the TypeScript domain and runs in `npm run lint`
   ([#1084](https://github.com/git-stunts/git-warp/issues/1084)). `scripts/ban-nondeterminism.ts`
   matched only `src/domain/**/*.js`; after the TypeScript conversion that was no file at all,
@@ -451,6 +462,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   builds, so every stamp and expiry comparison uses one clock. `GitStorage` supplies the
   default host clock, so applications need no change
   ([#1179](https://github.com/git-stunts/git-warp/issues/1179)).
+- The incremental bitmap index now agrees with a full rebuild in two cases where it
+  lost data. `addEdge` does not require its endpoints to exist, so a patch can add an
+  edge before any patch adds one of its endpoints; the incremental index now indexes
+  that edge when the endpoint is added. A node or an edge that one local commit
+  removes and then adds again now stays in the incremental index. Before, until the
+  next full rebuild, `neighbors()` left out such an edge, and the index marked such a
+  node as not alive. A generated multi-writer differential now compares incremental
+  updates with full rebuilds after every patch
+  ([#192](https://github.com/git-stunts/git-warp/issues/192)).
 - A write receipt rebuilt by `AuthoredWarp.reconcile` after an interrupted write now
   reports the same `outcome.races` as the original receipt, rather than none. Retained
   receipts keep their races as durable evidence. `outcome.races` is now always in one
