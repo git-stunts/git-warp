@@ -437,21 +437,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   full replay still lists receipts in writer order, so such an early remove
   still reports `redundant`, but the element is now removed. A bounded
   checkpoint-tail node or node-property read now gives the same answer as
-  `materialize()` after a checkpoint that holds the remove without the add:
-  each node's lifecycle record (`life_XX.cbor`) now lists the tombstoned
-  dots that the node's entry holds, and the read checks a tail add against
-  them and against the receipt (`life_receipt.cbor`), which still lists only
-  the tombstones that no entry holds. A dot that a node entry holds is
-  listed only with that node, in the node's shard, so the receipt, the one
-  member that is not sharded by node, does not grow with the number of
-  removed nodes in the graph. Lifecycle shards and the receipt move to
-  schema 3 (a record gains a field; the receipt keys do not change), and
-  schema 2 roots are still read. A node that is removed and re-added many
-  times grows its own record, as its trie leaf already does. One path is not
-  fixed: a session seeded from a state that holds the tombstone without the
-  add drops that tombstone, so the element is alive again when the add
-  arrives. For example, a host that receives the remove through `syncWith`,
-  creates a checkpoint, and then receives the add reports the element alive
+  `materialize()` after a checkpoint that holds the remove without the add,
+  when the removed dot belongs to one element only; a dot that a later patch
+  adds to another element is not covered (see the #1120 entry below): each
+  node's lifecycle record (`life_XX.cbor`) now lists the tombstoned dots
+  that the node's entry holds, and the read checks a tail add against them
+  and against the receipt (`life_receipt.cbor`), which still lists only the
+  tombstones that no entry holds. A dot that a node entry holds is listed
+  only with that node, in the node's shard, so the receipt, the one member
+  that is not sharded by node, does not grow with the number of removed
+  nodes in the graph. Lifecycle shards and the receipt move to schema 3 (a
+  record gains a field; the receipt keys do not change), and schema 2 roots
+  are still read. A node that is removed and re-added many times grows its
+  own record, as its trie leaf already does. One path is not fixed: a
+  session seeded from a state that holds the tombstone without the add drops
+  that tombstone, so the element is alive again when the add arrives. For
+  example, a host that receives the remove through `syncWith`, creates a
+  checkpoint, and then receives the add reports the element alive
   ([#1153](https://github.com/git-stunts/git-warp/issues/1153)). Earlier
   versions can have stored the wrong state of a full replay in the
   checkpoint and in retained materializations, and the fix does not repair
