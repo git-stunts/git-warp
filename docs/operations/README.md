@@ -196,19 +196,42 @@ Other Git commands in the same repository can collect git-warp's objects:
 
 The risk of a GC that runs alongside git-warp writes is low, but not zero.
 GC removes only unreachable objects older than `gc.pruneExpire`, two weeks by
-default. A write's objects become reachable from the writer ref and the
+default, and it keeps every object that a newer object reaches (git-gc(1),
+NOTES). A write's objects become reachable from the writer ref and the
 custody refs under `refs/cas/` as the write completes; the write's attempt
-ref holds only a small journal blob. Under cruft packs (`git gc --cruft`, and
-a plain `git gc` from Git 2.41 or with `gc.cruftPacks=true`),
-`git fast-import` can reuse an old unreachable object that is already in a
-cruft pack without refreshing its age. A prune can then delete that object
-while a write still needs it. This is the race that git-gc(1) describes in
-its NOTES section. Whether git-warp can hit it is under investigation in
-[#1110](https://github.com/git-stunts/git-warp/issues/1110). By this
-mechanism, the race needs a write in flight during the GC; that is reasoning,
-not a tested result. While #1110 is open, schedule the GC when no git-warp
-process writes to the repository, or accept the risk that this paragraph
-states.
+ref holds only a small journal blob.
+
+git-warp builds its cone trees with `git fast-import`. When fast-import finds
+an object in a pack, a cruft pack too, it uses that copy and does not refresh
+its age. On Git 2.39.5,
+[#1110](https://github.com/git-stunts/git-warp/issues/1110) found one case in
+which git-warp reuses old garbage: it rebuilds a cone head, for example after
+you delete
+`refs/warp/<graph>/cone/head`. Before
+[#1127](https://github.com/git-stunts/git-warp/issues/1127), a GC that
+overlapped the rebuild could delete the rebuilt tree after the cone head
+named it. The cone head then pointed at a missing tree, every later `git gc`
+failed, and the lane could not write until you deleted the ref.
+
+Now every fast-import program that git-warp runs to build a cone or custody
+tree also writes a new commit that names the tree it built. A GC whose prune
+date is in the past, such as the default two weeks, and that selects what to
+delete after the program ends, keeps that new commit, the tree and all objects
+below the tree. If a GC removes the tree anyway, for example
+`git gc --prune=now`, the cone-head update fails. Before the write publishes,
+the write then returns `UnpublishedWriteReceipt` with the cause
+`write-basis-unavailable`: nothing was published, and the next write builds
+the tree again. After the write publishes, the write keeps its receipt, and
+the next write folds the patch into the cone head.
+
+One window stays open. A GC that selects what to delete while a fast-import
+process of a cone rebuild runs can delete an old object that the process
+reused, because the new commit becomes visible only when the process ends.
+The window lasts while such a process runs, and it opens only during a cone
+rebuild. If `git fsck` then reports a missing or broken object under
+`refs/warp/<graph>/cone/`, delete that ref; git-warp rebuilds it from the
+writer chains. To avoid the window, schedule the GC when no git-warp process
+writes to the repository, and do not run GC while a cone head is rebuilt.
 
 A concurrent GC holds Git ref locks for a short time. A write that meets one
 of them can return, for example:
