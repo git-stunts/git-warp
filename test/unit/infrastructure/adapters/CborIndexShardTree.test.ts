@@ -98,6 +98,15 @@ describe('CborIndexShardTree', () => {
     expect(() => open({ 'props_00.cbor': [['A', { name: 'Alice' }]] }).readProperties('00')).toThrow(IndexError);
   });
 
+  it('refuses a property shard whose property bag is not a map', () => {
+    const shardKey = computeShardKey('A');
+
+    malformed(
+      () => open({ [`props_${shardKey}.cbor`]: [['A', 'not a bag']] }).readProperties(shardKey),
+      'legacy property bag must be an object',
+    );
+  });
+
   it('encodes shards over a copy of the tree and keeps untouched entries', () => {
     const base = treeOf({ 'labels.cbor': [['knows', 0]], 'meta_aa.cbor': { nodeToGlobal: [], nextLocalId: 0 } });
     const tree = new CborIndexShardTree({ codec: defaultCodec, tree: base });
