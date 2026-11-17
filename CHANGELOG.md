@@ -419,8 +419,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A rebuilt cone head no longer names a tree that a concurrent `git gc` can delete.
-  `git fast-import` uses an object that it finds in any pack, a cruft pack too, and does
+- A rebuilt cone head no longer names a tree that a concurrent `git gc` deletes, unless
+  that GC selects what to delete while the rebuild's fast-import process runs or prunes
+  with `--prune=now`. `git fast-import` uses an object that it finds in any pack, a cruft pack too, and does
   not refresh its age. So a cone head rebuilt after it was deleted, the recovery for
   `E_CONE_LAYOUT_UNSUPPORTED`, named an old tree; a GC that overlapped the update left
   the cone head pointing at a missing tree, every later `git gc` failed, and the lane

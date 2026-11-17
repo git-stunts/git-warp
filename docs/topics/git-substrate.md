@@ -146,7 +146,8 @@ reused an old copy of the tree from a pack
 ([#1127](https://github.com/git-stunts/git-warp/issues/1127)). This
 protection has two limits. It applies only to a GC that selects what to
 delete after the fast-import process ends, and only while the commit is newer
-than the prune date: `git gc --prune=now` removes the tree. These commits are
+than the prune date: `git gc --prune=now` can remove the tree while no ref
+reaches it. These commits are
 the scaffolding commits counted above. Do not run GC while git-warp writes;
 see [Operations: Garbage collection](../operations/README.md#garbage-collection).
 
