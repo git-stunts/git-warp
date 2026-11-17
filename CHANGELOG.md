@@ -409,20 +409,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   retention, and independently mergeable delivery responsibilities. This is a
   design record; the target API and its acceptance witnesses remain unimplemented
   ([#1049](https://github.com/git-stunts/git-warp/issues/1049)).
-- Repair duplicate dots explicitly. `previewDotRepair()` lists each collision
-  the v21 migration recorded, which members are visible, and what each policy
-  would do, including that a remove an offline replica already holds stops
-  hiding a re-added member. `applyDotRepair({ dot, policy, targets })`
-  appends ordinary patches under `repair.<writer>`: `separate` gives every
-  visible member its own dot, and `restore` re-adds the members you select.
-  Each repair is recorded at `refs/warp/<graph>/repairs/<id>` before it
-  commits and again after, so retrying it, even after a crash between the two,
-  returns that record without minting again. `repair.` writer ids are reserved
-  for repairs (`E_WRITER_ID_RESERVED`). Until a lane collision is
-  repaired, a remove that would tombstone its shared dot is refused with
-  `E_PATCH_REMOVE_SHARED_DOT`. Collisions only visible inside a strand stay
-  guarded, because a strand's base is pinned
-  ([#1022](https://github.com/git-stunts/git-warp/issues/1022)).
+- Refuse writes that would extend recorded duplicate-dot damage. A write that
+  removes a node or an edge carrying a duplicate dot that the v21 migration
+  recorded for the lane is refused with `E_PATCH_REMOVE_SHARED_DOT`. A lane
+  whose history already removes a shared dot returns an
+  `UnpublishedWriteReceipt` with cause `cone_shared_dot` for every write.
+  `repair.` writer ids are reserved (`E_WRITER_ID_RESERVED`). v21.0.0 has no
+  supported duplicate-dot repair: the internal repair has no package or CLI
+  route ([#1022](https://github.com/git-stunts/git-warp/issues/1022),
+  [#1154](https://github.com/git-stunts/git-warp/issues/1154)).
 - Add the `git-warp-v20-to-v21` migration. It converts v19/v20 strands to
   immutable ids and per-writer chains without rewriting lane history,
   resolving every legacy dot by origin: a remove tombstones every identity
@@ -432,9 +427,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   advances the substrate marker last, so an interrupted run resumes. Ownerless
   strands wait for `--assign-owner`, and a strand whose view cannot be read is
   blocked while the rest of the graph migrates. `--check` reports v20 writes
-  that arrived after the migration. `resolveAllocationProvenance` returns what
-  a retained allocation dot denoted (`resolved`, `unmapped` or `ambiguous`)
-  with its original bytes. See `docs/migrations/v21/README.md`
+  that arrived after the migration. No package entry point or CLI command reads
+  the recorded allocation provenance in v21.0.0. See
+  `docs/migrations/v21/README.md`
   ([#1015](https://github.com/git-stunts/git-warp/issues/1015)).
 
 ### Fixed
