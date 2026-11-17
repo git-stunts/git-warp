@@ -7,12 +7,12 @@ import * as seeds from '../../helpers/WriterChainSeed.ts';
 
 /**
  * Three clones whose writer frontiers pass the writer limit together converge (#1197,
- * section 2e, candidate 1). Each clone starts from one seed of `LIMIT - 1` folded writer
- * chains; two clones each admit a newcomer of their own, so every clone holds 4,097
- * chains once they have exchanged them through the documented recipes. Every writer
- * then writes again, the clones exchange once more, and all three read the same graph.
- * The order in which clones publish and receive comes from a fixed seed, which the test
- * title names; change it to replay another order.
+ * section 2e, candidate 1). Each clone starts from one seed of `LIMIT - 1` folded and
+ * checkpointed writer chains; two clones each admit a newcomer of their own, so every
+ * clone holds 4,097 chains once they have exchanged them through the documented recipes.
+ * Every writer then writes again, the clones exchange once more, and all three read the
+ * same graph. The order in which clones publish and receive comes from a fixed seed, which
+ * the test title names; change it to replay another order.
  */
 const LIMIT = WARP_WRITER_LIMIT;
 const SYNC_ORDER_SEED = 1197;
