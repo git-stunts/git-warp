@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CasError } from '@git-stunts/git-cas';
 import { GitPlumbingError, GitProtocolError, GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import ConeStoreUnavailableError from '../../../../src/domain/errors/ConeStoreUnavailableError.ts';
+import OperationPolicyExhaustedError from '../../../../src/domain/errors/OperationPolicyExhaustedError.ts';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 import type { ConeTrieHistory } from '../../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
 import GitConeStoreHost from '../../../../src/infrastructure/adapters/GitConeStoreHost.ts';
@@ -42,6 +43,8 @@ const REJECTED = Object.freeze([
   ['a missing object (history adapter)', new PersistenceError('Missing Git object', PersistenceError.E_MISSING_OBJECT)],
   ['a bare error', new Error('EIO: i/o error, read')],
   ['a defect', new TypeError("Cannot read properties of undefined (reading 'oid')")],
+  ['a retry wrapper around a held lock (only the journal unwraps one, #1109 D1)', new OperationPolicyExhaustedError(4, new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: STDERR }))],
+  ['a missing ref (history adapter)', new PersistenceError('Ref not found: refs/warp/todos/cone/head', PersistenceError.E_REF_NOT_FOUND)],
 ] as const);
 
 describe('GitConeStoreHost classifies only known transient failures as an unavailable store (#1079)', () => {

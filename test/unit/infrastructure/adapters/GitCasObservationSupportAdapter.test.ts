@@ -78,6 +78,14 @@ describe('GitCasObservationSupportAdapter types a failure a retry can clear as u
     await expect(verified(failure)).rejects.toBe(failure);
   });
 
+  it('reports a held lock file while releasing construction as unavailable support', async () => {
+    await expect(failingSupport(LOCKED).release(IDENTITY)).rejects.toMatchObject({ code: 'E_OBSERVATION_SUPPORT_UNAVAILABLE', cause: LOCKED });
+  });
+
+  it('reports a held lock file while checking a publication as unavailable support', async () => {
+    await expect(failingSupport(LOCKED).verifyPublication(BASIS)).rejects.toMatchObject({ code: 'E_OBSERVATION_SUPPORT_UNAVAILABLE', cause: LOCKED });
+  });
+
   it('refuses a thrown non-error from Git as a defect', async () => {
     await expect(retained('not an error')).rejects.toMatchObject({ code: 'E_OBSERVATION_SUPPORT_HOST_DEFECT' });
   });

@@ -3,6 +3,7 @@ import { CasError } from '@git-stunts/git-cas';
 import { GitPlumbingError, GitProtocolError, GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import AdapterValidationError from '../../../../src/domain/errors/AdapterValidationError.ts';
 import OperationPolicyExhaustedError from '../../../../src/domain/errors/OperationPolicyExhaustedError.ts';
+import OperationPolicyTimeoutError from '../../../../src/domain/errors/OperationPolicyTimeoutError.ts';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 import WriteAttemptJournalUnavailableError from '../../../../src/domain/errors/WriteAttemptJournalUnavailableError.ts';
 import ObservationAttemptId from '../../../../src/domain/services/custody/ObservationAttemptId.ts';
@@ -93,6 +94,10 @@ const REJECTED: ReadonlyArray<readonly [string, Error]> = [
   ['a defect', new TypeError("Cannot read properties of undefined (reading 'oid')")],
   ['a retry wrapper around a defect', new OperationPolicyExhaustedError(RETRIED, new TypeError("Cannot read properties of undefined (reading 'oid')"))],
   ['a retry wrapper around corruption', new OperationPolicyExhaustedError(RETRIED, new PersistenceError('Missing Git object', PersistenceError.E_MISSING_OBJECT))],
+  ['a retry wrapper around a failed Git command', new OperationPolicyExhaustedError(RETRIED, new GitPlumbingError('Git command failed with code 128', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: 'fatal: bad object' }))],
+  // Safety Review F6: D1 reads only the last attempt's cause, so an exhausted retry of a spawn failure rejects.
+  ['a retry wrapper around a spawn failure (resource temporarily unavailable)', new OperationPolicyExhaustedError(RETRIED, new GitPlumbingError('spawn git EAGAIN', 'ExecutionOrchestrator.orchestrate', { originalError: Object.assign(new Error('spawn git EAGAIN'), { code: 'EAGAIN' }) }))],
+  ['the retry policy timing out', new OperationPolicyTimeoutError(30_000, 30_001)],
 ];
 
 describe('GitWriteAttemptJournalAdapter save classifies host failures by type (#1109)', () => {
@@ -123,6 +128,13 @@ describe('GitWriteAttemptJournalAdapter save classifies host failures by type (#
     vi.spyOn(history, 'updateRef').mockRejectedValueOnce(failure);
 
     await expect(journalOver(history).save(RECORD)).rejects.toBe(failure);
+  });
+
+  it('refuses a thrown non-error from the record ref update as a defect', async () => {
+    const history = new InMemoryGraphAdapter({ clock: { now: () => 1 } });
+    vi.spyOn(history, 'updateRef').mockRejectedValueOnce('not an error');
+
+    await expect(journalOver(history).save(RECORD)).rejects.toMatchObject({ code: 'E_WRITE_ATTEMPT_JOURNAL_HOST_DEFECT' });
   });
 
   it('refuses a thrown non-error from the history as a defect', async () => {
