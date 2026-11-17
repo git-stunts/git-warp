@@ -10,6 +10,7 @@ import TrieCursor from '../../../../../src/domain/orset/trie/TrieCursor.ts';
 import TrieFlusher from '../../../../../src/domain/orset/trie/TrieFlusher.ts';
 import TrieGeometry from '../../../../../src/domain/orset/trie/TrieGeometry.ts';
 import ShadowTrieORSet from '../../../../../src/domain/orset/shadow/ShadowTrieORSet.ts';
+import ORSetElementState from '../../../../../src/domain/orset/ORSetElementState.ts';
 import cborCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
 import { InMemoryTrieStore } from '../../../../helpers/trieHelpers.ts';
 
@@ -58,6 +59,25 @@ describe('ShadowTrieORSet floating tombstones (#1119)', () => {
     await engine.removeElement('n2', new Set());
     expect([...(await engine.getElementState('n1'))?.tombstonedDots ?? []]).toEqual([encodeDot(EARLY)]);
     expect(await engine.getElementState('n2')).toBeNull();
+  });
+
+  it('reads the element state once per remove, whatever the number of observed dots', async () => {
+    // ORSetElementState's dots getters copy the set on every read, so a read
+    // per observed dot costs |observed| x |dots|. Oracle: one read of each.
+    const engine = engineOn(new InMemoryTrieStore());
+    const held = Array.from({ length: 50 }, (_, index) => new Dot('w', index + 1));
+    for (const dot of held) { await engine.add('n1', dot); }
+    const observed = new Set([...held.map(encodeDot), ...Array.from({ length: 50 }, (_, index) => encodeDot(new Dot('y', index + 1)))]);
+    const dots = vi.spyOn(ORSetElementState.prototype, 'dots', 'get');
+    const tombstoned = vi.spyOn(ORSetElementState.prototype, 'tombstonedDots', 'get');
+    try {
+      await engine.removeElement('n1', observed);
+      expect({ dots: dots.mock.calls.length, tombstonedDots: tombstoned.mock.calls.length })
+        .toEqual({ dots: 1, tombstonedDots: 1 });
+    } finally {
+      dots.mockRestore();
+      tombstoned.mockRestore();
+    }
   });
 
   it('skips an observed string that is not a canonical dot, because no add can carry it', async () => {

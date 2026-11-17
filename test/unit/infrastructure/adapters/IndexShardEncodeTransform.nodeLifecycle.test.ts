@@ -222,6 +222,7 @@ describe('node lifecycle shards written before records carried tombstoned dots (
     expect(refusal(record(['not-a-dot']), path)).toThrow(malformed);
     expect(refusal(record([1]), path)).toThrow(malformed);
     expect(refusal(record('w:1'), path)).toThrow(malformed);
+    expect(refusal(record(undefined), path)).toThrow(malformed);
     expect(refusal(record(['w:1', 'w:2']), path)).not.toThrow();
   });
 });
