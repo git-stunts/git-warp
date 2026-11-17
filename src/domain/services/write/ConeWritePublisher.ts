@@ -2,6 +2,7 @@ import type ObservationAttemptSourcePort from '../../../ports/ObservationAttempt
 import type WriteAttemptJournalPort from '../../../ports/WriteAttemptJournalPort.ts';
 import type { WriteReceipt } from '../../api/WriteReceipt.ts';
 import IndeterminateWriteReceipt from '../../api/IndeterminateWriteReceipt.ts';
+import type { RepairHint } from '../../api/ReceiptSupport.ts';
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import UnretainedWriteReceipt from '../../api/UnretainedWriteReceipt.ts';
 import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
@@ -19,6 +20,7 @@ import type { default as ConeWriteSettlement, PublishedAttempt } from './ConeWri
 import type LoweredConeWrite from './LoweredConeWrite.ts';
 import WriteAttemptRecord from './WriteAttemptRecord.ts';
 import type WritePublicationProbe from './WritePublicationProbe.ts';
+import WriterFrontierRefusal from './WriterFrontierRefusal.ts';
 import { failedWriteCore } from './writeReceiptCore.ts';
 
 const CONTENDED_STEP_ATTEMPTS = 4;
@@ -29,6 +31,11 @@ const CAPACITY_REPAIR = Object.freeze([Object.freeze({
   code: 'retention_capacity_exhausted',
   message: 'This graph has used every retention slot it was opened with, and the limit cannot be raised yet.',
 })]);
+/** What repairs a refusal, by cause. Custody refuses a writer already in a frontier past the writer limit (#1075). */
+const REPAIRS: ReadonlyMap<string, readonly RepairHint[]> = new Map<string, readonly RepairHint[]>([
+  ['retention-capacity-exhausted', CAPACITY_REPAIR],
+  [WriterFrontierRefusal.OVER_LIMIT.cause, WriterFrontierRefusal.OVER_LIMIT.repairHints],
+]);
 
 /** How the one publication went: landed, definitely did not, or cannot be told. */
 type PublicationFate =
@@ -260,7 +267,7 @@ export default class ConeWritePublisher {
   #unpublished(record: WriteAttemptRecord, cause: string): UnpublishedWriteReceipt {
     return new UnpublishedWriteReceipt({
       graph: this.#graph, writer: record.premise.writerId, cause,
-      ...(cause === 'retention-capacity-exhausted' ? { repairHints: CAPACITY_REPAIR } : {}),
+      repairHints: REPAIRS.get(cause) ?? [],
     });
   }
 }
