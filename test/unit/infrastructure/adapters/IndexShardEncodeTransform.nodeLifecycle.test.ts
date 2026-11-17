@@ -132,10 +132,10 @@ describe('node lifecycle shards', () => {
 });
 
 const PINNED_SHA256: Readonly<Record<string, string>> = {
-  'life_67.cbor': '848cffe39b3b7485c0d4fafc5d709118a552c03fa94e5928dd3311e2539470af',
-  'life_9c.cbor': 'e474a9629b66510714a7861d59e5f2fd0838822bb06d40fe7292549e21afa63a',
-  'life_b2.cbor': '68b76f460bcd447465e6f822d275dfb413df79fc952f57d220e55d627da0cff1',
-  'life_receipt.cbor': '31724cd8212619ff444677391eff2c07674027aee033d09dfbb5ffa47ecba5e1',
+  'life_67.cbor': '4efada71d0124b4b61e495527978a2482d4a5c93a9f73fa797814b3ae4486045',
+  'life_9c.cbor': 'c99110d66169080606908ef630b698145bd162f5d2286438e2b370a53027a131',
+  'life_b2.cbor': '1729c7f86e23d344a4f582db20221d836065f458b1072ab55da2d775e842fd5d',
+  'life_receipt.cbor': '2901d13558a22b7e34d12d92c1e2cc03235add132b56ac4a375b9e98c065cab6',
 };
 
 describe('node lifecycle receipt', () => {

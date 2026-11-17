@@ -8,15 +8,15 @@ import { NODE_LIFECYCLE_SHARD_SCHEMA_VERSION } from './NodeLifecycleShard.ts';
  * that finds no receipt treats the root as written without them, so a
  * missing record shard means "no record" only when the receipt is present.
  *
- * `floatingTombstones` lists, in ascending order, every encoded node dot
- * that the checkpoint state holds a tombstone for. The name is the persisted
- * receipt key and is older than this rule: the list is not limited to
- * tombstones whose add the checkpoint does not hold. A checkpoint taken
- * while a writer's chain had arrived without a chain it observed holds a
- * remove before its add: the add then reaches a bounded read as a tail
- * patch, and the tombstone here is what makes that add dead in the full
- * state. A receipt written under the older rule lists only the tombstoned
- * dots that no node entry of its state held.
+ * `floatingTombstones` lists, in ascending order, the encoded node dots
+ * that the checkpoint state holds a tombstone for although no node entry
+ * holds them. A causally closed checkpoint has none. A checkpoint taken
+ * while a writer's chain had arrived without a chain it observed can: the
+ * add then reaches a bounded read as a tail patch, and the tombstone here is
+ * what makes that add dead in the full state. A tombstoned dot that a node
+ * entry holds, such as the dot a reducer session reserves for a remove that
+ * came before its add (#1119), is listed in that node's NodeLifecycleRecord
+ * instead, so this list does not grow with the graph's removed nodes.
  */
 export class NodeLifecycleReceipt extends IndexShard {
   readonly nodeCount: number;

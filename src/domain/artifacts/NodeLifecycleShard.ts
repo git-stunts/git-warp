@@ -2,8 +2,19 @@ import WarpError from '../errors/WarpError.ts';
 import { IndexShard } from './IndexShard.ts';
 import { NodeLifecycleRecord } from './NodeLifecycleRecord.ts';
 
-/** The only node lifecycle shard schema. */
-export const NODE_LIFECYCLE_SHARD_SCHEMA_VERSION = 2;
+/**
+ * The node lifecycle shard and receipt schema that this runtime writes. Its
+ * records carry the tombstoned dots that the node's entry holds (#1119).
+ */
+export const NODE_LIFECYCLE_SHARD_SCHEMA_VERSION = 3;
+
+/**
+ * The earlier schema, read but no longer written. Its records carry no
+ * tombstoned dots: its writers never reserved a dot under a node, so a
+ * tombstone whose add a checkpoint did not hold was always one that no
+ * entry held, and its receipt lists those.
+ */
+export const NODE_LIFECYCLE_SHARD_SCHEMA_WITHOUT_TOMBSTONED_DOTS = 2;
 
 /**
  * Node lifecycle records for the nodes of one index shard key, in ascending

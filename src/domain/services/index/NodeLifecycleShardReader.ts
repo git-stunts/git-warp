@@ -4,20 +4,27 @@
  * Validates one decoded `life_XX.cbor` payload into NodeLifecycleRecords,
  * and the `life_receipt.cbor` payload against the root's record shards.
  * Only the canonical form the encoder writes is accepted: records in
- * ascending node id order, an empty reserved pending-removal slot, and
- * registers in ascending key order. Anything else is a malformed shard.
+ * ascending node id order, an empty reserved pending-removal slot, registers
+ * in ascending key order, and tombstoned dots in ascending order. Anything
+ * else is a malformed shard.
  *
- * Payload, schema 2:
+ * Payload, schema 3 (written):
+ *   { schemaVersion: 3, entries: [[nodeId, [birth, clear, [], [[key, event]...], [dot...]]]...] }
+ * Payload, schema 2 (read only; its records carry no tombstoned dots):
  *   { schemaVersion: 2, entries: [[nodeId, [birth, clear, [], [[key, event]...]]]...] }
- * where each event is [lamport, writerId, patchSha, opIndex], and birth and
- * clear are null when absent.
+ * where each event is [lamport, writerId, patchSha, opIndex], birth and
+ * clear are null when absent, and each dot is an encoded dot. The receipt
+ * has the same keys under both schemas.
  *
  * @module domain/services/index/NodeLifecycleShardReader
  */
 
 import { NodeLifecycleReceipt } from '../../artifacts/NodeLifecycleReceipt.ts';
 import { NodeLifecycleRecord } from '../../artifacts/NodeLifecycleRecord.ts';
-import { NODE_LIFECYCLE_SHARD_SCHEMA_VERSION } from '../../artifacts/NodeLifecycleShard.ts';
+import {
+  NODE_LIFECYCLE_SHARD_SCHEMA_VERSION,
+  NODE_LIFECYCLE_SHARD_SCHEMA_WITHOUT_TOMBSTONED_DOTS,
+} from '../../artifacts/NodeLifecycleShard.ts';
 import IndexError from '../../errors/IndexError.ts';
 import WarpError from '../../errors/WarpError.ts';
 import type CodecValue from '../../types/codec/CodecValue.ts';
@@ -34,8 +41,13 @@ const NODE_LIFECYCLE_SHARD_PATH = /^life_[0-9a-f]{2}\.cbor$/u;
 const ENVELOPE_KEYS = 'entries,schemaVersion';
 const RECEIPT_KEYS = 'floatingTombstones,nodeCount,schemaVersion,shardCount';
 const PAIR_FIELDS = 2;
-const RECORD_FIELDS = 4;
+const RECORD_FIELDS = 5;
+const RECORD_FIELDS_WITHOUT_TOMBSTONED_DOTS = 4;
 const EVENT_FIELDS = 4;
+const READABLE_SCHEMA_VERSIONS: ReadonlySet<number> = new Set([
+  NODE_LIFECYCLE_SHARD_SCHEMA_VERSION,
+  NODE_LIFECYCLE_SHARD_SCHEMA_WITHOUT_TOMBSTONED_DOTS,
+]);
 
 type CodecRecord = { readonly [key: string]: CodecValue };
 
@@ -55,9 +67,10 @@ export function decodeNodeLifecycleShard(
   path: string,
 ): ReadonlyMap<string, NodeLifecycleRecord> {
   const records = new Map<string, NodeLifecycleRecord>();
+  const { schemaVersion, entries } = requireEnvelope(decoded, path);
   let previous = '';
-  for (const entry of requireEnvelope(decoded, path)) {
-    const record = decodeRecord(entry, path);
+  for (const entry of entries) {
+    const record = decodeRecord(entry, path, schemaVersion);
     if (previous >= record.nodeId || nodeLifecycleShardPath(record.nodeId) !== path) {
       throw malformed(path, 'records must be ascending by node id and routed to this shard');
     }
@@ -87,9 +100,7 @@ export function decodeNodeLifecycleReceipt(
   if (!isCodecRecord(decoded) || Object.keys(decoded).sort().join(',') !== RECEIPT_KEYS) {
     throw malformed(path, 'invalid receipt envelope');
   }
-  if (decoded['schemaVersion'] !== NODE_LIFECYCLE_SHARD_SCHEMA_VERSION) {
-    throw malformed(path, 'unsupported node lifecycle receipt schema version');
-  }
+  requireReadableSchemaVersion(decoded['schemaVersion'], path, 'receipt');
   const receipt = validated(path, () => new NodeLifecycleReceipt({
     nodeCount: requireNumber(decoded['nodeCount'], path),
     shardCount: requireNumber(decoded['shardCount'], path),
@@ -105,25 +116,38 @@ export function decodeNodeLifecycleReceipt(
   return receipt;
 }
 
-function requireEnvelope(decoded: CodecValue, path: string): readonly CodecValue[] {
+function requireEnvelope(
+  decoded: CodecValue,
+  path: string,
+): { readonly schemaVersion: number; readonly entries: readonly CodecValue[] } {
   if (!isCodecRecord(decoded) || Object.keys(decoded).sort().join(',') !== ENVELOPE_KEYS) {
     throw malformed(path, 'invalid schema envelope');
   }
-  if (decoded['schemaVersion'] !== NODE_LIFECYCLE_SHARD_SCHEMA_VERSION) {
-    throw malformed(path, 'unsupported node lifecycle shard schema version');
-  }
-  return requireArray(decoded['entries'], path);
+  const schemaVersion = requireReadableSchemaVersion(decoded['schemaVersion'], path, 'shard');
+  return { schemaVersion, entries: requireArray(decoded['entries'], path) };
 }
 
-function decodeRecord(entry: CodecValue, path: string): NodeLifecycleRecord {
+function requireReadableSchemaVersion(value: CodecValue | undefined, path: string, member: string): number {
+  if (typeof value !== 'number' || !READABLE_SCHEMA_VERSIONS.has(value)) {
+    throw malformed(path, `unsupported node lifecycle ${member} schema version`);
+  }
+  return value;
+}
+
+/** A schema-3 record has five fields; a schema-2 record has no tombstoned dots. */
+function decodeRecord(entry: CodecValue, path: string, schemaVersion: number): NodeLifecycleRecord {
   const [nodeId, fields] = requireTuple(entry, PAIR_FIELDS, path);
-  const [birth, clear, pending, registers] = requireTuple(fields, RECORD_FIELDS, path);
+  const fieldCount = schemaVersion === NODE_LIFECYCLE_SHARD_SCHEMA_VERSION
+    ? RECORD_FIELDS
+    : RECORD_FIELDS_WITHOUT_TOMBSTONED_DOTS;
+  const [birth, clear, pending, registers, dots] = requireTuple(fields, fieldCount, path);
   return validated(path, () => new NodeLifecycleRecord({
     nodeId: requireString(nodeId, path),
     birth: birth === null ? null : decodeEvent(birth, path),
     clear: clear === null ? null : decodeEvent(clear, path),
     pendingRemoves: requireArray(pending, path).map((removal) => decodeEvent(removal, path)),
     registers: requireArray(registers, path).map((register) => decodeRegister(register, path)),
+    tombstonedDots: dots === undefined ? [] : requireArray(dots, path).map((dot) => requireString(dot, path)),
   }));
 }
 
