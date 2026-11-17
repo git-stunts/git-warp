@@ -26,10 +26,14 @@ export const PROPERTY_SHARD_MAX_DEPTH = PATCH_PROPERTY_VALUE_MAX_DEPTH + PROPERT
  * Writers refuse a shard above it with `E_INDEX_SHARD_TOO_LARGE` or
  * `E_INDEX_SHARD_MALFORMED`, and every reader decodes each shard up to it,
  * so no writer stores a shard that its reader refuses. The index store and
- * in-memory view readers refuse a shard above it with the same codes; the
- * readers that call `CodecPort.decodeWithin` directly (the checkpoint
- * neighbourhood and fact readers, `BitmapIndexReader`) refuse one with
- * `E_CBOR_DECODE_BOUNDS`. The depth is the larger of the default decode
+ * in-memory view readers refuse a shard above it with the same codes. The
+ * checkpoint neighbourhood reader, and the checkpoint fact reader for node
+ * lifecycle shards, call `CodecPort.decodeWithin` directly and refuse one
+ * with `E_CBOR_DECODE_BOUNDS`; the fact reader reports an index-store
+ * `E_INDEX_SHARD_MALFORMED` for meta and property shards as
+ * `E_OPTIC_NO_BOUNDED_BASIS`. `BitmapIndexReader` reports a refused shard as
+ * `ShardCorruptionError` in strict mode, and logs it and reads the shard as
+ * empty in lenient mode. The depth is the larger of the default decode
  * depth and `PROPERTY_SHARD_MAX_DEPTH`, so a property shard holds every
  * value that a patch can carry. Other repository blobs keep the codec's
  * default decode bound (5 MiB, 1,000,000 items).

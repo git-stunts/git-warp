@@ -239,9 +239,14 @@ the depth from these constants). A writer refuses a shard above the bound
 with `E_INDEX_SHARD_TOO_LARGE` above the byte limit and
 `E_INDEX_SHARD_MALFORMED` above a structure limit. The index store and the
 in-memory view index refuse one with the same codes. The checkpoint
-neighbourhood reader, the checkpoint fact reader and the legacy
-`BitmapIndexReader` decode shard bytes themselves at the same bound and refuse
-one with `E_CBOR_DECODE_BOUNDS`. Measured decode memory for one file: about
+neighbourhood reader, and the checkpoint fact reader for node lifecycle
+shards, decode shard bytes themselves at the same bound and refuse one with
+`E_CBOR_DECODE_BOUNDS`. The fact reader reads meta and property shards through
+the index store and reports `E_INDEX_SHARD_MALFORMED` there as `QueryError`
+`E_OPTIC_NO_BOUNDED_BASIS` (reason `checkpoint-shard-invalid`). The legacy
+`BitmapIndexReader` reports a refused shard as `ShardCorruptionError` (reason
+`decode_error`) in strict mode, and logs it and reads the shard as empty in
+lenient mode. Measured decode memory for one file: about
 66 MiB of heap for 17.6 MB of bitmap entries (782,385 items), and about
 205 MiB for 19.4 MB of 2.58 million small items. A file within the bound holds
 at most 2,000,000 items.

@@ -446,12 +446,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `openShardAt`), which the materialization, property and logical index
     readers use, and the in-memory view index give the same `IndexError`
     codes, also when the content-addressed store refuses a page for its size.
-  - The checkpoint neighbourhood reader, the checkpoint fact reader and the
-    legacy `BitmapIndexReader` decode the bytes themselves at the same bound
-    and give `MessageCodecError` `E_CBOR_DECODE_BOUNDS`. Bytes that they read
+  - The checkpoint neighbourhood reader, and the checkpoint fact reader for
+    node lifecycle shards, decode the bytes themselves at the same bound and
+    give `MessageCodecError` `E_CBOR_DECODE_BOUNDS`. Bytes that they read
     through `openShardAt` stop there first, with `E_INDEX_SHARD_TOO_LARGE`; a
     checkpoint shard stored as a direct asset stops with
-    `E_BYTE_COLLECTION_LIMIT`.
+    `E_BYTE_COLLECTION_LIMIT`. The fact reader reads meta and property shards
+    through the index store and reports `E_INDEX_SHARD_MALFORMED` there as
+    `QueryError` `E_OPTIC_NO_BOUNDED_BASIS` (reason `checkpoint-shard-invalid`).
+    The legacy `BitmapIndexReader` reports a refused shard as
+    `ShardCorruptionError` (reason `decode_error`) in strict mode, and logs it
+    and reads the shard as empty in lenient mode.
 
   Before, the writer admitted 16 MiB and every reader decoded with the 5 MiB
   default bound: two hub nodes whose ids share a shard key, with 654,322
