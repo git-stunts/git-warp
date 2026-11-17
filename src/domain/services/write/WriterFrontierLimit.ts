@@ -12,18 +12,20 @@ import WriterFrontierRefusal from './WriterFrontierRefusal.ts';
  */
 export default class WriterFrontierLimit {
   readonly writers: number;
+  readonly #full: WriterFrontierRefusal;
 
   constructor(writers: number) {
     if (!Number.isSafeInteger(writers) || writers < 0) {
       throw new WarpError('A writer frontier limit must be a count of writers', 'E_WRITER_FRONTIER_LIMIT');
     }
     this.writers = writers;
+    this.#full = WriterFrontierRefusal.full(writers);
     Object.freeze(this);
   }
 
   /** Why a write by `writer` onto `basis` is refused before it reserves anything, or null when it may go on. */
   refusal(writer: string, basis: ConeBasis): WriterFrontierRefusal | null {
     const heads = basis.writerHeads();
-    return heads.has(writer) || heads.size < this.writers ? null : WriterFrontierRefusal.FULL;
+    return heads.has(writer) || heads.size < this.writers ? null : this.#full;
   }
 }

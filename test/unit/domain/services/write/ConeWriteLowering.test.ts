@@ -231,6 +231,14 @@ describe('ConeWriteLowering at the writer limit (#1075)', () => {
     expect(repairsOf(lowered)).toEqual(['reuse_writer_id']);
   });
 
+  it('names the admission limit of 4,096 writer IDs in the newcomer repair, not a retention limit (#1197)', async () => {
+    const lowered = await lowering({ premise: onto(basisOf(4096)) }).lower(request);
+    const message = lowered instanceof UnpublishedWriteReceipt ? lowered.repairHints[0]?.message ?? '' : '';
+
+    expect(message).toContain('admits at most 4,096 writer IDs');
+    expect(message).not.toContain('retain');
+  });
+
   it('tells a new writer on a frontier past the limit to reuse a writer ID, since every writer in it still writes (#1197)', async () => {
     const lowered = await lowering({ premise: onto(basisOf(4097)) }).lower(request);
 

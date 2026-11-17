@@ -32,11 +32,12 @@ const CAPACITY_REPAIR = Object.freeze([Object.freeze({
 })]);
 /**
  * A frontier whose stored bytes pass `frontierBytes` names more writers than one basis can
- * record, about 36,800 to 72,300, so custody retains no write over it (#1197).
+ * record, about 36,800 to 72,300 with SHA-1 object IDs and about 30,400 to 51,100 with
+ * SHA-256, so custody retains no write over it (#1197).
  */
 const FRONTIER_LIMIT_REPAIR = Object.freeze([Object.freeze({
   code: 'frontier_limit_reached',
-  message: 'This clone holds more writer chains than one basis frontier can record (4 MiB: about 36,800 to 72,300), so it accepts no write. No git-warp command reduces the frontier; docs/topics/getting-started.md states the bound and how to stay below it.',
+  message: 'This clone holds more writer chains than one basis frontier can record (4 MiB: about 36,800 to 72,300 with SHA-1 object IDs, about 30,400 to 51,100 with SHA-256), so it accepts no write. No git-warp command reduces the frontier; docs/topics/getting-started.md states the bound and how to stay below it.',
 })]);
 /** What repairs a refusal, by cause. */
 const REPAIRS: ReadonlyMap<string, readonly RepairHint[]> = new Map<string, readonly RepairHint[]>([

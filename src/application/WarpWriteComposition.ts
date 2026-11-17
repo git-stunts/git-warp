@@ -51,8 +51,9 @@ export const WARP_WRITER_LIMIT = 4096;
  * Support limits. Lowering one strands Coordinates that crossed it, so treat them as raise-only.
  * A write retains its frontier's heads through shared frontier anchors, so what one write adds
  * does not grow with the writer count (#1197). `frontierBytes` bounds the stored frontier, and
- * so the writers one basis can name: about 36,800 to 72,300, as writer IDs run from 64 to 9
- * characters. A frontier past it refuses every write with `retention-refused-frontier-limit`.
+ * so the writers one basis can name: about 36,800 to 72,300 with SHA-1 object IDs and about
+ * 30,400 to 51,100 with SHA-256, as writer IDs run from 64 to 9 characters. A frontier past
+ * it refuses every write with `retention-refused-frontier-limit`.
  */
 export const WARP_SUPPORT_LIMITS = new ObservationSupportLimits({
   dependencies: 4096, frontierBytes: 4 * 1024 * 1024, work: 1_000_000,

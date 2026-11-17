@@ -96,6 +96,8 @@ describe('ConeWritePublisher before permission', () => {
     expect(receipt instanceof UnpublishedWriteReceipt ? receipt.cause : '').toBe('retention-refused-frontier-limit');
     expect(receipt instanceof UnpublishedWriteReceipt ? receipt.repairHints.map((hint) => hint.code) : []).toEqual(['frontier_limit_reached']);
     expect(receipt instanceof UnpublishedWriteReceipt ? receipt.repairHints[0]?.message : '').toContain('docs/topics/getting-started.md');
+    // Oracle: the 4 MiB frontier measured with the production codec for each object format (#1197, F3).
+    expect(receipt instanceof UnpublishedWriteReceipt ? receipt.repairHints[0]?.message : '').toContain('about 36,800 to 72,300 with SHA-1 object IDs, about 30,400 to 51,100 with SHA-256');
     expect(cancel).toHaveBeenCalledOnce();
     expect(remove).toHaveBeenCalledOnce();
   });
