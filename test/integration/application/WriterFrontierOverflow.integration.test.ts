@@ -51,7 +51,7 @@ async function withLaneBasis<T>(path: string, read: (basis: ConeLaneBasis, store
       timelineName: fixture.GRAPH, codec: ports.codec, crypto: ports.crypto, commitMessageCodec: ports.commitMessageCodec,
     });
     try {
-      const store = new GitConeRecordStoreAdapter({ history: git.history, codec: ports.codec });
+      const store = new GitConeRecordStoreAdapter({ history: git.history, codec: ports.codec, random: ports.random });
       const feed = new GitConePatchFeedAdapter({ history: git.history, journal: services.patchJournal, commitMessageCodec: ports.commitMessageCodec });
       return await read(ConeLaneBasis.ofLane({ lane: fixture.GRAPH, store, feed }), store);
     } finally {

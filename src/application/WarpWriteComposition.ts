@@ -205,7 +205,7 @@ async function openCone(fields: {
   });
   const basis = ConeLaneBasis.ofLane({
     lane: graph,
-    store: new GitConeRecordStoreAdapter({ history: git.history, codec: ports.codec }),
+    store: new GitConeRecordStoreAdapter({ history: git.history, codec: ports.codec, random: ports.random }),
     feed: new GitConePatchFeedAdapter({ history: git.history, journal: services.patchJournal, commitMessageCodec: ports.commitMessageCodec }),
   });
   return { basis, release: async () => await services.materializations.close() };
@@ -243,7 +243,7 @@ async function openCustodyService(fields: {
     custody: overrides.wrapCustody === undefined ? custody : overrides.wrapCustody(custody),
     support: new GitCasObservationSupportAdapter({
       publications: git.publications, assets: git.assets, history: git.history, crypto: ports.crypto,
-      codec: ports.codec, graphName: graph, limits: WARP_SUPPORT_LIMITS,
+      random: ports.random, codec: ports.codec, graphName: graph, limits: WARP_SUPPORT_LIMITS,
     }),
     codec: new ObservationCustodyCborCodec(ports.codec),
     crypto: ports.crypto,

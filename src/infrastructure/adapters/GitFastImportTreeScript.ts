@@ -7,8 +7,8 @@ import { textEncode } from '../../domain/utils/bytes.ts';
  * updates this ref; only the objects remain.
  */
 const STAGING_BRANCH = 'refs/warp/cone-import/staging';
-/** A fixed identity and time keep the throwaway commit deterministic. */
-const COMMIT_HEADER = `commit ${STAGING_BRANCH}\ncommitter git-warp <> 0 +0000\ndata 0\n`;
+/** The staging commit's fixed identity and time; its message is the nonce `encode` receives. */
+const COMMIT_HEADER = `commit ${STAGING_BRANCH}\ncommitter git-warp <> 0 +0000\n`;
 const TRAILER = `ls ""\nreset ${STAGING_BRANCH}\ndone\n`;
 const PATH_PATTERN = /^[0-9A-Za-z_-]+(?:\/[0-9A-Za-z_-]+)*$/u;
 const OBJECT_ID_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u;
@@ -22,9 +22,13 @@ const OBJECT_ID_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u;
  * pack, which Git explodes into loose objects when the pack is small (its
  * `fastimport.unpackLimit`, default 100 objects) and keeps otherwise. The
  * program ends with `ls ""`, whose single output line names the root tree.
+ *
+ * The program builds the tree on a throwaway staging commit whose message is
+ * the nonce `encode` receives, so each program writes a new commit that names
+ * its root (`GitFastImportTreeWriter` says why).
  */
 export default class GitFastImportTreeScript {
-  readonly #chunks: Uint8Array[] = [textEncode(COMMIT_HEADER)];
+  readonly #chunks: Uint8Array[] = [];
   #operations = 0;
 
   /** Places the existing tree `treeOid` at `path`. */
@@ -53,9 +57,10 @@ export default class GitFastImportTreeScript {
     return this.#operations;
   }
 
-  /** The complete fast-import input. */
-  encode(): Uint8Array {
-    const parts = [...this.#chunks, textEncode(TRAILER)];
+  /** The complete fast-import input, with `nonce` as the staging commit's message. */
+  encode(nonce: Uint8Array): Uint8Array {
+    const header = textEncode(`${COMMIT_HEADER}data ${nonce.byteLength}\n`);
+    const parts = [header, nonce, textEncode('\n'), ...this.#chunks, textEncode(TRAILER)];
     const bytes = new Uint8Array(parts.reduce((sum, part) => sum + part.byteLength, 0));
     let offset = 0;
     for (const part of parts) {

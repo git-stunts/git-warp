@@ -13,6 +13,7 @@ import { buildObservationConstructionRef } from '../../domain/utils/ObservationR
 import type CodecPort from '../../ports/CodecPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import ObservationSupportPort, { type ObservationSupportOutcome } from '../../ports/ObservationSupportPort.ts';
+import type RandomPort from '../../ports/RandomPort.ts';
 import GitFastImportTreeWriter from './GitFastImportTreeWriter.ts';
 import ObservationBasisFrontier, { type ObservationBasisHistory, type ObservationBasisProblem } from './ObservationBasisFrontier.ts';
 import ObservationDependencyPages, { type ObservationPageSet } from './ObservationDependencyPages.ts';
@@ -55,6 +56,7 @@ export default class GitCasObservationSupportAdapter extends ObservationSupportP
     readonly assets: Pick<AssetCapability, 'put'>;
     readonly history: ObservationSupportHistory;
     readonly crypto: CryptoPort;
+    readonly random: RandomPort;
     readonly codec: CodecPort;
     readonly graphName: string;
     readonly limits: ObservationSupportLimits;
@@ -68,7 +70,7 @@ export default class GitCasObservationSupportAdapter extends ObservationSupportP
     });
     this.#pages = new ObservationDependencyPages({
       history: options.history,
-      trees: new GitFastImportTreeWriter({ plumbing: options.history.plumbing }),
+      trees: new GitFastImportTreeWriter({ plumbing: options.history.plumbing, random: options.random }),
       crypto: options.crypto,
       limits: options.limits,
     });

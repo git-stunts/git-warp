@@ -20,6 +20,7 @@ import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/G
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { OBSERVATION_DEPENDENCY_PAGE, OBSERVATION_DEPENDENCY_PAGES } from '../../../../src/infrastructure/adapters/ObservationDependencyPages.ts';
 import codec from '../../../../src/infrastructure/codecs/CborCodec.ts';
+import SeededRandomPort from '../../../helpers/SeededRandomPort.ts';
 import ObservationCustodyFixture, {
   DEFAULT_SUPPORT_LIMITS,
   FIXTURE_GRAPH,
@@ -91,6 +92,7 @@ async function supportOver(h: Harness, overrides: {
     assets: h.opened.store.assets,
     history: new GitTimelineHistoryAdapter({ plumbing: await Plumbing.createDefault({ cwd: h.path }) }),
     crypto: new NodeCryptoAdapter(),
+    random: new SeededRandomPort(),
     codec,
     graphName: FIXTURE_GRAPH,
     limits: overrides.limits ?? DEFAULT_SUPPORT_LIMITS,
@@ -243,6 +245,7 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
         readTreeObjectEntries: async (oid) => await history.readTreeObjectEntries(oid),
       },
       crypto: new NodeCryptoAdapter(),
+      random: new SeededRandomPort(),
       codec,
       graphName: FIXTURE_GRAPH,
       limits: DEFAULT_SUPPORT_LIMITS,

@@ -59,6 +59,7 @@ import ObservationCustodyFixture, {
 import type { LatchSide } from '../../../helpers/CallLatch.ts';
 import HeldObservationCustody from '../../../helpers/HeldObservationCustody.ts';
 import HeldObservationSupport from '../../../helpers/HeldObservationSupport.ts';
+import SeededRandomPort from '../../../helpers/SeededRandomPort.ts';
 
 const fixture = new ObservationCustodyFixture();
 
@@ -447,7 +448,7 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
       ['bob', new ConeWriterPosition(heads[1] ?? '', 2)],
       [`@w.alice@s.${strand}`, new ConeWriterPosition(heads[2] ?? '', 3)],
     ]));
-    const store = new GitConeRecordStoreAdapter({ history: new GitTimelineHistoryAdapter({ plumbing: await Plumbing.createDefault({ cwd: path }) }), codec });
+    const store = new GitConeRecordStoreAdapter({ history: new GitTimelineHistoryAdapter({ plumbing: await Plumbing.createDefault({ cwd: path }) }), codec, random: new SeededRandomPort() });
     const head = ConeBasisHead.forLane(FIXTURE_GRAPH);
     const stored = await store.publishBasis(head, new ConeBasis(ConeRoot.at(records), frontier), null);
     const basis = stored?.revision ?? '';

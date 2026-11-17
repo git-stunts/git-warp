@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import GitConeRecordTrie, { CONE_TRIE_BUCKET_RECORDS } from '../../../../src/infrastructure/adapters/GitConeRecordTrie.ts';
 import GitFastImportTreeScript from '../../../../src/infrastructure/adapters/GitFastImportTreeScript.ts';
 import type { GitTreeObjectEntry } from '../../../../src/infrastructure/adapters/GitTreeObjectEntry.ts';
-import { textDecode } from '../../../../src/domain/utils/bytes.ts';
+import { textDecode, textEncode } from '../../../../src/domain/utils/bytes.ts';
 
 const OID = (index: number): string => index.toString(16).padStart(40, '0');
 const route = (prefix: string, index = 0): string => `${prefix}${index.toString(16).padStart(64 - prefix.length, '0')}`;
@@ -22,7 +22,7 @@ function trieOver(trees: Record<string, readonly GitTreeObjectEntry[]>): GitCone
 
 /** The fast-import commands a script holds, one per line, without its header and trailer. */
 function commands(script: GitFastImportTreeScript): string[] {
-  return textDecode(script.encode()).split('\n').filter((line) => /^(?:M|D) /u.test(line));
+  return textDecode(script.encode(textEncode('nonce'))).split('\n').filter((line) => /^(?:M|D) /u.test(line));
 }
 
 describe('GitConeRecordTrie', () => {

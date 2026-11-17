@@ -28,6 +28,7 @@ import EntropyObservationAttemptSource from '../../src/infrastructure/adapters/E
 import GitCasObservationCustodyAdapter from '../../src/infrastructure/adapters/GitCasObservationCustodyAdapter.ts';
 import GitCasObservationSupportAdapter from '../../src/infrastructure/adapters/GitCasObservationSupportAdapter.ts';
 import { WARP_APPLICATION_REF_PREFIXES } from '../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import SeededRandomPort from './SeededRandomPort.ts';
 import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import ObservationCustodyCborCodec from '../../src/infrastructure/adapters/ObservationCustodyCborCodec.ts';
@@ -111,6 +112,7 @@ export default class ObservationCustodyFixture {
       assets: store.assets,
       history: new GitTimelineHistoryAdapter({ plumbing }),
       crypto,
+      random: new SeededRandomPort(),
       codec,
       graphName: FIXTURE_GRAPH,
       limits: options.limits ?? DEFAULT_SUPPORT_LIMITS,
