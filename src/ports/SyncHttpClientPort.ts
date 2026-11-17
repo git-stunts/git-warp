@@ -84,6 +84,17 @@ export interface SyncHttpClientDecodeFailure {
   readonly status: number;
 }
 
+/**
+ * Response body is larger than the client reads. The client refuses it
+ * before it parses the body: from `Content-Length` when the header is
+ * present, or when the streamed body passes `maxBytes`.
+ */
+export interface SyncHttpClientResponseTooLarge {
+  readonly kind: 'response-too-large';
+  readonly status: number;
+  readonly maxBytes: number;
+}
+
 /** Discriminated union of single-exchange outcomes. */
 export type SyncHttpClientResult =
   | SyncHttpClientSuccess
@@ -91,7 +102,8 @@ export type SyncHttpClientResult =
   | SyncHttpClientAborted
   | SyncHttpClientNetworkFailure
   | SyncHttpClientStatusFailure
-  | SyncHttpClientDecodeFailure;
+  | SyncHttpClientDecodeFailure
+  | SyncHttpClientResponseTooLarge;
 
 /** Port for outbound sync HTTP transport. */
 export default abstract class SyncHttpClientPort {
@@ -99,8 +111,8 @@ export default abstract class SyncHttpClientPort {
    * Performs a single POST exchange for the given sync request.
    *
    * Returns a typed result object — never throws for network,
-   * timeout, abort, HTTP status, or body-decode failures. Only
-   * programmer-bug failures escape as exceptions.
+   * timeout, abort, HTTP status, body-size, or body-decode failures.
+   * Only programmer-bug failures escape as exceptions.
    */
   abstract exchange(
     _request: SyncHttpClientRequest,
