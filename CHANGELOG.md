@@ -235,19 +235,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`write-basis-unavailable`, `write-premise-unavailable`) and does not reject.
   At those steps, invalid input, a throwing access port, defects, broken
   invariants and repository corruption reject, and a store failure that the
-  adapter cannot identify as transient rejects. The attempt-journal and
-  custody-support steps still turn any failure into `attempt-journal-unavailable`
-  or `retention-unavailable` until #1109 classifies them by type. Corrupt patch
+  adapter cannot identify as transient rejects. #1109 classifies the
+  attempt-journal and custody-support steps the same way (next entry). Corrupt patch
   history met while reading the premise rejects as `WriteHistoryCorruptError`
   instead of a missing-basis refusal. Every failure of the patch feed or the
-  writer's runtime host now rejects too, transient or not, until #1109 classifies
-  them, and so does an error the fast-import writer creates above the store host;
-  on unreleased `main` such a failure returned `write-basis-unavailable`. A held
+  writer's runtime host now rejects too, transient or not, and so does an error the
+  fast-import writer creates above the store host; on unreleased `main` such a failure
+  returned `write-basis-unavailable`. The patch feed and the runtime host are not
+  classified by type yet. A held
   lock during fast-import still gives `write-basis-unavailable`. A git-cas `GIT_OBJECT_NOT_FOUND` read through the
   history adapter is now typed as `PersistenceError` `E_MISSING_OBJECT`, so on the
   checkpoint-shard read it becomes `E_OPTIC_NO_BOUNDED_BASIS`
   (`checkpoint-shard-unavailable`)
   ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
+- `AuthoredWarp.execute()` classifies the attempt-journal and custody-support steps by
+  type, as #1079 classified the basis-open and premise-read steps
+  ([#1109](https://github.com/git-stunts/git-warp/issues/1109)). The write-attempt
+  journal, when it saves a record, and the observation support adapter type a failure a
+  retry can clear (`PersistenceError` `E_REF_IO` or `GitRepositoryLockedError`, as it
+  reaches them) as `WriteAttemptJournalUnavailableError` or
+  `ObservationSupportUnavailableError`. That still gives `attempt-journal-unavailable` or
+  `retention-unavailable`. Every other failure at those steps now rejects instead of
+  giving one of those receipts: a defect (`TypeError`, `RangeError`), a thrown
+  non-error, corruption such as `PersistenceError` `E_MISSING_OBJECT`, a git-cas code
+  and an error neither adapter can identify. Two real held ref locks are among them: a
+  lock on the attempt record ref reaches the journal as `OperationPolicyExhaustedError`
+  after the history adapter's retries, and git-cas reports a lock on the support
+  construction ref as `PUBLICATION_REF_UPDATE_FAILED`. A rejection at the journal step
+  has reserved nothing. Before a rejection while support is built, the write cancels
+  its reservation and removes its attempt record, so it leaves no attempt ref and no
+  reserved slot; on unreleased `main` such a failure gave `retention-unavailable` and
+  left the record behind. A `retention-unavailable` from unavailable support keeps the
+  attempt record and its reserved slot until the recovery sweep finishes the attempt. A
+  failure of the custody ledger itself still gives `retention-unavailable`, whatever
+  its type.
 - Generated writer ids, default strand names, fork names, index-verification
   seeds, and sync request nonces now come from the runtime's injected entropy
   source instead of host crypto globals. Their formats and validation are

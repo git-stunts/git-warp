@@ -1,4 +1,5 @@
 import ObservationCustodyError from '../../errors/ObservationCustodyError.ts';
+import ObservationSupportUnavailableError from '../../errors/ObservationSupportUnavailableError.ts';
 import CustodyRefused from './CustodyRefused.ts';
 import type CustodyInspection from './CustodyInspection.ts';
 import type { ObservationSupportOutcome } from '../../../ports/ObservationSupportPort.ts';
@@ -113,6 +114,22 @@ export function cancelRefusal(
 
 function isIrreversible(refusal: CustodyRefused): boolean {
   return refusal.reason === 'irreversible' || refusal.reason === 'already-armed' || refusal.reason === 'already-settled';
+}
+
+/**
+ * Runs one support step of a preparation (#1109). Only support the adapter typed as unavailable
+ * becomes an indeterminate preparation. A defect, a broken invariant, corruption and anything
+ * else reject, as they do at the basis-open and premise-read steps (#1079).
+ */
+export async function supportStep<T>(step: () => Promise<T>): Promise<T | ObservationIndeterminate> {
+  try {
+    return await step();
+  } catch (cause) {
+    if (cause instanceof ObservationSupportUnavailableError) {
+      return new ObservationIndeterminate('preparation', cause);
+    }
+    throw cause;
+  }
 }
 
 /** A stopped builder is only a refusal: "known unpublished" needs an acknowledged cancel. */

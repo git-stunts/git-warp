@@ -4,7 +4,10 @@ import type WriteAttemptRecord from '../domain/services/write/WriteAttemptRecord
 
 /** Durable, clone-local records of a graph's in-flight write attempts (#1051). */
 export default abstract class WriteAttemptJournalPort {
-  /** Saves the record durably before returning. */
+  /**
+   * Saves the record durably before returning. A host failure a retry can clear throws
+   * `WriteAttemptJournalUnavailableError` (#1109); any other failure passes through and rejects the write.
+   */
   abstract save(_record: WriteAttemptRecord): Promise<void>;
 
   /**

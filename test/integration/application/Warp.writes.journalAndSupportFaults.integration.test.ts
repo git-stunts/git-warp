@@ -1,5 +1,3 @@
-import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import { intent } from '../../../advanced.ts';
@@ -61,18 +59,14 @@ function failRefReadOnce(ref: string, failure: Error): void {
 const LOCKED = new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: 'fatal: Unable to create index.lock' });
 
 describe('the attempt-journal step classifies failures by type (#1109)', () => {
-  it('reports a real held lock on the attempt record ref as attempt-journal-unavailable, then writes once it is released', async () => {
+  it('reports a held lock met while saving the attempt record as attempt-journal-unavailable, then writes', async () => {
     const path = await repository();
     const warp = await open(path, { attempts: new FixedFirstAttempt(), limit: 1 });
-    const lock = join(path, '.git', `${buildWriteAttemptRef(GRAPH, FIRST)}.lock`);
-    mkdirSync(dirname(lock), { recursive: true });
-    writeFileSync(lock, '');
+    failRefUpdateOnce(buildWriteAttemptRef(GRAPH, FIRST), LOCKED);
 
     expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toBe('attempt-journal-unavailable');
     expect(tip(path, 'alice')).toBeNull();
     expect(attemptRefs(path)).toEqual([]);
-
-    unlinkSync(lock);
     retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
   });
 

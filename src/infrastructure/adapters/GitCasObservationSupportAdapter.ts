@@ -17,6 +17,7 @@ import type CryptoPort from '../../ports/CryptoPort.ts';
 import ObservationSupportPort, { type ObservationSupportOutcome } from '../../ports/ObservationSupportPort.ts';
 import type RandomPort from '../../ports/RandomPort.ts';
 import GitFastImportTreeWriter from './GitFastImportTreeWriter.ts';
+import GitObservationSupportHost from './GitObservationSupportHost.ts';
 import ObservationBasisFrontier, { type ObservationBasisHistory, type ObservationBasisProblem } from './ObservationBasisFrontier.ts';
 import ObservationCarrierChain, { type ObservationChainPosition } from './ObservationCarrierChain.ts';
 import ObservationCarrierMessage from './ObservationCarrierMessage.ts';
@@ -54,6 +55,9 @@ type RetainedEdges = {
  * plus the previous carrier; the tip becomes a custody parent. Each carrier states
  * its attempt, position and rolling digest, so recovery can prove a construction
  * ref retains the claimed prefix rather than trusting that its head is readable.
+ *
+ * Every Git and git-cas call goes through `GitObservationSupportHost`, so a host failure a
+ * retry can clear throws `ObservationSupportUnavailableError` (#1109); anything else rejects.
  */
 export default class GitCasObservationSupportAdapter extends ObservationSupportPort {
   readonly #publications: Pick<PublicationCapability, 'commit'>;
@@ -76,19 +80,20 @@ export default class GitCasObservationSupportAdapter extends ObservationSupportP
     readonly limits: ObservationSupportLimits;
   }) {
     super();
-    this.#publications = options.publications;
-    this.#assets = options.assets;
-    this.#history = options.history;
+    const host = new GitObservationSupportHost(options);
+    this.#publications = host.publications;
+    this.#assets = host.assets;
+    this.#history = host;
     this.#graphName = options.graphName;
     this.#limits = options.limits;
-    this.#chain = new ObservationCarrierChain(options.history, options.crypto);
+    this.#chain = new ObservationCarrierChain(host, options.crypto);
     this.#pages = new ObservationDependencyPages({
-      history: options.history,
-      trees: new GitFastImportTreeWriter({ plumbing: options.history.plumbing, random: options.random }),
+      history: host,
+      trees: new GitFastImportTreeWriter({ plumbing: host.plumbing, random: options.random }),
       crypto: options.crypto,
       limits: options.limits,
     });
-    this.#basis = new ObservationBasisFrontier({ history: options.history, codec: options.codec, limits: options.limits });
+    this.#basis = new ObservationBasisFrontier({ history: host, codec: options.codec, limits: options.limits });
   }
 
   override async retain(request: ObservationSupportRequest): Promise<ObservationSupportOutcome> {

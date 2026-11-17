@@ -234,11 +234,17 @@ writer chains. To avoid the window, schedule the GC when no git-warp process
 writes to the repository, and do not run GC while a cone head is rebuilt.
 
 A concurrent GC holds Git ref locks for a short time. A write that meets one
-of them can return, for example:
+of them can end with, for example:
 
 - `UnpublishedWriteReceipt`, with a cause such as `write-basis-unavailable`
   or `retention-unavailable`. It is known not to have published; submitting
   the intent again is a new attempt.
+- A rejection of `execute()`, when the lock is on the write's attempt record
+  ref or on its support construction ref. Those locks reach git-warp in
+  envelopes it does not type as transient (contract section 11 of
+  `docs/plans/optic-only-public-api.md`). Nothing was published, and the write
+  holds no retention slot unless custody could not confirm its cancel;
+  submitting the intent again is a new attempt.
 - `UnretainedWriteReceipt`, with the retention cause
   `settlement-unacknowledged`. The write is published; only its retention was
   not confirmed. Pass the receipt's `attempt` to

@@ -1,3 +1,4 @@
+import { setImmediate } from 'node:timers';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import ObservationSupportUnavailableError from '../../../../../src/domain/errors/ObservationSupportUnavailableError.ts';
@@ -10,6 +11,7 @@ import ObservationCustodyPage from '../../../../../src/domain/services/custody/O
 import ObservationCustodyRoots from '../../../../../src/domain/services/custody/ObservationCustodyRoots.ts';
 import ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
 import ObservationIndeterminate from '../../../../../src/domain/services/custody/ObservationIndeterminate.ts';
+import ObservationKnownUnpublished from '../../../../../src/domain/services/custody/ObservationKnownUnpublished.ts';
 import ObservationPrepared from '../../../../../src/domain/services/custody/ObservationPrepared.ts';
 import ObservationPreparedPage from '../../../../../src/domain/services/custody/ObservationPreparedPage.ts';
 import NodeCryptoAdapter from '../../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
@@ -118,5 +120,23 @@ describe('ObservationCustodyService classifies support failures by type (#1109)'
     support.retention = fallback;
 
     expect(await service.prepare(admitted, sources())).toBeInstanceOf(ObservationPrepared);
+  });
+
+  it('awaits a build that a defect rejects before it cancels, and still ends the attempt', async () => {
+    const admitted = await attempt();
+    const defect = new RangeError('Invalid array length');
+    let fail: (cause: Error) => void = () => undefined;
+    support.retention = async () => await new Promise((_, rejecting) => {
+      fail = rejecting;
+    });
+    const preparing = service.prepare(admitted, sources()).then(() => 'resolved', (error: unknown) => error);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    const cancelling = service.cancel(admitted);
+    fail(defect);
+
+    expect(await cancelling).toBeInstanceOf(ObservationKnownUnpublished);
+    expect(await preparing).toBe(defect);
   });
 });

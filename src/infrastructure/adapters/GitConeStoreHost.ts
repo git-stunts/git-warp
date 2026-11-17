@@ -1,27 +1,17 @@
-import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import ConeStoreUnavailableError from '../../domain/errors/ConeStoreUnavailableError.ts';
-import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import type { ConeTrieHistory } from './GitConeRecordStoreAdapter.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
 import type { GitTreeObjectEntry } from './GitTreeObjectEntry.ts';
-
-/**
- * The failures a retry can clear, as their real producers throw them (#1079). The
- * history adapter types a ref it cannot lock or read for permission as
- * `PersistenceError` `E_REF_IO`; plumbing's own classifier throws a held lock file as
- * `GitRepositoryLockedError`, which reaches this host unwrapped. Nothing else counts.
- */
-const TRANSIENT_PERSISTENCE_CODES: ReadonlySet<string> = Object.freeze(new Set([PersistenceError.E_REF_IO]));
-const TRANSIENT_HOST_ERRORS = Object.freeze([GitRepositoryLockedError]);
+import { isTransientGitFailure } from './GitTransientFailure.ts';
 
 /**
  * The cone record store's view of its Git history (#1079). Every call goes to the
  * history unchanged. Only a failure this host can identify as transient
- * (`TRANSIENT_PERSISTENCE_CODES`, `TRANSIENT_HOST_ERRORS`) becomes a
- * `ConeStoreUnavailableError` carrying that failure. Every other failure passes
- * through as it is and rejects: corruption, every git-cas code, a `GitProtocolError`,
- * any other plumbing failure, a defect, and an error it cannot identify.
+ * (`isTransientGitFailure`) becomes a `ConeStoreUnavailableError` carrying that
+ * failure. Every other failure passes through as it is and rejects: corruption, every
+ * git-cas code, a `GitProtocolError`, any other plumbing failure, a defect, and an error
+ * it cannot identify.
  */
 export default class GitConeStoreHost implements ConeTrieHistory {
   readonly plumbing: Pick<GitPlumbing, 'execute'>;
@@ -74,12 +64,5 @@ function classified(operation: string, error: unknown): Error {
   if (!(error instanceof Error)) {
     return new WarpError(`The cone store host threw a non-error value while trying to ${operation}`, 'E_CONE_STORE_HOST_DEFECT');
   }
-  return isTransient(error) ? new ConeStoreUnavailableError(operation, error) : error;
-}
-
-function isTransient(error: Error): boolean {
-  if (error instanceof PersistenceError) {
-    return TRANSIENT_PERSISTENCE_CODES.has(error.code);
-  }
-  return TRANSIENT_HOST_ERRORS.some((transient) => error instanceof transient);
+  return isTransientGitFailure(error) ? new ConeStoreUnavailableError(operation, error) : error;
 }

@@ -3,7 +3,6 @@ import type ObservationAttemptSourcePort from '../../../ports/ObservationAttempt
 import type ObservationCustodyCodecPort from '../../../ports/ObservationCustodyCodecPort.ts';
 import type ObservationCustodyPort from '../../../ports/ObservationCustodyPort.ts';
 import type ObservationSupportPort from '../../../ports/ObservationSupportPort.ts';
-import ObservationCustodyError from '../../errors/ObservationCustodyError.ts';
 import CustodyAcknowledged from './CustodyAcknowledged.ts';
 import CustodyEvidence from './CustodyEvidence.ts';
 import CustodyInspection from './CustodyInspection.ts';
@@ -11,7 +10,7 @@ import CustodyRefused from './CustodyRefused.ts';
 import type { CustodyPhase } from './CustodyVocabulary.ts';
 import {
   armRefusal, assertArmable, assertPermitted, assertPublicationMatches, bytesEqual, cancelRefusal, cancelledOutcome, failureOf, mapSupport,
-  preArmReason, settlementFailure, unarmedWrite, unverified,
+  preArmReason, settlementFailure, supportStep, unarmedWrite, unverified,
 } from './observationCustodyOutcomes.ts';
 import type { CustodyIndeterminateOrRefused } from './observationCustodyVariants.ts';
 import { digestOf } from './observationDigestOf.ts';
@@ -297,8 +296,8 @@ export default class ObservationCustodyService {
     attempt: ObservationAttempt,
     request: ObservationSupportRequest,
   ): Promise<ObservationSupportRetained | ObservationRefused | ObservationIndeterminate> {
-    const built = mapSupport(await this.#support.retain(request));
-    if (built instanceof ObservationRefused) {
+    const built = await supportStep(async () => mapSupport(await this.#support.retain(request)));
+    if (built instanceof ObservationRefused || built instanceof ObservationIndeterminate) {
       return built;
     }
     return await this.#unverifiedSupport(attempt, built) ?? built;
@@ -313,14 +312,10 @@ export default class ObservationCustodyService {
     attempt: ObservationAttempt,
     built: ObservationSupportRetained,
   ): Promise<ObservationRefused | ObservationIndeterminate | null> {
-    try {
-      const fault = await this.#support.verify(attempt.identity, {
-        basis: attempt.preparation.bindings.basis, roots: built.roots, summary: built.summary,
-      });
-      return fault === null ? null : new ObservationRefused(preArmReason(fault));
-    } catch (cause) {
-      return new ObservationIndeterminate('preparation', cause instanceof Error ? cause : new ObservationCustodyError('Observation support failed'));
-    }
+    const fault = await supportStep(async () => await this.#support.verify(attempt.identity, {
+      basis: attempt.preparation.bindings.basis, roots: built.roots, summary: built.summary,
+    }));
+    return fault === null || fault instanceof ObservationIndeterminate ? fault : new ObservationRefused(preArmReason(fault));
   }
 
   async #writePreparation(
@@ -369,7 +364,7 @@ export default class ObservationCustodyService {
     return new ObservationPrepared(attempt, roots);
   }
 
-  /** Runs the builder as owned work; a stop request and any failure each become a variant. */
+  /** Runs the builder as owned work. A stop request becomes a refusal; a failure that rejects it ends the work first (#1109). */
   async #ownedBuild(
     attempt: ObservationAttempt,
     sources: ObservationSupportSources,
@@ -389,8 +384,6 @@ export default class ObservationCustodyService {
     this.#builds.set(key, { stop, work });
     try {
       return await work;
-    } catch (cause) {
-      return new ObservationIndeterminate('preparation', cause instanceof Error ? cause : new ObservationCustodyError('Observation support failed'));
     } finally {
       this.#builds.delete(key);
     }
