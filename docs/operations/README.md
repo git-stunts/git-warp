@@ -390,17 +390,18 @@ delegation; the read retention rule was decided by the maintainer on
 `warp.as(writer).reconcile(attempt)` returns `null` when it reads no record of
 the attempt for that writer. `null` never means that the write did not publish.
 On some paths to `null` the write published, and the result does not tell you
-which path applies. Find the path in this table, then do its action. The probes
-that found these paths are in
+which path applies. Find the path in this table, then do its action. If you
+cannot tell which path applies, do the action of the row for a removed record.
+The probes that found these paths are in
 [#1113](https://github.com/git-stunts/git-warp/issues/1113).
 
 | Path to `null` | Can the write have published? | What the caller does |
 | --- | --- | --- |
-| The attempt is not this writer's. Its record names another writer, also when the record is in a layout that this build does not read ([#1072](https://github.com/git-stunts/git-warp/issues/1072)). Or no record of the attempt was ever saved for this graph in this repository. | Not as a write of this writer. A write of another writer can have published. | Nothing for this writer. Make sure that you pass the `attempt` of a receipt that this writer's `execute` returned for this graph in this repository. |
+| This repository holds no record of the attempt for this writer. Its record names another writer, also when the record is in a layout that this build does not read ([#1072](https://github.com/git-stunts/git-warp/issues/1072)). Or no record of the attempt was ever saved for this graph in this repository. | Not from a record in this repository. A receipt from another clone can name a write that published there. A write of another writer can have published. | Nothing for this writer in this repository. Make sure that you pass the `attempt` of a receipt that this writer's `execute` returned for this graph in this repository. If the receipt came from another clone, ask in that clone. |
 | The access port gives the writer no grant when it calls `reconcile`. | Yes. The denied call does not remove the record. | Call `reconcile` again after access is restored. Meanwhile a sweep can remove a record that has no `reported` mark, so if `reconcile` returns `null` again, do the action of the row for a removed record. |
 | An earlier `reconcile` of the attempt gave the final receipt: `RetainedWriteReceipt`, `UnpublishedWriteReceipt`, or `UnretainedWriteReceipt` with `attempt` set to `null`. Then it removed the record. | Yes or no. The final receipt tells which. | Use that receipt. If you do not have it, for example because the process that asked stopped before it kept the receipt, do the action of the next row. |
 | The record was removed before the caller got the final receipt. Usually a sweep finished the attempt, because the `reported` mark of the record was not saved (see below). Someone can also delete the ref by hand, for example with `git update-ref -d`. | Yes or no. Nothing tells the caller which. The final receipt is lost. | Treat the outcome as unknown. Do not submit the intent again until a read of the graph shows that its effect is absent. |
-| The record is under `refs/warp/<graph>/write-attempts/`. Only pre-release builds of `main` saved records there, and this build does not read that location. | Yes or no. The record stays and keeps the answer. | Do the procedure in [Finish in-flight refs from pre-release builds](../topics/sync.md#finish-in-flight-refs-from-pre-release-builds). Then call `reconcile` again. |
+| The record is under `refs/warp/<graph>/write-attempts/`. Only pre-release builds of `main` saved records there, and this build does not read that location. | Yes or no. The record stays and keeps the answer. | Do the procedure in [Finish in-flight refs from pre-release builds](../topics/sync.md#finish-in-flight-refs-from-pre-release-builds). Then call `reconcile` again. A sweep can finish a moved record that has no `reported` mark, also inside that same call, so if `reconcile` returns `null`, do the action of the row for a removed record. |
 
 The `reported` mark keeps the answer for the caller, and a concurrent GC can
 stop it from being saved:
@@ -431,7 +432,9 @@ the graph through `Runtime.open()` and `lane.observe()`, as
 [Observe bounded values](../topics/getting-started.md#observe-bounded-values)
 shows. A read shows whether the effect of the intent is in the graph, not which
 write made it: another write, of this writer or of another writer, can have
-made the same change.
+made the same change. An absent effect also does not prove that the write did
+not publish: a later write can have undone it. Submit the intent again only if
+it is still correct for what the graph holds now.
 
 A rejection is not a path to `null`. `reconcile` rejects when it cannot read
 what it needs, for example:

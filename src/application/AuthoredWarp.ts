@@ -57,12 +57,15 @@ export default class AuthoredWarp {
    *
    * Null never means that the write did not publish. It means that this call read no record of the
    * attempt for this writer. Each path to null, and what the caller does (the probes are in #1113;
-   * `docs/operations/README.md`, "When `reconcile` returns `null`", gives the same paths as a table):
-   * - The attempt is another writer's: its record names another writer, also when the record is in
-   *   a layout this build does not read (#1072). Or no record of it was ever saved for this graph in
-   *   this repository. This writer has no write under that name. Do nothing for this writer; check
-   *   that you passed the `attempt` of a receipt that this writer's `execute` returned for this graph
-   *   in this repository.
+   * `docs/operations/README.md`, "When `reconcile` returns `null`", gives the same paths as a table).
+   * If you cannot tell which path applies, act as for a removed record.
+   * - This repository holds no record of the attempt for this writer: its record names another
+   *   writer, also when the record is in a layout this build does not read (#1072), or no record of
+   *   it was ever saved for this graph in this repository. Whether it published is not known from a
+   *   record in this repository: a receipt from another clone can name a write that published there.
+   *   Do nothing for this writer here; check that you passed the `attempt` of a receipt that this
+   *   writer's `execute` returned for this graph in this repository, and ask in the clone that gave
+   *   the receipt.
    * - The access port gives this writer no grant now. The write can have published. The denied call
    *   does not remove the record. Ask again after access is restored. Meanwhile a sweep can remove a
    *   record that has no `reported` mark, so if `reconcile` returns null again, act as for a removed
@@ -78,10 +81,14 @@ export default class AuthoredWarp {
    *   hand, for example with `git update-ref -d`. The write published or not, and nothing tells the
    *   caller which. Treat the outcome as unknown: do not submit the intent again until a read of the
    *   graph shows that its effect is absent. A read shows whether the effect is present, not which
-   *   write made it. `Warp` has no read until #1052.
+   *   write made it. An absent effect also does not prove that the write did not publish: a later
+   *   write can have undone it. Submit again only if the intent is still correct for what the graph
+   *   holds now. `Warp` has no read until #1052.
    * - The record is under `refs/warp/<graph>/write-attempts/`, where only pre-release builds of
    *   `main` saved it; this build does not read there. The record stays, and the write can have
-   *   published. `docs/topics/sync.md` says how to move the ref so that `reconcile` answers.
+   *   published. `docs/topics/sync.md` says how to move the ref; then ask again. A sweep can finish
+   *   a moved record that has no `reported` mark, also inside that same call, so if `reconcile`
+   *   returns null, act as for a removed record.
    *
    * It rejects if a store read fails: it reads after an attempt exists, so contract section 7
    * governs it, not the pre-permission rule. It also rejects, with code

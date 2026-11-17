@@ -529,8 +529,8 @@ describe('uncertainty after permission', () => {
 
     const swept = await openSwept(path);
 
-    expect(await swept.as('alice').reconcile(receipt.attempt)).toBeNull();
     expect(attemptRefs(path)).toEqual([]);
+    expect(await swept.as('alice').reconcile(receipt.attempt)).toBeNull();
     expect(tip(path, 'alice')).toBe(receipt.publication.toString());
     expect((await materialized(path)).nodes).toEqual(['landed']);
   });
