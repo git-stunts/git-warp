@@ -64,6 +64,10 @@ export default abstract class TrustChainPort {
    *
    * Throws TrustError with E_TRUST_CAS_CONFLICT on real concurrent
    * conflict (ref advanced). Transient failures are retried internally.
+   *
+   * Throws TrustError with E_TRUST_RECORD_OUT_OF_BOUNDS, before it stores
+   * anything or moves the ref, when the encoded record is outside the
+   * CBOR read bounds, because no reader could then read the chain tip.
    */
   abstract persistRecord(
     graphName: string,

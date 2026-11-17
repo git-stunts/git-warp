@@ -54,6 +54,7 @@ import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
 import {
   validateGenericBoundedCbor,
   type CborStructureLimits,
+  type CborValidationErrorFactory,
 } from '../adapters/BoundedCborValidation.ts';
 
 /**
@@ -199,14 +200,23 @@ export function decode(buffer: Uint8Array): unknown {
   return cborDecode(buffer);
 }
 
-/** Refuses a CBOR blob that breaks the decode bounds above, before any decoder reads it. */
-export function requireBoundedCbor(buffer: Uint8Array): void {
+/**
+ * Refuses a CBOR blob that breaks the decode bounds above, before any decoder reads it.
+ *
+ * `refuse` makes the error for a refusal reason. A reader keeps the default,
+ * `E_CBOR_DECODE_BOUNDS`. A writer that must not store bytes that a reader
+ * would refuse passes its own error.
+ */
+export function requireBoundedCbor(
+  buffer: Uint8Array,
+  refuse: CborValidationErrorFactory = boundedDecodeError,
+): void {
   if (buffer.byteLength > MAX_CBOR_DECODE_BYTES) {
-    throw boundedDecodeError(
+    throw refuse(
       `encoded byte length ${String(buffer.byteLength)} exceeds ${String(MAX_CBOR_DECODE_BYTES)}`,
     );
   }
-  validateGenericBoundedCbor(buffer, CBOR_DECODE_STRUCTURE_LIMITS, boundedDecodeError);
+  validateGenericBoundedCbor(buffer, CBOR_DECODE_STRUCTURE_LIMITS, refuse);
 }
 
 function boundedDecodeError(reason: string): MessageCodecError {
