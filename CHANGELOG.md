@@ -513,7 +513,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already answered removed. The reducer frame now keeps such tombstones
   beside its session: an add of one of their dots arrives tombstoned, as in
   the in-memory reducer, and the projected state lists them again, so the
-  next checkpoint, replay basis and snapshot keep them. No trie, state or
+  next checkpoint, replay basis and snapshot keep them. `materialize()` and
+  the cached state now agree with the in-memory reducer, and so does
+  `hasNode` once the host has materialized at that frontier. A host that has
+  not materialized since the add arrived answers `hasNode` from a bounded
+  replay of its writer refs; sync writes no writer ref, so that replay does
+  not hold a remove that arrived only through `syncWith`. No trie, state or
   index format changes; the `full-v7` state already stores a tombstone that
   no entry holds. A state that an earlier version stored after such a
   materialize, in a retained materialization or a later checkpoint, lacks
