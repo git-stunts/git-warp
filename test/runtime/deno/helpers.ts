@@ -6,6 +6,7 @@ import '../../../scripts/RequireDockerTests.ts';
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import HostClockAdapter from "../../../src/infrastructure/adapters/HostClockAdapter.ts";
 
 // Use relative imports from the project root
 // deno-lint-ignore no-explicit-any
@@ -58,7 +59,11 @@ export async function createTestRepo(label = "deno-test") {
   await plumbing.execute({ args: ["config", "user.email", "test@test.com"] });
   await plumbing.execute({ args: ["config", "user.name", "Test"] });
   const persistence = new GitTimelineHistoryAdapter({ plumbing });
-  const runtimeStorage = new GitCasRepositoryAdapter({ plumbing, history: persistence });
+  const runtimeStorage = new GitCasRepositoryAdapter({
+    plumbing,
+    history: persistence,
+    clock: new HostClockAdapter(),
+  });
 
   // deno-lint-ignore no-explicit-any
   async function openGraph(graphName: string, writerId: string, opts: Record<string, any> = {}) {
