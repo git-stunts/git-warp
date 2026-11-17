@@ -48,6 +48,11 @@ vi.mock('../../../../src/domain/services/sync/HttpSyncServer.ts', () => ({
 const { applySyncResponse: applySyncResponseMock, syncNeeded: syncNeededMock, processSyncRequest: processSyncRequestMock } =
   (await import('../../../../src/domain/services/sync/SyncProtocol.ts')) as any;
 
+/** A platform Response whose body is `body` as JSON, as a sync server sends it. */
+function syncResponseOf(body: object): Response {
+  return new Response(JSON.stringify(body), { status: 200 });
+}
+
 /**
  * Creates a mock WarpCore host for SyncController tests.
  *
@@ -853,10 +858,7 @@ describe('SyncController', () => {
         frontier: { alice: 'sha-a' },
         patches: [] as any[],
       };
-      fetchMock.mockResolvedValue({
-        status: 200,
-        json: () => Promise.resolve(validResponse),
-      });
+      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validResponse)));
       const newFrontier = new Map([['alice', 'sha-a']]);
       applySyncResponseMock.mockReturnValue({
         state: host['_cachedState'],
@@ -889,10 +891,7 @@ describe('SyncController', () => {
     });
 
     it('invalid JSON response throws SyncError with E_SYNC_PROTOCOL', async () => {
-      fetchMock.mockResolvedValue({
-        status: 200,
-        json: () => Promise.reject(new SyntaxError('Unexpected token')),
-      });
+      fetchMock.mockImplementation(() => Promise.resolve(new Response('not json', { status: 200 })));
 
       await expect(ctrl.syncWith('http://peer:3000/sync'))
         .rejects.toMatchObject({
@@ -970,10 +969,7 @@ describe('SyncController', () => {
         frontier: {},
         patches: [] as any[],
       };
-      fetchMock.mockResolvedValue({
-        status: 200,
-        json: () => Promise.resolve(validResponse),
-      });
+      fetchMock.mockImplementation(() => Promise.resolve(syncResponseOf(validResponse)));
       applySyncResponseMock.mockReturnValue({
         state: host['_cachedState'],
         frontier: new Map(),

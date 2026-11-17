@@ -439,6 +439,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `syncWith` no longer reads an HTTP sync response of any size
+  ([#1135](https://github.com/git-stunts/git-warp/issues/1135)). Before, the client
+  read the whole body with `response.json()` and no byte limit, so a faulty or hostile
+  peer could make it hold any amount of data in memory. The client now reads at most
+  512 MiB (536,870,912 bytes, `DEFAULT_MAX_SYNC_RESPONSE_BYTES`) and refuses a larger
+  response before it parses it: from a decimal `Content-Length` over the limit, or when
+  the streamed body passes the limit, because the header can be absent or wrong. The
+  refusal is a `SyncError` with code `E_SYNC_RESPONSE_TOO_LARGE`, and `syncWith` does
+  not retry it. No option changes the limit. It is at the JavaScript string limit that
+  already bounded a response, so it refuses no response of ASCII JSON that a Node client
+  could decode before. See
+  [Sync: HTTP sync response limit](docs/topics/sync.md#http-sync-response-limit) for the
+  measured basis.
 - A rebuilt cone head no longer names a tree that a concurrent `git gc` deletes, unless
   that GC selects what to delete while the rebuild's fast-import process runs or prunes
   with `--prune=now`. `git fast-import` uses an object that it finds in any pack, a

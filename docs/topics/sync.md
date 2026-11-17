@@ -256,6 +256,64 @@ a new trust record to that chain also fails. Do not delete or move the trust ref
 past the refusal. Keep the record and its commit, and do not fetch from that peer
 again until you know why it sent the record.
 
+## HTTP sync response limit
+
+`syncWith` reads at most 512 MiB (536,870,912 bytes) of one HTTP sync
+response ([#1135](https://github.com/git-stunts/git-warp/issues/1135)). The
+limit is `DEFAULT_MAX_SYNC_RESPONSE_BYTES` in
+`src/infrastructure/adapters/FetchSyncHttpClientAdapter.ts`. No `syncWith`
+option changes it.
+
+The client checks the size before it parses the response:
+
+1. When the response has a decimal `Content-Length` over the limit, the client
+   refuses the response and reads no byte of the body.
+2. In all other cases, the client counts the body bytes as they arrive. When
+   the count passes the limit, the client stops the read and cancels the body.
+   This count also applies when `Content-Length` is absent or smaller than the
+   body.
+
+A refused response makes `syncWith` reject with a `SyncError` whose code is
+`E_SYNC_RESPONSE_TOO_LARGE`. Its context holds the HTTP `status` and the
+`maxBytes` limit. `syncWith` does not retry the refusal, because the same
+request gets the same response. The limit applies to bytes, not to time:
+`timeoutMs` stops when the response headers arrive, so it does not limit the
+body read.
+
+### Basis for the limit
+
+A sync server sends every patch that the request frontier does not have in one
+response, so an honest response has no bound of its own. These sizes were
+measured on main `dd75d0d5f` in COPY-based Docker on Node 22, through `serve()`
+with `NodeHttpAdapter` and a peer with an empty frontier. Each patch has 50
+operations:
+
+| History | Response bytes | Bytes per patch |
+| --- | ---: | ---: |
+| 120 patches, values of about 30 characters | 914,616 | 7,622 |
+| 1,200 patches, values of about 30 characters | 9,320,898 | 7,767 |
+| 120 patches, values of 1 KiB | 4,511,916 | 37,599 |
+
+- The size increases linearly with the patch count and with the value size.
+- The Node server sends the response chunked, without `Content-Length`.
+- `syncWith` applies received patches in memory and does not move the local
+  writer refs. The next call names the same frontier, so it receives the same
+  history again: a second request after a sync of the 1,200 patches received the
+  same 9,320,898 bytes.
+
+Before this limit, the only bound was the JavaScript string limit. On Node 22 a
+string holds at most 536,870,888 UTF-16 code units. The server encodes the
+response as one string and answers `500` above that size, and a Node client
+decodes the body as one string. The 512 MiB limit is at that ceiling, so it
+refuses no response of ASCII JSON that a Node client can decode. Text outside
+ASCII takes two or three bytes for each UTF-16 code unit, so such a response can
+pass the limit before it reaches the string ceiling.
+
+A lower limit refuses honest syncs of large histories. For example, 64 MiB holds
+about 8,600 patches with short values, or about 1,800 patches with 1 KiB values.
+Paging the sync protocol, so that one response holds a bounded part of the
+history, is the route to a lower limit.
+
 ## Verify
 
 Run bounded diagnostics against the same Lane on both clones:

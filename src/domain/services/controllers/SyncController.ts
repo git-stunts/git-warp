@@ -130,6 +130,11 @@ function interpretHttpResult(
       code: 'E_SYNC_PROTOCOL', context: { status: result.status },
     });
   }
+  if (result.kind === 'response-too-large') {
+    throw new SyncError(`Sync response exceeds ${result.maxBytes} bytes`, {
+      code: 'E_SYNC_RESPONSE_TOO_LARGE', context: { status: result.status, maxBytes: result.maxBytes },
+    });
+  }
   // decode-failure
   throw new SyncError('Invalid JSON response', {
     code: 'E_SYNC_PROTOCOL', context: { status: result.status },
