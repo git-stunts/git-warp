@@ -231,13 +231,20 @@ Index shards, the files of the bitmap, node lifecycle and property indexes that
 checkpoints and materialization retain, have one wider bound of their own that
 their writers and readers share
 ([#1159](https://github.com/git-stunts/git-warp/issues/1159)): 16 MiB
-(16,777,216 bytes) and 2,000,000 total items, with the same depth, container
-entry and tag checks. A writer refuses a shard above it, and a reader refuses
-one above it the same way: `E_INDEX_SHARD_TOO_LARGE` above the byte limit and
-`E_INDEX_SHARD_MALFORMED` above a structure limit. Measured decode memory for
-one file: about 66 MiB of heap for 17.6 MB of bitmap entries (782,385 items),
-and about 205 MiB for 19.4 MB of 2.58 million small items. A file within the
-bound holds at most 2,000,000 items.
+(16,777,216 bytes), 2,000,000 total items and depth 34, with the same container
+entry and tag checks. The depth holds every property value that a patch can
+carry: a patch is read at depth 32 and adds 3 levels around a property value,
+and a property shard adds 5 levels around it (`IndexShardLimits.ts` derives
+the depth from these constants). A writer refuses a shard above the bound
+with `E_INDEX_SHARD_TOO_LARGE` above the byte limit and
+`E_INDEX_SHARD_MALFORMED` above a structure limit. The index store and the
+in-memory view index refuse one with the same codes. The checkpoint
+neighbourhood reader, the checkpoint fact reader and the legacy
+`BitmapIndexReader` decode shard bytes themselves at the same bound and refuse
+one with `E_CBOR_DECODE_BOUNDS`. Measured decode memory for one file: about
+66 MiB of heap for 17.6 MB of bitmap entries (782,385 items), and about
+205 MiB for 19.4 MB of 2.58 million small items. A file within the bound holds
+at most 2,000,000 items.
 
 A structural preflight refusal from the shared decoder has code
 `E_CBOR_DECODE_BOUNDS` and a `reason` in its context. Preserve the offending object and

@@ -6,11 +6,13 @@ import type CodecValue from '../../domain/types/codec/CodecValue.ts';
 import { validateBoundedCbor, type CborStructureLimits } from './BoundedCborValidation.ts';
 
 /**
- * The index-shard bound (#1159) as the CBOR index adapters apply it. Every
- * writer and reader of an index shard file refuses one above the shared
- * `INDEX_SHARD_LIMITS` the same way: `E_INDEX_SHARD_TOO_LARGE` above its
- * byte limit, and `E_INDEX_SHARD_MALFORMED` above its structure limits. A
- * caller may ask for a tighter bound, never a wider one.
+ * The index-shard bound (#1159) as the CBOR index adapters apply it. Each
+ * adapter that writes or reads an index shard file refuses one above the
+ * shared `INDEX_SHARD_LIMITS` the same way: `E_INDEX_SHARD_TOO_LARGE` above
+ * its byte limit, and `E_INDEX_SHARD_MALFORMED` above its structure limits.
+ * (The domain readers that call `CodecPort.decodeWithin` directly refuse at
+ * the same bound with `E_CBOR_DECODE_BOUNDS`.) A caller may ask for a
+ * tighter bound, never a wider one.
  */
 export function indexShardBoundWithin(options: Readonly<{
   maxBytes?: number | undefined;

@@ -432,25 +432,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Index shard writers and readers share one bound, so no writer stores an
   index shard file that its reader refuses
   ([#1159](https://github.com/git-stunts/git-warp/issues/1159)). The bound
-  is 16 MiB and 2,000,000 CBOR items, with depth 32 and 1,000,000 entries in
+  is 16 MiB and 2,000,000 CBOR items, with depth 34 and 1,000,000 entries in
   one container. It applies to the logical bitmap index, node lifecycle and
   node property shards that checkpoints and session materialization retain,
-  to the in-memory view index, and to the legacy commit-DAG reader. A writer
-  refuses a shard above it with `IndexError` `E_INDEX_SHARD_TOO_LARGE` (bytes)
-  or `E_INDEX_SHARD_MALFORMED` (structure), and a reader refuses one above it
-  with the same codes, also when the content-addressed store refuses a page
-  for its size. Before, the writer admitted 16 MiB and every reader decoded
-  with the 5 MiB default bound: two hub nodes whose ids share a shard key,
-  with 654,322 neighbours each, gave a checkpoint whose neighbourhood reads
-  failed with `E_CBOR_DECODE_BOUNDS`, and the in-memory view index failed on
-  its next incremental update. Other repository blobs keep the 5 MiB default.
+  to the in-memory view index, and to the legacy commit-DAG reader. The depth
+  holds every property value that the patch codec reads back: a patch is read
+  at depth 32 and adds 3 levels around a value, so a value can be nested 29
+  levels deep, and a property shard adds 5 levels around it. A writer refuses
+  a shard above the bound with `IndexError` `E_INDEX_SHARD_TOO_LARGE` (bytes)
+  or `E_INDEX_SHARD_MALFORMED` (structure). The readers refuse one in two
+  ways:
+  - The index store (`decodeShard`, `decodeShardAt`, `scanShards`,
+    `openShardAt`), which the materialization, property and logical index
+    readers use, and the in-memory view index give the same `IndexError`
+    codes, also when the content-addressed store refuses a page for its size.
+  - The checkpoint neighbourhood reader, the checkpoint fact reader and the
+    legacy `BitmapIndexReader` decode the bytes themselves at the same bound
+    and give `MessageCodecError` `E_CBOR_DECODE_BOUNDS`. Bytes that they read
+    through `openShardAt` stop there first, with `E_INDEX_SHARD_TOO_LARGE`; a
+    checkpoint shard stored as a direct asset stops with
+    `E_BYTE_COLLECTION_LIMIT`.
+
+  Before, the writer admitted 16 MiB and every reader decoded with the 5 MiB
+  default bound: two hub nodes whose ids share a shard key, with 654,322
+  neighbours each, gave a checkpoint whose neighbourhood reads failed with
+  `E_CBOR_DECODE_BOUNDS`, and the in-memory view index failed on its next
+  incremental update. Other repository blobs keep the 5 MiB default.
   Measured decode memory for one file: about 66 MiB of heap for 17.6 MB of
   bitmap entries (782,385 items), and about 205 MiB for 19.4 MB of 2.58
   million small items; a file within the bound holds at most 2,000,000
-  items. The
-  property root now has the structure limits of the logical index root: depth
-  32, which its readers already enforced, in place of 64, and 1,000,000
+  items. The property root now has the structure limits of the logical index
+  root: depth 34 in place of 64 (its readers enforced 32, so a value nested
+  more than 27 levels deep was written but not read back), and 1,000,000
   entries and 2,000,000 items in place of 100,000 and 1,000,000.
+
+  The in-memory view index now refuses at build a shard above the bound. A
+  runtime whose view index holds one marks the index degraded and logs only
+  the warning `index build failed`; its property and neighbour reads then scan
+  the materialized state instead of the index. Before, the view index had no
+  bound at build.
+
+  Rollback: a checkpoint written by this version can hold property shards
+  that readers before it, v20.0.0 included, refuse for the nodes in them. The
+  older readers refuse a shard with more than 100,000 entries in one
+  container (the new bound allows 1,000,000), for example a node with more
+  than 100,000 properties, or with more than 1,000,000 items, with
+  `E_INDEX_SHARD_MALFORMED`. They also decode at
+  5 MiB and depth 32, so they refuse a shard above 5 MiB, or one that holds a
+  value nested more than 27 levels deep, with `E_CBOR_DECODE_BOUNDS`.
 - A neighbour read no longer expands an edge bitmap into an array and a
   `Set` ([#1159](https://github.com/git-stunts/git-warp/issues/1159)). The
   in-memory view index (`LogicalIndex.getEdges`) iterates the bitmap, or
