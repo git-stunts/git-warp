@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Dispatched by pr-branch-update.yml on a PR head that it updated; see ci.yml.
+  workflow_dispatch:
 
 permissions:
   contents: read

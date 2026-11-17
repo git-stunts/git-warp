@@ -6,6 +6,10 @@ on:
     tags: ['v*.*.*', 'v*.*.*-*']
   pull_request:
     branches: [main]
+  # The PR branch updater (pr-branch-update.yml) dispatches this workflow on a
+  # PR head that it updated. Its GITHUB_TOKEN push creates pull_request runs
+  # that wait for approval, so the dispatch reports the required checks.
+  workflow_dispatch:
 
 permissions:
   contents: read
