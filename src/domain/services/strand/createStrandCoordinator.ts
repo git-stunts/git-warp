@@ -29,6 +29,8 @@ import type GraphPersistencePort from '../../../ports/GraphPersistencePort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type RandomPort from '../../../ports/RandomPort.ts';
 import type { HashablePayload } from '../../types/conflict/HashablePayload.ts';
+import type { PatchDiff } from '../../types/PatchDiff.ts';
+import type { MaterializedStateUpdateOptions } from '../../capabilities/MaterializedStateUpdate.ts';
 
 type BaseObservation = {
   coordinateVersion: string;
@@ -76,7 +78,10 @@ export type StrandCoordinatorGraphRuntime = {
   // (which emits a materialization diagnostic bag) so that callers
   // upstream of the strand coordinator can pass their full
   // `_graph` directly without a cast.
-  _setMaterializedState(state: WarpState): Promise<void | StrandMaterializationDiagnosticBag>;
+  _setMaterializedState(
+    state: WarpState,
+    optionsOrDiff: PatchDiff | MaterializedStateUpdateOptions,
+  ): Promise<void | StrandMaterializationDiagnosticBag>;
   getFrontier(): Promise<Map<string, string>>;
   _patchInProgress: boolean;
   _stateDirty: boolean;

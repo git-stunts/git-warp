@@ -285,7 +285,7 @@ export default class SyncController {
     response: SyncResponse,
     trustGate: SyncTrustGate | null,
   ): Promise<SyncMetadataResult> {
-    const patches = Array.isArray(response.patches) ? response.patches : [];
+    const { patches } = response;
     await this._evaluateWriters(patches, trustGate);
     return {
       applied: patches.length,
@@ -300,7 +300,7 @@ export default class SyncController {
     if (!this._host._cachedState) {
       throw new QueryError(E_NO_STATE_MSG, { code: 'E_NO_STATE' });
     }
-    const patches = Array.isArray(response.patches) ? response.patches : [];
+    const { patches } = response;
     const writersApplied = await this._evaluateWriters(patches, trustGate);
     const currentFrontier = this._host._lastFrontier ?? createFrontier();
     const result = applySyncResponseImpl(
