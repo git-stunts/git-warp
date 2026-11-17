@@ -47,8 +47,11 @@ async function writeHistory(history: History): Promise<void> {
 
 describe('sync response limit through serve() and a real socket', () => {
   // Oracle: #1135. The default limit is 512 MiB, far above this honest
-  // multi-megabyte history, so the bounded client applies every patch.
-  it('syncs an honest multi-megabyte chunked history through the bounded client', async () => {
+  // multi-megabyte history, so the bounded client applies every patch. The
+  // Node server sends this body chunked, with no Content-Length, so the
+  // client counts the streamed bytes; Bun's node:http server sends a
+  // Content-Length, so the client also checks the header.
+  it('syncs an honest multi-megabyte history through the bounded client', async () => {
     const serverHistory = newHistory();
     await writeHistory(serverHistory);
     const server = await openWriter(serverHistory, 'alice', 1135);
@@ -57,8 +60,7 @@ describe('sync response limit through serve() and a real socket', () => {
       const probe = await fetch(handle.url, { method: 'POST', body: '{"type":"sync-request","frontier":{}}',
         headers: { 'content-type': 'application/json' } });
       const wireBytes = (await probe.arrayBuffer()).byteLength;
-      expect({ contentLength: probe.headers.get('content-length'), large: wireBytes > HONEST_RESPONSE_FLOOR_BYTES })
-        .toEqual({ contentLength: null, large: true });
+      expect(wireBytes).toBeGreaterThan(HONEST_RESPONSE_FLOOR_BYTES);
 
       const client = await openWriter(newHistory(), 'dave', 2135);
       const result = await client.syncWith(handle.url, { materialize: true });
