@@ -79,13 +79,17 @@ export function createStateReaderProjectionState(state: StateReaderSource): Warp
 
 // ── Cloning helpers ──────────────────────────────────────────────────────────
 
-/** Shallow-clones a property bag. */
+/**
+ * Shallow-clones a property bag. Its entries become own data properties, so a stored key such
+ * as `__proto__` stays a property instead of setting the clone's prototype.
+ */
 export function cloneBag(bag: VisiblePropertyBag): VisiblePropertyBag {
-  const clone: MutableVisiblePropertyBag = {};
-  for (const [key, value] of Object.entries(bag)) {
-    clone[key] = value;
-  }
-  return Object.freeze(clone);
+  return Object.freeze(Object.fromEntries(Object.entries(bag)));
+}
+
+/** Stores one property as an own data property, so a key such as `__proto__` cannot set the bag's prototype. */
+function storeBagEntry(bag: MutableVisiblePropertyBag, key: string, value: SnapshotPropValue): void {
+  Object.defineProperty(bag, key, { value, enumerable: true, writable: true, configurable: true });
 }
 
 /** Shallow-clones content metadata or returns null. */
@@ -317,7 +321,7 @@ export function populateVisibleNodeProps(
   for (const record of records) {
     const props = nodePropsById.get(record.owner.id.toString());
     if (props !== undefined) {
-      props[record.key.toString()] = createSnapshotPropValue(record.value.toPropValue());
+      storeBagEntry(props, record.key.toString(), createSnapshotPropValue(record.value.toPropValue()));
     }
   }
 }
@@ -330,7 +334,7 @@ export function populateVisibleEdgeProps(
   for (const record of records) {
     const props = edgePropsByKey.get(edgeKeyFromRecord(record.owner));
     if (props !== undefined) {
-      props[record.key.toString()] = createSnapshotPropValue(record.value.toPropValue());
+      storeBagEntry(props, record.key.toString(), createSnapshotPropValue(record.value.toPropValue()));
     }
   }
 }

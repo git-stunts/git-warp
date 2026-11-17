@@ -87,6 +87,19 @@ describe('a fresh repository reads its own writes', () => {
     }
   });
 
+  it('reads a stored property named __proto__ as present', async () => {
+    const path = await repository();
+    const warp = await open(path);
+    retained(await warp.as('alice').execute([
+      intent.node.add({ subject: 'todo' }),
+      intent.property.set({ subject: 'todo', key: '__proto__', value: 'stored' }),
+    ]));
+
+    const { readings } = await drained(await Optic(warp.forObserver(READER)).forPurpose(DISPLAY).node('todo').prop('__proto__').read());
+
+    expect(readings).toEqual([expect.objectContaining({ subject: 'todo', key: '__proto__', present: true, value: 'stored' })]);
+  });
+
   it('reads no whole state and one record', async () => {
     const path = await repository();
     const warp = await open(path);

@@ -153,6 +153,35 @@ describe('StateReader property projection routing', () => {
   });
 });
 
+describe('StateReader property bags keep every stored key as a property (#1052, Safety Review F7)', () => {
+  it('reads a stored node property named __proto__ as an own property, without changing the bag prototype', () => {
+    const state = WarpState.empty();
+    addLiveNode(state, 'node:1', 1);
+    setPropFromReg(state, encodePropKey('node:1', '__proto__'), register(2, { polluted: true }));
+    setPropFromReg(state, encodePropKey('node:1', 'status'), register(3, 'ready'));
+
+    const props = createStateReader(state).getNodeProps('node:1') ?? Object.freeze({});
+
+    expect(Object.keys(props).sort()).toEqual(['__proto__', 'status']);
+    expect(Object.hasOwn(props, '__proto__')).toBe(true);
+    expect(Reflect.getPrototypeOf(props)).toBe(Object.prototype);
+    expect('polluted' in props).toBe(false);
+  });
+
+  it('reads a stored edge property named __proto__ as an own property', () => {
+    const state = WarpState.empty();
+    addLiveNode(state, 'node:1', 1);
+    addLiveNode(state, 'node:2', 2);
+    addLiveEdge(state, 'node:1', 'node:2', 'rel', 3);
+    setPropFromReg(state, encodeEdgePropKey('node:1', 'node:2', 'rel', '__proto__'), register(4, 'kept'));
+
+    const reader = createStateReader(state);
+
+    expect(reader.getEdgeProps('node:1', 'node:2', 'rel')).toEqual(Object.fromEntries([['__proto__', 'kept']]));
+    expect(reader.getEdges()[0]?.props).toEqual(Object.fromEntries([['__proto__', 'kept']]));
+  });
+});
+
 function stateWithProjectionFacts(): WarpState {
   const state = WarpState.empty();
   addLiveNode(state, 'node:1', 1);

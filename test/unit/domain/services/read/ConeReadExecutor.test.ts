@@ -288,6 +288,19 @@ describe('ConeReadExecutor', () => {
     expect(nullReadings[0]?.value).toBeNull();
   });
 
+  it('reads a stored property named __proto__ as present, with its value', async () => {
+    const { feed, executor } = createFixture(grant);
+    feed.append('alice', [new NodeAdd('item-1', new Dot('alice', 1)), new NodePropSet('item-1', '__proto__', 'stored')]);
+
+    const observation = await executor.read({ observer, purpose, budget: null, question: { subject: 'item-1', key: '__proto__' } });
+    const readings: OpticReading[] = [];
+    for await (const r of observation) {
+      readings.push(r);
+    }
+
+    expect(readings).toEqual([expect.objectContaining({ subject: 'item-1', key: '__proto__', present: true, value: 'stored' })]);
+  });
+
   it('charges actual byte length for ImmutableBytes, arrays, and objects, and 0 bytes for node presence or absent properties', async () => {
     const smallBudget = ReadBudget.of({ records: 1, bytes: 16, work: 1 });
     const smallGrant = new WarpReadGrant({ authority: 'auth-1', budget: smallBudget });
