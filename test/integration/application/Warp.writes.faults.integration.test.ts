@@ -1,11 +1,10 @@
 import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import { intent } from '../../../advanced.ts';
 import { Coordinate, GitStorage, UnretainedWriteReceipt, Warp, WarpAccessDenied, WarpAccessPort, WarpAddress, WarpWriteGrant } from '../../../index.ts';
-import { composeWarpWrites, overrideWarpComposition } from '../../../src/application/WarpWriteComposition.ts';
 import MessageCodecError from '../../../src/domain/errors/MessageCodecError.ts';
 import PatchError from '../../../src/domain/errors/PatchError.ts';
 import ConeRecordKey from '../../../src/domain/services/cone/ConeRecordKey.ts';
@@ -17,6 +16,7 @@ import ResolvedObservation from '../../../src/domain/services/custody/ResolvedOb
 import ObservationAttemptId from '../../../src/domain/services/custody/ObservationAttemptId.ts';
 import { textDecode } from '../../../src/domain/utils/bytes.ts';
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
+import GitCasMaterializationStoreAdapter from '../../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import GitWriteAttemptJournalAdapter from '../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
@@ -25,11 +25,14 @@ import {
   GRAPH,
   TestAccess,
   attemptRefs,
+  composed,
   disposeWarpFixtures,
   git,
   indeterminate,
   materialized,
   open,
+  openSwept,
+  overrideWithFixedClock,
   repository,
   retained,
   tip,
@@ -68,9 +71,9 @@ describe('a retained write survives what the graph does later', () => {
     git(path, ['gc', '--prune=now', '--quiet']);
 
     const access = new TestAccess();
-    const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), access);
+    const writes = await composed(path, access);
     const parsed = ObservationCoordinate.parse(receipt.coordinate.toString());
-    const resolved = parsed === null ? null : await writes.custody.resolve(parsed);
+    const resolved = parsed === null ? null : await (await writes.openCustody()).resolve(parsed);
     await writes.close();
 
     expect(resolved).toBeInstanceOf(ResolvedObservation);
@@ -91,9 +94,9 @@ describe('a retained write survives what the graph does later', () => {
     retained(await warp.as('bob').execute(intent.node.add({ subject: 'after' })));
     await warp.close();
 
-    const writes = await composeWarpWrites(WarpAddress.of(GitStorage.at(path), GRAPH), new TestAccess());
+    const writes = await composed(path);
     const parsed = ObservationCoordinate.parse(receipt.coordinate.toString());
-    const resolved = parsed === null ? null : await writes.custody.resolve(parsed);
+    const resolved = parsed === null ? null : await (await writes.openCustody()).resolve(parsed);
     await writes.close();
 
     expect(resolved instanceof ResolvedObservation ? resolved.preparation.bindings.basis : null).toBe(basisAtWrite);
@@ -224,14 +227,14 @@ describe('custody that cannot answer', () => {
     await crashed.close();
     now += 2 * 60 * 60 * 1000;
 
-    const noReserve = await open(path, { clock, wrapCustody: custodyWith({ reserve: unavailable }) });
+    const noReserve = await openSwept(path, { clock, wrapCustody: custodyWith({ reserve: unavailable }) });
     expect(attemptRefs(path)).toHaveLength(1);
     await noReserve.close();
-    const noCancel = await open(path, { clock, wrapCustody: custodyWith({ cancel: unavailable }) });
+    const noCancel = await openSwept(path, { clock, wrapCustody: custodyWith({ cancel: unavailable }) });
     expect(attemptRefs(path)).toHaveLength(1);
     await noCancel.close();
 
-    await open(path, { clock });
+    await openSwept(path, { clock });
     expect(attemptRefs(path)).toEqual([]);
   });
 
@@ -241,7 +244,7 @@ describe('custody that cannot answer', () => {
     unpublished(await crashed.as('alice').execute(intent.node.add({ subject: 'x' })));
     await crashed.close();
 
-    await open(path, { wrapCustody: custodyWith({ reserve: () => Promise.resolve(new CustodyRefused('cancelled')) }) });
+    await openSwept(path, { wrapCustody: custodyWith({ reserve: () => Promise.resolve(new CustodyRefused('cancelled')) }) });
 
     expect(attemptRefs(path)).toEqual([]);
   });
@@ -500,9 +503,9 @@ describe('a record that outlives its attempt', () => {
     await crashed.close();
     vi.restoreAllMocks();
 
-    await (await open(path, { wrapCustody: custodyWith({ settle: unavailable }) })).close();
+    await (await openSwept(path, { wrapCustody: custodyWith({ settle: unavailable }) })).close();
     expect(attemptRefs(path)).toHaveLength(1);
-    await open(path);
+    await openSwept(path);
 
     expect(attemptRefs(path)).toEqual([]);
   });
@@ -531,7 +534,7 @@ describe('a record that outlives its attempt', () => {
     expect(attemptRefs(path)).toHaveLength(1);
     await warp.close();
 
-    await open(path);
+    await openSwept(path);
     expect(attemptRefs(path)).toEqual([]);
   });
 
@@ -573,17 +576,61 @@ describe('a record that outlives its attempt', () => {
     await rival.close();
     remove.mockRestore();
 
-    await open(path);
+    await openSwept(path);
     expect(attemptRefs(path)).toEqual([]);
   });
 });
 
-describe('composition', () => {
-  it('refuses a graph already opened with another retention capacity, and releases what it opened', async () => {
-    const path = await repository();
-    await (await open(path, { limit: 3 })).close();
+/** The ledger ref git-cas keeps for the fixture graph, read from a repository that already holds one. */
+async function ledgerRef(): Promise<string> {
+  const path = await repository();
+  retained(await (await open(path)).as('alice').execute(intent.node.add({ subject: 'x' })));
+  return git(path, ['for-each-ref', '--format=%(refname)', 'refs/cas/reservations/']);
+}
 
-    await expect(open(path, { limit: 4 })).rejects.toMatchObject({ code: 'E_WARP_RETENTION_OPEN' });
+describe('composition', () => {
+  it('refuses each granted operation on a graph whose retention capacity differs', async () => {
+    const path = await repository();
+    const first = await open(path, { limit: 3 });
+    retained(await first.as('alice').execute(intent.node.add({ subject: 'x' })));
+    await first.close();
+
+    const other = await open(path, { limit: 4 });
+    const mismatch = { code: 'E_WARP_RETENTION_OPEN', refusal: 'policy-mismatch', message: 'This graph\'s retention store did not open: the store refused (policy-mismatch)' };
+    await expect(other.as('alice').execute(intent.node.add({ subject: 'y' }))).rejects.toMatchObject(mismatch);
+    await expect(other.as('alice').reconcile('a'.repeat(32))).rejects.toMatchObject(mismatch);
+  });
+
+  it('carries a real held ledger lock as the cause of the retention rejection, then writes once it is released', async () => {
+    const lock = `${await ledgerRef()}.lock`;
+    const path = await repository();
+    const warp = await open(path);
+    mkdirSync(dirname(join(path, '.git', lock)), { recursive: true });
+    writeFileSync(join(path, '.git', lock), '');
+
+    const rejection = await warp.as('alice').execute(intent.node.add({ subject: 'x' })).then(() => null, (error: Error) => error);
+    expect(rejection).toMatchObject({ code: 'E_WARP_RETENTION_OPEN', refusal: null });
+    const cause = rejection?.cause instanceof Error ? rejection.cause.message : 'no cause';
+    expect(cause).toContain(lock);
+    expect(rejection?.message).toBe(`This graph's retention store did not open: the store could not answer (${cause})`);
+    expect(tip(path, 'alice')).toBeNull();
+
+    unlinkSync(join(path, '.git', lock));
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
+  });
+
+  it('releases the storage services of each write path that failed to open', async () => {
+    const path = await repository();
+    const first = await open(path, { limit: 3 });
+    retained(await first.as('alice').execute(intent.node.add({ subject: 'x' })));
+    await first.close();
+    const released = vi.spyOn(GitCasMaterializationStoreAdapter.prototype, 'close');
+
+    const other = await open(path, { limit: 4 });
+    await expect(other.as('alice').execute(intent.node.add({ subject: 'y' }))).rejects.toMatchObject({ code: 'E_WARP_RETENTION_OPEN' });
+    await expect(other.as('alice').execute(intent.node.add({ subject: 'y' }))).rejects.toMatchObject({ code: 'E_WARP_RETENTION_OPEN' });
+
+    expect(released).toHaveBeenCalledTimes(2);
   });
 
   it('requires a storage located by root or at', async () => {
@@ -608,7 +655,7 @@ describe('composition', () => {
         return Promise.resolve(new WarpWriteGrant({ authority: 'x', budget: { records: 9, bytes: 9999, work: 9 } }));
       }
     })();
-    overrideWarpComposition(flaky, {});
+    overrideWithFixedClock(flaky);
     const warp = await Warp.open(WarpAddress.of(GitStorage.at(path), GRAPH), flaky);
 
     await expect(warp.as('alice').execute(intent.node.add({ subject: 'x' }))).rejects.toThrow('went away');
@@ -617,9 +664,19 @@ describe('composition', () => {
     expect((await materialized(path)).nodes).toEqual(['y']);
   });
 
-  it('rejects an untyped failure opening a writer, then tries that writer again', async () => {
+  it('opens the write path again after its first opening failed', async () => {
     const path = await repository();
     const warp = await open(path);
+    vi.spyOn(GitCasRepositoryAdapter.prototype, 'createRuntimeStorageServices').mockImplementationOnce(() => Promise.reject(new Error('cone store blip')));
+
+    await expect(warp.as('alice').execute(intent.node.add({ subject: 'x' }))).rejects.toThrow('cone store blip');
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'y' })));
+    expect((await materialized(path)).nodes).toEqual(['y']);
+  });
+
+  it('rejects an untyped failure opening a writer, then tries that writer again', async () => {
+    const path = await repository();
+    const warp = await openSwept(path);
     vi.spyOn(GitCasRepositoryAdapter.prototype, 'createRuntimeStorageServices').mockImplementationOnce(() => Promise.reject(new Error('blip')));
 
     await expect(warp.as('alice').execute(intent.node.add({ subject: 'x' }))).rejects.toThrow('blip');

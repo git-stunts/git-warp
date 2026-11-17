@@ -22,9 +22,15 @@ import InMemoryAllocationFloorStore from './InMemoryAllocationFloorStore.ts';
 import type AllocationFloorStorePort from '../../src/ports/AllocationFloorStorePort.ts';
 import InMemoryGraphAdapter from './InMemoryGraphAdapter.ts';
 import InMemorySyncReplayProtection from './InMemorySyncReplayProtection.ts';
+import type ClockPort from '../../src/ports/ClockPort.ts';
 
 export type MemoryRuntimeStorageAdapterOptions = {
   readonly history: InMemoryGraphAdapter;
+  /**
+   * The sync replay store's time. Pass the clock that the runtime uses: sync
+   * freshness compares the signing time with the store's time.
+   */
+  readonly clock: ClockPort;
   readonly encrypted?: boolean;
   readonly encryptionKey?: Uint8Array;
   readonly backing?: InMemoryBlobStorageAdapter;
@@ -33,6 +39,7 @@ export type MemoryRuntimeStorageAdapterOptions = {
 /** Coherent semantic runtime storage services for in-memory tests. */
 export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProviderPort {
   readonly #history: InMemoryGraphAdapter;
+  readonly #clock: ClockPort;
   readonly #content: AssetStoragePort;
   readonly #cas: InMemoryGitCasFacade;
   readonly #encrypted: boolean;
@@ -44,6 +51,7 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
   constructor(options: MemoryRuntimeStorageAdapterOptions) {
     this.#modelsRefs = options.history instanceof InMemoryGraphAdapter;
     this.#history = withFixtureObjectTypeProbe(options.history);
+    this.#clock = options.clock;
     this.backing = options.backing ?? new InMemoryBlobStorageAdapter();
     const contentEncryption = resolveContentEncryption(options);
     this.#cas = new InMemoryGitCasFacade({
@@ -131,7 +139,7 @@ export default class MemoryRuntimeStorageAdapter implements RuntimeStorageProvid
     if (existing !== undefined) {
       return existing;
     }
-    const created = new InMemorySyncReplayProtection();
+    const created = new InMemorySyncReplayProtection(() => this.#clock.nowMs());
     this.#syncReplayProtection.set(timelineName, created);
     return created;
   }

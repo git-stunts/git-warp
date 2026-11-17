@@ -14,6 +14,8 @@ Controlled entry fixtures verify dist-first selection, source fallback, spaced p
 
 `launcher-mcp-startup-984-v1` initializes the actual installed MCP and calls `warp_lane_describe` to open Runtime. Exact-PID SIGINT/SIGTERM each produce clean exit 0 and no stderr. `launcher-cleanup-failure-984-v1` injects a command into the actual installed registry. Its failing close method produces equal baseline/candidate normal-completion output and exit 3; both candidate signals execute that closure and exit 3. This controlled command failure does not claim a real storage fault or physical power-loss test.
 
+Issue #1145: v21 removes `warp_lane_describe` from MCP, so `scripts/check-cli-startup.py` no longer uses it. The witness now lists the tools, then opens Runtime and lane `L` with `warp_observation_start` (an `entity-admissions` Reading), and releases the Observation with `warp_observation_cancel`. If a readiness step fails, the witness stops with `ReadinessRefused` before the signal checks and the startup samples. A readiness failure is a setup failure, not a latency result. The recorded `launcher-mcp-startup-984-v1` run above used the earlier exchange; its evidence stays as recorded.
+
 `test/bats/cli-launcher.bats` invokes the portable process-count and boundary drivers through the existing Docker BATS route. `launcher-bats-green-984-v1` passes both tests. The boundary and startup drivers kill the entire owned signal-fixture process group even when its parent has already exited.
 
 ## Supported Node versions

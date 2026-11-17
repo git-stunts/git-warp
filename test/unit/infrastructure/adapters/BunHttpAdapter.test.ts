@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import BunHttpAdapter from '../../../../src/infrastructure/adapters/BunHttpAdapter.ts';
-import HttpServerPort from '../../../../src/ports/HttpServerPort.ts';
+import HttpServerPort, { type HttpRequest } from '../../../../src/ports/HttpServerPort.ts';
 
 /**
  * Creates a mock Bun.serve() that captures its options and returns
@@ -13,6 +13,7 @@ function createMockBunServe() {
     port: 0,
     hostname: '0.0.0.0',
     stop: vi.fn(),
+    requestIP: vi.fn(() => ({ address: '203.0.113.40', family: 'IPv4', port: 50123 })),
   };
 
   const serve = vi.fn((options: any) => {
@@ -262,6 +263,32 @@ describe('BunHttpAdapter', () => {
   });
 
   describe('request/response bridging', () => {
+    it('passes the socket peer address from requestIP to the port request', async () => {
+      const { serve, mockServer } = createMockBunServe();
+      globalThis.Bun = { serve };
+      const handler = vi.fn(async (_request: HttpRequest) => ({ status: 204 }));
+      new BunHttpAdapter().createServer(handler).listen(6001);
+
+      const mockReq = createMockRequest({ url: 'http://localhost:6001/sync', headers: { 'x-forwarded-for': '198.51.100.99' } });
+      await mockServer._fetch(mockReq, mockServer);
+
+      expect(mockServer.requestIP).toHaveBeenCalledWith(mockReq);
+      expect(handler.mock.calls[0]?.[0].peerAddress).toBe('203.0.113.40');
+    });
+
+    it('leaves the peer address undefined when requestIP reports none', async () => {
+      const { serve, mockServer } = createMockBunServe();
+      globalThis.Bun = { serve };
+      mockServer.requestIP.mockReturnValue(null);
+      const handler = vi.fn(async (_request: HttpRequest) => ({ status: 204 }));
+      new BunHttpAdapter().createServer(handler).listen(6002);
+
+      await mockServer._fetch(createMockRequest({ url: 'http://localhost:6002/sync' }), mockServer);
+
+      expect(handler).toHaveBeenCalledOnce();
+      expect(handler.mock.calls[0]?.[0].peerAddress).toBeUndefined();
+    });
+
     it('converts GET Request to port request and back', async () => {
       const { serve, mockServer } = createMockBunServe();
       (globalThis).Bun = { serve };
@@ -282,7 +309,7 @@ describe('BunHttpAdapter', () => {
         headers: { accept: 'application/json' },
       });
 
-      const response = await mockServer._fetch(mockReq);
+      const response = await mockServer._fetch(mockReq, mockServer);
 
       expect(handler).toHaveBeenCalledOnce();
       const portReq = (handler as any).mock.calls[0][0];
@@ -317,7 +344,7 @@ describe('BunHttpAdapter', () => {
         body: 'patch-data-here',
       });
 
-      const response = await mockServer._fetch(mockReq);
+      const response = await mockServer._fetch(mockReq, mockServer);
 
       const portReq = ((handler.mock.calls[0] as any[])[0] as any);
       expect(portReq.method).toBe('POST');
@@ -346,7 +373,7 @@ describe('BunHttpAdapter', () => {
         url: 'http://localhost:6002/test',
       });
 
-      await mockServer._fetch(mockReq);
+      await mockServer._fetch(mockReq, mockServer);
 
       const portReq = (handler as any).mock.calls[0][0];
       expect(portReq!.body).toBeUndefined();
@@ -365,7 +392,7 @@ describe('BunHttpAdapter', () => {
       server.listen(6003);
 
       const mockReq = createMockRequest();
-      const response = await mockServer._fetch(mockReq);
+      const response = await mockServer._fetch(mockReq, mockServer);
 
       expect(response.status).toBe(200);
       expect(response.headers.get('content-type')).toBe('text/plain;charset=UTF-8');
@@ -389,7 +416,7 @@ describe('BunHttpAdapter', () => {
         body: 'small',
       });
 
-      const response = await mockServer._fetch(mockReq);
+      const response = await mockServer._fetch(mockReq, mockServer);
 
       expect(response.status).toBe(413);
       expect(handler).not.toHaveBeenCalled();
@@ -431,7 +458,7 @@ describe('BunHttpAdapter', () => {
         arrayBuffer: arrayBufferSpy,
       };
 
-      const response = await mockServer._fetch(mockReq);
+      const response = await mockServer._fetch(mockReq, mockServer);
 
       expect(response.status).toBe(413);
       expect(handler).not.toHaveBeenCalled();
@@ -455,7 +482,7 @@ describe('BunHttpAdapter', () => {
       server.listen(7000);
 
       const mockReq = createMockRequest();
-      const response = await mockServer._fetch(mockReq);
+      const response = await mockServer._fetch(mockReq, mockServer);
 
       expect(response.status).toBe(500);
       const text = await response.text();
@@ -479,7 +506,7 @@ describe('BunHttpAdapter', () => {
       server.listen(7001);
 
       const mockReq = createMockRequest();
-      const response = await mockServer._fetch(mockReq);
+      const response = await mockServer._fetch(mockReq, mockServer);
 
       expect(response.status).toBe(500);
     });

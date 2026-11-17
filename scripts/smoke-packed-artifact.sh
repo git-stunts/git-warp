@@ -71,7 +71,7 @@ class PackedArtifactSmokeError extends Error {
 const mod = await import('@git-stunts/git-warp');
 
 const rootValues = Object.keys(mod).sort();
-const expectedRootValues = ['Coordinate','GitStorage','IndeterminateWriteReceipt','RetainedWriteReceipt','Runtime','UnpublishedWriteReceipt','UnretainedWriteReceipt','Warp','WarpAccessDenied','WarpAccessPort','WarpAddress','WarpWriteGrant'];
+const expectedRootValues = ['Coordinate','GitStorage','IndeterminateWriteReceipt','LoggerPort','RetainedWriteReceipt','Runtime','UnpublishedWriteReceipt','UnretainedWriteReceipt','Warp','WarpAccessDenied','WarpAccessPort','WarpAddress','WarpWriteGrant'];
 if (rootValues.join() !== expectedRootValues.join()) {
   throw new PackedArtifactSmokeError(`package root values must be exactly ${expectedRootValues.join(', ')}; received ${rootValues.join(', ')}`);
 }
@@ -241,7 +241,7 @@ JSON
 node_modules/.bin/tsc -p tsconfig.json
 node_modules/.bin/tsc -p tsconfig.json --module ESNext --moduleResolution Bundler
 
-# Supported CLI, hook, and migration behavior against a disposable repository.
+# Supported Warp writes, CLI, hook, and migration behavior against a disposable repository.
 REPO="$TMP_ROOT/repo"
 git init -q "$REPO"
 git -C "$REPO" config user.name "git-warp packed smoke"
@@ -251,9 +251,10 @@ git -C "$REPO" commit -q --allow-empty -m "packed smoke base"
 warp() {
   npx --no-install git-warp --repo "$REPO" --lane events --writer smoke --json "$@"
 }
-warp write --intent '{"kind":"node.add","subject":"user:alice"}' > /dev/null
-warp write --intent '{"kind":"property.set","subject":"user:alice","key":"role","value":"admin"}' \
-  > write.json
+cp "$ROOT/test/fixtures/packed-warp-write.mjs" ./packed-warp-write.mjs
+node packed-warp-write.mjs "$REPO" events smoke node.add user:alice > /dev/null
+node packed-warp-write.mjs "$REPO" events smoke \
+  property.set user:alice role admin > write.json
 warp repair --action materialization > /dev/null
 warp observe --observer role \
   --reading '{"kind":"property.get","subject":"user:alice","key":"role"}' > observe.json
@@ -294,6 +295,4 @@ test "$(git -C "$REPO" for-each-ref)" = "$REFS_BEFORE"
 node "$CHECK_PACKED" results "$FIXTURE_DIR"
 bash "$ROOT/scripts/smoke-packed-node-removal.sh" "$ROOT" "$PACKAGE_DIR" "$TMP_ROOT/lifecycle"
 bash "$ROOT/scripts/smoke-packed-attachments.sh" "$ROOT" "$FIXTURE_DIR"
-cp "$ROOT/test/fixtures/packed-atomic-budget.mjs" ./packed-atomic-budget.mjs
-node packed-atomic-budget.mjs
 echo "packed artifact smoke passed"

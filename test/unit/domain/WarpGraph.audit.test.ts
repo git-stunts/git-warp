@@ -9,6 +9,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { openMemoryRuntimeHostProduct as openRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import InMemoryGraphAdapter from '../../../test/helpers/InMemoryGraphAdapter.ts';
 import MemoryRuntimeStorageAdapter from '../../helpers/MemoryRuntimeStorageAdapter.ts';
+import ManualClock from '../../helpers/ManualClock.ts';
 import defaultCodec, { decode } from '../../../src/infrastructure/codecs/CborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import defaultCrypto from '../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
@@ -159,7 +160,8 @@ describe('WarpCore — audit mode', () => {
 
   it('audit commit tree contains receipt.cbor with correct receipt data', async () => {
     const persistence = new InMemoryGraphAdapter();
-    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence });
+    const clock = new ManualClock();
+    const runtimeStorage = new MemoryRuntimeStorageAdapter({ history: persistence, clock });
     const storage = await runtimeStorage.createRuntimeStorageServices({
       timelineName: 'events',
       codec: defaultCodec,
@@ -168,6 +170,7 @@ describe('WarpCore — audit mode', () => {
     });
     const graph = await openRuntimeHostProduct({
       persistence,
+      clock,
       runtimeStorage,
       graphName: 'events',
       writerId: 'alice',

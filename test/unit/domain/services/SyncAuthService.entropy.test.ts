@@ -6,13 +6,14 @@ import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import type RandomPort from '../../../../src/ports/RandomPort.ts';
 import InMemorySyncReplayProtection from '../../../helpers/InMemorySyncReplayProtection.ts';
+import ManualClock from '../../../helpers/ManualClock.ts';
 import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
 
 const SECRET = SyncSecret.fromString('entropy-witness-secret');
 const KEY_ID = 'default';
 /** RFC 4122 v4 layout of the bytes 0x00..0x0f (version and variant bits set). */
-/** Fixed replay-window clock; this witness never advances time. */
-const FIXED_CLOCK = (): number => 1_000;
+/** Fixed wall clock for signer, verifier and replay store; this witness never advances time. */
+const CLOCK = new ManualClock();
 const SEQUENCE_NONCE = '00010203-0405-4607-8809-0a0b0c0d0e0f';
 
 class ShortRandomPort implements RandomPort {
@@ -30,10 +31,10 @@ class RetainedBufferRandomPort implements RandomPort {
   }
 }
 
-async function sign(random: RandomPort, lamport = 1): Promise<Record<string, string>> {
+async function sign(random: RandomPort): Promise<Record<string, string>> {
   return await signSyncRequest(
-    { method: 'POST', path: '/sync', contentType: 'text/plain', body: new TextEncoder().encode('entropy'), secret: SECRET, keyId: KEY_ID, lamport },
-    { crypto: defaultCrypto, random },
+    { method: 'POST', path: '/sync', contentType: 'text/plain', body: new TextEncoder().encode('entropy'), secret: SECRET, keyId: KEY_ID },
+    { crypto: defaultCrypto, random, clock: CLOCK },
   );
 }
 
@@ -50,11 +51,12 @@ describe('signSyncRequest entropy', () => {
   });
 
   it('keeps the v4 nonce wire format accepted by the verifier', async () => {
-    const headers = await sign(new SequenceRandomPort(0xf0), 7);
+    const headers = await sign(new SequenceRandomPort(0xf0));
     const service = new SyncAuthService({
       keys: { [KEY_ID]: SECRET },
       crypto: defaultCrypto,
-      replayProtection: new InMemorySyncReplayProtection(FIXED_CLOCK),
+      replayProtection: new InMemorySyncReplayProtection(CLOCK.read),
+      clock: CLOCK,
     });
 
     expect(headers['x-warp-nonce']).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);

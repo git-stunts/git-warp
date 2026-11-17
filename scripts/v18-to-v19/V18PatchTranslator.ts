@@ -2,7 +2,6 @@ import { collectAsyncIterable } from '../../src/domain/utils/streamUtils.ts';
 import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../src/domain/storage/BufferedArtifactLimit.ts';
 import ContentAddressableStore, {
   AssetHandle as GitCasAssetHandle,
-  CborCodec as GitCasCborCodec,
 } from '@git-stunts/git-cas';
 
 import { hydratePatchAtDecodeBoundary }
@@ -12,6 +11,7 @@ import {
   createGitCasPatchStorage,
 } from '../../src/ports/CommitMessageCodecPort.ts';
 import warpCborCodec from '../../src/infrastructure/codecs/CborCodec.ts';
+import BoundedGitCasCborCodec from '../../src/infrastructure/adapters/BoundedGitCasCborCodec.ts';
 import {
   TrailerCommitMessageCodecAdapter,
 } from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
@@ -58,7 +58,7 @@ export default class V18PatchTranslator {
   }>): Promise<V18PatchTranslator> {
     const cas = await ContentAddressableStore.open({
       cwd: options.repositoryPath,
-      codec: new GitCasCborCodec(),
+      codec: new BoundedGitCasCborCodec(),
       applicationRefPrefixes: ['refs/warp/'],
     });
     return new V18PatchTranslator(

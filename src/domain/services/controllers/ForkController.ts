@@ -24,6 +24,7 @@ import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.t
 import type CodecPort from '../../../ports/CodecPort.ts';
 import type CryptoPort from '../../../ports/CryptoPort.ts';
 import type RandomPort from '../../../ports/RandomPort.ts';
+import type ClockPort from '../../../ports/ClockPort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type AssetStoragePort from '../../../ports/AssetStoragePort.ts';
 import type GCPolicy from '../GCPolicy.ts';
@@ -59,6 +60,7 @@ type ForkHost = {
   _logger: LoggerPort | null;
   _crypto: CryptoPort;
   _random: RandomPort;
+  _clock: ClockPort;
   _codec: CodecPort;
   _assetStorage: AssetStoragePort | null;
   _patchJournal: PatchJournalPort;
@@ -178,6 +180,7 @@ export default class ForkController {
         ...(host._logger ? { logger: host._logger } : {}),
         crypto: host._crypto,
         random: host._random,
+        clock: host._clock,
         codec: host._codec,
       });
     } catch (openErr) {

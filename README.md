@@ -153,9 +153,9 @@ domain modules provide the validated intents and observers for an application.
 > opens it. Stop every v18 writer, back up the repository, install v19 without
 > starting the application, and run the confirmed migration:
 >
+> <!-- v18-to-v19-cli: example promote literal -->
 > ```bash
-> npm exec --package=@git-stunts/git-warp@19.1.0 -- \
->   git-warp-v18-to-v19 \
+> npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
 >   --repo /path/to/repository \
 >   --graph <graph-name>
 > ```
@@ -170,27 +170,25 @@ domain modules provide the validated intents and observers for an application.
 > [complete v19 migration guide](docs/migrations/v19/).
 
 ```typescript
-import { Runtime } from '@git-stunts/git-warp';
+import { GitStorage, RetainedWriteReceipt, Runtime, Warp, WarpAddress } from '@git-stunts/git-warp';
 import { users } from './generated/users.generated.js';
+import { access } from './access.js'; // your WarpAccessPort
 
-const runtime = await Runtime.open({
-  at: '.',
-  writer: 'agent-1',
-});
-
-const events = await runtime.lane('events');
-
-const write = await events.write(
+const warp = await Warp.open(WarpAddress.of(GitStorage.root(), 'events'), access);
+const write = await warp.as('agent-1').execute(
   users.intents.assignRole({
     subject: 'user:alice',
     role: 'admin',
   })
 );
-
-if (write.outcome.kind === 'conflict' || write.outcome.kind === 'obstruction') {
-  throw new Error(write.reason ?? `write admission was ${write.outcome.kind}`);
+if (!(write instanceof RetainedWriteReceipt)) {
+  throw new Error(`write was not retained: ${write.constructor.name}`);
 }
+await warp.close();
 
+// Reads use Runtime until #1052 adds the Optic read.
+const runtime = await Runtime.open({ at: '.', writer: 'agent-1' });
+const events = await runtime.lane('events');
 const observation = events.observe(users.observers.roleOf({ subject: 'user:alice' }));
 
 for await (const reading of observation) {
@@ -400,8 +398,9 @@ The broader worldline-wide direction is still narrower than the doctrine: live s
 
 ## API surface
 
-The application entry point is the root `Runtime` value. `Warp` is its write-only
-replacement while [#1048](https://github.com/git-stunts/git-warp/issues/1048) lands. Generated SDKs
+Applications write through the root `Warp` value. `Runtime` keeps only its read
+path until [#1052](https://github.com/git-stunts/git-warp/issues/1052) adds the Optic read
+([#1048](https://github.com/git-stunts/git-warp/issues/1048)). Generated SDKs
 provide domain-specific intents and observers; lanes stream readings and leave
 receipts. The v18 `openWarpWorldline()` and `openWarpGraph()` package entry
 points are removed. Operator code uses explicit diagnostic APIs instead of a

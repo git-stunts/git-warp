@@ -1,5 +1,4 @@
 import ContentAddressableStore, {
-  CborCodec,
   type AssetCapability,
   type BundleCapability,
   type CacheCapability,
@@ -8,6 +7,7 @@ import ContentAddressableStore, {
   type ReservationCapability,
 } from '@git-stunts/git-cas';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
+import type ClockPort from '../../ports/ClockPort.ts';
 import type CryptoPort from '../../ports/CryptoPort.ts';
 import type LoggerPort from '../../ports/LoggerPort.ts';
 import type RuntimeStorageProviderPort from '../../ports/RuntimeStorageProviderPort.ts';
@@ -28,6 +28,7 @@ import { CborIndexStoreAdapter } from './CborIndexStoreAdapter.ts';
 import { CborPatchJournalAdapter } from './CborPatchJournalAdapter.ts';
 import GitCasTrieStoreAdapter from './GitCasTrieStoreAdapter.ts';
 import GitTrustChainAdapter from './GitTrustChainAdapter.ts';
+import BoundedGitCasCborCodec from './BoundedGitCasCborCodec.ts';
 import type { GitPlumbing } from './gitErrorClassification.ts';
 import LoggerObservabilityBridge from './LoggerObservabilityBridge.ts';
 import type GitTimelineHistoryAdapter from './GitTimelineHistoryAdapter.ts';
@@ -42,7 +43,12 @@ import GitAllocationFloorStoreAdapter from './GitAllocationFloorStoreAdapter.ts'
 import GitMigrationProvenanceAdapter from './GitMigrationProvenanceAdapter.ts';
 import GitDotRepairStoreAdapter from './GitDotRepairStoreAdapter.ts';
 import SubstrateVersionGate from './SubstrateVersionGate.ts';
+import { LOCAL_REF_PREFIX } from '../../domain/utils/LocalRefLayout.ts';
+import { REF_PREFIX } from '../../domain/utils/RefLayout.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from './TrailerCommitMessageCodecAdapter.ts';
+
+/** Ref families git-cas may publish under: lane refs, and clone-local in-flight state (#1078). */
+export const WARP_APPLICATION_REF_PREFIXES: readonly string[] = Object.freeze([`${REF_PREFIX}/`, `${LOCAL_REF_PREFIX}/`]);
 
 type GitCasPolicy = {
   execute<T>(operation: () => Promise<T>): Promise<T>;
@@ -81,8 +87,17 @@ export type ObservationStorage = {
 export type GitCasRepositoryAdapterOptions = {
   readonly plumbing: GitPlumbing;
   readonly history: GitTimelineHistoryAdapter;
+  /**
+   * Time for every git-cas stamp and expiry in this repository. When `cas` is
+   * given, its owner must build that store on this same clock.
+   */
+  readonly clock: ClockPort;
   readonly policy?: GitCasPolicy;
   readonly logger?: LoggerPort;
+  /**
+   * A prebuilt git-cas store, for tests. Build it with BoundedGitCasCborCodec: a store with git-cas's own
+   * codec (createCbor) decodes peer manifests and bundle descriptors without git-warp's CBOR bounds (#1186).
+   */
   readonly cas?: GitCasFacade;
   readonly contentEncryption?: CasContentEncryptionPolicy;
 };
@@ -99,7 +114,8 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   private readonly _history: GitTimelineHistoryAdapter;
   private readonly _cas: GitCasFacade;
   private readonly _closeCas: (() => Promise<void>) | null;
-  private readonly _cbor: InstanceType<typeof CborCodec>;
+  private readonly _cbor = new BoundedGitCasCborCodec();
+  private readonly _clockMs: () => number;
   private readonly _contentEncryption: CasContentEncryptionPolicy | undefined;
   private readonly _substrateVersionGate: SubstrateVersionGate;
   private readonly _materializations = new Set<GitCasMaterializationStoreAdapter>();
@@ -110,11 +126,16 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
   constructor(options: GitCasRepositoryAdapterOptions) {
     this._plumbing = options.plumbing;
     this._history = options.history;
+    const { clock } = options;
+    this._clockMs = () => clock.nowMs();
     if (options.cas === undefined) {
-      const cas = ContentAddressableStore.createCbor({
+      // createCbor with git-warp's bounded CBOR codec in place of git-cas's own (#1186).
+      const cas = new ContentAddressableStore({
         plumbing: options.plumbing,
+        clock: { now: () => new Date(clock.nowMs()) },
+        codec: this._cbor,
         chunking: { strategy: 'cdc' },
-        applicationRefPrefixes: ['refs/warp/'],
+        applicationRefPrefixes: [...WARP_APPLICATION_REF_PREFIXES],
         ...(options.policy === undefined ? {} : { policy: options.policy }),
         ...(options.logger === undefined
           ? {}
@@ -126,7 +147,6 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       this._cas = options.cas;
       this._closeCas = null;
     }
-    this._cbor = new CborCodec();
     this._contentEncryption = options.contentEncryption;
     this._substrateVersionGate = new SubstrateVersionGate(this._history, DEFAULT_COMMIT_MESSAGE_CODEC);
   }
@@ -172,17 +192,25 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
       checkpoints: this._createCheckpointStore(request),
       indexes: this._createIndexStore(request, content),
       materializations,
-      materializationCacheDiagnostics: new GitCasMaterializationCacheDiagnosticsAdapter({
-        cas: this._cas,
-        codec: request.codec,
-        crypto: request.crypto,
-        laneName: request.timelineName,
-      }),
+      materializationCacheDiagnostics: this._createMaterializationCacheDiagnostics(request),
       syncReplayProtection: new GitCasSyncReplayProtectionAdapter({
         cas: this._cas,
         graphName: request.timelineName,
+        wallClockMs: this._clockMs,
       }),
       trie: new GitCasTrieStoreAdapter({ cas: this._cas }),
+    });
+  }
+
+  private _createMaterializationCacheDiagnostics(
+    request: RuntimeStorageRequest,
+  ): GitCasMaterializationCacheDiagnosticsAdapter {
+    return new GitCasMaterializationCacheDiagnosticsAdapter({
+      cas: this._cas,
+      codec: request.codec,
+      crypto: request.crypto,
+      laneName: request.timelineName,
+      wallClockMs: this._clockMs,
     });
   }
 
@@ -199,6 +227,7 @@ export default class GitCasRepositoryAdapter implements RuntimeStorageProviderPo
         pages: this._cas.pages,
       },
       graphName: timelineName,
+      wallClockMs: this._clockMs,
     });
     this._seekCursors.set(timelineName, created);
     return created;

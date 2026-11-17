@@ -29,7 +29,7 @@ describe('v19 CLI base arguments', () => {
     const parsed = parseArgs([
       '--repo',
       '/tmp/repo',
-      'write',
+      'observe',
       '--lane',
       'events',
       '--writer',
@@ -57,7 +57,7 @@ describe('v19 CLI base arguments', () => {
   });
 
   it('does not publish removed graph or view options', () => {
-    expect(parseArgs(['write', '--graph', 'events']).commandArgs)
+    expect(parseArgs(['observe', '--graph', 'events']).commandArgs)
       .toEqual(['--graph', 'events']);
     expect(parseArgs(['observe', '--view', 'ascii']).commandArgs)
       .toEqual(['--view', 'ascii']);

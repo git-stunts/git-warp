@@ -3,6 +3,7 @@ import computeShardKey from '../../utils/shardKey.ts';
 import IndexError from '../../errors/IndexError.ts';
 import PersistenceError from '../../errors/PersistenceError.ts';
 import QueryError from '../../errors/QueryError.ts';
+import RoaringShardRejectedError from '../../errors/RoaringShardRejectedError.ts';
 import LogicalIndexReader from '../index/LogicalIndexReader.ts';
 import PropertyIndexReader from '../index/PropertyIndexReader.ts';
 import {
@@ -427,7 +428,20 @@ function checkpointLogicalShardReadFailure(
   if (error instanceof TypeError) {
     return checkpointShardReadFailureForReason(CHECKPOINT_SHARD_INVALID_CAUSE, context);
   }
+  if (error instanceof RoaringShardRejectedError) {
+    return invalidBitmapShardFailure(error, context);
+  }
   return null;
+}
+
+/** A checkpoint shard whose bitmap the shard boundary refuses is an invalid checkpoint shard. */
+function invalidBitmapShardFailure(
+  rejection: RoaringShardRejectedError,
+  context: CheckpointShardReadFailureContext,
+): QueryError {
+  const failure = checkpointShardReadFailureForReason(CHECKPOINT_SHARD_INVALID_CAUSE, context);
+  failure.cause = rejection;
+  return failure;
 }
 
 function checkpointShardReadFailureForReason(

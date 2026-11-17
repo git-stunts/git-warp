@@ -47,3 +47,16 @@ it('releases the lease after a storage error without replacing that error', asyn
   await activity.close(release);
   expect(release).toHaveBeenCalledOnce();
 });
+
+it('completes without exposing the storage iterator completion value', async () => {
+  const { content, activity } = fixture(async function* () {
+    yield new Uint8Array([1]);
+    return 'storage-private-completion';
+  });
+  const iterator = content.open()[Symbol.asyncIterator]();
+  expect(await iterator.next()).toEqual({ value: new Uint8Array([1]), done: false });
+  expect(await iterator.next()).toEqual({ value: undefined, done: true });
+  const release = vi.fn(async () => undefined);
+  await activity.close(release);
+  expect(release).toHaveBeenCalledOnce();
+});

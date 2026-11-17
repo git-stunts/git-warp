@@ -16,6 +16,7 @@ it.each(['spent', 'remaining', 'disappeared'])('shares one Windows cleanup budge
   const allowances: number[] = [];
   let elapsedMs = 0;
   const nativeSpawnSync = childProcess.spawnSync.bind(childProcess);
+  // eslint-disable-next-line no-restricted-syntax -- fake timers: replaces process.hrtime.bigint with the test's elapsedMs clock
   const clock = vi.spyOn(process.hrtime, 'bigint').mockImplementation(() => BigInt(elapsedMs) * 1000000n);
   const kill = vi.spyOn(process, 'kill').mockImplementation(pid => {
     if (!living.has(pid)) { throw Object.assign(new Error('missing'), { code: 'ESRCH' }); }

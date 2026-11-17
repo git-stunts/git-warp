@@ -4,6 +4,7 @@ import SyncError from '../../../../src/domain/errors/SyncError.ts';
 import OperationAbortedError from '../../../../src/domain/errors/OperationAbortedError.ts';
 import SyncSecret from '../../../../src/domain/services/sync/SyncSecret.ts';
 import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
+import ManualClock from '../../../helpers/ManualClock.ts';
 import ORSet from '../../../../src/domain/crdt/ORSet.ts';
 
 const { timeoutMock, retryMock, httpSyncServerMock } = vi.hoisted(() => {
@@ -64,7 +65,7 @@ function createMockHost(overrides: Record<string, unknown> = {}): any {
       readRef: vi.fn().mockResolvedValue(null),
       listRefs: vi.fn().mockResolvedValue([]),
     },
-    _clock: { now: () => 0 },
+    _clock: new ManualClock(),
     _codec: {},
     _crypto: {},
     _random: new SequenceRandomPort(),

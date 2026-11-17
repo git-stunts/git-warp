@@ -4,7 +4,8 @@
  *
  * Three entry points:
  * - `build(state)` — from a WarpState (in-memory)
- * - `applyDiff(existingTree, diff, state)` — incremental update from PatchDiff
+ * - `applyDiff(existingTree, diff, state)` — incremental update from PatchDiff,
+ *   reading and writing typed shards through `IndexStorePort.openShardTree()`
  * - `verifyIndex({ state, logicalIndex, options })` — cross-provider verification
  *
  * @module domain/services/MaterializedViewService
@@ -18,6 +19,8 @@ import { requireCodec } from './codec/CodecRequirement.ts';
 import { buildInMemoryPropertyReader, shardToEntry } from './MaterializedViewHelpers.ts';
 import { verifyIndex, type VerifyResult, type VerifyIndexParams } from './MaterializedViewVerifier.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
+import type IndexStorePort from '../../ports/IndexStorePort.ts';
+import WarpError from '../errors/WarpError.ts';
 import type WarpState from './state/WarpState.ts';
 import type { PatchDiff } from '../types/PatchDiff.ts';
 import type { IndexShard } from '../artifacts/IndexShard.ts';
@@ -38,14 +41,18 @@ export interface BuildResult {
 
 export interface MaterializedViewServiceOptions {
   codec?: CodecPort;
+  /** Opens the in-memory index tree for `applyDiff()`; required only by that method. */
+  indexStore?: IndexStorePort;
 }
 
 export default class MaterializedViewService {
   private readonly _codec: CodecPort;
+  private readonly _indexStore: IndexStorePort | null;
 
   constructor(options?: MaterializedViewServiceOptions) {
-    const { codec } = options ?? {};
+    const { codec, indexStore } = options ?? {};
     this._codec = requireCodec(codec, 'MaterializedViewService');
+    this._indexStore = indexStore ?? null;
   }
 
   /**
@@ -88,10 +95,9 @@ export default class MaterializedViewService {
     state: WarpState;
   }): BuildResult {
     const { existingTree, diff, state } = params;
-    const updater = new IncrementalIndexUpdater({ codec: this._codec });
-    const loadShard = (path: string): Uint8Array | undefined => existingTree[path];
-    const dirtyShards = updater.computeDirtyShards({ diff, state, loadShard });
-    const tree = { ...existingTree, ...dirtyShards };
+    const shards = this._requireIndexStore().openShardTree(existingTree);
+    const dirtyShards = new IncrementalIndexUpdater().computeDirtyShards({ diff, state, shards });
+    const tree = shards.withShards(dirtyShards);
 
     const logicalIndex = new LogicalIndexReader({ codec: this._codec })
       .loadFromTree(tree)
@@ -114,6 +120,16 @@ export default class MaterializedViewService {
    */
   verifyIndex(params: VerifyIndexParams): VerifyResult {
     return verifyIndex(params);
+  }
+
+  private _requireIndexStore(): IndexStorePort {
+    if (this._indexStore === null) {
+      throw new WarpError(
+        'MaterializedViewService.applyDiff requires an indexStore',
+        'E_INVALID_DEPENDENCY',
+      );
+    }
+    return this._indexStore;
   }
 
   /**

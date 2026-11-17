@@ -4,6 +4,7 @@ import jsdoc from "eslint-plugin-jsdoc";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync } from "node:fs";
+import { TEST_WALL_CLOCK_SELECTORS } from "./scripts/TestWallClockSelectors.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -57,6 +58,8 @@ export default tseslint.config(
       "!scripts/package-payload/**",
       "!scripts/public-surface",
       "!scripts/public-surface/**",
+      "!scripts/source-reachability",
+      "!scripts/source-reachability/**",
       ".claude/**",
       ".obsidian/**",
       "test/type-check/**",
@@ -72,10 +75,10 @@ export default tseslint.config(
   // only to src/ and bin/ files via the parser/rules block below, not globally.
   // Global application crashes on files without type info (benchmarks, etc.).
 
-  // Performance scripts are merge controls, so they receive their own typed
+  // Performance scripts and the cone witness receive their own typed
   // lint surface without inheriting domain-only error and JSDoc laws.
   {
-    files: ["scripts/performance/**/*.ts"],
+    files: ["scripts/performance/**/*.ts", "benchmarks/cone-showcase/**/*.ts"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -110,10 +113,10 @@ export default tseslint.config(
     },
   },
 
-  // Package-payload and public-surface code execute merge/release law, so they receive the normal
+  // Package-payload, public-surface and source-reachability code execute merge/release law, so they receive the normal
   // typed structural caps instead of the global maintainer-script exclusion.
   {
-    files: ["scripts/package-payload/**/*.ts", "scripts/public-surface/**/*.ts"],
+    files: ["scripts/package-payload/**/*.ts", "scripts/public-surface/**/*.ts", "scripts/source-reachability/**/*.ts"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -500,7 +503,6 @@ export default tseslint.config(
       // Index
       "src/domain/services/index/BitmapIndexBuilder.ts",
       "src/domain/services/index/BitmapNeighborProvider.ts",
-      "src/domain/services/index/IncrementalIndexUpdater.ts",
       "src/domain/services/index/LogicalBitmapIndexBuilder.ts",
       "src/domain/services/index/LogicalIndexBuildService.ts",
       // Provenance
@@ -876,6 +878,28 @@ export default tseslint.config(
       "arrow-body-style": "off",
       "no-empty-function": "off",
     },
+  },
+
+  // ── Test files: no wall clock and no real timer waits ──────────────────────
+  // A test that reads the wall clock or waits on a real timer depends on
+  // machine load. Inject a clock, or install Vitest fake timers. A line may
+  // opt out only with `// eslint-disable-next-line no-restricted-syntax --
+  // <reason>: <why>`; test/unit/scripts/test-wall-clock-allowances.test.ts
+  // checks that form. The selectors live in scripts/TestWallClockSelectors.ts.
+  // Scope: every TS and JS test file under test/ except test/benchmark/**,
+  // where real time is the measurement. test/runtime/** and test/type-check/**
+  // are in the global ignores above, so test/unit/scripts/
+  // test-wall-clock-guard.test.ts applies the same selectors to them.
+  {
+    files: ["test/**/*.{ts,mts,cts,js,mjs,cjs}"],
+    ignores: ["test/benchmark/**"],
+    rules: {
+      "no-restricted-syntax": ["error", ...TEST_WALL_CLOCK_SELECTORS],
+    },
+  },
+  {
+    files: ["test/**/*.{mts,cts}"],
+    languageOptions: { parser: tseslint.parser },
   },
 
   // ── Benchmarks ─────────────────────────────────────────────────────────────

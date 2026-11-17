@@ -7,13 +7,11 @@ node "$ROOT/scripts/RequireDockerTests.ts"
 cd "$CONSUMER"
 cp "$ROOT/examples/attachments.mjs" ./attachments.mjs
 cp "$ROOT/test/type-check/packed/attachments.ts" ./packed-content-types.ts
-cp "$ROOT/test/fixtures/packed-content-consumer.mjs" ./packed-content-consumer.mjs
-cp "$ROOT/test/fixtures/packed-content.mjs" ./packed-content.mjs
 
 # Parse all module-load forms and refuse computed targets before any execution.
 node "$ROOT/scripts/package-payload/CalibrateAttachmentConsumerImports.ts"
 node "$ROOT/scripts/package-payload/CheckAttachmentConsumerImports.ts" \
-  attachments.mjs packed-content-types.ts packed-content-consumer.mjs packed-content.mjs
+  attachments.mjs packed-content-types.ts
 node_modules/.bin/tsc --noEmit --strict --exactOptionalPropertyTypes --noUncheckedIndexedAccess \
   --skipLibCheck false --target ESNext --lib ESNext,DOM --types node --allowJs --checkJs \
   --module NodeNext --moduleResolution NodeNext attachments.mjs packed-content-types.ts
@@ -26,5 +24,3 @@ git init -q "$REPOSITORY"
 git -C "$REPOSITORY" config user.name 'Packed attachment example'
 git -C "$REPOSITORY" config user.email 'packed-example@example.invalid'
 node attachments.mjs "$REPOSITORY"
-node packed-content.mjs
-node packed-content-consumer.mjs

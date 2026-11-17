@@ -4,6 +4,20 @@ import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 export const DEFAULT_NEIGHBORHOOD_PAGE_SIZE = 100;
 export const MAX_NEIGHBORHOOD_PAGE_SIZE = 1_000;
 
+const NEIGHBORHOOD_CANDIDATES_PER_EDGE = 4;
+const NEIGHBORHOOD_CANDIDATE_FLOOR = 256;
+
+/**
+ * The most stored candidates that one page may visit. A stored edge bitmap
+ * can name far more global ids than there are live nodes, and a candidate
+ * that names no live node adds no edge to the page. Without this budget the
+ * work of one page grows with the cardinality of the bitmap and not with
+ * `limit`. A page that spends the budget ends early with a cursor.
+ */
+export function neighborhoodCandidateBudget(limit: number): number {
+  return limit * NEIGHBORHOOD_CANDIDATES_PER_EDGE + NEIGHBORHOOD_CANDIDATE_FLOOR;
+}
+
 const CURSOR_PREFIX = 'git-warp:neighborhood-cursor:1:';
 
 export type NeighborhoodCursorScope = {

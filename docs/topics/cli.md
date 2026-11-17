@@ -1,8 +1,14 @@
 # CLI guide
 
-The v19 CLI follows the same vocabulary as the TypeScript API and MCP server:
+The CLI follows the same vocabulary as the TypeScript API and MCP server:
 
-> Write Intents. Observe Lanes. Keep Receipts.
+> Observe Lanes. Keep Receipts.
+
+v21 removed the `write`, `fork` and `settle` commands and the `--strand`
+option ([#1054](https://github.com/git-stunts/git-warp/issues/1054)). Write
+through the package: `warp.as(writer).execute(intent)` on a `Warp` opened with
+your `WarpAccessPort`. The commands are `observe`, `receipt`, `doctor`,
+`repair`, `audit` and `mcp`.
 
 The Git subcommand form is canonical:
 
@@ -18,7 +24,6 @@ ship the former graph-first executable or command aliases.
 ```text
 --repo <path>     Local Git repository (default: cwd)
 --lane <name>     Runtime Lane name
---strand <name>   Named child strand of --lane
 --writer <id>     Runtime writer identity (default: cli)
 --json            Emit one canonical JSON envelope
 --jsonl           Emit canonical JSON Lines for streaming output
@@ -27,80 +32,6 @@ ship the former graph-first executable or command aliases.
 Every command opens the local Runtime resources it needs and closes them before
 returning. Commands do not expose Runtime handles, Git object identifiers, or
 cache internals.
-
-## Write an Intent
-
-```bash
-git warp write \
-  --lane users \
-  --writer local \
-  --json \
-  --intent '{"kind":"node.add","subject":"user:alice"}'
-```
-
-`write` returns a canonical Receipt. Supported public Intent kinds are
-`node.add`, `node.remove`, `edge.add`, `edge.remove`, `property.set`, and
-`entity.add`.
-
-`entity.add` creates one entity and its initial payload in a single patch:
-
-```bash
-git warp write \
-  --lane users \
-  --writer local \
-  --json \
-  --intent '{"kind":"entity.add","subject":"user:alice","properties":{"role":"admin"}}'
-```
-
-That patch declares an empty read set and exactly one subject write. This
-describes the operands encoded by the patch, not every dependency in the
-calling application. If the caller read graph state before constructing the
-JSON payload, that dependency remains undeclared. The intent requires at least
-one property.
-
-It does **not** check that the subject is new. `git warp write` goes through a
-lane, and a lane writer never materializes, so the uniqueness guard has no basis
-in which to observe an existing id and never fires. Writing the same subject
-twice is admitted both times, whether from one lane or from two writers, and the
-join merges the results into one entity with a two-patch cone. The guard exists
-for a directly constructed `PatchBuilder` opened against a materialized state.
-
-Use the supplied-subject form only when the application already owns a semantic
-identity. Repeated admissions of that subject remain distinct occurrences even
-though their provenance cones share one address.
-
-When the fact has no independent semantic key, ask git-warp to allocate the
-subject from the same writer-local dot that creates it:
-
-```bash
-git warp write \
-  --lane users \
-  --writer local \
-  --json \
-  --intent '{"kind":"entity.add","namespace":"entry","properties":{"role":"admin"}}'
-```
-
-The CLI JSON envelope exposes only `occurrence.subject` and the opaque
-`occurrence.id`; JSON has no comparison methods.
-
-The occurrence fields report how many entity births the admitted write
-contains:
-
-- Zero entity births emit `occurrence: null` and omit `occurrences`.
-- Exactly one entity birth emits an `occurrence` object and omits
-  `occurrences`.
-- Two or more entity births emit `occurrence: null` and an ordered
-  `occurrences` array.
-
-The `occurrences` order follows the requested Intent array. It is receipt
-ordering, not a new claim about causal or application chronology.
-
-The in-process TypeScript `EntityOccurrence` additionally provides `relationTo`
-for causal partial-order questions within a worldline; occurrences from
-independent worldlines are concurrent. Its `compare` method orders the worldline
-first, then uses git-warp's canonical `EventId` linearization for a deterministic
-list. Do not parse the allocated subject or occurrence id. Do not use a payload
-timestamp for uniqueness or causal order.
 
 ## Prepare and observe a Lane
 
@@ -128,50 +59,9 @@ git warp observe \
 JSON Lines output emits one canonical `Reading` per line followed by the
 Observation Receipt. `Reading.value` is the result payload.
 
-## Fork and settle a strand
-
-Create a named child strand:
-
-```bash
-git warp fork \
-  --lane users \
-  --writer local \
-  --name review
-```
-
-Address the child with the parent Lane plus `--strand`:
-
-```bash
-git warp write \
-  --lane users \
-  --strand review \
-  --writer local \
-  --intent '{"kind":"property.set","subject":"user:alice","key":"role","value":"admin"}'
-```
-
-Settlement is deliberately two-phase:
-
-```bash
-git warp settle preview \
-  --source users \
-  --strand review \
-  --target users \
-  --writer local \
-  --out settlement.json
-
-git warp settle apply \
-  --writer local \
-  --plan settlement.json
-```
-
-The saved artifact is presentation, not executable authority. `apply` reopens
-the selected Lanes, derives a fresh Runtime-owned plan, compares every plan
-identity field, and fails closed if either Lane moved.
-
 ## Receipts and diagnostics
 
-Render a saved Receipt through the same human renderer used by write and
-observe:
+Render a saved Receipt through the same human renderer used by observe:
 
 ```bash
 git warp receipt show --input receipt.json

@@ -6,6 +6,7 @@ import SyncTrustGate from '../../../../../src/domain/services/sync/SyncTrustGate
 import SyncSecret from '../../../../../src/domain/services/sync/SyncSecret.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import SequenceRandomPort from '../../../../helpers/SequenceRandomPort.ts';
+import ManualClock from '../../../../helpers/ManualClock.ts';
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────
 
@@ -89,6 +90,7 @@ function createMockHost(overrides: Record<string, unknown> = {}): any {
     },
     _codec: {},
     _random: new SequenceRandomPort(),
+    _clock: new ManualClock(),
     _crypto: {
       hash: vi.fn().mockResolvedValue('abcdef'.repeat(10) + 'abcd'),
       hmac: vi.fn().mockResolvedValue('hmac-sig'),

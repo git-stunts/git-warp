@@ -25,11 +25,11 @@ export default class ImmutableBytes {
     return Object.freeze([...this.#bytes]);
   }
 
-  values(): IterableIterator<number> {
+  values(): IterableIterator<number, undefined, undefined> {
     return this.#bytes.values();
   }
 
-  [Symbol.iterator](): IterableIterator<number> {
+  [Symbol.iterator](): IterableIterator<number, undefined, undefined> {
     return this.values();
   }
 }

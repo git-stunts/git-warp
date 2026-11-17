@@ -28,6 +28,7 @@ export default class PackedArtifactBoundaryAdapter {
         graphName: 'events', writerId: 'packed-inspector',
         persistence: member(binding, 'history'), runtimeStorage: member(binding, 'runtimeStorage'),
         codec: member(ports, 'codec'), crypto: member(ports, 'crypto'), random: member(ports, 'random'),
+        clock: member(ports, 'clock'),
         trustCrypto: member(ports, 'trustCrypto'), commitMessageCodec: member(ports, 'commitMessageCodec'),
       }]);
       const patches = z.array(z.object({ patch: z.object({ ops: z.array(z.object({

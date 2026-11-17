@@ -9,6 +9,8 @@ import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 import IndexStorePort from '../../src/ports/IndexStorePort.ts';
 import type { IndexShardReference } from '../../src/ports/IndexStorePort.ts';
 import { IndexShardEncodeTransform } from '../../src/infrastructure/adapters/IndexShardEncodeTransform.ts';
+import CborIndexShardTree from '../../src/infrastructure/adapters/CborIndexShardTree.ts';
+import type { default as IndexShardTreePort, EncodedIndexTree } from '../../src/ports/IndexShardTreePort.ts';
 
 /** Test-only semantic index store with directly writable encoded shards. */
 export default class MockIndexStorage extends IndexStorePort {
@@ -127,5 +129,9 @@ export default class MockIndexStorage extends IndexStorePort {
       return null;
     }
     return await this.decodeShard<TDecoded>(handle);
+  }
+
+  override openShardTree(tree: EncodedIndexTree): IndexShardTreePort {
+    return new CborIndexShardTree({ codec: defaultCodec, tree });
   }
 }

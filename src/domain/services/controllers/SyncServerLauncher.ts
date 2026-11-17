@@ -10,26 +10,14 @@
 import SyncError from '../../errors/SyncError.ts';
 import HttpSyncServer from '../sync/HttpSyncServer.ts';
 import type { SyncRequest, SyncResponse } from '../sync/SyncProtocol.ts';
-import type HttpServerPort from '../../../ports/HttpServerPort.ts';
+import type { ServeOptions } from '../../capabilities/SyncCapability.ts';
 import type { SyncHost } from './SyncController.ts';
-import type SyncSecret from '../sync/SyncSecret.ts';
-import type { SyncRateLimitConfig } from '../sync/SyncRateLimiter.ts';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const DEFAULT_SYNC_SERVER_MAX_BYTES = 4 * 1024 * 1024;
 
 // ── Types ────────────────────────────────────────────────────────────────────
-
-export interface ServeOptions {
-  port: number;
-  host?: string;
-  path?: string;
-  maxRequestBytes?: number;
-  httpPort: HttpServerPort;
-  auth?: { keys: Record<string, SyncSecret>; mode?: 'enforce' | 'log-only'; rateLimit?: SyncRateLimitConfig };
-  unsafeAllowUnauthenticatedLocalhost?: boolean;
-}
 
 export interface ServerHandle {
   close: () => Promise<void>;
@@ -58,6 +46,8 @@ export async function launchSyncServer(
     httpPort,
     auth,
     unsafeAllowUnauthenticatedLocalhost,
+    allowedWriters,
+    peerRateLimit,
   } = options;
 
   if (typeof port !== 'number') {
@@ -78,6 +68,7 @@ export async function launchSyncServer(
         ...auth,
         crypto: host._crypto,
         replayProtection: requireReplayProtection(host),
+        clock: host._clock,
         ...(host._logger ? { logger: host._logger } : {}),
       }
     : undefined;
@@ -90,8 +81,11 @@ export async function launchSyncServer(
     path,
     host: hostname,
     maxRequestBytes,
+    clock: host._clock,
     ...(authConfig !== undefined ? { auth: authConfig } : {}),
     ...(unsafeAllowUnauthenticatedLocalhost !== undefined ? { unsafeAllowUnauthenticatedLocalhost } : {}),
+    ...(allowedWriters !== undefined ? { allowedWriters } : {}),
+    ...(peerRateLimit !== undefined ? { peerRateLimit } : {}),
   });
 
   return await httpServer.listen(port);

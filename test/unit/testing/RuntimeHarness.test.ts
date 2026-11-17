@@ -50,12 +50,8 @@ describe('Runtime testing harness', () => {
     const at = harness.at;
     try {
       expect((await stat(at)).isDirectory()).toBe(true);
-      expect(harness.runtime.writer).toBe('agent-1');
-      await expect(harness.runtime.lane('events')).resolves.toMatchObject({
-        kind: 'worldline',
-        name: 'events',
-        writer: 'agent-1',
-      });
+      const lane = await harness.runtime.lane('events');
+      expect(typeof lane.observe).toBe('function');
     } finally {
       await harness.close();
     }

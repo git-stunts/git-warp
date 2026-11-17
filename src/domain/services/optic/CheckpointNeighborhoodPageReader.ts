@@ -1,12 +1,13 @@
 import QueryError from '../../errors/QueryError.ts';
 import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roaring.ts';
 import computeShardKey from '../../utils/shardKey.ts';
-import toBytes from '../../utils/toBytes.ts';
+import requireEdgeShardBuckets from '../../artifacts/EdgeShardBuckets.ts';
+import requireRoaringShardBytes from '../../artifacts/RoaringShardBytes.ts';
+import type CodecValue from '../../types/codec/CodecValue.ts';
 import type { Direction } from '../../../ports/NeighborProviderPort.ts';
 import {
   collectNeighborhoodBitmapPage,
   createNeighborhoodCandidateHeap,
-  type DecodedNeighborhoodEdgeShard,
   type NeighborhoodBitmapCandidate,
   type NeighborhoodLabelRegistry,
 } from './CheckpointNeighborhoodBitmapPager.ts';
@@ -29,7 +30,7 @@ type ReadShard = (path: string, handle: string) => Promise<Uint8Array>;
 
 type DecodedMetaShard = {
   readonly nodeToGlobal: Array<[string, number]> | Record<string, number>;
-  readonly alive: Uint8Array | ArrayLike<number>;
+  readonly alive: CodecValue;
 };
 
 type DecodedLabels = Array<[string, number]> | Record<string, number>;
@@ -137,7 +138,7 @@ class NeighborhoodShardLoader {
       return [];
     }
     const bytes = await this._read(path, oid);
-    const buckets = this._codec.decode<DecodedNeighborhoodEdgeShard>(bytes);
+    const buckets = requireEdgeShardBuckets(this._codec.decode(bytes));
     return createNeighborhoodCandidateHeap(buckets, options);
   }
 
@@ -281,9 +282,10 @@ function decodeMeta(decoded: DecodedMetaShard): LoadedMetaShard {
   for (const [nodeId, globalId] of entries) {
     byGlobalId.set(globalId, nodeId);
   }
-  const alive = decoded.alive.length === 0
+  const aliveBytes = requireRoaringShardBytes(decoded.alive);
+  const alive = aliveBytes.length === 0
     ? new (getRoaringBitmap32())()
-    : getRoaringBitmap32().deserialize(toBytes(decoded.alive), true);
+    : getRoaringBitmap32().deserializeAlive(aliveBytes);
   return { alive, byGlobalId };
 }
 

@@ -64,16 +64,17 @@ afterEach(async () => {
 });
 
 describe('standalone runtime openers without installed resolvers', () => {
-  it('Runtime.open writes through openWarp', async () => {
+  it('Runtime.open reads through openWarp', async () => {
     const repo = await initRepository('runtime-opener-');
     await expectNoRandomResolver();
     const { Runtime } = await import('../../../index.ts');
-    const { intent } = await import('../../../advanced.ts');
+    const { createEntityAdmissionInventoryObserver } = await import('../../../advanced.ts');
 
     const runtime = await Runtime.open({ at: repo, writer: 'alice' });
     try {
-      const receipt = await (await runtime.lane('events')).write([intent.node.add({ subject: 'n' })]);
-      expect(receipt.outcome.kind).toBe('derived');
+      const observation = (await runtime.lane('events')).observe(createEntityAdmissionInventoryObserver('opener-inventory'));
+      expect(await Array.fromAsync(observation)).toEqual([]);
+      expect((await observation.receipt).status).toBe('completed');
     } finally {
       await runtime.close();
     }
@@ -99,19 +100,14 @@ describe('standalone runtime openers without installed resolvers', () => {
     const repo = await initRepository('packed-removal-');
     const packageDir = await sourcePackage();
     await expectNoRandomResolver();
-    const { Runtime } = await import('../../../index.ts');
     const { intent } = await import('../../../advanced.ts');
     const writes: ReadonlyArray<readonly [string, ReturnType<typeof intent.node.add>]> = [
       ['alice', intent.node.add({ subject: 'n' })],
       ['remover', intent.node.remove({ subject: 'n' })],
     ];
+    const { writeThroughWarp } = await import('../../helpers/WarpSeed.ts');
     for (const [writer, write] of writes) {
-      const runtime = await Runtime.open({ at: repo, writer });
-      try {
-        await (await runtime.lane('events')).write([write]);
-      } finally {
-        await runtime.close();
-      }
+      await writeThroughWarp(repo, 'events', writer, [write]);
     }
     const { default: PackedArtifactBoundaryAdapter } = await import(
       '../../../src/infrastructure/adapters/PackedArtifactBoundaryAdapter.ts'

@@ -8,6 +8,7 @@
  */
 
 import computeShardKey from '../../utils/shardKey.ts';
+import type CodecValue from '../../types/codec/CodecValue.ts';
 import type { RoaringBitmapSubset } from '../../utils/roaring.ts';
 import type { NeighborEdge } from '../../../ports/NeighborProviderPort.ts';
 
@@ -36,7 +37,7 @@ export interface ShardItem {
 /** A shard file's path + decoded data (port path). */
 export interface DecodedItem {
   path: string;
-  data: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
+  data: CodecValue;
 }
 
 /**

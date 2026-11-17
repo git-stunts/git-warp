@@ -14,8 +14,7 @@ import { findCommentedJavaScript, findEscapingDocumentLinks, findUnresolvedImpor
 const boundary = new PackedArtifactBoundaryAdapter();
 const PACKAGE_METADATA = z.object({ version: z.string().min(1) });
 const WRITE_RESULT = z.object({
-  lane: z.literal('events'),
-  intent: z.object({ kind: z.literal('property.set') }),
+  outcome: z.object({ kind: z.literal('derived') }),
 });
 const READING_INTERPRETATION = z.literal('observed-remove/node-lww-clear');
 const OBSERVATION = z.object({
@@ -133,7 +132,7 @@ function requireStampedExecutableHook(packageDir: string, hookPath: string): voi
   }
 }
 
-/** Validates the JSON the smoke captured from the packaged CLI and migrations. */
+/** Validates the JSON the smoke captured from the packaged Warp, CLI and migrations. */
 function results(args: readonly string[]): Promise<void> {
   const workDir = argument(args, 0);
   boundary.read(join(workDir, 'write.json'), WRITE_RESULT);

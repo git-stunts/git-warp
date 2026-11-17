@@ -14,7 +14,7 @@ export default defineConfig({
     testTimeout: 60000, // 60s timeout for benchmark tests
     server: {
       deps: {
-        external: [/roaring/],
+        external: [/\/node_modules\/roaring(-wasm)?\//],
       },
     },
     coverage: {

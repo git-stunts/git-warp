@@ -8,7 +8,8 @@
  * @module domain/services/sync/HttpSyncServer
  */
 
-import type SyncAuthService from './SyncAuthService.ts';
+import SyncAuthService from './SyncAuthService.ts';
+import SyncPeerRateLimiter, { DEFAULT_SYNC_PEER_RATE_LIMIT } from './SyncPeerRateLimiter.ts';
 import SyncError from '../../errors/SyncError.ts';
 import nullLogger from '../../utils/nullLogger.ts';
 import type LogFields from '../../types/log/LogFields.ts';
@@ -18,6 +19,7 @@ import type { SyncRequest } from './SyncProtocol.ts';
 import {
   parseOptions,
   errorResponse,
+  peerRateLimitedResponse,
   internalSyncErrorResponse,
   jsonResponse,
   checkContentType,
@@ -44,6 +46,9 @@ export default class HttpSyncServer {
   readonly _maxRequestBytes: number;
   private readonly _auth: SyncAuthService | null;
   private readonly _authMode: string | null;
+  private readonly _peerLimiter: SyncPeerRateLimiter;
+  private readonly _metrics = { peerRateLimitRejects: 0 };
+  private _warnedNoPeerAddress = false;
 
   constructor(options: HttpSyncServerOptions) {
     const parsed = parseOptions(options);
@@ -57,6 +62,7 @@ export default class HttpSyncServer {
     const authInit = initAuth(parsed.auth, parsed.allowedWriters);
     this._auth = authInit.auth;
     this._authMode = authInit.authMode;
+    this._peerLimiter = new SyncPeerRateLimiter(parsed.peerRateLimit ?? DEFAULT_SYNC_PEER_RATE_LIMIT, parsed.clock);
   }
 
   /**
@@ -125,9 +131,9 @@ export default class HttpSyncServer {
       headers: request.headers,
       ...(request.body !== undefined ? { body: request.body } : {}),
     };
-    const preflightError = this._preflight(req);
-    if (preflightError !== null) {
-      return preflightError;
+    const refusal = this._preflight(req, request.peerAddress);
+    if (refusal !== null) {
+      return refusal;
     }
 
     const { error, parsed } = parseBody(req.body);
@@ -144,14 +150,16 @@ export default class HttpSyncServer {
   }
 
   /**
-   * Runs content-type, route, and body-size validation.
+   * Runs content-type, route, signature retirement, and body-size validation,
+   * then the peer admission gate. A request that the earlier checks refuse
+   * keeps its own typed refusal and spends no peer budget.
    */
   private _preflight(req: {
     method: string;
     url: string;
     headers: Record<string, string>;
     body?: Uint8Array;
-  }): JsonHttpResponse | null {
+  }, peerAddress: string | undefined): JsonHttpResponse | null {
     const contentTypeError = checkContentType(req.headers);
     if (contentTypeError !== null) {
       return contentTypeError;
@@ -160,7 +168,36 @@ export default class HttpSyncServer {
     if (routeError !== null) {
       return routeError;
     }
-    return checkBodySize(req.body, this._maxRequestBytes);
+    if (SyncAuthService.isRetiredVersion(req.headers['x-warp-sig-version'])) {
+      return errorResponse(400, 'SIG_VERSION_RETIRED');
+    }
+    return checkBodySize(req.body, this._maxRequestBytes) ?? this._admitPeer(peerAddress);
+  }
+
+  /**
+   * Spends one token of the socket peer's budget. Runs last in the preflight,
+   * before the body parse and all authentication work, in every auth
+   * mode, so a refused request costs no JSON parse, hash, HMAC or nonce.
+   */
+  private _admitPeer(peerAddress: string | undefined): JsonHttpResponse | null {
+    if (peerAddress === undefined && !this._warnedNoPeerAddress) {
+      this._warnedNoPeerAddress = true;
+      this._logger.warn('sync server: requests without a socket peer address share one peer budget;'
+        + ' the HttpServerPort adapter should set peerAddress from the connected socket');
+    }
+    const admission = this._peerLimiter.admit(peerAddress);
+    if (admission.admitted) {
+      return null;
+    }
+    const { peer, retryAfterSeconds } = admission;
+    this._metrics.peerRateLimitRejects += 1;
+    this._logger.warn('sync server: peer rate limit exceeded', { peer, retryAfterSeconds });
+    return peerRateLimitedResponse(retryAfterSeconds);
+  }
+
+  /** Counts of server-level refusals; authentication counts live on SyncAuthService. */
+  getMetrics(): { peerRateLimitRejects: number } {
+    return { ...this._metrics };
   }
 
   /**

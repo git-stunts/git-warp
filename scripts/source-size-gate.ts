@@ -52,7 +52,6 @@ export const SOURCE_SIZE_RELAXATIONS = Object.freeze([
   'test/unit/domain/services/IncrementalIndexUpdater.test.ts',
   'test/unit/domain/services/JoinReducer.integration.test.ts',
   'test/unit/domain/services/JoinReducer.test.ts',
-  'test/unit/domain/services/SyncAuthService.test.ts',
   'test/unit/domain/services/SyncController.test.ts',
   'test/unit/domain/services/SyncProtocol.test.ts',
   'test/unit/domain/services/controllers/ComparisonController.test.ts',

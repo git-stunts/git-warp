@@ -15,6 +15,7 @@ import { TrailerCommitMessageCodecAdapter }
   from '../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import WebCryptoAdapter from '../../src/infrastructure/adapters/WebCryptoAdapter.ts';
 import HostRandomAdapter from '../../src/infrastructure/adapters/HostRandomAdapter.ts';
+import HostClockAdapter from '../../src/infrastructure/adapters/HostClockAdapter.ts';
 import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 import MaterializationStorePort, {
   type MaterializationAcquisition,
@@ -63,8 +64,9 @@ export async function openPerformanceRuntime(
     args: ['config', 'user.name', 'git-warp performance'],
   });
   const persistence = new GitTimelineHistoryAdapter({ plumbing });
+  const clock = new HostClockAdapter();
   const runtimeStorage = new RecordingRuntimeStorageProvider(
-    new GitCasRepositoryAdapter({ plumbing, history: persistence }),
+    new GitCasRepositoryAdapter({ plumbing, history: persistence, clock }),
   );
   const runtime = await RuntimeHost.open({
     persistence,
@@ -74,6 +76,7 @@ export async function openPerformanceRuntime(
     codec: defaultCodec,
     crypto: new WebCryptoAdapter(),
     random: new HostRandomAdapter(),
+    clock,
     commitMessageCodec: new TrailerCommitMessageCodecAdapter(),
     autoMaterialize: false,
   });

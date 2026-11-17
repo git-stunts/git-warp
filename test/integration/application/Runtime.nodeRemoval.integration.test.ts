@@ -1,19 +1,14 @@
 import { execFileSync } from 'node:child_process';
 import { expect, it } from 'vitest';
-import { Runtime } from '../../../index.ts';
+import { writeThroughWarp } from '../../helpers/WarpSeed.ts';
 import Intent from '../../../src/domain/api/Intent.ts';
 import { createTestRepo } from '../api/helpers/setup.ts';
 
 it('publishes a real removal after reopen, then restores membership without old properties', async () => {
   const repository = await createTestRepo('bounded-node-removal');
   async function write(writer: string, intent: Intent) {
-    const runtime = await Runtime.open({ at: repository.tempDir, writer });
-    try {
-      const receipt = await (await runtime.lane('events')).write(intent);
-      expect(receipt.outcome.kind).toBe('derived');
-    } finally {
-      await runtime.close();
-    }
+    const receipt = await writeThroughWarp(repository.tempDir, 'events', writer, intent);
+    expect(receipt.outcome.kind).toBe('derived');
   }
   try {
     await write('alice', Intent.addEntity({ subject: 'n', properties: { color: 'red' } }));
@@ -38,10 +33,7 @@ it('removes all observed writers while preserving an addition from an isolated r
   const a = await createTestRepo('removal-replica-a');
   const b = await createTestRepo('removal-replica-b');
   async function write(at: string, writer: string, intent: Intent) {
-    const runtime = await Runtime.open({ at, writer });
-    try {
-      expect((await (await runtime.lane('events')).write(intent)).outcome.kind).toBe('derived');
-    } finally { await runtime.close(); }
+    expect((await writeThroughWarp(at, 'events', writer, intent)).outcome.kind).toBe('derived');
   }
   try {
     await write(a.tempDir, 'alice', Intent.addEntity({ subject: 'n', properties: { color: 'red' } }));

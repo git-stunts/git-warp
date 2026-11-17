@@ -294,13 +294,20 @@ describe('ConsoleLogger', () => {
   });
 
   describe('timestamp', () => {
+    // Oracle: the default timestamp is the host time in ISO 8601 form. A fake
+    // `Date` fixes host time, so the expected value is exact.
     it('generates ISO timestamp by default', () => {
-      const logger = new ConsoleLogger({ level: LogLevel.DEBUG });
-      logger.info('test');
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(Date.parse('2026-01-08T12:34:56.789Z'));
+        const logger = new ConsoleLogger({ level: LogLevel.DEBUG });
+        logger.info('test');
 
-      const output = JSON.parse(consoleLogSpy.mock.calls[0][0]);
-      const timestamp = new Date(output.timestamp);
-      expect(timestamp.toISOString()).toBe(output.timestamp);
+        const output = JSON.parse(consoleLogSpy.mock.calls[0][0]);
+        expect(output.timestamp).toBe('2026-01-08T12:34:56.789Z');
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

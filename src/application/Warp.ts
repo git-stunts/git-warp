@@ -9,6 +9,7 @@ import { textEncode } from '../domain/utils/bytes.ts';
 import WarpAccessPort from '../ports/WarpAccessPort.ts';
 import AuthoredWarp from './AuthoredWarp.ts';
 import WarpAddress from './WarpAddress.ts';
+import { readWarpOpenLogger, type WarpOpenOptions } from './WarpOpenOptions.ts';
 import { composeWarpWrites, type WarpWrites } from './WarpWriteComposition.ts';
 
 /**
@@ -25,14 +26,24 @@ export default class Warp {
     this.#writes = writes;
   }
 
-  static async open(address: WarpAddress, access: WarpAccessPort): Promise<Warp> {
+  /**
+   * Opens the repository and changes nothing in it (#1078), so a deny-all access port
+   * opens. A repository this process cannot write to is not tested. The write path (the cone, custody, the retention policy and the
+   * sweep of unfinished attempts) opens on the first granted write or reconcile. While it
+   * cannot open, each granted write or reconcile rejects and the next one tries again. A
+   * writer's host opens on its first granted write or stage. The sweep is graph-wide
+   * housekeeping: under any writer's grant it abandons only attempts older than the grace
+   * period. An optional `logger` hears runtime warnings, such as a removal under the `warn`
+   * policy; its failures are ignored. Without one, nothing is printed.
+   */
+  static async open(address: WarpAddress, access: WarpAccessPort, options: WarpOpenOptions = {}): Promise<Warp> {
     if (!(address instanceof WarpAddress)) {
       throw new WarpError('Warp.open requires a WarpAddress', 'E_WARP_OPEN_ADDRESS');
     }
     if (!(access instanceof WarpAccessPort)) {
       throw new WarpError('Warp.open requires a WarpAccessPort; there is no implicit access', 'E_WARP_OPEN_ACCESS');
     }
-    return new Warp(await composeWarpWrites(address, access));
+    return new Warp(await composeWarpWrites({ address, access, logger: readWarpOpenLogger(options) }));
   }
 
   as(writer: string): AuthoredWarp {
@@ -64,3 +75,4 @@ export default class Warp {
     return await run;
   }
 }
+

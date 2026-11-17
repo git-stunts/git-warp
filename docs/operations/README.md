@@ -67,14 +67,35 @@ git clone --mirror --no-hardlinks "$REPOSITORY" "$BACKUP"
 git -C "$BACKUP" fsck --full
 ```
 
-Run the migration without `--dry-run`; the framed application discovers graph
-names, reports source and scratch capacity, and asks for confirmation:
+Set the graph name that the application uses:
 
 ```bash
-GRAPH_NAME=your-graph-name
+GRAPH_NAME='<graph-name>'
+```
 
-npm exec --package=@git-stunts/git-warp@19.1.0 -- \
-  git-warp-v18-to-v19 \
+<!-- v18-to-v19-cli: note graph-names -->
+To learn the graph names, run the `--dry-run` form below with any name. If the
+repository does not hold that name, the command stops with `Graph not found`
+and lists every graph. If the repository holds that name, the command shows
+the selected graph and waits for you to confirm a rehearsal; without a
+terminal it lists every graph and stops. A `--dry-run` run cannot change
+authoritative refs.
+
+<!-- v18-to-v19-cli: example dry-run shell -->
+```bash
+npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
+  --repo "$REPOSITORY" \
+  --graph "$GRAPH_NAME" \
+  --dry-run
+```
+
+Run the migration without `--dry-run`. The framed application shows the
+selected graph, reports source and scratch capacity, and asks for
+confirmation:
+
+<!-- v18-to-v19-cli: example promote shell -->
+```bash
+npm exec --package=@git-stunts/git-warp@19.1.0 -- git-warp-v18-to-v19 \
   --repo "$REPOSITORY" \
   --graph "$GRAPH_NAME"
 ```
@@ -83,6 +104,11 @@ After a successful cutover, rerun with `--yes --json`. The idempotent
 verification must report `already-current`. Then start the already-tested v19
 application and verify a bounded read, one write, its Receipt, restart
 behavior, and the next backup.
+
+<!-- v18-to-v19-cli: note yes-promotes -->
+`--yes` skips the confirmation. With `--yes` and without `--dry-run`, the command
+migrates and promotes the named graph without asking. Use that form only
+after the backup, with every writer stopped.
 
 An omitted `checkpointPolicy` now defaults to `{ every: 64 }` in v19.1.0.
 Use `checkpointPolicy: null` only when disabling automatic checkpoints is a
@@ -125,29 +151,16 @@ replay or grant trust to a writer.
 git warp receipt show --input receipt.json
 ```
 
-The CLI uses the same canonical Receipt renderer as write and observe. Keep the
+The CLI uses the same canonical Receipt renderer as observe. Keep the
 machine envelope when a later incident may need exact operation, outcome,
 support, or repair evidence.
 
 ## Review and Settlement
 
-Always separate preview from apply:
-
-```bash
-git warp settle preview \
-  --repo ./team-repo \
-  --source users \
-  --strand review-auth \
-  --target users \
-  --out settlement.json
-
-git warp settle apply \
-  --repo ./team-repo \
-  --plan settlement.json
-```
-
-The apply step revalidates a fresh Runtime-owned plan. A moved source or target
-requires a new preview and review.
+v21 removed the CLI `fork` and `settle` commands with `Runtime.fork` and
+settlement ([#1054](https://github.com/git-stunts/git-warp/issues/1054)).
+[#1053](https://github.com/git-stunts/git-warp/issues/1053) brings strands and
+settlement back as Coordinate-derived handles.
 
 ## Substrate and git-cas rollout coordination
 
@@ -208,8 +221,23 @@ of them can return, for example:
   not confirmed. Pass the receipt's `attempt` to
   `warp.as(writer).reconcile(attempt)`, which retries the retention. If it
   returns `UnretainedWriteReceipt` again, call it again later. A `null` result
-  means that the attempt was already answered or that a sweep finished it,
-  not that the write was lost.
+  does not mean that the write was lost. The usual causes are that the
+  attempt was already answered or that a sweep finished it. `null` is also the
+  answer for an attempt of another writer and for a writer that the access
+  port denies now. One more cause applies only to a clone that ran a
+  pre-release build of `main`: the record still exists at the old ref
+  location, which this build does not read. See
+  [Finish in-flight refs from pre-release builds](../topics/sync.md#finish-in-flight-refs-from-pre-release-builds).
+
+The first granted `execute` or `reconcile` of a `Warp` also opens the write
+path. A ref lock met during that step rejects the call instead of returning a
+receipt. Nothing was published. Call the operation again: every granted
+operation tries the open again until it succeeds. When the lock is on the
+retention ledger, the rejection has code `E_WARP_RETENTION_OPEN`, its
+`refusal` is `null`, and its `cause` is the Git failure. The same code with
+`refusal` set to `policy-mismatch` is not a lock: the graph's saved retention
+capacity differs from the capacity that this build uses, and no retry clears
+it.
 
 If nothing collects garbage, disk use grows by about 220 KiB for each
 retained write, with no upper limit. The default threshold is passed after
