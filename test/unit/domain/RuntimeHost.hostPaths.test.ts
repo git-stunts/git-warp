@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import AllocationProvenance from '../../../src/domain/migrations/AllocationProvenance.ts';
 import DotCollision from '../../../src/domain/repair/DotCollision.ts';
 import DotRepairRecord from '../../../src/domain/repair/DotRepairRecord.ts';
+import type CodecValue from '../../../src/domain/types/codec/CodecValue.ts';
+import type LogFields from '../../../src/domain/types/log/LogFields.ts';
+import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
 import AllocationProvenancePort from '../../../src/ports/AllocationProvenancePort.ts';
+import CodecPort from '../../../src/ports/CodecPort.ts';
+import LoggerPort from '../../../src/ports/LoggerPort.ts';
 import DotRepairStorePort from '../../../src/ports/DotRepairStorePort.ts';
 import type RuntimeStorageProviderPort from '../../../src/ports/RuntimeStorageProviderPort.ts';
 import type { RuntimeStorageRequest, RuntimeStorageServices } from '../../../src/ports/RuntimeStorageProviderPort.ts';
@@ -11,6 +16,7 @@ import InMemoryGraphAdapter from '../../helpers/InMemoryGraphAdapter.ts';
 import ManualClock from '../../helpers/ManualClock.ts';
 import { createMemoryRuntimeStorage, openMemoryRuntimeHostProduct } from '../../helpers/MemoryRuntimeHost.ts';
 import SequenceRandomPort from '../../helpers/SequenceRandomPort.ts';
+import { createStateBuilder } from '../../helpers/stateBuilder.ts';
 
 const GRAPH = 'runtime-host-paths';
 const COMMIT = 'c'.repeat(40);
@@ -22,6 +28,43 @@ class ResolvingProvenance extends AllocationProvenancePort {
   override resolve(commit: string, operationIndex: number, original: string): Promise<AllocationProvenance> {
     this.questions.push([commit, operationIndex, original]);
     return Promise.resolve(new AllocationProvenance({ status: 'resolved', original, identity: 'mint:7', candidates: [] }));
+  }
+}
+
+/** The CBOR codec, except that once armed its next encode throws a string, as a foreign codec might. */
+class FaultingCodec extends CodecPort {
+  private failure: string | null = null;
+
+  failNextEncode(failure: string): void {
+    this.failure = failure;
+  }
+
+  override encode<TEncoded = CodecValue>(data: TEncoded): Uint8Array {
+    const { failure } = this;
+    this.failure = null;
+    if (failure !== null) {
+      throw failure;
+    }
+    return defaultCodec.encode(data);
+  }
+
+  override decode<TDecoded = CodecValue>(bytes: Uint8Array): TDecoded {
+    return defaultCodec.decode<TDecoded>(bytes);
+  }
+}
+
+/** Keeps every warning with its fields. */
+class WarningFields extends LoggerPort {
+  readonly warnings: Array<readonly [string, LogFields | undefined]> = [];
+
+  override debug(): void {}
+  override info(): void {}
+  override error(): void {}
+  override warn(message: string, fields?: LogFields): void {
+    this.warnings.push([message, fields]);
+  }
+  override child(): LoggerPort {
+    return this;
   }
 }
 
@@ -142,6 +185,19 @@ describe('RuntimeHost paths (#1112)', () => {
     const finished = await host.applyDotRepair({ dot: 'alice:1', policy: 'separate' });
 
     expect([finished, (await host.getWriterPatches('repair.alice')).length]).toEqual([applied, 1]);
+  });
+
+  it('degrades the index and logs the thrown text when the codec throws something that is not an Error', async () => {
+    const codec = new FaultingCodec();
+    const logger = new WarningFields();
+    const host = await openMemoryRuntimeHostProduct({
+      persistence: new InMemoryGraphAdapter(), clock: new ManualClock(), codec, logger, graphName: GRAPH, writerId: 'alice',
+    });
+    codec.failNextEncode('codec exploded');
+
+    host._buildViewFromResult({ state: createStateBuilder().node('n:1').build(), stateHash: 'unbuilt-state' });
+
+    expect(logger.warnings).toEqual([['index build failed', { error: 'codec exploded' }]]);
   });
 
   it('admits writers it cannot verify under a log-only trust override on a host opened without trust or a logger', async () => {
