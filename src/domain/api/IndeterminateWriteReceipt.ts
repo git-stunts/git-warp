@@ -9,7 +9,10 @@ export default class IndeterminateWriteReceipt {
   readonly writer: string;
   /** Opaque evidence naming the attempt. */
   readonly attempt: string;
-  /** What must become known first, such as `publication-unresolved`. */
+  /**
+   * What must become known first, such as `publication-unresolved`. With
+   * `publication-walk-exhausted` nothing more can become known yet: see `AuthoredWarp.reconcile`.
+   */
   readonly requirement: string;
 
   constructor(fields: {

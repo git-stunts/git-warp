@@ -31,6 +31,7 @@ import type { PatchBuilder } from '../PatchBuilder.ts';
 import ConeWriteKnowledge from './ConeWriteKnowledge.ts';
 import LoweredConeWrite from './LoweredConeWrite.ts';
 import PatchEntryFold from './PatchEntryFold.ts';
+import type WriterFrontierLimit from './WriterFrontierLimit.ts';
 import { writeRaceOf } from './writeRaceOf.ts';
 
 /** The registered purpose every write's premises are read under. */
@@ -39,6 +40,9 @@ const WRITE_QUESTION = new ObservationQuestion('git-warp:question/write-premise'
 const WRITE_LAW = 'git-warp:admission-law/cone-write/v1';
 const BASIS_UNAVAILABLE = 'write-basis-unavailable';
 const PREMISE_UNAVAILABLE = 'write-premise-unavailable';
+
+/** A write's patch builder and the basis its premises are read from. */
+type OpenedWrite = { readonly builder: PatchBuilder; readonly premise: ConeWritePremise };
 
 type LoweringRequest = {
   readonly writer: string;
@@ -56,6 +60,7 @@ export default class ConeWriteLowering {
   readonly #openPatch: (writer: string) => Promise<PatchBuilder>;
   readonly #content: ContentStagingAuthority;
   readonly #crypto: CryptoPort;
+  readonly #writers: WriterFrontierLimit;
   readonly #knowledge = new ConeWriteKnowledge();
 
   constructor(fields: {
@@ -64,12 +69,14 @@ export default class ConeWriteLowering {
     readonly openPatch: (writer: string) => Promise<PatchBuilder>;
     readonly content: ContentStagingAuthority;
     readonly crypto: CryptoPort;
+    readonly writers: WriterFrontierLimit;
   }) {
     this.#graph = fields.graph;
     this.#cone = fields.cone;
     this.#openPatch = fields.openPatch;
     this.#content = fields.content;
     this.#crypto = fields.crypto;
+    this.#writers = fields.writers;
     Object.freeze(this);
   }
 
@@ -97,17 +104,25 @@ export default class ConeWriteLowering {
    * Nothing has been reserved, so an unavailable store here leaves a write known not to
    * have published (#1079). Any other failure, a defect or corruption, rejects.
    */
-  async #opened(writer: string): Promise<{ readonly builder: PatchBuilder; readonly premise: ConeWritePremise } | UnpublishedWriteReceipt> {
+  async #opened(writer: string): Promise<OpenedWrite | UnpublishedWriteReceipt> {
     try {
       const builder = await this.#openPatch(writer);
       const premise = await this.#cone.writePremise();
-      return premise instanceof ConeObstruction ? this.#unpublished(writer, coneObstructionFailure(premise)) : { builder, premise };
+      return premise instanceof ConeObstruction ? this.#unpublished(writer, coneObstructionFailure(premise)) : this.#admitted(writer, { builder, premise });
     } catch (error) {
       if (error instanceof ConeStoreUnavailableError) {
         return new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: BASIS_UNAVAILABLE });
       }
       throw error;
     }
+  }
+
+  /** A writer new to a frontier at or past the limit is refused before anything is reserved (#1075). */
+  #admitted(writer: string, opened: OpenedWrite): OpenedWrite | UnpublishedWriteReceipt {
+    const refusal = this.#writers.refusal(writer, opened.premise.basis);
+    return refusal === null
+      ? opened
+      : new UnpublishedWriteReceipt({ graph: this.#graph, writer, cause: refusal.cause, repairHints: refusal.repairHints });
   }
 
   async #loweredOnto(run: {
