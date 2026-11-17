@@ -60,6 +60,9 @@ afterAll(async () => {
   await initRoaring({ RoaringBitmap32: loaded });
 });
 
+/** Meta ids around global id 1: the id itself, then values that round or wrap to 1 or 0. */
+const NON_INTEGER_IDS_NEAR_ONE = [1, 1.5, 1.0000001, 0.9, 2 ** 32 + 1] as const;
+
 function bitmapOf(values: readonly number[]): Uint8Array {
   return new (getRoaringBitmap32())(values).serialize(true);
 }
@@ -113,6 +116,23 @@ describe('BitmapIndexReader neighbour reads (#1159 D1)', () => {
     expect(warn).toHaveBeenCalledWith('Bitmap deserialization failed', expect.objectContaining({
       shardPath: 'shards_fwd_aa.chunk-000000.cbor',
     }));
+  });
+
+  // Oracle: global ids are unsigned 32-bit integers, and a bitmap holds only
+  // those; membership does not round or wrap a meta id that is not one.
+  it('tests a meta id for membership without coercing it: a bitmap of {1} holds 1 only', () => {
+    const bitmap = getRoaringBitmap32().deserialize(bitmapOf([1]), true);
+
+    expect(NON_INTEGER_IDS_NEAR_ONE.map((id) => [id, bitmap.has(id)])).toEqual([
+      [1, true], [1.5, false], [1.0000001, false], [0.9, false], [2 ** 32 + 1, false],
+    ]);
+  });
+
+  it('resolves only the meta entry whose id the bitmap holds', async () => {
+    const meta = Object.fromEntries(NON_INTEGER_IDS_NEAR_ONE.map((id, index) => [sha('bb', index), id]));
+    const reader = await readerOver({ 'meta_bb.cbor': meta, 'shards_fwd_aa.cbor': { [sha('aa', 1)]: bitmapOf([1]) } });
+
+    await expect(reader.getChildren(sha('aa', 1))).resolves.toEqual([sha('bb', 0)]);
   });
 
   it('skips a meta entry whose id is not a number', async () => {
