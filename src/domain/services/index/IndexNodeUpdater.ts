@@ -101,13 +101,6 @@ export default class IndexNodeUpdater {
   }
 
   /**
-   * Looks up a globalId for a nodeId via the O(1) forward map.
-   */
-  findGlobalId(meta: WorkingMetaShard, nodeId: string): number | undefined {
-    return meta.nodeToGlobalMap.get(nodeId);
-  }
-
-  /**
    * Reverse-looks up a nodeId from a globalId using the shard byte encoding.
    */
   findNodeIdByGlobal(
@@ -135,32 +128,29 @@ export default class IndexNodeUpdater {
     const data = opts.getOrLoadEdgeShard(opts.primaryCache, opts.primaryDir, shardKey);
     const gidStr = String(deadGid);
 
-    for (const bucket of Object.keys(data)) {
-      if (!data[bucket] || !data[bucket][gidStr]) {
+    for (const [bucket, rows] of Object.entries(data)) {
+      const row = rows[gidStr];
+      if (row === undefined) {
         continue;
       }
-      const peers = this._clearBitmapAndCollectPeers(data, bucket, gidStr);
+      const peers = this._clearRowAndCollectPeers(rows, gidStr, row);
       this._removePeerReferences(deadGid, peers, { bucket, ...opts });
     }
   }
 
   /**
-   * Clears a bitmap entry for the dead node and returns the peer globalIds.
+   * Clears the dead node's row in one bucket and returns the peer globalIds it held.
    */
-  private _clearBitmapAndCollectPeers(
-    data: EdgeShardData,
-    bucket: string,
+  private _clearRowAndCollectPeers(
+    rows: Record<string, Uint8Array>,
     gidStr: string,
+    row: Uint8Array,
   ): number[] {
     const RoaringBitmap32 = getRoaringBitmap32();
-    const bucketData = data[bucket];
-    if (!bucketData || !bucketData[gidStr]) {
-      return [];
-    }
-    const bm = RoaringBitmap32.deserialize(bucketData[gidStr], true);
+    const bm = RoaringBitmap32.deserialize(row, true);
     const peers = bm.toArray();
     bm.clear();
-    bucketData[gidStr] = bm.serialize(true);
+    rows[gidStr] = bm.serialize(true);
     return peers;
   }
 
