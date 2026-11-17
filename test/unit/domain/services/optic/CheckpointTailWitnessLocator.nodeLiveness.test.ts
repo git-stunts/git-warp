@@ -3,6 +3,7 @@ import { Dot, encodeDot } from '../../../../../src/domain/crdt/Dot.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
 import NodeRemove from '../../../../../src/domain/types/ops/NodeRemove.ts';
 import { NODE_LIFECYCLE_RECEIPT_PATH } from '../../../../../src/domain/services/index/NodeLifecycleShardReader.ts';
+import computeShardKey from '../../../../../src/domain/utils/shardKey.ts';
 import {
   HARNESS_NODE, replay, stepsOf, tailNodeRead, type HarnessScenario,
 } from '../../../../helpers/CheckpointTailLifecycleHarness.ts';
@@ -42,6 +43,18 @@ describe('checkpoint-tail node liveness with floating removed dots (#894)', () =
     await expect(tailNodeRead(removedScenario, { damage: 'receipt-schema-version' })).rejects.toMatchObject({
       code: 'E_OPTIC_NO_BOUNDED_BASIS', context: { cause: 'checkpoint-shard-invalid' },
     });
+  });
+
+  it('reads a tail add of a node whose shard key has no lifecycle shard at the checkpoint', async () => {
+    // The checkpoint holds records only for `other`, so the receipt is present
+    // and the harness node's life_XX member is not: the read has no record.
+    const other = { writer: 'B', lamport: 1, sha: 'bbbb0001', ops: [new NodeAdd('other', Dot.create('B', 1))] };
+    expect(computeShardKey('other')).not.toBe(computeShardKey(HARNESS_NODE));
+
+    const read = await tailNodeRead({ checkpoint: [other], tail: [independentAdd] });
+
+    expect({ alive: read.alive, shards: read.readIdentity.checkpointIndexShards.map((shard) => shard.path) })
+      .toMatchObject({ alive: true, shards: expect.arrayContaining([NODE_LIFECYCLE_RECEIPT_PATH]) });
   });
 
   it('refuses a tail add when the checkpoint has no lifecycle receipt', async () => {
