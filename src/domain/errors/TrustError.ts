@@ -11,6 +11,7 @@ import WarpError, { type WarpErrorOptions } from './WarpError.ts';
  * | `E_TRUST_INVALID_KEY` | Public key is malformed (wrong length or bad base64) |
  * | `E_TRUST_CAS_CONFLICT` | Concurrent append advanced the trust chain; caller must rebuild + re-sign |
  * | `E_TRUST_CAS_EXHAUSTED` | CAS retry budget exhausted (transient failures) |
+ * | `E_TRUST_RECORD_OUT_OF_BOUNDS` | Encoded record is outside the CBOR read bounds; nothing was written |
  * | `TRUST_ERROR` | Generic/default trust error |
  */
 export default class TrustError extends WarpError {

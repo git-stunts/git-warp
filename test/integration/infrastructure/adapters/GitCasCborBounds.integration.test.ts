@@ -17,6 +17,7 @@ import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/G
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import MessageCodecError from '../../../../src/domain/errors/MessageCodecError.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
+import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
 import warpCborCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { buildTrustRecordRef } from '../../../../src/domain/utils/RefLayout.ts';
@@ -231,6 +232,19 @@ describe('git-cas CBOR decode bounds in the default GitCasRepositoryAdapter runt
     expect(tip?.recordId).toBe('record-1');
   });
 
+  it('refuses to write a trust record over 5 MiB and leaves the trust chain readable (#1188)', async () => {
+    const { plumbing, repository } = await openRepository();
+    const trustChain = repository.createTrustChain(new NodeCryptoAdapter());
+    const first = await trustChain.persistRecord(GRAPH, trustRecord({ recordId: 'record-1', prev: null, note: 'ok' }), null);
+    const oversized = trustRecord({ recordId: 'record-2', prev: 'record-1', note: 'x'.repeat(MAX_CBOR_DECODE_BYTES) });
+
+    const write = trustChain.persistRecord(GRAPH, oversized, first.commitSha);
+
+    await expect(write).rejects.toMatchObject({ name: 'TrustError', code: 'E_TRUST_RECORD_OUT_OF_BOUNDS' });
+    expect((await plumbing.execute({ args: ['rev-parse', buildTrustRecordRef(GRAPH)] })).trim()).toBe(first.commitSha);
+    await expect(trustChain.readTip(GRAPH)).resolves.toEqual({ tipSha: first.commitSha, recordId: 'record-1' });
+  });
+
   it('writes the same manifest tree as createCbor and reads the asset back', async () => {
     const { plumbing, history, repository } = await openRepository();
     const content = deterministicBytes(1_200_000);
@@ -420,6 +434,22 @@ async function publishTrustRecordBytes(repository: GitCasRepositoryAdapter, byte
     root: staged.handle,
     commit: { message: 'trust: test record', parents: [] },
     ref: { name: buildTrustRecordRef(GRAPH), expected: null },
+  });
+}
+
+/** A KEY_ADD trust record whose `meta.note` sets its size. */
+function trustRecord(fields: { readonly recordId: string; readonly prev: string | null; readonly note: string }): TrustRecord {
+  return TrustRecord.fromDecoded({
+    schemaVersion: 1,
+    recordType: 'KEY_ADD',
+    recordId: fields.recordId,
+    issuerKeyId: 'key-1',
+    issuedAt: '2026-01-01T00:00:00.000Z',
+    prev: fields.prev,
+    subject: { keyId: 'key-1', publicKey: 'public-key-1' },
+    meta: { note: fields.note },
+    signature: { alg: 'ed25519', sig: 'signature-1' },
+    signaturePayload: new Uint8Array(),
   });
 }
 

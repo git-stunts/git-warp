@@ -247,7 +247,11 @@ root manifest that lists more chunks fails with `E_CAS_MANIFEST_SHAPE`. An asset
 1,048,576 chunks that an earlier version stored can no longer be read; read or copy it with
 v20 before you upgrade. A refused bundle descriptor fails
 with a git-cas `BUNDLE_CORRUPT` error whose `meta.originalError` is the
-`E_CBOR_DECODE_BOUNDS` error. If the tip of a graph's trust chain is refused, appending
+`E_CBOR_DECODE_BOUNDS` error. git-warp does not write a trust record that these limits
+refuse: the write fails with a `TrustError` whose code is `E_TRUST_RECORD_OUT_OF_BOUNDS`,
+and whose context holds the `recordId` and the `reason`, before git-warp stores the record
+or moves the trust ref ([#1188](https://github.com/git-stunts/git-warp/issues/1188)).
+If the tip of a graph's trust chain is refused, appending
 a new trust record to that chain also fails. Do not delete or move the trust ref to get
 past the refusal. Keep the record and its commit, and do not fetch from that peer
 again until you know why it sent the record.
