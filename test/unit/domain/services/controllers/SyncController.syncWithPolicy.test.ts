@@ -148,6 +148,16 @@ describe('SyncController.syncWith transport and policy options', () => {
     expect(client.requests).toHaveLength(1);
   });
 
+  it('refuses a response that the transport reports as too large, without a retry', async () => {
+    const client = new ScriptedHttpClient([{ kind: 'response-too-large', status: 200, maxBytes: 64 }, SUCCESS]);
+    const controller = new SyncController(new SyncHostDouble(null), { httpClient: client, operationPolicy: new ImmediateRetryPolicy() });
+
+    await expect(controller.syncWith(REMOTE, { retries: 3 })).rejects.toMatchObject({
+      name: SyncError.name, code: 'E_SYNC_RESPONSE_TOO_LARGE', context: { status: 200, maxBytes: 64 },
+    });
+    expect(client.requests).toHaveLength(1);
+  });
+
   it('refuses a response that fails payload validation', async () => {
     const oversizedWriter = 'w'.repeat(257);
     const peer = { processSyncRequest: (): Promise<SyncResponse> => Promise.resolve({ ...EMPTY, frontier: { [oversizedWriter]: 'a'.repeat(40) } }) };
