@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Task plan house format
+    url: https://github.com/git-stunts/git-warp/blob/main/docs/plans/README.md
+    about: Issues are the task plans. The issue-dag/2 frontmatter block at the top of each issue holds its dependencies and resources, and ROADMAP.md is compiled from it.
