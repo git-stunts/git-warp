@@ -36,6 +36,7 @@ import ObservedWriterHead from '../../../src/domain/types/ObservedWriterHead.ts'
 import EdgePropSet from '../../../src/domain/types/ops/EdgePropSet.ts';
 import { encodeEdgeKey } from '../../../src/domain/services/KeyCodec.ts';
 import ConeRecordCborCodec from '../../../src/infrastructure/adapters/ConeRecordCborCodec.ts';
+import SeededRandomPort from '../../helpers/SeededRandomPort.ts';
 
 const LANE = 'L';
 const HEAD_OF_LANE = ConeBasisHead.forLane(LANE);
@@ -57,7 +58,7 @@ async function repository() {
   const history = new GitTimelineHistoryAdapter({ plumbing });
   const cas = ContentAddressableStore.createCbor({ plumbing, applicationRefPrefixes: ['refs/warp/'] });
   const journal = new CborPatchJournalAdapter({ assetStorage: new GitCasAssetStorageAdapter({ cas }), cas, codec, commitReader: history, graph: LANE });
-  const store = new GitConeRecordStoreAdapter({ history, codec });
+  const store = new GitConeRecordStoreAdapter({ history, codec, random: new SeededRandomPort() });
   const feed = new GitConePatchFeedAdapter({ history, journal, commitMessageCodec: DEFAULT_COMMIT_MESSAGE_CODEC });
   return { directory, plumbing, history, journal, store, feed, ingest: new ConeIngest({ store, feed, scope: new LaneConeScope(LANE) }) };
 }

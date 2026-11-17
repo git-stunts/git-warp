@@ -25,6 +25,7 @@ import GitConeRecordStoreAdapter, { CONE_TRIE_LAYOUT, type ConeTrieHistory } fro
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MemoryConeFeed from '../../../helpers/MemoryConeFeed.ts';
+import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
 
 const LANE = 'events';
 const HEAD = ConeBasisHead.forLane(LANE);
@@ -64,7 +65,7 @@ async function repository(): Promise<{ plumbing: Plumbing; store: GitConeRecordS
   const history = new GitTimelineHistoryAdapter({ plumbing });
   histories.push(history);
   const reads: ObjectReads = { trees: 0, blobs: 0 };
-  return { plumbing, store: new GitConeRecordStoreAdapter({ history: countingHistory(history, reads), codec: new CborCodec() }), reads };
+  return { plumbing, store: new GitConeRecordStoreAdapter({ history: countingHistory(history, reads), codec: new CborCodec(), random: new SequenceRandomPort() }), reads };
 }
 
 /** Moriarty's arrival-order case: two writers that each add an edge from the shared node x. */
