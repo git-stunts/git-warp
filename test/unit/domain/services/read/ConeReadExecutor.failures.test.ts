@@ -15,6 +15,8 @@ import ConeLaneBasis from '../../../../../src/domain/services/cone/ConeLaneBasis
 import type ConeRecordSnapshot from '../../../../../src/domain/services/cone/ConeRecordSnapshot.ts';
 import type StoredConeBasis from '../../../../../src/domain/services/cone/StoredConeBasis.ts';
 import ConeReadExecutor from '../../../../../src/domain/services/read/ConeReadExecutor.ts';
+import type LogFields from '../../../../../src/domain/types/log/LogFields.ts';
+import LoggerPort from '../../../../../src/ports/LoggerPort.ts';
 import WarpAccessPort from '../../../../../src/ports/WarpAccessPort.ts';
 import InMemoryConeRecordStore from '../../../../helpers/InMemoryConeRecordStore.ts';
 import MemoryConeFeed from '../../../../helpers/MemoryConeFeed.ts';
@@ -34,6 +36,21 @@ function access(decision: WarpReadGrant | WarpAccessDenied): WarpAccessPort {
 
 function cone(store: InMemoryConeRecordStore): ConeLaneBasis {
   return ConeLaneBasis.ofLane({ lane: 'graph', store, feed: new MemoryConeFeed('graph') });
+}
+
+/** Keeps every error-level entry it is given. */
+class ErrorLog extends LoggerPort {
+  readonly errors: Array<{ readonly message: string; readonly context: LogFields | undefined }> = [];
+
+  override debug(): void {}
+  override info(): void {}
+  override warn(): void {}
+  override error(message: string, context?: LogFields): void {
+    this.errors.push({ message, context });
+  }
+  override child(): LoggerPort {
+    return this;
+  }
 }
 
 async function collected(observation: OpticObservation): Promise<OpticReading[]> {
@@ -142,5 +159,20 @@ describe('ConeReadExecutor operational failures', () => {
     const observation = await executor.read(REQUEST);
     await expect(collected(observation)).rejects.toBe(failure);
     expect(await observation.receipt).toMatchObject({ status: 'failed', cause: 'observation-failed', records: 0 });
+  });
+
+  it('gives a defect on a read nobody iterates to the logger, with the names its receipt carries', async () => {
+    const failure = new Error('private implementation detail');
+    const store = new (class extends InMemoryConeRecordStore {
+      override readRecords(): Promise<ConeRecordSnapshot> { return Promise.reject(failure); }
+    })();
+    const logger = new ErrorLog();
+    const executor = new ConeReadExecutor({ graph: 'graph', access: access(GRANT), cone: async () => await Promise.resolve(cone(store)), logger });
+
+    expect(await (await executor.read(REQUEST)).receipt).toMatchObject({ status: 'failed', cause: 'observation-failed' });
+    expect(logger.errors).toEqual([{
+      message: 'A read nobody iterated failed with a defect; its receipt says observation-failed',
+      context: { error: failure, graph: 'graph', observer: 'person:reader', purpose: 'todos:display/v1', question: 'node.presence/v1' },
+    }]);
   });
 });

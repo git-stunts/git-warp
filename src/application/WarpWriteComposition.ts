@@ -120,7 +120,7 @@ function composeOverStorage(run: {
   return {
     openCustody: async () => (await opened()).custody,
     executor: new ConeWriteExecutor({ graph, access, path: async () => (await opened()).path }),
-    reads: new ConeReadExecutor({ graph, access, cone: async () => (await readCone()).basis }),
+    reads: new ConeReadExecutor({ graph, access, cone: async () => (await readCone()).basis, ...(logger === undefined ? {} : { logger }) }),
     stage: async (writer, staged) => await content.stage({ assetStorage: (await hosts(writer))._assetStorage, content: staged.content, metadata: staged.metadata, slug: `${graph}/${writer}` }),
     close: async () => await storage.close(),
   };

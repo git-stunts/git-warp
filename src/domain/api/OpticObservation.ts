@@ -9,6 +9,8 @@ export type OpticExecution = {
   readings(): AsyncGenerator<OpticReading, OpticReceipt, undefined>;
   cancelled(): OpticReceipt;
   failed?(cause: string): OpticReceipt;
+  /** Hears a defect on a read nobody iterates, whose receipt alone would lose the error. */
+  reportDefect?(error: Error): void;
 };
 
 /**
@@ -22,6 +24,8 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
   #settle: (receipt: OpticReceipt) => void = () => undefined;
   #terminal: (() => OpticReceipt) | null = null;
   #consumed = false;
+  /** Receipt demand alone consumes this read, so nobody sees a defect unless it is reported. */
+  #draining = false;
   #readings: AsyncGenerator<OpticReading, OpticReceipt, undefined> | null = null;
   #closing: Promise<void> | null = null;
   #published = false;
@@ -85,6 +89,7 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
       this.#finishCompleted(next);
     } catch (error) {
       this.#finishFailed();
+      this.#reportUnseen(error instanceof Error ? error : nonErrorDefect());
       throw error;
     } finally {
       await this.#closeExecution(this.#decide(() => this.#execution.cancelled()));
@@ -109,7 +114,15 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
     this.#decide(() => receipt);
   }
 
+  /** A defect reaches an iterating consumer as an exception; on a drained read it is reported before the receipt settles. */
+  #reportUnseen(error: Error): void {
+    if (this.#draining) {
+      this.#execution.reportDefect?.(error);
+    }
+  }
+
   async #drain(): Promise<void> {
+    this.#draining = true;
     try {
       const readings = this[Symbol.asyncIterator]();
       let next = await readings.next();
@@ -117,7 +130,7 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
         next = await readings.next();
       }
     } catch {
-      // #iterate already settled #terminal before rethrowing.
+      // #iterate settled the receipt as failed, and reported the defect, before rethrowing.
     }
   }
 
@@ -147,4 +160,8 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
       this.#execution.onSettled?.();
     }
   }
+}
+
+function nonErrorDefect(): OpticError {
+  return new OpticError('A read nobody iterated threw a value that is not an Error', { code: 'E_OBSERVATION_DEFECT' });
 }

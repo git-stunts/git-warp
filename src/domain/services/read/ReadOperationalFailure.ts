@@ -14,9 +14,14 @@ const SUBSTRATE_FAILURES: ReadonlySet<string> = new Set([
 const HISTORY_FAILURES: ReadonlySet<string> = new Set(['E_SYNC_PATCH_HISTORY']);
 
 /**
- * The operational failures that the cone and storage boundaries actually produce.
- * Constructor defects, unrecognized codes and errors of the wrong family remain exceptions.
- * Substrate admission uses WarpError directly, and is recognized only while opening.
+ * The operational failures that the cone and storage boundaries actually produce: each one
+ * settles the read's receipt as failed, with its code as the cause. Anything else is a defect:
+ * a constructor invariant, an unrecognized code, or an error of the wrong family. A defect
+ * while the basis opens or advances rejects `read()`. A defect while the read runs reaches a
+ * consumer that iterates it as an exception. On a read nobody iterates (receipt demand alone),
+ * the receipt settles as failed with cause `observation-failed`, and the error goes to the
+ * Warp's logger at error level. Substrate admission uses WarpError directly, and is recognized
+ * only while opening.
  */
 export default function readOperationalFailure(error: Error, phase: 'opening' | 'reading'): string | null {
   if (!(error instanceof WarpError)) { return null; }

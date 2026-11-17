@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
-import { ObserverIdentity, Optic, OpticReceipt, Purpose, ReadBudget, Warp, WarpAccessDenied, WarpAccessPort, WarpWriteGrant } from '../../../index.ts';
-import type { OpticObservation, OpticReading, WarpReadGrant, WarpReadRequest } from '../../../index.ts';
+import { LoggerPort, ObserverIdentity, Optic, OpticReceipt, Purpose, ReadBudget, Warp, WarpAccessDenied, WarpAccessPort, WarpWriteGrant } from '../../../index.ts';
+import type { LogFields, OpticObservation, OpticReading, WarpReadGrant, WarpReadRequest } from '../../../index.ts';
 import ConeReader from '../../../src/domain/services/cone/ConeReader.ts';
 import RuntimeHost from '../../../src/domain/RuntimeHost.ts';
 import { GRAPH, TestAccess, disposeWarpFixtures, git, materialized, open, repository, retained } from '../../helpers/WarpWriteFixture.ts';
@@ -167,6 +167,36 @@ describe('access comes before evaluation', () => {
     const tooFewBytes = await drained(await query.withBudget(ReadBudget.of({ records: 1, bytes: 8, work: 1 })).read());
     expect(tooFewBytes.readings).toEqual([]);
     expect(tooFewBytes.receipt).toMatchObject({ status: 'budget-exhausted', records: 1 });
+  });
+});
+
+/** Keeps every error-level entry it is given. */
+class ErrorLog extends LoggerPort {
+  readonly errors: Array<{ readonly message: string; readonly context: LogFields | undefined }> = [];
+
+  override debug(): void {}
+  override info(): void {}
+  override warn(): void {}
+  override error(message: string, context?: LogFields): void {
+    this.errors.push({ message, context });
+  }
+  override child(): LoggerPort {
+    return this;
+  }
+}
+
+describe('a defect on a read nobody iterates', () => {
+  it('settles the receipt as failed and gives the error to the logger the Warp opened with', async () => {
+    const logger = new ErrorLog();
+    const warp = await open(await repository(), {}, new TestAccess(), { logger });
+    const defect = new Error('reader defect');
+    vi.spyOn(ConeReader.prototype, 'node').mockRejectedValue(defect);
+
+    const receipt = await (await Optic(warp.forObserver(READER)).forPurpose(DISPLAY).node('a').read()).receipt;
+
+    expect(receipt).toMatchObject({ status: 'failed', cause: 'observation-failed' });
+    expect(logger.errors).toHaveLength(1);
+    expect(logger.errors[0]?.context).toMatchObject({ error: defect, observer: 'person:reader', question: 'node.presence/v1' });
   });
 });
 

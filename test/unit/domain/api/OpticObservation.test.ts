@@ -113,6 +113,58 @@ describe('OpticObservation', () => {
     expect(await iterator.next()).toEqual({ done: true, value: undefined });
   });
 
+  function defective(thrown: () => never, reported: Error[]): OpticExecution {
+    return {
+      // eslint-disable-next-line require-yield -- Throws before yielding
+      async *readings() {
+        await Promise.resolve();
+        thrown();
+      },
+      cancelled() {
+        return makeReceipt('cancelled');
+      },
+      failed(cause: string) {
+        return makeReceipt('failed', cause);
+      },
+      reportDefect(error: Error) {
+        reported.push(error);
+      },
+    };
+  }
+
+  it('reports a defect on a read nobody iterates, which its failed receipt alone would lose', async () => {
+    const defect = new Error('storage-io-error');
+    const reported: Error[] = [];
+    const obs = new OpticObservation(defective(() => { throw defect; }, reported));
+
+    expect(await obs.receipt).toMatchObject({ status: 'failed', cause: 'observation-failed' });
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toBe(defect);
+  });
+
+  it('leaves a defect on an iterated read to its consumer, without reporting it', async () => {
+    const defect = new Error('storage-io-error');
+    const reported: Error[] = [];
+    const obs = new OpticObservation(defective(() => { throw defect; }, reported));
+
+    await expect(async () => {
+      for await (const _r of obs) {
+        // the defect reaches this consumer
+      }
+    }).rejects.toBe(defect);
+    expect(await obs.receipt).toMatchObject({ status: 'failed', cause: 'observation-failed' });
+    expect(reported).toEqual([]);
+  });
+
+  it('reports a thrown value that is not an Error as an OpticError defect', async () => {
+    const reported: Error[] = [];
+    // A JavaScript dependency can throw a value that is not an Error.
+    const obs = new OpticObservation(defective(() => { throw 'not an error'; }, reported));
+
+    expect(await obs.receipt).toMatchObject({ status: 'failed', cause: 'observation-failed' });
+    expect(reported).toEqual([expect.objectContaining({ name: 'OpticError', code: 'E_OBSERVATION_DEFECT' })]);
+  });
+
   it('refuses multiple consumers with OpticError (E_OBSERVATION_CONSUMED)', async () => {
     const obs = new OpticObservation(makeExecution([]));
     const iterator = obs[Symbol.asyncIterator]();

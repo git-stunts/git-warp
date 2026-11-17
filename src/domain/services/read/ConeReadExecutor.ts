@@ -1,3 +1,4 @@
+import type LoggerPort from '../../../ports/LoggerPort.ts';
 import type WarpAccessPort from '../../../ports/WarpAccessPort.ts';
 import { coneObstructionFailure } from '../../api/ConeObstructionFailure.ts';
 import OpticObservation, { type OpticExecution } from '../../api/OpticObservation.ts';
@@ -14,6 +15,7 @@ import WarpAccessDenied from '../../api/WarpAccessDenied.ts';
 import ImmutableBytes from '../snapshot/ImmutableBytes.ts';
 import { canonicalStringify } from '../../utils/canonicalStringify.ts';
 import { textEncode } from '../../utils/bytes.ts';
+import nullLogger from '../../utils/nullLogger.ts';
 import type ConeBasis from '../cone/ConeBasis.ts';
 import type ConeLaneBasis from '../cone/ConeLaneBasis.ts';
 import ConeObstruction from '../cone/ConeObstruction.ts';
@@ -42,11 +44,19 @@ export default class ConeReadExecutor {
   readonly #graph: string;
   readonly #access: WarpAccessPort;
   readonly #cone: () => Promise<ConeLaneBasis>;
+  readonly #logger: LoggerPort;
 
-  constructor(fields: { readonly graph: string; readonly access: WarpAccessPort; readonly cone: () => Promise<ConeLaneBasis> }) {
+  /** `logger` hears defects on reads nobody iterates (#1052); without one they are not reported. */
+  constructor(fields: {
+    readonly graph: string;
+    readonly access: WarpAccessPort;
+    readonly cone: () => Promise<ConeLaneBasis>;
+    readonly logger?: LoggerPort;
+  }) {
     this.#graph = fields.graph;
     this.#access = fields.access;
     this.#cone = fields.cone;
+    this.#logger = fields.logger ?? nullLogger;
     Object.freeze(this);
   }
 
@@ -117,6 +127,7 @@ export default class ConeReadExecutor {
       ...(run.onSettled === undefined ? {} : { onSettled: run.onSettled }),
       cancelled: () => receipt('cancelled', { cause: 'cancelled', records }),
       failed: (cause: string) => receipt('failed', { cause, records }),
+      reportDefect: (error: Error) => { this.#reportDefect(run.request, error); },
       async *readings(): AsyncGenerator<OpticReading, OpticReceipt, undefined> {
         const reading = await answered(run.request, run, receipt);
         if (reading instanceof OpticReceipt) { return reading; }
@@ -150,6 +161,12 @@ export default class ConeReadExecutor {
     }
     const props = alive ? state.getNodeProps(subject) : null;
     return propertyReading(subject, key, props);
+  }
+
+  #reportDefect(request: WarpReadRequest, error: Error): void {
+    this.#logger.error('A read nobody iterated failed with a defect; its receipt says observation-failed', {
+      error, graph: request.graph, observer: request.observer.toString(), purpose: request.purpose.toString(), question: request.question,
+    });
   }
 
   #receipts(request: WarpReadRequest): ReceiptMaker {
