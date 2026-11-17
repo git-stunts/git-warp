@@ -679,8 +679,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Packaging
 
 - The published root reaches `Warp` as well as `Runtime`. After #1054 removed the legacy write,
-  strand and settlement surface, the ceilings are 760,000 compressed bytes, 3,300,000 unpacked
-  bytes and 1,250 entries.
+  strand and settlement surface, the ceilings are 1,000,000 compressed bytes, 4,500,000
+  unpacked bytes and 1,750 entries. These are local regression alarms, not registry limits;
+  they were raised so normal feature growth stops tripping them (#1193).
 
 ## [20.0.0] - 2026-10-03
 

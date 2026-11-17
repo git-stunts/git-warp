@@ -28,7 +28,7 @@ it.each([
 ])('reports exact compressed usage at %s', (ratio, assessment) => {
   const packed = Math.round(policy.maxPackedBytes * ratio);
   const report = packageBundleReport(new PackagePayloadInventory(packed, 0, []), policy, []);
-  expect(report).toContain(`| Compressed bytes | ${packed} | 760000 | ${(ratio * 100).toFixed(1)}% | ${Math.max(0, 760000 - packed)} |`);
+  expect(report).toContain(`| Compressed bytes | ${packed} | 1000000 | ${(ratio * 100).toFixed(1)}% | ${Math.max(0, 1000000 - packed)} |`);
   expect(report.split('\n').find((line) => line.startsWith('| Compressed bytes'))).toContain(assessment);
   expect(report).not.toContain('NaN');
 });
