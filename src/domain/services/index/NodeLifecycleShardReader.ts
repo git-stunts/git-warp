@@ -144,7 +144,9 @@ function decodeRecord(entry: CodecValue, path: string, schemaVersion: number): N
     clear: clear === null ? null : decodeEvent(clear, path),
     pendingRemoves: requireArray(pending, path).map((removal) => decodeEvent(removal, path)),
     registers: requireArray(registers, path).map((register) => decodeRegister(register, path)),
-    tombstonedDots: dots === undefined ? [] : requireArray(dots, path).map((dot) => requireString(dot, path)),
+    tombstonedDots: fieldCount === RECORD_FIELDS
+      ? requireArray(dots, path).map((dot) => requireString(dot, path))
+      : [],
   }));
 }
 

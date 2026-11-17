@@ -78,9 +78,9 @@ export default class ShadowTrieORSet {
     if (observedDots.size === 0) {
       return;
     }
-    const state = await this.#cursor.getElementState(element);
+    const held = heldDots(await this.#cursor.getElementState(element));
     for (const encodedDot of observedDots) {
-      const dot = entryHolds(state, encodedDot) ? null : decodeObservedDot(encodedDot);
+      const dot = held.has(encodedDot) ? null : decodeObservedDot(encodedDot);
       if (dot !== null) {
         await this.#cursor.add(element, dot);
       }
@@ -118,8 +118,9 @@ export default class ShadowTrieORSet {
   }
 }
 
-function entryHolds(state: ORSetElementState | null, encodedDot: string): boolean {
-  return state !== null && (state.dots.has(encodedDot) || state.tombstonedDots.has(encodedDot));
+/** The live and tombstoned dots of an entry, read once: each getter copies its set. */
+function heldDots(state: ORSetElementState | null): ReadonlySet<string> {
+  return state === null ? new Set<string>() : new Set([...state.dots, ...state.tombstonedDots]);
 }
 
 /**
