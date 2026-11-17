@@ -6,7 +6,7 @@
  * whether or not the add has arrived) and the literal expectations below.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Dot, encodeDot } from '../../../../../src/domain/crdt/Dot.ts';
 import ORSet from '../../../../../src/domain/crdt/ORSet.ts';
 import CrdtError from '../../../../../src/domain/errors/CrdtError.ts';
@@ -42,6 +42,33 @@ describe('FloatingTombstones', () => {
 
     expect({ nodes: [...tombstones.nodeDots()], edges: [...tombstones.edgeDots()] })
       .toEqual({ nodes: [ZED_2], edges: [ZED_3] });
+  });
+
+  it('skips base tombstones that are not canonical dots, as the session trie does', () => {
+    // Oracle: the Dot admission rule (non-empty writer, canonical positive
+    // counter). A remove checks only for non-empty strings and ORSet.remove
+    // stores them as given, so a sync-applied state can hold these.
+    const malformed = ['zed:01', 'zed:0', 'zed:+1', 'zed:1.5', 'zed:', ':1', 'not-a-dot'];
+    const nodeAlive = ORSet.empty();
+    const edgeAlive = ORSet.empty();
+    nodeAlive.remove(new Set([...malformed, ZED_2]));
+    edgeAlive.remove(new Set(['peer:01']));
+
+    const tombstones = FloatingTombstones.of({ nodeAlive, edgeAlive });
+
+    expect({ nodes: [...tombstones.nodeDots()], edges: [...tombstones.edgeDots()] })
+      .toEqual({ nodes: [ZED_2], edges: [] });
+  });
+
+  it('rethrows a decode failure that is not a CRDT format error', () => {
+    const nodeAlive = ORSet.empty();
+    nodeAlive.remove(new Set([ZED_1]));
+    const decode = vi.spyOn(Dot, 'decode').mockImplementation(() => { throw new RangeError('unexpected'); });
+    try {
+      expect(() => FloatingTombstones.of({ nodeAlive, edgeAlive: ORSet.empty() })).toThrow(RangeError);
+    } finally {
+      decode.mockRestore();
+    }
   });
 
   it('is empty for a state without tombstones', () => {

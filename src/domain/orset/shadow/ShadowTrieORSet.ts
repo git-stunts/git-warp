@@ -1,5 +1,5 @@
-import { Dot } from "../../crdt/Dot.ts";
-import CrdtError from "../../errors/CrdtError.ts";
+import type { Dot } from "../../crdt/Dot.ts";
+import { decodeObservedDot } from "../../crdt/decodeObservedDot.ts";
 import type VersionVector from "../../crdt/VersionVector.ts";
 import ShadowTrieORSetError from "../../errors/ShadowTrieORSetError.ts";
 import type ORSetElementState from "../ORSetElementState.ts";
@@ -121,19 +121,4 @@ export default class ShadowTrieORSet {
 /** The live and tombstoned dots of an entry, read once: each getter copies its set. */
 function heldDots(state: ORSetElementState | null): ReadonlySet<string> {
   return state === null ? new Set<string>() : new Set([...state.dots, ...state.tombstonedDots]);
-}
-
-/**
- * Decodes an observed dot. A string that is not a canonical dot can never
- * be added, so a tombstone for it cannot change liveness and is skipped.
- */
-function decodeObservedDot(encodedDot: string): Dot | null {
-  try {
-    return Dot.decode(encodedDot);
-  } catch (raw) {
-    if (raw instanceof CrdtError) {
-      return null;
-    }
-    throw raw;
-  }
 }

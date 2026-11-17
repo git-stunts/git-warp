@@ -1,4 +1,5 @@
 import { Dot } from "../../crdt/Dot.ts";
+import { decodeObservedDot } from "../../crdt/decodeObservedDot.ts";
 import type ORSet from "../../crdt/ORSet.ts";
 import CrdtError from "../../errors/CrdtError.ts";
 import type ORSetElementState from "../ORSetElementState.ts";
@@ -115,8 +116,17 @@ function canonicalDots(dots: Iterable<string>): ReadonlySet<string> {
   return copied;
 }
 
+/**
+ * The tombstones that no entry holds. A tombstone that is not a canonical
+ * dot is skipped: no add can carry it, as the session trie also assumes.
+ */
 function unheldTombstones(set: ORSet): Set<string> {
-  const unheld = new Set(set.tombstonesIter());
+  const unheld = new Set<string>();
+  for (const encodedDot of set.tombstonesIter()) {
+    if (decodeObservedDot(encodedDot) !== null) {
+      unheld.add(encodedDot);
+    }
+  }
   if (unheld.size === 0) {
     return unheld;
   }
