@@ -9,6 +9,7 @@ import type ConeRecordKey from './ConeRecordKey.ts';
 import ConeRecordSnapshot from './ConeRecordSnapshot.ts';
 import type ConeRoot from './ConeRoot.ts';
 import ConeRecoveryObstruction from './ConeRecoveryObstruction.ts';
+import SelectionGeometry from '../../retained/SelectionGeometry.ts';
 
 /** Staged records a session holds before writing them through to the trie. */
 export const CONE_SESSION_FLUSH_RECORDS = 4096;
@@ -19,10 +20,11 @@ export const CONE_SESSION_FLUSH_RECORDS = 4096;
  * Reads go to records already read or staged in this session first and to
  * the store only for the rest, so a record touched by many patches of one
  * ingest is read once. Staged records are written in one trie update; a
- * session that stages more than `flushRecords` writes them through early so
- * its memory stays bounded however long the run of patches is.
+ * session that holds `flushRecords` staged records writes them through at
+ * once, so it never holds more however long the run of patches is.
  */
 export default class ConeFoldSession {
+  readonly selection: SelectionGeometry;
   readonly #store: ConeRecordStorePort;
   readonly #flushRecords: number;
   readonly #known = new Map<string, ConeRecord | null>();
@@ -39,7 +41,10 @@ export default class ConeFoldSession {
     readonly from?: ConeFrontier;
     /** Absent for source-free folds; a needed recovery then returns an obstruction. */
     readonly source?: { readonly feed: ConePatchFeedPort; readonly lane: string };
+    /** How selection chunks and blocks cut ordinal segments (#816); the record trie stores only version 1. */
+    readonly selection?: SelectionGeometry;
   }) {
+    this.selection = selectionGeometry(options.selection);
     this.#store = options.store;
     this.#root = options.root;
     this.#source = options.source === undefined ? null : Object.freeze({ ...options.source });
@@ -80,15 +85,21 @@ export default class ConeFoldSession {
     }));
   }
 
-  /** Stages changed records; later reads in this session see them. */
+  /**
+   * Stages changed records; later reads in this session see them. The
+   * session writes its staged records through as soon as it holds
+   * `flushRecords`, also between two records of one patch, so it never holds
+   * more (#816). Nothing is published before the basis is, so a patch whose
+   * records span two writes is still folded as one.
+   */
   async stage(records: readonly ConeRecord[]): Promise<void> {
     for (const record of records) {
       const key = record.key().toString();
       this.#known.set(key, record);
       this.#staged.set(key, record);
-    }
-    if (this.#staged.size >= this.#flushRecords) {
-      await this.#flush();
+      if (this.#staged.size >= this.#flushRecords) {
+        await this.#flush();
+      }
     }
   }
 
@@ -106,4 +117,9 @@ export default class ConeFoldSession {
     this.#staged.clear();
     this.#known.clear();
   }
+}
+
+/** The selection geometry a session folds with: the stored version 1 unless a test asks for another. */
+function selectionGeometry(geometry: SelectionGeometry | undefined): SelectionGeometry {
+  return geometry ?? SelectionGeometry.chunks();
 }

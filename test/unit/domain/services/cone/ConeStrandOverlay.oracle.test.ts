@@ -2,7 +2,16 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import ConeBasis from '../../../../../src/domain/services/cone/ConeBasis.ts';
 import ConeBasisHead from '../../../../../src/domain/services/cone/ConeBasisHead.ts';
+import ConeDotPage from '../../../../../src/domain/services/cone/ConeDotPage.ts';
 import ConeFootprint from '../../../../../src/domain/services/cone/ConeFootprint.ts';
+import OrdinalBitmapBlock, { LIVENESS_INDEX } from '../../../../../src/domain/retained/OrdinalBitmapBlock.ts';
+import OrdinalChunk from '../../../../../src/domain/retained/OrdinalChunk.ts';
+import SelectionDirectoryPage, { SELECTION_DIRECTORY_PAGE_SIZE } from '../../../../../src/domain/retained/SelectionDirectoryPage.ts';
+import ConeRecordKey, { type ConeDotSet } from '../../../../../src/domain/services/cone/ConeRecordKey.ts';
+import type ConeRoot from '../../../../../src/domain/services/cone/ConeRoot.ts';
+import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
+import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
+import SelectionGeometry from '../../../../../src/domain/retained/SelectionGeometry.ts';
 import ConeLaneBasis from '../../../../../src/domain/services/cone/ConeLaneBasis.ts';
 import ConeTipSource from '../../../../../src/domain/services/cone/ConeTipSource.ts';
 import { reducePatches } from '../../../../../src/domain/services/JoinReducer.ts';
@@ -44,6 +53,60 @@ function tipsOf(chains: ReadonlyMap<string, readonly PatchEntry[]>): Map<string,
   }));
 }
 
+/** The chunks a liveness directory lists, page by page in order. */
+async function listedChunks(store: InMemoryConeRecordStore, root: ConeRoot, set: ConeDotSet): Promise<string[]> {
+  const chunks: string[] = [];
+  for (let pageIndex = 0; ; pageIndex += 1) {
+    const key = ConeRecordKey.forSelectionDirectoryPage({ index: LIVENESS_INDEX, set, pageIndex });
+    const page = (await store.readRecords(root, [key])).get(key);
+    if (!(page instanceof SelectionDirectoryPage)) {
+      return chunks;
+    }
+    chunks.push(...page.entries.map((entry) => entry.chunk.toString()));
+  }
+}
+
+/**
+ * The selection records an overlay may change (#816): the block of each of its
+ * dot pages; the directory page of each chunk those blocks lie in, whose mask
+ * can change in place; and the directory pages from the first chunk it adds
+ * onward. Every chunk it adds must be the chunk of one of its dot pages.
+ */
+async function overlaySelectionKeys(store: InMemoryConeRecordStore, roots: Roots, footprints: readonly ConeFootprint[]): Promise<string[]> {
+  const blocks = footprints.flatMap((footprint) => footprint.dotPages()
+    .map((page) => OrdinalBitmapBlock.emptyOfDotPage(LIVENESS_INDEX, ConeDotPage.empty(page.set, page.writerId, page.pageIndex), SelectionGeometry.chunks())));
+  const own = new Set(blocks.map((block) => block.chunk.toString()));
+  const keys = blocks.map((block) => block.key().toString());
+  for (const set of ['node', 'edge'] as const) {
+    const before = new Set(await listedChunks(store, roots.base, set));
+    const after = await listedChunks(store, roots.strand, set);
+    const added = after.flatMap((chunk, position) => (before.has(chunk) ? [] : [{ chunk, position }]));
+    expect(added.every(({ chunk }) => own.has(chunk)), `added ${set} chunks are the overlay's`).toBe(true);
+    const firstPage = Math.floor((added[0]?.position ?? after.length) / SELECTION_DIRECTORY_PAGE_SIZE);
+    const ownPages = after.flatMap((chunk, position) => (own.has(chunk) ? [Math.floor(position / SELECTION_DIRECTORY_PAGE_SIZE)] : []));
+    const pages = new Set([...ownPages, ...Array.from({ length: Math.max(0, Math.ceil(after.length / SELECTION_DIRECTORY_PAGE_SIZE) - firstPage) }, (_unused, offset) => firstPage + offset)]);
+    keys.push(...[...pages].map((pageIndex) => ConeRecordKey.forSelectionDirectoryPage({ index: LIVENESS_INDEX, set, pageIndex }).toString()));
+  }
+  return keys;
+}
+
+type Roots = { readonly base: ConeRoot; readonly strand: ConeRoot };
+
+/** Every record of the overlay root that the overlay may not change is the base's own record. */
+async function assertSharedWithBase(store: InMemoryConeRecordStore, roots: Roots, footprints: readonly ConeFootprint[], label: string): Promise<void> {
+  const overlayKeys = new Set([
+    ...footprints.flatMap((footprint) => footprint.recordKeys()).map((key) => key.toString()),
+    ...await overlaySelectionKeys(store, roots, footprints),
+  ]);
+  const baseRecords = new Map(store.allRecords(roots.base).map((record) => [record.key().toString(), record]));
+  for (const record of store.allRecords(roots.strand)) {
+    const key = record.key().toString();
+    if (!overlayKeys.has(key) && record.key().family !== 'adjacency' && record.key().family !== 'admission') {
+      expect(record, `record ${key} shared with the base, ${label}`).toBe(baseRecords.get(key));
+    }
+  }
+}
+
 /**
  * Folds the base writers into a pinned base, then the last writer's chain as
  * the strand overlay on top, and compares the overlay with a full reduction
@@ -66,15 +129,8 @@ async function checkOverlay(seed: number): Promise<number> {
   const all = [...history.chains.values()].flat();
   const full = reducePatches(all.map((entry) => ({ patch: entry.patch, sha: entry.sha })));
   const entities = await assertConeEquivalent(history, full, { store, root: strandBasis.root });
-  const overlayKeys = new Set((history.chains.get(overlayWriter) ?? [])
-    .flatMap((entry) => ConeFootprint.of(entry.patch).recordKeys().map((key) => key.toString())));
-  const baseRecords = new Map(store.allRecords(baseBasis.root).map((record) => [record.key().toString(), record]));
-  for (const record of store.allRecords(strandBasis.root)) {
-    const key = record.key().toString();
-    if (!overlayKeys.has(key) && record.key().family !== 'adjacency' && record.key().family !== 'admission') {
-      expect(record, `record ${key} shared with the base, seed ${seed}`).toBe(baseRecords.get(key));
-    }
-  }
+  const footprints = (history.chains.get(overlayWriter) ?? []).map((entry) => ConeFootprint.of(entry.patch));
+  await assertSharedWithBase(store, { base: baseBasis.root, strand: strandBasis.root }, footprints, `seed ${seed}`);
   expect((await store.readBasis(ConeBasisHead.forStrandBase(LANE, STRAND_ID)))?.basis.equals(baseBasis)).toBe(true);
   return entities;
 }
@@ -93,4 +149,24 @@ describe('strand overlay equivalence oracle (#1039)', () => {
     console.log('CONE_STRAND_ORACLE', JSON.stringify({ histories, entities, shape: SHAPE }));
     expect(histories).toBe(60);
   }, 300_000);
+
+  it('shares every directory page before the first chunk the overlay adds with the base (#816)', async () => {
+    const feed = new MemoryConeFeed(LANE);
+    const baseWriters = Array.from({ length: SELECTION_DIRECTORY_PAGE_SIZE + 44 }, (_unused, index) => `w${String(index).padStart(3, '0')}`);
+    for (const writer of baseWriters) {
+      feed.append(writer, [new NodeAdd(`n-${writer}`, new Dot(writer, 1))]);
+    }
+    const baseChains = new Map(feed.chains);
+    const overlay = feed.append('w999', [new NodeAdd('n-overlay', new Dot('w999', 1))]);
+    const store = new InMemoryConeRecordStore();
+    const base = ConeLaneBasis.ofStrandBase({ store, feed, lane: LANE, strandId: STRAND_ID, baseFrontier: tipsOf(baseChains) });
+    const strand = ConeLaneBasis.ofStrand({ store, feed, strandId: STRAND_ID, tips: new FixedTips(tipsOf(feed.chains)), base });
+    const strandBasis = requireBasis(await strand.advance());
+    const baseBasis = requireBasis(await base.advance());
+    // Oracle: 300 base chunks fill directory page 0 and start page 1; the overlay's chunk sorts last, onto page 1.
+    expect(await listedChunks(store, strandBasis.root, 'node')).toHaveLength(baseWriters.length + 1);
+    await assertSharedWithBase(store, { base: baseBasis.root, strand: strandBasis.root }, [ConeFootprint.of(overlay.patch)], 'many writers');
+    const pageZero = ConeRecordKey.forSelectionDirectoryPage({ index: LIVENESS_INDEX, set: 'node', pageIndex: 0 });
+    expect((await store.readRecords(strandBasis.root, [pageZero])).get(pageZero)).toBe((await store.readRecords(baseBasis.root, [pageZero])).get(pageZero));
+  });
 });

@@ -164,7 +164,8 @@
     "typecheck:surface": "npm run build --silent && node scripts/check-dts-surface.ts",
     "ratchet:snapshot": "bash scripts/run-in-docker.sh --snapshot -- sh -c 'node scripts/ratchet-snapshot.ts \"$@\"' --",
     "ratchet:delta": "node scripts/ratchet-delta.ts",
-    "test:attachment-memory": "bash scripts/RunAttachmentMemoryWitness.sh"
+    "test:attachment-memory": "bash scripts/RunAttachmentMemoryWitness.sh",
+    "test:selection-memory": "bash scripts/RunSelectionMemoryWitness.sh"
   },
   "dependencies": {
     "@flyingrobots/bijou": "^7.2.0",

@@ -48,6 +48,15 @@ export default class ConeDotClaim {
     return new Set([...this.#owners, ...this.#removers]);
   }
 
+  /**
+   * True when the dot is live (#816 D5): an add tagged an element with it,
+   * and no remove of that element named it. A dot that two adds tagged (the
+   * #1022 class) is live while one of them is; resolution refuses it.
+   */
+  isLive(): boolean {
+    return [...this.#owners].some((owner) => !this.#removers.has(owner));
+  }
+
   /** True when a tombstone of this dot would hide an element other than the one its remove named. */
   crossesElements(): boolean {
     return this.#removers.size > 0 && this.elements().size > 1;

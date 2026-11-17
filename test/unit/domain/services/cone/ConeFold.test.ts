@@ -47,7 +47,8 @@ describe('ConeFold', () => {
     const reader = new ConeReader(store);
     expect((await reader.node(root, 'a')).isAlive()).toBe(true);
     expect((await reader.neighbourhood(root, 'a')).getNodeProps('a')).toEqual({ title: 'hello' });
-    expect(store.allRecords(root).map((record) => record.key().family).sort()).toEqual(['dot', 'node']);
+    // The add also gives the chunk of its dot a liveness shard and a directory entry (#816).
+    expect(store.allRecords(root).map((record) => record.key().family).sort()).toEqual(['dot', 'node', 'selection', 'selection']);
   });
 
   it('changes nothing for operations with no state effect', async () => {
@@ -169,6 +170,21 @@ describe('ConeFoldSession', () => {
     expect(store.recordWrites).toBe(2);
     expect(store.allRecords(root)).toHaveLength(2);
     expect((await session.read([ConeRecordKey.forNode('a')])).node('a').inDegree).toBe(1);
+  });
+
+  it('never holds more staged records than the flush threshold, even within one stage call (#816)', async () => {
+    const batches: number[] = [];
+    const store = new InMemoryConeRecordStore();
+    const write = store.writeRecords.bind(store);
+    store.writeRecords = async (root, records) => {
+      batches.push(records.length);
+      return await write(root, records);
+    };
+    const session = new ConeFoldSession({ store, root: ConeRoot.empty(), flushRecords: 3 });
+    await session.stage(['a', 'b', 'c', 'd', 'e'].map((id) => ConeNodeRecord.empty(id).withRegisteredEdge('in')));
+    const root = await session.commit();
+    expect(batches).toEqual([3, 2]);
+    expect(store.allRecords(root)).toHaveLength(5);
   });
 
   it('commits an untouched session to its starting root', async () => {

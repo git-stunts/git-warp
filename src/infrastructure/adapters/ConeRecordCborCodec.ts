@@ -21,6 +21,9 @@ import { compareStrings } from '../../domain/utils/StringComparison.ts';
 import { requireAdmittedEvent } from '../../domain/services/cone/ConeRecordValidation.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import { decodeConcurrency, encodeConcurrency } from './ConeConcurrencyCborWire.ts';
+import { decodeSelectionRecord, encodeSelectionRecord } from './ConeSelectionCborWire.ts';
+import OrdinalBitmapBlock from '../../domain/retained/OrdinalBitmapBlock.ts';
+import SelectionDirectoryPage from '../../domain/retained/SelectionDirectoryPage.ts';
 
 const EVENT_WIRE = z.tuple([z.number(), z.string(), z.string(), z.number()]).nullable();
 const PROPS_WIRE = z.array(z.tuple([z.string(), EVENT_WIRE, z.unknown()]));
@@ -82,7 +85,7 @@ export default class ConeRecordCborCodec {
 
   decode(bytes: Uint8Array): ConeRecord {
     const raw = this.#codec.decode<unknown>(bytes);
-    const record = decodeElement(raw, this.#codec) ?? decodeDotPage(raw) ?? decodeAdjacencyPage(raw) ?? decodeAdmissionIndex(raw);
+    const record = decodeElement(raw, this.#codec) ?? decodeIndexRecord(raw);
     if (record === null) {
       throw corrupt('does not decode as a cone record');
     }
@@ -105,7 +108,11 @@ function encodeRecord(record: ConeRecord, codec: CodecPort): object {
       ...encodeConcurrency(record.concurrency, codec),
     };
   }
-  return encodePage(record);
+  return isSelectionRecord(record) ? encodeSelectionRecord(record) : encodePage(record);
+}
+
+function isSelectionRecord(record: ConeRecord): record is OrdinalBitmapBlock | SelectionDirectoryPage {
+  return record instanceof OrdinalBitmapBlock || record instanceof SelectionDirectoryPage;
 }
 
 function encodePage(record: ConeDotPage | ConeAdjacencyPage | AdmissionIndexRecord): object {
@@ -118,6 +125,11 @@ function encodePage(record: ConeDotPage | ConeAdjacencyPage | AdmissionIndexReco
     return { kind: 'dot', set: record.set, writer: record.writerId, page: record.pageIndex, claims };
   }
   return { kind: 'adjacency', node: record.nodeId, dir: record.direction, page: record.pageIndex, edges: [...record.edgeKeys] };
+}
+
+/** A page or index record: a dot page, an adjacency page, an admission index record or a selection shard. */
+function decodeIndexRecord(raw: unknown): ConeRecord | null {
+  return decodeDotPage(raw) ?? decodeAdjacencyPage(raw) ?? decodeAdmissionIndex(raw) ?? decodeSelectionRecord(raw);
 }
 
 function decodeElement(raw: unknown, codec: CodecPort): ConeNodeRecord | ConeEdgeRecord | null {

@@ -3,7 +3,7 @@ import ConeRecordError from '../../errors/ConeRecordError.ts';
 import { FIELD_SEPARATOR } from '../KeyCodec.ts';
 
 /** The record families of a cone record trie. */
-export type ConeRecordFamily = 'node' | 'edge' | 'dot' | 'adjacency' | 'admission';
+export type ConeRecordFamily = 'node' | 'edge' | 'dot' | 'adjacency' | 'admission' | 'selection';
 
 /** The OR-Set a dot belongs to: node membership or edge membership. */
 export type ConeDotSet = 'node' | 'edge';
@@ -11,7 +11,24 @@ export type ConeDotSet = 'node' | 'edge';
 /** The adjacency direction of an edge key relative to a node. */
 export type ConeDirection = 'out' | 'in';
 
-const FAMILIES: ReadonlySet<string> = new Set(['node', 'edge', 'dot', 'adjacency', 'admission']);
+const FAMILIES: ReadonlySet<string> = new Set(['node', 'edge', 'dot', 'adjacency', 'admission', 'selection']);
+
+/** Where one page of a selection directory lies: an index, an OR-Set and the page's position. */
+export type ConeSelectionDirectoryAddress = {
+  readonly index: string;
+  readonly set: ConeDotSet;
+  readonly pageIndex: number;
+};
+
+/** Where one selection block lies: an index, and one block of one chunk of a writer's dots of one kind and segment. */
+export type ConeSelectionBlockAddress = {
+  readonly index: string;
+  readonly set: ConeDotSet;
+  readonly writerId: string;
+  readonly segment: number;
+  readonly chunk: number;
+  readonly block: number;
+};
 const ROUTE_PATTERN = /^[0-9a-f]{64}$/u;
 
 /**
@@ -66,6 +83,18 @@ export default class ConeRecordKey {
   /** The key of a writer's entity admission at `ordinal` in its chain's admission order. */
   static forAdmission(writerId: string, ordinal: number): ConeRecordKey {
     return new ConeRecordKey('admission', routeOf(['entry', writerId, String(ordinal)]));
+  }
+
+  /** The key of one selection block (#816): the members of one index in one block of an ordinal chunk. */
+  static forSelectionBlock(address: ConeSelectionBlockAddress): ConeRecordKey {
+    const { index, set, writerId, segment, chunk, block } = address;
+    return new ConeRecordKey('selection', routeOf(['block', index, set, writerId, String(segment), String(chunk), String(block)]));
+  }
+
+  /** The key of one page of a selection directory (#816): the chunks of one index and OR-Set with an owned dot. */
+  static forSelectionDirectoryPage(address: ConeSelectionDirectoryAddress): ConeRecordKey {
+    const { index, set, pageIndex } = address;
+    return new ConeRecordKey('selection', routeOf(['directory', index, set, String(pageIndex)]));
   }
 
   /** Stable text form, used as a map key. */

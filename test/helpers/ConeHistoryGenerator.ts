@@ -31,6 +31,8 @@ export type ConeHistoryShape = {
   readonly syncChance: number;
   /** The graph the recorded observed frontiers name; `oracle` when omitted. */
   readonly graph?: string;
+  /** The counter each writer's first dot follows; 0 when omitted. A high base crosses chunk and segment bounds. */
+  readonly counterBase?: number;
 };
 
 /** A generated history: each writer's chain in order, plus the element universe. */
@@ -85,7 +87,7 @@ export default class ConeHistoryGenerator {
 
   generate(): ConeHistory {
     const writers = Array.from({ length: this.#shape.writers }, (_unused, index): Writer => ({
-      id: `w${index}`, view: WarpState.empty(), seen: new Set(), chain: [], observed: new Map(), clock: 0, counter: 0,
+      id: `w${index}`, view: WarpState.empty(), seen: new Set(), chain: [], observed: new Map(), clock: 0, counter: this.#shape.counterBase ?? 0,
     }));
     this.#writers = writers;
     for (let index = 0; index < this.#shape.patches; index += 1) {

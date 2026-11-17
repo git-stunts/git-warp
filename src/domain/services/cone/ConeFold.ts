@@ -12,6 +12,7 @@ import type ConeRecordSnapshot from './ConeRecordSnapshot.ts';
 import ConeSharedDotObstruction from './ConeSharedDotObstruction.ts';
 import ConePreparedRecords from './ConePreparedRecords.ts';
 import ConeRecoveryObstruction from './ConeRecoveryObstruction.ts';
+import ConeSelectionIndexer from './ConeSelectionIndexer.ts';
 import ConeWorkspace from './ConeWorkspace.ts';
 
 /**
@@ -22,7 +23,8 @@ import ConeWorkspace from './ConeWorkspace.ts';
  * those records, folds its register writes and lifecycle effects into the
  * concurrency those records retain, restores selected evicted values from
  * directly addressed patches, registers newly recorded edges with
- * their endpoints, indexes its entity admissions, and stages exactly the
+ * their endpoints, indexes its entity admissions, keeps the liveness
+ * selection blocks of its changed dot pages current, and stages exactly the
  * records that changed. Work follows the patch footprint and its retained
  * evidence, with at most sixteen source reads per affected register, never
  * a graph-wide history walk.
@@ -51,6 +53,7 @@ export default class ConeFold {
       ...dots,
       ...adjacency.pages,
       ...await ConeAdmissionIndexer.index(session, entry),
+      ...await ConeSelectionIndexer.index(session, dots),
     ];
     await session.stage(changed);
     return new ConeFolded(entry.sha, changed.length);
