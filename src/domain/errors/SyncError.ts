@@ -12,6 +12,8 @@ import WarpError, { type WarpErrorOptions } from './WarpError.ts';
  * | `E_SYNC_TIMEOUT` | Sync request exceeded timeout |
  * | `E_SYNC_REMOTE` | Remote server returned a 5xx error |
  * | `E_SYNC_PROTOCOL` | Protocol violation: 4xx, invalid JSON, or malformed response |
+ * | `E_SYNC_RESPONSE_TOO_LARGE` | Response body exceeds the client's limit; refused before it is parsed |
+ * | `E_SYNC_CLIENT_OPTION_INVALID` | The HTTP client was given an invalid response limit |
  * | `E_SYNC_PAYLOAD_INVALID` | Sync payload failed shape/resource-limit validation (B64) |
  * | `E_SYNC_DIVERGENCE` | Writer chains have diverged (no common ancestor) |
  * | `SYNC_ERROR` | Generic/default sync error |
