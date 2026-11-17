@@ -19,6 +19,7 @@ import type PatchJournalPort from '../../../ports/PatchJournalPort.ts';
 import type CommitMessageCodecPort from '../../../ports/CommitMessageCodecPort.ts';
 import type EntityAdmissionBoundary from '../../types/EntityAdmissionBoundary.ts';
 import type ObservedWriteFrontier from '../../types/ObservedWriteFrontier.ts';
+import hydrateSyncIngressOps from './SyncIngressOps.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,7 +52,9 @@ export type LoadPatchRangeOptions = Readonly<{
  * CBOR deserialization can return plain JavaScript objects, but the CRDT
  * merge logic (JoinReducer) expects the context field to be a VersionVector.
  * This function always constructs a validated Patch so decoded objects cannot
- * bypass constructor invariants.
+ * bypass constructor invariants. Known ops are hydrated into runtime op
+ * classes first, so sync ingress gets the same constructor checks as the
+ * decode boundary (for example, the same-patch remove ownership check).
  */
 export function normalizePatch(patch: DecodedPatch): DecodedPatch {
   const context = patch.context instanceof VersionVector
@@ -63,7 +66,7 @@ export function normalizePatch(patch: DecodedPatch): DecodedPatch {
     writer: patch.writer,
     lamport: patch.lamport,
     context,
-    ops: patch.ops,
+    ops: hydrateSyncIngressOps(patch.ops),
     reads: patch.reads,
     writes: patch.writes,
     entityAdmissions: patch.entityAdmissions,

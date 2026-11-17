@@ -20,8 +20,10 @@ import type { CheckpointTailPatchEntry } from './CheckpointTailOpticSource.ts';
  * the checkpoint's node lifecycle records, `baseRegisterEvent` the EventId
  * of the node's register for the key when it is not stale (whether or not
  * the node is live), `baseAlive` whether the node is live, and
- * `floatingTombstones` the encoded node dots the checkpoint's removes
- * observed although no checkpoint add holds them.
+ * `floatingTombstones` the checkpoint's tombstoned node dots that a tail add
+ * of the node can carry: the receipt's tombstones that no entry holds and
+ * the tombstoned dots of the node's own record (see NodeLifecycleReceipt
+ * and NodeLifecycleRecord).
  */
 export type WitnessedCheckpointNodeLifecycle = {
   readonly kind: 'witnessed';
