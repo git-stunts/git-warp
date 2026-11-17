@@ -1,7 +1,10 @@
 import { Dot } from '../crdt/Dot.ts';
 import WarpError from '../errors/WarpError.ts';
 import { IndexShard } from './IndexShard.ts';
-import { NODE_LIFECYCLE_SHARD_SCHEMA_VERSION } from './NodeLifecycleShard.ts';
+import {
+  NODE_LIFECYCLE_SHARD_SCHEMA_VERSION,
+  READABLE_NODE_LIFECYCLE_SCHEMA_VERSIONS,
+} from './NodeLifecycleShard.ts';
 
 /**
  * Marks a checkpoint index root that carries node lifecycle records. A read
@@ -17,23 +20,37 @@ import { NODE_LIFECYCLE_SHARD_SCHEMA_VERSION } from './NodeLifecycleShard.ts';
  * entry holds, such as the dot a reducer session reserves for a remove that
  * came before its add (#1119), is listed in that node's NodeLifecycleRecord
  * instead, so this list does not grow with the graph's removed nodes.
+ *
+ * `schemaVersion` is the schema the receipt was written under: the current
+ * one for a receipt this runtime builds, or a schema it still reads for a
+ * decoded one.
  */
 export class NodeLifecycleReceipt extends IndexShard {
   readonly nodeCount: number;
   readonly shardCount: number;
   readonly floatingTombstones: readonly string[];
 
-  constructor({ nodeCount, shardCount, floatingTombstones }: {
+  constructor({ schemaVersion = NODE_LIFECYCLE_SHARD_SCHEMA_VERSION, nodeCount, shardCount, floatingTombstones }: {
+    schemaVersion?: number;
     nodeCount: number;
     shardCount: number;
     floatingTombstones: readonly string[];
   }) {
-    super({ shardKey: 'receipt', schemaVersion: NODE_LIFECYCLE_SHARD_SCHEMA_VERSION });
+    super({ shardKey: 'receipt', schemaVersion: requireReadableSchemaVersion(schemaVersion) });
     this.nodeCount = requireCount(nodeCount, 'nodeCount');
     this.shardCount = requireCount(shardCount, 'shardCount');
     this.floatingTombstones = requireAscendingDots(floatingTombstones);
     Object.freeze(this);
   }
+}
+
+function requireReadableSchemaVersion(schemaVersion: number): number {
+  if (!READABLE_NODE_LIFECYCLE_SCHEMA_VERSIONS.has(schemaVersion)) {
+    throw new WarpError('Unsupported node lifecycle receipt schema version', 'E_INVALID_SHARD', {
+      context: { schemaVersion },
+    });
+  }
+  return schemaVersion;
 }
 
 function requireCount(value: number, field: string): number {

@@ -16,6 +16,12 @@ export const NODE_LIFECYCLE_SHARD_SCHEMA_VERSION = 3;
  */
 export const NODE_LIFECYCLE_SHARD_SCHEMA_WITHOUT_TOMBSTONED_DOTS = 2;
 
+/** The node lifecycle shard and receipt schemas that this runtime reads. */
+export const READABLE_NODE_LIFECYCLE_SCHEMA_VERSIONS: ReadonlySet<number> = new Set([
+  NODE_LIFECYCLE_SHARD_SCHEMA_VERSION,
+  NODE_LIFECYCLE_SHARD_SCHEMA_WITHOUT_TOMBSTONED_DOTS,
+]);
+
 /**
  * Node lifecycle records for the nodes of one index shard key, in ascending
  * node id order. A checkpoint index root that carries this family also

@@ -23,7 +23,7 @@ import { NodeLifecycleReceipt } from '../../artifacts/NodeLifecycleReceipt.ts';
 import { NodeLifecycleRecord } from '../../artifacts/NodeLifecycleRecord.ts';
 import {
   NODE_LIFECYCLE_SHARD_SCHEMA_VERSION,
-  NODE_LIFECYCLE_SHARD_SCHEMA_WITHOUT_TOMBSTONED_DOTS,
+  READABLE_NODE_LIFECYCLE_SCHEMA_VERSIONS,
 } from '../../artifacts/NodeLifecycleShard.ts';
 import IndexError from '../../errors/IndexError.ts';
 import WarpError from '../../errors/WarpError.ts';
@@ -44,10 +44,6 @@ const PAIR_FIELDS = 2;
 const RECORD_FIELDS = 5;
 const RECORD_FIELDS_WITHOUT_TOMBSTONED_DOTS = 4;
 const EVENT_FIELDS = 4;
-const READABLE_SCHEMA_VERSIONS: ReadonlySet<number> = new Set([
-  NODE_LIFECYCLE_SHARD_SCHEMA_VERSION,
-  NODE_LIFECYCLE_SHARD_SCHEMA_WITHOUT_TOMBSTONED_DOTS,
-]);
 
 type CodecRecord = { readonly [key: string]: CodecValue };
 
@@ -100,8 +96,9 @@ export function decodeNodeLifecycleReceipt(
   if (!isCodecRecord(decoded) || Object.keys(decoded).sort().join(',') !== RECEIPT_KEYS) {
     throw malformed(path, 'invalid receipt envelope');
   }
-  requireReadableSchemaVersion(decoded['schemaVersion'], path, 'receipt');
+  const schemaVersion = requireReadableSchemaVersion(decoded['schemaVersion'], path, 'receipt');
   const receipt = validated(path, () => new NodeLifecycleReceipt({
+    schemaVersion,
     nodeCount: requireNumber(decoded['nodeCount'], path),
     shardCount: requireNumber(decoded['shardCount'], path),
     floatingTombstones: requireArray(decoded['floatingTombstones'], path).map((dot) => requireString(dot, path)),
@@ -128,7 +125,7 @@ function requireEnvelope(
 }
 
 function requireReadableSchemaVersion(value: CodecValue | undefined, path: string, member: string): number {
-  if (typeof value !== 'number' || !READABLE_SCHEMA_VERSIONS.has(value)) {
+  if (typeof value !== 'number' || !READABLE_NODE_LIFECYCLE_SCHEMA_VERSIONS.has(value)) {
     throw malformed(path, `unsupported node lifecycle ${member} schema version`);
   }
   return value;
