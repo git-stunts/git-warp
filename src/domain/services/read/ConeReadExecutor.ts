@@ -54,7 +54,8 @@ export default class ConeReadExecutor {
     const receipt = this.#receipts(request);
     const grant = await this.#access.authorizeRead(new WarpReadRequest({
       graph: this.#graph, observer: request.observer, purpose: request.purpose,
-      question: questionName(request.question), budget: request.budget,
+      question: questionName(request.question), subject: request.question.subject, key: request.question.key,
+      budget: request.budget,
     }));
     if (!(grant instanceof WarpReadGrant)) {
       return ended(receipt, receipt('refused', { cause: deniedCause(grant) }), request.onSettled);

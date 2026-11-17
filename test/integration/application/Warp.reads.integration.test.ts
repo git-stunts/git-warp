@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
-import { ObserverIdentity, Optic, OpticReceipt, Purpose, ReadBudget, Warp, WarpAccessPort, WarpWriteGrant } from '../../../index.ts';
-import type { OpticObservation, OpticReading } from '../../../index.ts';
+import { ObserverIdentity, Optic, OpticReceipt, Purpose, ReadBudget, Warp, WarpAccessDenied, WarpAccessPort, WarpWriteGrant } from '../../../index.ts';
+import type { OpticObservation, OpticReading, WarpReadGrant, WarpReadRequest } from '../../../index.ts';
 import ConeReader from '../../../src/domain/services/cone/ConeReader.ts';
 import RuntimeHost from '../../../src/domain/RuntimeHost.ts';
 import { GRAPH, TestAccess, disposeWarpFixtures, git, materialized, open, repository, retained } from '../../helpers/WarpWriteFixture.ts';
@@ -131,6 +131,30 @@ describe('access comes before evaluation', () => {
     vi.spyOn(writeOnly, 'authorizeRead').mockResolvedValue({ authority: 'looks right' });
     const confused = await (await Optic(warp.forObserver(READER)).forPurpose(DISPLAY).node('a').read()).receipt;
     expect(confused.cause).toContain('no grant');
+  });
+
+  it('lets a port grant one subject and refuse another, deciding on the subject and key it is asked', async () => {
+    const path = await repository();
+    const asked: Array<{ readonly subject: string; readonly key: string | null }> = [];
+    const narrowed = new (class extends TestAccess {
+      override async authorizeRead(request: WarpReadRequest): Promise<WarpReadGrant | WarpAccessDenied> {
+        asked.push({ subject: request.subject, key: request.key });
+        return request.subject === 'salary' ? new WarpAccessDenied('not this subject') : await super.authorizeRead(request);
+      }
+    })();
+    const warp = await open(path, {}, narrowed);
+    retained(await warp.as('alice').execute([
+      intent.node.add({ subject: 'todo' }), intent.property.set({ subject: 'todo', key: 'title', value: 'one' }),
+      intent.node.add({ subject: 'salary' }), intent.property.set({ subject: 'salary', key: 'amount', value: 100 }),
+    ]));
+    const view = warp.forObserver(READER);
+
+    const allowed = await drained(await Optic(view).forPurpose(DISPLAY).node('todo').prop('title').read());
+    const refused = await drained(await Optic(view).forPurpose(DISPLAY).node('salary').prop('amount').read());
+
+    expect(allowed.readings).toEqual([expect.objectContaining({ subject: 'todo', key: 'title', present: true, value: 'one' })]);
+    expect(refused).toMatchObject({ readings: [], receipt: { status: 'refused', cause: 'access-denied: not this subject' } });
+    expect(asked).toEqual([{ subject: 'todo', key: 'title' }, { subject: 'salary', key: 'amount' }]);
   });
 
   it('reports a budget too small to answer, and one too small to emit', async () => {

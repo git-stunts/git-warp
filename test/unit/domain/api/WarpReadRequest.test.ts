@@ -10,15 +10,10 @@ describe('WarpReadRequest', () => {
   const observer = ObserverIdentity.of('audit', 'agent-1');
   const purpose = Purpose.of('audit', 'incident-investigation', 1);
   const budget = ReadBudget.of({ records: 10, bytes: 1024, work: 10 });
+  const valid = { graph: 'graph-1', observer, purpose, question: 'node.property/v1', subject: 'item-1', key: 'title', budget };
 
   it('constructs a frozen read request with valid fields', () => {
-    const request = new WarpReadRequest({
-      graph: 'graph-1',
-      observer,
-      purpose,
-      question: 'node.property/v1',
-      budget,
-    });
+    const request = new WarpReadRequest(valid);
     expect(request.graph).toBe('graph-1');
     expect(request.observer).toBe(observer);
     expect(request.purpose).toBe(purpose);
@@ -27,53 +22,64 @@ describe('WarpReadRequest', () => {
     expect(Object.isFrozen(request)).toBe(true);
   });
 
+  it('names the subject and key of the question, so a port can decide on them', () => {
+    expect(new WarpReadRequest(valid)).toMatchObject({ subject: 'item-1', key: 'title' });
+    expect(new WarpReadRequest({ ...valid, question: 'node.presence/v1', key: null })).toMatchObject({ subject: 'item-1', key: null });
+  });
+
   it('allows budget to be null', () => {
-    const request = new WarpReadRequest({
-      graph: 'graph-1',
-      observer,
-      purpose,
-      question: 'node.property/v1',
-      budget: null,
-    });
+    const request = new WarpReadRequest({ ...valid, budget: null });
     expect(request.budget).toBeNull();
   });
 
   it('refuses invalid graph names', () => {
-    expect(() => new WarpReadRequest({ graph: '', observer, purpose, question: 'node.property/v1', budget })).toThrow(WarpReadRequestError);
+    expect(() => new WarpReadRequest({ ...valid, graph: '' })).toThrow(WarpReadRequestError);
     // @ts-expect-error Invalid graph
-    expect(() => new WarpReadRequest({ graph: null, observer, purpose, question: 'node.property/v1', budget })).toThrow(WarpReadRequestError);
+    expect(() => new WarpReadRequest({ ...valid, graph: null })).toThrow(WarpReadRequestError);
     // @ts-expect-error Invalid graph
-    expect(() => new WarpReadRequest({ graph: 123, observer, purpose, question: 'node.property/v1', budget })).toThrow(WarpReadRequestError);
+    expect(() => new WarpReadRequest({ ...valid, graph: 123 })).toThrow(WarpReadRequestError);
   });
 
   it('refuses invalid observer', () => {
     // @ts-expect-error Invalid observer
-    expect(() => new WarpReadRequest({ graph: 'graph-1', observer: null, purpose, question: 'node.property/v1', budget })).toThrow(WarpReadRequestError);
+    expect(() => new WarpReadRequest({ ...valid, observer: null })).toThrow(WarpReadRequestError);
     // @ts-expect-error Invalid observer
-    expect(() => new WarpReadRequest({ graph: 'graph-1', observer: {}, purpose, question: 'node.property/v1', budget })).toThrow(WarpReadRequestError);
+    expect(() => new WarpReadRequest({ ...valid, observer: {} })).toThrow(WarpReadRequestError);
   });
 
   it('refuses invalid purpose', () => {
     // @ts-expect-error Invalid purpose
-    expect(() => new WarpReadRequest({ graph: 'graph-1', observer, purpose: null, question: 'node.property/v1', budget })).toThrow(WarpReadRequestError);
+    expect(() => new WarpReadRequest({ ...valid, purpose: null })).toThrow(WarpReadRequestError);
     // @ts-expect-error Invalid purpose
-    expect(() => new WarpReadRequest({ graph: 'graph-1', observer, purpose: 'audit', question: 'node.property/v1', budget })).toThrow(WarpReadRequestError);
+    expect(() => new WarpReadRequest({ ...valid, purpose: 'audit' })).toThrow(WarpReadRequestError);
   });
 
   it('refuses invalid question', () => {
-    expect(() => new WarpReadRequest({ graph: 'graph-1', observer, purpose, question: '', budget })).toThrow(WarpReadRequestError);
+    expect(() => new WarpReadRequest({ ...valid, question: '' })).toThrow(WarpReadRequestError);
     // @ts-expect-error Invalid question
-    expect(() => new WarpReadRequest({ graph: 'graph-1', observer, purpose, question: null, budget })).toThrow(WarpReadRequestError);
+    expect(() => new WarpReadRequest({ ...valid, question: null })).toThrow(WarpReadRequestError);
+  });
+
+  it('refuses a missing or empty subject', () => {
+    expect(() => new WarpReadRequest({ ...valid, subject: '' })).toThrow('non-empty subject');
+    // @ts-expect-error Invalid subject
+    expect(() => new WarpReadRequest({ ...valid, subject: null })).toThrow('non-empty subject');
+  });
+
+  it('refuses an empty or non-string key', () => {
+    expect(() => new WarpReadRequest({ ...valid, key: '' })).toThrow('key must be a non-empty string or null');
+    // @ts-expect-error Invalid key
+    expect(() => new WarpReadRequest({ ...valid, key: 7 })).toThrow('key must be a non-empty string or null');
   });
 
   it('refuses invalid budget (neither ReadBudget nor null)', () => {
     // @ts-expect-error Invalid budget
-    expect(() => new WarpReadRequest({ graph: 'graph-1', observer, purpose, question: 'node.property/v1', budget: {} })).toThrow(WarpReadRequestError);
+    expect(() => new WarpReadRequest({ ...valid, budget: {} })).toThrow(WarpReadRequestError);
     // @ts-expect-error Invalid budget
-    expect(() => new WarpReadRequest({ graph: 'graph-1', observer, purpose, question: 'node.property/v1', budget: 100 })).toThrow(WarpReadRequestError);
+    expect(() => new WarpReadRequest({ ...valid, budget: 100 })).toThrow(WarpReadRequestError);
   });
 
   it('thrown error is an instance of WarpError', () => {
-    expect(() => new WarpReadRequest({ graph: '', observer, purpose, question: 'node.property/v1', budget })).toThrow(WarpError);
+    expect(() => new WarpReadRequest({ ...valid, graph: '' })).toThrow(WarpError);
   });
 });
