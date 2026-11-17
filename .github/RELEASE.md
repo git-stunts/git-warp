@@ -57,7 +57,8 @@ Releases move through a standard lifecycle:
 
 1. `planned`: milestone exists with a thesis, scope, and goalposts.
 2. `active`: every `status:active` issue has an open PR or a live git-locks lease.
-3. `release-prep`: a `release/vX.Y.Z` branch and normal PR exist.
+3. `release-prep`: a `release/vX.Y.Z` branch and a normal PR that references
+   the release goalpost exist.
 4. `merged`: the release-prep PR has landed on `main`.
 5. `tagged`: the immutable `vX.Y.Z` tag points at the reviewed `main` commit.
 6. `published`: registries accepted or already contain the artifact.
@@ -70,7 +71,8 @@ manual registry publish:
 
 1. Create a release-prep branch named `release/vX.Y.Z`.
 2. Prepare release content on that branch.
-3. Open a normal PR to `main`; do not open a draft PR for release prep.
+3. Open a normal PR to `main` with the body that the release-PR helper writes
+   (see [Release PR](#release-pr)); do not open a draft PR for release prep.
 4. Merge the PR after review and green CI.
 5. The `Main Push Release Branch Check` workflow runs on the merge commit,
    proves the commit came from a release-prep PR, runs final preflight, creates
@@ -299,6 +301,70 @@ npm run release:prep
 CI also runs release-prep validation on PRs. The PR preview comment reports the
 package version and npm dist-tag that will be used if the release branch merges
 and the main-push release branch check creates the tag.
+
+## Release PR
+
+Open the release-prep PR with a body from the release-PR helper,
+`scripts/release-pr/ComposeReleasePullRequest.ts`. The required
+`PR Issue Reference` check (`.github/workflows/pr-issue-reference.yml`) runs
+when the PR opens. It fails unless the PR title or body references an issue in
+this repository. The helper writes a reference to the release goalpost into the
+body, so the check passes the first time.
+
+The goalpost is the issue in this repository that tracks the release, such as
+the release tracking issue. The helper does not query GitHub, so first confirm
+that the number is an open issue and not a pull request:
+
+```bash
+GOALPOST="${GOALPOST:?set GOALPOST to the goalpost issue number}"
+gh api "repos/git-stunts/git-warp/issues/$GOALPOST" \
+  --jq '{number, state, title, is_pull_request: (.pull_request != null)}'
+```
+
+The output must show `"state":"open"` and `"is_pull_request":false`. Then open
+the PR from the release-prep branch:
+
+```bash
+GOALPOST="${GOALPOST:?set GOALPOST to the goalpost issue number}"
+VERSION=$(node -p "require('./package.json').version")
+body=$(node scripts/release-pr/ComposeReleasePullRequest.ts --tag "v$VERSION" --goalpost "$GOALPOST") &&
+  gh pr create --base main --head "release/v$VERSION" --title "Release v$VERSION" --body "$body"
+```
+
+For `--tag v21.0.0 --goalpost 804`, the helper writes this body:
+
+```markdown
+## Summary
+
+- Prepare the `v21.0.0` release from `release/v21.0.0`.
+
+## Issue
+
+Goalpost: #804
+
+The goalpost stays open until the registry verification and the retrospective are recorded.
+
+## Test plan
+
+- `npm run release:prep`
+```
+
+The helper requires the exact issue number, such as `804`. When `--goalpost` is
+missing, or its value has another form, such as `#804` or `GH-804`, the helper
+writes no body and exits with status 1. The `&&` then stops `gh pr create`. The
+helper writes the bare `#804` form, which GitHub and the hosted check resolve in
+this repository. The body has no closing keyword such as `Closes`, so the merge
+does not close the goalpost. The goalpost stays open until the registry
+verification and the retrospective are recorded.
+
+Replace the summary after the PR opens, and keep the `## Issue` section. Each
+edit of the PR body runs the check again.
+
+`test/unit/scripts/release-pull-request.test.ts` runs the hosted check's own
+script, read from the workflow file, against the generated body. The local test
+therefore accepts the same reference forms as the hosted check: `#123`,
+`GH-123`, `git-stunts/git-warp#123` and
+`https://github.com/git-stunts/git-warp/issues/123`.
 
 ## Automatic Tagging
 
