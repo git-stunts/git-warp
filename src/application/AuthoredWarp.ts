@@ -63,8 +63,10 @@ export default class AuthoredWarp {
    *   this repository. This writer has no write under that name. Do nothing for this writer; check
    *   that you passed the `attempt` of a receipt that this writer's `execute` returned for this graph
    *   in this repository.
-   * - The access port gives this writer no grant now. The write can have published, and its record
-   *   stays. Ask again after access is restored; `reconcile` then answers.
+   * - The access port gives this writer no grant now. The write can have published. The denied call
+   *   does not remove the record. Ask again after access is restored. Meanwhile a sweep can remove a
+   *   record that has no `reported` mark, so if `reconcile` returns null again, act as for a removed
+   *   record (below).
    * - An earlier `reconcile` of the attempt, in this or another process, gave its final receipt and
    *   removed the record. The write published or not, as that final receipt said. Use that receipt.
    *   Without it, act as for the next path.
