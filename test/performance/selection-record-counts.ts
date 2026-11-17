@@ -88,19 +88,46 @@ function nodeAdd(writer: string): PatchEntry {
   return new PatchEntry({ patch, sha: shas.toString(16).padStart(40, '0') });
 }
 
-/** The records a new writer's first dot writes when it sorts before 4,096 writers that each hold one chunk. */
-async function firstDotAfterWriters(): Promise<object> {
+const CROCKFORD = '0123456789abcdefghjkmnpqrstvwxyz';
+
+/** A writer id of the form git-warp generates (`w_` and 26 Crockford base32 characters), in index order. */
+function generatedId(index: number): string {
+  let body = '';
+  for (let rest = index; rest > 0; rest = Math.floor(rest / 32)) {
+    body = `${CROCKFORD[rest % 32] ?? ''}${body}`;
+  }
+  return `w_${body.padStart(26, '0')}`;
+}
+
+const WRITER_FORMS = {
+  short: { listed: (index: number): string => `w${String(index).padStart(4, '0')}`, first: 'a' },
+  generated: { listed: (index: number): string => generatedId(index + 1), first: generatedId(0) },
+};
+
+/**
+ * The records the first dot of a new writer writes when 4,096 writers that
+ * each hold one chunk are already listed, and the new writer sorts first:
+ * 4,097 directory entries afterwards, so 17 pages.
+ */
+async function firstDotAfterWriters(form: keyof typeof WRITER_FORMS): Promise<object> {
+  const ids = WRITER_FORMS[form];
   const store = new CountingStore();
   const filling = new ConeFoldSession({ store, root: ConeRoot.empty() });
   for (let index = 0; index < WRITERS; index += 1) {
-    await fold(filling, nodeAdd(`w${String(index).padStart(4, '0')}`));
+    await fold(filling, nodeAdd(ids.listed(index)));
   }
   const root = await filling.commit();
   const before = store.batches.length;
   const session = new ConeFoldSession({ store, root, flushRecords: 1 });
-  const records = await fold(session, nodeAdd('a'));
+  const records = await fold(session, nodeAdd(ids.first));
   await session.commit();
-  return { writers: WRITERS, records, byRecordClass: sumFamilies(store.batches.slice(before)), bytesByRecordClass: sumFamilies(store.bytes.slice(before)) };
+  return {
+    writerIdLength: ids.listed(0).length, listedWriters: WRITERS, records,
+    byRecordClass: sumFamilies(store.batches.slice(before)), bytesByRecordClass: sumFamilies(store.bytes.slice(before)),
+  };
 }
 
-console.log(JSON.stringify({ history: HISTORY, perPatch: await perPatch(), newFirstWriter: await firstDotAfterWriters() }, null, 2));
+console.log(JSON.stringify({
+  history: HISTORY, perPatch: await perPatch(),
+  newFirstWriter: { short: await firstDotAfterWriters('short'), generated: await firstDotAfterWriters('generated') },
+}, null, 2));
