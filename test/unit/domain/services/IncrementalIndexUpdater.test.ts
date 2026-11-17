@@ -58,7 +58,7 @@ function removeNode(state: WarpState, nodeId: string): void {
 
 /** @param {import('../../../../src/domain/services/JoinReducer.ts').WarpState} state */
 function buildTree(state) {
-  return new MaterializedViewService({ codec: defaultCodec }).build(state).tree;
+  return new MaterializedViewService({ indexStore: new MockIndexStorage() }).build(state).tree;
 }
 
 /** Runs one update over an encoded tree and returns only the rewritten shards, encoded. */
@@ -72,9 +72,11 @@ function computeDirty(
   return new CborIndexShardTree({ codec, tree: {} }).withShards(dirty);
 }
 
-/** @param {Record<string, Uint8Array>} tree */
-function readIndex(tree) {
-  return new LogicalIndexReader({ codec: defaultCodec }).loadFromTree(tree).toLogicalIndex();
+/** Reads the logical index of a tree through the adapter's typed view, as an update does. */
+function readIndex(tree: Record<string, Uint8Array>) {
+  return new LogicalIndexReader()
+    .loadFromShards(new CborIndexShardTree({ codec: defaultCodec, tree }).readIndexShards())
+    .toLogicalIndex();
 }
 
 /** @param {Record<string, Uint8Array>} tree @param {string} shardKey */
@@ -1034,7 +1036,7 @@ describe('IncrementalIndexUpdater', () => {
         props: [{ nodeId: 'A', key: 'name', value: 'Alice' }],
       });
 
-      const mvs = new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
+      const mvs = new MaterializedViewService({ indexStore: new MockIndexStorage() });
       const { tree: tree1 } = mvs.build(state1);
 
       // Incremental update: add node C and edge B->C

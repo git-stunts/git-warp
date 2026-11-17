@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import IncrementalIndexUpdater from '../../../../src/domain/services/index/IncrementalIndexUpdater.ts';
 import LogicalIndexReader from '../../../../src/domain/services/index/LogicalIndexReader.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
+import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import { PatchDiff } from '../../../../src/domain/types/PatchDiff.ts';
@@ -32,19 +33,25 @@ function metaShardWith(alive: Uint8Array): Uint8Array {
   return defaultCodec.encode({ nodeToGlobal: [['A', 0]], nextLocalId: 1, alive });
 }
 
+/** Reads a stored in-memory tree as typed shards, as an index update reads its updated tree. */
+function indexShardsOf(tree: Record<string, Uint8Array>) {
+  return new CborIndexShardTree({ codec: defaultCodec, tree }).readIndexShards();
+}
+
 describe('the alive bitmap of one meta shard', () => {
   it('is read when it holds exactly the id space of the shard', () => {
-    const index = new LogicalIndexReader({ codec: defaultCodec })
-      .loadFromTree({ [META_PATH]: metaShardWith(AT_BOUND) })
+    const index = new LogicalIndexReader()
+      .loadFromShards(indexShardsOf({ [META_PATH]: metaShardWith(AT_BOUND) }))
       .toLogicalIndex();
 
     expect(index.isAlive('A')).toBe(true);
   });
 
   it('is refused from a stored tree when it holds one value more', () => {
-    const reader = new LogicalIndexReader({ codec: defaultCodec });
+    const reader = new LogicalIndexReader();
+    const shards = indexShardsOf({ [META_PATH]: metaShardWith(ONE_ABOVE) });
 
-    expect(() => reader.loadFromTree({ [META_PATH]: metaShardWith(ONE_ABOVE) }))
+    expect(() => reader.loadFromShards(shards))
       .toThrow(expect.objectContaining(ABOVE_BOUND));
   });
 
@@ -67,7 +74,7 @@ describe('the alive bitmap of one meta shard', () => {
 
   it('is refused by an incremental index update when it holds one value more', () => {
     const edge = { from: 'A', to: 'B', label: 'owns' };
-    const tree = new MaterializedViewService({ codec: defaultCodec })
+    const tree = new MaterializedViewService({ indexStore: new MockIndexStorage() })
       .build(fixtureToState(makeFixture({ nodes: ['A', 'B'], edges: [] }))).tree;
     const stored = { ...tree, [META_PATH]: metaShardWith(ONE_ABOVE) };
     const updater = new IncrementalIndexUpdater();
