@@ -161,6 +161,21 @@ describe('ConeReadExecutor operational failures', () => {
     expect(await observation.receipt).toMatchObject({ status: 'failed', cause: 'observation-failed', records: 0 });
   });
 
+  it('passes a thrown value that is not an Error through unchanged, whether the basis opens, advances or is read', async () => {
+    const thrown = Object.freeze({ reason: 'not an Error' });
+    const opening = new ConeReadExecutor({ graph: 'graph', access: access(GRANT), cone: () => Promise.reject(thrown) });
+    const advancing = new ConeReadExecutor({ graph: 'graph', access: access(GRANT), cone: async () => await Promise.resolve(cone(new (class extends InMemoryConeRecordStore {
+      override readBasis(): Promise<StoredConeBasis | null> { return Promise.reject(thrown); }
+    })())) });
+    const reading = new ConeReadExecutor({ graph: 'graph', access: access(GRANT), cone: async () => await Promise.resolve(cone(new (class extends InMemoryConeRecordStore {
+      override readRecords(): Promise<ConeRecordSnapshot> { return Promise.reject(thrown); }
+    })())) });
+
+    await expect(opening.read(REQUEST)).rejects.toBe(thrown);
+    await expect(advancing.read(REQUEST)).rejects.toBe(thrown);
+    await expect(collected(await reading.read(REQUEST))).rejects.toBe(thrown);
+  });
+
   it('gives a defect on a read nobody iterates to the logger, with the names its receipt carries', async () => {
     const failure = new Error('private implementation detail');
     const store = new (class extends InMemoryConeRecordStore {

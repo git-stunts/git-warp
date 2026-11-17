@@ -4,10 +4,10 @@ import OpticReading from '../../../../src/domain/api/OpticReading.ts';
 import OpticReceipt from '../../../../src/domain/api/OpticReceipt.ts';
 import CallLatch from '../../../helpers/CallLatch.ts';
 
-function receipt(status: 'completed' | 'cancelled'): OpticReceipt {
+function receipt(status: 'completed' | 'cancelled' | 'failed'): OpticReceipt {
   return new OpticReceipt({
     status, graph: 'graph', observer: 'person:reader', purpose: 'todos:display/v1',
-    question: 'node.presence/v1', cause: status === 'cancelled' ? 'cancelled' : null, records: 0,
+    question: 'node.presence/v1', cause: status === 'completed' ? null : status, records: 0,
   });
 }
 
@@ -30,8 +30,8 @@ describe('OpticObservation cancellation owns outstanding reads', () => {
         }
       },
       cancelled: () => receipt('cancelled'),
-      onSettled: () => { events.push('settled'); },
-    });
+      failed: () => receipt('failed'),
+    }, () => { events.push('settled'); });
     const next = observation[Symbol.asyncIterator]().next();
     await latch.arrived();
     const cancelling = observation.cancel();
@@ -60,8 +60,8 @@ describe('OpticObservation cancellation owns outstanding reads', () => {
         }
       },
       cancelled: () => receipt('cancelled'),
-      onSettled: () => { events.push('settled'); },
-    });
+      failed: () => receipt('failed'),
+    }, () => { events.push('settled'); });
     for await (const reading of observation) {
       expect(reading.subject).toBe('a');
       break;

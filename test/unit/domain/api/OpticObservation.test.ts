@@ -28,6 +28,9 @@ describe('OpticObservation', () => {
       cancelled() {
         return makeReceipt('cancelled');
       },
+      failed(cause: string) {
+        return makeReceipt('failed', cause);
+      },
     };
   }
 

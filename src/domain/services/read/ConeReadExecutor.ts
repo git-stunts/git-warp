@@ -66,7 +66,7 @@ export default class ConeReadExecutor {
     const receipt = this.#receipts(request);
     const grant = await this.#access.authorizeRead(request);
     if (!(grant instanceof WarpReadGrant)) {
-      return ended(receipt, receipt('refused', { cause: deniedCause(grant) }), onSettled);
+      return new OpticObservation(receipt('refused', { cause: deniedCause(grant) }), onSettled);
     }
     const cone = await this.#openCone(receipt, onSettled);
     if (cone instanceof OpticObservation) {
@@ -76,9 +76,9 @@ export default class ConeReadExecutor {
     if (basis instanceof OpticObservation) { return basis; }
     if (basis instanceof ConeObstruction) {
       const failure = coneObstructionFailure(basis);
-      return ended(receipt, receipt('failed', { cause: failure.reason, repairHints: failure.repairHints }), onSettled);
+      return new OpticObservation(receipt('failed', { cause: failure.reason, repairHints: failure.repairHints }), onSettled);
     }
-    return new OpticObservation(this.#execution({ request, grant, cone, basis, receipt, onSettled }));
+    return new OpticObservation(this.#execution({ request, grant, cone, basis, receipt }), onSettled);
   }
 
   /**
@@ -98,7 +98,7 @@ export default class ConeReadExecutor {
     } catch (error) {
       const cause = error instanceof Error ? readOperationalFailure(error, 'reading') : null;
       if (cause === null) { throw error; }
-      return ended(receipt, receipt('failed', { cause }), onSettled);
+      return new OpticObservation(receipt('failed', { cause }), onSettled);
     }
   }
 
@@ -108,7 +108,7 @@ export default class ConeReadExecutor {
     } catch (error) {
       const cause = error instanceof Error ? readOperationalFailure(error, 'opening') : null;
       if (cause === null) { throw error; }
-      return ended(receipt, receipt('failed', { cause }), onSettled);
+      return new OpticObservation(receipt('failed', { cause }), onSettled);
     }
   }
 
@@ -118,13 +118,11 @@ export default class ConeReadExecutor {
     readonly cone: ConeLaneBasis;
     readonly basis: ConeBasis;
     readonly receipt: ReceiptMaker;
-    readonly onSettled: (() => void) | undefined;
   }): OpticExecution {
     const { receipt } = run;
     const answered = this.#reading.bind(this);
     let records = 0;
     return {
-      ...(run.onSettled === undefined ? {} : { onSettled: run.onSettled }),
       cancelled: () => receipt('cancelled', { cause: 'cancelled', records }),
       failed: (cause: string) => receipt('failed', { cause, records }),
       reportDefect: (error: Error) => { this.#reportDefect(run.request, error); },
@@ -201,17 +199,6 @@ function propertyReading(
 
 function deniedCause(decision: WarpAccessDenied | WarpReadGrant): string {
   return `access-denied: ${decision instanceof WarpAccessDenied ? decision.cause : 'the access boundary gave no grant'}`;
-}
-
-/** An observation whose terminal result was decided before anything was read. */
-function ended(receipt: ReceiptMaker, terminal: OpticReceipt, onSettled?: () => void): OpticObservation {
-  return new OpticObservation({
-    decided: terminal,
-    ...(onSettled === undefined ? {} : { onSettled }),
-    cancelled: () => receipt('cancelled', { cause: 'cancelled' }),
-    // eslint-disable-next-line require-yield -- A decided read emits nothing.
-    async *readings(): AsyncGenerator<OpticReading, OpticReceipt, undefined> { return await Promise.resolve(terminal); },
-  });
 }
 
 function encodedSize(reading: OpticReading): number {

@@ -1,14 +1,12 @@
 import OpticError from '../errors/OpticError.ts';
 import type OpticReading from './OpticReading.ts';
-import type OpticReceipt from './OpticReceipt.ts';
+import OpticReceipt from './OpticReceipt.ts';
 
 /** How a read runs: its readings in order, and the terminal result of any given status. */
 export type OpticExecution = {
-  readonly decided?: OpticReceipt;
-  readonly onSettled?: () => void;
   readings(): AsyncGenerator<OpticReading, OpticReceipt, undefined>;
   cancelled(): OpticReceipt;
-  failed?(cause: string): OpticReceipt;
+  failed(cause: string): OpticReceipt;
   /** Hears a defect on a read nobody iterates, whose receipt alone would lose the error. */
   reportDefect?(error: Error): void;
 };
@@ -19,24 +17,32 @@ export type OpticExecution = {
  * Breaking iteration cancels. One serialized transition wins, and every later ask gets its receipt.
  */
 export default class OpticObservation implements AsyncIterable<OpticReading, undefined, undefined> {
-  readonly #execution: OpticExecution;
+  /** Null when the terminal result was decided before anything was read. */
+  readonly #execution: OpticExecution | null;
+  readonly #onSettled: (() => void) | undefined;
   readonly #settled: Promise<OpticReceipt>;
-  #settle: (receipt: OpticReceipt) => void = () => undefined;
+  readonly #settle: (receipt: OpticReceipt) => void;
   #terminal: (() => OpticReceipt) | null = null;
   #consumed = false;
   /** Receipt demand alone consumes this read, so nobody sees a defect unless it is reported. */
   #draining = false;
   #readings: AsyncGenerator<OpticReading, OpticReceipt, undefined> | null = null;
   #closing: Promise<void> | null = null;
-  #published = false;
 
-  constructor(execution: OpticExecution) {
-    this.#execution = execution;
-    this.#settled = new Promise((resolve) => { this.#settle = resolve; });
-    const { decided } = execution;
-    if (decided !== undefined) {
-      this.#decide(() => decided);
-      this.#publish(decided);
+  /**
+   * Runs `read`, or holds a receipt decided before anything was read, such as a refusal,
+   * which emits nothing. `onSettled` hears the one terminal result.
+   */
+  constructor(read: OpticExecution | OpticReceipt, onSettled?: () => void) {
+    const settlement = Promise.withResolvers<OpticReceipt>();
+    this.#settled = settlement.promise;
+    this.#settle = settlement.resolve;
+    this.#onSettled = onSettled;
+    if (read instanceof OpticReceipt) {
+      this.#execution = null;
+      this.#publish(read);
+    } else {
+      this.#execution = read;
     }
     Object.freeze(this);
   }
@@ -51,7 +57,10 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
 
   /** Stops the read. If a terminal result already won, this returns it unchanged. */
   async cancel(): Promise<OpticReceipt> {
-    await this.#closeExecution(this.#decide(() => this.#execution.cancelled()));
+    const execution = this.#execution;
+    if (execution !== null) {
+      await this.#closeExecution(this.#decide(() => execution.cancelled()));
+    }
     return await this.#settled;
   }
 
@@ -75,11 +84,12 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
   }
 
   async *#iterate(): AsyncGenerator<OpticReading, undefined, undefined> {
-    if (this.#terminal !== null) {
+    const execution = this.#unstarted();
+    if (execution === null) {
       return undefined;
     }
     try {
-      const readings = this.#execution.readings();
+      const readings = execution.readings();
       this.#readings = readings;
       let next = await readings.next();
       while (this.#shouldYield(next)) {
@@ -88,13 +98,18 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
       }
       this.#finishCompleted(next);
     } catch (error) {
-      this.#finishFailed();
-      this.#reportUnseen(error instanceof Error ? error : nonErrorDefect());
+      this.#finishFailed(execution);
+      this.#reportUnseen(execution, error instanceof Error ? error : nonErrorDefect());
       throw error;
     } finally {
-      await this.#closeExecution(this.#decide(() => this.#execution.cancelled()));
+      await this.#closeExecution(this.#decide(() => execution.cancelled()));
     }
     return undefined;
+  }
+
+  /** The execution to start, or null when the result was decided before anything was read. */
+  #unstarted(): OpticExecution | null {
+    return this.#terminal === null ? this.#execution : null;
   }
 
   #shouldYield(next: IteratorResult<OpticReading, OpticReceipt>): next is IteratorYieldResult<OpticReading> {
@@ -108,16 +123,16 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
     }
   }
 
-  #finishFailed(): void {
+  #finishFailed(execution: OpticExecution): void {
     const cause = 'observation-failed';
-    const receipt = this.#execution.failed !== undefined ? this.#execution.failed(cause) : this.#execution.cancelled();
+    const receipt = execution.failed(cause);
     this.#decide(() => receipt);
   }
 
   /** A defect reaches an iterating consumer as an exception; on a drained read it is reported before the receipt settles. */
-  #reportUnseen(error: Error): void {
+  #reportUnseen(execution: OpticExecution, error: Error): void {
     if (this.#draining) {
-      this.#execution.reportDefect?.(error);
+      execution.reportDefect?.(error);
     }
   }
 
@@ -153,12 +168,10 @@ export default class OpticObservation implements AsyncIterable<OpticReading, und
     }
   }
 
+  /** Runs once: a decided read publishes when it is built, a running one when `#closing` closes it. */
   #publish(receipt: OpticReceipt): void {
-    if (!this.#published) {
-      this.#published = true;
-      this.#settle(receipt);
-      this.#execution.onSettled?.();
-    }
+    this.#settle(receipt);
+    this.#onSettled?.();
   }
 }
 
