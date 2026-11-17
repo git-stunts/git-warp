@@ -76,14 +76,18 @@ after the clone is reopened, and a new writer ID there gets
 `writer-limit-reached`
 ([#1197](https://github.com/git-stunts/git-warp/issues/1197)). Custody retains
 the writer heads of each write through frontier anchors that all writes share,
-so a write adds only a few commits, however many writers the graph has.
+so a write adds only a few commits, however many writers the graph has, as long
+as the writer IDs are not chosen to collide in one anchor bucket. Even IDs
+crafted to collide cost no more than before #1197: one commit for each 63 heads.
 
 One bound remains. A clone stores the frontier of its writers as one blob of at
-most 4 MiB. That holds about 36,800 writer chains with 64-character writer IDs,
-and about 72,300 with 9-character IDs. A clone that holds more refuses every
-write by every writer ID, with cause `retention-refused-frontier-limit`, and no
-git-warp command reduces the frontier. Keep the total number of writer IDs
-across all clones of a graph well below that bound.
+most 4 MiB. With SHA-1 object IDs, that holds about 36,800 writer chains with
+64-character writer IDs and about 72,300 with 9-character IDs. With SHA-256
+object IDs, it holds about 30,400 and about 51,100. A clone that holds more
+refuses every write by every writer ID, with cause
+`retention-refused-frontier-limit`, and no git-warp command reduces the
+frontier. Keep the total number of writer IDs across all clones of a graph well
+below that bound.
 
 `execute` accepts one Intent or one non-empty ordered array. The array lowers
 through one patch publication: either all of its edits become visible, or none

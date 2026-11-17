@@ -130,8 +130,9 @@ Configuring routine transfer for public attachments is tracked in
 
 Fetched writer chains count toward the limit of 4,096 writers for one graph.
 A clone that holds more after a fetch keeps writing; only a new writer ID is
-refused there. The bound that remains is the size of one stored frontier, about
-36,800 to 72,300 writer chains; see [Getting started](getting-started.md).
+refused there. The bound that remains is the size of one stored frontier: about
+36,800 to 72,300 writer chains with SHA-1 object IDs, and about 30,400 to 51,100
+with SHA-256; see [Getting started](getting-started.md).
 
 ## Publish this writer
 

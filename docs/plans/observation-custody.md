@@ -162,20 +162,36 @@ it without Git, writes only the anchors that do not exist yet, at most 64 in one
 `git fast-import` process (below fast-import's default unpack limit of 100, so two processes
 that write the same anchors at once both succeed), and checks that Git gives each the id it
 computed. A head shared by two writers is retained once, in the bucket of the first writer
-in writer-id order. Anchors have no ref of their own: the same retain call that writes or
-reuses them publishes the carrier under the attempt's construction ref, so a GC that runs
-after that call keeps them. As for the trees #1127 protects, a GC that runs during the call
-is not covered; if it deletes an old unreachable anchor the call reused, verification before
-arm reports the history missing, and the attempt fails closed. The carrier states the attempt and the count and digest of the heads;
+in writer-id order. The carrier states the attempt and the count and digest of the heads;
 the digest is the one the #1067 carriers bound (a seed, rolled over batches of 63 heads).
 
-Measured over writer IDs of 7 characters (`ObservationFrontierAnchors.integration.test.ts` and
-`FrontierAnchors.test.ts`): a write after one head changes adds 3 commits (one leaf anchor,
-one branch anchor, one carrier) at 64, 4,096 and 70,000 writers. A first build at 4,096
-writers writes 2,620 anchors; from about 36,800 writers on every leaf is in use and a build
-writes at most 4,032. The fullest leaf at 72,300 writers holds 33 heads, so no leaf chains
-below the `frontierBytes` bound. A frontier of one writer pays 3 commits for each write where
-the #1067 carrier paid 1.
+Anchors have no ref of their own: the same retain call that writes or reuses them publishes
+the carrier under the attempt's construction ref, so a GC that selects what to delete after
+that call keeps them. A GC that runs during the call is not covered, as for the trees #1127
+protects. The call skips an anchor that exists and does not freshen it, so an old,
+unreachable anchor keeps its age; Git's prune and cruft repack first mark what is reachable
+and delete later. Two outcomes follow:
+
+- A GC that deletes a reused anchor before the carrier lands makes the carrier's
+  publication fail (`Publication parent is not a readable commit`): retain throws, the
+  attempt stops before arm, and the write reports `retention-unavailable` without
+  publishing.
+- A GC that marked before the carrier landed, and deletes after the verification before
+  arm, leaves a write that publishes. If the deletion lands before settlement, the receipt
+  is unretained (`settlement-unverified`); if after, the Coordinate it bound later resolves
+  to unavailable (`history-missing`). The patch, its dots and the writer chains are not
+  affected; only the custody evidence for that write is lost.
+
+Measured over writer IDs of 7 characters and SHA-1 heads
+(`ObservationFrontierAnchors.integration.test.ts` and `FrontierAnchors.test.ts`): a write after
+one head changes adds 3 commits (one leaf anchor, one branch anchor, one carrier) at 64,
+4,096 and 70,000 writers. A first build at 4,096 writers writes 2,620 anchors; at 36,800
+writers (the SHA-1 bound for 64-character IDs; for SHA-256 it is 30,400) every leaf is in
+use and a build writes at most 4,032. The fullest leaf at 72,300 writers holds 33 heads, so
+no leaf chains below the `frontierBytes` bound. All of this holds for writer IDs that are not
+chosen to collide: IDs crafted into one leaf make it a chain, and moving its first head then
+rewrites every link, at most one commit for each 63 heads, which is the #1067 carrier's cost.
+A frontier of one writer pays 3 commits for each write where the #1067 carrier paid 1.
 
 Dependency trees use bounded pages rather than an unbounded support array. The iterator,
 each page and the overall operation have explicit work/byte/count limits. Crossing a bound
@@ -470,7 +486,8 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   frontier can still pass 4,096, through concurrent first writes by new writers or writer chains
   fetched from another clone; custody retains it through frontier anchors, so its writers keep
   writing (#1197). The bound custody has is `frontierBytes`: a frontier blob of 4 MiB names about
-  36,800 to 72,300 writers, as writer IDs run from 64 to 9 characters. Past it every write is
+  36,800 to 72,300 writers with SHA-1 object IDs and about 30,400 to 51,100 with SHA-256, as
+  writer IDs run from 64 to 9 characters. Past it every write is
   refused (`retention-refused-frontier-limit`, hint `frontier_limit_reached`), and no command
   reduces the frontier.
 - **The sweep:** it runs once for each Warp, inside that Warp's first granted `execute` or `reconcile`

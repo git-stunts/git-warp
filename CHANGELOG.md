@@ -445,16 +445,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deterministic commits that group the writer heads by a fixed, versioned bucket of the
   writer ID (63 branches of 63 leaves, at most 63 heads for each commit). Every write
   and every clone over the same frontier shares them, so a write that changes one head
-  adds two anchor commits and one carrier, however many writers the graph has. The
+  adds two anchor commits and one carrier, however many writers the graph has, unless
+  the writer IDs are chosen to collide in one bucket; then it costs no more than before:
+  one commit for each 63 heads. The
   writer chains, the fold, the readings and the documented `git fetch` recipe do not
   change, and no patch, receipt, dot or tombstone is retired. The cause
   `retention-refused-writer-limit` and the repair `compact_writer_frontier` are gone. A
   new writer ID on a frontier of 4,096 or more is still refused with
   `writer-limit-reached`. One bound remains: a basis frontier is one blob of at most
-  4 MiB, which names about 36,800 to 72,300 writer chains, as writer IDs run from 64 to
-  9 characters. A clone past it refuses every write with
-  `retention-refused-frontier-limit` and the hint `frontier_limit_reached`. The custody
-  carrier format changes with this; it was not in a release.
+  4 MiB, which names about 36,800 to 72,300 writer chains with SHA-1 object IDs and
+  about 30,400 to 51,100 with SHA-256, as writer IDs run from 64 to 9 characters. A
+  clone past it refuses every write with `retention-refused-frontier-limit` and the hint
+  `frontier_limit_reached`. Anchors have no ref of their own, and a reused anchor keeps
+  its age, so a `git gc` that runs during a write is not covered, as for the trees in
+  #1127. If it deletes a reused anchor before the write's carrier lands, the write
+  fails before it publishes. If it marked before the carrier landed and deletes after
+  the check before arm, the patch publishes, but its receipt is unretained
+  (`settlement-unverified`) or its Coordinate later reports `history-missing`; the
+  patch, its dots and the writer chains are not affected. The custody carrier format
+  changes with this; it was not in a release.
 - A rebuilt cone head no longer names a tree that a concurrent `git gc` deletes, unless
   that GC selects what to delete while the rebuild's fast-import process runs or prunes
   with `--prune=now`. `git fast-import` uses an object that it finds in any pack, a

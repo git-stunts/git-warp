@@ -135,6 +135,26 @@ git warp repair \
 This is an explicit local repair. Patch history remains authoritative;
 materializations and checkpoints are derived acceleration/evidence structures.
 
+## Repair a damaged frontier anchor
+
+Custody retains the writer heads of each write through frontier anchors: commits
+that every write over the same frontier shares
+([#1197](https://github.com/git-stunts/git-warp/issues/1197)). Git does not sync
+loose objects to disk by default, so a crash of the operating system can leave an
+anchor's loose object empty or truncated. git-warp does not rewrite an object that
+already exists, so every later write whose frontier still names that anchor fails
+before it publishes, with `Publication parent is not a readable commit`. No history
+is lost. To repair the repository, find the damaged object:
+
+```bash
+git -C ./team-repo fsck --no-dangling
+```
+
+`git fsck` names each object file it cannot read, for example
+`error: object file .git/objects/ab/cdef… is empty`. Remove that file, or move it
+out of the objects directory, then run `git fsck` again until it reports no damaged
+object. The next write writes the anchor again.
+
 ## Audit
 
 ```bash
