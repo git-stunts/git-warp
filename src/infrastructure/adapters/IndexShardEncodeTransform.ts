@@ -5,7 +5,10 @@ import { LabelShard } from '../../domain/artifacts/LabelShard.ts';
 import { PropertyShard } from '../../domain/artifacts/PropertyShard.ts';
 import { ReceiptShard } from '../../domain/artifacts/ReceiptShard.ts';
 import { NodeLifecycleReceipt } from '../../domain/artifacts/NodeLifecycleReceipt.ts';
-import { NodeLifecycleShard } from '../../domain/artifacts/NodeLifecycleShard.ts';
+import {
+  NODE_LIFECYCLE_SHARD_SCHEMA_VERSION,
+  NodeLifecycleShard,
+} from '../../domain/artifacts/NodeLifecycleShard.ts';
 import {
   NODE_LIFECYCLE_RECEIPT_PATH,
   nodeLifecycleShardPathForKey,
@@ -93,12 +96,7 @@ export class IndexShardEncodeTransform extends Transform<IndexShard, [string, Ui
       );
     }
     if (shard instanceof NodeLifecycleReceipt) {
-      return this._encodePayload(NODE_LIFECYCLE_RECEIPT_PATH, {
-        schemaVersion: shard.schemaVersion,
-        nodeCount: shard.nodeCount,
-        shardCount: shard.shardCount,
-        floatingTombstones: shard.floatingTombstones,
-      });
+      return this._encodePayload(NODE_LIFECYCLE_RECEIPT_PATH, nodeLifecycleReceiptPayload(shard));
     }
     if (shard instanceof ReceiptShard) {
       return this._encodePayload(
@@ -144,6 +142,32 @@ function propertyShardPayload(
       nodeId,
       Object.entries(properties).sort(([left], [right]) => compareStrings(left, right)),
     ]),
+  };
+}
+
+/**
+ * The receipt payload. A receipt is written only under the schema that this
+ * runtime writes. A receipt of an earlier schema can be decoded, but writing
+ * it would mark a root whose shards carry schema-3 records as schema 2.
+ */
+function nodeLifecycleReceiptPayload(receipt: NodeLifecycleReceipt): {
+  readonly schemaVersion: number;
+  readonly nodeCount: number;
+  readonly shardCount: number;
+  readonly floatingTombstones: readonly string[];
+} {
+  if (receipt.schemaVersion !== NODE_LIFECYCLE_SHARD_SCHEMA_VERSION) {
+    throw new WarpError(
+      `Unsupported node lifecycle receipt schema version for writing: ${String(receipt.schemaVersion)}`,
+      'E_INDEX_SHARD_SCHEMA',
+      { context: { schemaVersion: receipt.schemaVersion } },
+    );
+  }
+  return {
+    schemaVersion: receipt.schemaVersion,
+    nodeCount: receipt.nodeCount,
+    shardCount: receipt.shardCount,
+    floatingTombstones: receipt.floatingTombstones,
   };
 }
 
