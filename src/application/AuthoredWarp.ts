@@ -50,7 +50,10 @@ export default class AuthoredWarp {
 
   /**
    * Asks again what became of an indeterminate or unretained write's `attempt`. Ask again
-   * while it stays so; a final answer is given once. Null means this build reads no record of
+   * while it stays so; a final answer is given once. The requirement `publication-walk-exhausted`
+   * is the exception: the attempt's predecessor lies more than 4,096 commits behind its writer's
+   * tip, this call runs the same bounded probe and returns the same indeterminate answer unless custody
+   * already holds the outcome, and nothing resolves such an attempt yet. Null means this build reads no record of
    * the attempt for this writer: it was already answered, was never this writer's, this writer
    * is denied now, or a sweep finished it first. Null is also the answer while the record still
    * exists under `refs/warp/<graph>/write-attempts/`, where only pre-release builds of `main`
