@@ -31,6 +31,6 @@ export default class ConeSharedDotObstruction extends ConeObstruction {
 
   describe(): string {
     return `Patch ${this.patchSha} claims ${this.set} dot ${this.dot.writerId}:${this.dot.counter} `
-      + `that ${this.elements.length} elements share; repair the duplicate dot (applyDotRepair) first`;
+      + `that ${this.elements.length} elements share, and a remove names it; no supported duplicate-dot repair exists`;
   }
 }

@@ -16,7 +16,7 @@ const SHARED_DOT: ConeObstructionFailure = Object.freeze({
   reason: 'cone_shared_dot',
   repairHints: Object.freeze([Object.freeze({
     code: 'repair_duplicate_dot',
-    message: 'A patch reuses a dot another element also claims; repair the duplicate dot, then retry.',
+    message: 'Several elements share a dot that a remove names, so this lane cone cannot advance. No supported duplicate-dot repair exists; a retry gives the same result.',
   })]),
 });
 
