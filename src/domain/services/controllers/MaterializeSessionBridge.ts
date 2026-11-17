@@ -2,6 +2,7 @@ import ORSet from "../../crdt/ORSet.ts";
 import VersionVector from "../../crdt/VersionVector.ts";
 import { Dot } from "../../crdt/Dot.ts";
 import type PatchEntry from "../../artifacts/PatchEntry.ts";
+import FloatingTombstones from "../../orset/session/FloatingTombstones.ts";
 import type StateSession from "../../orset/session/StateSession.ts";
 import { TRIE_FLUSH_MAX_OPERATIONS_PER_DIRTY_PAGE }
   from "../../orset/trie/TrieFlushAdmissionPolicy.ts";
@@ -294,6 +295,11 @@ async function openReducerSessionFrame(
 
   return new ReducerSessionFrame({
     session,
+    // A resumed trie holds the base's entries but, like a seeded one, none of
+    // its floating tombstones, so both openings take them from the base (#1153).
+    floatingTombstones: baseState === undefined
+      ? FloatingTombstones.none()
+      : FloatingTombstones.of(baseState),
     prop: new Map(baseState?.allPropEntries() ?? []),
     observedFrontier: baseState?.observedFrontier.clone() ?? VersionVector.empty(),
     edgeBirthEvent: new Map(baseState?.edgeBirthEvent ?? []),
@@ -415,8 +421,14 @@ async function projectFrameToState(
   frame: ReducerSessionFrame,
 ): Promise<WarpStateClass> {
   return new WarpStateClass({
-    nodeAlive: await projectORSet(frame.session.scanNodeElementStates()),
-    edgeAlive: await projectORSet(frame.session.scanEdgeElementStates()),
+    nodeAlive: await projectORSet(
+      frame.session.scanNodeElementStates(),
+      frame.floatingTombstones.nodeDots(),
+    ),
+    edgeAlive: await projectORSet(
+      frame.session.scanEdgeElementStates(),
+      frame.floatingTombstones.edgeDots(),
+    ),
     prop: frame.prop,
     observedFrontier: frame.observedFrontier,
     edgeBirthEvent: frame.edgeBirthEvent,
@@ -427,15 +439,17 @@ async function projectFrameToState(
   });
 }
 
+/** Projects trie element states; floating tombstones join the flat tombstone set. */
 async function projectORSet(
   states: AsyncIterable<{
     readonly element: string;
     readonly dots: ReadonlySet<string>;
     readonly tombstonedDots: ReadonlySet<string>;
   }>,
+  floatingTombstones: Iterable<string>,
 ): Promise<ORSet> {
   const entries = new Map<string, Set<string>>();
-  const tombstones = new Set<string>();
+  const tombstones = new Set<string>(floatingTombstones);
 
   for await (const state of states) {
     entries.set(

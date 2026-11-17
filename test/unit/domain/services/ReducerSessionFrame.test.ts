@@ -98,6 +98,26 @@ describe('ReducerSessionFrame construction', () => {
     // @ts-expect-error deliberate runtime-boundary fixture
     expect(() => new ReducerSessionFrame(fields)).toThrow(/requires an edgeBirthEvent Map/u);
   });
+
+  it('holds no floating tombstones when none are given (#1153)', async () => {
+    const ReducerSessionFrame = await loadFrame();
+    const session = await openSession();
+
+    const frame = new ReducerSessionFrame(wellFormedFields(session));
+
+    expect({ nodes: [...frame.floatingTombstones.nodeDots()], edges: [...frame.floatingTombstones.edgeDots()] })
+      .toEqual({ nodes: [], edges: [] });
+  });
+
+  it('rejects floating tombstones that are not FloatingTombstones (#1153)', async () => {
+    const ReducerSessionFrame = await loadFrame();
+    const session = await openSession();
+    // deliberate runtime-boundary fixture: a plain set is not FloatingTombstones
+    const fields = { ...wellFormedFields(session), floatingTombstones: new Set(['zed:1']) };
+
+    // @ts-expect-error deliberate runtime-boundary fixture
+    expect(() => new ReducerSessionFrame(fields)).toThrow(/requires FloatingTombstones/u);
+  });
 });
 
 describe('ReducerSessionFrame property accessors', () => {

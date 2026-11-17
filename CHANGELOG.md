@@ -464,12 +464,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nodes in the graph. Lifecycle shards and the receipt move to schema 3 (a
   record gains a field; the receipt keys do not change), and schema 2 roots
   are still read. A node that is removed and re-added many times grows its
-  own record, as its trie leaf already does. One path is not fixed: a
-  session seeded from a state that holds the tombstone without the add drops
-  that tombstone, so the element is alive again when the add arrives. For
-  example, a host that receives the remove through `syncWith`, creates a
-  checkpoint, and then receives the add reports the element alive
-  ([#1153](https://github.com/git-stunts/git-warp/issues/1153)). Earlier
+  own record, as its trie leaf already does. A session seeded from a state
+  that holds the tombstone without the add is fixed separately (see the
+  #1153 entry below). Earlier
   versions can have stored the wrong state of a full replay in the
   checkpoint and in retained materializations, and the fix does not repair
   them. On an affected repository using the default Git storage
@@ -487,6 +484,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sync ingress. No git-warp writer produces this shape. A remove that lists
   another element's dot from an earlier patch is not refused yet
   ([#1120](https://github.com/git-stunts/git-warp/issues/1120)).
+- Keep a removed node or edge removed on Git storage when a materialize
+  starts from a state that holds the remove's tombstone but not the add it
+  observed. Sync applies patches with the in-memory reducer, so a host that
+  receives a remove through `syncWith` before its add holds such a
+  tombstone, and its checkpoint stores it. A session seeded from that state
+  (a checkpoint, a replay basis or a state-cache snapshot), or reopened on
+  retained trie roots beside it, copied entries only, so the tombstone was
+  lost: the materialized state dropped it, and the element came back in
+  `materialize()`, the cached state and `hasNode` when the add arrived
+  later, for example by a ref fetch. The bounded checkpoint-tail node read
+  already answered removed. The reducer frame now keeps such tombstones
+  beside its session: an add of one of their dots arrives tombstoned, as in
+  the in-memory reducer, and the projected state lists them again, so the
+  next checkpoint, replay basis and snapshot keep them. No trie, state or
+  index format changes; the `full-v7` state already stores a tombstone that
+  no entry holds. A state that an earlier version stored after such a
+  materialize, in a retained materialization or a later checkpoint, lacks
+  the tombstone, and this fix does not repair it
+  ([#1153](https://github.com/git-stunts/git-warp/issues/1153)).
 - A rebuilt cone head no longer names a tree that a concurrent `git gc` deletes, unless
   that GC selects what to delete while the rebuild's fast-import process runs or prunes
   with `--prune=now`. `git fast-import` uses an object that it finds in any pack, a
