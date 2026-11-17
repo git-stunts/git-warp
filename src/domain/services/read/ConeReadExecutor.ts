@@ -50,27 +50,36 @@ export default class ConeReadExecutor {
     Object.freeze(this);
   }
 
-  async read(request: ConeReadRequest): Promise<OpticObservation> {
+  async read(asked: ConeReadRequest): Promise<OpticObservation> {
+    const { onSettled } = asked;
+    const request = this.#fixed(asked);
     const receipt = this.#receipts(request);
-    const grant = await this.#access.authorizeRead(new WarpReadRequest({
-      graph: this.#graph, observer: request.observer, purpose: request.purpose,
-      question: questionName(request.question), subject: request.question.subject, key: request.question.key,
-      budget: request.budget,
-    }));
+    const grant = await this.#access.authorizeRead(request);
     if (!(grant instanceof WarpReadGrant)) {
-      return ended(receipt, receipt('refused', { cause: deniedCause(grant) }), request.onSettled);
+      return ended(receipt, receipt('refused', { cause: deniedCause(grant) }), onSettled);
     }
-    const cone = await this.#openCone(receipt, request.onSettled);
+    const cone = await this.#openCone(receipt, onSettled);
     if (cone instanceof OpticObservation) {
       return cone;
     }
-    const basis = await this.#advance(cone, receipt, request.onSettled);
+    const basis = await this.#advance(cone, receipt, onSettled);
     if (basis instanceof OpticObservation) { return basis; }
     if (basis instanceof ConeObstruction) {
       const failure = coneObstructionFailure(basis);
-      return ended(receipt, receipt('failed', { cause: failure.reason, repairHints: failure.repairHints }), request.onSettled);
+      return ended(receipt, receipt('failed', { cause: failure.reason, repairHints: failure.repairHints }), onSettled);
     }
-    return new OpticObservation(this.#execution({ request, grant, cone, basis, receipt }));
+    return new OpticObservation(this.#execution({ request, grant, cone, basis, receipt, onSettled }));
+  }
+
+  /**
+   * Reads the caller's question once, before access decides it. The port decides this frozen
+   * request, and the read answers it, so a caller that changes its question object afterwards
+   * changes nothing.
+   */
+  #fixed(asked: ConeReadRequest): WarpReadRequest {
+    const { observer, purpose, budget, question } = asked;
+    const { subject, key } = question;
+    return new WarpReadRequest({ graph: this.#graph, observer, purpose, question: questionName(key), subject, key, budget });
   }
 
   async #advance(cone: ConeLaneBasis, receipt: ReceiptMaker, onSettled?: () => void): Promise<ConeBasis | ConeObstruction | OpticObservation> {
@@ -94,21 +103,22 @@ export default class ConeReadExecutor {
   }
 
   #execution(run: {
-    readonly request: ConeReadRequest;
+    readonly request: WarpReadRequest;
     readonly grant: WarpReadGrant;
     readonly cone: ConeLaneBasis;
     readonly basis: ConeBasis;
     readonly receipt: ReceiptMaker;
+    readonly onSettled: (() => void) | undefined;
   }): OpticExecution {
     const { receipt } = run;
     const answered = this.#reading.bind(this);
     let records = 0;
     return {
-      ...(run.request.onSettled === undefined ? {} : { onSettled: run.request.onSettled }),
+      ...(run.onSettled === undefined ? {} : { onSettled: run.onSettled }),
       cancelled: () => receipt('cancelled', { cause: 'cancelled', records }),
       failed: (cause: string) => receipt('failed', { cause, records }),
       async *readings(): AsyncGenerator<OpticReading, OpticReceipt, undefined> {
-        const reading = await answered(run.request.question, run, receipt);
+        const reading = await answered(run.request, run, receipt);
         if (reading instanceof OpticReceipt) { return reading; }
         records += RECORDS_PER_EXACT_READ;
         if (encodedSize(reading) > run.grant.budget.bytes) {
@@ -120,9 +130,9 @@ export default class ConeReadExecutor {
     };
   }
 
-  async #reading(question: OpticQuestion, scope: { readonly cone: ConeLaneBasis; readonly basis: ConeBasis }, receipt: ReceiptMaker): Promise<OpticReading | OpticReceipt> {
+  async #reading(request: WarpReadRequest, scope: { readonly cone: ConeLaneBasis; readonly basis: ConeBasis }, receipt: ReceiptMaker): Promise<OpticReading | OpticReceipt> {
     try {
-      return await this.#answered(question, scope.cone, scope.basis);
+      return await this.#answered(request, scope.cone, scope.basis);
     } catch (error) {
       const cause = error instanceof Error ? readOperationalFailure(error, 'reading') : null;
       if (cause === null) { throw error; }
@@ -130,21 +140,22 @@ export default class ConeReadExecutor {
     }
   }
 
-  async #answered(question: OpticQuestion, cone: ConeLaneBasis, basis: ConeBasis): Promise<OpticReading> {
-    const record = await cone.reader.node(basis.root, question.subject);
+  async #answered(request: WarpReadRequest, cone: ConeLaneBasis, basis: ConeBasis): Promise<OpticReading> {
+    const { subject, key } = request;
+    const record = await cone.reader.node(basis.root, subject);
     const state = createStateReader(hydrateConeState([record], []));
-    const alive = state.hasNode(question.subject);
-    if (question.key === null) {
-      return new OpticReading({ subject: question.subject, key: null, present: alive, value: null });
+    const alive = state.hasNode(subject);
+    if (key === null) {
+      return new OpticReading({ subject, key: null, present: alive, value: null });
     }
-    const props = alive ? state.getNodeProps(question.subject) : null;
-    return propertyReading(question.subject, question.key, props);
+    const props = alive ? state.getNodeProps(subject) : null;
+    return propertyReading(subject, key, props);
   }
 
-  #receipts(request: ConeReadRequest): ReceiptMaker {
+  #receipts(request: WarpReadRequest): ReceiptMaker {
     return (status, detail) => new OpticReceipt({
-      status, graph: this.#graph, observer: request.observer.toString(), purpose: request.purpose.toString(),
-      question: questionName(request.question), cause: detail.cause, records: detail.records ?? 0,
+      status, graph: request.graph, observer: request.observer.toString(), purpose: request.purpose.toString(),
+      question: request.question, cause: detail.cause, records: detail.records ?? 0,
       ...(detail.repairHints === undefined ? {} : { repairHints: detail.repairHints }),
     });
   }
@@ -157,8 +168,8 @@ type ReceiptDetail = {
 };
 type ReceiptMaker = (status: OpticReceiptStatus, detail: ReceiptDetail) => OpticReceipt;
 
-function questionName(question: OpticQuestion): string {
-  return question.key === null ? NODE_QUESTION : PROPERTY_QUESTION;
+function questionName(key: string | null): string {
+  return key === null ? NODE_QUESTION : PROPERTY_QUESTION;
 }
 
 function propertyReading(
