@@ -380,8 +380,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that only sets properties writes none. Shards are inspected against their bounds (8,208 bytes,
   one container, the chunk's key) before the Roaring library reads them. The record trie moves to
   layout 5. A layout-4 cone head refuses with `E_CONE_LAYOUT_UNSUPPORTED` and is not rebuilt
-  automatically: delete the lane's clone-local refs under `refs/warp/<graph>/cone/`, and git-warp
-  folds the lane again from the writer chains. No release wrote layout 4. See
+  automatically: a write to that lane throws and stores nothing, so submit it again after you
+  delete the lane's clone-local refs under `refs/warp/<graph>/cone/`; git-warp then folds the lane
+  again from the writer chains. A revert does not undo layout 5: older code refuses a layout-5 head,
+  so a revert needs the same deletion. No published release wrote layout 4. See
   [Selection shards](docs/topics/retained-manifests.md#selection-shards).
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
