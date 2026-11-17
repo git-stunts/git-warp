@@ -443,7 +443,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   adds two anchor commits and one carrier, however many writers the graph has, unless
   the writer IDs are chosen to collide in one bucket; then it costs about the same as
   before: one commit for each 63 heads, plus a branch anchor and the carrier (68 commits
-  for 4,096 IDs in one bucket, against 66 before). The
+  for 4,096 IDs in one bucket when the first head of that bucket moves, against 66
+  before; moving its last head adds 3). The
   writer chains, the fold, the readings and the documented `git fetch` recipe do not
   change, and no patch, receipt, dot or tombstone is retired. The cause
   `retention-refused-writer-limit` and the repair `compact_writer_frontier` are gone. A
@@ -460,8 +461,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`settlement-unverified`) or its Coordinate later reports `history-missing`; the
   patch, its dots and the writer chains are not affected. Two writes that build the same
   anchors at once can also fail on a keep-file race when `fastimport.unpackLimit` or
-  `transfer.unpackLimit` is lowered (7 of 100 races under a global
-  `transfer.unpackLimit=1` in a review run); the losing write fails before it publishes,
+  `transfer.unpackLimit` is lowered (7 of 100 races in a review run, with
+  `transfer.unpackLimit=1` in the repository's configuration); the losing write fails
+  before it publishes,
   and nothing is corrupted. The plumbing gives no way to set the limit per process. The
   custody carrier format changes with this; it was not in a release.
 - The package's internal HTTP sync client, which `syncWith` uses, no longer reads a

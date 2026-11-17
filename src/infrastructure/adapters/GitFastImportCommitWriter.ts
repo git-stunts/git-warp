@@ -14,10 +14,14 @@ const SCRATCH_BRANCH = 'refs/warp-local/frontier-anchor-build';
  * limit of 100 objects, so Git stores them as loose objects. Two processes that write the
  * same anchors at once then both succeed; as a pack, the second would find the first's keep
  * file and fail. A lowered `fastimport.unpackLimit` or `transfer.unpackLimit` makes
- * fast-import write a pack and reopens that race (7 failures in 100 races under a global
- * `transfer.unpackLimit=1` in a review run): the losing write throws before it publishes,
- * and nothing is corrupted. The plumbing gives no way to set the limit per process: it
- * refuses `-c` and `GIT_CONFIG_*`, and allows `fast-import` only `--quiet` and `--done`.
+ * fast-import write a pack and reopens that race (7 failures in 100 races in a review run,
+ * with `transfer.unpackLimit=1` in the repository's configuration): the losing write throws
+ * before it publishes, and nothing is corrupted. The plumbing gives no way to set the limit
+ * per process: it refuses `-c`, accepts no per-call override that sets a configuration
+ * value (`GIT_CONFIG_PARAMETERS` is blocked, `GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_*` and
+ * `GIT_CONFIG_VALUE_*` are not on its allowlist, and `GIT_CONFIG_GLOBAL`, `HOME` and
+ * `XDG_CONFIG_HOME`, which locate configuration files, pass only from the inherited
+ * environment), and allows `fast-import` only `--quiet` and `--done`.
  */
 export const FAST_IMPORT_ANCHOR_BATCH = 64;
 const encoder = new TextEncoder();
