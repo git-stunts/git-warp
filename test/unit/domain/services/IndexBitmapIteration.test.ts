@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.ts';
 import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.ts';
 import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';
@@ -8,6 +8,7 @@ import LogicalIndexReader from '../../../../src/domain/services/index/LogicalInd
 import type { LogicalIndex } from '../../../../src/domain/services/index/logicalIndexHelpers.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import { PatchDiff } from '../../../../src/domain/types/PatchDiff.ts';
+import type LoggerPort from '../../../../src/ports/LoggerPort.ts';
 import {
   getRoaringBitmap32,
   initRoaring,
@@ -66,11 +67,14 @@ function bitmapOf(values: readonly number[]): Uint8Array {
 describe('BitmapIndexReader neighbour reads (#1159 D1)', () => {
   const sha = (prefix: string, index: number): string => `${prefix}${String(index).padStart(38, '0')}`;
 
-  async function readerOver(blobs: Readonly<Record<string, object>>): Promise<BitmapIndexReader> {
+  async function readerOver(
+    blobs: Readonly<Record<string, object>>,
+    options: Readonly<{ strict?: boolean; logger?: LoggerPort }> = {},
+  ): Promise<BitmapIndexReader> {
     const storage = new MockIndexStorage();
     const handles = Object.fromEntries(await Promise.all(Object.entries(blobs)
       .map(async ([path, value]) => [path, await storage.writeBlob(defaultCodec.encode(value))] as const)));
-    const reader = new BitmapIndexReader({ indexStore: storage, codec: defaultCodec });
+    const reader = new BitmapIndexReader({ indexStore: storage, codec: defaultCodec, ...options });
     reader.setup(handles);
     return reader;
   }
@@ -92,6 +96,23 @@ describe('BitmapIndexReader neighbour reads (#1159 D1)', () => {
     });
 
     await expect(reader.getChildren(sha('aa', 1))).resolves.toEqual([sha('bb', 5), sha('bb', 9), sha('bb', 1), sha('bb', 2)]);
+  });
+
+  // Oracle: in lenient mode a refused bitmap contributes no neighbour, and
+  // the read logs it; the other chunk still contributes its neighbours.
+  it('skips a bitmap that the boundary refuses in lenient mode, and logs it', async () => {
+    const warn = vi.fn();
+    const logger: LoggerPort = { debug: vi.fn(), info: vi.fn(), warn, error: vi.fn(), child: () => logger };
+    const reader = await readerOver({
+      'meta_bb.cbor': { [sha('bb', 1)]: 1, [sha('bb', 2)]: 2 },
+      'shards_fwd_aa.chunk-000000.cbor': { [sha('aa', 1)]: new Uint8Array([1, 2, 3]) },
+      'shards_fwd_aa.chunk-000001.cbor': { [sha('aa', 1)]: bitmapOf([2]) },
+    }, { strict: false, logger });
+
+    await expect(reader.getChildren(sha('aa', 1))).resolves.toEqual([sha('bb', 2)]);
+    expect(warn).toHaveBeenCalledWith('Bitmap deserialization failed', expect.objectContaining({
+      shardPath: 'shards_fwd_aa.chunk-000000.cbor',
+    }));
   });
 
   it('skips a meta entry whose id is not a number', async () => {

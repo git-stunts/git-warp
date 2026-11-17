@@ -112,6 +112,22 @@ describe('the shared index-shard bound (#1159)', () => {
       .rejects.toMatchObject({ code: 'E_INDEX_SHARD_TOO_LARGE', context: { maximum: BOUND } });
   });
 
+  // Oracle: only the CAS page size refusal is an index-shard size refusal;
+  // any other CAS failure is the storage's own and reaches the caller as is.
+  it('passes a page failure other than its size through unchanged', async () => {
+    const cas = inMemoryCas();
+    const root = await plantedRoot(cas, 'page', defaultCodec.encode(edgeShardOf(new Uint8Array(4)).buckets));
+    const missing = Object.assign(new Error('page is gone'), { code: 'HANDLE_TARGET_MISSING' });
+    const failingPages = { get: () => Promise.reject(missing), put: cas.pages.put };
+    const store = new CborIndexStoreAdapter({
+      codec: defaultCodec,
+      assetStorage: new GitCasAssetStorageAdapter({ cas }),
+      cas: { bundles: cas.bundles, pages: failingPages },
+    });
+
+    await expect(store.decodeShardAt(root, PATH)).rejects.toBe(missing);
+  });
+
   it('stores and reads back a property shard between the default 5 MiB and the bound', async () => {
     const shardKey = materializationPropertyShardKey('node:large');
     const shard = new PropertyShard({
