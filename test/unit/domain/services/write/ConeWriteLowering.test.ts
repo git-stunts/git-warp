@@ -25,7 +25,7 @@ import { PatchBuilder } from '../../../../../src/domain/services/PatchBuilder.ts
 import ConeWriteLowering from '../../../../../src/domain/services/write/ConeWriteLowering.ts';
 import LoweredConeWrite from '../../../../../src/domain/services/write/LoweredConeWrite.ts';
 import WriterFrontierLimit from '../../../../../src/domain/services/write/WriterFrontierLimit.ts';
-import { WARP_SUPPORT_LIMITS } from '../../../../../src/application/WarpWriteComposition.ts';
+import { WARP_WRITER_LIMIT } from '../../../../../src/application/WarpWriteComposition.ts';
 import ConeBasis from '../../../../../src/domain/services/cone/ConeBasis.ts';
 import ConeFrontier from '../../../../../src/domain/services/cone/ConeFrontier.ts';
 import ConeRoot from '../../../../../src/domain/services/cone/ConeRoot.ts';
@@ -73,7 +73,7 @@ function lowering(fields: { readonly premise?: Premise; readonly patch?: PatchBu
     cone: cone(fields.premise ?? (async (published) => await published())),
     content: new ContentStagingAuthority(),
     crypto: new NodeCryptoAdapter(),
-    writers: new WriterFrontierLimit(WARP_SUPPORT_LIMITS.writers),
+    writers: new WriterFrontierLimit(WARP_WRITER_LIMIT),
     openPatch: fields.openPatch ?? (async () => await Promise.resolve(patch)),
   });
 }
@@ -212,8 +212,8 @@ function onto(basis: ConeBasis): Premise {
 }
 
 describe('ConeWriteLowering at the writer limit (#1075)', () => {
-  it('holds 4,096 writers, so one write retains every head', () => {
-    expect(WARP_SUPPORT_LIMITS.writers).toBe(4096);
+  it('admits new writers up to 4,096', () => {
+    expect(WARP_WRITER_LIMIT).toBe(4096);
   });
 
   it('admits the 4,096th writer and keeps every writer already in a full frontier writing', async () => {
@@ -231,12 +231,26 @@ describe('ConeWriteLowering at the writer limit (#1075)', () => {
     expect(repairsOf(lowered)).toEqual(['reuse_writer_id']);
   });
 
-  it('does not tell a new writer to reuse a writer ID on a frontier past the limit, where no ID can write', async () => {
+  it('names the admission limit of 4,096 writer IDs in the newcomer repair, not a retention limit (#1197)', async () => {
+    const lowered = await lowering({ premise: onto(basisOf(4096)) }).lower(request);
+    const message = lowered instanceof UnpublishedWriteReceipt ? lowered.repairHints[0]?.message ?? '' : '';
+
+    expect(message).toContain('admits at most 4,096 writer IDs');
+    expect(message).not.toContain('retain');
+  });
+
+  it('tells a new writer on a frontier past the limit to reuse a writer ID, since every writer in it still writes (#1197)', async () => {
     const lowered = await lowering({ premise: onto(basisOf(4097)) }).lower(request);
 
-    expect(causeOf(lowered)).toBe('retention-refused-writer-limit');
-    expect(repairsOf(lowered)).toEqual(['compact_writer_frontier']);
-    expect(lowered instanceof UnpublishedWriteReceipt ? lowered.repairHints[0]?.message : '').toContain('cannot do that yet: issue #1044');
+    expect(causeOf(lowered)).toBe('writer-limit-reached');
+    expect(repairsOf(lowered)).toEqual(['reuse_writer_id']);
+  });
+
+  it('keeps a writer already in a frontier past the limit writing (#1197)', async () => {
+    const past = basisOf(4097);
+    const withAlice = new ConeBasis(past.root, past.frontier.advanced('alice', new ConeWriterPosition('e'.repeat(40), 1)));
+
+    await expect(lowering({ premise: onto(withAlice) }).lower(request)).resolves.toBeInstanceOf(LoweredConeWrite);
   });
 
   it('refuses a limit that is not a count', () => {

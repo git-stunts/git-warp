@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
 import type { Warp } from '../../../index.ts';
-import { WARP_SUPPORT_LIMITS } from '../../../src/application/WarpWriteComposition.ts';
+import { WARP_WRITER_LIMIT } from '../../../src/application/WarpWriteComposition.ts';
 import ConeBasis from '../../../src/domain/services/cone/ConeBasis.ts';
 import ConeFrontier from '../../../src/domain/services/cone/ConeFrontier.ts';
 import ConeLaneBasis from '../../../src/domain/services/cone/ConeLaneBasis.ts';
@@ -15,15 +15,15 @@ import MeteredObservationCustody from '../../helpers/MeteredObservationCustody.t
 import * as fixture from '../../helpers/WarpWriteFixture.ts';
 
 /**
- * The writer limit as both of its readers see one frontier (#1075): the lowering guard,
- * which counts writer ids, and custody's support reader, which counts the distinct head
- * commits in the frontier blob of the basis tree. Everything from `Warp.open` to Git is
+ * The writer limit as both of its readers see one frontier (#1075, #1197): the lowering guard,
+ * which counts writer ids, and custody's support reader, which retains the distinct head
+ * commits in the frontier blob of the basis tree through frontier anchors. Everything from `Warp.open` to Git is
  * the production path with the production limits. One thing is arranged: folding 4,096
  * real patch chains costs minutes, so the frontier of the basis each write fixes is
  * widened here with writers whose heads are real, distinct commits, and stored as a real
  * basis tree. Both readers then read that one stored frontier, as they do in production.
  */
-const LIMIT = WARP_SUPPORT_LIMITS.writers;
+const LIMIT = WARP_WRITER_LIMIT;
 const CASE_TIMEOUT_MS = 240_000;
 /** A fixed composition clock: no write here may depend on host time. */
 const CLOCK = (): number => 1_000;
@@ -126,18 +126,24 @@ describe('the writer limit through lowering and custody, on 4,096 distinct write
     expect(fixture.tip(path, 'newcomer-below-the-limit')).not.toBeNull();
   }, CASE_TIMEOUT_MS);
 
-  it('gives a new writer and an existing writer one cause and one repair on a frontier of 4,097', async () => {
+  it('refuses a new writer on a frontier of 4,097 in lowering, as at the limit, reserving nothing (#1197)', async () => {
     frontierSize = LIMIT + 1;
 
     const newcomer = fixture.unpublished(await warp.as('newcomer-past-the-limit').execute(intent.node.add({ subject: 'refused' })));
-    const reservedForNewcomer = [...transitions];
-    const existing = fixture.unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'refused-too' })));
 
-    expect(reservedForNewcomer).toEqual([]);
-    expect([newcomer.cause, existing.cause]).toEqual(['retention-refused-writer-limit', 'retention-refused-writer-limit']);
-    expect(newcomer.repairHints).toEqual(existing.repairHints);
-    expect(existing.repairHints.map((hint) => hint.code)).toEqual(['compact_writer_frontier']);
-    expect(transitions).toContain('reserve:after');
+    expect(newcomer.cause).toBe('writer-limit-reached');
+    expect(newcomer.repairHints.map((hint) => hint.code)).toEqual(['reuse_writer_id']);
+    expect(transitions).toEqual([]);
+    expect(fixture.attemptRefs(path)).toEqual([]);
+  }, CASE_TIMEOUT_MS);
+
+  it('retains a write by a writer already in a frontier of 4,097 distinct heads (#1197)', async () => {
+    frontierSize = LIMIT + 1;
+
+    const receipt = fixture.retained(await warp.as('alice').execute(intent.node.add({ subject: 'past-the-limit' })));
+
+    expect(receipt.writer).toBe('alice');
+    expect(transitions).toContain('settle:after');
     expect(fixture.attemptRefs(path)).toEqual([]);
   }, CASE_TIMEOUT_MS);
 });
