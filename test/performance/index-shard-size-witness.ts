@@ -113,15 +113,20 @@ function readBack(bytes: Uint8Array): string {
   }
 }
 
-/** The in-memory view path: MaterializedViewService.build writes the tree, applyDiff reads every shard back. */
+/**
+ * The in-memory view path: MaterializedViewService.build writes the tree, applyDiff reads
+ * every shard back. A refusal at either step is the result, so the witness line still prints.
+ */
 function inMemoryTreeReadBack(shards: readonly IndexShard[]): string {
-  const tree = new CborIndexShardTree({ codec: defaultCodec, tree: {} }).withShards(shards);
+  let step = 'build';
   try {
+    const tree = new CborIndexShardTree({ codec: defaultCodec, tree: {} }).withShards(shards);
+    step = 'read';
     new CborIndexShardTree({ codec: defaultCodec, tree }).readIndexShards();
     return 'read';
   } catch (error) {
     const code = error instanceof Error && 'code' in error ? String(error.code) : '';
-    return `refused ${code}`.trim();
+    return `refused at ${step} ${code}`.trim();
   }
 }
 
