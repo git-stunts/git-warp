@@ -3,7 +3,7 @@ import ConeRecordError from '../../errors/ConeRecordError.ts';
 import { FIELD_SEPARATOR } from '../KeyCodec.ts';
 
 /** The record families of a cone record trie. */
-export type ConeRecordFamily = 'node' | 'edge' | 'dot' | 'adjacency' | 'admission';
+export type ConeRecordFamily = 'node' | 'edge' | 'dot' | 'adjacency' | 'admission' | 'selection';
 
 /** The OR-Set a dot belongs to: node membership or edge membership. */
 export type ConeDotSet = 'node' | 'edge';
@@ -11,7 +11,16 @@ export type ConeDotSet = 'node' | 'edge';
 /** The adjacency direction of an edge key relative to a node. */
 export type ConeDirection = 'out' | 'in';
 
-const FAMILIES: ReadonlySet<string> = new Set(['node', 'edge', 'dot', 'adjacency', 'admission']);
+const FAMILIES: ReadonlySet<string> = new Set(['node', 'edge', 'dot', 'adjacency', 'admission', 'selection']);
+
+/** Where one selection shard lies: an index, and one chunk of a writer's dots of one kind and segment. */
+export type ConeSelectionShardAddress = {
+  readonly index: string;
+  readonly set: ConeDotSet;
+  readonly writerId: string;
+  readonly segment: number;
+  readonly chunk: number;
+};
 const ROUTE_PATTERN = /^[0-9a-f]{64}$/u;
 
 /**
@@ -66,6 +75,12 @@ export default class ConeRecordKey {
   /** The key of a writer's entity admission at `ordinal` in its chain's admission order. */
   static forAdmission(writerId: string, ordinal: number): ConeRecordKey {
     return new ConeRecordKey('admission', routeOf(['entry', writerId, String(ordinal)]));
+  }
+
+  /** The key of one selection shard (#816): the members of one index in one ordinal chunk. */
+  static forSelectionShard(address: ConeSelectionShardAddress): ConeRecordKey {
+    const { index, set, writerId, segment, chunk } = address;
+    return new ConeRecordKey('selection', routeOf(['shard', index, set, writerId, String(segment), String(chunk)]));
   }
 
   /** Stable text form, used as a map key. */

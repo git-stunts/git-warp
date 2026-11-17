@@ -60,6 +60,14 @@ class FakeBitmap implements RoaringBitmapSubset {
     return this.toArray().at(index);
   }
 
+  runOptimize(): boolean {
+    return false;
+  }
+
+  dispose(): boolean {
+    return false;
+  }
+
   [Symbol.iterator](): Iterator<number> {
     return this._values[Symbol.iterator]();
   }

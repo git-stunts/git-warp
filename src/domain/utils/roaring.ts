@@ -11,6 +11,10 @@ export type RoaringBitmapSubset = {
   toArray(): number[];
   rank(value: number): number;
   at(index: number): number | undefined;
+  /** Converts containers to run containers where that is smaller; deterministic for one set of values. */
+  runOptimize(): boolean;
+  /** Frees the bitmap's WASM memory; safe to call more than once. */
+  dispose(): boolean;
   [Symbol.iterator](): Iterator<number>;
 };
 

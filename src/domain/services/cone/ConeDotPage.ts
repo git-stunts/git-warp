@@ -61,6 +61,12 @@ export default class ConeDotPage {
     return this.#claims.get(counter) ?? ConeDotClaim.none();
   }
 
+  /** The counters on this page whose dot is live, ascending. */
+  liveCounters(): readonly number[] {
+    const live = [...this.#claims].filter(([, claim]) => claim.isLive()).map(([counter]) => counter);
+    return Object.freeze(live.sort((left, right) => left - right));
+  }
+
   withClaim(counter: number, claim: ConeDotClaim): ConeDotPage {
     return new ConeDotPage({ ...this, claims: new Map([...this.#claims, [counter, claim]]) });
   }

@@ -34,7 +34,7 @@ export type ConeTrieHistory = {
   deleteRef(ref: string): Promise<void>;
 };
 
-const FAMILY_DIRECTORIES = Object.freeze({ node: 'n', edge: 'e', dot: 'd', adjacency: 'a', admission: 'i' });
+const FAMILY_DIRECTORIES = Object.freeze({ node: 'n', edge: 'e', dot: 'd', adjacency: 'a', admission: 'i', selection: 's' });
 const ROOT_DIRECTORIES: ReadonlySet<string> = new Set(Object.values(FAMILY_DIRECTORIES));
 const FRONTIER_ENTRY = 'frontier';
 const LAYOUT_ENTRY = 'layout';
@@ -47,9 +47,11 @@ const GIT_CAS_TREE_PARSE_ERROR = 'TREE_PARSE_ERROR';
  * the same trie but no entity admission index, so its bases cannot answer an
  * inventory and are refused rather than read as empty; layout 3 records kept
  * no concurrent register writes or lifecycle effects, so their readings would
- * hide plurality.
+ * hide plurality; layout 4 bases have no selection shards (#816), so a
+ * selection over them would read every chunk as empty.
  */
-export const CONE_TRIE_LAYOUT = 'git-warp cone record trie\nlayout 4: 16-way route digits, buckets of 32 records; entity admission index; concurrent siblings\n';
+export const CONE_TRIE_LAYOUT = 'git-warp cone record trie\nlayout 5: 16-way route digits, buckets of 32 records; entity admission index; concurrent siblings; '
+  + 'ordinal liveness selection shards, selection geometry v1: chunk 65536\n';
 /** Captured bases a clone keeps reachable under its retained ref, most recent first to survive. */
 export const CONE_RETAINED_BASES = 64;
 const RETAINED_DIRECTORY = 'r';
@@ -63,8 +65,8 @@ type RetainedEntry = { readonly sequence: number; readonly revision: string };
 type BasisLocation = { readonly ref: string; readonly lane: string };
 
 /**
- * Stores cone records as a Git tree trie (layout 4). The records root holds
- * one directory per family (`n`, `e`, `d`, `a`, `i`); each is an adaptive 16-way
+ * Stores cone records as a Git tree trie (layout 5). The records root holds
+ * one directory per family (`n`, `e`, `d`, `a`, `i`, `s`); each is an adaptive 16-way
  * trie on the record key's BLAKE3 route (`GitConeRecordTrie`), with record
  * blobs named by their full route.
  *

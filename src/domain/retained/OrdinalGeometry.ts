@@ -20,7 +20,7 @@ export type OrdinalGeometryFields = {
  * writer that exhausts one segment continues in the next one instead of
  * widening any global limit. Its address page is
  * `floor(counter / pageSpan)`, the cone dot page that names the element the
- * dot added. Version 1 is the only geometry the layout-4 record trie stores.
+ * dot added. Version 1 is the only geometry the record trie stores.
  *
  * Counters start at 1, so local ordinal 0 of segment 0 is never used and
  * segment 0 holds 2^32 − 1 ordinals. Segments exist per writer and per kind.

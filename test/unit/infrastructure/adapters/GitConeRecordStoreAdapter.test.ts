@@ -230,6 +230,17 @@ describe('GitConeRecordStoreAdapter', () => {
     await history.updateRef(HEAD, await history.writeTree([`100644 blob ${layout}\tlayout`]));
     await expect(store.readBasis(HEAD_OF_LANE)).rejects.toMatchObject({ code: 'E_CONE_RECORD_CORRUPT' });
   });
+
+  it('refuses a layout-4 head, which has no selection shards (#816), so it is rebuilt from the writer chains', async () => {
+    const { history, plumbing, store } = await fixture();
+    const published = await store.publishBasis(HEAD_OF_LANE, ConeBasis.empty(), null);
+    const frontier = (await plumbing.execute({ args: ['rev-parse', `${published?.revision ?? ''}:frontier`] })).trim();
+    const layoutFour = await history.writeBlob(
+      'git-warp cone record trie\nlayout 4: 16-way route digits, buckets of 32 records; entity admission index; concurrent siblings\n',
+    );
+    await history.updateRef(HEAD, await history.writeTree([`100644 blob ${frontier}\tfrontier`, `100644 blob ${layoutFour}\tlayout`]));
+    await expect(store.readBasis(HEAD_OF_LANE)).rejects.toMatchObject({ code: 'E_CONE_LAYOUT_UNSUPPORTED' });
+  });
 });
 
 describe('GitConeRecordStoreAdapter strand heads, retained bases and dropped heads (#1039)', () => {

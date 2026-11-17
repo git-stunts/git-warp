@@ -20,7 +20,7 @@ export function requireChain(writerId: string): string {
 }
 
 /**
- * A geometry the layout-4 record trie stores: only version 1, whose address
+ * A geometry the record trie stores: only version 1, whose address
  * pages are the trie's 256-counter dot pages. Any other geometry needs a new
  * record layout, so it fails closed instead of reading misplaced pages.
  */
