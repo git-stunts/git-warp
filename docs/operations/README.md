@@ -141,9 +141,10 @@ Custody retains the writer heads of each write through frontier anchors: commits
 that every write over the same frontier shares
 ([#1197](https://github.com/git-stunts/git-warp/issues/1197)). Git does not sync
 loose objects to disk by default, so a crash of the operating system can leave an
-anchor's loose object empty or truncated. git-warp does not rewrite an object that
-already exists, so every later write whose frontier still names that anchor fails
-before it publishes, with `Publication parent is not a readable commit`. No history
+anchor's loose object empty or truncated. git-warp then finds the anchor missing
+and writes it again, but Git keeps the damaged file instead of replacing it, so
+every later write whose frontier still names that anchor fails before it
+publishes, with `Publication parent is not a readable commit`. No history
 is lost. To repair the repository, find the damaged object:
 
 ```bash

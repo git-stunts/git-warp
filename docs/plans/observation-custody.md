@@ -159,9 +159,15 @@ a reservation parent. The parameters are fixed:
 
 An anchor's id is therefore a pure function of the lane and its heads. The adapter computes
 it without Git, writes only the anchors that do not exist yet, at most 64 in one
-`git fast-import` process (below fast-import's default unpack limit of 100, so two processes
-that write the same anchors at once both succeed), and checks that Git gives each the id it
-computed. A head shared by two writers is retained once, in the bucket of the first writer
+`git fast-import` process, and checks that Git gives each the id it computed. At fast-import's
+default unpack limit of 100, Git stores such a batch as loose objects, so two processes that
+write the same anchors at once both succeed. A lowered `fastimport.unpackLimit` or
+`transfer.unpackLimit` makes fast-import write a pack instead, and reopens the race: the
+second of two identical packs fails on the first one's keep file (`cannot create keep file`).
+A review run saw 7 failures in 100 such races under a global `transfer.unpackLimit=1`. The
+losing write throws before it publishes, and nothing is corrupted. The plumbing gives no way
+to set the limit per process: it refuses `-c`, filters `GIT_CONFIG_*` out of the environment,
+and allows `fast-import` only `--quiet` and `--done`. A head shared by two writers is retained once, in the bucket of the first writer
 in writer-id order. The carrier states the attempt and the count and digest of the heads;
 the digest is the one the #1067 carriers bound (a seed, rolled over batches of 63 heads).
 
@@ -172,10 +178,13 @@ protects. The call skips an anchor that exists and does not freshen it, so an ol
 unreachable anchor keeps its age; Git's prune and cruft repack first mark what is reachable
 and delete later. Two outcomes follow:
 
-- A GC that deletes a reused anchor before the carrier lands makes the carrier's
-  publication fail (`Publication parent is not a readable commit`): retain throws, the
-  attempt stops before arm, and the write reports `retention-unavailable` without
-  publishing.
+- A GC that deletes a reused anchor before the verification before arm stops the write
+  before it publishes. If the anchor is a branch anchor, one the carrier names, the
+  carrier's publication fails (`Publication parent is not a readable commit`): retain
+  throws, and the write reports `retention-unavailable`. If it is a leaf anchor, deleted
+  after the call wrote the branch anchor above it, the carrier publishes, verification
+  reports the history missing, and the write is refused with
+  `retention-refused-support-unverified`.
 - A GC that marked before the carrier landed, and deletes after the verification before
   arm, leaves a write that publishes. If the deletion lands before settlement, the receipt
   is unretained (`settlement-unverified`); if after, the Coordinate it bound later resolves
@@ -190,7 +199,9 @@ writers (the SHA-1 bound for 64-character IDs; for SHA-256 it is 30,400) every l
 use and a build writes at most 4,032. The fullest leaf at 72,300 writers holds 33 heads, so
 no leaf chains below the `frontierBytes` bound. All of this holds for writer IDs that are not
 chosen to collide: IDs crafted into one leaf make it a chain, and moving its first head then
-rewrites every link, at most one commit for each 63 heads, which is the #1067 carrier's cost.
+rewrites every link: one commit for each 63 heads, plus the branch anchor and the carrier.
+With all 4,096 writer IDs crafted into one leaf, that is 68 commits, against the 66 carriers
+that the #1067 format published for the same frontier.
 A frontier of one writer pays 3 commits for each write where the #1067 carrier paid 1.
 
 Dependency trees use bounded pages rather than an unbounded support array. The iterator,

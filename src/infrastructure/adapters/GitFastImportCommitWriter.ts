@@ -13,7 +13,11 @@ const SCRATCH_BRANCH = 'refs/warp-local/frontier-anchor-build';
  * Anchors one process writes: with the empty tree, well below fast-import's default unpack
  * limit of 100 objects, so Git stores them as loose objects. Two processes that write the
  * same anchors at once then both succeed; as a pack, the second would find the first's keep
- * file and fail.
+ * file and fail. A lowered `fastimport.unpackLimit` or `transfer.unpackLimit` makes
+ * fast-import write a pack and reopens that race (7 failures in 100 races under a global
+ * `transfer.unpackLimit=1` in a review run): the losing write throws before it publishes,
+ * and nothing is corrupted. The plumbing gives no way to set the limit per process: it
+ * refuses `-c` and `GIT_CONFIG_*`, and allows `fast-import` only `--quiet` and `--done`.
  */
 export const FAST_IMPORT_ANCHOR_BATCH = 64;
 const encoder = new TextEncoder();

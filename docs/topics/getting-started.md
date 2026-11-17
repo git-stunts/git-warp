@@ -77,8 +77,10 @@ after the clone is reopened, and a new writer ID there gets
 ([#1197](https://github.com/git-stunts/git-warp/issues/1197)). Custody retains
 the writer heads of each write through frontier anchors that all writes share,
 so a write adds only a few commits, however many writers the graph has, as long
-as the writer IDs are not chosen to collide in one anchor bucket. Even IDs
-crafted to collide cost no more than before #1197: one commit for each 63 heads.
+as the writer IDs are not chosen to collide in one anchor bucket. IDs crafted to
+collide cost about the same as before #1197: one commit for each 63 heads in
+their bucket, plus a branch anchor and the carrier. With all 4,096 writer IDs
+crafted into one bucket, a write costs 68 commits, where it cost 66 before.
 
 One bound remains. A clone stores the frontier of its writers as one blob of at
 most 4 MiB. With SHA-1 object IDs, that holds about 36,800 writer chains with
