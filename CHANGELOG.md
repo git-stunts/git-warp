@@ -427,8 +427,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   could not write until the ref was deleted
   ([#1110](https://github.com/git-stunts/git-warp/issues/1110)). Each fast-import program
   that git-warp runs now writes its scaffolding commit with a random message, so the
-  program always writes a new object that names its tree, and GC keeps the tree until a
-  ref names it. A cone ref update that fails because Git removed its tree first, for
+  program always writes a new object that names its tree. A GC that selects what to
+  delete after the program ends keeps the tree while that commit is newer than the prune
+  date, which is long before the ref names it. A cone ref update that fails because Git removed its tree first, for
   example under `git gc --prune=now`, now gives `ConeStoreUnavailableError`: a write
   returns `UnpublishedWriteReceipt` with `write-basis-unavailable` instead of rejecting
   with a raw `GitPlumbingError`, and the next write builds the tree again. A GC that
