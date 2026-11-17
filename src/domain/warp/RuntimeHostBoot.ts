@@ -90,7 +90,7 @@ export type RuntimeHostConstructionOptions = {
   syncReplayProtection?: SyncReplayProtectionPort;
   materializationRead?: MaterializationReadPort;
   viewService: MaterializedViewService;
-  stateHashService?: StateHashService;
+  stateHashService: StateHashService;
   auditService?: AuditReceiptService;
   effectPipeline?: EffectPipeline;
   openStateSession?: MaterializeSessionOpener;

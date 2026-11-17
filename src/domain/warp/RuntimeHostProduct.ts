@@ -178,7 +178,7 @@ export type RuntimeHostProduct = RuntimeGraphHostProduct & {
   readonly _commitMessageCodec: CommitMessageCodecPort;
   _setMaterializedState(
     state: WarpState,
-    optionsOrDiff?: PatchDiff | MaterializedStateUpdateOptions,
+    optionsOrDiff: PatchDiff | MaterializedStateUpdateOptions,
   ): Promise<RuntimeHostMaterializedGraph>;
   _materializeGraph(options?: { ceiling?: number | null }): Promise<RuntimeHostMaterializedGraph>;
   _materializeCoordinateGraph(options: RuntimeHostCoordinateGraphOptions): Promise<RuntimeHostMaterializedGraph>;
