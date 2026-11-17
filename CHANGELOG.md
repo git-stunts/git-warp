@@ -264,10 +264,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `IndexStorePort.openShardTree()` opens a synchronous typed view over an
   in-memory index tree; `IncrementalIndexUpdater` now reads and returns
   `MetaShard`, `EdgeShard`, `LabelShard`, and `PropertyShard` values and
-  never encodes or decodes shard bytes. `MaterializedViewService` still
-  decodes the updated tree to rebuild its reader; removing that decode belongs
-  with the legacy encoder under
-  [#228](https://github.com/git-stunts/git-warp/issues/228). The adapter
+  never encodes or decodes shard bytes. `MaterializedViewService` then still
+  decoded the updated tree to rebuild its reader; the next entry
+  ([#228](https://github.com/git-stunts/git-warp/issues/228)) removes that
+  decode. The adapter
   refuses a malformed meta, edge, or label shard with
   `E_INDEX_SHARD_MALFORMED`. A refusal does not fail the materialize or the
   local commit that updates the index: the runtime marks the index degraded,
@@ -282,6 +282,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   package entry point exports `IndexStorePort` or `MaterializedViewService`,
   so only implementations in this repository need the change
   ([#192](https://github.com/git-stunts/git-warp/issues/192)).
+- Remove the last index shard encode and decode from `MaterializedViewService`.
+  `build()` encodes its shards through `IndexStorePort.openShardTree({}).withShards()`,
+  and `applyDiff()` rebuilds its readers from typed shards: the new
+  `IndexShardTreePort.readIndexShards()` returns every meta, edge, and label
+  shard of the updated tree in path order, and the property reader reads
+  through `readProperties()`. The legacy encoder (`shardToEntry`) and the
+  domain decode paths for an in-memory tree (`LogicalIndexReader.loadFromTree()`
+  and `PropertyIndexReader.setupTree()`) are deleted. `MaterializedViewService`,
+  `LogicalIndexReader`, and `PropertyIndexReader` no longer take a codec, and
+  `build()` now requires the `indexStore` option, as `applyDiff()` already did.
+  `BuildResult.receipt` is the `ReceiptShard` of a full build and `null` after
+  an incremental update; before, an update returned the receipt of the last
+  full build, which did not describe the updated tree. The adapter checks from
+  the previous entry now run on every meta, edge, and label shard of the tree
+  at each update, not only on the shards that the diff touches, and refuse an
+  index shard path whose shard key is not two lowercase hex digits. A refusal
+  degrades the index as before. The tree is always one that the running
+  process built, so stored data does not reach these checks. Index trees stay
+  byte-identical. No package entry point exports these types
+  ([#228](https://github.com/git-stunts/git-warp/issues/228)).
 - Document garbage collection for repositories that git-warp writes to. The
   runtime never runs `git gc` and starts no `git gc --auto`. Measured with
   git-cas 7.2.0 and Git 2.39.5, a retained write adds about 55 loose objects

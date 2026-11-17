@@ -4,6 +4,7 @@ import { createEmptyState, applyPatchOp } from '../../../../src/domain/services/
 import { Dot } from '../../../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
+import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import defaultCrypto from '../../../../src/infrastructure/adapters/NodeCryptoSingleton.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import InMemoryMaterializationStore from '../../../helpers/InMemoryMaterializationStore.ts';
@@ -78,7 +79,7 @@ describe('materialize stale-checkpoint regression', () => {
     const result = await ctrl.materialize({});
 
     // The result should reflect latestState which has A, B, C with two edges.
-    const viewService = new MaterializedViewService({ codec: defaultCodec });
+    const viewService = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const viewResult = viewService.build(result.state);
     const neighbors = viewResult.logicalIndex
       .getEdges('A', 'out')

@@ -6,6 +6,7 @@ import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
 import { PatchDiff } from '../../../../src/domain/types/PatchDiff.ts';
 import { getRoaringBitmap32 } from '../../../../src/domain/utils/roaring.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
+import CborIndexShardTree from '../../../../src/infrastructure/adapters/CborIndexShardTree.ts';
 import { CborIndexStoreAdapter } from '../../../../src/infrastructure/adapters/CborIndexStoreAdapter.ts';
 import GitCasAssetStorageAdapter from '../../../../src/infrastructure/adapters/GitCasAssetStorageAdapter.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
@@ -63,7 +64,7 @@ function storedBitmapOf(tree: Record<string, Uint8Array>, bucket: string, owner:
 // so a writer can store more than 2^24 values in one. Nothing may refuse such
 // a bitmap for its cardinality on read or on write.
 describe('an edge bitmap that holds more values than one alive bitmap can', () => {
-  const service = new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
+  const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
   const neighbour = nodeOutsideStoredNeighbours();
   const nodes = [HUB, neighbour];
   const built = service.build(fixtureToState(makeFixture({ nodes, edges: [] }))).tree;
@@ -74,9 +75,10 @@ describe('an edge bitmap that holds more values than one alive bitmap can', () =
   };
 
   it('is read from a stored index', () => {
-    const reader = new LogicalIndexReader({ codec: defaultCodec });
+    const reader = new LogicalIndexReader();
+    const shards = new CborIndexShardTree({ codec: defaultCodec, tree: stored }).readIndexShards();
 
-    expect(() => reader.loadFromTree(stored)).not.toThrow();
+    expect(() => reader.loadFromShards(shards)).not.toThrow();
     expect(getRoaringBitmap32().deserialize(manyNeighbours, true).size).toBe(STORED_NEIGHBOURS);
   });
 

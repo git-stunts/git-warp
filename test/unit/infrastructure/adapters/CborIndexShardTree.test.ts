@@ -3,6 +3,7 @@ import { EdgeShard } from '../../../../src/domain/artifacts/EdgeShard.ts';
 import { LabelShard } from '../../../../src/domain/artifacts/LabelShard.ts';
 import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';
 import { PropertyShard } from '../../../../src/domain/artifacts/PropertyShard.ts';
+import type { IndexShard } from '../../../../src/domain/artifacts/IndexShard.ts';
 import IndexError from '../../../../src/domain/errors/IndexError.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
 import CborIndexShardTree from '../../../../src/infrastructure/adapters/CborIndexShardTree.ts';
@@ -24,6 +25,17 @@ function open(entries: Record<string, unknown>): CborIndexShardTree {
 function malformed(read: () => unknown, reason: string): void {
   expect(read).toThrow(IndexError);
   expect(read).toThrow(expect.objectContaining({ code: 'E_INDEX_SHARD_MALFORMED', context: expect.objectContaining({ reason }) }));
+}
+
+/** Names one index shard by the path it is stored under, through its class. */
+function shardName(shard: IndexShard): string {
+  if (shard instanceof MetaShard) {
+    return `meta_${shard.shardKey}`;
+  }
+  if (shard instanceof EdgeShard) {
+    return `${shard.direction}_${shard.shardKey}`;
+  }
+  return shard instanceof LabelShard ? 'labels' : `unexpected ${shard.shardKey}`;
 }
 
 describe('CborIndexShardTree', () => {
@@ -105,6 +117,58 @@ describe('CborIndexShardTree', () => {
       () => open({ [`props_${shardKey}.cbor`]: [['A', 'not a bag']] }).readProperties(shardKey),
       'legacy property bag must be an object',
     );
+  });
+
+  it('reads every meta, edge, and label shard of the tree in path order', () => {
+    const bitmap = new Uint8Array([4]);
+    // Insertion order differs from path order on purpose.
+    const tree = open({
+      'rev_aa.cbor': { all: { '3': bitmap } },
+      'meta_bb.cbor': { nodeToGlobal: [['B', 9]], nextLocalId: 2 },
+      'labels.cbor': [['knows', 0]],
+      'fwd_aa.cbor': { '0': { '3': bitmap } },
+      'meta_aa.cbor': { nodeToGlobal: [['A', 7]], nextLocalId: 1, alive: bitmap },
+    });
+
+    const shards = tree.readIndexShards();
+
+    expect(shards.map(shardName)).toEqual(['fwd_aa', 'labels', 'meta_aa', 'meta_bb', 'rev_aa']);
+    expect(shards).toMatchObject([
+      { buckets: { '0': { '3': bitmap } } },
+      { labels: [['knows', 0]] },
+      { nodeToGlobal: [['A', 7]], nextLocalId: 1, alive: bitmap },
+      { nodeToGlobal: [['B', 9]], nextLocalId: 2, alive: new Uint8Array(0) },
+      { buckets: { all: { '3': bitmap } } },
+    ]);
+  });
+
+  it('reads no property or receipt shard as an index shard', () => {
+    const shardKey = computeShardKey('A');
+    const tree = open({
+      [`props_${shardKey}.cbor`]: [['A', { name: 'Alice' }]],
+      'receipt.cbor': { version: 1, nodeCount: 1, labelCount: 0, shardCount: 1 },
+    });
+
+    expect(tree.readIndexShards()).toEqual([]);
+  });
+
+  it.each([
+    ['a three-digit key', 'meta_abc.cbor'],
+    ['an uppercase key', 'meta_AB.cbor'],
+    ['a one-digit key', 'fwd_a.cbor'],
+    ['an empty key', 'rev_.cbor'],
+    ['another file kind', 'rev_aa.json'],
+  ])('refuses an index shard path with %s', (_name, path) => {
+    malformed(() => open({ [path]: {} }).readIndexShards(), 'shard path does not name a two-digit hex shard key');
+  });
+
+  it.each([
+    ['a meta shard without nextLocalId', 'meta_aa.cbor', { nodeToGlobal: [['A', 1]] }, 'id is not a non-negative integer'],
+    ['edge buckets at a meta path', 'meta_aa.cbor', { all: { '0': new Uint8Array([1]) } }, 'id table is neither a list nor a map'],
+    ['a meta map at the labels path', 'labels.cbor', { nodeToGlobal: [['A', 1]], nextLocalId: 1 }, 'id is not a non-negative integer'],
+    ['an id list at an edge path', 'fwd_aa.cbor', [['A', 1]], 'edge shard is not a map'],
+  ])('refuses %s among the index shards', (_name, path, payload, reason) => {
+    malformed(() => open({ 'labels.cbor': [['knows', 0]], [path]: payload }).readIndexShards(), reason);
   });
 
   it('encodes shards over a copy of the tree and keeps untouched entries', () => {

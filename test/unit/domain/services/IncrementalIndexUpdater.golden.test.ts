@@ -23,7 +23,6 @@ import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import { decodeEdgeKey } from '../../../../src/domain/services/KeyCodec.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import type WarpState from '../../../../src/domain/services/state/WarpState.ts';
-import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import { createRng } from '../../../helpers/seededRng.ts';
 
@@ -84,7 +83,7 @@ function digestTree(tree: Readonly<Record<string, Uint8Array>>): string {
 
 function replaySeed(seed: number): string {
   const next = createRng(seed).next;
-  const service = new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
+  const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
   const state = createEmptyState();
   let tree = service.build(createEmptyState()).tree;
   const chain = createHash('sha256');

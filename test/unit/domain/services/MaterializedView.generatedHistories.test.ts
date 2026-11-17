@@ -33,7 +33,6 @@ import MaterializedViewService, { type BuildResult } from '../../../../src/domai
 import BitmapNeighborProvider from '../../../../src/domain/services/index/BitmapNeighborProvider.ts';
 import type WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import type { PatchDiff } from '../../../../src/domain/types/PatchDiff.ts';
-import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import { createRng } from '../../../helpers/seededRng.ts';
 
@@ -167,7 +166,7 @@ function generateHistory(seed: number): Delivered[] {
 }
 
 function service(): MaterializedViewService {
-  return new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
+  return new MaterializedViewService({ indexStore: new MockIndexStorage() });
 }
 
 /** Every named node's view, in `NODE_IDS` order. A list, so `__proto__` stays an ordinary entry. */

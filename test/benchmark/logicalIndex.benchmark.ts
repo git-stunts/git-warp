@@ -17,6 +17,7 @@ import PropertyIndexBuilder from '../../src/domain/services/index/PropertyIndexB
 import PropertyIndexReader from '../../src/domain/services/index/PropertyIndexReader.ts';
 import { PropertyShard } from '../../src/domain/artifacts/PropertyShard.ts';
 import { CborCodec } from '../../src/infrastructure/codecs/CborCodec.ts';
+import CborIndexShardTree from '../../src/infrastructure/adapters/CborIndexShardTree.ts';
 import { makeLogicalBitmapProvider, makeFixture } from '../helpers/fixtureDsl.ts';
 import { runBenchmark, logEnvironment, randomHex } from './benchmarkUtils.ts';
 import { createEmptyState, applyPatchOp } from '../../src/domain/services/JoinReducer.ts';
@@ -135,13 +136,9 @@ describe('Logical Index Benchmarks', () => {
       }
       const shards = /** @type {Array<PropertyShard>} */ ([...builder.yieldShards()]);
 
-      const tree: Record<string, Uint8Array> = {};
-      for (const shard of shards) {
-        const path = `props_${shard.shardKey}.cbor`;
-        tree[path] = codec.encode(shard.entries);
-      }
-      const reader = new PropertyIndexReader({ codec });
-      reader.setupTree(tree);
+      const tree = new CborIndexShardTree({ codec, tree: {} }).withShards(shards);
+      const reader = new PropertyIndexReader();
+      reader.setupShardTree(new CborIndexShardTree({ codec, tree }));
 
       const { median: lookupMs } = await runBenchmark(
         async () => {
