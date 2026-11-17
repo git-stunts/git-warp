@@ -57,6 +57,17 @@ describe('checkpoint-tail node liveness with floating removed dots (#894)', () =
       .toMatchObject({ alive: true, shards: expect.arrayContaining([NODE_LIFECYCLE_RECEIPT_PATH]) });
   });
 
+  it('reads a tail add of a node that has no record in its shard key\'s lifecycle shard', async () => {
+    // `same-shard-550` routes to the harness node's shard key, so the life_XX
+    // member exists but holds no record for the harness node.
+    const neighbour = { writer: 'B', lamport: 1, sha: 'bbbb0001', ops: [new NodeAdd('same-shard-550', Dot.create('B', 1))] };
+    expect(computeShardKey('same-shard-550')).toBe(computeShardKey(HARNESS_NODE));
+
+    const read = await tailNodeRead({ checkpoint: [neighbour], tail: [independentAdd] });
+
+    expect(read.alive).toBe(true);
+  });
+
   it('refuses a tail add when the checkpoint has no lifecycle receipt', async () => {
     await expect(tailNodeRead(removedScenario, { recordsAbsent: true })).rejects.toMatchObject({
       code: 'E_OPTIC_NO_BOUNDED_BASIS',
