@@ -51,6 +51,7 @@
 import { Encoder, decode as cborDecode } from 'cbor-x';
 import CodecPort, { type CodecDecodeBound } from '../../ports/CodecPort.ts';
 import MessageCodecError from '../../domain/errors/MessageCodecError.ts';
+import { DEFAULT_DECODE_MAX_DEPTH } from '../../domain/types/codec/CodecDecodeDepth.ts';
 import {
   validateGenericBoundedCbor,
   type CborStructureLimits,
@@ -75,7 +76,7 @@ const encoder = new Encoder({
 const MAX_CBOR_DECODE_BYTES = 5 * 1024 * 1024;
 const CBOR_DECODE_STRUCTURE_LIMITS: CborStructureLimits = Object.freeze({
   maxContainerEntries: 1_000_000,
-  maxDepth: 32,
+  maxDepth: DEFAULT_DECODE_MAX_DEPTH,
   maxItems: 1_000_000,
 });
 /** The default decode bound of every repository blob that has no bound of its own. */

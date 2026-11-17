@@ -367,6 +367,7 @@ describe('the bitmap read and shard size row that #1159 closes', () => {
 
     expect(statedCount(evidence, /`INDEX_SHARD_LIMITS` \(`[^`]+`\), (\d+) MiB/u) * MIB).toBe(INDEX_SHARD_LIMITS.maxBytes);
     expect(statedCount(evidence, /MiB and ([\d,]+) CBOR items/u)).toBe(INDEX_SHARD_LIMITS.structureLimits.maxItems);
+    expect(statedCount(evidence, /CBOR items at depth (\d+)/u)).toBe(INDEX_SHARD_LIMITS.structureLimits.maxDepth);
     expect(statedCount(protection, /index-shard readers refuse shard files above (\d+) MiB/u) * MIB)
       .toBe(INDEX_SHARD_LIMITS.maxBytes);
     expect(protection).toContain('This bound applies only to stored-candidate visits');
