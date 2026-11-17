@@ -464,6 +464,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failed; a 1 GiB container killed the process. Measured after the change, a
   read of that bitmap against a small graph completes with about 155 MiB of
   resident memory.
+- The Roaring bitmap class that the loader returns no longer extends the
+  library class ([#1159](https://github.com/git-stunts/git-warp/issues/1159)).
+  It wraps one library bitmap and exposes only the declared bitmap members and
+  the two boundary statics (`deserialize`, `deserializeAlive`). Before, every
+  bitmap was a library instance, so its inherited `deserialize` loaded bytes
+  without the shard boundary, including the library's unsafe frozen formats,
+  and statics such as `from` and `fromRange` were reachable. No call site used
+  them.
 - A checkpoint neighbourhood cursor at global id 4,294,967,295 over an edge
   bitmap that holds every id ends the read
   ([#1159](https://github.com/git-stunts/git-warp/issues/1159)). roaring-wasm
