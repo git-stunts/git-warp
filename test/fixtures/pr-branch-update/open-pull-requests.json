@@ -1,0 +1,72 @@
+{
+  "data": {
+    "repository": {
+      "ref": {
+        "target": {
+          "oid": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+      },
+      "pullRequests": {
+        "pageInfo": {
+          "hasNextPage": false
+        },
+        "nodes": [
+          {
+            "number": 2001,
+            "baseRefName": "main",
+            "headRefName": "feat/behind",
+            "headRefOid": "1111111111111111111111111111111111111111",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeable": "MERGEABLE"
+          },
+          {
+            "number": 2002,
+            "baseRefName": "main",
+            "headRefName": "feat/current",
+            "headRefOid": "2222222222222222222222222222222222222222",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeable": "MERGEABLE"
+          },
+          {
+            "number": 2003,
+            "baseRefName": "main",
+            "headRefName": "feat/draft",
+            "headRefOid": "3333333333333333333333333333333333333333",
+            "isDraft": true,
+            "isCrossRepository": false,
+            "mergeable": "MERGEABLE"
+          },
+          {
+            "number": 2004,
+            "baseRefName": "main",
+            "headRefName": "feat/conflict",
+            "headRefOid": "4444444444444444444444444444444444444444",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeable": "CONFLICTING"
+          },
+          {
+            "number": 2005,
+            "baseRefName": "main",
+            "headRefName": "main",
+            "headRefOid": "5555555555555555555555555555555555555555",
+            "isDraft": false,
+            "isCrossRepository": true,
+            "mergeable": "MERGEABLE"
+          },
+          {
+            "number": 2006,
+            "baseRefName": "main",
+            "headRefName": "feat/unknown",
+            "headRefOid": "6666666666666666666666666666666666666666",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeable": "UNKNOWN"
+          }
+        ]
+      }
+    }
+  }
+}

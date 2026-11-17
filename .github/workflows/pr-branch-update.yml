@@ -1,0 +1,52 @@
+name: PR Branch Update
+
+# After each push to main, merge main into every open, non-draft,
+# same-repository pull request that is behind and merges cleanly (#1131).
+# The update-branch API merges; it never rebases. Drafts and fork PRs are
+# skipped. A conflicting PR gets one comment for each head commit.
+#
+# A push that this job makes with GITHUB_TOKEN creates pull_request runs
+# that wait for approval, so the job also dispatches ci.yml and links.yml
+# on each head that it moved. Those two workflows report every required
+# status check on main.
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+# One updater at a time. A new push to main waits for the running update to
+# finish, then the latest pending run merges the newest main.
+concurrency:
+  group: pr-branch-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Merge main into review-ready PR branches
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # Dispatch ci.yml and links.yml on an updated PR head.
+      actions: write
+      # update-branch writes a merge commit to the PR head branch.
+      contents: write
+      # update-branch, and the conflict notice comment.
+      pull-requests: write
+    steps:
+      # The pushed main commit: trusted code. No PR code is checked out, and
+      # no dependency is installed while this job holds a write token.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+      - name: Merge main into eligible PR branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -o pipefail
+          node scripts/pr-branch-update/update-pr-branches.ts --repo "$REPOSITORY" --base main \
+            | tee -a "$GITHUB_STEP_SUMMARY"
