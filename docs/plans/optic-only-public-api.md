@@ -595,8 +595,8 @@ throws it, and nothing else. The list (`TRANSIENT_PERSISTENCE_CODES` and
 The cone record store adapter (`GitConeRecordStoreAdapter`) gives the same verdict
 to one more failure, which it proves itself (#1127): a cone ref update that fails
 while the ref still holds its expected value and `git cat-file -e` finds no object
-under the tree the update names. Git removed that tree before the ref named it. Only
-a concurrent GC, such as `git gc --prune=now`, does that to a tree git-warp has just
+with the id the update names. Git removed that tree before the ref named it. Only a
+concurrent GC, such as `git gc --prune=now`, does that to a tree git-warp has just
 written, and a retry writes the tree again.
 
 The list applies to failures the cone store host sees, beneath the cone record
