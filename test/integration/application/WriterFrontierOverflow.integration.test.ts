@@ -163,6 +163,7 @@ describe('the edge: exactly 4,096 writer chains (#1197)', () => {
 describe('route 1: two first writes that both validate against 4,095 writers before either publishes (#1197)', () => {
   let path = '';
   let interleaving: Readonly<Record<string, string | number>> = {};
+  let landed: { readonly receipts: readonly string[]; readonly chains: number } = { receipts: [], chains: 0 };
 
   beforeAll(async () => {
     path = await seeds.copyOf(seed);
@@ -181,7 +182,8 @@ describe('route 1: two first writes that both validate against 4,095 writers bef
       interleaving = { a, b, chainsWhileHeld: seeds.writerChains(path), publishedWhileHeld: [fixture.tip(path, 'newcomer-a'), fixture.tip(path, 'newcomer-b')].filter((tip) => tip !== null).length };
       latchA.release();
       latchB.release();
-      await Promise.all([writeA, writeB]);
+      const receipts = await Promise.all([writeA, writeB]);
+      landed = { receipts: receipts.map(seeds.outcome), chains: seeds.writerChains(path) };
     } finally {
       latchA.release();
       latchB.release();
@@ -191,6 +193,10 @@ describe('route 1: two first writes that both validate against 4,095 writers bef
 
   it('holds both newcomers after they lowered against 4,095 writer chains, before either published', () => {
     expect(interleaving).toEqual({ a: 'held', b: 'held', chainsWhileHeld: LIMIT - 1, publishedWhileHeld: 0 });
+  });
+
+  it('retains both newcomers\' writes, which take the clone to 4,097 writer chains', () => {
+    expect(landed).toEqual({ receipts: ['retained', 'retained'], chains: LIMIT + 1 });
   });
 
   it('lets an existing writer write afterwards, and again after a reopen', async () => {

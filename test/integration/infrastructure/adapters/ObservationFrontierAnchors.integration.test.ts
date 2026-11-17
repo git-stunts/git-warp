@@ -4,11 +4,16 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WARP_SUPPORT_LIMITS } from '../../../../src/application/WarpWriteComposition.ts';
 import ObservationAdmitted from '../../../../src/domain/services/custody/ObservationAdmitted.ts';
+import ObservationCustodyRoots from '../../../../src/domain/services/custody/ObservationCustodyRoots.ts';
 import type ObservationCustodyIdentity from '../../../../src/domain/services/custody/ObservationCustodyIdentity.ts';
 import ObservationDependencyClaim from '../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationSupportFault from '../../../../src/domain/services/custody/ObservationSupportFault.ts';
+import ObservationSupportRefused from '../../../../src/domain/services/custody/ObservationSupportRefused.ts';
 import ObservationSupportRetained from '../../../../src/domain/services/custody/ObservationSupportRetained.ts';
+import { buildObservationConstructionRef } from '../../../../src/domain/utils/ObservationRefLayout.ts';
 import type GitCasObservationSupportAdapter from '../../../../src/infrastructure/adapters/GitCasObservationSupportAdapter.ts';
+import ObservationCarrierMessage from '../../../../src/infrastructure/adapters/ObservationCarrierMessage.ts';
+import { createRng } from '../../../helpers/seededRng.ts';
 import ObservationCustodyFixture, {
   FIXTURE_GRAPH,
   type OpenedCustody,
@@ -17,6 +22,7 @@ import ObservationCustodyFixture, {
   narrowed,
   readBindings,
   stream,
+  writerCommits,
 } from '../../../helpers/ObservationCustodyFixture.ts';
 
 /**
@@ -29,6 +35,8 @@ const fixture = new ObservationCustodyFixture();
 const CASE_TIMEOUT_MS = 240_000;
 /** Writer counts for the boundedness witness: one carrier's worth, the newcomer limit, and close to `frontierBytes`. */
 const WRITER_COUNTS = [64, 4096, 70_000];
+/** Seeds for random writer counts near 4,096 (#1197, section 2e); a failing case names its seed in the title. */
+const FUZZ_SEEDS = [1197, 4096, 20261117];
 /** Removing a repository of 70,000 heads and their anchors outlasts the default hook timeout on a slow runner. */
 const CLEANUP_TIMEOUT_MS = 120_000;
 
@@ -96,6 +104,27 @@ describe('frontier anchors bound what one changed head costs (#1197, D2)', () =>
 
     // One leaf anchor and one branch anchor change, and the attempt adds its one carrier.
     expect(commitCount(path) - counted).toBe(3);
+  }, CASE_TIMEOUT_MS);
+});
+
+describe('frontier anchors over random writer counts near 4,096 (#1197, section 2e)', () => {
+  it.each(FUZZ_SEEDS)('verifies, and adds 3 commits when one random head moves (seed %i)', async (seed) => {
+    const rng = createRng(seed);
+    const writers = rng.nextInt(3_900, 4_300);
+    const path = await fixture.repository('sha1');
+    const opened = await fixture.open(path, { limit: 8, limits: WARP_SUPPORT_LIMITS });
+    const before = heads(path, writers);
+    await retained(opened, basisTree(path, 'fuzz-before', before));
+    const after = [...before];
+    after[rng.nextInt(0, writers)] = heads(path, 1)[0] ?? '';
+    const changed = basisTree(path, 'fuzz-after', after);
+    const identity = await attempt(opened, changed);
+    const counted = commitCount(path);
+
+    const moved = narrowed(await opened.support.retain(request(identity, changed)), ObservationSupportRetained);
+
+    expect(commitCount(path) - counted).toBe(3);
+    expect(await opened.support.verify(identity, { basis: changed, roots: moved.roots, summary: moved.summary })).toBeNull();
   }, CASE_TIMEOUT_MS);
 });
 
@@ -192,5 +221,52 @@ describe.each(['sha1', 'sha256'])('frontier anchors on real Git (%s)', (format) 
     const verified = await opened.support.verify(identity, { basis, roots: support.roots, summary: support.summary });
 
     expect(verified).toEqual(new ObservationSupportFault('history-missing'));
+  });
+});
+
+/** Parent sets for a forged carrier: everything but the branch anchors the frontier implies, in order. */
+const FORGED_PARENTS: ReadonlyArray<readonly [string, (heads: readonly string[], tops: readonly string[]) => readonly string[]]> = [
+  ['no parents', () => []],
+  ['the heads themselves', (heads) => heads],
+  ['all but one branch anchor', (_heads, tops) => tops.slice(0, -1)],
+  ['the branch anchors reversed', (_heads, tops) => [...tops].reverse()],
+  ['the branch anchors and one head more', (heads, tops) => [...tops, heads[0] ?? '']],
+];
+
+/**
+ * An honest retention, and a carrier of the same attempt that makes the exact claim the
+ * basis implies (count and digest) but names `pick`'s parents: only its parents differ.
+ */
+async function forgedCarrier(format: string, pick: (heads: readonly string[], tops: readonly string[]) => readonly string[]) {
+  const path = await fixture.repository(format);
+  const opened = await fixture.open(path, { limit: 8 });
+  const named = writerCommits(path, 60);
+  const basis = basisTree(path, 'forged', named);
+  const { identity, support } = await retained(opened, basis);
+  const tops = git(path, ['rev-list', '--parents', '-n', '1', support.roots.parents[0] ?? '']).split(/\s+/u).slice(1);
+  const claim = new ObservationCarrierMessage({ binding: identity.binding, writers: support.summary.writers, history: support.summary.history });
+  const parents = pick(named, tops).flatMap((parent) => ['-p', parent]);
+  const forged = git(path, ['commit-tree', git(path, ['mktree'], ''), '-m', claim.toString(), ...parents]);
+  return { path, opened, basis, identity, support, tops, forged };
+}
+
+describe.each(['sha1', 'sha256'])('a carrier with the claim its basis implies and other parents (%s, #1197)', (format) => {
+  it.each(FORGED_PARENTS)('is refused by verify when it names %s', async (_name, pick) => {
+    const { opened, basis, identity, support, tops, forged } = await forgedCarrier(format, pick);
+    const roots = new ObservationCustodyRoots(support.roots.supports, [forged]);
+
+    const verified = await opened.support.verify(identity, { basis, roots, summary: support.summary });
+
+    expect(tops.length).toBeGreaterThan(2);
+    expect(verified).toEqual(new ObservationSupportFault('history-mismatch'));
+  });
+
+  it.each(FORGED_PARENTS)('is not adopted by a resumed retain when it names %s', async (_name, pick) => {
+    const { path, opened, basis, identity, forged } = await forgedCarrier(format, pick);
+    git(path, ['update-ref', buildObservationConstructionRef(FIXTURE_GRAPH, identity.attemptId.value), forged]);
+
+    const resumed = await opened.support.retain(request(identity, basis));
+
+    expect(resumed).toEqual(new ObservationSupportRefused('construction-mismatch'));
   });
 });
