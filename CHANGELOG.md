@@ -427,15 +427,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   overlapped the update left the cone head pointing at a missing tree, every later
   `git gc` failed, and the lane could not write until the ref was deleted
   ([#1110](https://github.com/git-stunts/git-warp/issues/1110)). Each fast-import
-  program that git-warp runs now writes its scaffolding commit with a random message, so
-  the program always writes a new object that names its tree. A GC that selects what to
-  delete after the program ends keeps the tree while that commit is newer than the prune
-  date; the ref names the tree long before the commit ages past it. A cone ref update
-  that fails because Git removed its tree first, for example under `git gc --prune=now`,
-  now gives `ConeStoreUnavailableError`: a write returns `UnpublishedWriteReceipt` with
-  `write-basis-unavailable` instead of rejecting with a raw `GitPlumbingError`, and the
-  next write builds the tree again. A GC that runs while a fast-import process of a cone
-  rebuild runs can still delete a reused object; see [Operations: Garbage
+  program that git-warp runs to build a cone or custody tree now writes its scaffolding
+  commit with a random message, so the program always writes a new object that names its
+  tree. A GC that selects what to delete after the program ends keeps the tree while
+  that commit is newer than the prune date; the ref names the tree long before the
+  commit ages past it. A cone ref update that fails because Git removed its tree first,
+  for example under `git gc --prune=now`, now gives `ConeStoreUnavailableError`: a write
+  returns `UnpublishedWriteReceipt` with `write-basis-unavailable` instead of rejecting
+  with a raw `GitPlumbingError`, and the next write builds the tree again. A GC that
+  runs while a fast-import process of a cone rebuild runs can still delete a reused
+  object; see [Operations: Garbage
   collection](docs/operations/README.md#garbage-collection)
   ([#1127](https://github.com/git-stunts/git-warp/issues/1127)).
 - git-warp no longer writes a trust record that its bounded CBOR reader refuses

@@ -213,12 +213,13 @@ overlapped the rebuild could delete the rebuilt tree after the cone head
 named it. The cone head then pointed at a missing tree, every later `git gc`
 failed, and the lane could not write until you deleted the ref.
 
-Now every fast-import program that git-warp runs also writes a new commit
-that names the tree it built. A GC whose prune date is in the past, such as
-the default two weeks, and that selects what to delete after the program
-ends, keeps that new commit, the tree and all objects below the tree. If a GC removes the tree anyway, for
-example `git gc --prune=now`, the cone-head update fails. Before the write
-publishes, the write then returns `UnpublishedWriteReceipt` with the cause
+Now every fast-import program that git-warp runs to build a cone or custody
+tree also writes a new commit that names the tree it built. A GC whose prune
+date is in the past, such as the default two weeks, and that selects what to
+delete after the program ends, keeps that new commit, the tree and all objects
+below the tree. If a GC removes the tree anyway, for example
+`git gc --prune=now`, the cone-head update fails. Before the write publishes,
+the write then returns `UnpublishedWriteReceipt` with the cause
 `write-basis-unavailable`: nothing was published, and the next write builds
 the tree again. After the write publishes, the write keeps its receipt, and
 the next write folds the patch into the cone head.
