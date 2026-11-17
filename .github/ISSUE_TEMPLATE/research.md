@@ -5,6 +5,14 @@ title: ""
 labels: ["priority:later", "status:available"]
 ---
 
+```yaml
+.dag: issue-dag/2
+.id: git-stunts/git-warp#NEW
+.kind: task
+.type: research
+.blocked_by: []
+```
+
 # Research
 
 ```text
@@ -16,14 +24,21 @@ Execute task (<issue title>) in repository git-stunts/git-warp.
 ```
 
 <!--
-House card: Research. Keep the "# Research" heading, the text block, and the numbered
-"## 1." to "## 9." headings: the planner checks them. Section 2 is the
-card-specific part; its parts are 2, 2b, 2c, and so on.
+House card: Research. Keep the frontmatter block first, then the "# Research"
+heading, the text block, and the numbered "## 1." to "## 9." headings. No tool
+checks these headings; reviewers do. Section 2 is the card-specific part; its
+parts are 2, 2b, 2c, and so on.
 Write in ASD-STE100 Simplified Technical English (see
 docs/plans/README.md#task-plan-house-format).
+Frontmatter: GitHub gives the issue its number when you submit it. Then change
+the .id line to this issue, for example git-stunts/git-warp#1234. Until you
+do, Taskalisk refuses the block, and every run that includes this issue fails.
+Write each prerequisite in .blocked_by as owner/repo#N. Add .holds or .meters
+only for a resource that the task holds for its whole duration. See
+docs/plans/README.md#task-plan-house-format.
 If no decision waits on the answer, do not file this. If you need an answer,
 file Research. If you need to try code, file Spike.
-Labels: add exactly one type:*. This card has no type of its own: use the
+Labels: add exactly one type:*. This card has no type:* label of its own: use the
 type of the work it gates, usually type:debt or type:feature (type:docs for
 documentation work). Keep one status:* and one priority:*, and add one
 area:*. The preset priority:later is a placeholder: correct it. Assign the
@@ -47,8 +62,8 @@ Written before looking.
 Empty at filing. The value, the command that produced it, the timestamp.
 
 ## 3. Prerequisites
-Record each prerequisite as a GitHub "blocked by" relation. List them here
-only for the reader.
+Record each prerequisite in .blocked_by in the frontmatter block. List
+them here only for the reader, each with the reason it must close first.
 - [ ]
 
 ## 4. Scope

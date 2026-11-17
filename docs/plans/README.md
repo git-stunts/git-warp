@@ -62,18 +62,81 @@ contract. It does not remove existing APIs.
 
 ## Task plan house format
 
-GitHub is the source of truth for planning. An issue is the task plan. Its body uses one of the six typed house card templates in [`.github/ISSUE_TEMPLATE/`](../../.github/ISSUE_TEMPLATE/): Feature, Bug, Decision, Investigation, Research, or Spike. Blank issues are disabled. The ADR 2 readiness review form is the one sanctioned non-house form; a planner run that requires the house format reports its issues, and that report is expected.
+GitHub is the source of truth for planning. An issue is the task plan, and there is no local task-file state. The Taskalisk skill compiles the plan from the issues on every run and keeps no state of its own; its helper is `scripts/taskalisk.py` inside the skill directory. Every command below is read-only unless it says otherwise.
+
+### Frontmatter
+
+A modeled issue starts with an `issue-dag/2` frontmatter block: the first fenced `yaml` block of the body, with only blank lines before it. This block is the only input to the dependency graph: Taskalisk builds no edge or resource from labels, milestones, body sections, or GitHub issue relationships. It also reads linked pull requests, to set status, and body edit history, for the trust gate below. The frontmatter of [#1085](https://github.com/git-stunts/git-warp/issues/1085), as filed:
+
+```yaml
+.dag: issue-dag/2
+.id: git-stunts/git-warp#1085
+.kind: task
+.type: task
+.blocked_by: []
+.holds: [docs/]
+```
+
+- `.dag`, `.id`, and `.kind` are required. `.id` is the issue's own reference, so a copied or transferred block fails. `.kind` is `task` (an executable node) or `container` (it groups other issues).
+- A task needs `.type` (`feature`, `bug`, `decision`, `research`, `investigation`, `spike`, or `task`) and `.blocked_by` (`[]` for none). A container needs `.children` and has no `.blocked_by`.
+- `.holds`, `.meters`, `.status` (`active`, `parked`, or `blocked`), and `.size_hours` are optional. A `.size_hours` above 8 draws a warning: the card is probably not atomic.
+- Every reference is `owner/repo#N`. A bare `#N` is invalid, because a transferred issue would silently re-point it.
+- An unknown key that starts with `.` fails the run, so a typo cannot drop an edge. Keys without the prefix are notes, and Taskalisk ignores them.
+
+Taskalisk also applies a trust gate: an issue is a node only when its author, and every editor in its body edit history, is the repository owner, has write, maintain, or admin permission, or is allowlisted (`--trust`, or `--trust-codeowners`). An untrusted issue is never a node and brings no edges or resources; when a trusted issue references it, it only blocks that issue until it closes. The full schema is `references/frontmatter-model.md` in the Taskalisk skill. An open issue without frontmatter is unmodeled: Taskalisk lists it and leaves it out of the graph. Taskalisk fails closed: invalid frontmatter in the graph, an unknown reference, or a cycle exits `1`, and any `gh` failure exits `2`.
+
+### Issue body
+
+The body uses one of the six typed house card templates in [`.github/ISSUE_TEMPLATE/`](../../.github/ISSUE_TEMPLATE/): Feature, Bug, Decision, Investigation, Research, or Spike. Blank issues are disabled. The ADR 2 readiness review form is the one sanctioned non-house form; its issues have no frontmatter, so Taskalisk lists them as unmodeled.
+
+Each template starts with a frontmatter skeleton whose `.id` is `git-stunts/git-warp#NEW`. GitHub gives an issue its number only when you submit it, so change `.id` to the issue's own reference right after you file it. Until you do, Taskalisk refuses the block, and every run that includes the issue fails.
+
+After the frontmatter, executing agents receive the issue body as the task: a level-one heading naming the card type (`# Feature`), a fenced ```` ```text ```` block holding the LLM prompt that executes the task and satisfies every completion criterion, then the card's numbered sections `## 1.` to `## 9.`. Section 2 is the card-specific part; its parts are numbered 2, 2b, 2c, and so on. Each template already holds these parts; fill them in and keep them. No tool checks the headings; reviewers do. Never write machine-local absolute paths in an issue; use `~` or repository-relative paths.
 
 Write issues in ASD-STE100 Simplified Technical English: a controlled form of English with one meaning per word, short sentences, and active voice.
 
-Executing agents receive the issue body as the task: a level-one heading naming the card type (`# Feature`), a fenced ```` ```text ```` block holding the LLM prompt that executes the task and satisfies every completion criterion, then the card's numbered sections `## 1.` to `## 9.`. Section 2 is the card-specific part; its parts are numbered 2, 2b, 2c, and so on. Never write machine-local absolute paths in an issue; use `~` or repository-relative paths. Each template already holds the heading, the prompt block, and the nine sections; fill them in and keep them.
+### Dependencies
 
-Dependencies are GitHub's native issue dependencies ("blocked by" / "blocking"), never prose or checklists. An edge *A blocks B* means "A must be closed (for code work, merged on `main`) before B is correct". Workstreams, parent/child containers, shared files, and similar topics do not create edges. Record a newly discovered prerequisite on the issue; the `issue-dag` skill's `--add-edge` does this and refuses an edge that would create a cycle.
+Dependencies live only in `.blocked_by`. An edge *A blocks B* means that B's `.blocked_by` names A: A must be closed (for code work, merged on `main`) before B is correct. Containers never block and are never blocked, and a `.blocked_by` entry that names a container is an error. Labels, milestones, body sections, shared files, similar topics, and GitHub issue relationships do not create edges.
 
-`status:blocked` means blocked by something outside the dependency graph (an external party, a decision, an outage), with the reason in the issue body. Dependency blocking is computed from the graph and is never labeled. `status:parked` requires a branch pushed to `origin`.
+GitHub's native "blocked by" relationships are an optional mirror for the GitHub interface. This command reports drift between them and the frontmatter; the frontmatter wins:
 
-The git-locks resource keys live in `lock:*` labels (`lock:host/heavy-work`, `lock:docs/`, `lock:scripts/`). Without one, the planner derives a key from `area:*` and says so. Take `host/*` keys in the workstation store that every repository on the host shares; take repository paths in this repository's default store.
+```bash
+python3 "${TASKALISK_HOME:?set TASKALISK_HOME to the Taskalisk skill directory}/scripts/taskalisk.py" --from-github --compare-relationships
+```
 
-A milestone plan (root `ROADMAP.md`) is a rendered view compiled from GitHub, not a second tracker. Its hand-written part is the executive summary: what is missing and why it completes the milestone. Everything between the generated markers is compiled: the ranked Open Frontier table, a sequenced `- [ ]` checklist of atomic slices by wave with each item linking to its issue, the dependency diagram, and the branch audit. Wave numbers, unlock lists, and open/blocked state are computed on every run and are never hand-maintained in files.
+Record a newly discovered prerequisite with `--add-edge`. This command writes to GitHub: it rewrites only the `.blocked_by` line of the second issue, and it restores that issue's old body if the edge makes a cycle. Under the skill's "Propose, then apply" rule, an agent runs it only after the person who asked for the work approves the exact edit.
 
-The branch audit is generated from the branches on `origin` and the open PRs. It is never hand-maintained, and `ROADMAP.md` has no hand-written audit table. Local-only worktrees are out of scope, because no one else can recover them; push a branch to make its work recoverable.
+```bash
+python3 "${TASKALISK_HOME:?set TASKALISK_HOME to the Taskalisk skill directory}/scripts/taskalisk.py" --from-github \
+  --add-edge "${BLOCKER:?set BLOCKER to owner/repo#N}->${BLOCKED:?set BLOCKED to owner/repo#N}" \
+  --reason "${REASON:?set REASON to why the blocker must close first}"
+```
+
+### Status
+
+`.status: active` marks work in progress, `.status: parked` marks work that was started and stopped with its branch pushed to `origin`, and `.status: blocked` marks work blocked by something outside the dependency graph. A blocked task is never put in a dispatch batch. Dependency blocking is computed from the edges and is never declared.
+
+The `status:*` labels are query indexes for people and release gates; Taskalisk does not read them. `status:blocked` needs the reason in the issue body, and `status:parked` needs a branch pushed to `origin`. When the state changes, set the label and `.status` together.
+
+### Resources
+
+Resources sit beside the graph, never in it. `.holds` lists the git-locks keys that a task holds for its whole duration; a trailing `/` claims a subtree, so `docs/` conflicts with `docs/plans/`. `.meters` lists semaphore slots as `name` (one slot) or `name*N`; pass capacities with `--sem-capacity name=N`, and an unknown capacity counts as 1. Declare a resource only when other tasks contend for it for the whole task: the same worktree, the same Docker container or worker, a device, or a system-wide resource with exclusive access. Separate worktrees need no repository path locks, and short commands take their git-locks keys when they run, outside `.holds`. There is no default resource, and Taskalisk does not read `lock:*` labels. Take `host/*` keys in the workstation store that every repository on the host shares; take repository paths in this repository's default store.
+
+### ROADMAP.md
+
+Root `ROADMAP.md` is a rendered view, not a second tracker. Its hand-written part is the executive summary: what is missing and why it completes the milestone. The block between the generated markers is the output of this command, pasted in unchanged:
+
+```bash
+python3 "${TASKALISK_HOME:?set TASKALISK_HOME to the Taskalisk skill directory}/scripts/taskalisk.py" --from-github --emit-roadmap
+```
+
+The block holds graph health metrics, the ranked Open Frontier, a conflict-free git-locks batch, task checklists by wave and by workstream, the transitively reduced dependency diagram, and the prerequisite edge accounting. Wave numbers, unlock lists, and status are computed on every run and are never hand-maintained. In this mode Taskalisk does not filter by milestone (`--milestone` applies only to the inventory mode), so the block covers every open modeled issue in this repository, plus the issues that their frontmatter references. Regenerate the block after tracker changes; never edit it by hand.
+
+The block has no branch audit, and `ROADMAP.md` has no hand-written one. For worktrees, unmerged branches, and open PRs with the issues they close, run the inventory mode:
+
+```bash
+python3 "${TASKALISK_HOME:?set TASKALISK_HOME to the Taskalisk skill directory}/scripts/taskalisk.py" --repo . --milestone v21.0.0
+```
+
+The inventory fails closed: any failed `git` or `gh` call, including one for a registered worktree whose directory is gone or broken, makes it exit `2` and name the failure in `inventory_errors`.

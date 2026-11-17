@@ -33,6 +33,10 @@ Every open issue should carry one label from each axis:
 external party, a decision, an outage), with the reason in the issue body.
 Dependency blocking is computed from the graph and is never labeled.
 `status:parked` means started and stopped, with the branch pushed to `origin`.
+These labels are query indexes. The planner, Taskalisk, builds its
+dependency graph only from the `issue-dag/2` frontmatter block at the top
+of each issue; see the
+[task plan house format](../docs/plans/README.md#task-plan-house-format).
 
 Use GitHub Milestones for release targeting. Do not create release labels for
 new work.

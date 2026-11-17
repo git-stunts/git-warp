@@ -227,8 +227,9 @@ issue before marking release issues `status:active`.
 
 Use GitHub Milestones for version buckets. Do not create version labels for
 release targeting. Labels remain query axes: `type:*`, `priority:*`,
-`status:*`, and `area:*`. `lock:*` labels are not an axis: they carry
-git-locks resource keys for the planner, and an issue may have none.
+`status:*`, and `area:*`. `lock:*` labels are not an axis, and Taskalisk
+does not read them: a task's git-locks keys are `.holds` in its issue
+frontmatter ([task plan house format](../docs/plans/README.md#task-plan-house-format)).
 
 ## Scope Reconciliation
 

@@ -149,13 +149,16 @@ DTO and stop there**. Do not hallucinate fake domain models.
     `status:available`, `status:blocked`, `status:active`, or
     `status:parked`. `status:available` is the neutral state for open work
     that is neither blocked nor actively being worked. `status:blocked`
-    means blocked by something outside GitHub dependencies (an external
+    means blocked by something outside the dependency graph (an external
     party, a decision, an outage); write the reason in the issue body.
-    Dependency blocking is computed from the dependency graph and is never
-    labeled: an issue that waits only on other issues stays
-    `status:available`. `status:parked` means work was started and stopped,
-    and its branch is pushed to `origin`, so anyone can resume it rather than
-    restart it. A local-only worktree does not make work parked.
+    Dependency blocking is computed from the frontmatter `.blocked_by`
+    edges and is never labeled: an issue that waits only on other issues
+    stays `status:available`. `status:parked` means work was started and
+    stopped, and its branch is pushed to `origin`, so anyone can resume it
+    rather than restart it. A local-only worktree does not make work parked.
+    Taskalisk does not read labels. It reads `.status` (`active`, `parked`,
+    or `blocked`) in the issue frontmatter, so set both when the state
+    changes.
   - `area:*` answers where the work primarily lives. Prefer one of `area:api`,
     `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`,
     `area:testing`, `area:tooling`, `area:release`, or `area:architecture`.
@@ -219,41 +222,75 @@ DTO and stop there**. Do not hallucinate fake domain models.
 ## Issue and Task Plan House Format
 
 - GitHub is the source of truth for planning. An issue is the task plan; there
-  is no local task-file state.
+  is no local task-file state. The Taskalisk skill
+  (`<skill>/scripts/taskalisk.py`) compiles the plan from the issues on
+  every run and keeps no state of its own.
+- A modeled issue starts with an `issue-dag/2` frontmatter block: the first
+  fenced `yaml` block of the body, with only blank lines before it. It holds
+  `.dag: issue-dag/2`, `.id` (the issue's own `owner/repo#N`), and `.kind`
+  (`task` or `container`). A task also holds `.type` and `.blocked_by` (`[]`
+  for none); a container holds `.children` instead. `.holds`, `.meters`,
+  `.status`, and `.size_hours` are optional. Every reference is
+  `owner/repo#N`; a bare `#N` is invalid. An unknown key that starts with `.`
+  fails the run. The schema is `references/frontmatter-model.md` in the
+  Taskalisk skill. An open issue without frontmatter is unmodeled: Taskalisk
+  lists it and leaves it out of the graph.
 - New GitHub issues use one of the six typed house card templates in
   `.github/ISSUE_TEMPLATE/`: Feature, Bug, Decision, Investigation,
   Research, or Spike. Blank issues are disabled. Use the web chooser or
-  `gh issue create --template "<Name>"`. Keep the `# <Type>` heading, the
-  fenced `text` execution prompt, and the numbered `## 1.` to `## 9.`
-  headings: the planner's house-format check requires them. Write "none" or "not applicable,
+  `gh issue create --template "<Name>"`. Each template starts with a
+  frontmatter skeleton whose `.id` is `git-stunts/git-warp#NEW`. After GitHub
+  numbers the issue, change `.id` to the issue's own reference; until then
+  Taskalisk refuses the block, and every run that includes the issue fails.
+  Keep the frontmatter block first, then the `# <Type>` heading, the fenced
+  `text` execution prompt, and the numbered `## 1.` to `## 9.` headings. No
+  tool checks these headings; reviewers do. Write "none" or "not applicable,
   because X" instead of padding a section. Write in ASD-STE100 Simplified
   Technical English.
 - The ADR 2 readiness review form (`adr-2-readiness-review.yml`) is the one
-  sanctioned non-house form. Its issues do not follow the house format, so a
-  planner run that requires the house format reports them; that report is
-  expected.
+  sanctioned non-house form. Its issues have no frontmatter, so Taskalisk
+  lists them as unmodeled.
 - Each typed template presets `priority:later` and `status:available`; the
   Feature and Bug templates also preset their `type:*`. `priority:later` is a
   placeholder, not a triage result: the filer must correct it. Also add the
   `area:*` label and, where the template could not preset it, the `type:*`
   label, and assign the GitHub Milestone.
-- Dependencies are GitHub's native "blocked by" relations: *A blocks B* means
-  A must be closed (for code work, merged on `main`) before B is correct.
-  Labels, milestones, shared files, and containers do not create edges.
-  Record discovered prerequisites on the issue
-  (the `issue-dag` skill's `--add-edge` refuses cycles).
-- `lock:*` labels carry git-locks resource keys (`lock:host/heavy-work`,
-  `lock:docs/`, `lock:scripts/`); without one the planner derives a key from
-  `area:*`. Take `host/*` keys in the workstation store that every
+- Dependencies live only in the frontmatter. *A blocks B* means that B's
+  `.blocked_by` names A: A must be closed (for code work, merged on `main`)
+  before B is correct. Containers never block and are never blocked. Labels,
+  milestones, body sections, shared files, and GitHub issue relationships do
+  not create edges. GitHub's native "blocked by" relationships are an
+  optional mirror for the GitHub interface: `taskalisk.py --from-github
+  --compare-relationships` reports drift, and the frontmatter wins. Record a
+  discovered prerequisite with `taskalisk.py --from-github --add-edge
+  "owner/repo#A->owner/repo#B" --reason "<why>"`: it rewrites B's
+  `.blocked_by` line, and it restores B's old body if the edge makes a cycle.
+  Under the skill's "Propose, then apply" rule, an agent runs a Taskalisk
+  write only after the person who asked for the work approves the exact edit.
+- Resources sit beside the graph, in the frontmatter. `.holds` lists the
+  git-locks keys that a task holds for its whole duration; a trailing `/`
+  claims a subtree, so `docs/` conflicts with `docs/plans/`. `.meters` lists
+  semaphore slots as `name` or `name*N`. Declare a resource only when other
+  tasks contend for it for the whole task: the same worktree, the same Docker
+  container or worker, a device, or a system-wide resource with exclusive
+  access. Separate worktrees need no repository path locks. Short commands
+  take their git-locks keys when they run, and those keys do not go in
+  `.holds`. There is no default resource, and Taskalisk does not read
+  `lock:*` labels. Take `host/*` keys in the workstation store that every
   repository on the host shares (set `GIT_LOCKS_STORE` to it); take
   repository paths such as `docs/` and `scripts/` in this repository's
   default store.
-- `ROADMAP.md` is a rendered view compiled from GitHub (executive summary,
-  ranked Open Frontier, sequenced `- [ ]` checklist linking to issues, branch
-  audit, dependency diagram). Wave numbers, unlock lists, open/blocked state,
-  and the branch audit are computed, never hand-maintained. The branch audit
-  comes from the branches on `origin` and the open PRs; local-only worktrees
-  are out of scope. Full format:
+- `ROADMAP.md` is a rendered view. Its hand-written part is the executive
+  summary. The block between the generated markers is the output of
+  `taskalisk.py --from-github --emit-roadmap`: graph health, the ranked Open
+  Frontier, a conflict-free git-locks batch, task checklists, the reduced
+  dependency diagram, and edge accounting. In this mode Taskalisk does not
+  filter by milestone, so the block covers every open modeled issue in this
+  repository and the issues that their frontmatter references. Wave numbers,
+  unlock lists, and status are computed on every run, never hand-maintained.
+  Regenerate the block after tracker changes; never edit it by hand. The
+  block has no branch audit: for worktrees, branches, and open PRs, run the
+  inventory mode (`taskalisk.py --repo .`). Full format:
   [`docs/plans/README.md`](docs/plans/README.md#task-plan-house-format).
 
 ## Delegated Agents
