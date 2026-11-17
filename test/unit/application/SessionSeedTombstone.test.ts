@@ -248,3 +248,101 @@ describe('a session seeded from a checkpoint state on Git storage: edge variant 
       .toEqual({ sameHost: EDGE_REMOVED, fresh: EDGE_REMOVED });
   });
 });
+
+// ── Recovery of a state that an earlier version stored (Safety Review F3) ────
+
+/** The operator steps under test: the #1119 procedure, or fetching every writer ref. */
+type Recovery = 'delete-checkpoint-and-cache-refs' | 'fetch-writer-refs';
+
+type RecoverySeen = {
+  readonly staleAlive: boolean;
+  readonly recoveredAlive: boolean;
+  readonly recoveredHasN1: boolean;
+  readonly recheckpointed: Membership;
+};
+
+function gitRun(cwd: string, args: readonly string[]): void {
+  execFileSync('git', ['-C', cwd, ...args], { stdio: 'pipe' });
+}
+
+/**
+ * An earlier version seeded a session from the sync checkpoint without its
+ * floating tombstone, so once the add arrived it stored a state (a retained
+ * materialization and a checkpoint) in which the element is alive again.
+ * This fixture stores that state through the current code: it drops the
+ * tombstone from the materialized state and checkpoints that state.
+ */
+async function storeStaleState(bea: GitStorageHost, removed: Removed): Promise<void> {
+  const current = bea._cachedState;
+  if (current === null) { throw new Error('the host has no cached state'); }
+  const stale = current.clone();
+  (removed === 'node' ? stale.nodeAlive : stale.edgeAlive).tombstones.delete(removed === 'node' ? ZED_1 : ZED_3);
+  bea._cachedState = stale;
+  await bea.createCheckpoint();
+}
+
+async function aliveOnFreshHost(replica: string, removed: Removed): Promise<boolean> {
+  return (await freshMembership(replica, removed)).membership.alive;
+}
+
+/** Stores the stale state, closes every host, runs `recovery`, then reads on a fresh host. */
+async function recoverStaleState(removed: Removed, recovery: Recovery): Promise<RecoverySeen> {
+  return await inGitRepo('session-seed-origin', async (origin) => await inGitRepo('session-seed-peer', async (peer) =>
+    await inGitRepo('session-seed-replica', async (replica) => {
+      await writeOrigin(origin, removed);
+      await withHost(peer, 'init', async () => { /* writes the substrate marker */ });
+      fetchWriter(peer, origin, 'abe');
+      await withHost(replica, 'bea', async (h) => { await (await h.createPatch()).addNode('x').commit(); });
+      await withHost(replica, 'bea', async (bea) => {
+        await bea.materialize();
+        await withHost(peer, 'peer-reader', async (peerHost) => await bea._syncController.syncWith(peerHost._syncController));
+        await bea.createCheckpoint();
+        fetchWriter(replica, origin, 'zed');
+        await bea.materialize();
+        await storeStaleState(bea, removed);
+      });
+      const staleAlive = await aliveOnFreshHost(replica, removed);
+      if (recovery === 'delete-checkpoint-and-cache-refs') {
+        gitRun(replica, ['update-ref', '-d', `refs/warp/${JOURNAL_GRAPH}/checkpoints/head`]);
+        gitRun(replica, ['update-ref', '-d', 'refs/cas/caches/git-warp/materializations']);
+      } else {
+        gitRun(replica, ['fetch', origin, `refs/warp/${JOURNAL_GRAPH}/writers/*:refs/warp/${JOURNAL_GRAPH}/writers/*`]);
+      }
+      const recovered = await withHost(replica, 'reader', async (reader) => {
+        await reader.materialize();
+        const seen = { alive: cachedMembership(reader, removed).alive, hasN1: await reader.hasNode('n1') };
+        await reader.createCheckpoint();
+        return seen;
+      });
+      return {
+        staleAlive,
+        recoveredAlive: recovered.alive,
+        recoveredHasN1: recovered.hasN1,
+        recheckpointed: await storedCheckpointMembership(replica, removed),
+      };
+    })));
+}
+
+describe('recovering a state that an earlier version stored without the tombstone (#1153)', () => {
+  it('recovers n1 removed when the remover writer ref is fetched, without deleting any ref', SCENARIO_TIMEOUT, async () => {
+    const seen = await recoverStaleState('node', 'fetch-writer-refs');
+
+    expect(seen).toEqual({ staleAlive: true, recoveredAlive: false, recoveredHasN1: false, recheckpointed: REMOVED });
+  });
+
+  it('recovers the edge removed when the remover writer ref is fetched, without deleting any ref', SCENARIO_TIMEOUT, async () => {
+    const seen = await recoverStaleState('edge', 'fetch-writer-refs');
+
+    expect({ staleAlive: seen.staleAlive, recoveredAlive: seen.recoveredAlive, recheckpointed: seen.recheckpointed })
+      .toEqual({ staleAlive: true, recoveredAlive: false, recheckpointed: EDGE_REMOVED });
+  });
+
+  it('does not recover n1 with the #1119 procedure, because the remove came only through sync', SCENARIO_TIMEOUT, async () => {
+    // Characterization of the documented caveat: deleting the checkpoint and
+    // cache refs discards the only local copy of a sync-only remove.
+    const seen = await recoverStaleState('node', 'delete-checkpoint-and-cache-refs');
+
+    expect({ staleAlive: seen.staleAlive, recoveredAlive: seen.recoveredAlive, recoveredHasN1: seen.recoveredHasN1 })
+      .toEqual({ staleAlive: true, recoveredAlive: true, recoveredHasN1: true });
+  });
+});

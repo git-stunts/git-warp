@@ -378,6 +378,38 @@ writer refs and content objects before attempting storage recovery.
 Do not move an authoritative writer ref backward without an isolated rehearsal,
 an additive recovery ref, and an exact replay plan.
 
+### A removed element is alive again after sync
+
+Use this procedure when all of these are true:
+
+- The host received patches through `syncWith`. Sync writes no writer ref, so
+  those patches are not in the host's writer refs.
+- On that host a removed node or edge reads as alive, while a host that holds
+  every writer ref reads it as removed.
+- An earlier version (v20.0.0, or a v21 build before
+  [#1153](https://github.com/git-stunts/git-warp/issues/1153)) ran
+  `materialize()` on the host after the add arrived, and stored a state
+  without the tombstone in a retained materialization or a checkpoint.
+
+The procedure is verified on Git storage in the default configuration, for
+nodes and for edges:
+
+1. Close the runtime hosts that use the repository.
+2. From a peer that has them, fetch the writer refs of every writer whose
+   patches this host received through `syncWith`. For example:
+   `git fetch <peer> 'refs/warp/<graph>/writers/*:refs/warp/<graph>/writers/*'`.
+3. Reopen the hosts and run `materialize()`. The remove replays from history,
+   so `materialize()` and `hasNode` report the element removed. The next
+   `createCheckpoint()` stores the tombstone.
+
+You do not need to delete `refs/warp/<graph>/checkpoints/head` or
+`refs/cas/caches/git-warp/materializations`. Do not use the
+[#1119](https://github.com/git-stunts/git-warp/issues/1119) procedure (delete
+those two refs, then materialize) on such a host: it rebuilds the state from
+the writer refs, which do not hold a patch that arrived only through sync, so
+the element stays alive. Custom state-snapshot caches and HTTP sync were not
+tested. The CHANGELOG entries for #1119 and #1153 give the background.
+
 ## Deno consumer smoke
 
 Run `npm run test:deno:smoke` for one installed public consumer in the COPY-based
