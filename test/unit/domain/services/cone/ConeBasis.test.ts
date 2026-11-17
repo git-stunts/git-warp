@@ -92,7 +92,7 @@ describe('cone obstructions and fold evidence', () => {
     expect(shared.code).toBe('E_CONE_SHARED_DOT');
     expect(shared.elements).toEqual(['a', 'b']);
     expect(shared.describe()).toContain('node dot w1:4');
-    expect(shared.describe()).toContain('repair the duplicate dot');
+    expect(shared.describe()).toContain('a remove names it; no supported duplicate-dot repair exists');
     const diverged = new ConeWriterDivergedObstruction({ writerId: 'w1', foldedSha: null, tipSha: SHA_B });
     expect(diverged.code).toBe('E_CONE_WRITER_DIVERGED');
     expect(diverged.describe()).toContain('(none)');

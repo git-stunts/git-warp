@@ -193,9 +193,14 @@ const runtime = await Runtime.open({
 });
 ```
 
-The root may export the TypeScript types needed to describe the core contract,
-but it must not export competing factories, adapters, graph substrate, or
-generic intent and observer registries as runtime values.
+The root exports one storage value, `GitStorage`. `GitStorage.at(path)` and
+`GitStorage.root()` only name a repository for `WarpAddress.of(storage, graph)`;
+`Warp` opens the Git plumbing and git-cas adapters behind it when it first
+needs them. `GitStorage.open()`, which opens them at once, is also public;
+[#1122](https://github.com/git-stunts/git-warp/issues/1122) decides whether it
+stays. Apart from `GitStorage`, the root exports no competing factories,
+adapters, graph substrate, or generic intent and observer registries as runtime
+values.
 
 `Runtime.open()` is the composition root for reads. It constructs and owns the
 default history and artifact adapters internally. Application code does not
@@ -810,7 +815,7 @@ The shipped package families are:
 | -------------- | ---------------------------------------------------------------------- |
 | root           | `Warp` and its write values, `Runtime` reads, type-only contracts      |
 | `/charts`      | Derived graph-shaped Observers and Readings                            |
-| `/diagnostics` | `doctor`, repair planning, audit, and Receipt inspection               |
+| `/diagnostics` | Receipt inspection (`inspectReceipt`)                                  |
 | `/advanced`    | Formal reads and generic constructors for generated SDK infrastructure |
 | `/testing`     | Explicit fake ports, fixtures, and Runtime harnesses                   |
 

@@ -84,10 +84,12 @@ Do not rewrite authoritative writer refs as a diagnostic shortcut.
 
 ## A strand cannot reopen
 
-`E_WARP_WORLDLINE_STRAND_COORDINATE_UNAVAILABLE` means the retained strand does
-not contain the checkpoint needed to reconstruct its parent coordinate. Run the
-one-shot v18-to-v19 migration for legacy repositories. Do not invent a
-coordinate from current live state.
+v21 removed public strands, including `Runtime.strand` and the CLI `--strand`
+option ([#1054](https://github.com/git-stunts/git-warp/issues/1054)), so no
+v21 package entry point or `git warp` command reopens a strand or raises
+`E_WARP_WORLDLINE_STRAND_COORDINATE_UNAVAILABLE`. Coordinate-derived strands
+are planned in [#1053](https://github.com/git-stunts/git-warp/issues/1053).
+See the [v21 migration guide](../migrations/v21/README.md#api-changes).
 
 ## A saved Settlement artifact cannot be applied
 
