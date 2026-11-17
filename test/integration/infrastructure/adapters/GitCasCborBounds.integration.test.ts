@@ -20,6 +20,7 @@ import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 import warpCborCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
 import { buildTrustRecordRef } from '../../../../src/domain/utils/RefLayout.ts';
+import ManualClock from '../../../helpers/ManualClock.ts';
 import { OUT_OF_BOUNDS_CBOR } from '../../../helpers/OutOfBoundsCborCorpus.ts';
 
 type PlumbingInstance = Awaited<ReturnType<typeof Plumbing.createDefault>>;
@@ -280,7 +281,7 @@ async function openRepository(): Promise<OpenedRepository> {
   await plumbing.execute({ args: ['config', 'user.email', 'test@test.com'] });
   await plumbing.execute({ args: ['config', 'user.name', 'Test'] });
   const history = new GitTimelineHistoryAdapter({ plumbing });
-  const repository = new GitCasRepositoryAdapter({ plumbing, history });
+  const repository = new GitCasRepositoryAdapter({ plumbing, history, clock: new ManualClock() });
   const entry: OpenedRepository = { plumbing, history, repository };
   opened.push(entry);
   return entry;

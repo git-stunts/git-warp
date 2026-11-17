@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Plumbing from '@git-stunts/plumbing';
 
 import GitCasRepositoryAdapter from '../../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
+import HostClockAdapter from '../../../../src/infrastructure/adapters/HostClockAdapter.ts';
 import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { DEFAULT_COMMIT_MESSAGE_CODEC } from '../../../../src/infrastructure/adapters/TrailerCommitMessageCodecAdapter.ts';
@@ -45,7 +46,7 @@ async function createRepository(): Promise<string> {
 async function openStorage(tempDirectory: string): Promise<OpenedStorage> {
   const plumbing = await Plumbing.createDefault({ cwd: tempDirectory });
   const history = new GitTimelineHistoryAdapter({ plumbing });
-  const repository = new GitCasRepositoryAdapter({ plumbing, history });
+  const repository = new GitCasRepositoryAdapter({ plumbing, history, clock: new HostClockAdapter() });
   const services = await repository.createRuntimeStorageServices({
     timelineName: 'events',
     codec: new CborCodec(),
