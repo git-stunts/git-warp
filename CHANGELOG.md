@@ -309,6 +309,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   When #1052 Slice 3b lands, a read will retain, at about 30 objects and one
   ref, only when its query asks for a Coordinate
   ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).
+- Document what a caller does when `AuthoredWarp.reconcile` returns `null`.
+  `null` never means that the write did not publish. The `reconcile` JSDoc and
+  [Operations: When `reconcile` returns `null`](docs/operations/README.md#when-reconcile-returns-null)
+  give each path to `null` and its caller action. On one path a sweep finished
+  the attempt because its `reported` mark was not saved, for example because a
+  lock that a concurrent `git gc` held on the attempt ref outlasted the retries.
+  The outcome is then unknown: do not submit the intent again until a read of the
+  graph shows that its effect is absent
+  ([#1125](https://github.com/git-stunts/git-warp/issues/1125)).
 - Adopt published `@git-stunts/git-cas` 7.2.0, compressing the reservation index
   to shortest unshared route prefixes so a native ledger update writes ~log16(records)
   trees instead of 64 ([#1080](https://github.com/git-stunts/git-warp/issues/1080)).

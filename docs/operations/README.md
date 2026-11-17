@@ -264,14 +264,9 @@ of them can return, for example:
   `settlement-unacknowledged`. The write is published; only its retention was
   not confirmed. Pass the receipt's `attempt` to
   `warp.as(writer).reconcile(attempt)`, which retries the retention. If it
-  returns `UnretainedWriteReceipt` again, call it again later. A `null` result
-  does not mean that the write was lost. The usual causes are that the
-  attempt was already answered or that a sweep finished it. `null` is also the
-  answer for an attempt of another writer and for a writer that the access
-  port denies now. One more cause applies only to a clone that ran a
-  pre-release build of `main`: the record still exists at the old ref
-  location, which this build does not read. See
-  [Finish in-flight refs from pre-release builds](../topics/sync.md#finish-in-flight-refs-from-pre-release-builds).
+  returns `UnretainedWriteReceipt` again, call it again later. If it returns
+  `null`, read [When `reconcile` returns `null`](#when-reconcile-returns-null)
+  before you do anything else.
 
 The first granted `execute` or `reconcile` of a `Warp` also opens the write
 path. A ref lock met during that step rejects the call instead of returning a
@@ -389,6 +384,63 @@ that writes packs instead of loose objects is planned in
 collection rule on this page was decided on 2026-11-08 under the maintainer's
 delegation; the read retention rule was decided by the maintainer on
 2026-11-06. Both are recorded on #1080.
+
+### When `reconcile` returns `null`
+
+`warp.as(writer).reconcile(attempt)` returns `null` when it reads no record of
+the attempt for that writer. `null` never means that the write did not publish.
+On some paths to `null` the write published, and the result does not tell you
+which path applies. Find the path in this table, then do its action. The probes
+that found these paths are in
+[#1113](https://github.com/git-stunts/git-warp/issues/1113).
+
+| Path to `null` | Can the write have published? | What the caller does |
+| --- | --- | --- |
+| The attempt is not this writer's. Its record names another writer, also when the record is in a layout that this build does not read ([#1072](https://github.com/git-stunts/git-warp/issues/1072)). Or no record of the attempt was ever saved for this graph in this repository. | Not as a write of this writer. A write of another writer can have published. | Nothing for this writer. Make sure that you pass the `attempt` of a receipt that this writer's `execute` returned for this graph in this repository. |
+| The access port gives the writer no grant when it calls `reconcile`. | Yes. The record stays. | Call `reconcile` again after access is restored. It then answers. |
+| An earlier `reconcile` of the attempt gave the final receipt: `RetainedWriteReceipt`, `UnpublishedWriteReceipt`, or `UnretainedWriteReceipt` with `attempt` set to `null`. Then it removed the record. | Yes or no. The final receipt tells which. | Use that receipt. If you do not have it, for example because the process that asked stopped before it kept the receipt, do the action of the next row. |
+| The record was removed before the caller got the final receipt. Usually a sweep finished the attempt, because the `reported` mark of the record was not saved (see below). Someone can also delete the ref by hand, for example with `git update-ref -d`. | Yes or no. Nothing tells the caller which. The final receipt is lost. | Treat the outcome as unknown. Do not submit the intent again until a read of the graph shows that its effect is absent. |
+| The record is under `refs/warp/<graph>/write-attempts/`. Only pre-release builds of `main` saved records there, and this build does not read that location. | Yes or no. The record stays and keeps the answer. | Do the procedure in [Finish in-flight refs from pre-release builds](../topics/sync.md#finish-in-flight-refs-from-pre-release-builds). Then call `reconcile` again. |
+
+The `reported` mark keeps the answer for the caller, and a concurrent GC can
+stop it from being saved:
+
+- Before `execute` returns an `IndeterminateWriteReceipt`, or an
+  `UnretainedWriteReceipt` that names an `attempt`, it saves the attempt record
+  again with a `reported` mark. A sweep does not finish a record that has the
+  mark, so only `reconcile` gives its answer.
+- If that save fails, the receipt is still correct, but the record has no
+  mark. A sweep can then finish the attempt and remove the record before the
+  caller asks. A sweep runs once in each `Warp`, in its first granted
+  `execute` or `reconcile`, and it can finish the attempts of any writer of the
+  graph in this repository. That `Warp` can be in another process. A sweep that
+  read the record before the mark was saved can also finish the attempt.
+- A concurrent `git gc` can make the save fail through a lock on the attempt
+  ref: while it packs refs, it holds a short lock on each loose ref that it
+  moves into the `packed-refs` file. git-warp retries the ref update for a
+  short time. If the lock on the attempt ref stays for longer, the mark is not
+  saved. In the #1113 probes, on the code of 2026-11-08, a lock that the probe
+  held did this. Loops of real `git gc` and `git pack-refs` runs did not cause
+  a `null` in 450 `reconcile` calls and 50 marks. That does not prove that a
+  lock never stays for longer than the retries, for example in a large
+  repository.
+
+`Warp` has no read until
+[#1052](https://github.com/git-stunts/git-warp/issues/1052). Until then, read
+the graph through `Runtime.open()` and `lane.observe()`, as
+[Observe bounded values](../topics/getting-started.md#observe-bounded-values)
+shows. A read shows whether the effect of the intent is in the graph, not which
+write made it: another write, of this writer or of another writer, can have
+made the same change.
+
+A rejection is not a path to `null`. `reconcile` rejects when it cannot read
+what it needs, for example:
+
+- a store read fails;
+- the record of this writer is in a layout that this build does not read
+  (`E_WRITE_ATTEMPT_LAYOUT_UNSUPPORTED`), or the record names no writer that
+  this build can read, which refuses every writer;
+- the record does not match what custody retained (`E_WRITE_CORE_MISMATCH`).
 
 ## Storage incidents
 
