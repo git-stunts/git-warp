@@ -164,11 +164,13 @@ default unpack limit of 100, Git stores such a batch as loose objects, so two pr
 write the same anchors at once both succeed. A lowered `fastimport.unpackLimit` or
 `transfer.unpackLimit` makes fast-import write a pack instead, and reopens the race: the
 second of two identical packs fails on the first one's keep file (`cannot create keep file`).
-A review run saw 7 failures in 100 such races under a global `transfer.unpackLimit=1`. The
-losing write throws before it publishes, and nothing is corrupted. The plumbing gives no way
-to set the limit per process: it refuses `-c`, filters `GIT_CONFIG_*` out of the environment,
-and allows `fast-import` only `--quiet` and `--done`. A head shared by two writers is retained once, in the bucket of the first writer
-in writer-id order. The carrier states the attempt and the count and digest of the heads;
+A review run saw 7 failures in 100 such races with `transfer.unpackLimit=1` in the
+repository's configuration. The losing write throws before it publishes, and nothing is
+corrupted. The plumbing gives no way to set the limit per process: it refuses `-c`, filters
+per-call `GIT_CONFIG_*` overrides out of the environment (it passes `GIT_CONFIG_GLOBAL` and
+`GIT_CONFIG_NOSYSTEM` through only from the inherited environment), and allows `fast-import`
+only `--quiet` and `--done`. A head shared by two writers is retained once, in the bucket of
+the first writer in writer-id order. The carrier states the attempt and the count and digest of the heads;
 the digest is the one the #1067 carriers bound (a seed, rolled over batches of 63 heads).
 
 Anchors have no ref of their own: the same retain call that writes or reuses them publishes
@@ -179,12 +181,13 @@ unreachable anchor keeps its age; Git's prune and cruft repack first mark what i
 and delete later. Two outcomes follow:
 
 - A GC that deletes a reused anchor before the verification before arm stops the write
-  before it publishes. If the anchor is a branch anchor, one the carrier names, the
-  carrier's publication fails (`Publication parent is not a readable commit`): retain
-  throws, and the write reports `retention-unavailable`. If it is a leaf anchor, deleted
-  after the call wrote the branch anchor above it, the carrier publishes, verification
-  reports the history missing, and the write is refused with
-  `retention-refused-support-unverified`.
+  before it publishes. A deletion before the carrier lands, of a branch anchor or of a
+  leaf anchor directly under one, makes the carrier's publication fail (`Publication
+  parent is not a readable commit`): git-cas reads each carrier parent with its own
+  parents, so retain throws, and the write reports `retention-unavailable`. A deletion of
+  any anchor after the carrier lands, or of an earlier link of a chained leaf, which that
+  read does not reach, is found by the verification before arm, and the write is refused
+  with `retention-refused-support-unverified`.
 - A GC that marked before the carrier landed, and deletes after the verification before
   arm, leaves a write that publishes. If the deletion lands before settlement, the receipt
   is unretained (`settlement-unverified`); if after, the Coordinate it bound later resolves

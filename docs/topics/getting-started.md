@@ -80,7 +80,8 @@ so a write adds only a few commits, however many writers the graph has, as long
 as the writer IDs are not chosen to collide in one anchor bucket. IDs crafted to
 collide cost about the same as before #1197: one commit for each 63 heads in
 their bucket, plus a branch anchor and the carrier. With all 4,096 writer IDs
-crafted into one bucket, a write costs 68 commits, where it cost 66 before.
+crafted into one bucket, a write that moves the first head of that bucket costs
+68 commits, where it cost 66 before; one that moves its last head costs 3.
 
 One bound remains. A clone stores the frontier of its writers as one blob of at
 most 4 MiB. With SHA-1 object IDs, that holds about 36,800 writer chains with
