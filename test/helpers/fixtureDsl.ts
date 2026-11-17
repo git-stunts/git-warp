@@ -12,10 +12,10 @@ import { deepStrictEqual } from 'node:assert/strict';
 import AdjacencyNeighborProvider from '../../src/domain/services/query/AdjacencyNeighborProvider.ts';
 import BitmapNeighborProvider from '../../src/domain/services/index/BitmapNeighborProvider.ts';
 import MaterializedViewService from '../../src/domain/services/MaterializedViewService.ts';
+import MockIndexStorage from './MockIndexStorage.ts';
 import { createEmptyState, applyPatchOp } from '../../src/domain/services/JoinReducer.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
 import { EventId } from '../../src/domain/utils/EventId.ts';
-import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
 
 /**
  * Normalizes a thrown value into an object with `.name` and `.message` for
@@ -659,7 +659,7 @@ export function makeLogicalBitmapProvider(fixture) {
   const state = fixtureToState(fixture);
 
   // Build logical index via MaterializedViewService
-  const svc = new MaterializedViewService({ codec: defaultCodec });
+  const svc = new MaterializedViewService({ indexStore: new MockIndexStorage() });
   const { logicalIndex } = svc.build(state);
 
   return new BitmapNeighborProvider({ logicalIndex });

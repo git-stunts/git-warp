@@ -50,7 +50,7 @@ function bytesByPath(tree: Readonly<Record<string, Uint8Array>>): Record<string,
 
 describe('incremental index update and the tree it starts from', () => {
   it('leaves the existing tree unchanged when it applies a diff', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = createEmptyState();
     applyWithDiff(state, FIRST, FIRST_SHA);
     const existingTree = service.build(state).tree;
@@ -63,7 +63,7 @@ describe('incremental index update and the tree it starts from', () => {
   });
 
   it('refuses a diff over a malformed property shard and leaves the existing tree unchanged', () => {
-    const service = new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const state = createEmptyState();
     applyWithDiff(state, FIRST, FIRST_SHA);
     const propsPath = `props_${computeShardKey('a')}.cbor`;

@@ -16,7 +16,6 @@ import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import MaterializedViewService, { type BuildResult } from '../../../../src/domain/services/MaterializedViewService.ts';
 import BitmapNeighborProvider from '../../../../src/domain/services/index/BitmapNeighborProvider.ts';
-import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import type { PatchLike } from '../../../../src/domain/services/JoinReducer.ts';
 
@@ -32,7 +31,7 @@ function entry(writer: string, lamport: number, ops: PatchLike['ops']): Entry {
 }
 
 function service(): MaterializedViewService {
-  return new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
+  return new MaterializedViewService({ indexStore: new MockIndexStorage() });
 }
 
 function fullBuild(entries: readonly Entry[]): BuildResult {

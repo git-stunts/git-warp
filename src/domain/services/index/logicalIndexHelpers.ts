@@ -8,7 +8,6 @@
  */
 
 import computeShardKey from '../../utils/shardKey.ts';
-import type CodecValue from '../../types/codec/CodecValue.ts';
 import type { RoaringBitmapSubset } from '../../utils/roaring.ts';
 import type { NeighborEdge } from '../../../ports/NeighborProviderPort.ts';
 
@@ -28,18 +27,6 @@ export interface LogicalIndex {
   getEdges(nodeId: string, direction: string, filterLabelIds?: number[]): NeighborEdge[];
 }
 
-/** A shard file's path + raw bytes (codec path). */
-export interface ShardItem {
-  path: string;
-  buf: Uint8Array;
-}
-
-/** A shard file's path + decoded data (port path). */
-export interface DecodedItem {
-  path: string;
-  data: CodecValue;
-}
-
 /**
  * Decoded shard maps used internally to build a LogicalIndex.
  */
@@ -53,13 +40,6 @@ export interface IndexMaps {
   rev: Map<string, RoaringBitmapSubset>;
   byOwnerFwd: Map<number, Array<{ labelId: number; bitmap: RoaringBitmapSubset }>>;
   byOwnerRev: Map<number, Array<{ labelId: number; bitmap: RoaringBitmapSubset }>>;
-}
-
-/** Classified decoded shards ready for loading. */
-export interface ClassifiedDecoded {
-  meta: DecodedItem[];
-  labels: unknown; // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
-  edges: DecodedItem[];
 }
 
 // ── Shard classification ──────────────────────────────────────────────────────
@@ -76,28 +56,6 @@ export function isMetaShard(path: string): boolean {
  */
 export function isEdgeShard(path: string): boolean {
   return path.endsWith('.cbor') && (path.startsWith('fwd_') || path.startsWith('rev_'));
-}
-
-/**
- * Classifies loaded path/buf pairs into meta, labels, and edge buckets.
- */
-export function classifyShards(items: ShardItem[]): { meta: ShardItem[]; labels: Uint8Array | null; edges: ShardItem[] } {
-  const meta: ShardItem[] = [];
-  let labels: Uint8Array | null = null;
-  const edges: ShardItem[] = [];
-
-  for (const item of items) {
-    const { path } = item;
-    if (isMetaShard(path)) {
-      meta.push(item);
-    } else if (path === 'labels.cbor') {
-      labels = item.buf;
-    } else if (isEdgeShard(path)) {
-      edges.push(item);
-    }
-  }
-
-  return { meta, labels, edges };
 }
 
 // ── Query helpers ─────────────────────────────────────────────────────────────

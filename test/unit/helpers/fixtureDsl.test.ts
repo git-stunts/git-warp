@@ -6,7 +6,7 @@ import {
   fixtureToState,
 } from '../../helpers/fixtureDsl.ts';
 import MaterializedViewService from '../../../src/domain/services/MaterializedViewService.ts';
-import defaultCodec from '../../../src/infrastructure/codecs/CborCodec.ts';
+import MockIndexStorage from '../../helpers/MockIndexStorage.ts';
 
 describe('fixtureDsl helpers', () => {
   it('makeFixture throws when props reference unknown nodes', () => {
@@ -102,7 +102,7 @@ describe('fixtureDsl helpers', () => {
     });
 
     const state = fixtureToState(fixture);
-    const service = new MaterializedViewService({ codec: defaultCodec });
+    const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
     const { propertyReader } = service.build(state);
     const props = await propertyReader.getNodeProps('A');
     expect(props).toEqual({ status: 'newer' });
