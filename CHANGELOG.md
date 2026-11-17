@@ -454,6 +454,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   builds, so every stamp and expiry comparison uses one clock. `GitStorage` supplies the
   default host clock, so applications need no change
   ([#1179](https://github.com/git-stunts/git-warp/issues/1179)).
+- The incremental bitmap index now agrees with a full rebuild in two cases where it
+  lost data. `addEdge` does not require its endpoints to exist, so a patch can add an
+  edge before any patch adds one of its endpoints; the incremental index now indexes
+  that edge when the endpoint is added. A node or an edge that one local commit
+  removes and then adds again now stays in the incremental index. Before, until the
+  next full rebuild, `neighbors()` left out such an edge, and the index marked such a
+  node as not alive. A generated multi-writer differential now compares incremental
+  updates with full rebuilds after every patch
+  ([#192](https://github.com/git-stunts/git-warp/issues/192)).
 - A write receipt rebuilt by `AuthoredWarp.reconcile` after an interrupted write now
   reports the same `outcome.races` as the original receipt, rather than none. Retained
   receipts keep their races as durable evidence. `outcome.races` is now always in one
