@@ -540,9 +540,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before it hydrates ops, as it did before #1116: a patch that carries an
   unrecognised op type, or a canonical-only `NodePropSet` or `EdgePropSet`, is
   refused with `SchemaUnsupportedError` even when that op or another op in the
-  patch is malformed. After #1116 such a patch was refused with `PatchError`
-  (`E_PATCH_MALFORMED`). In every case the whole response is refused and the
-  caller's state does not change.
+  patch has malformed fields, or holds a remove that lists a dot that the same
+  patch adds to a different element. After #1116 such a patch was refused with
+  `PatchError` (`E_PATCH_MALFORMED` or `E_PATCH_CROSS_OWNER_REMOVE`). An op
+  element that is `null` or `undefined` and comes before the unrecognised op
+  still gives a bare `TypeError`, as before #1116. In every case the whole
+  response is refused and the caller's state does not change.
 - Refuse to write a node lifecycle receipt (`life_receipt.cbor`) under a schema
   other than 3, the schema that this runtime writes, with `WarpError`
   (`E_INDEX_SHARD_SCHEMA`). A schema-2 receipt can still be read. No git-warp
