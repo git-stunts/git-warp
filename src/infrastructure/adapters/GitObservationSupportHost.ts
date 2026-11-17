@@ -1,4 +1,5 @@
 import { CasError, type AssetCapability, type PublicationCapability } from '@git-stunts/git-cas';
+import { GitProtocolError } from '@git-stunts/plumbing/errors';
 import ObservationSupportUnavailableError from '../../domain/errors/ObservationSupportUnavailableError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import type { ObservationSupportHistory } from './GitCasObservationSupportAdapter.ts';
@@ -7,8 +8,10 @@ import type { GitTreeObjectEntry } from './GitTreeObjectEntry.ts';
 import { isTransientGitFailure } from './GitTransientFailure.ts';
 
 /**
- * git-cas's code for a publication ref update that failed without a conflict, such as on a held
- * lock: the support step's form of `E_REF_IO`, which a retry can clear (#1109 decision D2).
+ * git-cas's code for a publication ref update that failed without a conflict. git-cas wraps any
+ * failure of its ref update in it and keeps that failure as `meta.originalError`, so the code
+ * counts as the support step's form of `E_REF_IO` only around a failed git process, as a held
+ * lock gives (#1109, amended D2).
  */
 const TRANSIENT_CAS_CODE = 'PUBLICATION_REF_UPDATE_FAILED';
 
@@ -25,7 +28,9 @@ export type ObservationSupportCapabilities = {
  * fast-import tree writer. Only a failure a retry can clear becomes an
  * `ObservationSupportUnavailableError` carrying that failure: one on the shared list
  * (`isTransientGitFailure`), or a git-cas `CasError` whose typed code is
- * `PUBLICATION_REF_UPDATE_FAILED`. Every other failure passes through as it is and rejects:
+ * `PUBLICATION_REF_UPDATE_FAILED` and whose `meta.originalError` is a `GitProtocolError` or on
+ * that list. A defect, a non-error or no failure inside that code rejects. Every other
+ * failure passes through as it is and rejects:
  * corruption, every other git-cas code (so a publication conflict still reaches the adapter
  * as one, and integrity errors stay corruption), a bare `GitProtocolError`, any other
  * plumbing failure, a defect, and an error this host cannot identify. An error that a writer
@@ -86,7 +91,17 @@ function classified(operation: string, error: unknown): Error {
   return isSupportTransient(error) ? new ObservationSupportUnavailableError(operation, error) : error;
 }
 
-/** Dispatches on git-cas's typed code, never on a message. */
+/** Dispatches on types and git-cas's typed code, never on a message. */
 function isSupportTransient(error: Error): boolean {
-  return isTransientGitFailure(error) || (error instanceof CasError && error.code === TRANSIENT_CAS_CODE);
+  return isTransientGitFailure(error) || (error instanceof CasError && error.code === TRANSIENT_CAS_CODE && wrapsGitFailure(originalOf(error)));
+}
+
+/** A failed git process, or a failure on the shared list; never a defect, a non-error or nothing. */
+function wrapsGitFailure(original: unknown): boolean {
+  return original instanceof GitProtocolError || (original instanceof Error && isTransientGitFailure(original));
+}
+
+/** The failure git-cas kept inside a ref update failure, read as untrusted data. */
+function originalOf({ meta }: { readonly meta: unknown }): unknown {
+  return typeof meta === 'object' && meta !== null ? Reflect.get(meta, 'originalError') : undefined;
 }

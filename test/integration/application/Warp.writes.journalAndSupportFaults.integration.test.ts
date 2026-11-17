@@ -1,6 +1,7 @@
 import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CasError } from '@git-stunts/git-cas';
 import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import { intent } from '../../../advanced.ts';
 import OperationPolicyExhaustedError from '../../../src/domain/errors/OperationPolicyExhaustedError.ts';
@@ -74,6 +75,14 @@ function holdRefLock(path: string, ref: string): () => void {
 
 /** How long an unarmed attempt waits before the sweep finishes it. */
 const SWEEP_AGE = 2 * 60 * 60 * 1000;
+
+/** Failures git-cas can keep inside `PUBLICATION_REF_UPDATE_FAILED` that are not a failed git process (#1109, amended D2). */
+const WRAPPED_NON_GIT: ReadonlyArray<readonly [string, Error | string | undefined]> = [
+  ['a TypeError', new TypeError("Cannot read properties of undefined (reading 'oid')")],
+  ['a RangeError', new RangeError('Invalid array length')],
+  ['a thrown non-error', 'not an error'],
+  ['no original error', undefined],
+];
 
 const LOCKED = new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: 'fatal: Unable to create index.lock' });
 
@@ -159,6 +168,20 @@ describe('the custody-support step classifies failures by type (#1109)', () => {
     const swept = await openSwept(path, { limit: 2, clock });
     expect(attemptRefs(path)).toEqual([]);
     retained(await swept.as('alice').execute(intent.node.add({ subject: 'x' })));
+  });
+
+  it.each(WRAPPED_NON_GIT)('rejects a git-cas ref update failure around %s met while building support, leaving no attempt ref', async (_name, original) => {
+    const path = await repository();
+    const warp = await open(path, { attempts: new FixedAttempts(), limit: 2 });
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'first' })));
+    const before = tip(path, 'alice');
+    const failure = new CasError('Application publication ref update failed', 'PUBLICATION_REF_UPDATE_FAILED', original === undefined ? {} : { originalError: original });
+    failRefReadOnce(buildObservationConstructionRef(GRAPH, SECOND), failure);
+
+    await expect(warp.as('alice').execute(intent.node.add({ subject: 'x' }))).rejects.toBe(failure);
+    expect(tip(path, 'alice')).toBe(before);
+    expect(attemptRefs(path)).toEqual([]);
+    expect(constructionRefs(path)).toEqual([]);
   });
 
   it('rejects a defect thrown while building support, and leaves no attempt ref or reserved slot behind', async () => {

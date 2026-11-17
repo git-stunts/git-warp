@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CasError } from '@git-stunts/git-cas';
-import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
+import { GitProtocolError, GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import ObservationSupportUnavailableError from '../../../../src/domain/errors/ObservationSupportUnavailableError.ts';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 import ObservationAttemptId from '../../../../src/domain/services/custody/ObservationAttemptId.ts';
@@ -47,12 +47,17 @@ const REF_IO = new PersistenceError('Ref I/O error: refs/warp/g/observation', Pe
 const TRANSIENT: ReadonlyArray<readonly [string, Error]> = [
   ['a held lock file', LOCKED],
   ['a ref I/O failure', REF_IO],
-  ['a git-cas ref update failure', new CasError('Application publication ref update failed', 'PUBLICATION_REF_UPDATE_FAILED')],
+  ['a git-cas ref update failure around a git process failure', new CasError('Application publication ref update failed', 'PUBLICATION_REF_UPDATE_FAILED', {
+    originalError: new GitProtocolError('git update-ref exited 128: fatal: prepare: cannot lock ref', 'GitUpdateRefSession'),
+  })],
 ];
 const UNTYPED: ReadonlyArray<readonly [string, Error]> = [
   ['a git-cas code', new CasError('Git command failed', 'GIT_ERROR')],
   ['a missing object', new PersistenceError('Missing Git object', PersistenceError.E_MISSING_OBJECT)],
   ['a defect', new RangeError('Invalid array length')],
+  ['a git-cas ref update failure around a defect', new CasError('Application publication ref update failed', 'PUBLICATION_REF_UPDATE_FAILED', {
+    originalError: new TypeError("Cannot read properties of undefined (reading 'oid')"),
+  })],
 ];
 
 describe('GitCasObservationSupportAdapter types a failure a retry can clear as unavailable (#1109)', () => {

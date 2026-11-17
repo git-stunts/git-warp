@@ -628,12 +628,17 @@ list, and each such envelope also counts as unavailable (decided 2026-11-17 on #
   `GitRepositoryLockedError`. The journal adapter treats a retry wrapper as unavailable
   when its typed `cause` is on the list. A retry wrapper around a defect or around
   corruption still rejects.
-- **D2, support.** git-cas reports a held lock on the support construction ref as a
-  `CasError` with code `PUBLICATION_REF_UPDATE_FAILED`: a ref update failed, and a
-  retry can clear it. The support host treats that typed code as unavailable, as the
-  support step's form of `E_REF_IO`. Every other git-cas code keeps its class, so an
-  integrity error such as `GIT_OBJECT_NOT_FOUND` stays corruption and rejects, and a
-  bare `GitProtocolError` that git-cas does not wrap in this code still rejects.
+- **D2, support (amended 2026-11-17).** git-cas reports a held lock on the support
+  construction ref as a `CasError` with code `PUBLICATION_REF_UPDATE_FAILED`, which
+  keeps the failure of its ref update as `meta.originalError`. git-cas wraps any such
+  failure in that code, a JavaScript defect included, so the support host treats the
+  code as unavailable only when `meta.originalError` is a `GitProtocolError` (a failed
+  git process, as the held lock gives) or is on the list. That is the support step's
+  form of `E_REF_IO`. Around a `TypeError`, a `RangeError`, a thrown non-error, any
+  other class, or no original error at all, the code rejects. The host reads only
+  types and the typed code, never a message. Every other git-cas code keeps its class,
+  so an integrity error such as `GIT_OBJECT_NOT_FOUND` stays corruption and rejects, and
+  a bare `GitProtocolError` that git-cas does not wrap in this code still rejects.
 
 - `AuthoredWarp.execute()` returns `UnpublishedWriteReceipt` with
   `write-basis-unavailable` when the store is unavailable while it fixes the write
@@ -654,8 +659,9 @@ list, and each such envelope also counts as unavailable (decided 2026-11-17 on #
 - At the journal and support steps, every other failure rejects (#1109): a defect
   (`TypeError`, `RangeError`), a thrown non-error, corruption such as a
   `PersistenceError` `E_MISSING_OBJECT`, a retry wrapper around a defect or around
-  corruption, every git-cas code except `PUBLICATION_REF_UPDATE_FAILED` at the support
-  step, and an error the adapter cannot identify. A rejection at the journal step has saved and reserved nothing.
+  corruption, every git-cas code except `PUBLICATION_REF_UPDATE_FAILED` around a failed
+  git process or a listed failure at the support step, and an error the adapter cannot
+  identify. A rejection at the journal step has saved and reserved nothing.
   Before a rejection while support is built or checked, the write cancels its
   reservation. Once custody confirms the cancel, the slot is free and the write
   removes the attempt record; that removal is best effort. A cancel that custody

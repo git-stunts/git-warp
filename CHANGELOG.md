@@ -255,11 +255,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `E_REF_IO`, `GitRepositoryLockedError`) and a real held ref lock at either step: at the
   journal, the history adapter's retry wrapper `OperationPolicyExhaustedError` whose
   typed `cause` is on the list; at support, a git-cas `CasError` with code
-  `PUBLICATION_REF_UPDATE_FAILED`. Every other failure at those steps now rejects
-  instead of giving one of those receipts: a defect (`TypeError`, `RangeError`), a
-  thrown non-error, corruption such as `PersistenceError` `E_MISSING_OBJECT`, a retry
-  wrapper around a defect or corruption, every other git-cas code (integrity errors
-  included), a bare `GitProtocolError`, and an error neither adapter can identify. A
+  `PUBLICATION_REF_UPDATE_FAILED` whose `meta.originalError` is a `GitProtocolError` or
+  on the list. Every other failure at those steps now rejects instead of giving one of
+  those receipts: a defect (`TypeError`, `RangeError`), a thrown non-error, corruption
+  such as `PersistenceError` `E_MISSING_OBJECT`, a retry wrapper around a defect or
+  corruption, `PUBLICATION_REF_UPDATE_FAILED` around a defect, a non-error, another
+  class or no original error, every other git-cas code (integrity errors included), a
+  bare `GitProtocolError`, and an error neither adapter can identify. A
   rejection at the journal step has reserved nothing. Before a rejection while support
   is built, the write cancels its reservation. Once custody confirms the cancel, the
   slot is free and the write removes its attempt record; that removal is best effort.

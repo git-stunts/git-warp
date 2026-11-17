@@ -262,7 +262,10 @@ of them can return, for example:
   `retention-unavailable` (a lock on its support construction ref). It is
   known not to have published; submitting the intent again is a new attempt.
   After `retention-unavailable` the attempt can keep its record and a
-  retention slot until the recovery sweep finishes it.
+  retention slot until the recovery sweep finishes it. git-warp gives these
+  receipts only for failures it can identify by type as a held lock or a
+  failed git process; a defect behind the same Git error rejects `execute()`
+  (contract section 11 of `docs/plans/optic-only-public-api.md`).
 - `UnretainedWriteReceipt`, with the retention cause
   `settlement-unacknowledged`. The write is published; only its retention was
   not confirmed. Pass the receipt's `attempt` to
