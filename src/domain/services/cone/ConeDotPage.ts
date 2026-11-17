@@ -67,6 +67,11 @@ export default class ConeDotPage {
     return Object.freeze(live.sort((left, right) => left - right));
   }
 
+  /** True when an add tagged an element with at least one dot of this page. */
+  hasOwnedDot(): boolean {
+    return [...this.#claims.values()].some((claim) => claim.owners.size > 0);
+  }
+
   withClaim(counter: number, claim: ConeDotClaim): ConeDotPage {
     return new ConeDotPage({ ...this, claims: new Map([...this.#claims, [counter, claim]]) });
   }

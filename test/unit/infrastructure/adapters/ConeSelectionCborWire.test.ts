@@ -3,6 +3,7 @@ import RoaringShardRejectedError from '../../../../src/domain/errors/RoaringShar
 import GraphOrdinal from '../../../../src/domain/retained/GraphOrdinal.ts';
 import OrdinalBitmapShard, { LIVENESS_INDEX } from '../../../../src/domain/retained/OrdinalBitmapShard.ts';
 import OrdinalChunk from '../../../../src/domain/retained/OrdinalChunk.ts';
+import SelectionDirectoryPage from '../../../../src/domain/retained/SelectionDirectoryPage.ts';
 import SelectionGeometry from '../../../../src/domain/retained/SelectionGeometry.ts';
 import ConeRecordCborCodec from '../../../../src/infrastructure/adapters/ConeRecordCborCodec.ts';
 import { getRoaringBitmap32 } from '../../../../src/infrastructure/adapters/RoaringLoaderAdapter.ts';
@@ -97,5 +98,22 @@ describe('ConeRecordCborCodec selection shards (#816)', () => {
     const small = SelectionGeometry.of({ version: 2, chunkSpan: 256 });
     const shard = new OrdinalBitmapShard({ index: LIVENESS_INDEX, chunk: chunkOf(300, small), offsets: [44] });
     expect(() => codec.encode(shard)).toThrow(expect.objectContaining({ code: 'E_RETAINED_GEOMETRY_UNSUPPORTED' }));
+  });
+
+  it('round-trips a directory page with its chunks in order', () => {
+    const page = new SelectionDirectoryPage({ index: LIVENESS_INDEX, set: 'edge', pageIndex: 2, chunks: [chunkOf(1), chunkOf(65_536), chunkOf(2 ** 32)] });
+    const decoded = codec.decode(codec.encode(page));
+    expect(decoded instanceof SelectionDirectoryPage && decoded.equals(page)).toBe(true);
+    expect(cbor.decode(codec.encode(page))).toEqual({
+      kind: 'selection-directory', index: 'live', set: 'edge', page: 2, chunks: [['w1', 0, 0], ['w1', 0, 1], ['w1', 1, 0]],
+    });
+  });
+
+  it('refuses a stored directory page whose chunks are out of order, and a page of another geometry to encode', () => {
+    const unordered = cbor.encode({ kind: 'selection-directory', index: 'live', set: 'edge', page: 0, chunks: [['w2', 0, 0], ['w1', 0, 0]] });
+    expect(() => codec.decode(unordered)).toThrow(expect.objectContaining({ code: 'E_CONE_RECORD_INVALID' }));
+    const small = SelectionGeometry.of({ version: 2, chunkSpan: 256 });
+    const page = new SelectionDirectoryPage({ index: LIVENESS_INDEX, set: 'edge', pageIndex: 0, chunks: [chunkOf(300, small)] });
+    expect(() => codec.encode(page)).toThrow(expect.objectContaining({ code: 'E_RETAINED_GEOMETRY_UNSUPPORTED' }));
   });
 });

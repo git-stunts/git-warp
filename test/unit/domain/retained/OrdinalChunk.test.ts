@@ -59,6 +59,10 @@ describe('OrdinalChunk (#816)', () => {
     expect(() => new OrdinalChunk({ segment, index: -1, geometry: V1 })).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_OUT_OF_RANGE' }));
     const first = new OrdinalChunk({ segment, index: 0, geometry: V1 });
     expect(() => first.ordinalAt(65_536)).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_OUT_OF_RANGE' }));
+    // @ts-expect-error -- a chunk without a segment must reach runtime validation.
+    expect(() => new OrdinalChunk({ segment: {}, index: 0, geometry: V1 })).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
+    // @ts-expect-error -- a chunk without a selection geometry must reach runtime validation.
+    expect(() => new OrdinalChunk({ segment, index: 0, geometry: {} })).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
     expect(() => first.ordinalAt(0)).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_OUT_OF_RANGE', context: { counter: 0 } }));
   });
 
@@ -70,7 +74,7 @@ describe('OrdinalChunk (#816)', () => {
   });
 
   it('orders chunks by kind, writer, segment and index', () => {
-    const chunks = [ordinal(SEGMENT + 1), ordinal(70_000), ordinal(1, 'w0'), ordinal(1, 'w1', 'edge'), ordinal(1)]
+    const chunks = [ordinal(SEGMENT + 1), ordinal(70_000), ordinal(1), ordinal(1, 'w1', 'edge'), ordinal(1, 'w0')]
       .map((member) => OrdinalChunk.of(member, V1));
     const sorted = [...chunks].sort((left, right) => left.compare(right)).map((chunk) => chunk.toString());
     expect(sorted).toEqual(['edge/w1/0/0', 'node/w0/0/0', 'node/w1/0/0', 'node/w1/0/1', 'node/w1/1/0']);

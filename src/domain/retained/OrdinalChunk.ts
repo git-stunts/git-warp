@@ -1,6 +1,7 @@
 import RetainedGraphError from '../errors/RetainedGraphError.ts';
+import { CONE_DOT_PAGE_SPAN, type default as ConeDotPage } from '../services/cone/ConeDotPage.ts';
 import { compareStrings } from '../utils/StringComparison.ts';
-import type GraphOrdinal from './GraphOrdinal.ts';
+import GraphOrdinal from './GraphOrdinal.ts';
 import OrdinalSegment from './OrdinalSegment.ts';
 import SelectionGeometry from './SelectionGeometry.ts';
 
@@ -36,6 +37,12 @@ export default class OrdinalChunk {
   static of(ordinal: GraphOrdinal, geometry: SelectionGeometry): OrdinalChunk {
     const index = Math.floor(ordinal.local(geometry.ordinals) / geometry.chunkSpan);
     return new OrdinalChunk({ segment: ordinal.segment(geometry.ordinals), index, geometry });
+  }
+
+  /** The chunk that holds every counter of a cone dot page; a page never crosses a chunk. */
+  static ofDotPage(page: ConeDotPage, geometry: SelectionGeometry): OrdinalChunk {
+    const first = Math.max(page.pageIndex * CONE_DOT_PAGE_SPAN, 1);
+    return OrdinalChunk.of(new GraphOrdinal({ kind: page.set, writerId: page.writerId, counter: first }), geometry);
   }
 
   /** The segment-local ordinal of offset 0. */

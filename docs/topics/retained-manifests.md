@@ -1,8 +1,8 @@
 # Retained graph manifests and ordinals
 
-> **Status:** Internal in the unreleased v21.0.0 line ([#815](https://github.com/git-stunts/git-warp/issues/815)). No public API exposes these types yet. This page is the contract for their consumers, such as the Roaring selection plane ([#816](https://github.com/git-stunts/git-warp/issues/816)) and recursive graph references ([#819](https://github.com/git-stunts/git-warp/issues/819)).
+> **Status:** Internal in the unreleased v21.0.0 line ([#815](https://github.com/git-stunts/git-warp/issues/815), [#816](https://github.com/git-stunts/git-warp/issues/816)). No public API exposes these types yet. This page is the contract for their consumers, such as the Roaring selection plane ([#816](https://github.com/git-stunts/git-warp/issues/816)) and recursive graph references ([#819](https://github.com/git-stunts/git-warp/issues/819)).
 
-A retained graph manifest is the cone basis seen as the one retained representation of a graph at a writer frontier. It adds no second persisted format. The basis tree, the layout-4 record trie and the record codecs do not change.
+A retained graph manifest is the cone basis seen as the one retained representation of a graph at a writer frontier. It adds no second persisted format. The selection plane is one more record family of the same record trie (layout 5, see [Selection shards](#selection-shards)), not a second root.
 
 ```text
 RetainedGraphManifest
@@ -59,7 +59,7 @@ A pin (`ManifestOrdinal`) is an ordinal bound to one manifest commitment. A sche
 | Segment index | At most `floor(MAX_SAFE_INTEGER / 2^32)` = 2,097,151 |
 | Fan-out | Segments exist per writer and per kind. A whole-graph selection is the union over every writer × kind × segment |
 | Density | Node and edge ordinals share one writer's counter sequence (one counter per operation), so each kind's segment has gaps |
-| Address page | `floor(counter / 256)`: the layout-4 cone dot page of that writer and kind |
+| Address page | `floor(counter / 256)`: the cone dot page of that writer and kind |
 
 A writer that exhausts a segment continues in the next segment. No global limit gets wider.
 
@@ -74,6 +74,43 @@ A writer that exhausts a segment continues in the next segment. No global limit 
 | Opening a manifest | The basis bundle only; no record |
 | Manifest width | The writer frontier, one blob under the same CBOR ceiling |
 
+## Selection shards
+
+The liveness selection plane ([#816](https://github.com/git-stunts/git-warp/issues/816), slice S1) keeps, for each OR-Set, the set of live ordinals as Roaring bitmaps in the `selection` record family of the record trie. The fold keeps it current; no reader uses it yet (#816 S4).
+
+**Geometry.** Selection geometry v1 cuts each 2^32 ordinal segment of ordinal geometry v1 into chunks of 65,536 local ordinals: one Roaring container each. A 256-counter dot page lies inside exactly one chunk.
+
+| Fact | Value |
+| --- | --- |
+| Chunk | `floor(local / 65536)` inside the ordinal's segment; the offset is `local mod 65536` |
+| Shard | One record per OR-Set, writer, segment and chunk. Its members are segment-local ordinals stored as one portable Roaring bitmap |
+| Live dot | An add tagged an element with the dot, and no remove of that element named it. A dot that two adds tagged is live while one of them is; resolution then refuses it with `E_RETAINED_ADDRESS_DUPLICATE` |
+| Shard exists | When its chunk has at least one dot with an owner. Its members are the live dots and can be empty, because the record trie never removes a record. An absent shard is an empty set |
+| Directory | One per OR-Set: the chunks that have a shard, sorted by writer, segment and chunk, 256 to a page, densely packed. A reader opens page 0, 1, 2 and on until one is absent |
+
+Owners only grow, so the set of shards, their members and the directory pages are a function of the folded patches: every fold order writes the same bytes. A remove folded before its add makes no shard; when the add comes, the shard appears, empty, exactly as after add then remove.
+
+**What a fold writes.** A patch rewrites only the shards of the chunks whose dot pages it changes. A patch that changes no dot page, for example one that only sets properties, writes no selection record. The directory changes only when a chunk gets its first shard: the pages from the new entry's position to the end are rewritten. At 4,096 writers, the first dot of a writer that sorts first rewrites all 17 directory pages. The fold session never holds more than 4,096 staged records, shards and directory pages included: it writes them through as soon as it holds that many, also between two records of one patch.
+
+**Page limits.**
+
+| Unit | Bound |
+| --- | --- |
+| Shard bytes | 8,208 at most: one container, and its key is the chunk index |
+| Shard members | 65,536 at most |
+| Directory page | 1 to 256 chunks, in ascending order, all of the page's OR-Set; every page but the last is full |
+
+The codec inspects a stored shard against these bounds before the Roaring library reads it, run-optimizes a bitmap before it serializes it, and disposes every bitmap it creates. A shard holds its members as plain integers, so no WASM memory outlives a codec call. `npm run test:selection-memory` folds two generated histories under a 384 MiB container limit and reports the peak staged records and the peak RSS.
+
+**Refusals.**
+
+| Code | When |
+| --- | --- |
+| `E_CONE_RECORD_CORRUPT` (`ConeRecordError`), `context.decodeCode` `E_ROARING_SHARD_TOO_LARGE` or `E_ROARING_SHARD_MALFORMED` | A stored shard has more than 8,208 bytes, is not portable Roaring, has more than one container (fault `chunk-containers`), or has the container of another chunk (fault `chunk-key`) |
+| `E_CONE_RECORD_CORRUPT` (`ConeRecordError`) | The directory lists a chunk whose shard is absent, or its pages are not densely packed in ascending order. The fold refuses when it next adds a chunk to that directory |
+| `E_CONE_RECORD_INVALID` (`ConeRecordError`) | A shard's offsets do not ascend inside the chunk, or name counter 0; a directory page lists no chunk, more than 256, or chunks out of order |
+| `E_RETAINED_GEOMETRY_UNSUPPORTED` | A shard or directory page to encode is of a selection geometry other than v1 |
+
 ## Refusals
 
 Every refusal is a typed `WarpError`. The codes this contract owns are `RetainedGraphError` codes. The rows marked with another class come from the layers below.
@@ -87,7 +124,7 @@ Every refusal is a typed `WarpError`. The codes this contract owns are `Retained
 | `E_RETAINED_MANIFEST_MISMATCH` | A pin was resolved against another manifest. Nothing is read |
 | `E_RETAINED_ORDINAL_OUT_OF_RANGE` | A counter, segment or local ordinal lies outside the geometry |
 | `E_RETAINED_ORDINAL_INVALID` | An ordinal kind, or the kind of an `IdentifierDictionary` lookup, is not `node` or `edge` (the lookup reads nothing); a segment or pin lacks a valid part; or an ordinal lies outside the page asked |
-| `E_RETAINED_GEOMETRY_UNSUPPORTED` | The geometry is not v1, the only one layout 4 stores |
+| `E_RETAINED_GEOMETRY_UNSUPPORTED` | The ordinal geometry is not v1, or the selection geometry of a shard to encode is not v1: the only ones the record trie stores |
 | `E_RETAINED_GEOMETRY_INVALID` | A geometry has an invalid shape |
 | `E_RETAINED_PAGE_INVALID` | An address page is not a cone dot page |
 | `E_RETAINED_MANIFEST_INVALID` | A manifest or commitment lacks a valid part |
@@ -97,7 +134,7 @@ Every refusal is a typed `WarpError`. The codes this contract owns are `Retained
 | `E_CRDT_INVALID_COUNTER` (`CrdtError`) | The ordinal's counter is not a positive safe integer |
 | `E_CONE_RECORD_CORRUPT` (`ConeRecordError`) | The basis tree's `records` entry is not a tree, the records root or a trie directory below it is not a tree, or a stored record or page does not decode or does not match its trie path. Opening the manifest refuses the first case; the others refuse at the first read. The `cone/retained` ring is read through the same check, so one such entry refuses `retained(lane)` as a whole |
 | `E_CONE_RECORD_INVALID` (`ConeRecordError`) | The identifier of an `edge` lookup is not an encoded edge key |
-| `E_CONE_LAYOUT_UNSUPPORTED` (`ConeRecordError`) | The basis head or a retained entry uses an older record-trie layout |
+| `E_CONE_LAYOUT_UNSUPPORTED` (`ConeRecordError`) | The basis head or a retained entry uses an older record-trie layout, layout 4 included |
 | `E_CBOR_DECODE_BOUNDS` (`MessageCodecError`) | The basis frontier blob does not decode |
 | `E_CONE_STORE_UNAVAILABLE` (`ConeStoreUnavailableError`) | The store could not be reached. This is not corruption, so the caller may retry |
 
@@ -118,7 +155,9 @@ The manifest commitment is not the basis commitment that [#1044](https://github.
 
 ## Upgrade and recovery
 
-- Existing **layout-4** cone heads open as schema-1 manifests without migration. A head or retained entry of an older layout (1 to 3) refuses with `E_CONE_LAYOUT_UNSUPPORTED`. Rebuild it from the writer chains. A layout-4 head is what this release writes.
+- A **layout-5** cone head opens as a schema-1 manifest. A layout-5 head is what this release writes.
+- A head or retained entry of an older layout (1 to 4) refuses with `E_CONE_LAYOUT_UNSUPPORTED`. Layout 4 has no selection shards (#816), so a selection over it would read every chunk as empty. Nothing rebuilds such a head automatically. Delete the clone-local cone refs of the lane: `refs/warp/<graph>/cone/head`, the strand refs under `refs/warp/<graph>/cone/strands/`, and `refs/warp/<graph>/cone/retained`, whose layout-4 entries also refuse. git-warp then folds the lane again from the writer chains, as [operations](../operations/README.md) describes for a damaged cone head. No release wrote layout 4: the cone record store is not in v20.0.0, so only repositories that ran pre-release v21 code have layout-4 heads.
+- The layout marker is part of the schema-1 commitment, so a manifest of a layout-5 basis has another commitment than the layout-4 manifest at the same frontier. A pin made under layout 4 refuses with `E_RETAINED_MANIFEST_MISMATCH`. Pin it again; ordinals do not change.
 - Manifests and bases are derived, clone-local state. To recover, rebuild from the writer chains. The commitment at the same frontier is unchanged, so pins still resolve.
 - Schema 2 will add #1044 slice 1's canonical basis commitment to the preimage. Schema-1 pins then fail with `E_RETAINED_MANIFEST_MISMATCH`. Pin them again; ordinals do not change, so no data is lost.
 - Schema 1 cannot detect a records root that is not the fold of its frontier, for example a stale graft or a store defect. A pin resolves under that root without refusal. Structural corruption still refuses (`E_CONE_RECORD_CORRUPT`, `E_MISSING_OBJECT`). Detection arrives with schema 2, which commits to #1044 slice 1's basis commitment over record digests.

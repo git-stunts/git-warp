@@ -51,7 +51,7 @@ const GIT_CAS_TREE_PARSE_ERROR = 'TREE_PARSE_ERROR';
  * selection over them would read every chunk as empty.
  */
 export const CONE_TRIE_LAYOUT = 'git-warp cone record trie\nlayout 5: 16-way route digits, buckets of 32 records; entity admission index; concurrent siblings; '
-  + 'ordinal liveness selection shards, selection geometry v1: chunk 65536\n';
+  + 'ordinal liveness selection shards in chunks of 65536 ordinals\n';
 /** Captured bases a clone keeps reachable under its retained ref, most recent first to survive. */
 export const CONE_RETAINED_BASES = 64;
 const RETAINED_DIRECTORY = 'r';

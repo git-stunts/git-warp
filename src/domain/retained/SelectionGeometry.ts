@@ -2,7 +2,7 @@ import RetainedGraphError from '../errors/RetainedGraphError.ts';
 import { CONE_DOT_PAGE_SPAN } from '../services/cone/ConeDotPage.ts';
 import OrdinalGeometry from './OrdinalGeometry.ts';
 
-/** Local ordinals one selection shard covers in v1: exactly one Roaring container (#816 D2). */
+/** Local ordinals one selection shard covers in version 1: exactly one Roaring container (#816 D2). */
 export const SELECTION_CHUNK_SPAN = 2 ** 16;
 
 /** Constructor fields of a selection geometry. */
@@ -13,7 +13,7 @@ export type SelectionGeometryFields = {
 
 /**
  * How the selection plane (#816) cuts one 32-bit ordinal segment of the
- * stored ordinal geometry v1 into shards.
+ * stored ordinal geometry, version 1, into shards.
  *
  * A chunk is `chunkSpan` consecutive local ordinals of one segment. A cone
  * dot page (256 counters) lies inside exactly one chunk, because the span is
@@ -34,7 +34,7 @@ export default class SelectionGeometry {
     Object.freeze(this);
   }
 
-  /** Selection geometry v1: chunks of 65,536 local ordinals over ordinal geometry v1. */
+  /** Selection geometry version 1: chunks of 65,536 local ordinals over ordinal geometry version 1. */
   static chunks(): SelectionGeometry {
     return new SelectionGeometry({ version: 1, chunkSpan: SELECTION_CHUNK_SPAN });
   }

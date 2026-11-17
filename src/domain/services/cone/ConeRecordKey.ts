@@ -13,6 +13,13 @@ export type ConeDirection = 'out' | 'in';
 
 const FAMILIES: ReadonlySet<string> = new Set(['node', 'edge', 'dot', 'adjacency', 'admission', 'selection']);
 
+/** Where one page of a selection directory lies: an index, an OR-Set and the page's position. */
+export type ConeSelectionDirectoryAddress = {
+  readonly index: string;
+  readonly set: ConeDotSet;
+  readonly pageIndex: number;
+};
+
 /** Where one selection shard lies: an index, and one chunk of a writer's dots of one kind and segment. */
 export type ConeSelectionShardAddress = {
   readonly index: string;
@@ -81,6 +88,12 @@ export default class ConeRecordKey {
   static forSelectionShard(address: ConeSelectionShardAddress): ConeRecordKey {
     const { index, set, writerId, segment, chunk } = address;
     return new ConeRecordKey('selection', routeOf(['shard', index, set, writerId, String(segment), String(chunk)]));
+  }
+
+  /** The key of one page of a selection directory (#816): the chunks of one index and OR-Set that have shards. */
+  static forSelectionDirectoryPage(address: ConeSelectionDirectoryAddress): ConeRecordKey {
+    const { index, set, pageIndex } = address;
+    return new ConeRecordKey('selection', routeOf(['directory', index, set, String(pageIndex)]));
   }
 
   /** Stable text form, used as a map key. */

@@ -3,6 +3,7 @@ import ConeDotClaim from '../../../../src/domain/services/cone/ConeDotClaim.ts';
 import ConeDotPage from '../../../../src/domain/services/cone/ConeDotPage.ts';
 import ConeRecordKey from '../../../../src/domain/services/cone/ConeRecordKey.ts';
 import ConeRecordSnapshot from '../../../../src/domain/services/cone/ConeRecordSnapshot.ts';
+import RouteKey from '../../../../src/domain/orset/route/RouteKey.ts';
 import GraphOrdinal from '../../../../src/domain/retained/GraphOrdinal.ts';
 import OrdinalBitmapShard, { LIVENESS_INDEX } from '../../../../src/domain/retained/OrdinalBitmapShard.ts';
 import OrdinalChunk from '../../../../src/domain/retained/OrdinalChunk.ts';
@@ -37,6 +38,8 @@ describe('OrdinalBitmapShard (#816)', () => {
     const key = ConeRecordKey.forSelectionShard({ index: 'live', set: 'node', writerId: 'w1', segment: 0, chunk: 1 });
     expect(shard.key().equals(key)).toBe(true);
     expect(shard.key().family).toBe('selection');
+    // Oracle: a cone record route is the BLAKE3 route key of its identity parts joined with NUL.
+    expect(shard.key().route).toBe(RouteKey.fromElement(['shard', 'live', 'node', 'w1', '0', '1'].join('\u0000')).toHex());
     expect([shard.cardinality, shard.offsets()]).toEqual([0, []]);
     expect(Object.isFrozen(shard)).toBe(true);
   });

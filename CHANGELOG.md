@@ -372,6 +372,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first read. Both used to fail with an untyped git-cas error.
   See [Retained graph manifests](docs/topics/retained-manifests.md)
   ([#815](https://github.com/git-stunts/git-warp/issues/815)).
+- Add the internal liveness selection plane over the cone basis
+  ([#816](https://github.com/git-stunts/git-warp/issues/816), slice S1). The cone fold now keeps
+  one Roaring bitmap shard of live dots for each OR-Set, writer, segment and chunk of 65,536
+  ordinals, and a directory of the chunks that have a dot with an owner, 256 to a page, in the new
+  `selection` record family. A patch rewrites only the shards of the dot pages it changes; a patch
+  that only sets properties writes none. Shards are inspected against their bounds (8,208 bytes,
+  one container, the chunk's key) before the Roaring library reads them. The record trie moves to
+  layout 5. A layout-4 cone head refuses with `E_CONE_LAYOUT_UNSUPPORTED` and is not rebuilt
+  automatically: delete the lane's clone-local refs under `refs/warp/<graph>/cone/`, and git-warp
+  folds the lane again from the writer chains. No release wrote layout 4. See
+  [Selection shards](docs/topics/retained-manifests.md#selection-shards).
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
   with an injected `WarpAccessPort` and no implicit access. `execute` returns

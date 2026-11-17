@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import ConeBasis from '../../../../../src/domain/services/cone/ConeBasis.ts';
 import ConeBasisHead from '../../../../../src/domain/services/cone/ConeBasisHead.ts';
+import ConeDotPage from '../../../../../src/domain/services/cone/ConeDotPage.ts';
 import ConeFootprint from '../../../../../src/domain/services/cone/ConeFootprint.ts';
+import OrdinalBitmapShard, { LIVENESS_INDEX } from '../../../../../src/domain/retained/OrdinalBitmapShard.ts';
+import OrdinalChunk from '../../../../../src/domain/retained/OrdinalChunk.ts';
+import SelectionDirectoryPage from '../../../../../src/domain/retained/SelectionDirectoryPage.ts';
+import SelectionGeometry from '../../../../../src/domain/retained/SelectionGeometry.ts';
 import ConeLaneBasis from '../../../../../src/domain/services/cone/ConeLaneBasis.ts';
 import ConeTipSource from '../../../../../src/domain/services/cone/ConeTipSource.ts';
 import { reducePatches } from '../../../../../src/domain/services/JoinReducer.ts';
@@ -66,12 +71,15 @@ async function checkOverlay(seed: number): Promise<number> {
   const all = [...history.chains.values()].flat();
   const full = reducePatches(all.map((entry) => ({ patch: entry.patch, sha: entry.sha })));
   const entities = await assertConeEquivalent(history, full, { store, root: strandBasis.root });
-  const overlayKeys = new Set((history.chains.get(overlayWriter) ?? [])
-    .flatMap((entry) => ConeFootprint.of(entry.patch).recordKeys().map((key) => key.toString())));
+  const footprints = (history.chains.get(overlayWriter) ?? []).map((entry) => ConeFootprint.of(entry.patch));
+  // The overlay may also rewrite the liveness shard of each chunk its dot pages lie in (#816).
+  const shardKeys = footprints.flatMap((footprint) => footprint.dotPages().map((page) =>
+    OrdinalBitmapShard.empty(LIVENESS_INDEX, OrdinalChunk.ofDotPage(ConeDotPage.empty(page.set, page.writerId, page.pageIndex), SelectionGeometry.chunks())).key()));
+  const overlayKeys = new Set([...footprints.flatMap((footprint) => footprint.recordKeys()), ...shardKeys].map((key) => key.toString()));
   const baseRecords = new Map(store.allRecords(baseBasis.root).map((record) => [record.key().toString(), record]));
   for (const record of store.allRecords(strandBasis.root)) {
     const key = record.key().toString();
-    if (!overlayKeys.has(key) && record.key().family !== 'adjacency' && record.key().family !== 'admission') {
+    if (!overlayKeys.has(key) && !(record instanceof SelectionDirectoryPage) && record.key().family !== 'adjacency' && record.key().family !== 'admission') {
       expect(record, `record ${key} shared with the base, seed ${seed}`).toBe(baseRecords.get(key));
     }
   }

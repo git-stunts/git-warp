@@ -1,7 +1,7 @@
 import ConeRecordError from '../errors/ConeRecordError.ts';
 import { CONE_DOT_PAGE_SPAN, type default as ConeDotPage } from '../services/cone/ConeDotPage.ts';
 import ConeRecordKey from '../services/cone/ConeRecordKey.ts';
-import GraphOrdinal from './GraphOrdinal.ts';
+import type GraphOrdinal from './GraphOrdinal.ts';
 import OrdinalChunk from './OrdinalChunk.ts';
 
 /** The liveness index: the live dots of the node or edge OR-Set (#816 S1). */
@@ -66,7 +66,7 @@ export default class OrdinalBitmapShard {
 
   /** True when `ordinal` is a member. */
   has(ordinal: GraphOrdinal): boolean {
-    return this.chunk.holds(ordinal) && binarySearch(this.#offsets, this.chunk.offsetOf(ordinal));
+    return this.chunk.holds(ordinal) && this.#offsets.includes(this.chunk.offsetOf(ordinal));
   }
 
   /** This shard with the members of `page`'s counter range replaced by the page's live dots. */
@@ -86,14 +86,12 @@ export default class OrdinalBitmapShard {
 
   /** The offset of `page`'s first counter, refusing a page of another chunk. */
   #pageOffset(page: ConeDotPage): number {
-    const first = page.pageIndex * CONE_DOT_PAGE_SPAN;
-    const ordinal = new GraphOrdinal({ kind: page.set, writerId: page.writerId, counter: Math.max(first, 1) });
-    if (!this.chunk.holds(ordinal)) {
+    if (!OrdinalChunk.ofDotPage(page, this.chunk.geometry).equals(this.chunk)) {
       throw new ConeRecordError('Dot page lies outside the selection shard chunk', {
         context: { chunk: this.chunk.toString(), page: page.key().toString() },
       });
     }
-    return (first % this.chunk.geometry.ordinals.segmentCapacity) - this.chunk.firstLocal();
+    return ((page.pageIndex * CONE_DOT_PAGE_SPAN) % this.chunk.geometry.ordinals.segmentCapacity) - this.chunk.firstLocal();
   }
 }
 
@@ -114,18 +112,4 @@ function requireNextOffset(offset: number, previous: number, chunk: OrdinalChunk
     });
   }
   return offset;
-}
-
-function binarySearch(values: Uint16Array, target: number): boolean {
-  let low = 0;
-  let high = values.length - 1;
-  while (low <= high) {
-    const middle = (low + high) >>> 1;
-    const value = values[middle] ?? -1;
-    if (value === target) {
-      return true;
-    }
-    [low, high] = value < target ? [middle + 1, high] : [low, middle - 1];
-  }
-  return false;
 }
