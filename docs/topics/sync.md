@@ -232,9 +232,10 @@ their writers and readers share
 (16,777,216 bytes) and 2,000,000 total items, with the same depth, container
 entry and tag checks. A writer refuses a shard above it, and a reader refuses
 one above it the same way: `E_INDEX_SHARD_TOO_LARGE` above the byte limit and
-`E_INDEX_SHARD_MALFORMED` above a structure limit. Decoding one index shard at
-the bound takes about 70 MiB of heap when its entries are bitmaps, and about
-215 MiB at 2.58 million small items.
+`E_INDEX_SHARD_MALFORMED` above a structure limit. Measured decode memory for
+one file: about 66 MiB of heap for 17.6 MB of bitmap entries (782,385 items),
+and about 205 MiB for 19.4 MB of 2.58 million small items. A file within the
+bound holds at most 2,000,000 items.
 
 A structural preflight refusal from the shared decoder has code
 `E_CBOR_DECODE_BOUNDS` and a `reason` in its context. Preserve the offending object and

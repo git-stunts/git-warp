@@ -447,8 +447,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with 654,322 neighbours each, gave a checkpoint whose neighbourhood reads
   failed with `E_CBOR_DECODE_BOUNDS`, and the in-memory view index failed on
   its next incremental update. Other repository blobs keep the 5 MiB default.
-  Decoding one index shard at the bound takes about 70 MiB of heap when its
-  entries are bitmaps, and about 215 MiB at 2.58 million small items. The
+  Measured decode memory for one file: about 66 MiB of heap for 17.6 MB of
+  bitmap entries (782,385 items), and about 205 MiB for 19.4 MB of 2.58
+  million small items; a file within the bound holds at most 2,000,000
+  items. The
   property root now has the structure limits of the logical index root: depth
   32, which its readers already enforced, in place of 64, and 1,000,000
   entries and 2,000,000 items in place of 100,000 and 1,000,000.

@@ -12,9 +12,10 @@ import type { CodecDecodeBound } from '../../ports/CodecPort.ts';
  * reader refuses. Other repository blobs keep the codec's default decode
  * bound (5 MiB, 1,000,000 items).
  *
- * Measured decode memory at this bound, one 16 MiB file: about 70 MiB of
- * heap when its entries are bitmaps, and about 215 MiB at 2.58 million
- * small items.
+ * Measured decode memory (cbor-x, one file): about 66 MiB of heap for a
+ * 17.6 MB file of 782,385 items whose values are 30-byte bitmaps, and
+ * about 205 MiB for a 19.4 MB file of 2.58 million small items. A file
+ * within this bound holds at most 2,000,000 items.
  */
 export const INDEX_SHARD_LIMITS: CodecDecodeBound = Object.freeze({
   maxBytes: 16 * 1024 * 1024,
