@@ -18,17 +18,17 @@
  */
 import { createHash } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
-import { createEmptyState, reducePatches, type PatchLike } from '../../../../src/domain/services/JoinReducer.ts';
+import { createEmptyState, reducePatches } from '../../../../src/domain/services/JoinReducer.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import MaterializedViewService from '../../../../src/domain/services/MaterializedViewService.ts';
 import type WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import type { PropValue } from '../../../../src/domain/types/PropValue.ts';
-import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 
-type Op = PatchLike['ops'][number];
-type Entry = { readonly patch: PatchLike; readonly sha: string };
+/** One reducer input: a patch and the SHA of its commit. */
+type Entry = Parameters<typeof reducePatches>[0][number];
+type Op = Entry['patch']['ops'][number];
 
 const LABELS = ['knows', 'manages', 'owns'];
 const WIDE_NODE_COUNT = 300;
@@ -162,7 +162,7 @@ function digestTree(tree: Readonly<Record<string, Uint8Array>>): string {
 }
 
 function builtTree(state: WarpState): Readonly<Record<string, Uint8Array>> {
-  return new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() }).build(state).tree;
+  return new MaterializedViewService({ indexStore: new MockIndexStorage() }).build(state).tree;
 }
 
 const CASES: ReadonlyArray<readonly [string, () => WarpState, number, string]> = [

@@ -5,7 +5,6 @@ import { MetaShard } from '../../../../../src/domain/artifacts/MetaShard.ts';
 import QueryError from '../../../../../src/domain/errors/QueryError.ts';
 import RoaringShardRejectedError from '../../../../../src/domain/errors/RoaringShardRejectedError.ts';
 import { PropertyShard } from '../../../../../src/domain/artifacts/PropertyShard.ts';
-import { shardToEntry } from '../../../../../src/domain/services/MaterializedViewHelpers.ts';
 import LogicalBitmapIndexBuilder from '../../../../../src/domain/services/index/LogicalBitmapIndexBuilder.ts';
 import CheckpointBasisManifest, {
   CheckpointBasisChunking,
@@ -37,6 +36,7 @@ import {
   materializationPropertyShardPath,
 } from '../../../../../src/domain/materialization/MaterializationPropertyProfile.ts';
 import defaultCodec from '../../../../../src/infrastructure/codecs/CborCodec.ts';
+import { IndexShardEncodeTransform } from '../../../../../src/infrastructure/adapters/IndexShardEncodeTransform.ts';
 import type CodecPort from '../../../../../src/ports/CodecPort.ts';
 import InMemoryCheckpointStore from '../../../../helpers/InMemoryCheckpointStore.ts';
 import MockIndexStorage from '../../../../helpers/MockIndexStorage.ts';
@@ -565,7 +565,7 @@ function metaShardBytes(nodeId: string): Uint8Array {
   builder.markAlive(nodeId);
   for (const shard of builder.yieldShards()) {
     if (shard instanceof MetaShard) {
-      return defaultCodec.encode(shardToEntry(shard).payload);
+      return new IndexShardEncodeTransform(defaultCodec).encodeShard(shard)[1];
     }
   }
   throw new Error('expected logical index builder to emit a meta shard');
@@ -579,7 +579,7 @@ function neighborhoodShardBytes(): Uint8Array {
   builder.addEdge(NODE_ID, NEIGHBOR_ID, EDGE_LABEL);
   for (const shard of builder.yieldShards()) {
     if (shard instanceof EdgeShard && shard.direction === 'fwd') {
-      return defaultCodec.encode(shardToEntry(shard).payload);
+      return new IndexShardEncodeTransform(defaultCodec).encodeShard(shard)[1];
     }
   }
   throw new Error('expected logical index builder to emit an adjacency shard');

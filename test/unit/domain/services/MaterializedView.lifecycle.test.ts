@@ -13,7 +13,6 @@ import { applyWithDiff, createEmptyState, reducePatches } from '../../../../src/
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import VersionVector from '../../../../src/domain/crdt/VersionVector.ts';
 import MaterializedViewService, { type BuildResult } from '../../../../src/domain/services/MaterializedViewService.ts';
-import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import type { PatchLike } from '../../../../src/domain/services/JoinReducer.ts';
 
@@ -28,11 +27,11 @@ function entry(writer: string, lamport: number, ops: PatchLike['ops']): Entry {
 }
 
 function fullBuild(entries: readonly Entry[]): BuildResult {
-  return new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() }).build(reducePatches([...entries]));
+  return new MaterializedViewService({ indexStore: new MockIndexStorage() }).build(reducePatches([...entries]));
 }
 
 function incrementalBuild(entries: readonly Entry[]): BuildResult {
-  const service = new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
+  const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
   const state = createEmptyState();
   let result = service.build(createEmptyState());
   for (const { patch, sha } of entries) {

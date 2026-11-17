@@ -14,6 +14,8 @@ import { EventId } from '../../../../src/domain/utils/EventId.ts';
 import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import AssetHandle from '../../../../src/domain/storage/AssetHandle.ts';
+import { MetaShard } from '../../../../src/domain/artifacts/MetaShard.ts';
+import type { IndexShard } from '../../../../src/domain/artifacts/IndexShard.ts';
 import BundleHandle from '../../../../src/domain/storage/BundleHandle.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -67,17 +69,28 @@ function compareEdges(a, b) {
   return 0;
 }
 
+/**
+ * Reads the meta, edge, and label shards of an in-memory index tree through
+ * the index store, as MaterializedViewService.applyDiff() does.
+ */
+function indexShardsOf(tree: Record<string, Uint8Array>): readonly IndexShard[] {
+  return new MockIndexStorage().openShardTree(tree).readIndexShards();
+}
+
+/** Builds the index tree of a fixture state through the index store. */
+function treeOf(state: ReturnType<typeof fixtureToState>): Record<string, Uint8Array> {
+  return new MaterializedViewService({ indexStore: new MockIndexStorage() }).build(state).tree;
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('LogicalIndexReader', () => {
-  describe('loadFromTree', () => {
+  describe('loadFromShards over an in-memory tree read through the index store', () => {
     it('hydrates a LogicalIndex from F7_MULTILABEL tree', () => {
-      const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new MaterializedViewService({ codec: defaultCodec });
-      const { tree } = service.build(state);
+      const tree = treeOf(fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR));
 
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
-      reader.loadFromTree(tree);
+      const reader = new LogicalIndexReader();
+      reader.loadFromShards(indexShardsOf(tree));
       const idx = reader.toLogicalIndex();
 
       // isAlive
@@ -104,12 +117,10 @@ describe('LogicalIndexReader', () => {
     });
 
     it('returns empty results for nonexistent nodes', () => {
-      const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new MaterializedViewService({ codec: defaultCodec });
-      const { tree } = service.build(state);
+      const tree = treeOf(fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR));
 
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
-      reader.loadFromTree(tree);
+      const reader = new LogicalIndexReader();
+      reader.loadFromShards(indexShardsOf(tree));
       const idx = reader.toLogicalIndex();
 
       expect(idx.isAlive('Z')).toBe(false);
@@ -118,22 +129,18 @@ describe('LogicalIndexReader', () => {
     });
 
     it('resets decoded state when reusing the same reader instance', () => {
-      const service = new MaterializedViewService({ codec: defaultCodec });
-      const state1 = fixtureToState(makeFixture({
+      const tree1 = treeOf(fixtureToState(makeFixture({
         nodes: ['A', 'B'],
         edges: [{ from: 'A', to: 'B', label: 'knows' }],
-      }));
-      const state2 = fixtureToState(makeFixture({
+      })));
+      const tree2 = treeOf(fixtureToState(makeFixture({
         nodes: ['X', 'Y'],
         edges: [{ from: 'X', to: 'Y', label: 'owns' }],
-      }));
+      })));
 
-      const tree1 = service.build(state1).tree;
-      const tree2 = service.build(state2).tree;
-
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
-      reader.loadFromTree(tree1);
-      reader.loadFromTree(tree2);
+      const reader = new LogicalIndexReader();
+      reader.loadFromShards(indexShardsOf(tree1));
+      reader.loadFromShards(indexShardsOf(tree2));
       const idx = reader.toLogicalIndex();
 
       expect(idx.isAlive('A')).toBe(false);
@@ -141,15 +148,14 @@ describe('LogicalIndexReader', () => {
       expect(idx.getEdges('X', 'out')).toEqual([{ neighborId: 'Y', label: 'owns' }]);
     });
 
-    it('preserves the loaded index when a replacement tree cannot be decoded', () => {
-      const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new MaterializedViewService({ codec: defaultCodec });
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
-      reader.loadFromTree(service.build(state).tree);
+    it('preserves the loaded index when a replacement shard set cannot be loaded', () => {
+      const reader = new LogicalIndexReader();
+      reader.loadFromShards(indexShardsOf(treeOf(fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR))));
+      // Byte strings that are not a serialized bitmap: the shard admits them,
+      // and the reader refuses them when it deserializes the alive bitmap.
+      const damaged = new MetaShard({ shardKey: 'ff', nodeToGlobal: [['Q', 0]], nextLocalId: 1, alive: new Uint8Array([0xff]) });
 
-      expect(() => reader.loadFromTree({
-        'meta_ff.cbor': new Uint8Array([0xff]),
-      })).toThrow();
+      expect(() => reader.loadFromShards([damaged])).toThrow();
 
       expect(reader.toLogicalIndex().isAlive('A')).toBe(true);
       expect(reader.toLogicalIndex().getEdges('A', 'out')).toHaveLength(2);
@@ -164,7 +170,7 @@ describe('LogicalIndexReader', () => {
 
     it('loads shards through the semantic index store', async () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new MaterializedViewService({ codec: defaultCodec });
+      const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
       const { tree } = service.build(state);
 
       const storage = new MockIndexStorage();
@@ -173,7 +179,7 @@ describe('LogicalIndexReader', () => {
         shardHandles[path] = await storage.writeBlob(buf);
       }
 
-      const reader = new LogicalIndexReader({ codec: defaultCodec, indexStore: storage });
+      const reader = new LogicalIndexReader({ indexStore: storage });
       await reader.loadFromHandles(shardHandles);
       const idx = reader.toLogicalIndex();
 
@@ -188,11 +194,11 @@ describe('LogicalIndexReader', () => {
 
     it('preserves the loaded index when a replacement asset cannot be decoded', async () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new MaterializedViewService({ codec: defaultCodec });
+      const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
       const { tree } = service.build(state);
       const storage = new MockIndexStorage();
-      const reader = new LogicalIndexReader({ codec: defaultCodec, indexStore: storage });
-      reader.loadFromTree(tree);
+      const reader = new LogicalIndexReader({ indexStore: storage });
+      reader.loadFromShards(indexShardsOf(tree));
 
       await expect(reader.loadFromHandles({
         'meta_ff.cbor': new AssetHandle('missing-replacement-shard'),
@@ -208,11 +214,11 @@ describe('LogicalIndexReader', () => {
       const protoBefore = Object.getOwnPropertyNames(Object.prototype).sort();
 
       const state = fixtureToState(F10_PROTO_POLLUTION);
-      const service = new MaterializedViewService({ codec: defaultCodec });
+      const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
       const { tree } = service.build(state);
 
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
-      reader.loadFromTree(tree);
+      const reader = new LogicalIndexReader();
+      reader.loadFromShards(indexShardsOf(tree));
       const idx = reader.toLogicalIndex();
 
       // __proto__ node exists and round-trips
@@ -228,61 +234,14 @@ describe('LogicalIndexReader', () => {
     });
   });
 
-  describe('labels format compatibility', () => {
-    it('accepts legacy object-form labels.cbor', () => {
-      const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new MaterializedViewService({ codec: defaultCodec });
-      const { tree } = service.build(state);
-
-      const modern = (defaultCodec.decode((tree['labels.cbor'] as Uint8Array)) as Array<[string, number]>);
-      const legacyLabels = Object.fromEntries(modern);
-      const legacyTree = {
-        ...tree,
-        'labels.cbor': defaultCodec.encode(legacyLabels).slice(),
-      };
-
-      const idx = new LogicalIndexReader({ codec: defaultCodec }).loadFromTree(legacyTree).toLogicalIndex();
-      const registry = idx.getLabelRegistry();
-      expect(registry.has('manages')).toBe(true);
-      expect(registry.has('owns')).toBe(true);
-    });
-
-    it('refuses meta.alive encoded as a plain number array', () => {
-      const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new MaterializedViewService({ codec: defaultCodec });
-      const { tree } = service.build(state);
-
-            const legacyTree = ({ ...tree }) as Record<string, Uint8Array>;
-      for (const path of Object.keys(tree)) {
-        if (!path.startsWith('meta_') || !path.endsWith('.cbor')) {
-          continue;
-        }
-        const meta = /** @type {{ nodeToGlobal: Array<[string, number]>, nextLocalId: number, alive: Uint8Array }} */ (defaultCodec.decode((tree[path] as Uint8Array)));
-        legacyTree[path] = defaultCodec.encode({
-          nodeToGlobal: (meta as any).nodeToGlobal,
-          nextLocalId: (meta as any).nextLocalId,
-          alive: Array.from((meta as any).alive),
-        }).slice();
-      }
-
-      // No released writer stores bitmap bytes as a CBOR array, so the reader
-      // admits a byte string only.
-      expect(() => new LogicalIndexReader({ codec: defaultCodec }).loadFromTree(legacyTree))
-        .toThrow(expect.objectContaining({
-          code: 'E_ROARING_SHARD_MALFORMED',
-          context: { fault: 'not-bytes' },
-        }));
-    });
-  });
-
   describe('toLogicalIndex returns a proper LogicalIndex interface', () => {
     it('has all required methods', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new MaterializedViewService({ codec: defaultCodec });
+      const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
       const { tree } = service.build(state);
 
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
-      reader.loadFromTree(tree);
+      const reader = new LogicalIndexReader();
+      reader.loadFromShards(indexShardsOf(tree));
       const idx = reader.toLogicalIndex();
 
       expect(typeof idx.getGlobalId).toBe('function');
@@ -296,11 +255,11 @@ describe('LogicalIndexReader', () => {
   describe('getEdges with label filter', () => {
     it('filters by label IDs', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new MaterializedViewService({ codec: defaultCodec });
+      const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
       const { tree } = service.build(state);
 
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
-      reader.loadFromTree(tree);
+      const reader = new LogicalIndexReader();
+      reader.loadFromShards(indexShardsOf(tree));
       const idx = reader.toLogicalIndex();
 
       const registry = idx.getLabelRegistry();
@@ -316,10 +275,10 @@ describe('LogicalIndexReader', () => {
 
     it('unfiltered results equal filtered-label union and are sorted by (neighborId, label)', () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new MaterializedViewService({ codec: defaultCodec });
+      const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
       const { tree } = service.build(state);
 
-      const idx = new LogicalIndexReader({ codec: defaultCodec }).loadFromTree(tree).toLogicalIndex();
+      const idx = new LogicalIndexReader().loadFromShards(indexShardsOf(tree)).toLogicalIndex();
       const labelIds = [...idx.getLabelRegistry().values()].sort((a, b) => a - b);
 
       const unfiltered = idx.getEdges('A', 'out');
@@ -336,7 +295,7 @@ describe('LogicalIndexReader', () => {
   describe('loadFromHandles with indexStore', () => {
     it('uses indexStore.decodeShard for opaque shard handles', async () => {
       const state = fixtureToState(F7_MULTILABEL_SAME_NEIGHBOR);
-      const service = new MaterializedViewService({ codec: defaultCodec });
+      const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
       const { tree } = service.build(state);
 
       const shardHandles: Record<string, AssetHandle> = {};
@@ -406,7 +365,7 @@ describe('LogicalIndexReader', () => {
     });
 
     it('throws when no indexStore is configured', async () => {
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
+      const reader = new LogicalIndexReader();
       await expect(reader.loadFromStore(new BundleHandle('any-index')))
         .rejects.toThrow(/indexStore/i);
     });
@@ -442,11 +401,11 @@ describe('LogicalIndexReader', () => {
       }
 
       const state = fixtureToState({ nodes, edges });
-      const service = new MaterializedViewService({ codec: defaultCodec });
+      const service = new MaterializedViewService({ indexStore: new MockIndexStorage() });
       const { tree } = service.build(state);
 
-      const reader = new LogicalIndexReader({ codec: defaultCodec });
-      reader.loadFromTree(tree);
+      const reader = new LogicalIndexReader();
+      reader.loadFromShards(indexShardsOf(tree));
       const idx = reader.toLogicalIndex();
 
       // n000 should have 1 outgoing edge (next -> n001)
