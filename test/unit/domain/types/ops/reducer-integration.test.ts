@@ -1,9 +1,9 @@
 /**
  * Tests that Op class instances flow correctly through JoinReducer.
  *
- * The reducer dispatches via OP_STRATEGIES.get(op.type) — class instances
- * have the same .type strings, so they must work identically to plain
- * objects through all three apply paths.
+ * The reducer hydrates plain objects into Op classes (normalizeRawOp) and
+ * calls their methods, so class instances and plain objects must behave
+ * the same through all three apply paths.
  */
 import { describe, it, expect } from 'vitest';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';

@@ -145,13 +145,16 @@ describe('OpNormalizer', () => {
       expect(hydrateDecodedOp(incompleteEdge)).toBe(incompleteEdge);
     });
 
-    it('preserves incomplete remove/blob compatibility shapes', () => {
-      const incompleteNodeRemove = { type: 'NodeRemove', observedDots: ['w:1'] };
-      const incompleteEdgeRemove = { type: 'EdgeRemove', from: 'a', observedDots: ['w:1'] };
+    it('rejects removes without owner identity (#193)', () => {
+      expect(() => hydrateDecodedOp({ type: 'NodeRemove', observedDots: ['w:1'] }))
+        .toThrow("NodeRemove op requires 'node' to be a string, got undefined");
+      expect(() => hydrateDecodedOp({ type: 'EdgeRemove', from: 'a', observedDots: ['w:1'] }))
+        .toThrow("EdgeRemove op requires 'to' to be a string, got undefined");
+    });
+
+    it('preserves incomplete blob compatibility shapes', () => {
       const incompleteBlobValue = { type: 'BlobValue', node: 'x' };
 
-      expect(hydrateDecodedOp(incompleteNodeRemove)).toBe(incompleteNodeRemove);
-      expect(hydrateDecodedOp(incompleteEdgeRemove)).toBe(incompleteEdgeRemove);
       expect(hydrateDecodedOp(incompleteBlobValue)).toBe(incompleteBlobValue);
     });
 

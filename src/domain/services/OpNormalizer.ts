@@ -119,10 +119,6 @@ function hydrateDot(dot: OpLike['dot'], opType: string): Dot { // nosemgrep: ts-
   return new Dot(expectDotWriterId(dotObject, opType), expectDotCounter(dotObject, opType));
 }
 
-function hasNodeIdentity(rawOp: OpLike): rawOp is OpLike & { readonly node: string } { // nosemgrep: ts-no-like-types -- 0025C
-  return typeof rawOp.node === 'string';
-}
-
 function hasEdgeIdentity(
   rawOp: OpLike, // nosemgrep: ts-no-like-types -- 0025C
 ): rawOp is OpLike & { readonly from: string; readonly to: string; readonly label: string } { // nosemgrep: ts-no-like-types -- 0025C
@@ -151,11 +147,15 @@ function hydrateNodeAdd(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types 
   return new NodeAdd(expectString(rawOp.node, rawOp.type, 'node'), hydrateDot(rawOp.dot, rawOp.type));
 }
 
+/**
+ * A remove must name its owner (#193). An ownerless remove is malformed on
+ * every reducer path, as it already is at the persisted-patch decode boundary.
+ */
 function hydrateNodeRemove(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
-  if (!hasNodeIdentity(rawOp)) {
-    return rawOp;
-  }
-  return new NodeRemove(rawOp.node, expectObservedDots(rawOp.observedDots, rawOp.type));
+  return new NodeRemove(
+    expectString(rawOp.node, rawOp.type, 'node'),
+    expectObservedDots(rawOp.observedDots, rawOp.type),
+  );
 }
 
 function hydrateEdgeAdd(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
@@ -168,13 +168,10 @@ function hydrateEdgeAdd(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types 
 }
 
 function hydrateEdgeRemove(rawOp: OpLike): OpLike { // nosemgrep: ts-no-like-types -- 0025C
-  if (!hasEdgeIdentity(rawOp)) {
-    return rawOp;
-  }
   return new EdgeRemove({
-    from: rawOp.from,
-    to: rawOp.to,
-    label: rawOp.label,
+    from: expectString(rawOp.from, rawOp.type, 'from'),
+    to: expectString(rawOp.to, rawOp.type, 'to'),
+    label: expectString(rawOp.label, rawOp.type, 'label'),
     observedDots: expectObservedDots(rawOp.observedDots, rawOp.type),
   });
 }
@@ -273,9 +270,9 @@ function normalizePropSet(rawPropSet: PropSet): CanonicalPatchOp {
  *
  * - Raw `PropSet` with \x01-prefixed node → canonical `EdgePropSet`
  * - Raw `PropSet` without prefix → canonical `NodePropSet`
- * - Add/property/blob ops are hydrated into runtime-backed classes.
- * - Legacy tombstone-only remove POJOs still pass through until the
- *   remove-op boundary cleanup lands.
+ * - Add/remove/property/blob ops are hydrated into runtime-backed classes.
+ * - A remove without owner identity is rejected with `PatchError` (#193).
+ *   A remove that names its owner but observes no dots is a lawful no-op.
  *
  * Reducer entrypoints may receive either class instances or plain objects
  * decoded from CBOR. This function is the boundary that turns decoded

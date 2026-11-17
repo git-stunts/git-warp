@@ -179,8 +179,8 @@ describe('JoinReducer validation', () => {
         expect(() => applyPatchOp(state(), ({ type: 'NodeRemove', node: 'n', observedDots: new Set() } as any), eid)).not.toThrow();
       });
 
-      it('accepts NodeRemove without node field (informational only)', () => {
-        expect(() => applyPatchOp(state(), ({ type: 'NodeRemove', observedDots: [] } as any), eid)).not.toThrow();
+      it('rejects NodeRemove without node field (#193: a remove must name its owner)', () => {
+        expect(() => applyPatchOp(state(), { type: 'NodeRemove', observedDots: [] }, eid)).toThrow(PatchError);
       });
     });
 
@@ -216,8 +216,8 @@ describe('JoinReducer validation', () => {
         expect(() => applyPatchOp(state(), ({ type: 'EdgeRemove', from: 'a', to: 'b', label: 'l', observedDots: new Set() } as any), eid)).not.toThrow();
       });
 
-      it('accepts EdgeRemove without from/to/label (informational only)', () => {
-        expect(() => applyPatchOp(state(), ({ type: 'EdgeRemove', observedDots: [] } as any), eid)).not.toThrow();
+      it('rejects EdgeRemove without from/to/label (#193: a remove must name its owner)', () => {
+        expect(() => applyPatchOp(state(), { type: 'EdgeRemove', observedDots: [] }, eid)).toThrow(PatchError);
       });
     });
 
