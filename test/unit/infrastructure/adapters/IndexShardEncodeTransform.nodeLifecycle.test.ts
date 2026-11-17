@@ -6,9 +6,10 @@
  * The pinned sha256 values were produced by running this file once against
  * the first implementation; they catch any later change to the encoding.
  * The receipt's value was pinned again the same way when the receipt gained
- * its floating tombstones, and again when the receipt began to list every
- * tombstoned node dot (#1119): for this fixture it changed from no dots to
- * `w:1` and `w:2`, which the receipt cases below assert.
+ * its floating tombstones. Every value was pinned again for schema 3 (#1119),
+ * whose records carry the tombstoned dots that the node's entry holds: for
+ * this fixture `readded` carries `w:1` and `w:2`, and the receipt lists no
+ * dot, which the cases below assert.
  */
 
 import { createHash } from 'node:crypto';
@@ -101,10 +102,10 @@ describe('node lifecycle shards', () => {
 
     expect(recordOf('readded')).toMatchObject({
       birth: event(4), clear: event(6, 'x'), pendingRemoves: [],
-      registers: new Map(),
+      registers: new Map(), tombstonedDots: ['w:1', 'w:2'],
     });
     expect(recordOf('early')).toMatchObject({
-      birth: event(8), clear: null, pendingRemoves: [], registers: new Map([['k', event(7)]]),
+      birth: event(8), clear: null, pendingRemoves: [], registers: new Map([['k', event(7)]]), tombstonedDots: [],
     });
     expect([...(recordOf('plain')?.registers.keys() ?? [])]).toEqual(['a', 'b']);
   });
@@ -152,16 +153,16 @@ describe('node lifecycle receipt', () => {
     expect(decodeNodeLifecycleReceipt(receiptOf(encoded), paths)).toMatchObject({
       nodeCount: 3,
       shardCount: 3,
-      floatingTombstones: ['w:1', 'w:2', 'y:1'],
+      floatingTombstones: ['y:1'],
     });
   });
 
-  it('lists the tombstoned node dots whose adds the state holds', async () => {
-    // `readded` holds w:1 and w:2 and both are removed; the live dots w:3 and w:4 are not listed.
+  it('leaves out the tombstoned node dots that a node entry holds', async () => {
+    // `readded` holds w:1 and w:2 and both are removed; its record lists them instead.
     const encoded = await encode(NodeLifecycleIndexBuilder.fromState(lifecycleState()).yieldShards());
 
     expect(decodeNodeLifecycleReceipt(receiptOf(encoded), [...encoded.keys()])).toMatchObject({
-      floatingTombstones: ['w:1', 'w:2'],
+      floatingTombstones: [],
     });
   });
 
@@ -177,5 +178,44 @@ describe('node lifecycle receipt', () => {
     expect(receipt(['not-a-dot'])).toThrow(malformed);
     expect(receipt([1])).toThrow(malformed);
     expect(receipt(['y:1'])).not.toThrow();
+  });
+});
+
+describe('node lifecycle shards written before records carried tombstoned dots (schema 2)', () => {
+  const path = nodeLifecycleShardPath('readded');
+
+  it('reads a schema-2 record as one whose entry holds no tombstoned dot', () => {
+    const payload = { schemaVersion: 2, entries: [['readded', [[4, 'w', SHA, 0], null, [], []]]] };
+    const records = decodeNodeLifecycleShard(codec.decode<CodecValue>(codec.encode(payload)), path);
+
+    expect(records.get('readded')).toMatchObject({ birth: event(4), clear: null, tombstonedDots: [] });
+  });
+
+  it('reads a schema-2 receipt', () => {
+    const payload = { schemaVersion: 2, nodeCount: 1, shardCount: 1, floatingTombstones: ['y:1'] };
+
+    expect(decodeNodeLifecycleReceipt(codec.decode<CodecValue>(codec.encode(payload)), [path]))
+      .toMatchObject({ nodeCount: 1, shardCount: 1, floatingTombstones: ['y:1'] });
+  });
+
+  it('refuses a schema-3 record without its tombstoned dots', () => {
+    const malformed = expect.objectContaining({ code: 'E_INDEX_SHARD_MALFORMED' });
+
+    expect(refusal({ schemaVersion: 3, entries: [['readded', [[4, 'w', SHA, 0], null, [], []]]] }, path))
+      .toThrow(malformed);
+  });
+
+  it('refuses schema-3 record tombstoned dots that are not ascending encoded dots', () => {
+    const record = (dots: CodecValue): CodecValue => ({
+      schemaVersion: 3, entries: [['readded', [[4, 'w', SHA, 0], null, [], [], dots]]],
+    });
+    const malformed = expect.objectContaining({ code: 'E_INDEX_SHARD_MALFORMED' });
+
+    expect(refusal(record(['w:2', 'w:1']), path)).toThrow(malformed);
+    expect(refusal(record(['w:1', 'w:1']), path)).toThrow(malformed);
+    expect(refusal(record(['not-a-dot']), path)).toThrow(malformed);
+    expect(refusal(record([1]), path)).toThrow(malformed);
+    expect(refusal(record('w:1'), path)).toThrow(malformed);
+    expect(refusal(record(['w:1', 'w:2']), path)).not.toThrow();
   });
 });

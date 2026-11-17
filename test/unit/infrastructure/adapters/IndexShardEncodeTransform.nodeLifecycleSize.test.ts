@@ -19,9 +19,14 @@ import { MATERIALIZATION_INDEX_SHARD_LIMITS } from '../../../../src/domain/mater
 import { applyPatchOp, createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 import LogicalIndexBuildService from '../../../../src/domain/services/index/LogicalIndexBuildService.ts';
 import NodeLifecycleIndexBuilder from '../../../../src/domain/services/index/NodeLifecycleIndexBuilder.ts';
-import { isNodeLifecycleShardPath } from '../../../../src/domain/services/index/NodeLifecycleShardReader.ts';
+import {
+  decodeNodeLifecycleShard,
+  isNodeLifecycleShardPath,
+  NODE_LIFECYCLE_RECEIPT_PATH,
+} from '../../../../src/domain/services/index/NodeLifecycleShardReader.ts';
 import type WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import WarpStream from '../../../../src/domain/stream/WarpStream.ts';
+import type CodecValue from '../../../../src/domain/types/codec/CodecValue.ts';
 import NodeAdd from '../../../../src/domain/types/ops/NodeAdd.ts';
 import NodeRemove from '../../../../src/domain/types/ops/NodeRemove.ts';
 import PropSet from '../../../../src/domain/types/ops/PropSet.ts';
@@ -167,4 +172,36 @@ describe('node lifecycle shard ceiling', () => {
       context: { reason: 'decoded item count exceeds the configured maximum' },
     });
   }, 60_000);
+});
+
+describe('node lifecycle tombstones at 10,000 removed nodes', () => {
+  // Oracle: each fixture node `node:N` is added with dot `w:N+1` and that dot
+  // is removed, so its entry holds exactly that tombstoned dot.
+  function expectedDots(): ReadonlyMap<string, readonly string[]> {
+    return new Map(Array.from({ length: NODES }, (_, index) => [
+      `node:${String(index).padStart(6, '0')}`, [encodeDot(Dot.create('w', index + 1))],
+    ]));
+  }
+
+  it('keeps the receipt bytes of the live graph: no removed node dot reaches the receipt', async () => {
+    const live = await encoded(NodeLifecycleIndexBuilder.fromState(build('once')).yieldShards());
+    const removed = await encoded(NodeLifecycleIndexBuilder.fromState(build('removed')).yieldShards());
+
+    expect(removed.get(NODE_LIFECYCLE_RECEIPT_PATH)).toEqual(live.get(NODE_LIFECYCLE_RECEIPT_PATH));
+  });
+
+  it('lists each removed node dot in that node record and nowhere else', async () => {
+    const members = await encoded(NodeLifecycleIndexBuilder.fromState(build('removed')).yieldShards());
+    const listed = new Map<string, readonly string[]>();
+    for (const [path, bytes] of members) {
+      if (isNodeLifecycleShardPath(path)) {
+        for (const record of decodeNodeLifecycleShard(codec.decode<CodecValue>(bytes), path).values()) {
+          listed.set(record.nodeId, record.tombstonedDots);
+        }
+      }
+    }
+
+    expect(listed.size).toBe(NODES);
+    expect(listed).toEqual(expectedDots());
+  });
 });

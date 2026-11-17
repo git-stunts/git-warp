@@ -3,7 +3,7 @@ import { NodeLifecycleRecord } from '../../../../../src/domain/artifacts/NodeLif
 import { EventId } from '../../../../../src/domain/utils/EventId.ts';
 
 const clear = new EventId(2, 'A', 'abcdef01', 0);
-const fields = { nodeId: 'n', birth: null, clear, pendingRemoves: [], registers: [] };
+const fields = { nodeId: 'n', birth: null, clear, pendingRemoves: [], registers: [], tombstonedDots: [] };
 const unconstructed = { lamport: 1, writerId: 'A', patchSha: 'abcdef01', opIndex: 0 };
 
 it('accepts a clear without a birth and rejects pending removals in current records', () => {
@@ -31,4 +31,13 @@ it('keeps validated register evidence intact when a caller mutates the exposed m
   if (exposed instanceof Map) exposed.clear();
   expect(record.registerEvent('k')).toBe(clear);
   expect([...record.registers]).toEqual([['k', clear]]);
+});
+
+it('keeps the tombstoned dots that the node entry holds, as strictly ascending encoded dots', () => {
+  expect(new NodeLifecycleRecord({ ...fields, tombstonedDots: ['A:1', 'A:2', 'B:1'] }).tombstonedDots)
+    .toEqual(['A:1', 'A:2', 'B:1']);
+  expect(() => new NodeLifecycleRecord({ ...fields, tombstonedDots: ['B:1', 'A:1'] })).toThrow(/ascending/u);
+  expect(() => new NodeLifecycleRecord({ ...fields, tombstonedDots: ['A:1', 'A:1'] })).toThrow(/ascending/u);
+  expect(() => new NodeLifecycleRecord({ ...fields, tombstonedDots: ['not-a-dot'] }))
+    .toThrow(expect.objectContaining({ code: expect.stringMatching(/^E_/u) }));
 });

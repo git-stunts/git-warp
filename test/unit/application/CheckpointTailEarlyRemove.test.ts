@@ -11,14 +11,17 @@
  *
  * The session trie keeps the early tombstone by reserving the observed dot
  * under the element, so the checkpoint state holds an entry for that dot.
- * The node lifecycle receipt must list the dot anyway; the first case reads
- * the receipt, the other cases read through the runtime host.
+ * The removed node's lifecycle record must list the dot, and the receipt,
+ * which holds only tombstones that no entry holds, must not grow with it;
+ * the first case reads the lifecycle family, the other cases read through
+ * the runtime host.
  */
 
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { Dot, encodeDot } from '../../../src/domain/crdt/Dot.ts';
 import { NodeLifecycleReceipt } from '../../../src/domain/artifacts/NodeLifecycleReceipt.ts';
+import { NodeLifecycleShard } from '../../../src/domain/artifacts/NodeLifecycleShard.ts';
 import { reducePatches } from '../../../src/domain/services/JoinReducer.ts';
 import NodeLifecycleIndexBuilder from '../../../src/domain/services/index/NodeLifecycleIndexBuilder.ts';
 import type WarpState from '../../../src/domain/services/state/WarpState.ts';
@@ -55,13 +58,20 @@ function reducerAlive(patches: readonly Patch[], nodeId: string): boolean {
   return reducePatches(entries).nodeAlive.contains(nodeId);
 }
 
-function receiptTombstonesOf(state: WarpState): readonly string[] {
+/** The receipt's tombstones and every record's tombstoned dots, keyed by node id. */
+function lifecycleTombstonesOf(state: WarpState): { receipt: readonly string[]; records: ReadonlyMap<string, readonly string[]> } {
+  let receipt: readonly string[] | null = null;
+  const records = new Map<string, readonly string[]>();
   for (const shard of NodeLifecycleIndexBuilder.fromState(state).yieldShards()) {
     if (shard instanceof NodeLifecycleReceipt) {
-      return shard.floatingTombstones;
+      receipt = shard.floatingTombstones;
+    }
+    if (shard instanceof NodeLifecycleShard) {
+      shard.records.forEach((record) => records.set(record.nodeId, record.tombstonedDots));
     }
   }
-  throw new Error('the lifecycle builder yielded no receipt');
+  if (receipt === null) { throw new Error('the lifecycle builder yielded no receipt'); }
+  return { receipt, records };
 }
 
 type NodeReads = {
@@ -115,7 +125,7 @@ function fetchWriter(origin: string, replica: string, writer: string): void {
 }
 
 describe('checkpoint-tail node read after an early remove on Git storage (#1119)', () => {
-  it('lists the dot of an early remove in the node lifecycle receipt of the materialized state', { timeout: 60000 }, async () => {
+  it('lists the dot of an early remove in the removed node\'s lifecycle record, not in the receipt', { timeout: 60000 }, async () => {
     const materialized = await inGitRepo('checkpoint-tail-early-remove-receipt', async (cwd) => {
       await withHost(cwd, 'init', async () => { /* writes the substrate marker */ });
       await appendJournalPatch(cwd, abeRemovesN1);
@@ -129,8 +139,8 @@ describe('checkpoint-tail node read after an early remove on Git storage (#1119)
     });
     expect({
       tombstones: [...materialized.nodeAlive.tombstonesIter()],
-      receipt: receiptTombstonesOf(materialized),
-    }).toEqual({ tombstones: [ZED_1], receipt: [ZED_1] });
+      lifecycle: lifecycleTombstonesOf(materialized),
+    }).toEqual({ tombstones: [ZED_1], lifecycle: { receipt: [], records: new Map([['n1', [ZED_1]]]) } });
   });
 
   it('reads a node removed when its add and its remove are both inside the checkpoint', { timeout: 60000 }, async () => {
