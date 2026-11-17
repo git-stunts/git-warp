@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type ObservationAttemptId from '../../domain/services/custody/ObservationAttemptId.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
+import OperationPolicyExhaustedError from '../../domain/errors/OperationPolicyExhaustedError.ts';
 import UnsupportedWriteAttemptLayoutError from '../../domain/errors/UnsupportedWriteAttemptLayoutError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import WriteAttemptJournalUnavailableError from '../../domain/errors/WriteAttemptJournalUnavailableError.ts';
@@ -95,9 +96,10 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
   }
 
   /**
-   * A host failure a retry can clear (`isTransientGitFailure`) throws
-   * `WriteAttemptJournalUnavailableError` with that failure as its cause (#1109). Any other
-   * failure, a defect in encoding included, passes through as it is.
+   * A host failure a retry can clear throws `WriteAttemptJournalUnavailableError` with that
+   * failure as its cause (#1109): one on the shared list (`isTransientGitFailure`), or the
+   * history adapter's retry wrapper around one. Any other failure, a defect in encoding or a
+   * retry wrapper around a defect or corruption included, passes through as it is.
    */
   override async save(record: WriteAttemptRecord): Promise<void> {
     const bytes = this.#codec.encode({
@@ -232,7 +234,16 @@ function journalFailure(operation: string, error: unknown): Error {
   if (!(error instanceof Error)) {
     return new WarpError(`The write-attempt journal host threw a non-error value while trying to ${operation}`, 'E_WRITE_ATTEMPT_JOURNAL_HOST_DEFECT');
   }
-  return isTransientGitFailure(error) ? new WriteAttemptJournalUnavailableError(operation, error) : error;
+  return isJournalTransient(error) ? new WriteAttemptJournalUnavailableError(operation, error) : error;
+}
+
+/**
+ * The shared list, or the history adapter's retry wrapper whose typed cause is on it (#1109
+ * decision D1): a held lock on the record ref outlasts the ref update's retries, so it
+ * arrives as `OperationPolicyExhaustedError` around `GitRepositoryLockedError`.
+ */
+function isJournalTransient(error: Error): boolean {
+  return isTransientGitFailure(error) || (error instanceof OperationPolicyExhaustedError && isTransientGitFailure(error.cause));
 }
 
 /** Sorts one listed blob into the page: a record, an other-layout ref, or nothing. */

@@ -38,12 +38,15 @@ async function calledFailing(failure: Error | string, call: HostCall): Promise<v
 const STDERR = `fatal: cannot lock ref '${REF}': File exists.`;
 const LOCKED = new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: STDERR });
 const REF_IO = new PersistenceError(`Ref I/O error: ${REF}`, PersistenceError.E_REF_IO);
+/** git-cas's form of a held lock on the construction ref (#1109 decision D2). */
+const REF_UPDATE_FAILED = new CasError('Application publication ref update failed', 'PUBLICATION_REF_UPDATE_FAILED');
 
 /** Real producer envelopes that no retry clears, or that the host cannot identify as transient (#1079). */
 const REJECTED: ReadonlyArray<readonly [string, Error]> = [
   ['PUBLICATION_CONFLICT', new CasError('Application publication conflict', 'PUBLICATION_CONFLICT')],
-  ['PUBLICATION_REF_UPDATE_FAILED', new CasError('Application publication ref update failed', 'PUBLICATION_REF_UPDATE_FAILED')],
   ['GIT_OBJECT_NOT_FOUND', new CasError('Git object not found', 'GIT_OBJECT_NOT_FOUND')],
+  ['INTEGRITY_ERROR', new CasError('Object integrity check failed', 'INTEGRITY_ERROR')],
+  ['the update-failed code on an error that is not git-cas\'s', Object.assign(new Error('Application publication ref update failed'), { code: 'PUBLICATION_REF_UPDATE_FAILED' })],
   ['a truncated object (GitProtocolError)', new GitProtocolError('Git process closed before completing its response', 'ByteReader._readChunk')],
   ['a failed Git command', new GitPlumbingError('Git command failed with code 128', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: 'fatal: bad object' })],
   ['a missing object (history adapter)', new PersistenceError('Missing Git object', PersistenceError.E_MISSING_OBJECT)],
@@ -59,6 +62,10 @@ describe('GitObservationSupportHost classifies only known transient failures as 
 
   it.each(CALLS)('reports a ref I/O failure from %s as unavailable, keeping its cause', async (_name, call) => {
     await expect(calledFailing(REF_IO, call)).rejects.toMatchObject({ code: 'E_OBSERVATION_SUPPORT_UNAVAILABLE', cause: REF_IO });
+  });
+
+  it.each(CALLS)('reports a git-cas ref update failure from %s as unavailable, keeping its cause', async (_name, call) => {
+    await expect(calledFailing(REF_UPDATE_FAILED, call)).rejects.toMatchObject({ code: 'E_OBSERVATION_SUPPORT_UNAVAILABLE', cause: REF_UPDATE_FAILED });
   });
 
   it.each(CALLS)('refuses a thrown non-error from %s as a defect', async (_name, call) => {

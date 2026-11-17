@@ -612,19 +612,28 @@ from the patch feed or the writer's runtime host rejects, transient or not; thos
 sources are not classified by type yet. The journal and support adapters raise
 `WriteAttemptJournalUnavailableError` and `ObservationSupportUnavailableError`, which
 also carry the failure as their `cause`. Domain code dispatches on these classes with
-`instanceof`, never on a message.
+`instanceof`, never on a message. The cause stays on the error and off the public
+receipt, whose `cause` is a policy-safe string (decided 2026-11-08). #1107 will report
+the underlying cause through the injected logger; until then the underlying host
+failure is not recorded. A `GitProtocolError` rejects (decided 2026-11-08, option A): a
+crashed `git` process and a truncated object look the same, git-cas has already
+retried it once on the object-session path, and on other paths it cannot be identified
+as transient.
 
-Two real held ref locks reach the journal and support steps in envelopes that are
-not on the list, so they reject (#1109). The history adapter retries a ref update,
-so a held lock on the attempt record ref reaches the journal as
-`OperationPolicyExhaustedError`, with the lock failure as its `cause`. git-cas
-reports a held lock on the support construction ref as its own code
-`PUBLICATION_REF_UPDATE_FAILED`, whose underlying failure is a `GitProtocolError`. The cause stays on the error and off the public receipt, whose `cause` is a
-policy-safe string (decided 2026-11-08). #1107 will report the underlying cause
-through the injected logger; until then the underlying host failure is not recorded.
-A `GitProtocolError` rejects (decided 2026-11-08, option A): a crashed `git` process
-and a truncated object look the same, git-cas has already retried it once on the
-object-session path, and on other paths it cannot be identified as transient.
+A real held ref lock reaches the journal and support steps in an envelope outside the
+list, and each such envelope also counts as unavailable (decided 2026-11-17 on #1109):
+
+- **D1, journal.** The history adapter retries a ref update, so a held lock on the
+  attempt record ref arrives as `OperationPolicyExhaustedError` whose `cause` is
+  `GitRepositoryLockedError`. The journal adapter treats a retry wrapper as unavailable
+  when its typed `cause` is on the list. A retry wrapper around a defect or around
+  corruption still rejects.
+- **D2, support.** git-cas reports a held lock on the support construction ref as a
+  `CasError` with code `PUBLICATION_REF_UPDATE_FAILED`: a ref update failed, and a
+  retry can clear it. The support host treats that typed code as unavailable, as the
+  support step's form of `E_REF_IO`. Every other git-cas code keeps its class, so an
+  integrity error such as `GIT_OBJECT_NOT_FOUND` stays corruption and rejects, and a
+  bare `GitProtocolError` that git-cas does not wrap in this code still rejects.
 
 - `AuthoredWarp.execute()` returns `UnpublishedWriteReceipt` with
   `write-basis-unavailable` when the store is unavailable while it fixes the write
@@ -632,9 +641,11 @@ object-session path, and on other paths it cannot be identified as transient.
   Nothing was reserved or published at either step, so the receipt is true. An
   expected write refusal met while reading keeps its own cause and repair hints.
 - It returns `attempt-journal-unavailable` when the store is unavailable while it
-  saves the attempt record. Nothing was saved, reserved or published.
+  saves the attempt record, a held lock on that record's ref included (D1). Nothing
+  was saved, reserved or published.
 - It returns `retention-unavailable` when the store is unavailable while custody
-  builds or checks the attempt's support (#1109), and when the custody ledger does not
+  builds or checks the attempt's support (#1109), a held lock on the construction ref
+  included (D2), and when the custody ledger does not
   answer a reserve, inspect, prepare or arm step. The custody ledger adapter still
   turns every failure of its own into that answer, whatever its type. Nothing was
   published, but the attempt record stays saved and a retention slot can stay
@@ -642,8 +653,9 @@ object-session path, and on other paths it cannot be identified as transient.
   that nothing was reserved.
 - At the journal and support steps, every other failure rejects (#1109): a defect
   (`TypeError`, `RangeError`), a thrown non-error, corruption such as a
-  `PersistenceError` `E_MISSING_OBJECT`, a git-cas code, and an error the adapter
-  cannot identify. A rejection at the journal step has saved and reserved nothing.
+  `PersistenceError` `E_MISSING_OBJECT`, a retry wrapper around a defect or around
+  corruption, every git-cas code except `PUBLICATION_REF_UPDATE_FAILED` at the support
+  step, and an error the adapter cannot identify. A rejection at the journal step has saved and reserved nothing.
   Before a rejection while support is built or checked, the write cancels its
   reservation. Once custody confirms the cancel, the slot is free and the write
   removes the attempt record; that removal is best effort. A cancel that custody

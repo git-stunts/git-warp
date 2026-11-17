@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { CasError } from '@git-stunts/git-cas';
 import { GitPlumbingError, GitProtocolError, GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import AdapterValidationError from '../../../../src/domain/errors/AdapterValidationError.ts';
+import OperationPolicyExhaustedError from '../../../../src/domain/errors/OperationPolicyExhaustedError.ts';
 import PersistenceError from '../../../../src/domain/errors/PersistenceError.ts';
 import WriteAttemptJournalUnavailableError from '../../../../src/domain/errors/WriteAttemptJournalUnavailableError.ts';
 import ObservationAttemptId from '../../../../src/domain/services/custody/ObservationAttemptId.ts';
@@ -66,10 +67,20 @@ describe('GitWriteAttemptJournalAdapter', () => {
 const RECORD = new WriteAttemptRecord({ preparation: PREPARATION, admission: 'derived', races: [], occurrences: [], savedAt: 1 });
 const STDERR = "fatal: cannot lock ref 'refs/warp-local/g/write-attempts/a': Unable to create 'refs/warp-local/g/write-attempts/a.lock': File exists.";
 
-/** Real producer envelopes that a retry can clear (#1079): the same list the cone store host uses. */
+const LOCKED = new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: STDERR });
+const REF_IO = new PersistenceError(`Ref I/O error: ${REF}`, PersistenceError.E_REF_IO);
+/** The attempts the history adapter's retry policy makes before it gives up on a ref update. */
+const RETRIED = 4;
+
+/**
+ * Real producer envelopes that a retry can clear: the shared list (#1079), and the history
+ * adapter's retry wrapper around one of them (#1109 decision D1), which a held record ref lock gives.
+ */
 const UNAVAILABLE: ReadonlyArray<readonly [string, Error]> = [
-  ['a held lock file (plumbing)', new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: STDERR })],
-  ['a ref I/O failure (history adapter)', new PersistenceError(`Ref I/O error: ${REF}`, PersistenceError.E_REF_IO)],
+  ['a held lock file (plumbing)', LOCKED],
+  ['a ref I/O failure (history adapter)', REF_IO],
+  ['a retried held lock (operation policy)', new OperationPolicyExhaustedError(RETRIED, LOCKED)],
+  ['a retried ref I/O failure (operation policy)', new OperationPolicyExhaustedError(RETRIED, REF_IO)],
 ];
 
 /** Real producer envelopes that no retry clears, or that the journal cannot identify as transient. */
@@ -80,6 +91,8 @@ const REJECTED: ReadonlyArray<readonly [string, Error]> = [
   ['a missing object (history adapter)', new PersistenceError('Missing Git object', PersistenceError.E_MISSING_OBJECT)],
   ['a bare error', new Error('ENOSPC: no space left on device, write')],
   ['a defect', new TypeError("Cannot read properties of undefined (reading 'oid')")],
+  ['a retry wrapper around a defect', new OperationPolicyExhaustedError(RETRIED, new TypeError("Cannot read properties of undefined (reading 'oid')"))],
+  ['a retry wrapper around corruption', new OperationPolicyExhaustedError(RETRIED, new PersistenceError('Missing Git object', PersistenceError.E_MISSING_OBJECT))],
 ];
 
 describe('GitWriteAttemptJournalAdapter save classifies host failures by type (#1109)', () => {

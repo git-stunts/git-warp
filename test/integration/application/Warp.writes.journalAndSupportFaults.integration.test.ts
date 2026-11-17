@@ -1,12 +1,15 @@
+import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import { intent } from '../../../advanced.ts';
+import OperationPolicyExhaustedError from '../../../src/domain/errors/OperationPolicyExhaustedError.ts';
 import ObservationAttemptId from '../../../src/domain/services/custody/ObservationAttemptId.ts';
 import { buildObservationConstructionRef } from '../../../src/domain/utils/ObservationRefLayout.ts';
 import { buildWriteAttemptRef } from '../../../src/domain/utils/WriteAttemptRefLayout.ts';
 import GitTimelineHistoryAdapter from '../../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import ObservationAttemptSourcePort from '../../../src/ports/ObservationAttemptSourcePort.ts';
-import { GRAPH, attemptRefs, disposeWarpFixtures, git, open, repository, retained, tip, unpublished } from '../../helpers/WarpWriteFixture.ts';
+import { GRAPH, attemptRefs, disposeWarpFixtures, git, open, openSwept, repository, retained, tip, unpublished } from '../../helpers/WarpWriteFixture.ts';
 
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -59,6 +62,19 @@ function failRefReadOnce(ref: string, failure: Error): void {
   });
 }
 
+/** Holds a real lock file on `ref`, as a concurrent `git gc` or another writer would, and returns its release. */
+function holdRefLock(path: string, ref: string): () => void {
+  const lock = join(path, '.git', `${ref}.lock`);
+  mkdirSync(dirname(lock), { recursive: true });
+  writeFileSync(lock, '');
+  return () => {
+    unlinkSync(lock);
+  };
+}
+
+/** How long an unarmed attempt waits before the sweep finishes it. */
+const SWEEP_AGE = 2 * 60 * 60 * 1000;
+
 const LOCKED = new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: 'fatal: Unable to create index.lock' });
 
 describe('the attempt-journal step classifies failures by type (#1109)', () => {
@@ -71,6 +87,29 @@ describe('the attempt-journal step classifies failures by type (#1109)', () => {
     expect(tip(path, 'alice')).toBeNull();
     expect(attemptRefs(path)).toEqual([]);
     retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
+  });
+
+  it('reports a real held lock on the attempt record ref as attempt-journal-unavailable, publishing and reserving nothing', async () => {
+    const path = await repository();
+    const warp = await open(path, { attempts: new FixedAttempts(), limit: 1 });
+    const release = holdRefLock(path, buildWriteAttemptRef(GRAPH, FIRST));
+
+    expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toBe('attempt-journal-unavailable');
+    expect(tip(path, 'alice')).toBeNull();
+    expect(attemptRefs(path)).toEqual([]);
+    release();
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'x' })));
+  });
+
+  it('rejects a retry wrapper around a defect met while saving the attempt record', async () => {
+    const path = await repository();
+    const warp = await open(path, { attempts: new FixedAttempts(), limit: 1 });
+    const wrapped = new OperationPolicyExhaustedError(4, new TypeError("Cannot read properties of undefined (reading 'oid')"));
+    failRefUpdateOnce(buildWriteAttemptRef(GRAPH, FIRST), wrapped);
+
+    await expect(warp.as('alice').execute(intent.node.add({ subject: 'x' }))).rejects.toBe(wrapped);
+    expect(tip(path, 'alice')).toBeNull();
+    expect(attemptRefs(path)).toEqual([]);
   });
 
   it('rejects a defect thrown while saving the attempt record, having published and reserved nothing', async () => {
@@ -98,6 +137,28 @@ describe('the custody-support step classifies failures by type (#1109)', () => {
     expect(tip(path, 'alice')).toBe(before);
     expect(attemptRefs(path)).toEqual([buildWriteAttemptRef(GRAPH, SECOND)]);
     expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'y' }))).cause).toBe('retention-capacity-exhausted');
+  });
+
+  it('reports a real held lock on the construction ref as retention-unavailable, and the sweep finishes the attempt it reserved', async () => {
+    const path = await repository();
+    let now = 1_000;
+    const clock = (): number => now;
+    const warp = await open(path, { attempts: new FixedAttempts(), limit: 2, clock });
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'first' })));
+    const before = tip(path, 'alice');
+    const release = holdRefLock(path, buildObservationConstructionRef(GRAPH, SECOND));
+
+    expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toBe('retention-unavailable');
+    expect(tip(path, 'alice')).toBe(before);
+    expect(attemptRefs(path)).toEqual([buildWriteAttemptRef(GRAPH, SECOND)]);
+    expect(constructionRefs(path)).toEqual([]);
+    release();
+    await warp.close();
+    now += SWEEP_AGE;
+
+    const swept = await openSwept(path, { limit: 2, clock });
+    expect(attemptRefs(path)).toEqual([]);
+    retained(await swept.as('alice').execute(intent.node.add({ subject: 'x' })));
   });
 
   it('rejects a defect thrown while building support, and leaves no attempt ref or reserved slot behind', async () => {

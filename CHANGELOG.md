@@ -249,25 +249,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   type, as #1079 classified the basis-open and premise-read steps
   ([#1109](https://github.com/git-stunts/git-warp/issues/1109)). The write-attempt
   journal, when it saves a record, and the observation support adapter type a failure a
-  retry can clear (`PersistenceError` `E_REF_IO` or `GitRepositoryLockedError`, as it
-  reaches them) as `WriteAttemptJournalUnavailableError` or
-  `ObservationSupportUnavailableError`. That still gives `attempt-journal-unavailable` or
-  `retention-unavailable`. Every other failure at those steps now rejects instead of
-  giving one of those receipts: a defect (`TypeError`, `RangeError`), a thrown
-  non-error, corruption such as `PersistenceError` `E_MISSING_OBJECT`, a git-cas code
-  and an error neither adapter can identify. Two real held ref locks are among them: a
-  lock on the attempt record ref reaches the journal as `OperationPolicyExhaustedError`
-  after the history adapter's retries, and git-cas reports a lock on the support
-  construction ref as `PUBLICATION_REF_UPDATE_FAILED`. A rejection at the journal step
-  has reserved nothing. Before a rejection while support is built, the write cancels
-  its reservation. Once custody confirms the cancel, the slot is free and the write
-  removes its attempt record; that removal is best effort. If custody cannot confirm
-  the cancel, or the removal fails, the record stays and the recovery sweep finishes
-  the attempt. On unreleased `main` such a failure gave `retention-unavailable` and
-  left the record and the reserved slot for the sweep. A `retention-unavailable` from unavailable support keeps the
-  attempt record and its reserved slot until the recovery sweep finishes the attempt. A
-  failure of the custody ledger itself still gives `retention-unavailable`, whatever
-  its type.
+  retry can clear as `WriteAttemptJournalUnavailableError` or
+  `ObservationSupportUnavailableError`, which still gives `attempt-journal-unavailable`
+  or `retention-unavailable`. That covers the shared list (`PersistenceError`
+  `E_REF_IO`, `GitRepositoryLockedError`) and a real held ref lock at either step: at the
+  journal, the history adapter's retry wrapper `OperationPolicyExhaustedError` whose
+  typed `cause` is on the list; at support, a git-cas `CasError` with code
+  `PUBLICATION_REF_UPDATE_FAILED`. Every other failure at those steps now rejects
+  instead of giving one of those receipts: a defect (`TypeError`, `RangeError`), a
+  thrown non-error, corruption such as `PersistenceError` `E_MISSING_OBJECT`, a retry
+  wrapper around a defect or corruption, every other git-cas code (integrity errors
+  included), a bare `GitProtocolError`, and an error neither adapter can identify. A
+  rejection at the journal step has reserved nothing. Before a rejection while support
+  is built, the write cancels its reservation. Once custody confirms the cancel, the
+  slot is free and the write removes its attempt record; that removal is best effort.
+  If custody cannot confirm the cancel, or the removal fails, the record stays and the
+  recovery sweep finishes the attempt. On unreleased `main` such a failure gave
+  `retention-unavailable` and left the record and the reserved slot for the sweep. A
+  `retention-unavailable` from unavailable support, a held construction ref lock
+  included, keeps the attempt record and its reserved slot until the recovery sweep
+  finishes the attempt. A failure of the custody ledger itself still gives
+  `retention-unavailable`, whatever its type.
 - Generated writer ids, default strand names, fork names, index-verification
   seeds, and sync request nonces now come from the runtime's injected entropy
   source instead of host crypto globals. Their formats and validation are

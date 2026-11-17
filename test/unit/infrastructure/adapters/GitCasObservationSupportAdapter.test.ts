@@ -44,7 +44,11 @@ async function verified(failure: Error | string): Promise<void> {
 }
 
 const REF_IO = new PersistenceError('Ref I/O error: refs/warp/g/observation', PersistenceError.E_REF_IO);
-const TRANSIENT: ReadonlyArray<readonly [string, Error]> = [['a held lock file', LOCKED], ['a ref I/O failure', REF_IO]];
+const TRANSIENT: ReadonlyArray<readonly [string, Error]> = [
+  ['a held lock file', LOCKED],
+  ['a ref I/O failure', REF_IO],
+  ['a git-cas ref update failure', new CasError('Application publication ref update failed', 'PUBLICATION_REF_UPDATE_FAILED')],
+];
 const UNTYPED: ReadonlyArray<readonly [string, Error]> = [
   ['a git-cas code', new CasError('Git command failed', 'GIT_ERROR')],
   ['a missing object', new PersistenceError('Missing Git object', PersistenceError.E_MISSING_OBJECT)],
