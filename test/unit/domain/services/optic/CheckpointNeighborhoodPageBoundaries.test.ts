@@ -152,10 +152,9 @@ describe('checkpoint neighbourhood pages at the boundaries named in #1159', () =
     ]);
   });
 
-  // The page-count formula in CheckpointShardFactReader.manifest.test.ts is
-  // ceil((candidates + 1) / budget). When only the last candidate is live,
-  // the pages number ceil(candidates / budget); the two differ when the
-  // candidate count is an exact multiple of the budget (2 * BUDGET: 3 and 2).
+  // When only the last candidate is live, the pages number
+  // ceil(candidates / budget), also when the candidate count is an exact
+  // multiple of the budget.
   it.each([
     ['one below twice the budget', 2 * BUDGET - 1, 2],
     ['exactly twice the budget', 2 * BUDGET, 2],
@@ -170,11 +169,11 @@ describe('checkpoint neighbourhood pages at the boundaries named in #1159', () =
     expect(source.visited).toBe(candidates);
   });
 
-  // Reproduced, not fixed (#1159): roaring-wasm returns rank(...) >>> 0, so
-  // the rank of the last id in a bitmap of all 2^32 ids wraps to 0 and the
-  // label restarts at index 0. No candidate follows the last id, so the
-  // correct page visits nothing and has no more candidates.
-  it.fails('ends a label whose cursor names the last id of a bitmap that holds every id (#1159)', async () => {
+  // roaring-wasm returns rank(...) >>> 0, so the rank of the last id in a
+  // bitmap of all 2^32 ids wraps to 0, and the label would restart at index
+  // 0. No candidate follows the last id, so the page visits nothing and has
+  // no more candidates.
+  it('ends a label whose cursor names the last id of a bitmap that holds every id', async () => {
     const source = new StoredPageSource({ out: { '0': encodePortableShard(fullRunContainers(65_536)) } }, []);
 
     const page = await readPage(source, 'out', { direction: 'out', globalId: LAST_GLOBAL_ID, label: 'a' });
