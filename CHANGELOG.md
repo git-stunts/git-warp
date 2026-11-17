@@ -434,10 +434,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `syncWith` no longer reads an HTTP sync response of any size
-  ([#1135](https://github.com/git-stunts/git-warp/issues/1135)). Before, the client
-  read the whole body with `response.json()` and no byte limit, so a faulty or hostile
-  peer could make it hold any amount of data in memory. The client now reads at most
+- The package's internal HTTP sync client, which `syncWith` uses, no longer reads a
+  response of any size ([#1135](https://github.com/git-stunts/git-warp/issues/1135)).
+  v21.0.0 has no public HTTP sync route; see the
+  [v21 migration guide](docs/migrations/v21/README.md#http-sync-authentication).
+  Before, the client read the whole body with `response.json()` and no byte limit, so
+  a faulty or hostile peer could make it hold any amount of data in memory. The client
+  now reads at most
   512 MiB (536,870,912 bytes, `DEFAULT_MAX_SYNC_RESPONSE_BYTES`) and refuses a larger
   response before it parses it: from a decimal `Content-Length` over the limit, or when
   the streamed body passes the limit, because the header can be absent or wrong. The

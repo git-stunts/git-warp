@@ -258,9 +258,11 @@ again until you know why it sent the record.
 
 ## HTTP sync response limit
 
-`syncWith` reads at most 512 MiB (536,870,912 bytes) of one HTTP sync
-response ([#1135](https://github.com/git-stunts/git-warp/issues/1135)). The
-limit is `DEFAULT_MAX_SYNC_RESPONSE_BYTES` in
+v21.0.0 has no public HTTP sync client or server (see
+[v19 boundary](#v19-boundary)). Inside the package, the HTTP sync client that
+`syncWith` uses reads at most 512 MiB (536,870,912 bytes) of one response
+([#1135](https://github.com/git-stunts/git-warp/issues/1135)). The limit is
+`DEFAULT_MAX_SYNC_RESPONSE_BYTES` in
 `src/infrastructure/adapters/FetchSyncHttpClientAdapter.ts`. No `syncWith`
 option changes it.
 
