@@ -10,9 +10,10 @@
 // Cost: at 654,322 neighbours per hub, createCheckpoint had written 4.5 GB of Git objects after
 // 81 minutes without finishing (Docker, 2026-11-17), which is above the 4 GiB data budget for
 // one run. large-shard-checkpoint-witness.ts checks the same shard through the index store.
+// The run removes its temporary repository when it ends, also when it fails.
 //   node test/performance/hub-checkpoint-witness.ts <hubs in one shard key> <neighbours per hub>
 import { spawnSync } from 'node:child_process';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -63,8 +64,20 @@ async function main(): Promise<void> {
   const neighbours = positive(process.argv[3]);
   installDefaultRuntimeHostNodePorts();
   const directory = await mkdtemp(join(tmpdir(), 'hub-checkpoint-witness-'));
-  spawnSync('git', ['init', '--quiet', directory], { stdio: 'inherit' });
-  const storage = await GitStorage.open({ cwd: directory });
+  try {
+    spawnSync('git', ['init', '--quiet', directory], { stdio: 'inherit' });
+    const storage = await GitStorage.open({ cwd: directory });
+    try {
+      await witness(storage, hubs, neighbours);
+    } finally {
+      await storage.close();
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+async function witness(storage: GitStorage, hubs: readonly string[], neighbours: number): Promise<void> {
   const binding = resolveWarpStorage(storage);
   const graph = await openRuntimeHostProduct({
     persistence: binding.history,
@@ -100,7 +113,6 @@ async function main(): Promise<void> {
     hubs, neighbours, outcomes,
     maxRssBytes: process.resourceUsage().maxRSS * 1024,
   })}`);
-  await storage.close();
 }
 
 async function readAllNeighbours(graph: RuntimeHostProduct, hub: string): Promise<Outcome> {
