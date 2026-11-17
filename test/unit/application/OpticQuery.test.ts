@@ -50,14 +50,7 @@ describe('OpticQuery', () => {
     const view = createView();
     const query = new OpticQuery({ view, purpose: null, budget: null, subject: null, key: null });
     expect(() => query.prop('title')).toThrow(OpticError);
-    try {
-      query.prop('title');
-    } catch (err) {
-      expect(err).toBeInstanceOf(OpticError);
-      if (err instanceof OpticError) {
-        expect(err.code).toBe('E_OPTIC_QUESTION');
-      }
-    }
+    expect(() => query.prop('title')).toThrow(expect.objectContaining({ code: 'E_OPTIC_QUESTION' }));
   });
 
   it('refuses empty property key for prop() with OpticError (E_OPTIC_QUESTION)', () => {
@@ -72,28 +65,14 @@ describe('OpticQuery', () => {
     const view = createView();
     const query = new OpticQuery({ view, purpose: null, budget: null, subject: null, key: null }).node('item-1');
     await expect(() => query.read()).rejects.toThrow(OpticError);
-    try {
-      await query.read();
-    } catch (err) {
-      expect(err).toBeInstanceOf(OpticError);
-      if (err instanceof OpticError) {
-        expect(err.code).toBe('E_OPTIC_PURPOSE');
-      }
-    }
+    await expect(() => query.read()).rejects.toMatchObject({ code: 'E_OPTIC_PURPOSE' });
   });
 
   it('refuses read() without node question with OpticError (E_OPTIC_QUESTION)', async () => {
     const view = createView();
     const query = new OpticQuery({ view, purpose, budget: null, subject: null, key: null });
     await expect(() => query.read()).rejects.toThrow(OpticError);
-    try {
-      await query.read();
-    } catch (err) {
-      expect(err).toBeInstanceOf(OpticError);
-      if (err instanceof OpticError) {
-        expect(err.code).toBe('E_OPTIC_QUESTION');
-      }
-    }
+    await expect(() => query.read()).rejects.toMatchObject({ code: 'E_OPTIC_QUESTION' });
   });
 
   it('delegates to view.run with constructed request on read()', async () => {
