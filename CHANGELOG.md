@@ -112,12 +112,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before anything is reserved, with cause `writer-limit-reached` and repair
   `reuse_writer_id`; writers already in the frontier keep writing. A frontier
   can still pass the limit: through first writes that new writers make at the
-  same time, or through writer chains fetched from another clone. Such a graph
-  refuses every write by every writer ID, with cause
-  `retention-refused-writer-limit` and repair `compact_writer_frontier`.
-  Frontier compaction is not available yet
-  ([#1044](https://github.com/git-stunts/git-warp/issues/1044)), so until then
-  that graph accepts no writes.
+  same time, or through writer chains fetched from another clone. Every writer
+  in such a frontier keeps writing
+  ([#1197](https://github.com/git-stunts/git-warp/issues/1197), under Fixed).
 - Close the four accepted risks in `.github/SECURITY.md` whose acceptance
   expired on 2026-08-01, as the Option B decision on
   [#1032](https://github.com/git-stunts/git-warp/issues/1032) requires:
@@ -419,6 +416,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A clone that holds more than 4,096 writer chains writes again
+  ([#1197](https://github.com/git-stunts/git-warp/issues/1197)). Before, a frontier past
+  the writer limit, from first writes that new writers made at the same time or from
+  writer chains that `git fetch` brought in, refused every write with
+  `retention-refused-writer-limit` and the repair `compact_writer_frontier`, which did
+  not exist. Custody now retains a write's frontier through shared frontier anchors:
+  deterministic commits that group the writer heads by a fixed, versioned bucket of the
+  writer ID (63 branches of 63 leaves, at most 63 heads for each commit). Every write
+  and every clone over the same frontier shares them, so a write that changes one head
+  adds two anchor commits and one carrier, however many writers the graph has. The
+  writer chains, the fold, the readings and the documented `git fetch` recipe do not
+  change, and no patch, receipt, dot or tombstone is retired. The cause
+  `retention-refused-writer-limit` and the repair `compact_writer_frontier` are gone. A
+  new writer ID on a frontier of 4,096 or more is still refused with
+  `writer-limit-reached`. One bound remains: a basis frontier is one blob of at most
+  4 MiB, which names about 36,800 to 72,300 writer chains, as writer IDs run from 64 to
+  9 characters. A clone past it refuses every write with
+  `retention-refused-frontier-limit` and the hint `frontier_limit_reached`. The custody
+  carrier format changes with this; it was not in a release.
 - The determinism gate scans the TypeScript domain and runs in `npm run lint`
   ([#1084](https://github.com/git-stunts/git-warp/issues/1084)). `scripts/ban-nondeterminism.ts`
   matched only `src/domain/**/*.js`; after the TypeScript conversion that was no file at all,

@@ -62,19 +62,28 @@ try {
 Use a stable writer identity for each independent clone or process that writes
 to the same graph.
 
-A graph supports at most 4,096 writers. Use a bounded pool of writer IDs, not
+A graph admits at most 4,096 writers. Use a bounded pool of writer IDs, not
 one writer ID for each end user. A writer ID counts from its first write, and
 nothing removes one yet. A new writer ID on a graph that already has 4,096 gets
 an `UnpublishedWriteReceipt` with cause `writer-limit-reached`; the writers the
 graph already has keep writing.
 
 The limit counts every writer chain that a clone holds, including chains that
-it fetched from other clones. A clone that holds more than 4,096 writer chains
-refuses every write by every writer ID, with cause
-`retention-refused-writer-limit`. Nothing repairs that yet
-([#1044](https://github.com/git-stunts/git-warp/issues/1044) tracks frontier
-compaction), so keep the total number of writer IDs across all clones of a
-graph at or below 4,096.
+it fetched from other clones. A clone can still hold more than 4,096: new
+writers can make their first writes at the same time, and `git fetch` brings in
+the chains of other clones. Every writer in such a clone keeps writing, also
+after the clone is reopened, and a new writer ID there gets
+`writer-limit-reached`
+([#1197](https://github.com/git-stunts/git-warp/issues/1197)). Custody retains
+the writer heads of each write through frontier anchors that all writes share,
+so a write adds only a few commits, however many writers the graph has.
+
+One bound remains. A clone stores the frontier of its writers as one blob of at
+most 4 MiB. That holds about 36,800 writer chains with 64-character writer IDs,
+and about 72,300 with 9-character IDs. A clone that holds more refuses every
+write by every writer ID, with cause `retention-refused-frontier-limit`, and no
+git-warp command reduces the frontier. Keep the total number of writer IDs
+across all clones of a graph well below that bound.
 
 `execute` accepts one Intent or one non-empty ordered array. The array lowers
 through one patch publication: either all of its edits become visible, or none
