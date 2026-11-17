@@ -10,6 +10,11 @@
 # Keys: docs.coderabbit.ai/reference/configuration (reviews.auto_apply_labels,
 # reviews.suggested_labels, issue_enrichment.labeling.auto_apply_labels) and
 # docs.coderabbit.ai/configuration/configuration-inheritance.
+#
+# Not overridden: reviews.slop_detection. Its `label` key has no default in
+# schema.v2.json, so it labels a PR classified as slop only when an
+# inherited setting names a label. Turning it off would also turn off its
+# spam detection; that is a maintainer decision.
 inheritance: true
 reviews:
   auto_apply_labels: false

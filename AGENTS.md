@@ -184,8 +184,10 @@ DTO and stop there**. Do not hallucinate fake domain models.
   | `release-home:vX.Y.Z` / `lane:vX.Y.Z` | GitHub Milestone `vX.Y.Z` |
   | `feature:*` / `legend:*` | One `area:*` label, with doctrine in the body |
 
-- `.coderabbit.yaml` stops CodeRabbit from applying labels, so issue labels
-  stay under human control.
+- `.coderabbit.yaml` stops CodeRabbit from applying issue labels and review
+  labels, so issue labels stay under human control. It does not override
+  `reviews.slop_detection`, which labels a PR only when a setting names a
+  label.
 
 - Release gates must count GitHub Issues by the simplified labels and
   milestones. Missing required labels or milestones are gate failures, never
