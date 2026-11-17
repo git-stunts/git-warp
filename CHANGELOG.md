@@ -435,6 +435,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runs while a fast-import process of a cone rebuild runs can still delete a reused
   object; see [Operations: Garbage collection](docs/operations/README.md#garbage-collection)
   ([#1127](https://github.com/git-stunts/git-warp/issues/1127)).
+- The determinism gate scans the TypeScript domain and runs in `npm run lint`
+  ([#1084](https://github.com/git-stunts/git-warp/issues/1084)). `scripts/ban-nondeterminism.ts`
+  matched only `src/domain/**/*.js`; after the TypeScript conversion that was no file at all,
+  so it passed on every tree, and no script or workflow ran it. It now reads every file under
+  `src/domain/`, whatever its extension, and refuses to pass (exit 2) when `src/domain` is
+  missing, holds no file, or holds a symbolic link. `npm run lint:determinism` runs it, and
+  `npm run lint` (pre-push hook and the CI lint job) chains it. The `JSON.stringify` ban now
+  matches calls only, as the Semgrep rule `ts-no-json-stringify-in-core` does, and honours that
+  rule's 0025B inline quarantine markers; no other ban has an exception, and the unused
+  `.ban-nondeterminism-allowlist` mention is gone. The current tree passes: 1045 files scanned.
 - git-cas cache entries, workspace leases and their expiry checks use the runtime clock
   instead of the host wall clock. `GitCasRepositoryAdapter` now requires a `ClockPort` and
   passes it to git-cas and to the seek-cursor, sync-replay and cache-diagnostics adapters it
