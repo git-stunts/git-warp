@@ -7,7 +7,9 @@
  * sync ingress would hold raw wire records, and its constructor checks
  * (such as the same-patch remove ownership check) could not see them.
  * Unrecognised op types stay raw, so `applySyncResponse` can still refuse them
- * with `SchemaUnsupportedError`.
+ * with `SchemaUnsupportedError`. A peer can send an `ops` value that is not an
+ * array; it also passes through unchanged, so the `Patch` constructor refuses
+ * it with `PatchError` (`E_PATCH_OPS`).
  *
  * @module domain/services/sync/SyncIngressOps
  */
@@ -31,9 +33,13 @@ function isRuntimePatchOp(op: object): op is PatchOp {
   return RUNTIME_OP_CLASSES.some((OpClass) => op instanceof OpClass);
 }
 
-/** Hydrates recognised ops into runtime classes; other op types pass through unchanged. */
-export default function hydrateSyncIngressOps(ops: readonly PatchOp[]): PatchOp[] {
-  return ops.map((op) => {
+/** Hydrates recognised ops into runtime classes; other op types, and `ops` that is not an array, pass through unchanged. */
+export default function hydrateSyncIngressOps(ops: readonly PatchOp[]): readonly PatchOp[] {
+  const typedOps: readonly PatchOp[] = ops;
+  if (!Array.isArray(ops)) {
+    return typedOps;
+  }
+  return typedOps.map((op) => {
     const hydrated = hydrateDecodedOp(op);
     return isRuntimePatchOp(hydrated) ? hydrated : op;
   });
