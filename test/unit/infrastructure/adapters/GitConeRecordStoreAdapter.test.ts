@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -20,6 +21,7 @@ import GitTimelineHistoryAdapter from '../../../../src/infrastructure/adapters/G
 import { CborCodec } from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import ConeBasisHead from '../../../../src/domain/services/cone/ConeBasisHead.ts';
 import StoredConeBasis from '../../../../src/domain/services/cone/StoredConeBasis.ts';
+import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
 
 const LANE = 'events';
 
@@ -50,7 +52,7 @@ async function fixture() {
   await plumbing.execute({ args: ['init', '--quiet'] });
   const history = new GitTimelineHistoryAdapter({ plumbing });
   histories.push(history);
-  return { plumbing, history, store: new GitConeRecordStoreAdapter({ history, codec: new CborCodec() }) };
+  return { plumbing, history, directory, store: new GitConeRecordStoreAdapter({ history, codec: new CborCodec(), random: new SequenceRandomPort() }) };
 }
 
 const node = (id: string, degree = 0): ConeNodeRecord => {
@@ -417,5 +419,67 @@ describe('GitConeRecordStoreAdapter host failures (#1079)', () => {
     await expect(store.readRecords(root, [ConeRecordKey.forNode('a')])).rejects.toBe(defect);
     reads.mockImplementationOnce(() => { throw 'not an error'; });
     await expect(store.readRecords(root, [ConeRecordKey.forNode('a')])).rejects.toMatchObject({ code: 'E_CONE_STORE_HOST_DEFECT' });
+  });
+});
+
+describe('GitConeRecordStoreAdapter and a concurrent git gc (#1127)', () => {
+  const RETAINED = `refs/warp/${LANE}/cone/retained`;
+  const FRONTIER = ConeFrontier.empty().advanced('w1', new ConeWriterPosition('a'.repeat(40), 1));
+
+  /** Removes every unreachable object, however young: what `git gc --prune=now` does while a write runs. */
+  function pruneNow(directory: string): void {
+    execFileSync('git', ['gc', '--prune=now', '--quiet'], { cwd: directory });
+  }
+
+  it('reports a basis tree that Git removed before the head named it as an unavailable store, and writes it again next time', async () => {
+    const { directory, history, store } = await fixture();
+    const compareAndSwapRef = history.compareAndSwapRef.bind(history);
+    vi.spyOn(history, 'compareAndSwapRef').mockImplementationOnce(async (ref, oid, expected) => {
+      pruneNow(directory);
+      await compareAndSwapRef(ref, oid, expected);
+    });
+    const basis = new ConeBasis(ConeRoot.empty(), FRONTIER);
+
+    await expect(store.publishBasis(HEAD_OF_LANE, basis, null)).rejects.toMatchObject({
+      code: 'E_CONE_STORE_UNAVAILABLE', cause: { code: PersistenceError.E_MISSING_OBJECT, context: { ref: HEAD } },
+    });
+    expect(await history.readRef(HEAD)).toBeNull();
+
+    const published = await store.publishBasis(HEAD_OF_LANE, basis, null);
+    expect(published?.revision).toBe(await history.readRef(HEAD));
+    expect((await store.readBasis(HEAD_OF_LANE))?.basis.equals(basis)).toBe(true);
+  });
+
+  it('reports a retained-bases tree that Git removed before the retained ref named it as an unavailable store', async () => {
+    const { directory, history, store } = await fixture();
+    const stored = await store.publishBasis(HEAD_OF_LANE, new ConeBasis(ConeRoot.empty(), FRONTIER), null);
+    if (stored === null) { throw new Error('publication lost'); }
+    const compareAndSwapRef = history.compareAndSwapRef.bind(history);
+    vi.spyOn(history, 'compareAndSwapRef').mockImplementationOnce(async (ref, oid, expected) => {
+      pruneNow(directory);
+      await compareAndSwapRef(ref, oid, expected);
+    });
+
+    await expect(store.retainBasis(LANE, stored)).rejects.toMatchObject({
+      code: 'E_CONE_STORE_UNAVAILABLE', cause: { code: PersistenceError.E_MISSING_OBJECT, context: { ref: RETAINED } },
+    });
+    expect(await history.readRef(RETAINED)).toBeNull();
+  });
+
+  it('rejects with the ref failure itself when it cannot prove the tree is gone', async () => {
+    const { history, store } = await fixture();
+    vi.spyOn(history, 'compareAndSwapRef').mockRejectedValueOnce(new Error('disk full'));
+    const execute = history.plumbing.execute.bind(history.plumbing);
+    const corrupt = new GitPlumbingError('Git command failed with code 128', 'ExecutionOrchestrator.orchestrate', {
+      code: 128, stderr: 'error: unable to unpack header of an object',
+    });
+    vi.spyOn(history.plumbing, 'execute').mockImplementation(async (options) => {
+      if (options.args[0] === 'cat-file') {
+        throw corrupt;
+      }
+      return await execute(options);
+    });
+
+    await expect(store.publishBasis(HEAD_OF_LANE, new ConeBasis(ConeRoot.empty(), FRONTIER), null)).rejects.toThrow('disk full');
   });
 });

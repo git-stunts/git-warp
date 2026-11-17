@@ -1,4 +1,6 @@
 import ConeRecordError from '../../domain/errors/ConeRecordError.ts';
+import ConeStoreUnavailableError from '../../domain/errors/ConeStoreUnavailableError.ts';
+import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import ConeBasis from '../../domain/services/cone/ConeBasis.ts';
 import type ConeBasisHead from '../../domain/services/cone/ConeBasisHead.ts';
@@ -11,6 +13,7 @@ import { textDecode, textEncode } from '../../domain/utils/bytes.ts';
 import { buildConeRetainedRef } from '../../domain/utils/ConeRefLayout.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
 import ConeRecordStorePort from '../../ports/ConeRecordStorePort.ts';
+import type RandomPort from '../../ports/RandomPort.ts';
 import ConeFrontierCborCodec from './ConeFrontierCborCodec.ts';
 import ConeRecordCborCodec from './ConeRecordCborCodec.ts';
 import GitConeRecordTrie from './GitConeRecordTrie.ts';
@@ -18,7 +21,7 @@ import { readGitCasErrorCode } from './GitCasErrorCode.ts';
 import GitConeStoreHost from './GitConeStoreHost.ts';
 import GitFastImportTreeScript from './GitFastImportTreeScript.ts';
 import GitFastImportTreeWriter from './GitFastImportTreeWriter.ts';
-import type { GitPlumbing } from './gitErrorClassification.ts';
+import { getExitCode, gitDiagnosticText, type GitPlumbing, toGitError } from './gitErrorClassification.ts';
 import type { GitTreeObjectEntry } from './GitTreeObjectEntry.ts';
 
 /** The history surface the trie needs: session-backed object reads, fast-import and ref compare-and-swap. */
@@ -52,6 +55,8 @@ export const CONE_RETAINED_BASES = 64;
 const RETAINED_DIRECTORY = 'r';
 const RETAINED_SEQUENCE_DIGITS = 12;
 const RETAIN_ATTEMPTS = 4;
+/** `git cat-file -e` exits 1, and prints nothing, only for an object that is not there. */
+const ABSENT_OBJECT_EXIT_CODE = 1;
 
 type RetainedEntry = { readonly sequence: number; readonly revision: string };
 /** Where a basis tree was found: the ref that names it and its lane. */
@@ -69,6 +74,9 @@ type BasisLocation = { readonly ref: string; readonly lane: string };
  * (`GitConeStoreHost`); corruption keeps throwing `ConeRecordError`.
  * A write of any number of records, a basis tree and a retained-bases tree
  * are each one `git fast-import` process; untouched subtrees are shared.
+ * Each process also leaves a new commit that names its tree, so a later GC
+ * keeps a tree that fast-import reused from old garbage until a ref names it
+ * (`GitFastImportTreeWriter`, #1127).
  *
  * A basis head (`refs/warp/<lane>/cone/head`, or a strand's
  * `cone/strands/<id>/base` and `cone/strands/<id>/head`) points at a tree of
@@ -77,7 +85,9 @@ type BasisLocation = { readonly ref: string; readonly lane: string };
  * `refs/warp/<lane>/cone/retained` points at a tree whose `r/` directory
  * names the last {@link CONE_RETAINED_BASES} captured basis trees, keeping
  * them reachable through `git gc`. All of them are clone-local derived state
- * and never transferred.
+ * and never transferred. A ref update that fails because a GC removed the
+ * tree it names, before the ref named it, is a `ConeStoreUnavailableError`:
+ * nothing was published, and a retry writes the tree again.
  */
 export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
   readonly #history: ConeTrieHistory;
@@ -88,13 +98,13 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
   /** Layout blobs already read and found to be this adapter's layout. */
   readonly #knownLayouts = new Set<string>();
 
-  constructor(options: { readonly history: ConeTrieHistory; readonly codec: CodecPort }) {
+  constructor(options: { readonly history: ConeTrieHistory; readonly codec: CodecPort; readonly random: RandomPort }) {
     super();
     this.#history = new GitConeStoreHost(options.history);
     this.#records = new ConeRecordCborCodec(options.codec);
     this.#frontiers = new ConeFrontierCborCodec(options.codec);
     this.#trie = new GitConeRecordTrie(async (treeOid) => await trieTreeEntries(this.#history, treeOid));
-    this.#writer = new GitFastImportTreeWriter({ plumbing: this.#history.plumbing });
+    this.#writer = new GitFastImportTreeWriter({ plumbing: this.#history.plumbing, random: options.random });
   }
 
   override recordLayout(): string {
@@ -204,7 +214,11 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
     return await this.#writer.write(script);
   }
 
-  /** Compare-and-swaps `ref`; false when another writer moved it first. */
+  /**
+   * Compare-and-swaps `ref`; false when another writer moved it first. When the
+   * ref did not move and the tree is gone, a GC removed the tree before the ref
+   * named it (#1127): the store is unavailable, and a retry writes the tree again.
+   */
   async #swapRef(ref: string, newOid: string, expectedOid: string | null): Promise<boolean> {
     try {
       await this.#history.compareAndSwapRef(ref, newOid, expectedOid);
@@ -213,7 +227,24 @@ export default class GitConeRecordStoreAdapter extends ConeRecordStorePort {
       if (await this.#history.readRef(ref) !== expectedOid) {
         return false;
       }
+      if (await this.#absent(newOid)) {
+        throw new ConeStoreUnavailableError(`update ${ref}`, new PersistenceError(
+          `Missing Git object: ${newOid}; a concurrent git gc removed it before the ref named it`,
+          PersistenceError.E_MISSING_OBJECT, { cause: toGitError(error), context: { ref, oid: newOid } },
+        ));
+      }
       throw error;
+    }
+  }
+
+  /** True only when `git cat-file -e` proves `oid` absent; any other failure proves nothing. */
+  async #absent(oid: string): Promise<boolean> {
+    try {
+      await this.#history.plumbing.execute({ args: ['cat-file', '-e', oid] });
+      return false;
+    } catch (raw) {
+      const error = toGitError(raw);
+      return getExitCode(error) === ABSENT_OBJECT_EXIT_CODE && gitDiagnosticText(error) === '';
     }
   }
 

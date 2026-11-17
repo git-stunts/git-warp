@@ -31,6 +31,7 @@ import ObservationSupportFault from '../../../../src/domain/services/custody/Obs
 import codec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import { buildObservationConstructionRef } from '../../../../src/domain/utils/ObservationRefLayout.ts';
 import { narrowed } from '../../../helpers/ObservationCustodyFixture.ts';
+import SequenceRandomPort from '../../../helpers/SequenceRandomPort.ts';
 
 const BINDING = new ObservationDigest('ab'.repeat(32));
 const FOREIGN = new ObservationDigest('cd'.repeat(32));
@@ -94,7 +95,7 @@ describe('reading what might be damaged', () => {
         plumbing: { execute: async () => await Promise.resolve('tree') },
         readTreeObjectEntries: async () => await Promise.reject(failure),
       },
-      trees: new GitFastImportTreeWriter({ plumbing: { execute: async () => await Promise.resolve('') } }),
+      trees: new GitFastImportTreeWriter({ plumbing: { execute: async () => await Promise.resolve('') }, random: new SequenceRandomPort() }),
       crypto,
       limits: new ObservationSupportLimits({ writers: 1, dependencies: 1, frontierBytes: 1, work: 100 }),
     });
