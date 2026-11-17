@@ -2,9 +2,11 @@
  * Builds the node lifecycle shard family of a checkpoint index root.
  *
  * One `life_XX.cbor` shard per index shard key holds a NodeLifecycleRecord
- * for every node with a lifecycle record or a register that is not stale,
- * and one `life_receipt.cbor` marks the root as carrying the family and
- * lists the node tombstones whose adds the state does not hold.
+ * for every node with a lifecycle record, a register that is not stale, or a
+ * tombstoned dot that its entry holds. One `life_receipt.cbor` marks the root
+ * as carrying the family and lists the node tombstones that no entry holds.
+ * Every tombstoned dot is thus listed once, with the node that holds it or,
+ * when no node does, in the receipt.
  *
  * @module domain/services/index/NodeLifecycleIndexBuilder
  */
@@ -44,7 +46,8 @@ export default class NodeLifecycleIndexBuilder {
       nodes.set(nodeId, registers);
       return registers;
     };
-    for (const nodeId of lifecycleNodeIds(state)) {
+    const heldTombstones = heldTombstonedDots(state);
+    for (const nodeId of [...lifecycleNodeIds(state), ...heldTombstones.keys()]) {
       registersOf(nodeId);
     }
     for (const entry of state.nodeProperties()) {
@@ -53,13 +56,14 @@ export default class NodeLifecycleIndexBuilder {
       }
     }
     return new NodeLifecycleIndexBuilder(
-      NodeLifecycleIndexBuilder.captureRecords(state, nodesByShard), floatingNodeTombstones(state),
+      NodeLifecycleIndexBuilder.captureRecords(state, nodesByShard, heldTombstones), floatingNodeTombstones(state),
     );
   }
 
   private static captureRecords(
     state: WarpState,
     nodesByShard: ReadonlyMap<string, ReadonlyMap<string, Map<string, EventId | LegacyEventId>>>,
+    heldTombstones: ReadonlyMap<string, readonly string[]>,
   ): ReadonlyMap<string, readonly NodeLifecycleRecord[]> {
     const recordsByShard = new Map<string, readonly NodeLifecycleRecord[]>();
     for (const [shardKey, nodes] of nodesByShard) {
@@ -72,6 +76,7 @@ export default class NodeLifecycleIndexBuilder {
             pendingRemoves: (state.nodePendingRemoveEvents.get(nodeId) ?? []).map(eventIdOf),
             registers: [...registers.entries()]
               .sort(([left], [right]) => compareStrings(left, right)),
+            tombstonedDots: heldTombstones.get(nodeId) ?? [],
           })),
       ));
     }
@@ -114,13 +119,32 @@ function eventIdOf(event: Pick<EventId, 'lamport' | 'writerId' | 'patchSha' | 'o
 }
 
 /**
- * Node tombstones whose additions this state has never held. Membership
- * compaction retains causal evidence; only tombstones without a held add
- * belong in the floating-removal receipt.
+ * Node tombstones whose dot no node entry of the state holds, ascending. A
+ * causally closed state has none; they belong in the receipt because they
+ * name no node.
  */
 function floatingNodeTombstones(state: WarpState): readonly string[] {
   const held = new Set(state.nodeAlive.entryDotsIter());
   return [...state.nodeAlive.tombstonesIter()].filter((dot) => !held.has(dot)).sort(compareStrings);
+}
+
+/**
+ * Per node, the tombstoned dots that its entry holds, ascending; nodes
+ * without one are left out. A tombstoned dot is never live, so a bounded
+ * read decides from its node's list that a tail add with such a dot is dead.
+ * The session trie keeps the tombstone of a remove that came before its add
+ * by reserving the dot under the named node (#1119), and that add can still
+ * arrive as checkpoint tail.
+ */
+function heldTombstonedDots(state: WarpState): ReadonlyMap<string, readonly string[]> {
+  const held = new Map<string, readonly string[]>();
+  for (const [nodeId, dots] of state.nodeAlive.entriesIter()) {
+    const tombstoned = [...dots].filter((dot) => state.nodeAlive.isTombstoned(dot)).sort(compareStrings);
+    if (tombstoned.length > 0) {
+      held.set(nodeId, tombstoned);
+    }
+  }
+  return held;
 }
 
 function lifecycleNodeIds(state: WarpState): ReadonlySet<string> {

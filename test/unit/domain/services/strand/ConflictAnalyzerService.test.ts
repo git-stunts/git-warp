@@ -1234,10 +1234,9 @@ describe('ConflictAnalyzerService', () => {
       }
     });
 
-    it('emits receipt_unavailable when a NodeRemove has no node identity (reducer skips the op)', async () => {
-      // A NodeRemove without a 'node' field is silently skipped by the reducer
-      // (hydrateNodeRemove returns the raw op; applyPatchOp skips non-Op values).
-      // The receipt has no entry for this op, so conflict analysis emits receipt_unavailable.
+    it('refuses a NodeRemove without node identity (#193)', async () => {
+      // A remove must name its owner. The reducer refuses an ownerless remove
+      // instead of skipping it without a receipt entry.
       const graph = createMockGraph({
         writerPatches: {
           w1: [
@@ -1256,14 +1255,12 @@ describe('ConflictAnalyzerService', () => {
       });
       const analyzer = new ConflictAnalyzerService({ graph });
 
-      const result = await analyzer.analyze();
-
-      expect(result.diagnostics?.some((d) => d.code === 'receipt_unavailable')).toBe(true);
+      await expect(analyzer.analyze()).rejects.toThrow(PatchError);
     });
 
-    it('emits receipt_unavailable when an EdgeRemove has no edge identity (reducer skips the op)', async () => {
-      // An EdgeRemove without from/to/label fields is silently skipped by the reducer.
-      // The receipt has no entry for this op, so conflict analysis emits receipt_unavailable.
+    it('refuses an EdgeRemove without edge identity (#193)', async () => {
+      // A remove must name its owner. The reducer refuses an ownerless remove
+      // instead of skipping it without a receipt entry.
       const graph = createMockGraph({
         writerPatches: {
           w1: [
@@ -1282,84 +1279,7 @@ describe('ConflictAnalyzerService', () => {
       });
       const analyzer = new ConflictAnalyzerService({ graph });
 
-      const result = await analyzer.analyze();
-
-      expect(result.diagnostics?.some((d) => d.code === 'receipt_unavailable')).toBe(true);
-    });
-
-    it('uses receipt target fallback to identify edge tombstones when op fields are absent', async () => {
-      const sha = 'a'.repeat(40);
-      const graph = createMockGraph({
-        writerPatches: {
-          w1: [
-            {
-              patch: {
-                schema: 2,
-                writer: 'w1',
-                lamport: 1,
-                ops: [{ type: 'EdgeRemove' }],
-                context: {},
-              },
-              sha,
-            },
-          ],
-        },
-      });
-      const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reducePatches').mockReturnValue({
-        receipts: [{
-          patchSha: sha,
-          writer: 'w1',
-          lamport: 1,
-          ops: [{ result: 'applied', target: 'left\0right\0rel' }],
-        }],
-      } as any);
-
-      try {
-        const result = await analyzer.analyze({ evidence: 'full' });
-
-        expect(result.analysisVersion).toBe(CONFLICT_ANALYSIS_VERSION);
-        expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).not.toBe(true);
-      } finally {
-        reduceSpy.mockRestore();
-      }
-    });
-
-    it('emits anchor_incomplete when an edge receipt target cannot be decoded', async () => {
-      const sha = 'a'.repeat(40);
-      const graph = createMockGraph({
-        writerPatches: {
-          w1: [
-            {
-              patch: {
-                schema: 2,
-                writer: 'w1',
-                lamport: 1,
-                ops: [{ type: 'EdgeRemove' }],
-                context: {},
-              },
-              sha,
-            },
-          ],
-        },
-      });
-      const analyzer = new ConflictAnalyzerService({ graph });
-      const reduceSpy = vi.spyOn(JoinReducer, 'reducePatches').mockReturnValue({
-        receipts: [{
-          patchSha: sha,
-          writer: 'w1',
-          lamport: 1,
-          ops: [{ result: 'applied', target: 'left\0right' }],
-        }],
-      } as any);
-
-      try {
-        const result = await analyzer.analyze();
-
-        expect(result.diagnostics?.some((d) => d.code === 'anchor_incomplete')).toBe(true);
-      } finally {
-        reduceSpy.mockRestore();
-      }
+      await expect(analyzer.analyze()).rejects.toThrow(PatchError);
     });
 
     it('emits anchor_incomplete when a NodePropSet is missing node identity fields', async () => {

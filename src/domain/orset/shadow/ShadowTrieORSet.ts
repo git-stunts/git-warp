@@ -1,4 +1,5 @@
-import { type Dot } from "../../crdt/Dot.ts";
+import { Dot } from "../../crdt/Dot.ts";
+import CrdtError from "../../errors/CrdtError.ts";
 import type VersionVector from "../../crdt/VersionVector.ts";
 import ShadowTrieORSetError from "../../errors/ShadowTrieORSetError.ts";
 import type ORSetElementState from "../ORSetElementState.ts";
@@ -61,8 +62,29 @@ export default class ShadowTrieORSet {
     await this.#cursor.remove(observedDots);
   }
 
+  /**
+   * Tombstones the observed dots of one named element. A remove can arrive
+   * before the add it observed (#1119), so each observed dot that the
+   * element's entry does not hold yet is first reserved under that entry.
+   * The tombstone then survives until the add arrives, as in the in-memory
+   * ORSet, and the result does not depend on replay order.
+   */
   async removeElement(element: string, observedDots: ReadonlySet<string>): Promise<void> {
+    await this.#reserveObservedDots(element, observedDots);
     await this.#cursor.removeElement(element, observedDots);
+  }
+
+  async #reserveObservedDots(element: string, observedDots: ReadonlySet<string>): Promise<void> {
+    if (observedDots.size === 0) {
+      return;
+    }
+    const held = heldDots(await this.#cursor.getElementState(element));
+    for (const encodedDot of observedDots) {
+      const dot = held.has(encodedDot) ? null : decodeObservedDot(encodedDot);
+      if (dot !== null) {
+        await this.#cursor.add(element, dot);
+      }
+    }
   }
 
   async compact(includedVV: VersionVector): Promise<void> {
@@ -93,5 +115,25 @@ export default class ShadowTrieORSet {
     const result = await this.prepareFlush();
     this.acceptFlush(result);
     return result;
+  }
+}
+
+/** The live and tombstoned dots of an entry, read once: each getter copies its set. */
+function heldDots(state: ORSetElementState | null): ReadonlySet<string> {
+  return state === null ? new Set<string>() : new Set([...state.dots, ...state.tombstonedDots]);
+}
+
+/**
+ * Decodes an observed dot. A string that is not a canonical dot can never
+ * be added, so a tombstone for it cannot change liveness and is skipped.
+ */
+function decodeObservedDot(encodedDot: string): Dot | null {
+  try {
+    return Dot.decode(encodedDot);
+  } catch (raw) {
+    if (raw instanceof CrdtError) {
+      return null;
+    }
+    throw raw;
   }
 }

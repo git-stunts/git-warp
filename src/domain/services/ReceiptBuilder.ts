@@ -27,11 +27,6 @@ import DiffCalculator from './DiffCalculator.ts';
 /** Set of valid receipt op types (from TickReceipt) for fast membership checks. */
 const VALID_RECEIPT_OPS: ReadonlySet<string> = new Set(OP_TYPES);
 
-/** Type guard: value is a string with length > 0. */
-function _isNonEmptyString(value: string | null | undefined): value is string {
-  return typeof value === 'string' && value.length > 0;
-}
-
 /** Normalizes an arbitrary observed-dots iterable into a Set. */
 function toDotSet(observedDots: Iterable<string>): Set<string> {
   if (observedDots instanceof Set) {
@@ -80,15 +75,15 @@ export default class ReceiptBuilder {
 
   /**
    * NodeRemove receipt outcome. Applied iff at least one observed dot
-   * actually removes a live entry; otherwise redundant.
+   * actually removes a live entry; otherwise redundant. A remove always
+   * names its owner (#193), so the target is that node.
    */
   static nodeRemoveOutcome(
     orset: ORSet,
-    op: { readonly node?: string; readonly observedDots: Iterable<string> },
+    op: { readonly node: string; readonly observedDots: Iterable<string> },
   ): OpApplied | OpRedundant {
     const effective = hasEffectiveRemoval(orset, toDotSet(op.observedDots));
-    const target = (typeof op.node === 'string' && op.node.length > 0) ? op.node : '*';
-    return effective ? new OpApplied(target) : new OpRedundant(target);
+    return effective ? new OpApplied(op.node) : new OpRedundant(op.node);
   }
 
   /**
@@ -108,38 +103,21 @@ export default class ReceiptBuilder {
   }
 
   /**
-   * EdgeRemove receipt outcome. Target is the encoded edge key when
-   * (from, to, label) are all present, otherwise `'*'` for
-   * wildcard/unresolved targets.
+   * EdgeRemove receipt outcome. A remove always names its owner (#193),
+   * so the target is the encoded edge key.
    */
   static edgeRemoveOutcome(
     orset: ORSet,
     op: {
-      readonly from?: string;
-      readonly to?: string;
-      readonly label?: string;
+      readonly from: string;
+      readonly to: string;
+      readonly label: string;
       readonly observedDots: Iterable<string>;
     },
   ): OpApplied | OpRedundant {
     const effective = hasEffectiveRemoval(orset, toDotSet(op.observedDots));
-    const target = ReceiptBuilder._edgeRemoveTargetKey(op);
+    const target = encodeEdgeKey(op.from, op.to, op.label);
     return effective ? new OpApplied(target) : new OpRedundant(target);
-  }
-
-  /**
-   * Computes the target key for an edge-remove outcome: the encoded edge
-   * key when (from, to, label) are all present and non-empty, else `'*'`.
-   */
-  static _edgeRemoveTargetKey(op: {
-    readonly from?: string;
-    readonly to?: string;
-    readonly label?: string;
-  }): string {
-    const { from, to, label } = op;
-    if (_isNonEmptyString(from) && _isNonEmptyString(to) && _isNonEmptyString(label)) {
-      return encodeEdgeKey(from, to, label);
-    }
-    return '*';
   }
 
   /**
