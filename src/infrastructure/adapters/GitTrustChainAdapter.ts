@@ -8,7 +8,8 @@ import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../domain/storage/BufferedArtifa
  * Handles all encoding/decoding at the boundary:
  * - On READ: CBOR decode, recordId hash verification, signaturePayload
  *   precomputation, TrustRecord.fromDecoded()
- * - On WRITE: CBOR encode, stage asset, publish causal commit atomically
+ * - On WRITE: CBOR encode, refuse a record that the bounded reader would
+ *   refuse, stage asset, publish causal commit atomically
  *
  * @module infrastructure/adapters/GitTrustChainAdapter
  */
@@ -33,6 +34,8 @@ import type {
 } from '@git-stunts/git-cas';
 import { readGitCasErrorCode } from './GitCasErrorCode.ts';
 import { adaptGitCasRetentionWitness } from './GitCasRetentionWitnessAdapter.ts';
+import type { CborValidationErrorFactory } from './BoundedCborValidation.ts';
+import { requireBoundedCbor } from '../codecs/CborCodec.ts';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import {
   getExitCode,
@@ -43,6 +46,7 @@ import {
 // -- Constants ----------------------------------------------------------------
 
 const RECORD_BLOB_NAME = 'record.cbor';
+const RECORD_OUT_OF_BOUNDS = 'E_TRUST_RECORD_OUT_OF_BOUNDS';
 
 // -- Plumbing type (minimal contract) -----------------------------------------
 
@@ -125,6 +129,18 @@ function computeSignaturePayloadBytes(
 // -- CBOR codec (git-cas encoding; the repository adapter bounds decoding) ---
 
 type CborCodecInstance = GitCasCodecPort;
+
+/**
+ * The refusal for a trust record whose encoding is outside the CBOR read
+ * bounds. Every bounded reader refuses such a record, so a chain with it at
+ * the tip could not be read or appended to (#1188).
+ */
+function recordOutOfBounds(recordId: string): CborValidationErrorFactory {
+  return (reason) => new TrustError(
+    `Trust record ${recordId} is outside the CBOR read bounds and was not written: ${reason}`,
+    { code: RECORD_OUT_OF_BOUNDS, context: { recordId, reason } },
+  );
+}
 
 // -- Adapter ------------------------------------------------------------------
 
@@ -255,6 +271,8 @@ export default class GitTrustChainAdapter extends TrustChainPort {
       signature: record.signature,
     };
     const encoded = cbor.encode(recordObj);
+    // Refuse what the reader would refuse, before anything is stored or the ref moves.
+    requireBoundedCbor(encoded, recordOutOfBounds(record.recordId));
     const staged = await cas.assets.put({
       source: WarpStream.from([encoded]),
       slug: `trust-${record.recordId.slice(0, 12)}`,

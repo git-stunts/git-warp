@@ -2,6 +2,7 @@ import {
   AssetHandle,
   type AssetCapability,
   CborCodec,
+  type CodecPort as GitCasCodecPort,
   RetentionWitness,
   StagedAsset,
 } from '@git-stunts/git-cas';
@@ -11,6 +12,7 @@ import { TrustRecord } from '../../../../src/domain/trust/TrustRecord.ts';
 import GitTrustChainAdapter from '../../../../src/infrastructure/adapters/GitTrustChainAdapter.ts';
 import CryptoPort from '../../../../src/ports/CryptoPort.ts';
 import TrustChainPort from '../../../../src/ports/TrustChainPort.ts';
+import { arraysOfZeros, nestedArrays, OUT_OF_BOUNDS_CBOR } from '../../../helpers/OutOfBoundsCborCorpus.ts';
 
 const GRAPH = 'test-graph';
 const TIP = 'a'.repeat(40);
@@ -102,6 +104,51 @@ function createPlumbing() {
   return {
     execute: vi.fn(async (_options: { args: string[]; input?: string }): Promise<string> => ''),
   };
+}
+
+/** The read bound on encoded size: `MAX_CBOR_DECODE_BYTES` in src/infrastructure/codecs/CborCodec.ts (#1186). */
+const MAX_RECORD_BYTES = 5 * 1024 * 1024;
+/** A CBOR text of 65,536 or more bytes has a five-byte header, so each further character adds one byte. */
+const LONG_NOTE_LENGTH = 65_536;
+const OUT_OF_BOUNDS_CODE = 'E_TRUST_RECORD_OUT_OF_BOUNDS';
+
+/** Encodings at the read bounds that the bounded reader admits (#1186). */
+const AT_BOUND_CBOR = [
+  { name: 'nesting depth 32', bytes: nestedArrays(32) },
+  { name: 'exactly 1,000,000 items', bytes: arraysOfZeros(1_000_000) },
+  { name: 'the allowed epoch tag 1', bytes: Uint8Array.from([0xc1, 0x00]) },
+];
+
+/** A codec fake whose `encode` returns fixed bytes, so a test can give the adapter any encoding. */
+class FixedEncodingCodec implements GitCasCodecPort {
+  readonly #bytes: Uint8Array;
+
+  constructor(bytes: Uint8Array) {
+    this.#bytes = bytes;
+  }
+
+  encode(): Uint8Array {
+    return this.#bytes;
+  }
+
+  decode(buffer: Uint8Array): object {
+    return codec.decode(buffer);
+  }
+
+  get extension(): string {
+    return codec.extension;
+  }
+}
+
+/** A record whose git-cas CBOR encoding is `byteLength` bytes long, padded through `meta.note`. */
+function recordEncodedAs(byteLength: number): TrustRecord {
+  const longNote = 'x'.repeat(LONG_NOTE_LENGTH);
+  const overhead = codec.encode({ ...recordObject, meta: { note: longNote } }).byteLength - LONG_NOTE_LENGTH;
+  return TrustRecord.fromDecoded({
+    ...recordObject,
+    meta: { note: 'x'.repeat(byteLength - overhead) },
+    signaturePayload: new Uint8Array([1, 2, 3]),
+  });
 }
 
 describe('GitTrustChainAdapter high-level CAS boundary', () => {
@@ -290,6 +337,72 @@ describe('GitTrustChainAdapter high-level CAS boundary', () => {
       .rejects.toBeInstanceOf(TrustError);
     await expect(adapter.persistRecord(GRAPH, sampleRecord(), PARENT))
       .resolves.toMatchObject({ commitSha: TIP });
+  });
+});
+
+describe('GitTrustChainAdapter write bounds (#1188)', () => {
+  let plumbing: ReturnType<typeof createPlumbing>;
+  let cas: ReturnType<typeof createCas>;
+
+  beforeEach(() => {
+    plumbing = createPlumbing();
+    cas = createCas();
+  });
+
+  function adapterWith(cbor: GitCasCodecPort): GitTrustChainAdapter {
+    return new GitTrustChainAdapter({ plumbing, crypto: new TestCrypto(), cas, cbor });
+  }
+
+  it('refuses a record one byte over 5 MiB before it stages an asset or moves the ref', async () => {
+    const write = adapterWith(codec).persistRecord(GRAPH, recordEncodedAs(MAX_RECORD_BYTES + 1), PARENT);
+
+    await expect(write).rejects.toBeInstanceOf(TrustError);
+    // Oracle: the size refusal reason of requireBoundedCbor, which the bounded reader reports.
+    await expect(write).rejects.toMatchObject({
+      code: OUT_OF_BOUNDS_CODE,
+      context: {
+        recordId: recordObject.recordId,
+        reason: `encoded byte length ${String(MAX_RECORD_BYTES + 1)} exceeds ${String(MAX_RECORD_BYTES)}`,
+      },
+    });
+    expect(cas.assets.put).not.toHaveBeenCalled();
+    expect(cas.publications.commit).not.toHaveBeenCalled();
+  });
+
+  it('writes a record of exactly 5 MiB', async () => {
+    const staged: Uint8Array[] = [];
+    cas.assets.put.mockImplementationOnce(async ({ source }) => {
+      for await (const part of source) {
+        staged.push(part);
+      }
+      return stagedAsset();
+    });
+
+    await adapterWith(codec).persistRecord(GRAPH, recordEncodedAs(MAX_RECORD_BYTES), PARENT);
+
+    expect(staged.reduce((total, part) => total + part.byteLength, 0)).toBe(MAX_RECORD_BYTES);
+    expect(cas.publications.commit).toHaveBeenCalledOnce();
+  });
+
+  // Oracle: OUT_OF_BOUNDS_CBOR is the corpus that the bounded reader refuses, with these reasons,
+  // in BoundedGitCasCborCodec.test.ts and GitCasCborBounds.integration.test.ts.
+  it.each(OUT_OF_BOUNDS_CBOR)('refuses a record that encodes to $name, as the bounded reader does', async ({ bytes, reason }) => {
+    const write = adapterWith(new FixedEncodingCodec(bytes)).persistRecord(GRAPH, sampleRecord(), PARENT);
+
+    await expect(write).rejects.toBeInstanceOf(TrustError);
+    await expect(write).rejects.toMatchObject({
+      code: OUT_OF_BOUNDS_CODE,
+      context: { recordId: recordObject.recordId, reason },
+    });
+    expect(cas.assets.put).not.toHaveBeenCalled();
+    expect(cas.publications.commit).not.toHaveBeenCalled();
+  });
+
+  it.each(AT_BOUND_CBOR)('writes a record that encodes to $name', async ({ bytes }) => {
+    const write = adapterWith(new FixedEncodingCodec(bytes)).persistRecord(GRAPH, sampleRecord(), PARENT);
+
+    await expect(write).resolves.toMatchObject({ commitSha: TIP });
+    expect(cas.publications.commit).toHaveBeenCalledOnce();
   });
 });
 

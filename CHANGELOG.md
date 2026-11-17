@@ -430,6 +430,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- git-warp no longer writes a trust record that its bounded CBOR reader refuses
+  ([#1188](https://github.com/git-stunts/git-warp/issues/1188)). Before, a record outside
+  the read limits, for example one with a `meta` of more than 5 MiB, was written, and then
+  every read of the chain tip failed with `E_CBOR_DECODE_BOUNDS`, so the trust chain could
+  not be read or appended to. The trust write now checks the encoded record against the
+  same limits as the reader: 5 MiB, depth 32, 1,000,000 items, 1,000,000 entries in one
+  container, definite lengths only, and the tag allow-list. A record outside them fails
+  with a `TrustError` whose code is `E_TRUST_RECORD_OUT_OF_BOUNDS`, and whose context holds
+  the `recordId` and the `reason`, before git-warp stores the record or moves the trust
+  ref. git-cas encoding and manifest writes do not change.
+  See [CBOR input limits](docs/topics/sync.md#cbor-input-limits).
 - The determinism gate scans the TypeScript domain and runs in `npm run lint`
   ([#1084](https://github.com/git-stunts/git-warp/issues/1084)). `scripts/ban-nondeterminism.ts`
   matched only `src/domain/**/*.js`; after the TypeScript conversion that was no file at all,
