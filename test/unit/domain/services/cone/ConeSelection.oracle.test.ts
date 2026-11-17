@@ -3,8 +3,9 @@ import fc from 'fast-check';
 import type PatchEntry from '../../../../../src/domain/artifacts/PatchEntry.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import GraphOrdinal from '../../../../../src/domain/retained/GraphOrdinal.ts';
-import OrdinalBitmapShard, { LIVENESS_INDEX } from '../../../../../src/domain/retained/OrdinalBitmapShard.ts';
+import OrdinalBitmapBlock, { LIVENESS_INDEX } from '../../../../../src/domain/retained/OrdinalBitmapBlock.ts';
 import OrdinalChunk from '../../../../../src/domain/retained/OrdinalChunk.ts';
+import type SelectionDirectoryEntry from '../../../../../src/domain/retained/SelectionDirectoryEntry.ts';
 import SelectionDirectoryPage from '../../../../../src/domain/retained/SelectionDirectoryPage.ts';
 import SelectionGeometry from '../../../../../src/domain/retained/SelectionGeometry.ts';
 import ConeFold from '../../../../../src/domain/services/cone/ConeFold.ts';
@@ -29,12 +30,13 @@ const KINDS: readonly ConeDotSet[] = ['edge', 'node'];
 const SHAPES: ReadonlyArray<{ readonly name: string; readonly runs: number; readonly shape: ConeHistoryShape }> = [
   { name: 'small dense', runs: 60, shape: { writers: 3, patches: 30, nodes: 4, maxOps: 3, syncChance: 0.5 } },
   { name: 'wide concurrent', runs: 30, shape: { writers: 5, patches: 60, nodes: 8, maxOps: 4, syncChance: 0.2 } },
-  { name: 'across a chunk bound', runs: 20, shape: { writers: 3, patches: 40, nodes: 6, maxOps: 4, syncChance: 0.5, counterBase: 65_536 - 30 } },
-  { name: 'across a segment bound', runs: 20, shape: { writers: 3, patches: 40, nodes: 6, maxOps: 4, syncChance: 0.5, counterBase: 2 ** 32 - 30 } },
+  { name: 'across a block bound', runs: 20, shape: { writers: 3, patches: 40, nodes: 6, maxOps: 4, syncChance: 0.5, counterBase: 1_024 - 6 } },
+  { name: 'across a chunk bound', runs: 20, shape: { writers: 3, patches: 40, nodes: 6, maxOps: 4, syncChance: 0.5, counterBase: 65_536 - 6 } },
+  { name: 'across a segment bound', runs: 20, shape: { writers: 3, patches: 40, nodes: 6, maxOps: 4, syncChance: 0.5, counterBase: 2 ** 32 - 6 } },
 ];
 
-type Plane = { readonly live: ReadonlySet<string>; readonly chunks: ReadonlySet<string>; readonly bytes: ReadonlyMap<string, string> };
-type Totals = { histories: number; live: number; dead: number; chunks: number; emptyShards: number };
+type Plane = { readonly live: ReadonlySet<string>; readonly chunks: ReadonlySet<string>; readonly blocks: ReadonlySet<string>; readonly bytes: ReadonlyMap<string, string> };
+type Totals = { histories: number; live: number; dead: number; chunks: number; blocks: number; emptyBlocks: number };
 
 async function foldAll(store: InMemoryConeRecordStore, order: readonly PatchEntry[], chunk: number): Promise<ConeRoot> {
   let root = ConeRoot.empty();
@@ -62,7 +64,7 @@ async function reference(history: ConeHistory, store: InMemoryConeRecordStore, r
   };
 }
 
-/** The plane as a selection reads it: each directory page in order, then each listed chunk's shard. */
+/** The plane as a selection reads it: each directory page in order, then each block its mask marks live. */
 async function readPlane(store: InMemoryConeRecordStore, root: ConeRoot, totals: Totals): Promise<Plane> {
   const live = new Set<string>();
   const chunks = new Set<string>();
@@ -73,28 +75,43 @@ async function readPlane(store: InMemoryConeRecordStore, root: ConeRoot, totals:
       if (!(page instanceof SelectionDirectoryPage)) {
         break;
       }
-      for (const chunk of page.chunks) {
-        chunks.add(chunk.toString());
-        const shard = (await store.readRecords(root, [OrdinalBitmapShard.empty(LIVENESS_INDEX, chunk).key()])).selectionShard(LIVENESS_INDEX, chunk);
-        expect(shard, `shard of listed chunk ${chunk.toString()}`).not.toBeNull();
-        totals.emptyShards += shard?.cardinality === 0 ? 1 : 0;
-        for (const offset of shard?.offsets() ?? []) {
-          const ordinal = chunk.ordinalAt(offset);
+      for (const entry of page.entries) {
+        chunks.add(entry.chunk.toString());
+        for (const ordinal of await liveOrdinals(store, root, entry)) {
           live.add(`${kind}/${Dot.encode(ordinal.dot())}`);
         }
       }
     }
   }
-  const bytes = new Map(store.allRecords(root).filter((record) => record.key().family === 'selection')
-    .map((record) => [record.key().toString(), Buffer.from(codec.encode(record)).toString('hex')]));
-  return { live, chunks, bytes };
+  const selection = store.allRecords(root).filter((record) => record.key().family === 'selection');
+  const blocks = new Set(selection.flatMap((record) => (record instanceof OrdinalBitmapBlock ? [`${record.chunk.toString()}/${String(record.block)}`] : [])));
+  totals.emptyBlocks += selection.filter((record) => record instanceof OrdinalBitmapBlock && record.cardinality === 0).length;
+  const bytes = new Map(selection.map((record) => [record.key().toString(), Buffer.from(codec.encode(record)).toString('hex')]));
+  return { live, chunks, blocks, bytes };
 }
 
-const chunkOfDot = (tagged: string): string => {
+/** The members of every block of an entry's chunk, checking that the mask marks exactly the blocks with members. */
+async function liveOrdinals(store: InMemoryConeRecordStore, root: ConeRoot, entry: SelectionDirectoryEntry): Promise<GraphOrdinal[]> {
+  const ordinals: GraphOrdinal[] = [];
+  for (let block = 0; block < entry.chunk.geometry.blocksPerChunk(); block += 1) {
+    const stored = (await store.readRecords(root, [OrdinalBitmapBlock.empty(LIVENESS_INDEX, entry.chunk, block).key()]))
+      .selectionBlock(LIVENESS_INDEX, entry.chunk, block);
+    expect((stored?.cardinality ?? 0) > 0, `mask bit of block ${String(block)} of ${entry.chunk.toString()}`).toBe(entry.hasLiveBlock(block));
+    const first = stored?.firstOffset() ?? 0;
+    ordinals.push(...(stored?.offsets() ?? []).map((offset) => entry.chunk.ordinalAt(first + offset)));
+  }
+  return ordinals;
+}
+
+const ordinalOfDot = (tagged: string): GraphOrdinal => {
   const [kind = '', dot = ''] = tagged.split('/');
   const decoded = Dot.decode(dot);
-  const set: ConeDotSet = kind === 'edge' ? 'edge' : 'node';
-  return OrdinalChunk.of(new GraphOrdinal({ kind: set, writerId: decoded.writerId, counter: decoded.counter }), SelectionGeometry.chunks()).toString();
+  return new GraphOrdinal({ kind: kind === 'edge' ? 'edge' : 'node', writerId: decoded.writerId, counter: decoded.counter });
+};
+const chunkOfDot = (tagged: string): string => OrdinalChunk.of(ordinalOfDot(tagged), SelectionGeometry.chunks()).toString();
+const blockOfDot = (tagged: string): string => {
+  const chunk = OrdinalChunk.of(ordinalOfDot(tagged), SelectionGeometry.chunks());
+  return `${chunk.toString()}/${String(Math.floor(chunk.offsetOf(ordinalOfDot(tagged)) / chunk.geometry.blockSpan))}`;
 };
 
 async function checkHistory(seed: number, shape: ConeHistoryShape, totals: Totals): Promise<void> {
@@ -109,6 +126,8 @@ async function checkHistory(seed: number, shape: ConeHistoryShape, totals: Total
     const plane = await readPlane(store, root, totals);
     expect([...plane.live].sort(), `live dots, seed ${seed}`).toEqual([...expected.live].sort());
     expect([...plane.chunks].sort(), `listed chunks, seed ${seed}`).toEqual([...new Set([...expected.owned].map(chunkOfDot))].sort());
+    expect([...plane.blocks].sort(), `block records, seed ${seed}`).toEqual([...new Set([...expected.owned].map(blockOfDot))].sort());
+    totals.blocks += plane.blocks.size;
     totals.live += expected.live.size;
     totals.dead += expected.owned.size - expected.live.size;
     totals.chunks += plane.chunks.size;
@@ -122,11 +141,11 @@ async function checkHistory(seed: number, shape: ConeHistoryShape, totals: Total
 
 const seeds = [FIXED_SEED, ...(EXTRA_SEED === undefined ? [] : [Number.parseInt(EXTRA_SEED, 10)])];
 
-describe('liveness selection oracle (#816 S1): shards equal liveDots(), and every fold order writes the same bytes', () => {
+describe('liveness selection oracle (#816 S1): blocks equal liveDots(), and every fold order writes the same bytes', () => {
   for (const seed of seeds) {
     for (const { name, runs, shape } of SHAPES) {
       it(`matches the element records and is fold-order independent: ${name}, seed ${String(seed)}`, async () => {
-        const totals: Totals = { histories: 0, live: 0, dead: 0, chunks: 0, emptyShards: 0 };
+        const totals: Totals = { histories: 0, live: 0, dead: 0, chunks: 0, blocks: 0, emptyBlocks: 0 };
         await fc.assert(
           fc.asyncProperty(fc.integer({ min: 1, max: 0x7fffffff }), async (historySeed) => { await checkHistory(historySeed, shape, totals); }),
           { seed, numRuns: runs },

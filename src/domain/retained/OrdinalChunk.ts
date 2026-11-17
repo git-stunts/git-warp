@@ -13,10 +13,10 @@ export type OrdinalChunkFields = {
 };
 
 /**
- * One selection shard's range (#816): `geometry.chunkSpan` consecutive local
- * ordinals of one writer, kind and segment. A member is stored as its offset
- * from the chunk's first local ordinal, so one chunk is one Roaring container
- * whose key is the chunk index.
+ * One unit of the selection directory (#816): `geometry.chunkSpan`
+ * consecutive local ordinals of one writer, kind and segment, stored in
+ * blocks of `geometry.blockSpan`. Offsets count from the chunk's first local
+ * ordinal.
  */
 export default class OrdinalChunk {
   readonly segment: OrdinalSegment;
@@ -43,6 +43,16 @@ export default class OrdinalChunk {
   static ofDotPage(page: ConeDotPage, geometry: SelectionGeometry): OrdinalChunk {
     const first = Math.max(page.pageIndex * CONE_DOT_PAGE_SPAN, 1);
     return OrdinalChunk.of(new GraphOrdinal({ kind: page.set, writerId: page.writerId, counter: first }), geometry);
+  }
+
+  /** The offset in this chunk of a dot page's first counter, refusing a page of another chunk. */
+  offsetOfDotPage(page: ConeDotPage): number {
+    if (!OrdinalChunk.ofDotPage(page, this.geometry).equals(this)) {
+      throw new RetainedGraphError('Dot page lies outside this chunk', 'E_RETAINED_ORDINAL_INVALID', {
+        context: { chunk: this.toString(), page: page.key().toString() },
+      });
+    }
+    return ((page.pageIndex * CONE_DOT_PAGE_SPAN) % this.geometry.ordinals.segmentCapacity) - this.firstLocal();
   }
 
   /** The segment-local ordinal of offset 0. */

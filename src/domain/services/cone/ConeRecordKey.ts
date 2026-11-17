@@ -20,13 +20,14 @@ export type ConeSelectionDirectoryAddress = {
   readonly pageIndex: number;
 };
 
-/** Where one selection shard lies: an index, and one chunk of a writer's dots of one kind and segment. */
-export type ConeSelectionShardAddress = {
+/** Where one selection block lies: an index, and one block of one chunk of a writer's dots of one kind and segment. */
+export type ConeSelectionBlockAddress = {
   readonly index: string;
   readonly set: ConeDotSet;
   readonly writerId: string;
   readonly segment: number;
   readonly chunk: number;
+  readonly block: number;
 };
 const ROUTE_PATTERN = /^[0-9a-f]{64}$/u;
 
@@ -84,13 +85,13 @@ export default class ConeRecordKey {
     return new ConeRecordKey('admission', routeOf(['entry', writerId, String(ordinal)]));
   }
 
-  /** The key of one selection shard (#816): the members of one index in one ordinal chunk. */
-  static forSelectionShard(address: ConeSelectionShardAddress): ConeRecordKey {
-    const { index, set, writerId, segment, chunk } = address;
-    return new ConeRecordKey('selection', routeOf(['shard', index, set, writerId, String(segment), String(chunk)]));
+  /** The key of one selection block (#816): the members of one index in one block of an ordinal chunk. */
+  static forSelectionBlock(address: ConeSelectionBlockAddress): ConeRecordKey {
+    const { index, set, writerId, segment, chunk, block } = address;
+    return new ConeRecordKey('selection', routeOf(['block', index, set, writerId, String(segment), String(chunk), String(block)]));
   }
 
-  /** The key of one page of a selection directory (#816): the chunks of one index and OR-Set that have shards. */
+  /** The key of one page of a selection directory (#816): the chunks of one index and OR-Set with an owned dot. */
   static forSelectionDirectoryPage(address: ConeSelectionDirectoryAddress): ConeRecordKey {
     const { index, set, pageIndex } = address;
     return new ConeRecordKey('selection', routeOf(['directory', index, set, String(pageIndex)]));

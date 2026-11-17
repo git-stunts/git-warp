@@ -34,11 +34,6 @@ function declaredCardinality(
   return cardinality;
 }
 
-/** The key of the first container, or null when the shard has none. */
-function firstKeyOf(view: DataView, layout: PortableRoaringLayout): number | null {
-  return layout.containerCount === 0 ? null : view.getUint16(headerAt(layout, 0), true);
-}
-
 /** Walks every container body in order and requires the walk to end at the last byte. */
 function inspectContainers(view: DataView, layout: PortableRoaringLayout): RoaringShardRejectedError | null {
   let position = layout.containersAt;
@@ -80,5 +75,5 @@ export default function inspectPortableRoaringShard(
   if (cardinality instanceof RoaringShardRejectedError) {
     return cardinality;
   }
-  return inspectContainers(view, layout) ?? new InspectedRoaringShard(layout.containerCount, cardinality, firstKeyOf(view, layout));
+  return inspectContainers(view, layout) ?? new InspectedRoaringShard(layout.containerCount, cardinality);
 }

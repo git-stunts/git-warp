@@ -4,7 +4,7 @@ import ConeBasis from '../../../../../src/domain/services/cone/ConeBasis.ts';
 import ConeBasisHead from '../../../../../src/domain/services/cone/ConeBasisHead.ts';
 import ConeDotPage from '../../../../../src/domain/services/cone/ConeDotPage.ts';
 import ConeFootprint from '../../../../../src/domain/services/cone/ConeFootprint.ts';
-import OrdinalBitmapShard, { LIVENESS_INDEX } from '../../../../../src/domain/retained/OrdinalBitmapShard.ts';
+import OrdinalBitmapBlock, { LIVENESS_INDEX } from '../../../../../src/domain/retained/OrdinalBitmapBlock.ts';
 import OrdinalChunk from '../../../../../src/domain/retained/OrdinalChunk.ts';
 import SelectionDirectoryPage, { SELECTION_DIRECTORY_PAGE_SIZE } from '../../../../../src/domain/retained/SelectionDirectoryPage.ts';
 import ConeRecordKey, { type ConeDotSet } from '../../../../../src/domain/services/cone/ConeRecordKey.ts';
@@ -62,28 +62,30 @@ async function listedChunks(store: InMemoryConeRecordStore, root: ConeRoot, set:
     if (!(page instanceof SelectionDirectoryPage)) {
       return chunks;
     }
-    chunks.push(...page.chunks.map((chunk) => chunk.toString()));
+    chunks.push(...page.entries.map((entry) => entry.chunk.toString()));
   }
 }
 
 /**
- * The selection records an overlay may change (#816): the shard of each chunk
- * its dot pages lie in, and the directory pages from the first chunk it adds
+ * The selection records an overlay may change (#816): the block of each of its
+ * dot pages; the directory page of each chunk those blocks lie in, whose mask
+ * can change in place; and the directory pages from the first chunk it adds
  * onward. Every chunk it adds must be the chunk of one of its dot pages.
  */
 async function overlaySelectionKeys(store: InMemoryConeRecordStore, roots: Roots, footprints: readonly ConeFootprint[]): Promise<string[]> {
-  const chunks = footprints.flatMap((footprint) => footprint.dotPages()
-    .map((page) => OrdinalChunk.ofDotPage(ConeDotPage.empty(page.set, page.writerId, page.pageIndex), SelectionGeometry.chunks())));
-  const keys = chunks.map((chunk) => OrdinalBitmapShard.empty(LIVENESS_INDEX, chunk).key().toString());
+  const blocks = footprints.flatMap((footprint) => footprint.dotPages()
+    .map((page) => OrdinalBitmapBlock.emptyOfDotPage(LIVENESS_INDEX, ConeDotPage.empty(page.set, page.writerId, page.pageIndex), SelectionGeometry.chunks())));
+  const own = new Set(blocks.map((block) => block.chunk.toString()));
+  const keys = blocks.map((block) => block.key().toString());
   for (const set of ['node', 'edge'] as const) {
     const before = new Set(await listedChunks(store, roots.base, set));
     const after = await listedChunks(store, roots.strand, set);
     const added = after.flatMap((chunk, position) => (before.has(chunk) ? [] : [{ chunk, position }]));
-    expect(added.every(({ chunk }) => chunks.some((own) => own.toString() === chunk)), `added ${set} chunks are the overlay's`).toBe(true);
+    expect(added.every(({ chunk }) => own.has(chunk)), `added ${set} chunks are the overlay's`).toBe(true);
     const firstPage = Math.floor((added[0]?.position ?? after.length) / SELECTION_DIRECTORY_PAGE_SIZE);
-    for (let pageIndex = firstPage; pageIndex * SELECTION_DIRECTORY_PAGE_SIZE < after.length; pageIndex += 1) {
-      keys.push(ConeRecordKey.forSelectionDirectoryPage({ index: LIVENESS_INDEX, set, pageIndex }).toString());
-    }
+    const ownPages = after.flatMap((chunk, position) => (own.has(chunk) ? [Math.floor(position / SELECTION_DIRECTORY_PAGE_SIZE)] : []));
+    const pages = new Set([...ownPages, ...Array.from({ length: Math.max(0, Math.ceil(after.length / SELECTION_DIRECTORY_PAGE_SIZE) - firstPage) }, (_unused, offset) => firstPage + offset)]);
+    keys.push(...[...pages].map((pageIndex) => ConeRecordKey.forSelectionDirectoryPage({ index: LIVENESS_INDEX, set, pageIndex }).toString()));
   }
   return keys;
 }

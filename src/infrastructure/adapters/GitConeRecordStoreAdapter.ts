@@ -47,11 +47,11 @@ const GIT_CAS_TREE_PARSE_ERROR = 'TREE_PARSE_ERROR';
  * the same trie but no entity admission index, so its bases cannot answer an
  * inventory and are refused rather than read as empty; layout 3 records kept
  * no concurrent register writes or lifecycle effects, so their readings would
- * hide plurality; layout 4 bases have no selection shards (#816), so a
+ * hide plurality; layout 4 bases have no selection blocks (#816), so a
  * selection over them would read every chunk as empty.
  */
 export const CONE_TRIE_LAYOUT = 'git-warp cone record trie\nlayout 5: 16-way route digits, buckets of 32 records; entity admission index; concurrent siblings; '
-  + 'ordinal liveness selection shards in chunks of 65536 ordinals\n';
+  + 'ordinal liveness selection blocks of 1024 ordinals in chunks of 65536\n';
 /** Captured bases a clone keeps reachable under its retained ref, most recent first to survive. */
 export const CONE_RETAINED_BASES = 64;
 const RETAINED_DIRECTORY = 'r';

@@ -2,28 +2,34 @@ import { describe, expect, it } from 'vitest';
 import GraphOrdinal from '../../../../src/domain/retained/GraphOrdinal.ts';
 import OrdinalChunk from '../../../../src/domain/retained/OrdinalChunk.ts';
 import OrdinalSegment from '../../../../src/domain/retained/OrdinalSegment.ts';
-import SelectionGeometry, { SELECTION_CHUNK_SPAN } from '../../../../src/domain/retained/SelectionGeometry.ts';
+import SelectionGeometry, { SELECTION_BLOCK_SPAN, SELECTION_CHUNK_SPAN } from '../../../../src/domain/retained/SelectionGeometry.ts';
+import ConeDotPage from '../../../../src/domain/services/cone/ConeDotPage.ts';
 
 const V1 = SelectionGeometry.chunks();
 const ordinal = (counter: number, writerId = 'w1', kind: 'node' | 'edge' = 'node'): GraphOrdinal => new GraphOrdinal({ kind, writerId, counter });
 const SEGMENT = 2 ** 32;
 
 describe('SelectionGeometry (#816)', () => {
-  it('declares version 1: one Roaring container of 65,536 local ordinals per chunk', () => {
-    // Oracle: the #816 decision record, D2 ("selection geometry v1: chunk 65536").
-    expect(SELECTION_CHUNK_SPAN).toBe(65_536);
-    expect(V1.identity()).toBe('selection geometry v1: chunk 65536');
-    expect(V1.chunksPerSegment()).toBe(65_536);
-    expect(V1.equals(SelectionGeometry.of({ version: 1, chunkSpan: 65_536 }))).toBe(true);
+  it('declares version 1: chunks of 65,536 local ordinals stored in 64 blocks of 1,024', () => {
+    // Oracle: the #816 F1 decision ("selection geometry v1: chunk 65536, block 1024").
+    expect([SELECTION_CHUNK_SPAN, SELECTION_BLOCK_SPAN]).toEqual([65_536, 1_024]);
+    expect(V1.identity()).toBe('selection geometry v1: chunk 65536, block 1024');
+    expect([V1.chunksPerSegment(), V1.blocksPerChunk()]).toEqual([65_536, 64]);
+    expect(V1.equals(SelectionGeometry.of({ version: 1, chunkSpan: 65_536, blockSpan: 1_024 }))).toBe(true);
+    expect(V1.equals(SelectionGeometry.of({ version: 1, chunkSpan: 65_536, blockSpan: 2_048 }))).toBe(false);
     expect(Object.isFrozen(V1)).toBe(true);
   });
 
   it.each([
-    { version: 1, chunkSpan: 128 },
-    { version: 1, chunkSpan: 2 ** 17 },
-    { version: 1, chunkSpan: 1000 },
-    { version: 0, chunkSpan: 65_536 },
-  ])('refuses a geometry whose chunk is not one page to one container: %o', (fields) => {
+    { version: 1, chunkSpan: 128, blockSpan: 128 },
+    { version: 1, chunkSpan: 2 ** 17, blockSpan: 1_024 },
+    { version: 1, chunkSpan: 1000, blockSpan: 1_000 },
+    { version: 0, chunkSpan: 65_536, blockSpan: 1_024 },
+    { version: 1, chunkSpan: 65_536, blockSpan: 128 },
+    { version: 1, chunkSpan: 65_536, blockSpan: 512 },
+    { version: 1, chunkSpan: 4_096, blockSpan: 8_192 },
+    { version: 1, chunkSpan: 65_536, blockSpan: 1_000 },
+  ])('refuses a geometry whose chunk or block is not one page to one container, or whose chunk has more than 64 blocks: %o', (fields) => {
     expect(() => SelectionGeometry.of(fields)).toThrow(expect.objectContaining({ code: 'E_RETAINED_GEOMETRY_INVALID' }));
   });
 });
@@ -66,8 +72,15 @@ describe('OrdinalChunk (#816)', () => {
     expect(() => first.ordinalAt(0)).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_OUT_OF_RANGE', context: { counter: 0 } }));
   });
 
+  it('gives the offset of a dot page in its chunk and refuses a page of another chunk', () => {
+    const chunk = OrdinalChunk.of(ordinal(70_000), V1);
+    expect(chunk.offsetOfDotPage(ConeDotPage.empty('node', 'w1', 256 + 3))).toBe(3 * 256);
+    expect(() => chunk.offsetOfDotPage(ConeDotPage.empty('node', 'w1', 3))).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
+    expect(() => chunk.offsetOfDotPage(ConeDotPage.empty('edge', 'w1', 256))).toThrow(expect.objectContaining({ code: 'E_RETAINED_ORDINAL_INVALID' }));
+  });
+
   it('cuts the same segment into smaller chunks under an alternate geometry', () => {
-    const small = SelectionGeometry.of({ version: 2, chunkSpan: 256 });
+    const small = SelectionGeometry.of({ version: 2, chunkSpan: 256, blockSpan: 256 });
     const chunk = OrdinalChunk.of(ordinal(300), small);
     expect([chunk.index, chunk.offsetOf(ordinal(300)), small.chunksPerSegment()]).toEqual([1, 44, 2 ** 24]);
     expect(chunk.equals(OrdinalChunk.of(ordinal(300), V1))).toBe(false);

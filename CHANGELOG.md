@@ -371,17 +371,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#815](https://github.com/git-stunts/git-warp/issues/815)).
 - Add the internal liveness selection plane over the cone basis
   ([#816](https://github.com/git-stunts/git-warp/issues/816), slice S1). The cone fold now keeps
-  one Roaring bitmap shard of live dots for each OR-Set, writer, segment and chunk of 65,536
-  ordinals, and a directory of the chunks that have a dot with an owner, 256 to a page, in the new
-  `selection` record family. A patch rewrites only the shards of the dot pages it changes; a patch
-  that only sets properties writes none. Shards are inspected against their bounds (8,208 bytes,
-  one container, the chunk's key) before the Roaring library reads them. The record trie moves to
+  the live dots of each OR-Set in the new `selection` record family, under "selection geometry v1:
+  chunk 65536, block 1024": a directory of the chunks of 65,536 ordinals that have a dot with an
+  owner, 256 entries to a page, each with a 64-bit mask of its blocks that have a live member; and
+  one record per block of 1,024 ordinals, its members stored as a canonical 128-byte bitset. A patch
+  rewrites only the blocks of the dot pages it changes; a patch that only sets properties writes
+  none. A stored bitset or mask of the wrong length is refused as corrupt. The record trie moves to
   layout 5. A layout-4 cone head refuses with `E_CONE_LAYOUT_UNSUPPORTED` and is not rebuilt
   automatically: a write to that lane throws and stores nothing, so submit it again after you
   delete the lane's clone-local refs under `refs/warp/<graph>/cone/`; git-warp then folds the lane
   again from the writer chains. A revert does not undo layout 5: older code refuses a layout-5 head,
   so a revert needs the same deletion. No published release wrote layout 4. See
-  [Selection shards](docs/topics/retained-manifests.md#selection-shards).
+  [Selection blocks](docs/topics/retained-manifests.md#selection-blocks).
 - `Warp.open(WarpAddress.of(GitStorage.root(), name), access)` and
   `warp.as(writer).execute(intent)`: cone writes through durable observation custody,
   with an injected `WarpAccessPort` and no implicit access. `execute` returns

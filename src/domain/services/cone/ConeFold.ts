@@ -24,7 +24,7 @@ import ConeWorkspace from './ConeWorkspace.ts';
  * concurrency those records retain, restores selected evicted values from
  * directly addressed patches, registers newly recorded edges with
  * their endpoints, indexes its entity admissions, keeps the liveness
- * selection shards of its changed dot pages current, and stages exactly the
+ * selection blocks of its changed dot pages current, and stages exactly the
  * records that changed. Work follows the patch footprint and its retained
  * evidence, with at most sixteen source reads per affected register, never
  * a graph-wide history walk.

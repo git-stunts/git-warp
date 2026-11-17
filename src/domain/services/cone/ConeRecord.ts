@@ -5,7 +5,7 @@ import type ConeUnprovenAdmissionRecord from './ConeUnprovenAdmissionRecord.ts';
 import type ConeDotPage from './ConeDotPage.ts';
 import type ConeEdgeRecord from './ConeEdgeRecord.ts';
 import type ConeNodeRecord from './ConeNodeRecord.ts';
-import type OrdinalBitmapShard from '../../retained/OrdinalBitmapShard.ts';
+import type OrdinalBitmapBlock from '../../retained/OrdinalBitmapBlock.ts';
 import type SelectionDirectoryPage from '../../retained/SelectionDirectoryPage.ts';
 
 /**
@@ -20,5 +20,5 @@ export type ConeRecord =
   | ConeAdmissionTally
   | ConeAdmissionRecord
   | ConeUnprovenAdmissionRecord
-  | OrdinalBitmapShard
+  | OrdinalBitmapBlock
   | SelectionDirectoryPage;

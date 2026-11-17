@@ -12,8 +12,7 @@ import process from 'node:process';
 import Plumbing from '@git-stunts/plumbing';
 import PatchEntry from '../../src/domain/artifacts/PatchEntry.ts';
 import { Dot } from '../../src/domain/crdt/Dot.ts';
-import { LIVENESS_INDEX } from '../../src/domain/retained/OrdinalBitmapShard.ts';
-import OrdinalBitmapShard from '../../src/domain/retained/OrdinalBitmapShard.ts';
+import OrdinalBitmapBlock, { LIVENESS_INDEX } from '../../src/domain/retained/OrdinalBitmapBlock.ts';
 import SelectionDirectoryPage from '../../src/domain/retained/SelectionDirectoryPage.ts';
 import ConeFold from '../../src/domain/services/cone/ConeFold.ts';
 import ConeFolded from '../../src/domain/services/cone/ConeFolded.ts';
@@ -66,20 +65,22 @@ function patchOf(writer: string, index: number): PatchEntry {
   return new PatchEntry({ patch, sha: `${writer.slice(1).padStart(8, '0')}${(index + 1).toString(16).padStart(32, '0')}` });
 }
 
-/** The live dots the plane lists: the members of every shard the node directory names. */
-async function liveInPlane(store: GitConeRecordStoreAdapter, root: ConeRoot): Promise<{ live: number; chunks: number }> {
-  let live = 0;
-  let chunks = 0;
+/** The live dots the plane lists: the members of every block the node directory marks live. */
+async function liveInPlane(store: GitConeRecordStoreAdapter, root: ConeRoot): Promise<{ live: number; chunks: number; blocks: number }> {
+  const counts = { live: 0, chunks: 0, blocks: 0 };
   for (let pageIndex = 0; ; pageIndex += 1) {
     const key = ConeRecordKey.forSelectionDirectoryPage({ index: LIVENESS_INDEX, set: 'node', pageIndex });
     const page = (await store.readRecords(root, [key])).get(key);
     if (!(page instanceof SelectionDirectoryPage)) {
-      return { live, chunks };
+      return counts;
     }
-    for (const chunk of page.chunks) {
-      const shard = (await store.readRecords(root, [OrdinalBitmapShard.empty(LIVENESS_INDEX, chunk).key()])).selectionShard(LIVENESS_INDEX, chunk);
-      live += shard?.cardinality ?? 0;
-      chunks += 1;
+    for (const entry of page.entries) {
+      counts.chunks += 1;
+      for (const block of entry.blocks()) {
+        const key = OrdinalBitmapBlock.empty(LIVENESS_INDEX, entry.chunk, block).key();
+        counts.live += (await store.readRecords(root, [key])).selectionBlock(LIVENESS_INDEX, entry.chunk, block)?.cardinality ?? 0;
+        counts.blocks += 1;
+      }
     }
   }
 }

@@ -34,18 +34,6 @@ const BYTES_PER_VALUE = 2;
 const MAX_BYTES = PORTABLE_PREFIX_BYTES + RUN_FLAG_BYTES + CONTAINER_METADATA_BYTES
   + BYTES_PER_VALUE * MAX_ALIVE_CARDINALITY;
 
-/** The values one ordinal chunk shard holds at most: one Roaring container (#816). */
-const CHUNK_CARDINALITY = 2 ** 16;
-/**
- * The bytes of one ordinal chunk shard at most: the 8-byte prefix of the
- * no-run format, one 4-byte key and cardinality header, one 4-byte offset
- * and one 8192-byte container body. An array body above 4096 values is
- * stored as a bitmap body, and a run body is kept only when it is smaller,
- * so no body exceeds 8192 bytes; the run format has no offsets for fewer
- * than four containers and a one-byte run-flag bitmap, so it is smaller.
- */
-const CHUNK_MAX_BYTES = PORTABLE_PREFIX_BYTES + 4 + 4 + 8192;
-
 function requirePositiveInteger(value: number, name: string): number {
   if (!Number.isSafeInteger(value) || value < 1) {
     throw new AdapterValidationError(`Roaring shard bound ${name} must be a positive safe integer`);
@@ -77,7 +65,6 @@ export default class RoaringShardBounds {
 
   static readonly #ALIVE = new RoaringShardBounds({ maxBytes: MAX_BYTES, maxCardinality: MAX_ALIVE_CARDINALITY });
   static readonly #EDGE = new RoaringShardBounds({ maxBytes: MAX_BYTES, maxCardinality: ID_SPACE });
-  static readonly #CHUNK = new RoaringShardBounds({ maxBytes: CHUNK_MAX_BYTES, maxCardinality: CHUNK_CARDINALITY });
 
   /** The bounds for the alive bitmap of one meta shard. */
   static alive(): RoaringShardBounds {
@@ -87,10 +74,5 @@ export default class RoaringShardBounds {
   /** The bounds for an edge bitmap: no cardinality below the id space is refused. */
   static edge(): RoaringShardBounds {
     return RoaringShardBounds.#EDGE;
-  }
-
-  /** The bounds for one ordinal chunk shard of the selection plane: one container of 2^16 values. */
-  static ordinalChunk(): RoaringShardBounds {
-    return RoaringShardBounds.#CHUNK;
   }
 }

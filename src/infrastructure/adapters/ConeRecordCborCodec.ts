@@ -22,7 +22,7 @@ import { requireAdmittedEvent } from '../../domain/services/cone/ConeRecordValid
 import type CodecPort from '../../ports/CodecPort.ts';
 import { decodeConcurrency, encodeConcurrency } from './ConeConcurrencyCborWire.ts';
 import { decodeSelectionRecord, encodeSelectionRecord } from './ConeSelectionCborWire.ts';
-import OrdinalBitmapShard from '../../domain/retained/OrdinalBitmapShard.ts';
+import OrdinalBitmapBlock from '../../domain/retained/OrdinalBitmapBlock.ts';
 import SelectionDirectoryPage from '../../domain/retained/SelectionDirectoryPage.ts';
 
 const EVENT_WIRE = z.tuple([z.number(), z.string(), z.string(), z.number()]).nullable();
@@ -111,8 +111,8 @@ function encodeRecord(record: ConeRecord, codec: CodecPort): object {
   return isSelectionRecord(record) ? encodeSelectionRecord(record) : encodePage(record);
 }
 
-function isSelectionRecord(record: ConeRecord): record is OrdinalBitmapShard | SelectionDirectoryPage {
-  return record instanceof OrdinalBitmapShard || record instanceof SelectionDirectoryPage;
+function isSelectionRecord(record: ConeRecord): record is OrdinalBitmapBlock | SelectionDirectoryPage {
+  return record instanceof OrdinalBitmapBlock || record instanceof SelectionDirectoryPage;
 }
 
 function encodePage(record: ConeDotPage | ConeAdjacencyPage | AdmissionIndexRecord): object {

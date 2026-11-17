@@ -7,7 +7,7 @@ import ConeEdgeRecord from './ConeEdgeRecord.ts';
 import ConeNodeRecord from './ConeNodeRecord.ts';
 import type { ConeRecord } from './ConeRecord.ts';
 import ConeRecordKey, { type ConeDirection, type ConeDotSet } from './ConeRecordKey.ts';
-import OrdinalBitmapShard, { type SelectionIndexName } from '../../retained/OrdinalBitmapShard.ts';
+import OrdinalBitmapBlock, { type SelectionIndexName } from '../../retained/OrdinalBitmapBlock.ts';
 import type OrdinalChunk from '../../retained/OrdinalChunk.ts';
 
 type RecordClass<T extends ConeRecord> = abstract new (...args: never[]) => T;
@@ -72,9 +72,9 @@ export default class ConeRecordSnapshot {
     return this.#typed(key, ConeAdmissionRecord) ?? this.#typed(key, ConeUnprovenAdmissionRecord);
   }
 
-  /** The stored shard of `index` for `chunk`, or null when none is stored. */
-  selectionShard(index: SelectionIndexName, chunk: OrdinalChunk): OrdinalBitmapShard | null {
-    return this.#typed(OrdinalBitmapShard.empty(index, chunk).key(), OrdinalBitmapShard);
+  /** The stored block `block` of `index` for `chunk`, or null when none is stored. */
+  selectionBlock(index: SelectionIndexName, chunk: OrdinalChunk, block: number): OrdinalBitmapBlock | null {
+    return this.#typed(OrdinalBitmapBlock.empty(index, chunk, block).key(), OrdinalBitmapBlock);
   }
 
   /** This snapshot with `records` replacing any stored record at the same key. */

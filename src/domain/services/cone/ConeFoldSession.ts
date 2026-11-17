@@ -41,7 +41,7 @@ export default class ConeFoldSession {
     readonly from?: ConeFrontier;
     /** Absent for source-free folds; a needed recovery then returns an obstruction. */
     readonly source?: { readonly feed: ConePatchFeedPort; readonly lane: string };
-    /** How selection shards cut ordinal segments (#816); the record trie stores only version 1. */
+    /** How selection chunks and blocks cut ordinal segments (#816); the record trie stores only version 1. */
     readonly selection?: SelectionGeometry;
   }) {
     this.selection = selectionGeometry(options.selection);
