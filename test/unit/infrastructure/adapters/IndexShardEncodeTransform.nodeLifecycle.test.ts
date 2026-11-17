@@ -15,6 +15,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { IndexShard } from '../../../../src/domain/artifacts/IndexShard.ts';
+import { NodeLifecycleReceipt } from '../../../../src/domain/artifacts/NodeLifecycleReceipt.ts';
 import { NodeLifecycleShard } from '../../../../src/domain/artifacts/NodeLifecycleShard.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
 import { applyPatchOp, createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
@@ -191,11 +192,16 @@ describe('node lifecycle shards written before records carried tombstoned dots (
     expect(records.get('readded')).toMatchObject({ birth: event(4), clear: null, tombstonedDots: [] });
   });
 
-  it('reads a schema-2 receipt', () => {
+  it('reads a schema-2 receipt and reports the schema it was written under', () => {
     const payload = { schemaVersion: 2, nodeCount: 1, shardCount: 1, floatingTombstones: ['y:1'] };
 
     expect(decodeNodeLifecycleReceipt(codec.decode<CodecValue>(codec.encode(payload)), [path]))
-      .toMatchObject({ nodeCount: 1, shardCount: 1, floatingTombstones: ['y:1'] });
+      .toMatchObject({ schemaVersion: 2, nodeCount: 1, shardCount: 1, floatingTombstones: ['y:1'] });
+  });
+
+  it('refuses a receipt under a schema this runtime does not read', () => {
+    expect(() => new NodeLifecycleReceipt({ schemaVersion: 4, nodeCount: 0, shardCount: 0, floatingTombstones: [] }))
+      .toThrow(expect.objectContaining({ code: 'E_INVALID_SHARD' }));
   });
 
   it('refuses a schema-3 record without its tombstoned dots', () => {
