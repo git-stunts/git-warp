@@ -58,6 +58,7 @@ const REJECTED: ReadonlyArray<readonly [string, Error]> = [
   ['a ref update failure around a RangeError', refUpdateFailed(new RangeError('Invalid array length'))],
   ['a ref update failure around a thrown non-error', refUpdateFailed('not an error')],
   ['a ref update failure with no original error', refUpdateFailed()],
+  ['a ref update failure whose meta is not an object', Object.assign(refUpdateFailed(), { meta: null })],
   ['a ref update failure around corruption', refUpdateFailed(new PersistenceError('Missing Git object', PersistenceError.E_MISSING_OBJECT))],
   ['a ref update failure around a bare error', refUpdateFailed(new Error('EIO: i/o error, write'))],
   ['a truncated object (GitProtocolError)', new GitProtocolError('Git process closed before completing its response', 'ByteReader._readChunk')],
