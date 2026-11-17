@@ -96,6 +96,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Close the four accepted risks in `.github/SECURITY.md` whose acceptance
+  expired on 2026-08-01, as the Option B decision on
+  [#1032](https://github.com/git-stunts/git-warp/issues/1032) requires:
+  `roaring-wasm` bitmap faults (closed by #1128), the `cbor-x` parser on
+  untrusted payloads (#1148 for git-warp's own codec, #1187 for the blobs
+  that git-cas decodes for git-warp), the nonce cache lost on restart
+  (#1149), and no rate limiting on the sync endpoint (#1162). Each closed row
+  cites the source files that hold its mitigation, and a test compares the
+  limits that each closed row states with the code. The `cbor-x` row records
+  the v18-to-v19 checkpoint migration decoder, which an operator runs once and
+  which has wider size and item limits, as a documented exception. Two
+  narrower rows record what remains; the maintainer accepted both on 2026-11-11.
+  Their review date is 2027-02-16, with reassessment required before v21.0.0
+  ships if earlier. They cover the full in-process expansion of one admitted
+  edge bitmap (up to 2^32 values) and the unmatched writer
+  shard size ([#1159](https://github.com/git-stunts/git-warp/issues/1159),
+  Medium), and senders with more addresses than the peer admission limit
+  tracks, with no global flood bound
+  ([#1165](https://github.com/git-stunts/git-warp/issues/1165),
+  [#1164](https://github.com/git-stunts/git-warp/issues/1164), Low). The
+  Availability boundary and the `cbor-x` dependency row now describe the
+  shipped limits.
+
 - Validate every serialized Roaring bitmap before the bitmap library reads
   it, and bound it
   ([#1087](https://github.com/git-stunts/git-warp/issues/1087)). The bitmap
@@ -125,10 +148,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default codec reads; that limit is older than this change. An in-process
   read that expands a very large edge bitmap into an array is not bounded by
   this change; [#1159](https://github.com/git-stunts/git-warp/issues/1159)
-  tracks it. A checkpoint neighbourhood page does bounded work: it visits at
-  most 4 × `limit` + 256 stored candidates. When a stored edge bitmap names
-  many ids that are not live nodes, a page can therefore be `truncated` with
-  fewer than `limit` edges, or with none; its cursor continues the read.
+  tracks it. A checkpoint neighbourhood page visits at most 4 × `limit` + 256
+  stored candidates. The budget bounds only stored-candidate visits, not total
+  page work. Whole shards are decoded before candidate selection. When a stored
+  edge bitmap names many ids that are not live nodes, a page can therefore be
+  `truncated` with fewer than `limit` edges, or with none; its cursor continues the read.
   `LogicalIndexReader` and the index updaters do not catch a rejection. When
   the runtime builds or updates its in-memory view index, it catches any error
   from them, logs the warning `index build failed` and continues without the
@@ -655,8 +679,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Packaging
 
 - The published root reaches `Warp` as well as `Runtime`. After #1054 removed the legacy write,
-  strand and settlement surface, the ceilings are 760,000 compressed bytes, 3,300,000 unpacked
-  bytes and 1,250 entries.
+  strand and settlement surface, the ceilings are 1,000,000 compressed bytes, 4,500,000
+  unpacked bytes and 1,750 entries. These are local regression alarms, not registry limits;
+  they were raised so normal feature growth stops tripping them (#1193).
 
 ## [20.0.0] - 2026-10-03
 

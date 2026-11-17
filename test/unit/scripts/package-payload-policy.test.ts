@@ -155,29 +155,29 @@ describe('package payload policy', () => {
 
   it('reports every exceeded geometry ceiling', () => {
     const oversizedEntries = REQUIRED_PATHS.map(
-      (path, index) => new PackagePayloadEntry(path, index === 0 ? 3_300_001 : 0)
+      (path, index) => new PackagePayloadEntry(path, index === 0 ? 4_500_001 : 0)
     );
     const generatedEntries = Array.from(
-      { length: 1_251 },
+      { length: 1_751 },
       (_, index) => new PackagePayloadEntry(`dist/src/generated/${String(index)}.js`, 0)
     );
     const entries = [...oversizedEntries, ...generatedEntries];
-    const oversized = new PackagePayloadInventory(760_001, 3_300_001, entries);
+    const oversized = new PackagePayloadInventory(1_000_001, 4_500_001, entries);
     const assessment = new PackagePayloadPolicy().assess(oversized);
 
-    expect(assessment.violations).toContain('compressed size 760001 exceeds 760000');
-    expect(assessment.violations).toContain('unpacked size 3300001 exceeds 3300000');
+    expect(assessment.violations).toContain('compressed size 1000001 exceeds 1000000');
+    expect(assessment.violations).toContain('unpacked size 4500001 exceeds 4500000');
     expect(assessment.violations).toContain(
-      `entry count ${String(entries.length)} exceeds 1250`
+      `entry count ${String(entries.length)} exceeds 1750`
     );
   });
-  it('admits 1,250 entries and refuses 1,251', () => {
+  it('admits 1,750 entries and refuses 1,751', () => {
     const at = (count: number) => new PackagePayloadPolicy().assess(inventory([
       ...REQUIRED_PATHS,
       ...Array.from({ length: count - REQUIRED_PATHS.length }, (_, index) => `dist/src/generated/${String(index)}.js`),
     ])).violations;
-    expect(at(1_250)).toEqual([]);
-    expect(at(1_251)).toEqual(['entry count 1251 exceeds 1250']);
+    expect(at(1_750)).toEqual([]);
+    expect(at(1_751)).toEqual(['entry count 1751 exceeds 1750']);
   });
 });
 

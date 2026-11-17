@@ -91,6 +91,16 @@ of headroom remain. Removing the legacy write, strand and settlement surface und
 entries and 3,212,039 unpacked bytes, so the entry ceiling fell to 1,250. #814 owns the
 next reduction.
 
+The Optic read slice (#1052) measured 1,278 entries, 732,095 compressed bytes and
+3,335,352 unpacked bytes, over two ceilings. The ceilings are local regression alarms
+chosen by this repository, not npm or JSR limits, and file count has little effect on
+install cost. [#1193](https://github.com/git-stunts/git-warp/issues/1193) raised them to
+1,000,000 compressed bytes, 4,500,000 unpacked bytes and 1,750 entries so normal feature
+growth stops failing the gate. They still catch an accidental bulk inclusion, such as
+tests, fixtures or withheld documentation, which would add hundreds of files or
+megabytes. [#1194](https://github.com/git-stunts/git-warp/issues/1194) tracks optional
+size reduction.
+
 ## Allowlist
 
 The package may contain only these path classes:
