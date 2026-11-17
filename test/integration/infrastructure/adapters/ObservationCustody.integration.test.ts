@@ -25,8 +25,8 @@ import ObservationReconcileOnly from '../../../../src/domain/services/custody/Ob
 import ObservationReconciled from '../../../../src/domain/services/custody/ObservationReconciled.ts';
 import ObservationRefused from '../../../../src/domain/services/custody/ObservationRefused.ts';
 import ObservationSupportCancelled from '../../../../src/domain/services/custody/ObservationSupportCancelled.ts';
+import ObservationSupportRetained from '../../../../src/domain/services/custody/ObservationSupportRetained.ts';
 import ObservationSupportLimits from '../../../../src/domain/services/custody/ObservationSupportLimits.ts';
-import ObservationSupportRefused from '../../../../src/domain/services/custody/ObservationSupportRefused.ts';
 import ObservationUnavailable from '../../../../src/domain/services/custody/ObservationUnavailable.ts';
 import ResolvedObservation from '../../../../src/domain/services/custody/ResolvedObservation.ts';
 import RetainedObservation from '../../../../src/domain/services/custody/RetainedObservation.ts';
@@ -120,6 +120,11 @@ async function prepareAroundStoreWrite(format: string, side: LatchSide): Promise
   return [narrowed(await first, ObservationPrepared), narrowed(second, ObservationPrepared)];
 }
 
+/** Every commit object in the repository, reachable or not: what a construction wrote. */
+function commitCount(path: string): number {
+  return git(path, ['cat-file', '--batch-all-objects', '--batch-check=%(objecttype)']).split('\n').filter((type) => type === 'commit').length;
+}
+
 function parentCount(path: string, commit: string): number {
   return git(path, ['rev-list', '--parents', '-n', '1', commit]).split(/\s+/u).length - 1;
 }
@@ -179,14 +184,15 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     }
   });
 
-  it('retains history through bounded carriers of 63, 64 and 4 parents', async () => {
+  it('retains 129 writers through one carrier that names at most 63 branch anchors (#1197)', async () => {
     const path = await fixture.repository(format);
     const opened = await fixture.open(path, { limit: 4 });
     const attempt = await admitted(opened.service, readBindings(basisTree(path, 'carriers', writerCommits(path, 129))));
     const prepared = narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
-    const carriers = git(path, ['rev-list', '--first-parent', '-n', '3', prepared.roots.parents[0] ?? '']).split('\n');
-    expect(carriers.map((commit) => parentCount(path, commit))).toEqual([4, 64, 63]);
-    expect(opened.carriersPublished()).toBe(3);
+    const carrier = prepared.roots.parents[0] ?? '';
+    expect(parentCount(path, carrier)).toBeGreaterThan(1);
+    expect(parentCount(path, carrier)).toBeLessThanOrEqual(63);
+    expect(opened.carriersPublished()).toBe(1);
   });
 
   it('admits at most the capacity under concurrency and preserves earlier tokens', async () => {
@@ -285,18 +291,16 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     expect(constructionRefs(path)).toBe('');
   });
 
-  it('resumes a partial construction, and refuses one that retained another basis', async () => {
+  it('resumes a construction stopped after its anchors were written, publishing only its carrier (#1197)', async () => {
     const path = await fixture.repository(format);
     const opened = await fixture.open(path, { limit: 4 });
-    const heads = writerCommits(path, 130);
-    const basis = basisTree(path, 'partial', heads);
+    const basis = basisTree(path, 'partial', writerCommits(path, 130));
     const attempt = await admitted(opened.service, readBindings(basis));
-    const request = {
-      identity: attempt.identity, claim: attempt.preparation.bindings.dependencies, dependencies: stream([]),
-    };
     let checks = 0;
     const interrupted = await opened.support.retain({
-      ...request,
+      identity: attempt.identity,
+      claim: attempt.preparation.bindings.dependencies,
+      dependencies: stream([]),
       basis,
       isCancelled: () => {
         checks += 1;
@@ -304,21 +308,18 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
       },
     });
     expect(interrupted).toBeInstanceOf(ObservationSupportCancelled);
-    const ref = constructionRefs(path);
-    const partialTip = git(path, ['rev-parse', ref]);
+    expect([opened.carriersPublished(), constructionRefs(path)]).toEqual([0, '']);
+    const commits = commitCount(path);
+
+    const resumed = await opened.support.retain({
+      identity: attempt.identity, claim: attempt.preparation.bindings.dependencies, dependencies: stream([]), basis, isCancelled: () => false,
+    });
+
+    expect(resumed).toBeInstanceOf(ObservationSupportRetained);
+    expect(commitCount(path) - commits).toBe(1);
     expect(opened.carriersPublished()).toBe(1);
-
-    const other = basisTree(path, 'other', [...heads].reverse());
-    const foreign = await opened.support.retain({ ...request, dependencies: stream([]), basis: other, isCancelled: () => false });
-    expect(foreign).toEqual(new ObservationSupportRefused('construction-mismatch'));
-    expect(git(path, ['rev-parse', ref])).toBe(partialTip);
-
     const prepared = narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
-    const carriers = git(path, ['rev-list', '--first-parent', '-n', '3', prepared.roots.parents[0] ?? '']).split('\n');
-    expect(carriers.map((commit) => parentCount(path, commit))).toEqual([5, 64, 63]);
-    expect(opened.carriersPublished()).toBe(3);
-    expect(carriers.at(-1)).toBe(partialTip);
-    expect(constructionRefs(path)).toBe('');
+    expect(prepared.roots.parents).toHaveLength(1);
     const retained = narrowed(await opened.service.settle(attempt, { core: readCore('resumed'), publication: null }), RetainedObservation);
     expect(await opened.service.resolve(retained.coordinate)).toBeInstanceOf(ResolvedObservation);
   });
@@ -384,10 +385,10 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
 
   it('refuses over-budget and missing support before arm', async () => {
     const path = await fixture.repository(format);
-    const limits = new ObservationSupportLimits({ writers: 64, dependencies: 2, frontierBytes: 1024 * 1024, work: 100_000 });
+    const limits = new ObservationSupportLimits({ dependencies: 2, frontierBytes: 1024, work: 100_000 });
     const opened = await fixture.open(path, { limit: 16, limits });
     const attempt = await admitted(opened.service, writeBindings(basisTree(path, 'budget', writerCommits(path, 70))));
-    expect(await opened.service.prepare(attempt, sources())).toEqual(new ObservationRefused('writer-limit'));
+    expect(await opened.service.prepare(attempt, sources())).toEqual(new ObservationRefused('frontier-limit'));
     expect(opened.carriersPublished()).toBe(0);
     expect(await opened.service.authorizePublication(preparationOf(attempt))).toEqual(new ObservationRefused('not-prepared'));
 
@@ -413,9 +414,9 @@ describe.each(['sha1', 'sha256'])('shared observation custody on published git-c
     const content = [blobDependency(blob(path, 'budgeted'))];
     const claim = await claimOf(content);
     const outcomes: string[] = [];
-    for (let work = 0; work <= 16; work++) {
-      const limits = new ObservationSupportLimits({ writers: 8, dependencies: 8, frontierBytes: 1024 * 1024, work });
-      const opened = await fixture.open(path, { limit: 32, limits });
+    for (let work = 0; work <= 32; work++) {
+      const limits = new ObservationSupportLimits({ dependencies: 8, frontierBytes: 1024 * 1024, work });
+      const opened = await fixture.open(path, { limit: 64, limits });
       const attempt = await admitted(opened.service, readBindings(basisTree(path, `budget-${work}`, heads), claim));
       const prepared = await opened.service.prepare(attempt, sources(content));
       if (prepared instanceof ObservationPrepared) {

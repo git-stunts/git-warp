@@ -105,7 +105,6 @@ function coded(code: string): Error {
 
 function limitsWith(changes: Partial<ConstructorParameters<typeof ObservationSupportLimits>[0]>): ObservationSupportLimits {
   return new ObservationSupportLimits({
-    writers: DEFAULT_SUPPORT_LIMITS.writers,
     dependencies: DEFAULT_SUPPORT_LIMITS.dependencies,
     frontierBytes: DEFAULT_SUPPORT_LIMITS.frontierBytes,
     work: DEFAULT_SUPPORT_LIMITS.work,
@@ -141,7 +140,7 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
   });
 
   it('refuses a construction ref that points at anything but this attempt', async () => {
-    const h = await harness(format);
+    const h = await harness(format, (path) => writerCommits(path, 1));
     const [foreign] = writerCommits(h.path, 1);
     git(h.path, ['update-ref', constructionRef(h.identity), foreign ?? '']);
     expect(await h.opened.support.retain(requestOf(h))).toEqual(new ObservationSupportRefused('construction-mismatch'));
@@ -155,14 +154,6 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
     expect(await h.opened.support.retain(requestOf(h, { basis: basisTree(h.path, 'shorter', heads.slice(0, 3)) })))
       .toEqual(new ObservationSupportRefused('construction-mismatch'));
     expect(await h.opened.support.retain(requestOf(h, { basis: basisTree(h.path, 'reordered', [...heads].reverse()) })))
-      .toEqual(new ObservationSupportRefused('construction-mismatch'));
-  });
-
-  it('refuses to extend a partial final carrier, whose batch boundary differs', async () => {
-    const h = await harness(format);
-    const heads = writerCommits(h.path, 70);
-    narrowed(await h.opened.support.retain(requestOf(h, { basis: basisTree(h.path, 'few', heads.slice(0, 5)) })), ObservationSupportRetained);
-    expect(await h.opened.support.retain(requestOf(h, { basis: basisTree(h.path, 'many', heads) })))
       .toEqual(new ObservationSupportRefused('construction-mismatch'));
   });
 
@@ -291,19 +282,19 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
   it('reports a work-exhausted resume as such, not as a mismatch', async () => {
     const h = await harness(format, (path) => writerCommits(path, 3));
     narrowed(await h.opened.support.retain(requestOf(h)), ObservationSupportRetained);
-    const meager = await supportOver(h, { limits: limitsWith({ work: 5 }) });
+    // The basis tree, its two entries and the frontier blob take four; reading the landed carrier takes the fifth.
+    const meager = await supportOver(h, { limits: limitsWith({ work: 4 }) });
     expect(await meager.retain(requestOf(h))).toEqual(new ObservationSupportRefused('work-limit'));
+    const enough = await supportOver(h, { limits: limitsWith({ work: 5 }) });
+    expect(await enough.retain(requestOf(h))).toBeInstanceOf(ObservationSupportRetained);
   });
 
-  it('refuses a corrupt frontier and a frontier naming too many writers', async () => {
+  it('refuses a corrupt frontier', async () => {
     const h = await harness(format);
     const junk = blob(h.path, 'not a frontier');
     const corrupt = git(h.path, ['mktree'], `100644 blob ${junk}\tfrontier\n`);
     expect(await h.opened.support.retain(requestOf(h, { basis: corrupt }))).toEqual(new ObservationSupportRefused('basis-corrupt'));
     expect(await h.opened.support.retain(requestOf(h, { basis: junk }))).toEqual(new ObservationSupportRefused('basis-corrupt'));
-    const few = await supportOver(h, { limits: limitsWith({ writers: 1 }) });
-    expect(await few.retain(requestOf(h, { basis: basisTree(h.path, 'two', writerCommits(h.path, 2)) })))
-      .toEqual(new ObservationSupportRefused('writer-limit'));
   });
 
   it('retains one head once when two writers share it', async () => {
@@ -412,14 +403,23 @@ describe.each(['sha1', 'sha256'])('GitCasObservationSupportAdapter on real Git (
         .toEqual(new ObservationSupportFault('dependency-mismatch'));
     });
 
-    it('enforces its work bound at the basis, pages, entries and chain', async () => {
-      const h = await harness(format, (path) => writerCommits(path, 2));
+    it('enforces its work bound at the basis, pages, entries, carrier, anchors and heads', async () => {
+      const named: string[] = [];
+      const h = await harness(format, (path) => {
+        named.push(...writerCommits(path, 2));
+        return named;
+      });
       const { roots, summary } = await retained(h, blob(h.path, 'kept'));
-      for (const work of [0, 1, 2, 3, 4, 5, 6, 7, 8]) {
+      const carrier = roots.parents[0] ?? '';
+      const anchors = git(h.path, ['rev-list', carrier, '--not', ...named]).split('\n').filter((oid) => oid !== carrier);
+      // The basis tree, its two entries and the frontier blob; one page and its entry; the carrier; every anchor and head.
+      const bound = 4 + 2 + 1 + anchors.length + named.length;
+      for (let work = 0; work < bound; work += 1) {
         const meager = await supportOver(h, { limits: limitsWith({ work }) });
         expect(await meager.verify(h.identity, { basis: h.basis, roots, summary })).toEqual(new ObservationSupportFault('work-limit'));
       }
-      const enough = await supportOver(h, { limits: limitsWith({ work: 9 }) });
+      const enough = await supportOver(h, { limits: limitsWith({ work: bound }) });
+      expect(anchors.length).toBeGreaterThan(1);
       expect(await enough.verify(h.identity, { basis: h.basis, roots, summary })).toBeNull();
     });
 

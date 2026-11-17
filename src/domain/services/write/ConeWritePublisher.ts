@@ -20,7 +20,6 @@ import type { default as ConeWriteSettlement, PublishedAttempt } from './ConeWri
 import type LoweredConeWrite from './LoweredConeWrite.ts';
 import WriteAttemptRecord from './WriteAttemptRecord.ts';
 import type WritePublicationProbe from './WritePublicationProbe.ts';
-import WriterFrontierRefusal from './WriterFrontierRefusal.ts';
 import { failedWriteCore } from './writeReceiptCore.ts';
 
 const CONTENDED_STEP_ATTEMPTS = 4;
@@ -31,10 +30,18 @@ const CAPACITY_REPAIR = Object.freeze([Object.freeze({
   code: 'retention_capacity_exhausted',
   message: 'This graph has used every retention slot it was opened with, and the limit cannot be raised yet.',
 })]);
-/** What repairs a refusal, by cause. Custody refuses a writer already in a frontier past the writer limit (#1075). */
+/**
+ * A frontier whose stored bytes pass `frontierBytes` names more writers than one basis can
+ * record, about 36,800 to 72,300, so custody retains no write over it (#1197).
+ */
+const FRONTIER_LIMIT_REPAIR = Object.freeze([Object.freeze({
+  code: 'frontier_limit_reached',
+  message: 'This clone holds more writer chains than one basis frontier can record (4 MiB: about 36,800 to 72,300), so it accepts no write. No git-warp command reduces the frontier; docs/topics/getting-started.md states the bound and how to stay below it.',
+})]);
+/** What repairs a refusal, by cause. */
 const REPAIRS: ReadonlyMap<string, readonly RepairHint[]> = new Map<string, readonly RepairHint[]>([
   ['retention-capacity-exhausted', CAPACITY_REPAIR],
-  [WriterFrontierRefusal.OVER_LIMIT.cause, WriterFrontierRefusal.OVER_LIMIT.repairHints],
+  ['retention-refused-frontier-limit', FRONTIER_LIMIT_REPAIR],
 ]);
 
 /** How the one publication went: landed, definitely did not, or cannot be told. */

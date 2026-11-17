@@ -20,8 +20,8 @@ import ObservationCarrierMessage from '../../../../src/infrastructure/adapters/O
 import NodeCryptoAdapter from '../../../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import { isObjectFault } from '../../../../src/infrastructure/adapters/ObservationObjectFault.ts';
-import ObservationBasisFrontier, { type ObservationBasisHistory } from '../../../../src/infrastructure/adapters/ObservationBasisFrontier.ts';
-import ObservationCarrierChain from '../../../../src/infrastructure/adapters/ObservationCarrierChain.ts';
+import ObservationBasisFrontier, { type ObservationBasisHeads, type ObservationBasisHistory } from '../../../../src/infrastructure/adapters/ObservationBasisFrontier.ts';
+import ObservationCarrier from '../../../../src/infrastructure/adapters/ObservationCarrier.ts';
 import GitFastImportTreeWriter from '../../../../src/infrastructure/adapters/GitFastImportTreeWriter.ts';
 import ObservationDependencyPages from '../../../../src/infrastructure/adapters/ObservationDependencyPages.ts';
 import ObservationDependencyClaim from '../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
@@ -81,11 +81,11 @@ describe('reading what might be damaged', () => {
   });
 
   it('keeps a transient failure reading a carrier out of the damage verdict', async () => {
-    const chainOver = (failure: Error): ObservationCarrierChain => new ObservationCarrierChain({
+    const carrierOver = (failure: Error): ObservationCarrier => new ObservationCarrier({
       plumbing: { execute: async (options) => (options.args[1]?.startsWith('--batch-check') === true ? 'commit' : await Promise.reject(failure)) },
-    }, new NodeCryptoAdapter());
-    expect(await chainOver(fatal('fatal: loose object is corrupt')).walk(IDENTITY, OID, meter())).toEqual(new ObservationSupportFault('history-mismatch'));
-    await expect(chainOver(spawn).walk(IDENTITY, OID, meter())).rejects.toBe(spawn);
+    });
+    expect(await carrierOver(fatal('fatal: loose object is corrupt')).read(IDENTITY, OID, meter())).toEqual(new ObservationSupportFault('history-mismatch'));
+    await expect(carrierOver(spawn).read(IDENTITY, OID, meter())).rejects.toBe(spawn);
   });
 
   it('keeps a transient failure reading a page out of the damage verdict', async () => {
@@ -96,7 +96,7 @@ describe('reading what might be damaged', () => {
       },
       trees: new GitFastImportTreeWriter({ plumbing: { execute: async () => await Promise.resolve('') } }),
       crypto,
-      limits: new ObservationSupportLimits({ writers: 1, dependencies: 1, frontierBytes: 1, work: 100 }),
+      limits: new ObservationSupportLimits({ dependencies: 1, frontierBytes: 1, work: 100 }),
     });
     const claim = ObservationDependencyClaim.NONE;
     expect(await pagesOver(fatal('fatal: loose object is corrupt')).check([OID], claim, meter())).toBe('dependency-mismatch');
@@ -113,10 +113,10 @@ describe('reading what might be damaged', () => {
         ...overrides,
       },
       codec,
-      limits: new ObservationSupportLimits({ writers: 1, dependencies: 1, frontierBytes: 10, work: 100 }),
+      limits: new ObservationSupportLimits({ dependencies: 1, frontierBytes: 10, work: 100 }),
     });
     const reject = async (failure: Error): Promise<never> => await Promise.reject(failure);
-    const heads = async (overrides: Partial<ObservationBasisHistory>): Promise<readonly string[] | string> =>
+    const heads = async (overrides: Partial<ObservationBasisHistory>): Promise<ObservationBasisHeads | string> =>
       await frontierOver(overrides).heads(OID, meter());
     expect(await heads({})).toBe('corrupt');
     expect(await heads({ readTreeObjectEntries: async () => await reject(fatal('fatal: loose object is corrupt')) })).toBe('corrupt');
@@ -262,179 +262,97 @@ describe('GitCasObservationCustodyAdapter', () => {
 });
 
 describe('ObservationCarrierMessage', () => {
-  const message = new ObservationCarrierMessage({ binding: BINDING, sequence: 2, writers: 70, history: FOREIGN });
+  const message = new ObservationCarrierMessage({ binding: BINDING, writers: 70, history: FOREIGN });
 
   it('round-trips, tolerating the newline Git may trim', () => {
     expect(ObservationCarrierMessage.parse(message.toString())?.toString()).toBe(message.toString());
-    expect(ObservationCarrierMessage.parse(message.toString().trimEnd())?.sequence).toBe(2);
+    expect(ObservationCarrierMessage.parse(message.toString().trimEnd())?.writers).toBe(70);
   });
 
   it.each([
     ['another message', 'ordinary commit'],
-    ['another version', message.toString().replace('version 1', 'version 2')],
+    ['the chained version 1', message.toString().replace('version 2', 'version 1')],
     ['a surplus line', `${message.toString()}extra\n`],
     ['a malformed digest', message.toString().replace(BINDING.hex, 'xyz')],
   ])('refuses %s', (_name, text) => {
     expect(ObservationCarrierMessage.parse(text)).toBeNull();
   });
+
+  it.each([
+    ['another attempt', { binding: FOREIGN }],
+    ['another count', { writers: 71 }],
+    ['another digest', { history: BINDING }],
+  ])('tells a claim from one about %s', (_name, change) => {
+    expect(message.equals(new ObservationCarrierMessage({ binding: BINDING, writers: 70, history: FOREIGN, ...change }))).toBe(false);
+    expect(message.equals(new ObservationCarrierMessage({ binding: BINDING, writers: 70, history: FOREIGN }))).toBe(true);
+  });
 });
 
-/** A fake history of raw commit objects, and a chain builder that claims honestly unless told to lie. */
+/** A fake history of raw commit objects, keyed by id. */
 class CarrierHistory {
   readonly commits = new Map<string, string>();
   readonly missing = new Set<string>();
-  readonly #chain: ObservationCarrierChain;
   #next = 0;
-  peakHeadsRead = 0;
-
-  constructor() {
-    this.#chain = new ObservationCarrierChain(this, crypto);
-  }
-
-  get chain(): ObservationCarrierChain {
-    return this.#chain;
-  }
 
   readonly plumbing = {
     execute: async ({ args, input }: { args: string[]; input?: string | Buffer }): Promise<string> => {
       if (args[1]?.startsWith('--batch-check') === true) {
         const oids = String(input).trim().split('\n');
-        return await Promise.resolve(oids.map((oid) => (this.missing.has(oid) ? `${oid} missing` : 'commit')).join('\n'));
+        return await Promise.resolve(oids.map((oid) => (this.missing.has(oid) ? `${oid} missing` : this.commits.has(oid) ? 'commit' : 'tree')).join('\n'));
       }
-      const raw = this.commits.get(args[2] ?? '') ?? '';
-      this.peakHeadsRead = Math.max(this.peakHeadsRead, raw.split('\n').filter((line) => line.startsWith('parent ')).length);
-      return await Promise.resolve(raw);
+      return await Promise.resolve(this.commits.get(args[2] ?? '') ?? '');
     },
   };
 
-  oid(): string {
-    this.#next += 1;
-    return String(this.#next).padStart(40, '0');
-  }
+  readonly carrier = new ObservationCarrier(this);
 
   store(parents: readonly string[], message: string): string {
-    const oid = this.oid();
+    this.#next += 1;
+    const oid = String(this.#next).padStart(40, '0');
     this.commits.set(oid, ['tree 0', ...parents.map((parent) => `parent ${parent}`), 'author a', '', message].join('\n'));
     return oid;
   }
-
-  /** Builds a chain of honest carriers over batches of `size` fresh heads. */
-  async honest(batches: number, size: number): Promise<{ readonly tip: string; readonly heads: readonly (readonly string[])[] }> {
-    let previous: string | null = null;
-    let history = await this.#chain.seed();
-    let writers = 0;
-    const heads: string[][] = [];
-    for (let sequence = 1; sequence <= batches; sequence++) {
-      const batch = Array.from({ length: size }, () => this.oid());
-      heads.push(batch);
-      history = await this.#chain.extend(history, batch);
-      writers += size;
-      const claim = new ObservationCarrierMessage({ binding: BINDING, sequence, writers, history });
-      previous = this.store(previous === null ? batch : [previous, ...batch], claim.toString());
-    }
-    return { tip: previous ?? '', heads };
-  }
 }
 
-describe('ObservationCarrierChain', () => {
-  it('walks an honest chain to its claimed position, reading one batch at a time', async () => {
+describe('ObservationCarrier', () => {
+  const claim = new ObservationCarrierMessage({ binding: BINDING, writers: 2, history: FOREIGN });
+
+  it('reads this attempt\'s claim and the anchors it names', async () => {
     const history = new CarrierHistory();
-    const { tip } = await history.honest(4, 63);
-    expect(await history.chain.walk(IDENTITY, tip, unbounded())).toMatchObject({ tip, sequence: 4, writers: 252 });
-    expect(history.peakHeadsRead).toBe(64);
+    const oid = history.store(['a'.repeat(40), 'b'.repeat(40)], claim.toString());
+
+    expect(await history.carrier.read(IDENTITY, oid, unbounded())).toEqual({ message: claim, parents: ['a'.repeat(40), 'b'.repeat(40)] });
   });
 
-  it('reports a missing carrier or a missing retained head', async () => {
+  it('reports a missing carrier as missing history', async () => {
     const history = new CarrierHistory();
-    const { tip, heads } = await history.honest(2, 3);
-    history.missing.add(heads[0]?.[1] ?? '');
-    expect(await history.chain.walk(IDENTITY, tip, unbounded())).toEqual(new ObservationSupportFault('history-missing'));
-    expect(await new CarrierHistory().chain.walk(IDENTITY, tip, unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
-    const gone = new CarrierHistory();
-    const chain = await gone.honest(2, 1);
-    gone.missing.add(chain.tip);
-    expect(await gone.chain.walk(IDENTITY, chain.tip, unbounded())).toEqual(new ObservationSupportFault('history-missing'));
-  });
+    history.missing.add(OID_OF_NOTHING);
 
-  it('refuses another attempt\'s carrier and a foreign commit', async () => {
-    const history = new CarrierHistory();
-    const { tip } = await history.honest(1, 2);
-    const other = new ObservationCustodyIdentity(IDENTITY.attemptId, FOREIGN);
-    expect(await history.chain.walk(other, tip, unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
-    expect(await history.chain.walk(IDENTITY, history.store([], 'ordinary commit'), unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
-    const earlier = history.store([], new ObservationCarrierMessage({ binding: FOREIGN, sequence: 1, writers: 0, history: BINDING }).toString());
-    const later = history.store([earlier], new ObservationCarrierMessage({ binding: BINDING, sequence: 2, writers: 0, history: BINDING }).toString());
-    expect(await history.chain.walk(IDENTITY, later, unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
+    expect(await history.carrier.read(IDENTITY, OID_OF_NOTHING, unbounded())).toEqual(new ObservationSupportFault('history-missing'));
   });
 
   it.each([
-    ['an inflated writer count', { writers: 99 }],
-    ['a skipped sequence', { sequence: 5 }],
-    ['a forged digest', { history: FOREIGN }],
-  ])('refuses a later carrier with %s', async (_name, lie) => {
+    ['another attempt\'s carrier', (history: CarrierHistory): string => history.store([], new ObservationCarrierMessage({ binding: FOREIGN, writers: 0, history: FOREIGN }).toString())],
+    ['an ordinary commit', (history: CarrierHistory): string => history.store([], 'ordinary commit')],
+    ['an object that is not a commit', (): string => 'c'.repeat(40)],
+  ])('refuses %s as a mismatch', async (_name, stored) => {
     const history = new CarrierHistory();
-    const { tip, heads } = await history.honest(1, 2);
-    const batch = [history.oid()];
-    const claim = new ObservationCarrierMessage({
-      binding: BINDING,
-      sequence: 2,
-      writers: 3,
-      history: await history.chain.extend(await firstDigest(history, heads[0] ?? []), batch),
-      ...lie,
-    });
-    const forged = history.store([tip, ...batch], claim.toString());
-    expect(await history.chain.walk(IDENTITY, forged, unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
+
+    expect(await history.carrier.read(IDENTITY, stored(history), unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
   });
 
-  it.each([
-    ['a wrong count', { writers: 9 }],
-    ['a forged digest', { history: FOREIGN }],
-  ])('refuses a first carrier with %s', async (_name, lie) => {
+  it('stops at its work bound before reading', async () => {
     const history = new CarrierHistory();
-    const batch = [history.oid(), history.oid()];
-    const claim = new ObservationCarrierMessage({
-      binding: BINDING, sequence: 1, writers: 2, history: await firstDigest(history, batch), ...lie,
-    });
-    expect(await history.chain.walk(IDENTITY, history.store(batch, claim.toString()), unbounded()))
-      .toEqual(new ObservationSupportFault('history-mismatch'));
-  });
+    const oid = history.store([], claim.toString());
 
-  it('accepts a later carrier honest about its predecessor as control', async () => {
-    const history = new CarrierHistory();
-    const { tip, heads } = await history.honest(1, 2);
-    const batch = [history.oid()];
-    const claim = new ObservationCarrierMessage({
-      binding: BINDING, sequence: 2, writers: 3, history: await history.chain.extend(await firstDigest(history, heads[0] ?? []), batch),
-    });
-    expect(await history.chain.walk(IDENTITY, history.store([tip, ...batch], claim.toString()), unbounded())).toMatchObject({ sequence: 2, writers: 3 });
-  });
-
-  it('reports a later carrier with no parents as a broken chain', async () => {
-    const history = new CarrierHistory();
-    const claim = new ObservationCarrierMessage({ binding: BINDING, sequence: 2, writers: 0, history: await history.chain.seed() });
-    expect(await history.chain.walk(IDENTITY, history.store([], claim.toString()), unbounded())).toEqual(new ObservationSupportFault('history-mismatch'));
-  });
-
-  it('stops at its work bound, at a carrier or at its heads', async () => {
-    const history = new CarrierHistory();
-    const { tip } = await history.honest(2, 3);
-    expect(await history.chain.walk(IDENTITY, tip, new ObservationWorkMeter(0))).toEqual(new ObservationSupportFault('work-limit'));
-    expect(await history.chain.walk(IDENTITY, tip, new ObservationWorkMeter(2))).toEqual(new ObservationSupportFault('work-limit'));
-    expect(await history.chain.walk(IDENTITY, tip, new ObservationWorkMeter(5))).toEqual(new ObservationSupportFault('work-limit'));
-    expect(await history.chain.walk(IDENTITY, tip, new ObservationWorkMeter(8))).toMatchObject({ writers: 6 });
-  });
-
-  it('starts empty', async () => {
-    expect(await new CarrierHistory().chain.empty()).toMatchObject({ tip: null, sequence: 0, writers: 0 });
+    expect(await history.carrier.read(IDENTITY, oid, new ObservationWorkMeter(0))).toEqual(new ObservationSupportFault('work-limit'));
   });
 });
 
+const OID_OF_NOTHING = 'd'.repeat(40);
+
 function unbounded(): ObservationWorkMeter {
   return new ObservationWorkMeter(Number.MAX_SAFE_INTEGER);
-}
-
-async function firstDigest(history: CarrierHistory, heads: readonly string[]): Promise<ObservationDigest> {
-  return await history.chain.extend(await history.chain.seed(), heads);
 }
 
 describe('observation host boundaries', () => {

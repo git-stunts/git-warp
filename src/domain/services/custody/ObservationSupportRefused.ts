@@ -1,5 +1,5 @@
 export type ObservationSupportRefusalReason =
-  | 'writer-limit' | 'dependency-limit' | 'frontier-limit' | 'work-limit'
+  | 'dependency-limit' | 'frontier-limit' | 'work-limit'
   | 'basis-unavailable' | 'basis-corrupt' | 'dependency-unavailable' | 'dependency-mismatch'
   | 'writer-head-unavailable' | 'construction-mismatch' | 'construction-contended';
 

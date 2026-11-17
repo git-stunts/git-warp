@@ -42,13 +42,20 @@ import { resolveConeWrites, resolveWarpStorage, type WarpConeWriteStorage } from
 export const WARP_RETENTION_SLOTS = Number.MAX_SAFE_INTEGER;
 
 /**
+ * The most writers a graph admits: a new writer ID is refused once the basis frontier holds
+ * this many (#1075). Writers already in the frontier keep writing past it (#1197).
+ */
+export const WARP_WRITER_LIMIT = 4096;
+
+/**
  * Support limits. Lowering one strands Coordinates that crossed it, so treat them as raise-only.
- * Every write retains each writer head in its frontier, one carrier commit per 63 heads, so
- * `writers` bounds what one write costs. A new writer past it is refused with a repair rather
- * than admitted into a frontier no write could then retain (#1075).
+ * A write retains its frontier's heads through shared frontier anchors, so what one write adds
+ * does not grow with the writer count (#1197). `frontierBytes` bounds the stored frontier, and
+ * so the writers one basis can name: about 36,800 to 72,300, as writer IDs run from 64 to 9
+ * characters. A frontier past it refuses every write with `retention-refused-frontier-limit`.
  */
 export const WARP_SUPPORT_LIMITS = new ObservationSupportLimits({
-  writers: 4096, dependencies: 4096, frontierBytes: 4 * 1024 * 1024, work: 1_000_000,
+  dependencies: 4096, frontierBytes: 4 * 1024 * 1024, work: 1_000_000,
 });
 
 export type WarpCompositionOverrides = {
@@ -149,7 +156,7 @@ async function openPath(fields: {
 }): Promise<OpenedPath> {
   const { graph, git, ports, overrides, storage, content, hosts } = fields;
   const cone = await openCone({ graph, git, ports, storage });
-  const lowering = new ConeWriteLowering({ graph, cone: cone.basis, content, crypto: ports.crypto, writers: new WriterFrontierLimit(WARP_SUPPORT_LIMITS.writers), openPatch: async (writer) => await (await hosts(writer)).createPatch() });
+  const lowering = new ConeWriteLowering({ graph, cone: cone.basis, content, crypto: ports.crypto, writers: new WriterFrontierLimit(WARP_WRITER_LIMIT), openPatch: async (writer) => await (await hosts(writer)).createPatch() });
   const custody = await custodyOrRelease(cone, async () => await openCustodyService({ graph, git, ports, overrides }));
   const journal = new GitWriteAttemptJournalAdapter({ graph, history: git.history, codec: ports.codec, custodyCodec: new ObservationCustodyCborCodec(ports.codec) });
   const probe = new WritePublicationProbe({ graph, history: new GitWritePublicationHistoryAdapter(git.history), messages: ports.commitMessageCodec });

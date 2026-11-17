@@ -89,18 +89,19 @@ describe('ConeWritePublisher before permission', () => {
 
   it('cancels and forgets an attempt whose preparation is refused', async () => {
     const cancel = vi.fn(() => Promise.resolve(new ObservationKnownUnpublished({ identity: {} } as ObservationAttempt)));
-    const { publisher, lowered, remove } = publisherOf({ custody: { prepare: () => Promise.resolve(new ObservationRefused('writer-limit')), cancel } });
+    const { publisher, lowered, remove } = publisherOf({ custody: { prepare: () => Promise.resolve(new ObservationRefused('frontier-limit')), cancel } });
 
     const receipt = await publisher.publish(lowered, NOT_REVOKED);
 
-    expect(receipt instanceof UnpublishedWriteReceipt ? receipt.cause : '').toBe('retention-refused-writer-limit');
-    expect(receipt instanceof UnpublishedWriteReceipt ? receipt.repairHints.map((hint) => hint.code) : []).toEqual(['compact_writer_frontier']);
+    expect(receipt instanceof UnpublishedWriteReceipt ? receipt.cause : '').toBe('retention-refused-frontier-limit');
+    expect(receipt instanceof UnpublishedWriteReceipt ? receipt.repairHints.map((hint) => hint.code) : []).toEqual(['frontier_limit_reached']);
+    expect(receipt instanceof UnpublishedWriteReceipt ? receipt.repairHints[0]?.message : '').toContain('docs/topics/getting-started.md');
     expect(cancel).toHaveBeenCalledOnce();
     expect(remove).toHaveBeenCalledOnce();
   });
 
   it('keeps the record of an attempt it could not cancel, which still holds a slot', async () => {
-    const { publisher, lowered, remove } = publisherOf({ custody: { prepare: () => Promise.resolve(new ObservationRefused('writer-limit')), cancel: () => Promise.resolve({}) } });
+    const { publisher, lowered, remove } = publisherOf({ custody: { prepare: () => Promise.resolve(new ObservationRefused('frontier-limit')), cancel: () => Promise.resolve({}) } });
 
     await publisher.publish(lowered, NOT_REVOKED);
 
@@ -110,13 +111,13 @@ describe('ConeWritePublisher before permission', () => {
   it('repeats a preparation another builder holds', async () => {
     const prepare = vi.fn()
       .mockResolvedValueOnce(new ObservationRefused('construction-contended'))
-      .mockResolvedValueOnce(new ObservationRefused('writer-limit'));
+      .mockResolvedValueOnce(new ObservationRefused('frontier-limit'));
     const { publisher, lowered } = publisherOf({ custody: { prepare } });
 
     const receipt = await publisher.publish(lowered, NOT_REVOKED);
 
     expect(prepare).toHaveBeenCalledTimes(2);
-    expect(receipt instanceof UnpublishedWriteReceipt ? receipt.cause : '').toBe('retention-refused-writer-limit');
+    expect(receipt instanceof UnpublishedWriteReceipt ? receipt.cause : '').toBe('retention-refused-frontier-limit');
   });
 
   it('forgets an attempt custody says was cancelled', async () => {
