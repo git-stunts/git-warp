@@ -607,7 +607,11 @@ held lock during fast-import gives `write-basis-unavailable`. The host turns tho
 into `ConeStoreUnavailableError`, which carries the failure as its `cause`. An error
 that `GitFastImportTreeWriter` creates above the host is not on the list and rejects,
 for example an `E_REF_IO` it re-types from an exit-128 failure. The support host
-works the same way for the fast-import calls that write support pages. Every failure
+works the same way for both of its fast-import writers: `GitFastImportTreeWriter`
+(support pages) and `GitFastImportCommitWriter` (frontier anchors, #1197). So an
+exit-128 failure that either writer re-types, for example a permission failure
+re-typed as `PersistenceError` `E_REF_IO`, rejects at the support step; on unreleased
+`main` it gave `retention-unavailable`. Every failure
 from the patch feed or the writer's runtime host rejects, transient or not; those
 sources are not classified by type yet. The journal and support adapters raise
 `WriteAttemptJournalUnavailableError` and `ObservationSupportUnavailableError`, which
@@ -659,14 +663,22 @@ list, and each such envelope also counts as unavailable (decided 2026-11-17 on #
 - At the journal and support steps, every other failure rejects (#1109): a defect
   (`TypeError`, `RangeError`), a thrown non-error, corruption such as a
   `PersistenceError` `E_MISSING_OBJECT`, a retry wrapper around a defect or around
-  corruption, every git-cas code except `PUBLICATION_REF_UPDATE_FAILED` around a failed
-  git process or a listed failure at the support step, and an error the adapter cannot
-  identify. A rejection at the journal step has saved and reserved nothing.
-  Before a rejection while support is built or checked, the write cancels its
-  reservation. Once custody confirms the cancel, the slot is free and the write
-  removes the attempt record; that removal is best effort. A cancel that custody
-  cannot confirm, or a removal that fails, keeps the record, and the recovery sweep
-  finishes the attempt.
+  corruption, an exhausted retry whose last attempt failed with something not on the
+  list (D1 reads only the last attempt's cause), the journal's retry policy timing out
+  (`OperationPolicyTimeoutError`), every git-cas code except
+  `PUBLICATION_REF_UPDATE_FAILED` around a failed git process or a listed failure at
+  the support step, an error a fast-import writer creates above the support host, a
+  construction ref that holds no object id, and an error the adapter cannot identify.
+  A rejection at the journal step has saved and reserved nothing. Before a rejection
+  while support is built or checked, the write cancels its reservation; if the cancel
+  itself fails, the call still rejects with the original failure. Once custody confirms
+  the cancel, the slot is free, and the write releases the construction ref and
+  removes the attempt record, each best effort. A cancel that custody cannot confirm,
+  or a removal that fails, keeps the record, and the recovery sweep finishes the
+  attempt: attempt records and retention slots stay accounted for. The construction
+  ref (`refs/warp-local/<graph>/observations/construction/<id>`) can stay behind when
+  its release meets a held ref lock or the cancel acknowledgement is lost, because the
+  recovery sweep does not release it; `main` leaves it the same way.
 - **Corruption rejects** (decided 2026-11-08). At the basis-open and premise-read
   steps, every store failure the adapter cannot identify as transient rejects,
   having published nothing. That includes a `ConeRecordError` (a stored record that

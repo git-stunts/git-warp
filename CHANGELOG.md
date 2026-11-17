@@ -252,21 +252,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   retry can clear as `WriteAttemptJournalUnavailableError` or
   `ObservationSupportUnavailableError`, which still gives `attempt-journal-unavailable`
   or `retention-unavailable`. That covers the shared list (`PersistenceError`
-  `E_REF_IO`, `GitRepositoryLockedError`) and a real held ref lock at either step: at the
-  journal, the history adapter's retry wrapper `OperationPolicyExhaustedError` whose
-  typed `cause` is on the list; at support, a git-cas `CasError` with code
-  `PUBLICATION_REF_UPDATE_FAILED` whose `meta.originalError` is a `GitProtocolError` or
-  on the list. Every other failure at those steps now rejects instead of giving one of
-  those receipts: a defect (`TypeError`, `RangeError`), a thrown non-error, corruption
-  such as `PersistenceError` `E_MISSING_OBJECT`, a retry wrapper around a defect or
-  corruption, `PUBLICATION_REF_UPDATE_FAILED` around a defect, a non-error, another
-  class or no original error, every other git-cas code (integrity errors included), a
-  bare `GitProtocolError`, and an error neither adapter can identify. A
-  rejection at the journal step has reserved nothing. Before a rejection while support
-  is built, the write cancels its reservation. Once custody confirms the cancel, the
-  slot is free and the write removes its attempt record; that removal is best effort.
-  If custody cannot confirm the cancel, or the removal fails, the record stays and the
-  recovery sweep finishes the attempt. On unreleased `main` such a failure gave
+  `E_REF_IO`, `GitRepositoryLockedError`) as it reaches the journal or the support host,
+  and a real held ref lock at either step: at the journal, the history adapter's retry
+  wrapper `OperationPolicyExhaustedError` whose typed `cause` is on the list; at
+  support, a git-cas `CasError` with code `PUBLICATION_REF_UPDATE_FAILED` whose
+  `meta.originalError` is a `GitProtocolError` or on the list. Every other failure at
+  those steps now rejects. On unreleased `main` each of these gave
+  `attempt-journal-unavailable` or `retention-unavailable` instead:
+
+  - a defect (`TypeError`, `RangeError`) or a thrown non-error;
+  - corruption, such as `PersistenceError` `E_MISSING_OBJECT`, and every git-cas code
+    other than the one above, integrity errors included;
+  - a retry wrapper around a defect or corruption, and an exhausted retry whose last
+    attempt failed with something not on the list, such as `resource temporarily
+    unavailable` from a failed spawn: the journal reads only the last attempt's cause;
+  - the journal's retry policy timing out (`OperationPolicyTimeoutError`);
+  - `PUBLICATION_REF_UPDATE_FAILED` around a defect, a non-error, another class or no
+    original error, and a bare `GitProtocolError`;
+  - an error a fast-import writer creates above the support host. The frontier-anchor
+    writer (`GitFastImportCommitWriter`, which runs on every write whose frontier gained a
+    head) and the support-page writer (`GitFastImportTreeWriter`) re-type an exit-128
+    failure, for example a permission failure, as `PersistenceError` `E_REF_IO`, and that
+    error rejects;
+  - a construction ref that holds no object id;
+  - an error neither adapter can identify.
+
+  A rejection at the journal step has reserved nothing. Before a rejection while support
+  is built, the write cancels its reservation; if the cancel itself fails, the call still
+  rejects with the original failure. Once custody confirms the cancel, the slot is free,
+  and the write releases the support construction ref and removes its attempt record,
+  each best effort. If custody cannot confirm the cancel, or the removal fails, the
+  record stays and the recovery sweep finishes the attempt, so attempt records and
+  retention slots stay accounted for. The construction ref
+  (`refs/warp-local/<graph>/observations/construction/<id>`) can stay behind, however,
+  when its release meets a held ref lock or the cancel acknowledgement is lost, because
+  the recovery sweep does not release it. `main` leaves it the same way through the
+  sweep. On unreleased `main` a failure while support was built gave
   `retention-unavailable` and left the record and the reserved slot for the sweep. A
   `retention-unavailable` from unavailable support, a held construction ref lock
   included, keeps the attempt record and its reserved slot until the recovery sweep
