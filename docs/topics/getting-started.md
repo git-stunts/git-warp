@@ -1,9 +1,10 @@
 # Getting Started
 
-Applications write validated Intents through `Warp`, consume Readings from
-generated Observers, and retain Receipts. Reads use the retained `Runtime` and
-`Lane.observe()` path until
-[#1052](https://github.com/git-stunts/git-warp/issues/1052) adds Optic reads.
+Applications write validated Intents through `Warp`, read node presence and
+properties through `Optic(warp.forObserver(observer))`, and retain Receipts.
+Generated Observers still produce Readings through the retained `Runtime` and
+`Lane.observe()` path until the rest of
+[#1052](https://github.com/git-stunts/git-warp/issues/1052) lands.
 Lanes are read-only.
 
 ## Install
@@ -75,9 +76,10 @@ subject of each `entity.add` by intent position.
 
 ## Observe bounded values
 
-Until [#1052](https://github.com/git-stunts/git-warp/issues/1052) adds the
-Optic read, reads use `Runtime.open()`, `runtime.lane()` and `lane.observe()`.
-A Lane has no writes.
+`Optic(warp.forObserver(observer)).forPurpose(purpose).node(id).prop(key).read()`
+answers node presence and property questions. Generated Observers read through
+`Runtime.open()`, `runtime.lane()` and `lane.observe()` until the rest of
+[#1052](https://github.com/git-stunts/git-warp/issues/1052) lands. A Lane has no writes.
 
 Prepare a missing local basis explicitly:
 

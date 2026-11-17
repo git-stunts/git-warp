@@ -6,9 +6,10 @@
 > ([#1054](https://github.com/git-stunts/git-warp/issues/1054)): `Lane.write`,
 > `Lane.stageContent`, the `Lane` identity getters, `Runtime.fork`,
 > `Runtime.strand`, settlement, and the CLI `write`, `fork`, `settle` and
-> `--strand`. Writes go through `warp.as(writer).execute(intent)`. Reads keep
-> `Runtime.open()`, `runtime.lane()` and `Lane.observe()` until
-> [#1052](https://github.com/git-stunts/git-warp/issues/1052). See the
+> `--strand`. Writes go through `warp.as(writer).execute(intent)`. Node presence and
+> property reads use `Optic(warp.forObserver(observer))`. Generated Observers keep
+> `Runtime.open()`, `runtime.lane()` and `Lane.observe()` until the rest of
+> [#1052](https://github.com/git-stunts/git-warp/issues/1052) lands. See the
 > [v21 migration guide](../../migrations/v21/README.md#api-changes).
 >
 > This document records the v19 product vocabulary and public-surface design.
@@ -960,7 +961,8 @@ following:
    serialized envelopes.
 8. Outcome and support algebras cannot alias one another.
 9. Settlement is removed from the v21 `Runtime`, which keeps only its read
-   path until [#1052](https://github.com/git-stunts/git-warp/issues/1052).
+   path for generated Observers until the rest of
+   [#1052](https://github.com/git-stunts/git-warp/issues/1052) lands.
 10. `/graph` is absent and `/charts` is tested as a derived-view surface.
 11. CLI and MCP capability names conform to the same vocabulary.
 12. Legacy vocabulary is rejected from public surfaces with explicit migration

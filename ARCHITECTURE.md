@@ -147,8 +147,9 @@ await runtime.close();
 ```
 
 Application code writes validated Intents with `warp.as(writer).execute(intent)`
-on a `Warp` opened with an injected `WarpAccessPort`, and runs Observers with
-`lane.observe(observer)` until #1052 adds the Optic read. v21 removed `Lane`
+on a `Warp` opened with an injected `WarpAccessPort`. It reads node presence and
+properties with `Optic(warp.forObserver(observer))`, and runs generated Observers
+with `lane.observe(observer)` until the rest of #1052 lands. v21 removed `Lane`
 writes, strands and settlement (#1054). Formal coordinate reads and Receipt
 inspection live on the explicit `/advanced` and `/diagnostics` subpaths.
 

@@ -186,7 +186,8 @@ if (!(write instanceof RetainedWriteReceipt)) {
 }
 await warp.close();
 
-// Reads use Runtime until #1052 adds the Optic read.
+// Optic reads answer node and property questions (#1052).
+// Generated Observers still read through Runtime.
 const runtime = await Runtime.open({ at: '.', writer: 'agent-1' });
 const events = await runtime.lane('events');
 const observation = events.observe(users.observers.roleOf({ subject: 'user:alice' }));
@@ -398,8 +399,9 @@ The broader worldline-wide direction is still narrower than the doctrine: live s
 
 ## API surface
 
-Applications write through the root `Warp` value. `Runtime` keeps only its read
-path until [#1052](https://github.com/git-stunts/git-warp/issues/1052) adds the Optic read
+Applications write through the root `Warp` value and read node presence and
+properties through `Optic(warp.forObserver(observer))`. Generated Observers keep
+the `Runtime` read path until the rest of [#1052](https://github.com/git-stunts/git-warp/issues/1052) lands
 ([#1048](https://github.com/git-stunts/git-warp/issues/1048)). Generated SDKs
 provide domain-specific intents and observers; lanes stream readings and leave
 receipts. The v18 `openWarpWorldline()` and `openWarpGraph()` package entry
