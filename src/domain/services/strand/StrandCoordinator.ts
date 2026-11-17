@@ -337,6 +337,9 @@ export default class StrandCoordinator {
     return Object.freeze({ state, receipts });
   }
 
+  materialize(strandId: string, options: { receipts: true; ceiling?: number | null }): Promise<Readonly<{ state: ImmutableWarpState; receipts: ImmutableReceiptArray }>>;
+  materialize(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<ImmutableWarpState>;
+  materialize(strandId: string, options?: { receipts?: boolean; ceiling?: number | null }): Promise<MaterializedStrandResult>;
   async materialize(strandId: string, options: { receipts?: boolean; ceiling?: number | null } = {}): Promise<MaterializedStrandResult> {
     const { state, receipts } = await this.materializeReadState(strandId, options);
     if (options.receipts === true) {

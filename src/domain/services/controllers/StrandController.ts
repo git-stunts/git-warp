@@ -62,6 +62,9 @@ export default class StrandController {
 
   // ── Strand materialization & queries ─────────────────────────────────────
 
+  materializeStrand(strandId: string, options: { receipts: true; ceiling?: number | null }): Promise<{ state: SnapshotWarpState; receipts: readonly TickReceipt[] }>;
+  materializeStrand(strandId: string, options?: { receipts?: false; ceiling?: number | null }): Promise<SnapshotWarpState>;
+  materializeStrand(strandId: string, options?: { receipts?: boolean; ceiling?: number | null }): Promise<SnapshotWarpState | { state: SnapshotWarpState; receipts: readonly TickReceipt[] }>;
   async materializeStrand(strandId: string, options?: { receipts?: boolean; ceiling?: number | null }): Promise<SnapshotWarpState | { state: SnapshotWarpState; receipts: readonly TickReceipt[] }> {
     return await this._strandService.materialize(strandId, options);
   }
