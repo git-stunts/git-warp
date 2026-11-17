@@ -9,6 +9,7 @@ import {
 import type { QueryReadHost } from '../../../../src/domain/services/controllers/ReadGraphHost.ts';
 import {
   createSnapshotORSet,
+  createSnapshotPropValue,
   createSnapshotVersionVector,
   createSnapshotWarpState,
 } from '../../../../src/domain/services/ImmutableSnapshot.ts';
@@ -103,6 +104,19 @@ describe('StateReader property projection routing', () => {
     expect(snapshotReader.getEdgeContentMeta('node:1', 'node:2', 'rel')).toEqual(
       liveReader.getEdgeContentMeta('node:1', 'node:2', 'rel'),
     );
+  });
+
+  it('hydrates snapshot byte and array property values into the same reader values', () => {
+    const value = createSnapshotPropValue(['label', new Uint8Array([7, 8]), [new Uint8Array([9])]]);
+
+    const props = createStateReader(snapshotWithPropertyValue(value)).getNodeProps('node:1');
+
+    expect(props).toEqual({ payload: value });
+  });
+
+  it('rejects a reader source that is neither live nor snapshot state', () => {
+    // @ts-expect-error The runtime boundary must reject an unrecognized state source.
+    expect(() => createStateReader({ nodeAlive: null })).toThrow(/WarpState or SnapshotWarpState/);
   });
 
   it('rejects cyclic snapshot property values during reader hydration', () => {

@@ -221,6 +221,27 @@ describe('ConeReadExecutor', () => {
     expect(receipt.records).toBe(1);
   });
 
+  it('emits a reading whose encoded size equals the byte budget, and refuses one a byte over it', async () => {
+    // Oracle: a string property is charged its canonical JSON text, so 'abc' costs the 5 bytes of "abc".
+    const fixture = (bytes: number) => {
+      const fixed = createFixture(new WarpReadGrant({ authority: 'auth-1', budget: ReadBudget.of({ records: 1, bytes, work: 1 }) }));
+      fixed.feed.append('alice', [new NodeAdd('item-1', new Dot('alice', 1)), new NodePropSet('item-1', 'title', 'abc')]);
+      return fixed.executor;
+    };
+    const question = { subject: 'item-1', key: 'title' };
+
+    const exact = await fixture(5).read({ observer, purpose, budget: null, question });
+    const exactReadings: OpticReading[] = [];
+    for await (const r of exact) {
+      exactReadings.push(r);
+    }
+    const over = await fixture(4).read({ observer, purpose, budget: null, question });
+
+    expect(exactReadings).toEqual([expect.objectContaining({ value: 'abc', present: true })]);
+    expect(await exact.receipt).toMatchObject({ status: 'completed', records: 1 });
+    expect(await over.receipt).toMatchObject({ status: 'budget-exhausted', records: 1 });
+  });
+
   it('reports cancelled when cancel() is called on an active observation', async () => {
     const { executor } = createFixture(grant);
 

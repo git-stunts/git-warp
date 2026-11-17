@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
-import { GitStorage, ObserverIdentity, Optic, Purpose } from '../../../index.ts';
+import { GitStorage, ObserverIdentity, Optic, Purpose, type WarpAccessDenied, type WarpReadGrant, type WarpReadRequest } from '../../../index.ts';
+import OpticObservation from '../../../src/domain/api/OpticObservation.ts';
 import GitCasMaterializationStoreAdapter from '../../../src/infrastructure/adapters/GitCasMaterializationStoreAdapter.ts';
 import GitCasRepositoryAdapter from '../../../src/infrastructure/adapters/GitCasRepositoryAdapter.ts';
 import GitConeRecordStoreAdapter from '../../../src/infrastructure/adapters/GitConeRecordStoreAdapter.ts';
@@ -87,5 +88,44 @@ describe('Warp read resource ownership', () => {
     expect(await next).toEqual({ done: true, value: undefined });
     expect(closeStorage).toHaveBeenCalledOnce();
     expect(await observation.receipt).toMatchObject({ status: 'cancelled', records: 1 });
+  });
+
+  it('does not hold a read that settled before it returned, so close leaves it alone', async () => {
+    const warp = await open(await repository(), {}, new TestAccess(['reader']));
+    const refused = await Optic(warp.forObserver(OBSERVER)).forPurpose(PURPOSE).node('todo').read();
+    // A refusal settles while read() builds it. Close cancels only the reads the Warp still holds.
+    const cancel = vi.spyOn(OpticObservation.prototype, 'cancel');
+
+    await warp.close();
+
+    expect(cancel).not.toHaveBeenCalled();
+    expect((await refused.receipt).status).toBe('refused');
+  });
+
+  it('cancels a read whose access decision was still pending when close began, and waits for it', async () => {
+    const latch = new CallLatch('before');
+    const slow = new (class extends TestAccess {
+      override async authorizeRead(request: WarpReadRequest): Promise<WarpReadGrant | WarpAccessDenied> {
+        return await latch.through(async () => await super.authorizeRead(request));
+      }
+    })();
+    const warp = await open(await repository(), {}, slow);
+    const reading = Optic(warp.forObserver(OBSERVER)).forPurpose(PURPOSE).node('todo').read();
+    await latch.arrived();
+    let closed = false;
+    vi.useFakeTimers();
+    const closing = warp.close().then(() => { closed = true; });
+    try {
+      await vi.runAllTimersAsync();
+      expect(closed).toBe(false);
+    } finally {
+      vi.useRealTimers();
+      latch.release();
+    }
+
+    const observation = await reading;
+    await closing;
+
+    expect(await observation.receipt).toMatchObject({ status: 'cancelled', records: 0 });
   });
 });
