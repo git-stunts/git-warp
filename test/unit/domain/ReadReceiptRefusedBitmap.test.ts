@@ -61,6 +61,8 @@ async function missingCheckpointReceipt(): Promise<object> {
 
 describe('the read receipt of a checkpoint bitmap that the shard boundary refuses (#1159)', () => {
   // Reproduced, not fixed: both receipts are obstructed / missing_bounded_basis.
+  // Decision D6 on #1159 moves a distinct receipt reason to a separate card,
+  // because it changes the public receipt vocabulary.
   it.fails('differs from the receipt of a timeline that has no checkpoint (#1159)', async () => {
     const storage = MemoryStorage.create();
     const writer = await (await openWarp({ storage, writer: 'agent-1' })).timeline('events');

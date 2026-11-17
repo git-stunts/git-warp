@@ -14,7 +14,8 @@ import { fixtureToState, makeFixture } from '../../../helpers/fixtureDsl.ts';
  * #1159 follow-up from the PR #1128 decision check: the incremental updater
  * re-encodes a whole edge shard but deserializes only the owners it
  * changes, so another owner's bitmap bytes are stored again without
- * inspection. Readers still inspect them.
+ * inspection. Readers still inspect them. Decision D6 accepts this as
+ * process-local; these tests pin both halves.
  *
  * Oracle: the bytes below are not a portable Roaring bitmap (unknown
  * cookie), so the shard boundary refuses them wherever it inspects them.
@@ -41,19 +42,18 @@ function treeWithForeignOwner(): Record<string, Uint8Array> {
   return { ...tree, [EDGE_PATH]: defaultCodec.encode({ all: { '4000000000': NOT_A_BITMAP } }) };
 }
 
-function updatedEdgeShard(tree: Record<string, Uint8Array>): EdgeShard | Error {
+function updatedEdgeShard(tree: Record<string, Uint8Array>): EdgeShard {
   const state = fixtureToState(makeFixture({ nodes: [SOURCE, 'B'], edges: [{ from: SOURCE, to: 'B', label: 'owns' }] }));
-  try {
-    const dirty = new IncrementalIndexUpdater().computeDirtyShards({
-      diff: edgeDiff(),
-      state,
-      shards: new CborIndexShardTree({ codec: defaultCodec, tree }),
-    });
-    return dirty.find((shard): shard is EdgeShard => shard instanceof EdgeShard && shard.direction === 'fwd')
-      ?? new Error('the update wrote no forward edge shard');
-  } catch (error) {
-    return error instanceof Error ? error : new Error(String(error));
+  const dirty = new IncrementalIndexUpdater().computeDirtyShards({
+    diff: edgeDiff(),
+    state,
+    shards: new CborIndexShardTree({ codec: defaultCodec, tree }),
+  });
+  const forward = dirty.find((shard): shard is EdgeShard => shard instanceof EdgeShard && shard.direction === 'fwd');
+  if (forward === undefined) {
+    throw new Error('the update wrote no forward edge shard');
   }
+  return forward;
 }
 
 describe('an edge shard owner that an incremental index update does not change (#1159)', () => {
@@ -65,11 +65,13 @@ describe('an edge shard owner that an incremental index update does not change (
       .toThrow(RoaringShardRejectedError);
   });
 
-  // Reproduced, not fixed: the updater returns the shard with the foreign
-  // owner's bytes unchanged and uninspected.
-  it.fails('is inspected before the updater stores it again (#1159)', () => {
-    const outcome = updatedEdgeShard(treeWithForeignOwner());
+  // Accepted (decision D6 on #1159): the tree is always one that the
+  // process built, and the reader above refuses the bytes when the update
+  // loads the updated tree. The updater stores the unchanged owner's bytes
+  // again as they were, without inspecting them.
+  it('is stored again unchanged by the updater, which inspects only the owners it changes', () => {
+    const updated = updatedEdgeShard(treeWithForeignOwner());
 
-    expect(outcome).toBeInstanceOf(RoaringShardRejectedError);
+    expect(updated.buckets['all']?.['4000000000']).toEqual(NOT_A_BITMAP);
   });
 });
