@@ -162,7 +162,11 @@ it without Git, writes only the anchors that do not exist yet, at most 64 in one
 `git fast-import` process (below fast-import's default unpack limit of 100, so two processes
 that write the same anchors at once both succeed), and checks that Git gives each the id it
 computed. A head shared by two writers is retained once, in the bucket of the first writer
-in writer-id order. The carrier states the attempt and the count and digest of the heads;
+in writer-id order. Anchors have no ref of their own: the same retain call that writes or
+reuses them publishes the carrier under the attempt's construction ref, so a GC that runs
+after that call keeps them. As for the trees #1127 protects, a GC that runs during the call
+is not covered; if it deletes an old unreachable anchor the call reused, verification before
+arm reports the history missing, and the attempt fails closed. The carrier states the attempt and the count and digest of the heads;
 the digest is the one the #1067 carriers bound (a seed, rolled over batches of 63 heads).
 
 Measured over writer IDs of 7 characters (`ObservationFrontierAnchors.integration.test.ts` and
