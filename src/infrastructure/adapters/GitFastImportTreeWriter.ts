@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 import PersistenceError from '../../domain/errors/PersistenceError.ts';
 import { hexEncode, textEncode } from '../../domain/utils/bytes.ts';
+import { drawEntropy } from '../../domain/utils/EntropyDraw.ts';
 import type RandomPort from '../../ports/RandomPort.ts';
 import type GitFastImportTreeScript from './GitFastImportTreeScript.ts';
 import { type GitPlumbing, toGitError, wrapGitError } from './gitErrorClassification.ts';
@@ -27,6 +28,9 @@ const NONCE_BYTES = 16;
  * date in the past that selects what to delete after the process ends keeps
  * the tree until a ref names it. A GC that selects while the process runs is
  * not covered: the new commit is not visible to it until the process ends.
+ * A random port that returns the wrong number of bytes fails the write with
+ * `EntropyError` before Git runs, so the nonce never silently shrinks to the
+ * old fixed commit.
  */
 export default class GitFastImportTreeWriter {
   readonly #plumbing: Pick<GitPlumbing, 'execute'>;
@@ -38,7 +42,7 @@ export default class GitFastImportTreeWriter {
   }
 
   async write(script: GitFastImportTreeScript): Promise<string> {
-    const program = script.encode(textEncode(hexEncode(this.#random.randomBytes(NONCE_BYTES))));
+    const program = script.encode(textEncode(hexEncode(drawEntropy(this.#random, NONCE_BYTES))));
     let output: string;
     try {
       output = await this.#plumbing.execute({ args: ['fast-import', '--quiet', '--done'], input: Buffer.from(program) });

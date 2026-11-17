@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Plumbing from '@git-stunts/plumbing';
 import { textDecode, textEncode } from '../../../../src/domain/utils/bytes.ts';
+import type RandomPort from '../../../../src/ports/RandomPort.ts';
 import GitFastImportTreeScript from '../../../../src/infrastructure/adapters/GitFastImportTreeScript.ts';
 import GitFastImportTreeWriter, { E_FAST_IMPORT_PROTOCOL } from '../../../../src/infrastructure/adapters/GitFastImportTreeWriter.ts';
 import RepositoryObjectCensus from '../../../helpers/RepositoryObjectCensus.ts';
@@ -122,5 +123,17 @@ describe('GitFastImportTreeWriter', () => {
     await expect(failing.write(new GitFastImportTreeScript())).rejects.toThrow('fatal: broken');
     const chatty = new GitFastImportTreeWriter({ plumbing: { execute: vi.fn().mockResolvedValue('040000 tree abc\t\nmore') }, random: new SequenceRandomPort() });
     await expect(chatty.write(new GitFastImportTreeScript())).rejects.toMatchObject({ code: E_FAST_IMPORT_PROTOCOL });
+  });
+
+  it.each([
+    ['no bytes', (): number => 0],
+    ['one byte fewer than it asked for', (requested: number): number => requested - 1],
+  ])('refuses to run a program when the random port returns %s, so the staging commit cannot fall back to a fixed one (#1127)', async (_case, size) => {
+    const execute = vi.fn().mockResolvedValue(`040000 tree ${'a'.repeat(40)}\t`);
+    const short: RandomPort = { randomBytes: (requested) => new Uint8Array(size(requested)) };
+    const writer = new GitFastImportTreeWriter({ plumbing: { execute }, random: short });
+
+    await expect(writer.write(new GitFastImportTreeScript())).rejects.toMatchObject({ code: 'E_ENTROPY_WRONG_LENGTH' });
+    expect(execute).not.toHaveBeenCalled();
   });
 });
