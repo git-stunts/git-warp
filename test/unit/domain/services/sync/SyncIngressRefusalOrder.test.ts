@@ -14,6 +14,7 @@ import { cloneState, reducePatches } from '../../../../../src/domain/services/Jo
 import { createFrontier } from '../../../../../src/domain/services/Frontier.ts';
 import { Dot } from '../../../../../src/domain/crdt/Dot.ts';
 import PatchError from '../../../../../src/domain/errors/PatchError.ts';
+import SchemaUnsupportedError from '../../../../../src/domain/errors/SchemaUnsupportedError.ts';
 import Patch from '../../../../../src/domain/types/Patch.ts';
 import NodeAdd from '../../../../../src/domain/types/ops/NodeAdd.ts';
 import type { SyncResponse } from '../../../../../src/domain/capabilities/SyncCapability.ts';
@@ -64,5 +65,41 @@ describe('sync ingress refuses ops that are not an array', () => {
     expect(err).toBeInstanceOf(PatchError);
     expect(err).toMatchObject({ code: 'E_PATCH_OPS' });
     expect(state).toEqual(before);
+  });
+});
+
+describe('sync ingress checks op types before it hydrates ops', () => {
+  it.each([
+    { name: 'before a NodeAdd without a dot', ops: [{ type: 'FutureOp', node: 'a' }, { type: 'NodeAdd', node: 'a' }] },
+    { name: 'after a NodeAdd without a dot', ops: [{ type: 'NodeAdd', node: 'a' }, { type: 'FutureOp', node: 'a' }] },
+    { name: 'before an ownerless remove', ops: [{ type: 'FutureOp', node: 'a' }, { type: 'NodeRemove', observedDots: [] }] },
+  ])('refuses an unrecognised op type $name with SchemaUnsupportedError', ({ ops }) => {
+    const state = seededState();
+    const before = cloneState(state);
+    const err = captureError(() => applySyncResponse(response(wirePatch(ops)), state, createFrontier()));
+    expect(err).toBeInstanceOf(SchemaUnsupportedError);
+    expect(state).toEqual(before);
+  });
+
+  // Canonical-only op types never appear on the wire; the guard refuses them whatever their fields hold.
+  it.each([
+    { name: 'a well-formed NodePropSet', op: { type: 'NodePropSet', node: 'a', key: 'k', value: 1 } },
+    { name: 'a NodePropSet with an empty key', op: { type: 'NodePropSet', node: 'a', key: '', value: 1 } },
+    { name: 'a NodePropSet with a NUL in its key', op: { type: 'NodePropSet', node: 'a', key: 'k\0', value: 1 } },
+    { name: 'a NodePropSet with an empty node', op: { type: 'NodePropSet', node: '', key: 'k', value: 1 } },
+    { name: 'an EdgePropSet with an empty key', op: { type: 'EdgePropSet', from: 'a', to: 'b', label: 'l', key: '', value: 1 } },
+  ])('refuses $name with SchemaUnsupportedError', ({ op }) => {
+    const err = captureError(() => applySyncResponse(response(wirePatch([op])), seededState(), createFrontier()));
+    expect(err).toBeInstanceOf(SchemaUnsupportedError);
+  });
+
+  it('checks the patch writer before op types, as it did before #1116', () => {
+    const err = captureError(() => applySyncResponse(
+      response(wirePatch([{ type: 'FutureOp', node: 'a' }], '')),
+      seededState(),
+      createFrontier(),
+    ));
+    expect(err).toBeInstanceOf(PatchError);
+    expect(err).toMatchObject({ code: 'E_PATCH_WRITER' });
   });
 });

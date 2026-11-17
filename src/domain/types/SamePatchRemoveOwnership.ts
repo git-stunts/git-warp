@@ -9,8 +9,8 @@
  * (#1120).
  *
  * The check reads runtime op classes. The decode boundary hydrates ops
- * before it builds a `Patch`, and sync ingress hydrates them in
- * `normalizePatch`.
+ * before it builds a `Patch`, and sync ingress hydrates them after its
+ * op-type check (`hydrateSyncIngressPatch`).
  *
  * @module domain/types/SamePatchRemoveOwnership
  */
