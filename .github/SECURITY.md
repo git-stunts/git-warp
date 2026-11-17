@@ -23,7 +23,7 @@ The `GitGraphAdapter` validates all ref arguments to prevent injection attacks:
 
 - **Streaming-First**: Large graph traversals use async generators to prevent OOM
 - **Bitmap Indexing**: Sharded Roaring Bitmap indexes enable O(1) lookups without loading entire graphs
-- **Bitmap Shard Validation**: Every serialized Roaring bitmap is validated before the bitmap library reads it. The boundary refuses a stored value that is not a byte string, checks the portable format structure, container headers, offsets, and container contents, and rejects one bitmap above 34,086,920 bytes with `RoaringShardRejectedError`. An alive bitmap (the live nodes of one meta shard) is also rejected above 2^24 values, which is all that one meta shard can address. An edge bitmap (the neighbours of one node) is bounded by bytes and by structure, not by cardinality, because neighbours come from every meta shard. No write is refused: the boundary checks a bitmap only when it is read. With the default CBOR codec, the codec refuses an index shard file above 5 MiB first, so the 34,086,920-byte bound cannot fire for a stored bitmap there. The byte bound applies to one bitmap. One index shard file holds many bitmaps, and memory still grows with the number of bitmaps in that file. An in-process read that expands a very large edge bitmap into an array is not bounded by this boundary; [#1159](https://github.com/git-stunts/git-warp/issues/1159) tracks it. A checkpoint neighbourhood page does bounded work: it visits at most 4 × `limit` + 256 stored candidates and then ends with a cursor, whatever the edge bitmap holds. The `roaring-wasm` row under Accepted Risks is older than this boundary; [#1032](https://github.com/git-stunts/git-warp/issues/1032) owns that table and updates the row
+- **Bitmap Shard Validation**: Every serialized Roaring bitmap is validated before the bitmap library reads it. The boundary refuses a stored value that is not a byte string, checks the portable format structure, container headers, offsets, and container contents, and rejects one bitmap above 34,086,920 bytes with `RoaringShardRejectedError`. An alive bitmap (the live nodes of one meta shard) is also rejected above 2^24 values, which is all that one meta shard can address. An edge bitmap (the neighbours of one node) is bounded by bytes and by structure, not by cardinality, because neighbours come from every meta shard. No write is refused: the boundary checks a bitmap only when it is read. With the default CBOR codec, the codec refuses an index shard file above 5 MiB first, so the 34,086,920-byte bound cannot fire for a stored bitmap there. The byte bound applies to one bitmap. One index shard file holds many bitmaps, and memory still grows with the number of bitmaps in that file. An in-process read that expands a very large edge bitmap into an array is not bounded by this boundary; [#1159](https://github.com/git-stunts/git-warp/issues/1159) tracks it. A checkpoint neighbourhood page visits at most 4 × `limit` + 256 stored candidates. This bound applies only to stored-candidate visits; it does not bound total page work or guarantee cursor completion. Complete shards are decoded before candidate selection, and the default CBOR codec refuses shard files above 5 MiB. Under [Accepted Risks](#accepted-risks), this boundary closes the `roaring-wasm` row, and the read expansion that #1159 tracks has its own row, which the maintainer accepted on 2026-11-11
 - **Delimiter Safety**: Uses ASCII Record Separator (`\x1E`) to prevent message collision
 
 ## Sync Authentication (SHIELD)
@@ -224,9 +224,9 @@ The limit does not do these things:
   body larger than the server's `maxRequestBytes` (4 MiB by default) is read in
   full, answered `413`, and spends no peer token.
 
-The "No rate limiting on sync endpoint" row under Accepted Risks and the
-Availability row under Security Boundaries are older than this limit;
-[#1032](https://github.com/git-stunts/git-warp/issues/1032) updates them.
+Under [Accepted Risks](#accepted-risks), this limit closes the "No rate
+limiting on sync endpoint" row. The address-rotation and global-flood gaps
+above have their own row, which the maintainer accepted on 2026-11-11.
 
 ### Key Rotation
 
@@ -248,7 +248,7 @@ await graph.serve({
   port: 3000,
   httpPort: new NodeHttpAdapter(),
   auth: {
-    keys: { default: 'your-shared-secret' },
+    keys: { default: SyncSecret.fromString('your-shared-secret') },
     mode: 'enforce', // or 'log-only'
   },
 });
@@ -258,7 +258,7 @@ await graph.serve({
 ```js
 await graph.syncWith('http://peer:3000', {
   auth: {
-    secret: 'your-shared-secret',
+    secret: SyncSecret.fromString('your-shared-secret'),
     keyId: 'default',
   },
 });
@@ -276,19 +276,33 @@ await graph.syncWith('http://peer:3000', {
 | `@git-stunts/plumbing` | Runtime | Low | Internal package, spawns git processes with strict whitelist |
 | `@git-stunts/alfred` | Runtime | Low | Retry/backoff utility, no I/O |
 | `@git-stunts/trailer-codec` | Runtime | Low | Pure string encoding, no I/O |
-| `cbor-x` | Runtime | Medium | Binary parser processing untrusted sync payloads; mitigated by body size limit in HttpSyncServer (4 MB default) |
+| `cbor-x` | Runtime | Medium | Binary parser for repository blobs (patches, checkpoints, index shards, and the asset manifests, bundle descriptors and trust records that git-cas stores). Peers replicate these blobs through Git, so they are untrusted input. HTTP sync bodies are JSON and do not reach cbor-x. `requireBoundedCbor` in `src/infrastructure/codecs/CborCodec.ts` refuses a blob above 5 MiB and checks depth, item counts and tags before cbor-x reads it, both for git-warp's own codec and for the codec that git-warp gives git-cas. The v18-to-v19 checkpoint migration uses wider limits (see Accepted Risks). See CBOR input limits in `docs/topics/sync.md` |
 | `roaring-wasm` | Runtime | Low-Medium | WebAssembly build of CRoaring. Synced peer-controlled graph data influences bitmap construction, and retained index shards are deserialized by bitmap readers. WASM memory isolation does not establish input trust or prevent wrong results, traps, or resource exhaustion. git-warp validates and bounds each serialized bitmap before the library reads it (see Bitmap Shard Validation) |
 | `zod` | Runtime | Low | Schema validation, pure JS |
 
 
 ## Accepted Risks
 
-| Risk | Severity | Owner | Expiry | Mitigation |
-|---|---|---|---|---|
-| `roaring-wasm` bitmap faults could corrupt results or exhaust resources | Medium | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | WASM memory isolation limits host-memory exposure but does not validate peer-controlled graph data or retained bitmap shards; correctness and availability remain in scope. Input validation and resource bounds require owner re-review |
-| `cbor-x` parser handles untrusted sync payloads | Medium | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | 4 MB body size limit in HttpSyncServer; schema validation post-parse |
-| Nonce cache lost on restart allows replay within clock skew window | Low | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | 5-minute TTL; recommend TLS in production |
-| No rate limiting on sync endpoint | Low | @flyingrobots | **EXPIRED 2026-08-01 — pending re-review** | Deploy behind reverse proxy with rate limiting |
+On 2026-11-08 the maintainer decided in
+[#1032](https://github.com/git-stunts/git-warp/issues/1032) that v21.0.0 does
+not ship until the four risks whose acceptance expired on 2026-08-01 are
+eliminated in code. Each of the four is now closed by a merged remediation;
+the evidence column names the source that holds it, and
+`test/unit/scripts/security-accepted-risks.test.ts` compares the limits that
+each closed row states with the code. Two narrower exposures
+remain from those risks. Each has an open issue. On 2026-11-11 the maintainer
+accepted both at the severity shown. Each acceptance expires on 2027-02-16,
+with reassessment required before v21.0.0 ships if earlier, unless its issue
+closes first.
+
+| Risk | Severity | Owner | Status | Expiry | Evidence |
+|---|---|---|---|---|---|
+| `roaring-wasm` bitmap faults could corrupt results or exhaust resources | Medium | @flyingrobots | **CLOSED** by [#1087](https://github.com/git-stunts/git-warp/issues/1087) (PR #1128) | Not applicable: closed | Each serialized bitmap, including peer-controlled index data, is checked before `roaring-wasm` reads it. `boundRoaringConstructor` (`src/infrastructure/adapters/BoundedRoaringConstructor.ts`) wraps every `deserialize` and `deserializeAlive` call. `inspectPortableRoaringShard` (`src/infrastructure/adapters/PortableRoaringShardInspector.ts`) validates the portable format, container headers, offsets and container contents. `RoaringShardBounds` (`src/infrastructure/adapters/RoaringShardBounds.ts`) refuses one bitmap above `MAX_BYTES` (34,086,920 bytes) and an alive bitmap above `MAX_ALIVE_CARDINALITY` (2^24 values). `requireRoaringShardBytes` (`src/domain/artifacts/RoaringShardBytes.ts`) refuses a stored value that is not a byte string. `neighborhoodCandidateBudget` (`src/domain/services/optic/NeighborhoodPageCursor.ts`) bounds stored-candidate visits for one checkpoint neighbourhood page. A refusal is a `RoaringShardRejectedError`. The remaining read expansion is the #1159 row |
+| `cbor-x` parser handles untrusted sync payloads | Medium | @flyingrobots | **CLOSED** by [#1088](https://github.com/git-stunts/git-warp/issues/1088) (PR #1148) and [#1186](https://github.com/git-stunts/git-warp/issues/1186) (PR #1187) | Not applicable: closed | cbor-x reads repository blobs that peers replicate through Git; HTTP sync bodies are JSON and do not reach it. Two codecs decode these blobs at runtime, and both apply the same check before cbor-x reads a blob. git-warp's own codec, `decode` in `src/infrastructure/codecs/CborCodec.ts`, decodes patches, checkpoints and index shards (#1088). `BoundedGitCasCborCodec` (`src/infrastructure/adapters/BoundedGitCasCborCodec.ts`) is the codec that `GitCasRepositoryAdapter` (`src/infrastructure/adapters/GitCasRepositoryAdapter.ts`) gives git-cas, and it decodes asset manifests, Merkle sub-manifests, bundle descriptors and trust records (#1186). The check, `requireBoundedCbor`, refuses a blob above `MAX_CBOR_DECODE_BYTES` (5 MiB), and `validateGenericBoundedCbor` (`src/infrastructure/adapters/BoundedCborValidation.ts`) refuses nesting deeper than 32, more than 1,000,000 items or container entries, indefinite lengths, truncated values, and every tag outside `ALLOWED_TAG_CONTENT` (tags 0, 1, 2, 3 and 64). Shared-reference tags are refused, so a blob cannot build a cycle. A refusal has code `E_CBOR_DECODE_BOUNDS`. `GitCasManifestShapeGuard` (`src/infrastructure/adapters/GitCasManifestShapeGuard.ts`) also validates each Merkle root manifest before git-cas reads its sub-manifests. The v18-to-v19 patch migrator uses `BoundedGitCasCborCodec` too. One documented migration exception remains: the v18-to-v19 checkpoint migration decoder (`scripts/v18-to-v19/V18CheckpointMigrationCodec.ts`) reads v18 checkpoint state, which v18 stored as one artifact, with wider limits: `V18_CHECKPOINT_MAX_DECODE_BYTES` (64 MiB), 20,000,000 items and 4,000,000 container entries. Its depth limit of 32, definite-length check and tag allow-list are the same. An operator runs this migration once, on the operator's own v18 repository; the runtime does not use this decoder. A cbor-x defect on input that passes these checks stays a dependency risk (see Dependency Risk Assessment) |
+| Nonce cache lost on restart allows replay within clock skew window | Low | @flyingrobots | **CLOSED** by [#1089](https://github.com/git-stunts/git-warp/issues/1089) (PR #1149) | Not applicable: closed | Signature v3 signs a wall-clock timestamp. `SyncAuthService` (`src/domain/services/sync/SyncAuthService.ts`) refuses to start without durable replay protection and reserves each graph, key-id and nonce identity before it admits a request; no in-memory nonce cache remains. `GitCasSyncReplayProtectionAdapter` (`src/infrastructure/adapters/GitCasSyncReplayProtectionAdapter.ts`) stores each reservation in a git-cas expiring set, so it survives a restart, for `SYNC_REPLAY_ACCEPTANCE_WINDOW_MS` (600,001 ms). `isFreshOnStoreTime` (`src/domain/services/sync/SyncRequestFreshness.ts`) applies the two-bound check on store time, so a request whose reservation has expired is no longer fresh. The guarantee assumes clocks that do not run backwards (see Nonce Cache and Restart Semantics). [#1152](https://github.com/git-stunts/git-warp/issues/1152) tracks a composition in which the adapter's optional `wallClockMs` differs from the git-cas clock; no shipped composition sets that option |
+| No rate limiting on sync endpoint | Low | @flyingrobots | **CLOSED** by [#1090](https://github.com/git-stunts/git-warp/issues/1090) (PR #1162) | Not applicable: closed | `SyncPeerRateLimiter` (`src/domain/services/sync/SyncPeerRateLimiter.ts`) limits each socket peer before body parse and authentication, in every auth mode, and has no switch that turns it off. Its default, `DEFAULT_SYNC_PEER_RATE_LIMIT`, is a burst of 60, a refill of 10 requests per second, and 4096 tracked peers; a refused request gets `429 PEER_RATE_LIMITED`. The per-key limit, `SyncRateLimiter` (`src/domain/services/sync/SyncRateLimiter.ts`), is required on every host that is not local: `validateNonLocalRateLimit` (`src/domain/services/sync/HttpSyncServerHelpers.ts`) refuses an `enforce` configuration without `auth.rateLimit`. The address-rotation and global-flood gaps are the #1165 and #1164 row |
+| One admitted edge bitmap can be expanded in full on some in-process reads, and a writer can store an index shard file that the default codec refuses to read | Medium | @flyingrobots | Open: [#1159](https://github.com/git-stunts/git-warp/issues/1159); accepted by the maintainer on 2026-11-11 | 2027-02-16 | Remains from the `roaring-wasm` row. An edge bitmap is bounded by bytes and structure but can hold the full unsigned 32-bit ID space. A run-encoded bitmap of 2^32 values passes the boundary; `test/unit/scripts/security-accepted-risks.test.ts` verifies its admitted cardinality without expanding it. A neighbour read through `BitmapIndexReader` (`src/domain/services/index/BitmapIndexReader.ts`) tries to expand the bitmap into an array and a `Set`, so the admitted worst case requires billions of entries and can exhaust memory. Writers have no limit that matches the 5 MiB index shard file limit of the default codec, so a large hub node can produce a shard file that readers refuse. Checkpoint neighbourhood pages bound candidate expansion, but still refuse shards above the 5 MiB default codec limit. `CheckpointNeighborhoodPageReader` (`src/domain/services/optic/CheckpointNeighborhoodPageReader.ts`) decodes each complete shard before it selects candidates. Severity Medium, because peer-supplied index data can cause the expansion |
+| A sender with more distinct socket addresses than `maxTrackedPeers` is not limited by the peer admission limit, and the server has no global bound on unauthenticated work | Low | @flyingrobots | Open: [#1165](https://github.com/git-stunts/git-warp/issues/1165), [#1164](https://github.com/git-stunts/git-warp/issues/1164); accepted by the maintainer on 2026-11-11 | 2027-02-16 | Remains from the "No rate limiting on sync endpoint" row. The peer limit keys on the exact socket address text and evicts the least recently seen peer when the table is full, so one host that rotates addresses inside an IPv6 /64 is not limited (#1165 keys IPv6 by /64 prefix). No limit bounds the total unauthenticated work of all peers (#1164), and each adapter reads a request body of up to 10 MiB (`MAX_BODY_BYTES`) before the limiter sees it. In the Peer Admission Limit measurements, the most expensive rejected request (4 MiB body, known key-id, bad signature) costs 9.9 ms p50 and 18.1 ms p99 of handler time, before the body read. Until a fix lands, limit traffic at a reverse proxy or firewall. Severity Low, the severity of the original row |
 
 ## Threat Model Boundaries
 
@@ -296,14 +310,24 @@ await graph.syncWith('http://peer:3000', {
 |---|---|---|
 | **Data integrity** | CRDT convergence, CAS ref updates, patch ordering | Filesystem corruption, disk failure |
 | **Authentication** | HMAC-SHA256 sync auth, key rotation, replay protection | User identity management, OAuth/OIDC |
-| **Authorization** | Writer whitelist (per-graph allowed writers) | Role-based access control, per-node ACLs |
+| **Authorization** | None for sync: any valid sync key reads every writer's patches, and the sync server accepts no writes. `allowedWriters` only refuses a requester that reports an unlisted writer (see Writer Authorization) | Role-based access control, per-node ACLs, per-writer read or write limits |
 | **Transport** | Body signing, tamper detection | TLS termination (delegated to reverse proxy) |
-| **Availability** | Body size limits, streaming for large graphs | DDoS protection, rate limiting (delegated to infrastructure) |
+| **Availability** | Body size limits, the peer admission limit before authentication, the per-key rate limit (required on hosts that are not local), streaming for large graphs | DDoS protection and a global bound on traffic from many addresses ([#1164](https://github.com/git-stunts/git-warp/issues/1164)); provide these at a reverse proxy or firewall |
 | **Supply chain** | `npm audit` in CI, pinned dependencies via lockfile | Runtime SCA scanning, SBOM generation |
 
 ## Writer Authorization
 
-The sync server supports an optional writer whitelist that restricts which writer IDs can submit patches through the HTTP sync protocol.
+The built-in sync server supports an optional writer list, `allowedWriters`. A sync
+request carries the frontier of the requester (writer ID to tip SHA), not patches; the
+server sends patches in its response and does not apply patches from a request. The
+server refuses a request whose frontier names a writer ID that is not in the list.
+
+The list does not limit what the server sends. A peer with a valid key that sends an
+empty frontier, or leaves unlisted writers out of its frontier, receives the patches of
+every writer, listed or not. The list is therefore not an access control for reads or for
+writes. To limit who can read a graph, limit who holds its sync keys.
+
+No package entry point exposes `serve()` in v19.0.0, v20.0.0 or v21.0.0.
 
 ### Configuration
 
@@ -312,7 +336,7 @@ await graph.serve({
   port: 3000,
   httpPort: new NodeHttpAdapter(),
   auth: {
-    keys: { default: 'your-shared-secret' },
+    keys: { default: SyncSecret.fromString('your-shared-secret') },
     mode: 'enforce',
   },
   allowedWriters: ['alice', 'bob', 'node-1'],
@@ -321,11 +345,21 @@ await graph.serve({
 
 ### Rules
 
-- Writer ID matching is **case-sensitive** and follows the pattern `[A-Za-z0-9._-]+` (1–64 characters)
-- Writer IDs are validated at server startup; invalid IDs throw immediately
-- When `allowedWriters` is not set (default), all authenticated writers are permitted
-- When set, sync requests containing patches from unlisted writers receive HTTP 403 (`FORBIDDEN_WRITER`)
-- The `forbiddenWriterRejects` metric tracks rejected requests
+- Writer ID matching is **case-sensitive**. Each listed ID must match `[A-Za-z0-9._-]+`,
+  have 1–64 characters and not contain `..`
+- A non-empty list requires `auth`; without it `serve()` refuses to start. With `auth`,
+  `serve()` refuses to start if a listed ID is invalid (`E_INVALID_WRITER_ID`) or the list
+  is empty (`E_SYNC_AUTH_EMPTY_ALLOWED_WRITERS`)
+- When `allowedWriters` is not set (default), the frontier is not checked
+- When set, a request whose frontier names an unlisted writer receives HTTP 403
+  (`FORBIDDEN_WRITER`) in `enforce` mode. In `log-only` mode the server answers the
+  request and, if the runtime has a logger, logs a warning. Without a logger, and because
+  `serve()` does not expose the metric, `log-only` gives no signal
+- A request with an empty frontier names no writer, so this check passes it
+- The sync auth service counts each frontier that fails the check in its
+  `forbiddenWriterRejects` metric, in both modes. `serve()` does not expose this metric
+- Before v21.0.0, `serve()` did not pass `allowedWriters` to the server, so the list had
+  no effect ([#1163](https://github.com/git-stunts/git-warp/issues/1163))
 
 ## Reporting a Vulnerability
 

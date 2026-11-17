@@ -29,6 +29,11 @@ export default class SurfaceRouteChange {
     return Object.freeze(changes);
   }
 
+  /** True when both lines name the same move; only a move that the merge base listed may be admitted. */
+  equals(other: SurfaceRouteChange): boolean {
+    return this.current === other.current && this.replaced === other.replaced;
+  }
+
   /** Drops additions that are listed moves of a row the base held, under the same owner, and the candidate dropped. */
   static admit(additions: readonly string[], ratchets: Readonly<{
     readonly changes: readonly SurfaceRouteChange[];

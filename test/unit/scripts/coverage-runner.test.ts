@@ -58,30 +58,38 @@ describe('coverage runner completion and ratchet boundary', () => {
     expect(result.status, result.output).toBe(0);
     expect(result.output).toContain('instrumented workers=1; processing concurrency=1');
     expect(result.output).toContain('complete (1 files); zero errors');
-    expect(result.config).toBe(baseline.replace('lines: 0,', 'lines: 100,'));
+    expect(result.config).toBe(baseline.replace('lines: 0,', 'lines: 99.99,'));
   });
-  it('bounds instrumented worker admission under a controlled startup capacity limit', () => {
+  it('bounds instrumented worker admission while a finished worker is still shutting down', () => {
     const root = fixture(passingTest);
-    mkdirSync(join(root, 'workers'));
+    mkdirSync(join(root, 'started'));
+    mkdirSync(join(root, 'admitted'));
+    // Vitest stops a finished worker without waiting before it starts the next one. Each finished worker
+    // stays alive until its successor starts, as on a loaded machine; Vitest kills it after 500 ms at most.
     writeFileSync(join(root, 'capacity.cjs'), `const fs = require('node:fs');
-      for (const entry of fs.readdirSync('workers')) {
-        try { process.kill(Number(entry), 0); } catch { fs.unlinkSync('workers/' + entry); }
-      }
-      const active = 'workers/' + process.pid;
-      fs.writeFileSync(active, 'active');
-      const count = fs.readdirSync('workers').length;
-      fs.appendFileSync('admissions.txt', String(count) + '\\n');
-      process.on('exit', () => fs.unlinkSync(active));
-      if (count > 1) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 65000);
+      fs.writeFileSync('started/' + process.pid, '');
+      const ordinal = fs.readdirSync('started').length;
+      process.on('SIGTERM', () => {
+        const pause = new Int32Array(new SharedArrayBuffer(4));
+        while (fs.readdirSync('started').length === ordinal) Atomics.wait(pause, 0, 0, 5);
+        process.exit(0);
+      });
+      fs.writeFileSync('admitted/' + process.pid, '');
+      fs.appendFileSync('admissions.txt', fs.readdirSync('admitted').length + '\\n');
     `);
-    writeFileSync(join(root, 'vitest.config.ts'), baseline.replace('test: {', "test: { maxWorkers: 8, execArgv: ['--require', './capacity.cjs'],"));
+    // A worker holds its admission from startup until its test file finishes, not until its process exits.
+    writeFileSync(join(root, 'release.ts'), `import { unlinkSync } from 'node:fs';
+      import { afterAll } from 'vitest';
+      afterAll(() => unlinkSync('admitted/' + process.pid));
+    `);
+    writeFileSync(join(root, 'vitest.config.ts'), baseline.replace('test: {',
+      "test: { maxWorkers: 8, execArgv: ['--require', './capacity.cjs'], setupFiles: ['./release.ts'],"));
     for (const name of ['second', 'third', 'fourth']) copyFileSync(join(root, 'test/unit/value.test.ts'), join(root, `test/unit/${name}.test.ts`));
     const result = run(root);
     expect(result.status, result.output).toBe(0);
     expect(result.output).toContain('complete (4 files); zero errors');
     const admissions = readFileSync(join(root, 'admissions.txt'), 'utf8').trim().split('\n').map(Number);
-    expect(admissions.length).toBeGreaterThan(0);
-    expect(Math.max(...admissions)).toBe(1);
+    expect(admissions).toEqual([1, 1, 1, 1]);
   });
   it('keeps an already attained threshold unchanged after a complete run', () => {
     const root = fixture(passingTest);
@@ -155,7 +163,7 @@ describe('coverage runner completion and ratchet boundary', () => {
     expect(() => readFileSync(join(root, 'vitest.config.ts.coverage-candidate'))).toThrow(expect.objectContaining({ code: 'ENOENT' }));
     const retry = run(root);
     expect(retry.status, retry.output).toBe(0);
-    expect(retry.config).toBe(baseline.replace('lines: 0,', 'lines: 100,'));
+    expect(retry.config).toBe(baseline.replace('lines: 0,', 'lines: 99.99,'));
   });
   it('reports both failures when its candidate cannot be replaced or removed', () => {
     const root = fixture(passingTest);
@@ -180,7 +188,7 @@ describe('coverage runner completion and ratchet boundary', () => {
     expect(result.stderr).toContain('controlled candidate renameSync failure');
     expect(result.stderr).toContain('controlled candidate unlinkSync failure');
     expect(readFileSync(join(root, 'vitest.config.ts'), 'utf8')).toBe(baseline);
-    expect(readFileSync(join(root, 'vitest.config.ts.coverage-candidate'), 'utf8')).toBe(baseline.replace('lines: 0,', 'lines: 100,'));
+    expect(readFileSync(join(root, 'vitest.config.ts.coverage-candidate'), 'utf8')).toBe(baseline.replace('lines: 0,', 'lines: 99.99,'));
   });
   it.each(['test:coverage:ci', 'targeted'])('keeps reporting-only %s runs unchanged', command => {
     const root = fixture(passingTest);

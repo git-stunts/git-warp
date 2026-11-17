@@ -127,6 +127,7 @@
     "benchmark:local": "bash scripts/run-in-docker.sh sh -c 'vitest bench --run test/benchmark \"$@\"' --",
     "benchmark:merge-conflicts": "bash scripts/run-in-docker.sh sh -c 'vitest run test/benchmark/MergeConflictCorpus.benchmark.ts \"$@\"' --",
     "benchmark:detached-reads": "bash scripts/run-in-docker.sh sh -c 'vitest run test/benchmark/DetachedReadBoundary.benchmark.ts \"$@\"' --",
+    "benchmark:cone-showcase": "bash scripts/run-in-docker.sh node benchmarks/cone-showcase/ConeShowcaseWitness.ts",
     "benchmark:trie-geometry": "bash scripts/run-in-docker.sh sh -c 'GIT_WARP_PROFILE=1 vitest run test/unit/benchmark/TrieGeometryProfile.profile.test.ts \"$@\"' --",
     "performance:measure": "bash scripts/RunDockerPerformance.sh measure",
     "performance:compare": "bash scripts/RunDockerPerformance.sh compare",

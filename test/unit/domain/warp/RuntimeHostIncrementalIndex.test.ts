@@ -57,11 +57,13 @@ interface OpenedRuntimes {
 async function openRuntimes(graphName: string): Promise<OpenedRuntimes> {
   const persistence = new InMemoryGraphAdapter();
   const logger = new WarningRecorder();
+  // Both writers share the history's memory storage, so they share one clock.
+  const clock = new ManualClock();
   const runtime = await openMemoryRuntimeHostProduct({
-    persistence, graphName, writerId: 'reader', clock: new ManualClock(), logger,
+    persistence, graphName, writerId: 'reader', clock, logger,
   });
   const peer = await openMemoryRuntimeHostProduct({
-    persistence, graphName, writerId: 'peer', clock: new ManualClock(),
+    persistence, graphName, writerId: 'peer', clock,
   });
   if (!(runtime instanceof RuntimeHost) || !(peer instanceof RuntimeHost)) {
     throw new Error('expected the production boot to return a RuntimeHost');

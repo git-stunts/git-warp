@@ -1,3 +1,4 @@
+import { setImmediate as nextTurn } from 'node:timers/promises';
 import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from 'vitest';
 import HttpServerPort, { type HttpRequest, type HttpResponse } from '../../../../src/ports/HttpServerPort.ts';
 
@@ -386,8 +387,8 @@ describe('DenoHttpAdapter', () => {
       const cb = vi.fn();
       server.close(cb);
 
-      // shutdown() is async — wait for the microtask
-      await new Promise((r) => setTimeout(r, 0));
+      // shutdown() is async — wait one event-loop turn for it to settle
+      await nextTurn();
 
       expect(mockServer.shutdown).toHaveBeenCalledTimes(1);
       expect(cb).toHaveBeenCalledWith();
@@ -404,7 +405,7 @@ describe('DenoHttpAdapter', () => {
       const cb = vi.fn();
       server.close(cb);
 
-      await new Promise((r) => setTimeout(r, 0));
+      await nextTurn();
 
       expect(cb).toHaveBeenCalledWith(shutdownError);
     });
@@ -436,7 +437,7 @@ describe('DenoHttpAdapter', () => {
       // close() without a callback — must not produce an unhandled rejection
       server.close();
 
-      await new Promise((r) => setTimeout(r, 0));
+      await nextTurn();
 
       expect(mockServer.shutdown).toHaveBeenCalledTimes(1);
       expect(server.address()).toBeNull();
@@ -452,7 +453,7 @@ describe('DenoHttpAdapter', () => {
       const cb = vi.fn();
       server.close(cb);
 
-      await new Promise((r) => setTimeout(r, 0));
+      await nextTurn();
 
       expect(cb).toHaveBeenCalledTimes(1);
       // After a failed shutdown, address() should return null (state.server cleared)

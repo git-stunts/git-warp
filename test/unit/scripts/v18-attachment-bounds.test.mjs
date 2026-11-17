@@ -7,6 +7,7 @@ import ContentAddressableStore from '@git-stunts/git-cas';
 import { runV18MigrationGit, v18MigrationGitText } from '../../../scripts/v18-to-v19/V18MigrationGit.ts';
 import { V18MigrationGitObjectReader } from '../../../scripts/v18-to-v19/V18MigrationGitObjectReader.ts';
 import V18PatchTranslator from '../../../scripts/v18-to-v19/V18PatchTranslator.ts';
+import { OUT_OF_BOUNDS_CBOR } from '../../helpers/OutOfBoundsCborCorpus.ts';
 
 const LIMIT = 64 * 1024 * 1024;
 
@@ -44,5 +45,27 @@ describe('legacy migration attachment bounds', () => {
         expect(finalized).toBe(true);
       } finally { await translator.close(); }
     } finally { open.mockRestore(); }
+  });
+
+  it('opens the legacy store with a codec that refuses out-of-bounds CBOR', async () => {
+    let codec = null;
+    const open = vi.spyOn(ContentAddressableStore, 'open').mockImplementation(async (options) => {
+      codec = options.codec;
+      return { close: async () => undefined };
+    });
+    try {
+      const translator = await V18PatchTranslator.open({ objectReader: {}, repositoryPath: '.' });
+      await translator.close();
+    } finally { open.mockRestore(); }
+
+    const refusals = OUT_OF_BOUNDS_CBOR.map(({ name, bytes }) => {
+      try {
+        codec.decode(bytes);
+        return { name, code: 'decoded without refusal' };
+      } catch (error) {
+        return { name, code: error.code, reason: error.context?.reason };
+      }
+    });
+    expect(refusals).toEqual(OUT_OF_BOUNDS_CBOR.map(({ name, reason }) => ({ name, code: 'E_CBOR_DECODE_BOUNDS', reason })));
   });
 });

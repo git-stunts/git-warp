@@ -22,6 +22,7 @@ it('fails a real render with stalled browser close within its cleanup deadline',
   child.stderr.on('data', chunk => { output += String(chunk); });
   try {
     const result = await new Promise<number | null>((resolve) => {
+      // eslint-disable-next-line no-restricted-syntax -- process bound: stops waiting for a hung validator child process
       const timeout = setTimeout(() => { resolve(null); }, 15000);
       child.once('close', code => { clearTimeout(timeout); resolve(code); });
     });
