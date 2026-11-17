@@ -397,6 +397,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- git-cas cache entries, workspace leases and their expiry checks use the runtime clock
+  instead of the host wall clock. `GitCasRepositoryAdapter` now requires a `ClockPort` and
+  passes it to git-cas and to the seek-cursor, sync-replay and cache-diagnostics adapters it
+  builds, so every stamp and expiry comparison uses one clock. `GitStorage` supplies the
+  default host clock, so applications need no change
+  ([#1179](https://github.com/git-stunts/git-warp/issues/1179)).
 - The incremental bitmap index now agrees with a full rebuild in two cases where it
   lost data. `addEdge` does not require its endpoints to exist, so a patch can add an
   edge before any patch adds one of its endpoints; the incremental index now indexes
