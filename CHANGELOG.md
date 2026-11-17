@@ -533,6 +533,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sync ingress. No git-warp writer produces this shape. A remove that lists
   another element's dot from an earlier patch is not refused yet
   ([#1120](https://github.com/git-stunts/git-warp/issues/1120)).
+- Refuse a sync response patch whose `ops` is not an array with `PatchError`
+  (`E_PATCH_OPS`) again. After
+  [#1116](https://github.com/git-stunts/git-warp/pull/1116), `applySyncResponse`
+  threw a bare `TypeError` for it. Sync ingress also checks op types again
+  before it hydrates ops, as it did before #1116: a patch that carries an
+  unrecognised op type, or a canonical-only `NodePropSet` or `EdgePropSet`, is
+  refused with `SchemaUnsupportedError` even when that op or another op in the
+  patch has malformed fields, or holds a remove that lists a dot that the same
+  patch adds to a different element. After #1116 such a patch was refused with
+  `PatchError` (`E_PATCH_MALFORMED` or `E_PATCH_CROSS_OWNER_REMOVE`). An op
+  element that is `null` or `undefined` and comes before the unrecognised op
+  still gives a bare `TypeError`, as before #1116. In every case the whole
+  response is refused and the caller's state does not change.
+- Refuse to write a node lifecycle receipt (`life_receipt.cbor`) under a schema
+  other than 3, the schema that this runtime writes, with `WarpError`
+  (`E_INDEX_SHARD_SCHEMA`). A schema-2 receipt can still be read. No git-warp
+  writer builds a schema-2 receipt; before, the index encoder would have written
+  one unchanged, and so marked a root whose lifecycle shards hold schema-3
+  records as schema 2.
 - A rebuilt cone head no longer names a tree that a concurrent `git gc` deletes, unless
   that GC selects what to delete while the rebuild's fast-import process runs or prunes
   with `--prune=now`. `git fast-import` uses an object that it finds in any pack, a

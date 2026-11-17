@@ -18,6 +18,7 @@ import type { IndexShard } from '../../../../src/domain/artifacts/IndexShard.ts'
 import { NodeLifecycleReceipt } from '../../../../src/domain/artifacts/NodeLifecycleReceipt.ts';
 import { NodeLifecycleShard } from '../../../../src/domain/artifacts/NodeLifecycleShard.ts';
 import { Dot, encodeDot } from '../../../../src/domain/crdt/Dot.ts';
+import WarpError from '../../../../src/domain/errors/WarpError.ts';
 import { applyPatchOp, createEmptyState } from '../../../../src/domain/services/JoinReducer.ts';
 import NodeLifecycleIndexBuilder from '../../../../src/domain/services/index/NodeLifecycleIndexBuilder.ts';
 import {
@@ -202,6 +203,25 @@ describe('node lifecycle shards written before records carried tombstoned dots (
   it('refuses a receipt under a schema this runtime does not read', () => {
     expect(() => new NodeLifecycleReceipt({ schemaVersion: 4, nodeCount: 0, shardCount: 0, floatingTombstones: [] }))
       .toThrow(expect.objectContaining({ code: 'E_INVALID_SHARD' }));
+  });
+
+  // Schema 2 is read, never written: its records lack the tombstoned dots a schema-3 reader needs.
+  it('builds a lifecycle shard only under the schema this runtime writes', () => {
+    const unsupported = expect.objectContaining({ code: 'E_INDEX_SHARD_SCHEMA', context: { schemaVersion: 2 } });
+
+    expect(() => new NodeLifecycleShard({ shardKey: '67', schemaVersion: 2, records: [] })).toThrow(WarpError);
+    expect(() => new NodeLifecycleShard({ shardKey: '67', schemaVersion: 2, records: [] })).toThrow(unsupported);
+    expect(() => new NodeLifecycleShard({ shardKey: '67', schemaVersion: 4, records: [] }))
+      .toThrow(expect.objectContaining({ code: 'E_INDEX_SHARD_SCHEMA' }));
+    expect(new NodeLifecycleShard({ shardKey: '67', schemaVersion: 3, records: [] }).schemaVersion).toBe(3);
+  });
+
+  it('refuses to encode a receipt under a schema this runtime reads but does not write', () => {
+    const receipt = new NodeLifecycleReceipt({ schemaVersion: 2, nodeCount: 1, shardCount: 1, floatingTombstones: ['y:1'] });
+    const encodeReceipt = () => new IndexShardEncodeTransform(codec).encodeShard(receipt);
+
+    expect(encodeReceipt).toThrow(WarpError);
+    expect(encodeReceipt).toThrow(expect.objectContaining({ code: 'E_INDEX_SHARD_SCHEMA', context: { schemaVersion: 2 } }));
   });
 
   it('refuses a schema-3 record without its tombstoned dots', () => {

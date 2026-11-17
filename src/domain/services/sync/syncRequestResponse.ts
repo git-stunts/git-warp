@@ -17,6 +17,7 @@ import SyncError from '../../errors/SyncError.ts';
 import { cloneFrontier, updateFrontier } from '../Frontier.ts';
 import { computeSyncDelta } from './syncDelta.ts';
 import { normalizePatch, loadPatchRange, type DecodedPatch } from './syncPatchLoader.ts';
+import hydrateSyncIngressPatch from './SyncIngressOps.ts';
 import {
   appendPatchForPage,
   estimateResponsePayloadBytes,
@@ -410,19 +411,21 @@ export function applySyncResponse(
   for (const [writerId, writerPatches] of patchesByWriter) {
     // Patches should already be in chronological order from processSyncRequest
     for (const { sha, patch } of writerPatches) {
-      // Normalize patch context (in case it came from network serialization)
-      const normalizedPatch = normalizePatch(patch);
+      // Validate the patch structure and context; its ops stay as the peer sent them.
+      const wirePatch = normalizePatch(patch);
       // Guard: reject patches with genuinely unknown op types (B106 / C2 fix). // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
       // Uses isKnownRawOp to accept only the 6 wire-format types. Canonical-only
       // types (NodePropSet, EdgePropSet) must never appear on the wire before
       // ADR 2 capability cutover — reject them here to fail closed.
-      for (const op of normalizedPatch.ops) {
+      for (const op of wirePatch.ops) {
         if (!isKnownRawOp(op)) {
           throw new SchemaUnsupportedError(
             `Patch ${sha} contains unknown op type: ${op.type}`, // nosemgrep: ts-no-unknown-outside-adapters -- 0025B
           );
         }
       }
+      // Hydrate only after the op-type guard, so a malformed op cannot hide that refusal.
+      const normalizedPatch = hydrateSyncIngressPatch(wirePatch);
       // Guard: reject patches exceeding our maximum supported schema version.
       assertOpsCompatible(normalizedPatch.ops, EDGE_PROPERTY_PATCH_SCHEMA_VERSION);
       // Apply patch to state (applyFast mutates in-place; return value is the same reference)
