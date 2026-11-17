@@ -17,8 +17,10 @@ const SCRATCH_BRANCH = 'refs/warp-local/frontier-anchor-build';
  * fast-import write a pack and reopens that race (7 failures in 100 races in a review run,
  * with `transfer.unpackLimit=1` in the repository's configuration): the losing write throws
  * before it publishes, and nothing is corrupted. The plumbing gives no way to set the limit
- * per process: it refuses `-c`, filters per-call `GIT_CONFIG_*` overrides (it passes
- * `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_NOSYSTEM` through only from the inherited
+ * per process: it refuses `-c`, accepts no per-call override that sets a configuration
+ * value (`GIT_CONFIG_PARAMETERS` is blocked, `GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_*` and
+ * `GIT_CONFIG_VALUE_*` are not on its allowlist, and `GIT_CONFIG_GLOBAL`, `HOME` and
+ * `XDG_CONFIG_HOME`, which locate configuration files, pass only from the inherited
  * environment), and allows `fast-import` only `--quiet` and `--done`.
  */
 export const FAST_IMPORT_ANCHOR_BATCH = 64;
