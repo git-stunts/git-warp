@@ -7,6 +7,9 @@
 // E_CBOR_DECODE_BOUNDS. Prints one HUB_CHECKPOINT_WITNESS line.
 // The graph lives in a real Git repository in the system temporary directory (run it in a
 // container), because the in-memory CAS of the test helpers buffers an asset of at most 64 MiB.
+// Cost: at 654,322 neighbours per hub, createCheckpoint had written 4.5 GB of Git objects after
+// 81 minutes without finishing (Docker, 2026-11-17), which is above the 4 GiB data budget for
+// one run. large-shard-checkpoint-witness.ts checks the same shard through the index store.
 //   node test/performance/hub-checkpoint-witness.ts <hubs in one shard key> <neighbours per hub>
 import { spawnSync } from 'node:child_process';
 import { mkdtemp } from 'node:fs/promises';
