@@ -34,6 +34,23 @@ function response(patch: DecodedPatch): SyncResponse {
   return { type: 'sync-response', frontier: { peer: SHA }, patches: [{ writerId: 'peer', sha: SHA, patch }] };
 }
 
+const OTHER_SHA = 'c'.repeat(40);
+const LOCAL_FRONTIER: ReadonlyArray<[string, string]> = [['local', 'b'.repeat(40)]];
+
+/**
+ * A response whose first patch, from writer `other`, is valid. `applySyncResponse`
+ * applies it and advances `other` before it reaches `patch`, so a refusal of `patch`
+ * leaves the caller's state and frontier unchanged only if it works on copies.
+ */
+function responseAfterValidPatch(patch: DecodedPatch): SyncResponse {
+  const valid = wirePatch([{ type: 'NodeAdd', node: 'transient', dot: { writerId: 'other', counter: 1 } }], 'other');
+  return {
+    type: 'sync-response',
+    frontier: { other: OTHER_SHA, peer: SHA },
+    patches: [{ writerId: 'other', sha: OTHER_SHA, patch: valid }, { writerId: 'peer', sha: SHA, patch }],
+  };
+}
+
 function seededState() {
   return reducePatches([{
     patch: new Patch({ writer: 'local', lamport: 1, context: {}, ops: [new NodeAdd('kept', new Dot('local', 1))] }),
@@ -88,9 +105,34 @@ describe('sync ingress checks op types before it hydrates ops', () => {
     { name: 'a NodePropSet with a NUL in its key', op: { type: 'NodePropSet', node: 'a', key: 'k\0', value: 1 } },
     { name: 'a NodePropSet with an empty node', op: { type: 'NodePropSet', node: '', key: 'k', value: 1 } },
     { name: 'an EdgePropSet with an empty key', op: { type: 'EdgePropSet', from: 'a', to: 'b', label: 'l', key: '', value: 1 } },
-  ])('refuses $name with SchemaUnsupportedError', ({ op }) => {
-    const err = captureError(() => applySyncResponse(response(wirePatch([op])), seededState(), createFrontier()));
+  ])('refuses $name with SchemaUnsupportedError and leaves state and frontier unchanged', ({ op }) => {
+    const state = seededState();
+    const before = cloneState(state);
+    const frontier = new Map(LOCAL_FRONTIER);
+    const err = captureError(() => applySyncResponse(responseAfterValidPatch(wirePatch([op])), state, frontier));
     expect(err).toBeInstanceOf(SchemaUnsupportedError);
+    expect(state).toEqual(before);
+    expect([...frontier]).toEqual(LOCAL_FRONTIER);
+  });
+
+  // A remove that lists a dot the same patch adds to a different element. #1116 refused
+  // such a patch with CrossOwnerRemoveError even when it also carried a type the guard refuses.
+  const crossOwner = [
+    { type: 'NodeAdd', node: 'a', dot: { writerId: 'peer', counter: 1 } },
+    { type: 'NodeRemove', node: 'b', observedDots: ['peer:1'] },
+  ];
+  it.each([
+    { name: 'an unrecognised op after it', ops: [...crossOwner, { type: 'FutureOp', node: 'a' }] },
+    { name: 'an unrecognised op before it', ops: [{ type: 'FutureOp', node: 'a' }, ...crossOwner] },
+    { name: 'a canonical-only op after it', ops: [...crossOwner, { type: 'NodePropSet', node: 'a', key: 'k', value: 1 }] },
+  ])('refuses a cross-owner remove with $name with SchemaUnsupportedError, state and frontier unchanged', ({ ops }) => {
+    const state = seededState();
+    const before = cloneState(state);
+    const frontier = new Map(LOCAL_FRONTIER);
+    const err = captureError(() => applySyncResponse(responseAfterValidPatch(wirePatch(ops)), state, frontier));
+    expect(err).toBeInstanceOf(SchemaUnsupportedError);
+    expect(state).toEqual(before);
+    expect([...frontier]).toEqual(LOCAL_FRONTIER);
   });
 
   it('checks the patch writer before op types, as it did before #1116', () => {
