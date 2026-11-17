@@ -47,7 +47,6 @@ afterEach(async () => {
 
 function limitsWith(changes: Partial<ConstructorParameters<typeof ObservationSupportLimits>[0]>): ObservationSupportLimits {
   return new ObservationSupportLimits({
-    writers: DEFAULT_SUPPORT_LIMITS.writers,
     dependencies: DEFAULT_SUPPORT_LIMITS.dependencies,
     frontierBytes: DEFAULT_SUPPORT_LIMITS.frontierBytes,
     work: DEFAULT_SUPPORT_LIMITS.work,
@@ -168,8 +167,6 @@ describe.each(['sha1', 'sha256'])('observation custody recovery (%s)', (format) 
     const { coordinate } = narrowed(await first.service.settle(attempt, { core: readCore('limits'), publication: null }), RetainedObservation);
     await fixture.close(first);
 
-    const fewer = await fixture.open(path, { limit: 2, limits: limitsWith({ writers: 1 }) });
-    expect(await fewer.service.resolve(coordinate)).toEqual(new ObservationUnavailable('support-limit'));
     const smaller = await fixture.open(path, { limit: 2, limits: limitsWith({ frontierBytes: 1 }) });
     expect(await smaller.service.resolve(coordinate)).toEqual(new ObservationUnavailable('support-limit'));
     const poorer = await fixture.open(path, { limit: 2, limits: limitsWith({ work: 0 }) });

@@ -14,19 +14,22 @@ import { disposeWarpFixtures, git, open, repository, retained, tip } from '../..
 
 /**
  * #1080 cost witness: the loose objects and refs one retained operation adds
- * to the user's repository, on git-cas 7.2.0. Measured in Docker by the probe
- * (`RetentionCost.probe.test.ts`): 48 to 57 objects per write over 400 writes,
- * and 26 to 35 per custody read over 200 reads (35 once, at read 100). The
- * count rises slowly with history: each sixteenfold growth in records adds one
- * trie level to each ledger generation, that is up to 4 objects per write and
- * 3 per read.
+ * to the user's repository, on git-cas 7.2.0. Measured in Docker after #1197,
+ * which retains a write's writer heads through frontier anchors: 50 to 67
+ * objects per write over 400 writes (mean 56.9; two more than before #1197,
+ * the leaf and branch anchors of the writer's moved head), and 26 to 35 per
+ * custody read over 200 reads, which reuse their anchors. Before #1197 the
+ * probe measured 48 to 57 per write. The count rises slowly with history: each
+ * sixteenfold growth in records adds one trie level to each ledger generation,
+ * that is up to 4 objects per write and 3 per read.
  * git-cas 7.1.0 wrote about 301 per write and 214 per read.
  *
- * At this witness's scale of 24 operations, the highest counts seen over
- * several runs were 56 per write and 32 per read; they vary between runs
- * because random attempt ids change the trie depth. The ceilings leave a
- * margin of 8 over those maxima, hold up to about 400 writes and 200 reads,
- * and fail far below the 7.1.0 counts.
+ * At this witness's scale of 24 operations, the highest counts seen were 56
+ * per write before #1197 and 54 in one run after it, and 32 per read; they vary
+ * between runs because random attempt ids change the trie depth. The read
+ * ceiling holds up to about 200 reads. The write ceiling holds at this scale,
+ * but over 400 writes after #1197 one write reached 67. Both fail far below the
+ * 7.1.0 counts.
  */
 const WRITE_OBJECT_CEILING = 64;
 const READ_OBJECT_CEILING = 40;

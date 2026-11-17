@@ -45,7 +45,7 @@ function bindings(overrides: Readonly<Record<string, ConstructorArgument>> = {})
 }
 
 function limits(overrides: Partial<ConstructorParameters<typeof ObservationSupportLimits>[0]>): ObservationSupportLimits {
-  return new ObservationSupportLimits({ writers: 0, dependencies: 0, frontierBytes: 0, work: 0, ...overrides });
+  return new ObservationSupportLimits({ dependencies: 0, frontierBytes: 0, work: 0, ...overrides });
 }
 
 function construct(type: new (...args: never[]) => object, ...args: readonly ConstructorArgument[]): object {
@@ -159,7 +159,6 @@ describe('observation value invariants', () => {
     ['page bytes', () => construct(ObservationCustodyPage, 'text', new ObservationCustodyRoots([], []))],
     ['page roots', () => construct(ObservationCustodyPage, new Uint8Array(), {})],
     ['roots support type', () => new ObservationCustodyRoots([Object.create({ type: 'commit', oid: COMMIT })], [])],
-    ['limits writers', () => limits({ writers: -1 })],
     ['limits dependencies', () => limits({ dependencies: 0.5 })],
     ['limits frontier', () => limits({ frontierBytes: -1 })],
     ['limits work', () => limits({ work: Infinity })],

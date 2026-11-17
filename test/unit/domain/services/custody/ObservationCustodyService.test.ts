@@ -191,8 +191,8 @@ describe('ObservationCustodyService', () => {
       expect(await service.prepare(attempt, sources())).toBeInstanceOf(ObservationKnownUnpublished);
 
       custody.inspected = inspectionAt('reserved');
-      support.retention = async () => await Promise.resolve(new ObservationSupportRefused('writer-limit'));
-      expect(await service.prepare(attempt, sources())).toEqual(new ObservationRefused('writer-limit'));
+      support.retention = async () => await Promise.resolve(new ObservationSupportRefused('frontier-limit'));
+      expect(await service.prepare(attempt, sources())).toEqual(new ObservationRefused('frontier-limit'));
       support.retention = async () => await Promise.resolve(new ObservationSupportCancelled());
       expect(await service.prepare(attempt, sources())).toEqual(new ObservationRefused('cancelled'));
       support.retention = async () => await Promise.reject(unavailable);

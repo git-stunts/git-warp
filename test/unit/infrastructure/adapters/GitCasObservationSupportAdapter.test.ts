@@ -17,7 +17,7 @@ import SeededRandomPort from '../../../helpers/SeededRandomPort.ts';
 
 const BASIS = 'c'.repeat(40);
 const IDENTITY = new ObservationCustodyIdentity(new ObservationAttemptId('a'.repeat(32)), new ObservationDigest('b'.repeat(64)));
-const LIMITS = new ObservationSupportLimits({ writers: 8, dependencies: 8, frontierBytes: 1024, work: 64 });
+const LIMITS = new ObservationSupportLimits({ dependencies: 8, frontierBytes: 1024, work: 64 });
 const LOCKED = new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: 'fatal: Unable to create index.lock' });
 
 /** An adapter whose every Git and git-cas call fails with `failure`, thrown as the real producer throws it. */

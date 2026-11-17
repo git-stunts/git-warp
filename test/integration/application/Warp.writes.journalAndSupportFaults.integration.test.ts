@@ -15,13 +15,16 @@ afterEach(async () => {
 
 /** The first attempt id is fixed, so a test can name its refs; later ones are fresh. */
 const FIRST = '1'.repeat(32);
+/** The id of a write made after one other, once the frontier names a writer whose history support must retain. */
+const SECOND = '2'.repeat(32);
 
-class FixedFirstAttempt extends ObservationAttemptSourcePort {
+class FixedAttempts extends ObservationAttemptSourcePort {
   #issued = 0;
 
   override next(): ObservationAttemptId {
     this.#issued += 1;
-    return new ObservationAttemptId(this.#issued === 1 ? FIRST : this.#issued.toString(16).padStart(32, '0'));
+    const fixed = [FIRST, SECOND][this.#issued - 1];
+    return new ObservationAttemptId(fixed ?? this.#issued.toString(16).padStart(32, '0'));
   }
 }
 
@@ -61,7 +64,7 @@ const LOCKED = new GitRepositoryLockedError('Git command failed: repository is l
 describe('the attempt-journal step classifies failures by type (#1109)', () => {
   it('reports a held lock met while saving the attempt record as attempt-journal-unavailable, then writes', async () => {
     const path = await repository();
-    const warp = await open(path, { attempts: new FixedFirstAttempt(), limit: 1 });
+    const warp = await open(path, { attempts: new FixedAttempts(), limit: 1 });
     failRefUpdateOnce(buildWriteAttemptRef(GRAPH, FIRST), LOCKED);
 
     expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toBe('attempt-journal-unavailable');
@@ -72,7 +75,7 @@ describe('the attempt-journal step classifies failures by type (#1109)', () => {
 
   it('rejects a defect thrown while saving the attempt record, having published and reserved nothing', async () => {
     const path = await repository();
-    const warp = await open(path, { attempts: new FixedFirstAttempt(), limit: 1 });
+    const warp = await open(path, { attempts: new FixedAttempts(), limit: 1 });
     const defect = new TypeError("Cannot read properties of undefined (reading 'oid')");
     failRefUpdateOnce(buildWriteAttemptRef(GRAPH, FIRST), defect);
 
@@ -86,23 +89,27 @@ describe('the attempt-journal step classifies failures by type (#1109)', () => {
 describe('the custody-support step classifies failures by type (#1109)', () => {
   it('reports unavailable support as retention-unavailable, keeping the record of the slot it reserved', async () => {
     const path = await repository();
-    const warp = await open(path, { attempts: new FixedFirstAttempt(), limit: 1 });
-    failRefReadOnce(buildObservationConstructionRef(GRAPH, FIRST), LOCKED);
+    const warp = await open(path, { attempts: new FixedAttempts(), limit: 2 });
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'first' })));
+    const before = tip(path, 'alice');
+    failRefReadOnce(buildObservationConstructionRef(GRAPH, SECOND), LOCKED);
 
     expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'x' }))).cause).toBe('retention-unavailable');
-    expect(tip(path, 'alice')).toBeNull();
-    expect(attemptRefs(path)).toEqual([buildWriteAttemptRef(GRAPH, FIRST)]);
+    expect(tip(path, 'alice')).toBe(before);
+    expect(attemptRefs(path)).toEqual([buildWriteAttemptRef(GRAPH, SECOND)]);
     expect(unpublished(await warp.as('alice').execute(intent.node.add({ subject: 'y' }))).cause).toBe('retention-capacity-exhausted');
   });
 
   it('rejects a defect thrown while building support, and leaves no attempt ref or reserved slot behind', async () => {
     const path = await repository();
-    const warp = await open(path, { attempts: new FixedFirstAttempt(), limit: 1 });
+    const warp = await open(path, { attempts: new FixedAttempts(), limit: 2 });
+    retained(await warp.as('alice').execute(intent.node.add({ subject: 'first' })));
+    const before = tip(path, 'alice');
     const defect = new RangeError('Invalid array length');
-    failRefReadOnce(buildObservationConstructionRef(GRAPH, FIRST), defect);
+    failRefReadOnce(buildObservationConstructionRef(GRAPH, SECOND), defect);
 
     await expect(warp.as('alice').execute(intent.node.add({ subject: 'x' }))).rejects.toBe(defect);
-    expect(tip(path, 'alice')).toBeNull();
+    expect(tip(path, 'alice')).toBe(before);
     expect(attemptRefs(path)).toEqual([]);
     expect(constructionRefs(path)).toEqual([]);
     retained(await warp.as('alice').execute(intent.node.add({ subject: 'fits' })));
