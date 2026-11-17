@@ -15,7 +15,7 @@ const HISTORY_FAILURES: ReadonlySet<string> = new Set(['E_SYNC_PATCH_HISTORY']);
 
 /**
  * The operational failures that the cone and storage boundaries actually produce.
- * Constructor defects, unknown codes and errors of the wrong family remain exceptions.
+ * Constructor defects, unrecognized codes and errors of the wrong family remain exceptions.
  * Substrate admission uses WarpError directly, and is recognized only while opening.
  */
 export default function readOperationalFailure(error: Error, phase: 'opening' | 'reading'): string | null {
