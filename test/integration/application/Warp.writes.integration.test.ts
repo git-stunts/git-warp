@@ -23,6 +23,7 @@ import CustodyIndeterminate from '../../../src/domain/services/custody/CustodyIn
 import { buildWriterRef } from '../../../src/domain/utils/RefLayout.ts';
 import { buildWriteAttemptsPrefix } from '../../../src/domain/utils/WriteAttemptRefLayout.ts';
 import { CborPatchJournalAdapter } from '../../../src/infrastructure/adapters/CborPatchJournalAdapter.ts';
+import GitWriteAttemptJournalAdapter from '../../../src/infrastructure/adapters/GitWriteAttemptJournalAdapter.ts';
 import type ObservationCustodyPort from '../../../src/ports/ObservationCustodyPort.ts';
 import { getDefaultRuntimeHostNodePorts } from '../../../src/application/RuntimeHostNodeDefaults.ts';
 import { resolveWarpStorage } from '../../../src/application/WarpStorageRegistry.ts';
@@ -39,6 +40,7 @@ import {
   materialized,
   nodeProperties,
   open,
+  openSwept,
   overrideWithFixedClock,
   repository,
   retained,
@@ -504,6 +506,32 @@ describe('uncertainty after permission', () => {
 
     expect(finished.publication.toString()).toBe(receipt.publication.toString());
     expect(attemptRefs(path)).toEqual([]);
+    expect((await materialized(path)).nodes).toEqual(['landed']);
+  });
+
+  /** Oracle: the swept path of #1125, probe N4a of #1113. The write published, and null tells the caller nothing more. */
+  it('answers null after a published attempt whose reported mark was not saved is swept (#1125)', async () => {
+    const path = await repository();
+    const save = GitWriteAttemptJournalAdapter.prototype.save;
+    const marking = vi.spyOn(GitWriteAttemptJournalAdapter.prototype, 'save').mockImplementation(async function lockHeld(this: GitWriteAttemptJournalAdapter, record) {
+      if (record.reported) {
+        throw new Error('a lock on the attempt ref outlasted the retries');
+      }
+      await save.call(this, record);
+    });
+    const warp = await open(path, { wrapCustody: crashingAt('settle') });
+    const receipt = await warp.as('alice').execute(intent.node.add({ subject: 'landed' }));
+    if (!(receipt instanceof UnretainedWriteReceipt) || receipt.attempt === null) {
+      throw new Error('Expected a repeatable unretained receipt');
+    }
+    await warp.close();
+    marking.mockRestore();
+
+    const swept = await openSwept(path);
+
+    expect(attemptRefs(path)).toEqual([]);
+    expect(await swept.as('alice').reconcile(receipt.attempt)).toBeNull();
+    expect(tip(path, 'alice')).toBe(receipt.publication.toString());
     expect((await materialized(path)).nodes).toEqual(['landed']);
   });
 });
