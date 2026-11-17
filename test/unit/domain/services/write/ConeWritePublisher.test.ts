@@ -21,6 +21,7 @@ import ObservationPreparation from '../../../../../src/domain/services/custody/O
 import ObservationPrepared from '../../../../../src/domain/services/custody/ObservationPrepared.ts';
 import ObservationPublicationPermission from '../../../../../src/domain/services/custody/ObservationPublicationPermission.ts';
 import ObservationQuestion from '../../../../../src/domain/services/custody/ObservationQuestion.ts';
+import ObservationReconcileOnly from '../../../../../src/domain/services/custody/ObservationReconcileOnly.ts';
 import ObservationRefused from '../../../../../src/domain/services/custody/ObservationRefused.ts';
 import ObservationUnretained from '../../../../../src/domain/services/custody/ObservationUnretained.ts';
 import ObservationWritePremise from '../../../../../src/domain/services/custody/ObservationWritePremise.ts';
@@ -146,12 +147,36 @@ describe('ConeWritePublisher before permission', () => {
     expect(remove).toHaveBeenCalledOnce();
   });
 
-  it('keeps the record of a rejected preparation whose cancel is unconfirmed, since it may still hold a slot', async () => {
+  it.each([
+    ['indeterminate', new ObservationIndeterminate('cancellation', REF_IO)],
+    ['refused', new ObservationRefused('contention')],
+    ['reconcile-only', new ObservationReconcileOnly(RESERVED_ATTEMPT)],
+  ])('keeps the record of a rejected preparation whose cancel is %s, since it may still hold a slot', async (_name, outcome) => {
     const failure = new RangeError('Invalid array length');
-    const cancel = vi.fn(() => Promise.resolve(new ObservationIndeterminate('cancellation', REF_IO)));
+    const cancel = vi.fn(() => Promise.resolve(outcome));
     const { publisher, lowered, remove } = publisherOf({ custody: { prepare: () => Promise.reject(failure), cancel } });
 
     await expect(publisher.publish(lowered, NOT_REVOKED)).rejects.toBe(failure);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('still rejects with the preparation failure when cancelling the attempt throws, and keeps the record', async () => {
+    const failure = new RangeError('Invalid array length');
+    const cancel = vi.fn(() => Promise.reject(new Error('cancel went away')));
+    const { publisher, lowered, remove } = publisherOf({ custody: { prepare: () => Promise.reject(failure), cancel } });
+
+    await expect(publisher.publish(lowered, NOT_REVOKED)).rejects.toBe(failure);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('still rejects with the access port failure when cancelling the attempt throws, and keeps the record', async () => {
+    const failure = new RangeError('boundary went away');
+    const cancel = vi.fn(() => Promise.reject(new Error('cancel went away')));
+    const { publisher, lowered, remove } = publisherOf({ custody: { cancel } });
+
+    await expect(publisher.publish(lowered, () => Promise.reject(failure))).rejects.toBe(failure);
     expect(cancel).toHaveBeenCalledOnce();
     expect(remove).not.toHaveBeenCalled();
   });

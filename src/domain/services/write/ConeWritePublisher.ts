@@ -132,13 +132,26 @@ export default class ConeWritePublisher {
    * A reserved attempt whose step throws is stopped before the call rejects, rather than left
    * charged until a sweep: an access port that throws, or preparation that meets a defect or
    * corruption while it builds support (#1109). A cancel custody cannot confirm keeps the record.
+   * The call rejects with the step's own failure, even when stopping fails too.
    */
   async #stoppedOnThrow<T>(reserved: { readonly record: WriteAttemptRecord; readonly attempt: ObservationAttempt }, step: () => Promise<T>): Promise<T> {
     try {
       return await step();
     } catch (error) {
-      await this.#stop(reserved.record, reserved.attempt);
+      await this.#stopBeforeRejecting(reserved);
       throw error;
+    }
+  }
+
+  /**
+   * A stop that fails keeps the record, so the sweep finishes the attempt. Its failure is not
+   * attached to the step's: that error may be a non-error, or carry its own `cause` already.
+   */
+  async #stopBeforeRejecting(reserved: { readonly record: WriteAttemptRecord; readonly attempt: ObservationAttempt }): Promise<void> {
+    try {
+      await this.#stop(reserved.record, reserved.attempt);
+    } catch {
+      // The caller sees the step's failure. The record stays for the sweep.
     }
   }
 
