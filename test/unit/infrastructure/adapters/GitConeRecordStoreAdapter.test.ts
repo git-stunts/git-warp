@@ -466,16 +466,18 @@ describe('GitConeRecordStoreAdapter and a concurrent git gc (#1127)', () => {
     expect(await history.readRef(RETAINED)).toBeNull();
   });
 
-  it('rejects with the ref failure itself when it cannot prove the tree is gone', async () => {
+  // Only exit 1 with no diagnostic proves an object absent (`git cat-file -e`); any other probe failure proves nothing.
+  it.each([
+    ['exits 128', { code: 128, stderr: 'error: unable to unpack header of an object' }],
+    ['exits 1 with a diagnostic', { code: 1, stderr: 'error: inflate: data stream error (incorrect header check)' }],
+  ])('rejects with the ref failure itself when the existence probe %s', async (_case, details) => {
     const { history, store } = await fixture();
     vi.spyOn(history, 'compareAndSwapRef').mockRejectedValueOnce(new Error('disk full'));
     const execute = history.plumbing.execute.bind(history.plumbing);
-    const corrupt = new GitPlumbingError('Git command failed with code 128', 'ExecutionOrchestrator.orchestrate', {
-      code: 128, stderr: 'error: unable to unpack header of an object',
-    });
+    const probeFailure = new GitPlumbingError(`Git command failed with code ${details.code}`, 'ExecutionOrchestrator.orchestrate', details);
     vi.spyOn(history.plumbing, 'execute').mockImplementation(async (options) => {
       if (options.args[0] === 'cat-file') {
-        throw corrupt;
+        throw probeFailure;
       }
       return await execute(options);
     });
