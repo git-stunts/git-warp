@@ -46,6 +46,22 @@ afterEach(async () => {
 
 let headSequence = 0;
 
+/**
+ * A test repository whose fast-import unpack limit is Git's default, whatever the host's
+ * global or system configuration says: the removal cases below need their heads and
+ * anchors as loose objects, and fast-import packs them when the limit is lower.
+ */
+async function repository(format: string): Promise<string> {
+  const path = await fixture.repository(format);
+  git(path, ['config', 'fastimport.unpackLimit', '100']);
+  return path;
+}
+
+/** The parents a retained carrier names: the branch anchors, in branch order. */
+function carrierParents(path: string, carrier: string): string[] {
+  return git(path, ['rev-list', '--parents', '-n', '1', carrier]).split(/\s+/u).slice(1);
+}
+
 /** `count` distinct root commits with fixed metadata, one fast-import for all, and no ref left behind. */
 function heads(path: string, count: number): string[] {
   const first = headSequence;
@@ -90,7 +106,7 @@ function loosePath(path: string, oid: string): string {
 
 describe('frontier anchors bound what one changed head costs (#1197, D2)', () => {
   it.each(WRITER_COUNTS)('adds the same few commits when one of %i writer heads changes', async (writers) => {
-    const path = await fixture.repository('sha1');
+    const path = await repository('sha1');
     const opened = await fixture.open(path, { limit: 8, limits: WARP_SUPPORT_LIMITS });
     const before = heads(path, writers);
     await retained(opened, basisTree(path, 'before', before));
@@ -111,7 +127,7 @@ describe('frontier anchors over random writer counts near 4,096 (#1197, section 
   it.each(FUZZ_SEEDS)('verifies, and adds 3 commits when one random head moves (seed %i)', async (seed) => {
     const rng = createRng(seed);
     const writers = rng.nextInt(3_900, 4_300);
-    const path = await fixture.repository('sha1');
+    const path = await repository('sha1');
     const opened = await fixture.open(path, { limit: 8, limits: WARP_SUPPORT_LIMITS });
     const before = heads(path, writers);
     await retained(opened, basisTree(path, 'fuzz-before', before));
@@ -130,7 +146,7 @@ describe('frontier anchors over random writer counts near 4,096 (#1197, section 
 
 describe.each(['sha1', 'sha256'])('frontier anchors on real Git (%s)', (format) => {
   it('retains a frontier past 4,096 writers with production limits, and verifies it', async () => {
-    const path = await fixture.repository(format);
+    const path = await repository(format);
     const opened = await fixture.open(path, { limit: 8, limits: WARP_SUPPORT_LIMITS });
     const basis = basisTree(path, 'past', heads(path, 4097));
 
@@ -141,7 +157,7 @@ describe.each(['sha1', 'sha256'])('frontier anchors on real Git (%s)', (format) 
   }, CASE_TIMEOUT_MS);
 
   it('reuses every anchor for a second attempt over the same frontier, adding only its carrier', async () => {
-    const path = await fixture.repository(format);
+    const path = await repository(format);
     const opened = await fixture.open(path, { limit: 8 });
     const basis = basisTree(path, 'same', heads(path, 200));
     const first = await retained(opened, basis);
@@ -155,7 +171,7 @@ describe.each(['sha1', 'sha256'])('frontier anchors on real Git (%s)', (format) 
   });
 
   it('gives two clones byte-identical anchors for the same frontier', async () => {
-    const clones = await Promise.all([fixture.repository(format), fixture.repository(format)]);
+    const clones = await Promise.all([repository(format), repository(format)]);
     headSequence = 1_000_000;
     const [left = '', right = ''] = clones;
     const leftHeads = heads(left, 200);
@@ -173,7 +189,7 @@ describe.each(['sha1', 'sha256'])('frontier anchors on real Git (%s)', (format) 
   });
 
   it('rebuilds only the anchors a crash left missing, and verifies the result', async () => {
-    const path = await fixture.repository(format);
+    const path = await repository(format);
     const opened = await fixture.open(path, { limit: 8 });
     const named = heads(path, 5);
     const basis = basisTree(path, 'half', named);
@@ -192,18 +208,33 @@ describe.each(['sha1', 'sha256'])('frontier anchors on real Git (%s)', (format) 
     expect(await opened.support.verify(identity, { basis, roots: resumed.roots, summary: resumed.summary })).toBeNull();
   });
 
-  it.each([
-    ['an anchor', (anchors: readonly string[]): string => anchors[0] ?? ''],
-    ['the last anchor, which the carrier names', (anchors: readonly string[]): string => anchors.at(-1) ?? ''],
-  ])('reports %s removed after retention as missing history', async (_name, pick) => {
-    const path = await fixture.repository(format);
+  it('reports a leaf anchor removed after retention as missing history', async () => {
+    const path = await repository(format);
     const opened = await fixture.open(path, { limit: 8 });
     const named = heads(path, 3);
-    const basis = basisTree(path, 'removed', named);
+    const basis = basisTree(path, 'leaf-removed', named);
     const { identity, support } = await retained(opened, basis);
-    const removed = pick(anchorsOf(path, support.roots.parents[0] ?? '', named));
-    expect(removed).not.toBe('');
-    await rm(loosePath(path, removed));
+    const carrier = support.roots.parents[0] ?? '';
+    const leaf = anchorsOf(path, carrier, named).find((anchor) => !carrierParents(path, carrier).includes(anchor)) ?? '';
+    expect(leaf).not.toBe('');
+    await rm(loosePath(path, leaf));
+
+    const verified = await opened.support.verify(identity, { basis, roots: support.roots, summary: support.summary });
+
+    expect(verified).toEqual(new ObservationSupportFault('history-missing'));
+  });
+
+  it('reports a branch anchor that the carrier names, removed after retention, as missing history', async () => {
+    const path = await repository(format);
+    const opened = await fixture.open(path, { limit: 8 });
+    const named = heads(path, 3);
+    const basis = basisTree(path, 'branch-removed', named);
+    const { identity, support } = await retained(opened, basis);
+    const carrier = support.roots.parents[0] ?? '';
+    const [branch = ''] = carrierParents(path, carrier);
+    expect(anchorsOf(path, carrier, named)).toContain(branch);
+    expect(carrierParents(path, carrier)).toContain(branch);
+    await rm(loosePath(path, branch));
 
     const verified = await opened.support.verify(identity, { basis, roots: support.roots, summary: support.summary });
 
@@ -211,7 +242,7 @@ describe.each(['sha1', 'sha256'])('frontier anchors on real Git (%s)', (format) 
   });
 
   it('reports a head removed after retention as missing history', async () => {
-    const path = await fixture.repository(format);
+    const path = await repository(format);
     const opened = await fixture.open(path, { limit: 8 });
     const named = heads(path, 3);
     const basis = basisTree(path, 'head-removed', named);
@@ -238,12 +269,12 @@ const FORGED_PARENTS: ReadonlyArray<readonly [string, (heads: readonly string[],
  * basis implies (count and digest) but names `pick`'s parents: only its parents differ.
  */
 async function forgedCarrier(format: string, pick: (heads: readonly string[], tops: readonly string[]) => readonly string[]) {
-  const path = await fixture.repository(format);
+  const path = await repository(format);
   const opened = await fixture.open(path, { limit: 8 });
   const named = writerCommits(path, 60);
   const basis = basisTree(path, 'forged', named);
   const { identity, support } = await retained(opened, basis);
-  const tops = git(path, ['rev-list', '--parents', '-n', '1', support.roots.parents[0] ?? '']).split(/\s+/u).slice(1);
+  const tops = carrierParents(path, support.roots.parents[0] ?? '');
   const claim = new ObservationCarrierMessage({ binding: identity.binding, writers: support.summary.writers, history: support.summary.history });
   const parents = pick(named, tops).flatMap((parent) => ['-p', parent]);
   const forged = git(path, ['commit-tree', git(path, ['mktree'], ''), '-m', claim.toString(), ...parents]);
