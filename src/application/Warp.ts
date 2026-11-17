@@ -12,6 +12,7 @@ import { textEncode } from '../domain/utils/bytes.ts';
 import WarpAccessPort from '../ports/WarpAccessPort.ts';
 import AuthoredWarp from './AuthoredWarp.ts';
 import ObservedWarp from './ObservedWarp.ts';
+import { bindObservedWarp } from './ObservedWarpRuntime.ts';
 import WarpAddress from './WarpAddress.ts';
 import { readWarpOpenLogger, type WarpOpenOptions } from './WarpOpenOptions.ts';
 import { composeWarpWrites, type WarpWrites } from './WarpWriteComposition.ts';
@@ -58,7 +59,9 @@ export default class Warp {
     if (!(observer instanceof ObserverIdentity)) {
       throw new WarpError('forObserver requires an ObserverIdentity', 'E_WARP_OBSERVER');
     }
-    return new ObservedWarp(observer, async (request) => await this.#tracked(request));
+    const view = new ObservedWarp(observer);
+    bindObservedWarp(view, async (request) => await this.#tracked(request));
+    return view;
   }
 
   as(writer: string): AuthoredWarp {

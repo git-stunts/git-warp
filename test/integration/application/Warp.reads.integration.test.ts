@@ -234,6 +234,14 @@ describe('one execution, one consumer, one terminal result', () => {
 });
 
 describe('building a question', () => {
+  it('gives a view that runs no question itself, so no read skips the builder checks', async () => {
+    const warp = await open(await repository());
+    const view = warp.forObserver(READER);
+
+    expect('run' in view).toBe(false);
+    expect(Object.keys(view)).toEqual(['observer']);
+  });
+
   it('is pure, immutable, and needs a view, a purpose and a question', async () => {
     const warp = await open(await repository());
     const view = warp.forObserver(READER);

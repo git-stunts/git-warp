@@ -3,6 +3,7 @@ import Purpose from '../domain/api/Purpose.ts';
 import ReadBudget from '../domain/api/ReadBudget.ts';
 import OpticError from '../domain/errors/OpticError.ts';
 import type ObservedWarp from './ObservedWarp.ts';
+import { askObservedWarp } from './ObservedWarpRuntime.ts';
 
 type QueryFields = {
   readonly view: ObservedWarp;
@@ -67,7 +68,7 @@ export default class OpticQuery {
         code: 'E_OPTIC_QUESTION',
       });
     }
-    return await view.run({ purpose, budget, question: { subject, key } });
+    return await askObservedWarp(view, { purpose, budget, question: { subject, key } });
   }
 }
 

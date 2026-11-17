@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import ObservedWarp from '../../../src/application/ObservedWarp.ts';
+import { bindObservedWarp } from '../../../src/application/ObservedWarpRuntime.ts';
 import OpticQuery from '../../../src/application/OpticQuery.ts';
 import ObserverIdentity from '../../../src/domain/api/ObserverIdentity.ts';
 import Purpose from '../../../src/domain/api/Purpose.ts';
@@ -12,7 +13,9 @@ describe('OpticQuery', () => {
   const budget = ReadBudget.of({ records: 10, bytes: 1024, work: 10 });
 
   function createView(runFn = vi.fn()) {
-    return new ObservedWarp(observer, runFn);
+    const view = new ObservedWarp(observer);
+    bindObservedWarp(view, runFn);
+    return view;
   }
 
   it('builds an immutable query with purpose and budget', () => {
@@ -75,7 +78,7 @@ describe('OpticQuery', () => {
     await expect(() => query.read()).rejects.toMatchObject({ code: 'E_OPTIC_QUESTION' });
   });
 
-  it('delegates to view.run with constructed request on read()', async () => {
+  it('asks the Warp bound to the view with the constructed request on read()', async () => {
     const runMock = vi.fn().mockResolvedValue('mock-observation');
     const view = createView(runMock);
     const query = new OpticQuery({ view, purpose: null, budget: null, subject: null, key: null })

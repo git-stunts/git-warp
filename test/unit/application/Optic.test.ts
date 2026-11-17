@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import ObservedWarp from '../../../src/application/ObservedWarp.ts';
 import Optic from '../../../src/application/Optic.ts';
 import OpticQuery from '../../../src/application/OpticQuery.ts';
@@ -7,10 +7,9 @@ import OpticError from '../../../src/domain/errors/OpticError.ts';
 
 describe('Optic', () => {
   const observer = ObserverIdentity.of('audit', 'agent-1');
-  const dummyBackend = vi.fn();
 
   it('creates an OpticQuery when passed an ObservedWarp', () => {
-    const view = new ObservedWarp(observer, dummyBackend);
+    const view = new ObservedWarp(observer);
     const query = Optic(view);
     expect(query).toBeInstanceOf(OpticQuery);
   });
