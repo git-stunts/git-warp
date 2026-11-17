@@ -14,7 +14,7 @@ import type RandomPort from '../../../ports/RandomPort.ts';
 /** Convert a frontier Map to a sorted plain object. */
 export function frontierToRecord(frontier: Map<string, string>): Record<string, string> {
   return Object.fromEntries(
-    [...frontier.entries()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)),
+    [...frontier.entries()].sort(([a], [b]) => compareStrings(a, b)),
   );
 }
 

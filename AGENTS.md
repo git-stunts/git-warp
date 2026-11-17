@@ -129,8 +129,10 @@ DTO and stop there**. Do not hallucinate fake domain models.
   chat.
 - Current public documentation lives in root `README.md`, root
   `ARCHITECTURE.md`, `CHANGELOG.md`, `docs/topics/`, and
-  `docs/operations/`. Release process instructions live in
-  `.github/RELEASE.md`. Do not revive
+  `docs/operations/`. Root `ROADMAP.md` is the compiled milestone view:
+  its generated block is compiled from GitHub, and GitHub is correct when the
+  two differ. Release process instructions live in
+  `.github/RELEASE.md`. Do not revive `docs/ROADMAP.md`,
   `docs/BEARING.md`, `docs/VISION.md`, design packets, retro packets, or
   archive directories; use GitHub Issues, release evidence, and topic pages for
   current status.
@@ -144,9 +146,19 @@ DTO and stop there**. Do not hallucinate fake domain models.
   - `priority:*` answers when it should be handled. Use exactly one of
     `priority:asap`, `priority:next`, or `priority:later`.
   - `status:*` answers workflow state. Use exactly one of
-    `status:available`, `status:blocked`, or `status:active`.
-    `status:available` is the neutral state for open work that is neither
-    blocked nor actively being worked.
+    `status:available`, `status:blocked`, `status:active`, or
+    `status:parked`. `status:available` is the neutral state for open work
+    that is neither blocked nor actively being worked. `status:blocked`
+    means blocked by something outside the dependency graph (an external
+    party, a decision, an outage); write the reason in the issue body.
+    Dependency blocking is computed from the frontmatter `.blocked_by`
+    edges and is never labeled: an issue that waits only on other issues
+    stays `status:available`. `status:parked` means work was started and
+    stopped, and its branch is pushed to `origin`, so anyone can resume it
+    rather than restart it. A local-only worktree does not make work parked.
+    Taskalisk does not read labels. It reads `.status` (`active`, `parked`,
+    or `blocked`) in the issue frontmatter, so set both when the state
+    changes.
   - `area:*` answers where the work primarily lives. Prefer one of `area:api`,
     `area:runtime`, `area:storage`, `area:query`, `area:sync`, `area:docs`,
     `area:testing`, `area:tooling`, `area:release`, or `area:architecture`.
@@ -171,6 +183,11 @@ DTO and stop there**. Do not hallucinate fake domain models.
   | no legacy workflow label | `status:available` |
   | `release-home:vX.Y.Z` / `lane:vX.Y.Z` | GitHub Milestone `vX.Y.Z` |
   | `feature:*` / `legend:*` | One `area:*` label, with doctrine in the body |
+
+- `.coderabbit.yaml` stops CodeRabbit from applying issue labels and review
+  labels, so issue labels stay under human control. It does not override
+  `reviews.slop_detection`, which labels a PR only when a setting names a
+  label.
 
 - Release gates must count GitHub Issues by the simplified labels and
   milestones. Missing required labels or milestones are gate failures, never
@@ -203,6 +220,80 @@ DTO and stop there**. Do not hallucinate fake domain models.
   - `🏁 [#N](url)` when a PR was merged.
   - `🐇 [#N](url)` when waiting for Code Rabbit.
   - `🧪 [#N](url)` when CI is not finished yet.
+
+## Issue and Task Plan House Format
+
+- GitHub is the source of truth for planning. An issue is the task plan; there
+  is no local task-file state. The Taskalisk skill
+  (`<skill>/scripts/taskalisk.py`) compiles the plan from the issues on
+  every run and keeps no state of its own.
+- A modeled issue starts with an `issue-dag/2` frontmatter block: the first
+  fenced `yaml` block of the body, with only blank lines before it. It holds
+  `.dag: issue-dag/2`, `.id` (the issue's own `owner/repo#N`), and `.kind`
+  (`task` or `container`). A task also holds `.type` and `.blocked_by` (`[]`
+  for none); a container holds `.children` instead. `.holds`, `.meters`,
+  `.status`, and `.size_hours` are optional. Every reference is
+  `owner/repo#N`; a bare `#N` is invalid. An unknown key that starts with `.`
+  fails the run. The schema is `references/frontmatter-model.md` in the
+  Taskalisk skill. An open issue without frontmatter is unmodeled: Taskalisk
+  lists it and leaves it out of the graph.
+- New GitHub issues use one of the six typed house card templates in
+  `.github/ISSUE_TEMPLATE/`: Feature, Bug, Decision, Investigation,
+  Research, or Spike. Blank issues are disabled. Use the web chooser or
+  `gh issue create --template "<Name>"`. Each template starts with a
+  frontmatter skeleton whose `.id` is `git-stunts/git-warp#NEW`. After GitHub
+  numbers the issue, change `.id` to the issue's own reference; until then
+  Taskalisk refuses the block, and every run that includes the issue fails.
+  Keep the frontmatter block first, then the `# <Type>` heading, the fenced
+  `text` execution prompt, and the numbered `## 1.` to `## 9.` headings. No
+  tool checks these headings; reviewers do. Write "none" or "not applicable,
+  because X" instead of padding a section. Write in ASD-STE100 Simplified
+  Technical English.
+- The ADR 2 readiness review form (`adr-2-readiness-review.yml`) is the one
+  sanctioned non-house form. Its issues have no frontmatter, so Taskalisk
+  lists them as unmodeled.
+- Each typed template presets `priority:later` and `status:available`; the
+  Feature and Bug templates also preset their `type:*`. `priority:later` is a
+  placeholder, not a triage result: the filer must correct it. Also add the
+  `area:*` label and, where the template could not preset it, the `type:*`
+  label, and assign the GitHub Milestone.
+- Dependencies live only in the frontmatter. *A blocks B* means that B's
+  `.blocked_by` names A: A must be closed (for code work, merged on `main`)
+  before B is correct. Containers never block and are never blocked. Labels,
+  milestones, body sections, shared files, and GitHub issue relationships do
+  not create edges. GitHub's native "blocked by" relationships are an
+  optional mirror for the GitHub interface: `taskalisk.py --from-github
+  --compare-relationships` reports drift, and the frontmatter wins. Record a
+  discovered prerequisite with `taskalisk.py --from-github --add-edge
+  "owner/repo#A->owner/repo#B" --reason "<why>"`: it rewrites B's
+  `.blocked_by` line, and it restores B's old body if the edge makes a cycle.
+  Under the skill's "Propose, then apply" rule, an agent runs a Taskalisk
+  write only after the person who asked for the work approves the exact edit.
+- Resources sit beside the graph, in the frontmatter. `.holds` lists the
+  git-locks keys that a task holds for its whole duration; a trailing `/`
+  claims a subtree, so `docs/` conflicts with `docs/plans/`. `.meters` lists
+  semaphore slots as `name` or `name*N`. Declare a resource only when other
+  tasks contend for it for the whole task: the same worktree, the same Docker
+  container or worker, a device, or a system-wide resource with exclusive
+  access. Separate worktrees need no repository path locks. Short commands
+  take their git-locks keys when they run, and those keys do not go in
+  `.holds`. There is no default resource, and Taskalisk does not read
+  `lock:*` labels. Take `host/*` keys in the workstation store that every
+  repository on the host shares (set `GIT_LOCKS_STORE` to it); take
+  repository paths such as `docs/` and `scripts/` in this repository's
+  default store.
+- `ROADMAP.md` is a rendered view. Its hand-written part is the executive
+  summary. The block between the generated markers is the output of
+  `taskalisk.py --from-github --emit-roadmap`: graph health, the ranked Open
+  Frontier, a conflict-free git-locks batch, task checklists, the reduced
+  dependency diagram, and edge accounting. In this mode Taskalisk does not
+  filter by milestone, so the block covers every open modeled issue in this
+  repository and the issues that their frontmatter references. Wave numbers,
+  unlock lists, and status are computed on every run, never hand-maintained.
+  Regenerate the block after tracker changes; never edit it by hand. The
+  block has no branch audit: for worktrees, branches, and open PRs, run the
+  inventory mode (`taskalisk.py --repo .`). Full format:
+  [`docs/plans/README.md`](docs/plans/README.md#task-plan-house-format).
 
 ## Delegated Agents
 
@@ -347,6 +438,11 @@ they do not repeat these rules.
   not mount host repositories or Git directories into test containers.
 - `npm test` and test/benchmark scripts route through `scripts/run-in-docker.sh`.
   Direct Vitest invocations are guarded before test modules load.
+- Any test that relies on time must use a fake clock: an injected clock or
+  Vitest fake timers. Never use `Date.now()`, `new Date()`,
+  `performance.now()`, or real timer waits in a time-dependent test; they
+  make tests nondeterministic. A process timeout that only bounds a run is
+  allowed.
 
 - Useful commands:
   - `npm run test:local`
@@ -370,7 +466,9 @@ they do not repeat these rules.
 - Follow `.github/RELEASE.md`. Use `scripts/release-preflight.sh`,
   `scripts/release-guard.sh`, `.continuum/release.yml`, package metadata,
   `CHANGELOG.md`, and release evidence generated by the current release task.
-  Do not maintain a separate prose release dashboard.
+  Do not maintain a separate hand-written release dashboard. Root
+  `ROADMAP.md` is not one: its generated block is compiled from GitHub, and
+  its hand-written part is limited to the executive summary.
 - Immediately after a release, run the post-release retrospective described in
   `.github/RELEASE.md` before starting the next planned release train.
 - Every planned, versioned release must have a thesis in its GitHub Milestone
