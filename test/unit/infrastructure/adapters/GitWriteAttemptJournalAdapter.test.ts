@@ -67,20 +67,20 @@ const RECORD = new WriteAttemptRecord({ preparation: PREPARATION, admission: 'de
 const STDERR = "fatal: cannot lock ref 'refs/warp-local/g/write-attempts/a': Unable to create 'refs/warp-local/g/write-attempts/a.lock': File exists.";
 
 /** Real producer envelopes that a retry can clear (#1079): the same list the cone store host uses. */
-const UNAVAILABLE = Object.freeze([
+const UNAVAILABLE: ReadonlyArray<readonly [string, Error]> = [
   ['a held lock file (plumbing)', new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: STDERR })],
   ['a ref I/O failure (history adapter)', new PersistenceError(`Ref I/O error: ${REF}`, PersistenceError.E_REF_IO)],
-] as const);
+];
 
 /** Real producer envelopes that no retry clears, or that the journal cannot identify as transient. */
-const REJECTED = Object.freeze([
+const REJECTED: ReadonlyArray<readonly [string, Error]> = [
   ['GIT_ERROR', new CasError('Git command failed', 'GIT_ERROR')],
   ['a truncated object (GitProtocolError)', new GitProtocolError('Git process closed before completing its response', 'ByteReader._readChunk')],
   ['a failed Git command', new GitPlumbingError('Git command failed with code 128', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: 'fatal: bad object' })],
   ['a missing object (history adapter)', new PersistenceError('Missing Git object', PersistenceError.E_MISSING_OBJECT)],
   ['a bare error', new Error('ENOSPC: no space left on device, write')],
   ['a defect', new TypeError("Cannot read properties of undefined (reading 'oid')")],
-] as const);
+];
 
 describe('GitWriteAttemptJournalAdapter save classifies host failures by type (#1109)', () => {
   function journalOver(history: InMemoryGraphAdapter): GitWriteAttemptJournalAdapter {

@@ -263,9 +263,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   after the history adapter's retries, and git-cas reports a lock on the support
   construction ref as `PUBLICATION_REF_UPDATE_FAILED`. A rejection at the journal step
   has reserved nothing. Before a rejection while support is built, the write cancels
-  its reservation and removes its attempt record, so it leaves no attempt ref and no
-  reserved slot; on unreleased `main` such a failure gave `retention-unavailable` and
-  left the record behind. A `retention-unavailable` from unavailable support keeps the
+  its reservation. Once custody confirms the cancel, the slot is free and the write
+  removes its attempt record; that removal is best effort. If custody cannot confirm
+  the cancel, or the removal fails, the record stays and the recovery sweep finishes
+  the attempt. On unreleased `main` such a failure gave `retention-unavailable` and
+  left the record and the reserved slot for the sweep. A `retention-unavailable` from unavailable support keeps the
   attempt record and its reserved slot until the recovery sweep finishes the attempt. A
   failure of the custody ledger itself still gives `retention-unavailable`, whatever
   its type.

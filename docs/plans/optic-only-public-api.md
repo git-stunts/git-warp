@@ -645,9 +645,10 @@ object-session path, and on other paths it cannot be identified as transient.
   `PersistenceError` `E_MISSING_OBJECT`, a git-cas code, and an error the adapter
   cannot identify. A rejection at the journal step has saved and reserved nothing.
   Before a rejection while support is built or checked, the write cancels its
-  reservation and removes its attempt record, so no attempt ref and no reserved slot
-  stay behind. Only a cancel that custody cannot confirm keeps the record, for the
-  recovery sweep to finish.
+  reservation. Once custody confirms the cancel, the slot is free and the write
+  removes the attempt record; that removal is best effort. A cancel that custody
+  cannot confirm, or a removal that fails, keeps the record, and the recovery sweep
+  finishes the attempt.
 - **Corruption rejects** (decided 2026-11-08). At the basis-open and premise-read
   steps, every store failure the adapter cannot identify as transient rejects,
   having published nothing. That includes a `ConeRecordError` (a stored record that

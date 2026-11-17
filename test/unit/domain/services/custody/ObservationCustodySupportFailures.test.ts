@@ -30,7 +30,7 @@ const UNAVAILABLE = new ObservationSupportUnavailableError('read a ref', new Git
 ));
 
 /** Failures that the support adapter did not type as unavailable: defects, a thrown non-error and corruption. Each must reject. */
-const UNTYPED: ReadonlyArray<readonly [string, unknown]> = [
+const UNTYPED: ReadonlyArray<readonly [string, Error | string]> = [
   ['a TypeError', new TypeError("Cannot read properties of undefined (reading 'oid')")],
   ['a RangeError', new RangeError('Invalid array length')],
   ['a thrown non-error', 'not an error'],
@@ -129,7 +129,7 @@ describe('ObservationCustodyService classifies support failures by type (#1109)'
     support.retention = async () => await new Promise((_, rejecting) => {
       fail = rejecting;
     });
-    const preparing = service.prepare(admitted, sources()).then(() => 'resolved', (error: unknown) => error);
+    const rejected = expect(service.prepare(admitted, sources())).rejects.toBe(defect);
     await new Promise((resolve) => {
       setImmediate(resolve);
     });
@@ -137,6 +137,6 @@ describe('ObservationCustodyService classifies support failures by type (#1109)'
     fail(defect);
 
     expect(await cancelling).toBeInstanceOf(ObservationKnownUnpublished);
-    expect(await preparing).toBe(defect);
+    await rejected;
   });
 });
