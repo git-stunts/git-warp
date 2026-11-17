@@ -408,27 +408,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   receipt reports `redundant`
   ([#193](https://github.com/git-stunts/git-warp/issues/193)).
 - Make `materialize({ receipts: true })`, and `materialize()` without a
-  retained earlier state (for example in a fresh clone after a sync), agree
-  with the patch history on Git storage. With two or more writers, a remove
-  could be applied before the add that it observed, so a removed node or
-  edge came back in the returned and cached state. A full replay still lists
-  receipts in writer order, so such an early remove still reports
-  `redundant`, but the element is now removed. A bounded checkpoint-tail
-  node or node-property read now gives the same answer as `materialize()`
-  after a checkpoint that holds the remove without the add: the node
-  lifecycle receipt of a new checkpoint (`life_receipt.cbor`,
+  retained earlier state (for example in a fresh clone that fetched the
+  writer refs), agree with the patch history on Git storage. With two or
+  more writers, a remove could be applied before the add that it observed,
+  so a removed node or edge came back in the returned and cached state. A
+  full replay still lists receipts in writer order, so such an early remove
+  still reports `redundant`, but the element is now removed. A bounded
+  checkpoint-tail node or node-property read now gives the same answer as
+  `materialize()` after a checkpoint that holds the remove without the add:
+  the node lifecycle receipt of a new checkpoint (`life_receipt.cbor`,
   `floatingTombstones`) lists every tombstoned node dot of the checkpoint
   state, where it listed only the tombstoned dots that no add in the
   checkpoint held. The receipt key and schema version do not change. One
-  path is not fixed: a host that receives the remove through `syncWith`,
-  creates a checkpoint, and then receives the add still reports the element
-  alive ([#1153](https://github.com/git-stunts/git-warp/issues/1153)).
-  Earlier versions can have
-  stored that wrong state in the checkpoint and in retained
-  materializations, and the fix does not repair them. On an affected
-  repository using the default Git storage configuration, close all runtime
-  hosts and their backing storage instances. Delete
-  `refs/warp/<graph>/checkpoints/head` and
+  path is not fixed: a session seeded from a state that holds the tombstone
+  without the add drops that tombstone, so the element is alive again when
+  the add arrives. For example, a host that receives the remove through
+  `syncWith`, creates a checkpoint, and then receives the add reports the
+  element alive
+  ([#1153](https://github.com/git-stunts/git-warp/issues/1153)). Earlier
+  versions can have stored the wrong state of a full replay in the
+  checkpoint and in retained materializations, and the fix does not repair
+  them. On an affected repository using the default Git storage
+  configuration, close all runtime hosts and their backing storage
+  instances. Delete `refs/warp/<graph>/checkpoints/head` and
   `refs/cas/caches/git-warp/materializations`, then reopen and materialize
   from history. A still-open host can retain the wrong state after both refs
   are deleted. The materializations cache ref is shared across graphs;
