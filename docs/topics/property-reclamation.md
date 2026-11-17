@@ -80,7 +80,7 @@ reclaims them using the retained clear without requiring their owner to reappear
 | --- | --- |
 | Full state | `full-v7` |
 | Materialization/cache descriptor | schema 7 |
-| Lifecycle shard and receipt | schema 2 |
+| Lifecycle shard and receipt | schema 3 (schema 2 still read) |
 | Public read receipt `reducerVersion` | `observed-remove/node-lww-clear` |
 | Bounded read identity `reducerVersion` | `checkpoint-tail-locator/observed-remove/node-lww-clear` |
 

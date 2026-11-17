@@ -113,7 +113,7 @@ export function materializedValue(scenario: HarnessScenario): PropValue | null {
  */
 export type HarnessRootDamage = 'drop-node-lifecycle-shard' | 'receipt-schema-version';
 
-const UNREAD_RECEIPT_SCHEMA_VERSION = 3;
+const UNREAD_RECEIPT_SCHEMA_VERSION = 4;
 
 /** Reads the property through CheckpointTailWitnessLocator over a written basis. */
 export async function tailRead(
@@ -173,7 +173,7 @@ export function reducerReadsInEveryTailOrder(scenario: HarnessScenario): readonl
             ? null
             : register.eventId,
           baseAlive: checkpoint.nodeAlive.contains(HARNESS_NODE),
-          floatingTombstones: floatingTombstones(checkpoint),
+          floatingTombstones: checkpointTombstonesOf(checkpoint, HARNESS_NODE),
         },
         tailEntries: order.map(tailEntry),
         nodeId: HARNESS_NODE,
@@ -189,10 +189,15 @@ export function reducerReadsInEveryTailOrder(scenario: HarnessScenario): readonl
   });
 }
 
-/** Node tombstones whose dot no node entry of the state holds. */
-function floatingTombstones(state: WarpState): ReadonlySet<string> {
+/**
+ * The tombstones a bounded read of `nodeId` gets from the lifecycle family:
+ * the receipt's tombstones that no entry holds, and the tombstoned dots of
+ * the node's own entry.
+ */
+function checkpointTombstonesOf(state: WarpState, nodeId: string): ReadonlySet<string> {
   const held = new Set(state.nodeAlive.entryDotsIter());
-  return new Set([...state.nodeAlive.tombstonesIter()].filter((dot) => !held.has(dot)));
+  return new Set([...state.nodeAlive.tombstonesIter()]
+    .filter((dot) => !held.has(dot) || state.nodeAlive.hasDot(nodeId, dot)));
 }
 
 function tailEntry(patch: HarnessPatch): CheckpointTailPatchEntry {

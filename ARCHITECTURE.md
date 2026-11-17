@@ -22,7 +22,7 @@ when concurrent membership survives. Readers and writers must upgrade together:
 old clients are not fenced and can replay the same history differently. Preserve
 historical interpreter identity and regenerate derived bases/checkpoints. Current
 state is `full-v7`, materialization descriptors use schema 7, lifecycle shards and
-receipts use schema 2, and public receipts identify
+receipts use schema 3 (schema 2 roots are still read), and public receipts identify
 `observed-remove/node-lww-clear`.
 
 Membership compaction retires no evidence. Property GC can reclaim dominated

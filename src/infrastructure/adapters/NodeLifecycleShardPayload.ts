@@ -8,13 +8,14 @@ type EncodedNodeLifecycleRecord = readonly [
   EncodedEventId | null,
   readonly EncodedEventId[],
   readonly (readonly [string, EncodedEventId])[],
+  readonly string[],
 ];
 
 /**
  * The current-schema payload of one node lifecycle shard. Records, pending
- * removes and registers are already in canonical order on the shard, so
- * equal shards encode to equal bytes. `NodeLifecycleShardReader` is the
- * decoder.
+ * removes, registers and tombstoned dots are already in canonical order on
+ * the shard, so equal shards encode to equal bytes. `NodeLifecycleShardReader`
+ * is the decoder.
  */
 export function nodeLifecycleShardPayload(shard: NodeLifecycleShard): {
   readonly schemaVersion: number;
@@ -27,6 +28,7 @@ export function nodeLifecycleShardPayload(shard: NodeLifecycleShard): {
       optionalEvent(record.clear),
       record.pendingRemoves.map(encodeEvent),
       [...record.registers].map(([key, event]) => [key, encodeEvent(event)]),
+      [...record.tombstonedDots],
     ]]),
   };
 }

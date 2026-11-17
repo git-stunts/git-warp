@@ -34,8 +34,11 @@ export type {
 } from './CheckpointNeighborhoodPageReader.ts';
 
 /**
- * A node's lifecycle record at the checkpoint, with the root's floating node
- * tombstones, or `unwitnessed` when the basis does not carry records.
+ * A node's lifecycle record at the checkpoint, with the checkpoint node
+ * tombstones that decide a tail add of the node, or `unwitnessed` when the
+ * basis does not carry records. `floatingTombstones` joins the receipt's
+ * tombstones that no entry holds with the tombstoned dots of the node's own
+ * record: a tail add of the node can carry only those dots.
  */
 export type CheckpointNodeLifecycleRecord =
   | Readonly<{ kind: 'witnessed'; record: NodeLifecycleRecord | null; floatingTombstones: ReadonlySet<string> }>
@@ -166,14 +169,12 @@ export default class CheckpointShardFactReader {
       return UNWITNESSED_NODE_LIFECYCLE;
     }
     const receipt = await this._requireNodeLifecycleReceipt(basis, receiptToken);
-    const floatingTombstones: ReadonlySet<string> = new Set(receipt.floatingTombstones);
     const path = nodeLifecycleShardPath(nodeId);
     const token = basis.manifest.livenessRoots.get(path);
-    if (token === undefined) {
-      return Object.freeze({ kind: 'witnessed', record: null, floatingTombstones });
-    }
-    const records = await this._readNodeLifecycleShard(basis, path, token);
-    return Object.freeze({ kind: 'witnessed', record: records.get(nodeId) ?? null, floatingTombstones });
+    const record = token === undefined
+      ? null
+      : (await this._readNodeLifecycleShard(basis, path, token)).get(nodeId) ?? null;
+    return Object.freeze({ kind: 'witnessed', record, floatingTombstones: nodeTombstones(receipt, record) });
   }
 
   nodeLifecycleShardIdentities(
@@ -477,4 +478,9 @@ function indexShardFailureReason(error: IndexError): string | null {
     return CHECKPOINT_SHARD_INVALID_CAUSE;
   }
   return null;
+}
+
+/** The receipt's tombstones that no entry holds, with the tombstoned dots that the node's entry holds. */
+function nodeTombstones(receipt: NodeLifecycleReceipt, record: NodeLifecycleRecord | null): ReadonlySet<string> {
+  return new Set([...receipt.floatingTombstones, ...(record?.tombstonedDots ?? [])]);
 }
