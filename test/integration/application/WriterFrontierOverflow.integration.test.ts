@@ -38,6 +38,8 @@ const EXISTING = seeds.EXISTING_WRITER;
 const POOL = seeds.poolOf(LIMIT - 2);
 const SEED_TIMEOUT_MS = 480_000;
 const CASE_TIMEOUT_MS = 240_000;
+/** Removing the seed and its copies, thousands of objects each, outlasts the default hook timeout on a CI runner. */
+const CLEANUP_TIMEOUT_MS = 120_000;
 
 let seed = '';
 
@@ -132,7 +134,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await fixture.disposeWarpFixtures();
   await seeds.disposeWriterChainSeeds();
-});
+}, CLEANUP_TIMEOUT_MS);
 
 it('seeds one writer chain fewer than the limit, every one folded', async () => {
   expect([seeds.writerChains(seed), await foldedWriters(seed)]).toEqual([LIMIT - 1, LIMIT - 1]);

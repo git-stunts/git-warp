@@ -29,10 +29,12 @@ const fixture = new ObservationCustodyFixture();
 const CASE_TIMEOUT_MS = 240_000;
 /** Writer counts for the boundedness witness: one carrier's worth, the newcomer limit, and close to `frontierBytes`. */
 const WRITER_COUNTS = [64, 4096, 70_000];
+/** Removing a repository of 70,000 heads and their anchors outlasts the default hook timeout on a slow runner. */
+const CLEANUP_TIMEOUT_MS = 120_000;
 
 afterEach(async () => {
   await fixture.dispose();
-});
+}, CLEANUP_TIMEOUT_MS);
 
 let headSequence = 0;
 

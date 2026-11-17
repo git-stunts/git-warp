@@ -18,6 +18,8 @@ const LIMIT = WARP_WRITER_LIMIT;
 const SYNC_ORDER_SEED = 1197;
 const rng = createRng(SYNC_ORDER_SEED);
 const SEED_TIMEOUT_MS = 480_000;
+/** Removing the seed, the hub and the clones, thousands of objects each, outlasts the default hook timeout on a CI runner. */
+const CLEANUP_TIMEOUT_MS = 120_000;
 const CLONES = [
   { writer: seeds.EXISTING_WRITER, newcomer: false },
   { writer: 'bob', newcomer: true },
@@ -70,7 +72,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await fixture.disposeWarpFixtures();
   await seeds.disposeWriterChainSeeds();
-});
+}, CLEANUP_TIMEOUT_MS);
 
 it('admits each clone\'s newcomer at 4,095 writer chains, and gives every clone 4,097 after one exchange', () => {
   expect([...firstWrites, ...chainsAfterExchange]).toEqual(['retained', 'retained', LIMIT + 1, LIMIT + 1, LIMIT + 1]);
