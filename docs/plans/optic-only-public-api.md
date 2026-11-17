@@ -592,6 +592,13 @@ throws it, and nothing else. The list (`TRANSIENT_PERSISTENCE_CODES` and
 - `GitRepositoryLockedError`, which plumbing's own classifier throws when a Git
   command meets a held lock file, and which reaches the adapter unwrapped.
 
+The cone record store adapter (`GitConeRecordStoreAdapter`) gives the same verdict
+to one more failure, which it proves itself (#1127): a cone ref update that fails
+while the ref still holds its expected value and `git cat-file -e` finds no object
+under the tree the update names. Git removed that tree before the ref named it. Only
+a concurrent GC, such as `git gc --prune=now`, does that to a tree git-warp has just
+written, and a retry writes the tree again.
+
 The list applies to failures the cone store host sees, beneath the cone record
 store adapter, including the plumbing calls fast-import makes through the host: a
 held lock during fast-import gives `write-basis-unavailable`. The host turns those
@@ -621,7 +628,8 @@ object-session path, and on other paths it cannot be identified as transient.
   steps, every store failure the adapter cannot identify as transient rejects,
   having published nothing. That includes a `ConeRecordError` (a stored record that
   does not decode is one), a `PersistenceError` such as `E_MISSING_OBJECT` (git-cas's
-  own `GIT_OBJECT_NOT_FOUND` is typed as one), every other git-cas code (for example
+  own `GIT_OBJECT_NOT_FOUND` is typed as one; only a tree the adapter proves Git removed
+  before a ref named it is unavailable instead), every other git-cas code (for example
   `TREE_PARSE_ERROR`, `GIT_ERROR`, `INTEGRITY_ERROR`, `RESTORE_TOO_LARGE`,
   `INVALID_OPTIONS`, `RESOURCE_CLOSED`), a `GitProtocolError`, any other plumbing
   failure, and a bare error. A caller that retried those would retry forever against

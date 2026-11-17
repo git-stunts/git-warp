@@ -137,6 +137,14 @@ later writes replace, such as the cone head trees, bring the total to about
 index gets one level deeper for every sixteenfold increase in records, so the
 count grows slowly with history.
 
+Each `git fast-import` program that git-warp runs to build a tree writes its
+scaffolding commit with a random message, so the commit is always a new
+object that names the tree. GC keeps an object that a new object reaches, so
+it keeps the tree until a ref names it, even when fast-import reused an old
+copy of the tree from a pack
+([#1127](https://github.com/git-stunts/git-warp/issues/1127)). These commits
+are the scaffolding commits counted above.
+
 Reads in this release retain nothing. When
 [#1052](https://github.com/git-stunts/git-warp/issues/1052) Slice 3b lands, a
 read will retain only when its query asks for a Coordinate, at a projected

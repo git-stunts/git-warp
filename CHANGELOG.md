@@ -419,6 +419,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A rebuilt cone head no longer names a tree that a concurrent `git gc` can delete.
+  `git fast-import` uses an object that it finds in any pack, a cruft pack too, and does
+  not refresh its age. So a cone head rebuilt after it was deleted, the recovery for
+  `E_CONE_LAYOUT_UNSUPPORTED`, named an old tree; a GC that overlapped the update left
+  the cone head pointing at a missing tree, every later `git gc` failed, and the lane
+  could not write until the ref was deleted
+  ([#1110](https://github.com/git-stunts/git-warp/issues/1110)). Each fast-import program
+  that git-warp runs now writes its scaffolding commit with a random message, so the
+  program always writes a new object that names its tree, and GC keeps the tree until a
+  ref names it. A cone ref update that fails because Git removed its tree first, for
+  example under `git gc --prune=now`, now gives `ConeStoreUnavailableError`: a write
+  returns `UnpublishedWriteReceipt` with `write-basis-unavailable` instead of rejecting
+  with a raw `GitPlumbingError`, and the next write builds the tree again. A GC that
+  runs while a fast-import process of a cone rebuild runs can still delete a reused
+  object; see [Operations: Garbage collection](docs/operations/README.md#garbage-collection)
+  ([#1127](https://github.com/git-stunts/git-warp/issues/1127)).
 - git-cas cache entries, workspace leases and their expiry checks use the runtime clock
   instead of the host wall clock. `GitCasRepositoryAdapter` now requires a `ClockPort` and
   passes it to git-cas and to the seek-cursor, sync-replay and cache-diagnostics adapters it
