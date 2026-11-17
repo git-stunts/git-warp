@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { intent } from '../../../advanced.ts';
-import { WARP_SUPPORT_LIMITS } from '../../../src/application/WarpWriteComposition.ts';
+import { WARP_WRITER_LIMIT } from '../../../src/application/WarpWriteComposition.ts';
 import WriterFrontierLimit from '../../../src/domain/services/write/WriterFrontierLimit.ts';
 import GitWritePublicationHistoryAdapter from '../../../src/infrastructure/adapters/GitWritePublicationHistoryAdapter.ts';
 import * as fixture from '../../helpers/WarpWriteFixture.ts';
@@ -22,7 +22,7 @@ describe('Warp write composition (#1075)', () => {
 
     expect(refusal).toHaveBeenCalledWith('alice', expect.anything());
     expect(refusal.mock.contexts.map((limit) => limit instanceof WriterFrontierLimit && limit.writers))
-      .toEqual([WARP_SUPPORT_LIMITS.writers]);
+      .toEqual([WARP_WRITER_LIMIT]);
   });
 
   it('proves a publication through the Git publication history adapter', async () => {
