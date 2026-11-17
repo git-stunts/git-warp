@@ -40,7 +40,7 @@ export const FIXTURE_GRAPH = 'custody-fixture';
 export const FIXTURE_DIGEST = new ObservationDigest('ab'.repeat(32));
 export const FIXTURE_ATTEMPT = new ObservationAttemptId('f'.repeat(32));
 export const DEFAULT_SUPPORT_LIMITS = new ObservationSupportLimits({
-  writers: 512, dependencies: 4096, frontierBytes: 1024 * 1024, work: 100_000,
+  dependencies: 4096, frontierBytes: 1024 * 1024, work: 100_000,
 });
 
 /** One opened store and the production services over it. */

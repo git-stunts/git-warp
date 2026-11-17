@@ -128,9 +128,11 @@ patch commits and every object they reference, including content attachments.
 Configuring routine transfer for public attachments is tracked in
 [#955](https://github.com/git-stunts/git-warp/issues/955).
 
-Fetched writer chains count toward the limit of 4,096 writers for one graph. A
-clone that holds more than 4,096 writer chains refuses every write; see
-[Getting started](getting-started.md).
+Fetched writer chains count toward the limit of 4,096 writers for one graph.
+A clone that holds more after a fetch keeps writing; only a new writer ID is
+refused there. The bound that remains is the size of one stored frontier: about
+36,800 to 72,300 writer chains with SHA-1 object IDs, and about 30,400 to 51,100
+with SHA-256; see [Getting started](getting-started.md).
 
 ## Publish this writer
 

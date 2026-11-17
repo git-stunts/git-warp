@@ -1,4 +1,3 @@
-import { setImmediate as nextTurn } from 'node:timers/promises';
 import { afterEach, describe, expect, it } from 'vitest';
 import ObservationAdmitted from '../../../../src/domain/services/custody/ObservationAdmitted.ts';
 import type ObservationAttempt from '../../../../src/domain/services/custody/ObservationAttempt.ts';
@@ -14,8 +13,8 @@ import ObservationSupportLimits from '../../../../src/domain/services/custody/Ob
 import ObservationRefused from '../../../../src/domain/services/custody/ObservationRefused.ts';
 import ResolvedObservation from '../../../../src/domain/services/custody/ResolvedObservation.ts';
 import RetainedObservation from '../../../../src/domain/services/custody/RetainedObservation.ts';
-import { OBSERVATION_CARRIER_BATCH } from '../../../../src/infrastructure/adapters/GitCasObservationSupportAdapter.ts';
 import FaultingObservationCustody from '../../../helpers/FaultingObservationCustody.ts';
+import HeldObservationSupport from '../../../helpers/HeldObservationSupport.ts';
 import ObservationCustodyFixture, {
   type OpenedCustody,
   FIXTURE_ATTEMPT,
@@ -107,7 +106,7 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
     expect(await first.service.prepare(attempt, sources())).toBeInstanceOf(ObservationIndeterminate);
     await fixture.close(first);
 
-    const limits = new ObservationSupportLimits({ writers: 8, dependencies: 8, frontierBytes: 1024 * 1024, work: 2 });
+    const limits = new ObservationSupportLimits({ dependencies: 8, frontierBytes: 1024 * 1024, work: 2 });
     const lowered = await fixture.open(path, { limit: 2, limits });
     const resumed = narrowed(await lowered.service.resume(attempt.identity.attemptId, bindings), ObservationAdmitted);
     expect(resumed.phase).toBe('prepared');
@@ -198,28 +197,37 @@ describe.each(['sha1', 'sha256'])('observation custody at durable fault boundari
 
   it('stops and awaits its owned builder before cancelling', async () => {
     const path = await fixture.repository(format);
-    const opened = await faulted(path, 2);
+    let held: HeldObservationSupport | null = null;
+    const opened = await fixture.open(path, {
+      limit: 2,
+      wrapSupport: (support) => {
+        held = new HeldObservationSupport(support);
+        return held;
+      },
+    });
     const { attempt } = narrowed(await opened.service.begin(writeBindings(basisTree(path, 'owned', writerCommits(path, 200)))), ObservationAdmitted);
+    const building = narrowed(held, HeldObservationSupport).holdRetain();
     const preparing = opened.service.prepare(attempt, sources());
-    // Wait on the condition, one event-loop turn at a time, not on a timer.
-    while (opened.carriersPublished() === 0) {
-      await nextTurn();
+    let cancelling: ReturnType<typeof opened.service.cancel>;
+    try {
+      // The builder is owned but has not started; cancelling asks it to stop and waits for it.
+      await building.arrived();
+      cancelling = opened.service.cancel(attempt);
+    } finally {
+      building.release();
     }
-    const cancelled = await opened.service.cancel(attempt);
-    const carriersAtCancel = opened.carriersPublished();
-    expect(cancelled).toBeInstanceOf(ObservationKnownUnpublished);
+    expect(await cancelling).toBeInstanceOf(ObservationKnownUnpublished);
     expect(await preparing).toEqual(new ObservationRefused('cancelled'));
-    expect(opened.carriersPublished()).toBe(carriersAtCancel);
-    expect(carriersAtCancel).toBeLessThan(4);
+    expect(opened.carriersPublished()).toBe(0);
     expect(await opened.service.authorizePublication(preparationOf(attempt))).toBeInstanceOf(ObservationKnownUnpublished);
   });
 
-  it('never publishes more than one batch of heads in a carrier', async () => {
+  it('publishes one carrier for 200 writers, naming their frontier anchors (#1197)', async () => {
     const path = await fixture.repository(format);
     const opened = await faulted(path, 2);
     const { attempt } = narrowed(await opened.service.begin(readBindings(basisTree(path, 'bounded', writerCommits(path, 200)))), ObservationAdmitted);
     narrowed(await opened.service.prepare(attempt, sources()), ObservationPrepared);
-    expect(opened.carriersPublished()).toBe(Math.ceil(200 / OBSERVATION_CARRIER_BATCH));
+    expect(opened.carriersPublished()).toBe(1);
   });
 
   it('changes nothing when a reservation never reaches the store', async () => {

@@ -143,13 +143,71 @@ difference is found at the stream's end. All of these come before a carrier or c
 page exists, though page trees already written stay behind as unreferenced objects. The
 producer computes both claim and stream, so a claim's completeness is its duty.
 
-The adapter builds a carrier chain through supported CAS publications, using at most
-63 new writer heads plus the previous carrier per commit. The final carrier is a
-reservation parent. Dependency trees use bounded pages rather than an unbounded
-support array. The iterator, each page and the overall operation have explicit
-work/byte/count limits. Crossing a bound refuses before arm; it does not silently
-omit history or collect the whole graph. Object checks run in one Git process per
-batch. The fixed 129-writer witness exercises three batches.
+The adapter retains writer heads through **frontier anchors** (#1197), shared by every
+attempt and every clone over the same frontier, and one **carrier** of the attempt's own,
+published through a supported CAS publication, whose parents are the anchors. The carrier is
+a reservation parent. The parameters are fixed:
+
+| Parameter | Value |
+| --- | --- |
+| Bucket function, version 1 | SHA-256 of `git-warp frontier anchor bucket\nversion 1\n` and the writer ID; the branch is its first 32 bits modulo 63, the leaf its next 32 bits modulo 63 |
+| Levels and fan-out | 2 levels of 63: 63 branches, 3,969 leaves |
+| Leaf anchor | the heads of one leaf in frontier order, at most 63 for each commit; a larger leaf is a chain, each link naming the one before |
+| Branch anchor | the last anchor of each non-empty leaf of its branch |
+| Carrier | one per attempt; its parents are the branch anchors (at most 63) |
+| Anchor commit | the empty tree, author and committer `git-warp frontier anchor <frontier-anchor@git-warp.invalid> 0 +0000`, and a message naming the lane, the bucket, the count of heads it covers and their SHA-256 |
+
+An anchor's id is therefore a pure function of the lane and its heads. The adapter computes
+it without Git, writes only the anchors that do not exist yet, at most 64 in one
+`git fast-import` process, and checks that Git gives each the id it computed. At fast-import's
+default unpack limit of 100, Git stores such a batch as loose objects, so two processes that
+write the same anchors at once both succeed. A lowered `fastimport.unpackLimit` or
+`transfer.unpackLimit` makes fast-import write a pack instead, and reopens the race: the
+second of two identical packs fails on the first one's keep file (`cannot create keep file`).
+A review run saw 7 failures in 100 such races under a global `transfer.unpackLimit=1`. The
+losing write throws before it publishes, and nothing is corrupted. The plumbing gives no way
+to set the limit per process: it refuses `-c`, filters `GIT_CONFIG_*` out of the environment,
+and allows `fast-import` only `--quiet` and `--done`. A head shared by two writers is retained once, in the bucket of the first writer
+in writer-id order. The carrier states the attempt and the count and digest of the heads;
+the digest is the one the #1067 carriers bound (a seed, rolled over batches of 63 heads).
+
+Anchors have no ref of their own: the same retain call that writes or reuses them publishes
+the carrier under the attempt's construction ref, so a GC that selects what to delete after
+that call keeps them. A GC that runs during the call is not covered, as for the trees #1127
+protects. The call skips an anchor that exists and does not freshen it, so an old,
+unreachable anchor keeps its age; Git's prune and cruft repack first mark what is reachable
+and delete later. Two outcomes follow:
+
+- A GC that deletes a reused anchor before the verification before arm stops the write
+  before it publishes. If the anchor is a branch anchor, one the carrier names, the
+  carrier's publication fails (`Publication parent is not a readable commit`): retain
+  throws, and the write reports `retention-unavailable`. If it is a leaf anchor, deleted
+  after the call wrote the branch anchor above it, the carrier publishes, verification
+  reports the history missing, and the write is refused with
+  `retention-refused-support-unverified`.
+- A GC that marked before the carrier landed, and deletes after the verification before
+  arm, leaves a write that publishes. If the deletion lands before settlement, the receipt
+  is unretained (`settlement-unverified`); if after, the Coordinate it bound later resolves
+  to unavailable (`history-missing`). The patch, its dots and the writer chains are not
+  affected; only the custody evidence for that write is lost.
+
+Measured over writer IDs of 7 characters and SHA-1 heads
+(`ObservationFrontierAnchors.integration.test.ts` and `FrontierAnchors.test.ts`): a write after
+one head changes adds 3 commits (one leaf anchor, one branch anchor, one carrier) at 64,
+4,096 and 70,000 writers. A first build at 4,096 writers writes 2,620 anchors; at 36,800
+writers (the SHA-1 bound for 64-character IDs; for SHA-256 it is 30,400) every leaf is in
+use and a build writes at most 4,032. The fullest leaf at 72,300 writers holds 33 heads, so
+no leaf chains below the `frontierBytes` bound. All of this holds for writer IDs that are not
+chosen to collide: IDs crafted into one leaf make it a chain, and moving its first head then
+rewrites every link: one commit for each 63 heads, plus the branch anchor and the carrier.
+With all 4,096 writer IDs crafted into one leaf, that is 68 commits, against the 66 carriers
+that the #1067 format published for the same frontier.
+A frontier of one writer pays 3 commits for each write where the #1067 carrier paid 1.
+
+Dependency trees use bounded pages rather than an unbounded support array. The iterator,
+each page and the overall operation have explicit work/byte/count limits. Crossing a bound
+refuses before arm; it does not silently omit history or collect the whole graph. Object
+checks run in one Git process per batch.
 
 The service checks what resolve will check before acknowledging preparation, and
 re-verifies when recovering an unarmed preparation, so support it accepts can be
@@ -161,9 +219,11 @@ a public constructor, and the ledger, not the token, is what enforces one permis
 
 Verification has limits worth stating:
 
-- It walks carriers, dependency pages and the basis tree's top-level entries under
-  one work bound. It does not walk the record trie or writer ancestry, which their
-  retained Git edges keep reachable.
+- It reads the carrier, the dependency pages and the basis tree's top-level entries
+  under one work bound. It computes the anchors from the basis frontier, requires the
+  carrier to name exactly the branch anchors, and checks that every anchor and head
+  exists: an anchor with the computed id has the computed parents. It does not walk the
+  record trie or writer ancestry, which their retained Git edges keep reachable.
 - It proves existence for those objects. It decodes the frontier and checks digests
   of custody pages, but does not rehash every retained blob; that is `git fsck`'s
   job. An object Git cannot open or parse usually reports as missing, including one
@@ -186,9 +246,10 @@ Verification has limits worth stating:
   ceiling of 64,512 and a custody page one of 4 MiB, whatever limits are configured.
 
 Construction refs are scoped to the admitted attempt, with compare-and-swap
-publication and original-input/progress evidence. Recovery validates that a
-carrier belongs to this attempt and retains the claimed prefix; a readable head
-alone is insufficient. A builder finding different inputs refuses rather than adopt
+publication and original-input evidence. Recovery reuses a carrier only when it
+belongs to this attempt, makes the claim the basis implies and names exactly the
+anchors of that frontier; a readable head alone is insufficient. Anchors a crash
+left unwritten are written by the next attempt that needs them. A builder finding different inputs refuses rather than adopt
 them, which is witnessed sequentially; racing builders of one attempt are witnessed
 to converge. A carrier that landed with its acknowledgement lost is found and reused.
 Cancellation, abandonment and reconciliation stop this service's owned builders. `prepare` runs after that stop,
@@ -380,7 +441,7 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   `basis-unavailable`, `basis-corrupt`, `writer-head-unavailable`, `dependency-unavailable`,
   `dependency-mismatch`, `construction-mismatch`, `support-unverified`.
 - **Over a configured support limit; `cancel`, or raise it:** `work-limit`, `support-limit`,
-  `writer-limit`, `frontier-limit`. `dependency-limit` too, up to its fixed ceiling.
+  `frontier-limit`. `dependency-limit` too, up to its fixed ceiling.
 - **Over what custody can hold; `cancel` if unarmed, or use a smaller core for a failed
   publication:** `evidence-too-large`, `evidence-undecodable`.
 - **Not in the required phase; re-read the phase with `resume`:** `not-prepared`, `not-armed`,
@@ -430,12 +491,16 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
   single `git log`, and the probes of one sweep list at most 16,388 (#1075). An attempt whose
   predecessor lies further back, armed or not, stays indeterminate with `publication-walk-exhausted`.
   Its record is kept and saved as reported, so later sweeps do not read for it again; a `reconcile`
-  runs the same bounded probe, finds the same, and nothing resolves it yet. The support limit counts the whole frontier: 4,096
-  writers. A new writer on a full frontier is refused before it reserves (`writer-limit-reached`,
-  repair `reuse_writer_id`), and the writers already in it keep writing. A frontier can still pass
-  the limit, through concurrent first writes by new writers or writer chains fetched from another
-  clone. Every write there is then refused (`retention-refused-writer-limit`, repair
-  `compact_writer_frontier`), and no repair exists until #1044 adds frontier compaction.
+  runs the same bounded probe, finds the same, and nothing resolves it yet. A graph admits 4,096
+  writers. A new writer on a frontier of 4,096 or more is refused before it reserves
+  (`writer-limit-reached`, repair `reuse_writer_id`), and the writers already in it keep writing. A
+  frontier can still pass 4,096, through concurrent first writes by new writers or writer chains
+  fetched from another clone; custody retains it through frontier anchors, so its writers keep
+  writing (#1197). The bound custody has is `frontierBytes`: a frontier blob of 4 MiB names about
+  36,800 to 72,300 writers with SHA-1 object IDs and about 30,400 to 51,100 with SHA-256, as
+  writer IDs run from 64 to 9 characters. Past it every write is
+  refused (`retention-refused-frontier-limit`, hint `frontier_limit_reached`), and no command
+  reduces the frontier.
 - **The sweep:** it runs once for each Warp, inside that Warp's first granted `execute` or `reconcile`
   (#1078; before that change it ran in `Warp.open`). A Warp that is only denied, or that only
   stages, never sweeps. It covers at most 64 saved attempts from a random start,
@@ -479,8 +544,10 @@ Otherwise the attempt stays charged until a successful `cancel`, which is imposs
 
 - **Support:** the Git objects an attempt retains. **Roots:** the physical edges that
   keep them: tree or blob supports, and commit parents.
-- **Carrier:** a commit whose parents retain up to 63 writer heads and the previous
-  carrier.
+- **Frontier anchor:** a deterministic commit that retains the writer heads of one bucket
+  (a leaf anchor) or the leaf anchors of one branch (a branch anchor); shared by every
+  attempt and clone over the same frontier.
+- **Carrier:** an attempt's own commit whose parents are the branch anchors of its basis.
 - **Preparation:** the attempt's canonical bindings and retained support. **Settlement**
   here is custody's final stage, unrelated to Strand settlement.
 - **Page:** one custody evidence record, or one tree of dependency edges, by context.
@@ -510,6 +577,8 @@ witness:
 | A Coordinate rebuilt after a restart, stranded reservations freed, a failed publication ended | `ObservationCustody.recovery.integration.test.ts` |
 | Corrupt and missing evidence, on the writing store and a fresh one, and under lowered limits | `ObservationCustody.integration.test.ts`, `ObservationCustody.recovery.integration.test.ts`, `ObservationCustodyService.test.ts` |
 | Bounded memory and work, with an eager-collection detector and over-budget controls | `ObservationSupportAdapter.integration.test.ts`, `ObservationCustodyAdapters.test.ts` |
+| Frontier anchors: bounded commits for one changed head at 64, 4,096 and 70,000 writers; shared across attempts and clones; resume after a crash with anchors half built; missing anchor or head; racing builders | `ObservationFrontierAnchors.integration.test.ts`, `FrontierAnchors.test.ts`, `ObservationCustody.integration.test.ts` |
+| Every route past 4,096 writers writes again, with readings, dots, tombstones and receipts kept, and three clones converge (#1197) | `WriterFrontierOverflow.integration.test.ts`, `WriterFrontierConvergence.integration.test.ts` |
 
 Completion is executable evidence for these guarantees. A design commit, a draft
 PR, dependency capability tests or a passing fake-port test alone is not completion
