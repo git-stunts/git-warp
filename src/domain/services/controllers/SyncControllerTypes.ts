@@ -41,7 +41,7 @@ export interface SyncHost {
   materialize: () => Promise<SnapshotWarpState>;
   _setMaterializedState: (
     state: WarpState,
-    options?: MaterializedStateUpdateOptions,
+    options: MaterializedStateUpdateOptions,
   ) => Promise<object>;
   discoverWriters: () => Promise<string[]>;
   _createSyncTrustGate?: (

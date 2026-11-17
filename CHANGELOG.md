@@ -96,6 +96,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bound crash recovery's publication probe and the writer frontier
+  ([#1075](https://github.com/git-stunts/git-warp/issues/1075)). The probe
+  reads a writer chain in one `git log` (three Git processes a probe, however
+  deep the chain), and the probes of one sweep list at most 16,388
+  commits. A Warp sweeps once, inside its first granted `execute` or `reconcile`. An unresolved attempt whose predecessor lies more than 4,096
+  commits behind its writer's tip, armed or not, gets the indeterminate
+  requirement `publication-walk-exhausted`. Recovery keeps its record and
+  does not abandon it; it reports the attempt cancelled only when custody already
+  holds a cancellation. Once that answer is saved, later sweeps do not
+  read for it again. `reconcile` runs the same bounded probe and returns the
+  same indeterminate answer, unless custody already holds the attempt's outcome.
+  Nothing resolves such an attempt yet, so asking again does not help. A new
+  writer on a graph whose frontier already holds 4,096 writers is refused
+  before anything is reserved, with cause `writer-limit-reached` and repair
+  `reuse_writer_id`; writers already in the frontier keep writing. A frontier
+  can still pass the limit: through first writes that new writers make at the
+  same time, or through writer chains fetched from another clone. Such a graph
+  refuses every write by every writer ID, with cause
+  `retention-refused-writer-limit` and repair `compact_writer_frontier`.
+  Frontier compaction is not available yet
+  ([#1044](https://github.com/git-stunts/git-warp/issues/1044)), so until then
+  that graph accepts no writes.
 - Close the four accepted risks in `.github/SECURITY.md` whose acceptance
   expired on 2026-08-01, as the Option B decision on
   [#1032](https://github.com/git-stunts/git-warp/issues/1032) requires:
@@ -408,6 +430,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The determinism gate scans the TypeScript domain and runs in `npm run lint`
+  ([#1084](https://github.com/git-stunts/git-warp/issues/1084)). `scripts/ban-nondeterminism.ts`
+  matched only `src/domain/**/*.js`; after the TypeScript conversion that was no file at all,
+  so it passed on every tree, and no script or workflow ran it. It now reads every file under
+  `src/domain/`, whatever its extension, and refuses to pass (exit 2) when `src/domain` is
+  missing, holds no file, or holds a symbolic link. `npm run lint:determinism` runs it, and
+  `npm run lint` (pre-push hook and the CI lint job) chains it. The `JSON.stringify` ban now
+  matches calls only, as the Semgrep rule `ts-no-json-stringify-in-core` does, and honours that
+  rule's 0025B inline quarantine markers; no other ban has an exception, and the unused
+  `.ban-nondeterminism-allowlist` mention is gone. The current tree passes: 1045 files scanned.
+- git-cas cache entries, workspace leases and their expiry checks use the runtime clock
+  instead of the host wall clock. `GitCasRepositoryAdapter` now requires a `ClockPort` and
+  passes it to git-cas and to the seek-cursor, sync-replay and cache-diagnostics adapters it
+  builds, so every stamp and expiry comparison uses one clock. `GitStorage` supplies the
+  default host clock, so applications need no change
+  ([#1179](https://github.com/git-stunts/git-warp/issues/1179)).
+- The incremental bitmap index now agrees with a full rebuild in two cases where it
+  lost data. `addEdge` does not require its endpoints to exist, so a patch can add an
+  edge before any patch adds one of its endpoints; the incremental index now indexes
+  that edge when the endpoint is added. A node or an edge that one local commit
+  removes and then adds again now stays in the incremental index. Before, until the
+  next full rebuild, `neighbors()` left out such an edge, and the index marked such a
+  node as not alive. A generated multi-writer differential now compares incremental
+  updates with full rebuilds after every patch
+  ([#192](https://github.com/git-stunts/git-warp/issues/192)).
 - A write receipt rebuilt by `AuthoredWarp.reconcile` after an interrupted write now
   reports the same `outcome.races` as the original receipt, rather than none. Retained
   receipts keep their races as durable evidence. `outcome.races` is now always in one

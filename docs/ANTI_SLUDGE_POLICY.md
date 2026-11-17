@@ -387,6 +387,16 @@ Core logic must be deterministic.
 
 Use ports: `ClockPort`, and seeded PRNG or a `RandomPort`.
 
+`npm run lint:determinism` (`scripts/ban-nondeterminism.ts`, part of
+`npm run lint`) scans every file under `src/domain/`, whatever its extension,
+for `Date.now`, `new Date`, `performance.now`, `Math.random`,
+`crypto.randomUUID`, `crypto.getRandomValues`, `JSON.stringify(` calls,
+`process.env`, `process.pid`, `process.hrtime`, `setTimeout` and
+`setInterval`. ESLint catches a bare `Date()` call. The gate has no allowlist,
+and it refuses to pass when it scans no file. Its `JSON.stringify` ban is the
+Semgrep rule `ts-no-json-stringify-in-core`, so a line that carries that
+rule's inline quarantine marker (section 11) is exempt from that ban only.
+
 For randomness, receive `RandomPort` (`src/ports/RandomPort.ts`) through a
 constructor or parameter, and draw only through `drawEntropy`
 (`src/domain/utils/EntropyDraw.ts`). It fails closed with `EntropyError`
@@ -533,7 +543,7 @@ Also reject if:
 | Semgrep (`npm run lint:semgrep`) | Regex/pattern sludge ESLint can't cleanly express | `semgrep/typescript-anti-sludge.yml` |
 | Shell sludge check (`npm run lint:sludge`) | Junk-drawer filenames + regex sweeps across `src/` | `scripts/check-anti-sludge.sh` (TBD) |
 | IRONCLAD M9 (`npm run typecheck:policy`) | `@ts-ignore`, `z.any()`, wildcard ratchet | `scripts/ts-policy-check.ts` |
-| Determinism (`ban-nondeterminism`) | Time/random/env in `src/domain/**` | `scripts/ban-nondeterminism.ts` |
+| Determinism (`npm run lint:determinism`, chained by `npm run lint`) | Time/random/timer/env reads and unquarantined `JSON.stringify` calls in every file under `src/domain/` | `scripts/ban-nondeterminism.ts` |
 | Quarantine graduation | Touched quarantined files must graduate or narrow | `scripts/quarantine-graduate-check.ts` (`npm run lint:quarantine-graduate`; fails closed without a diff basis) |
 | TypeScript (`npm run typecheck`) | `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, etc. | `tsconfig.base.json` |
 

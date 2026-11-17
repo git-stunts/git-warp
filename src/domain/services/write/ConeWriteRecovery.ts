@@ -20,7 +20,8 @@ import UnsupportedWriteAttemptLayoutError from '../../errors/UnsupportedWriteAtt
 import WriteAttemptListing from './WriteAttemptListing.ts';
 import { publishedWriteCore } from './writeReceiptCore.ts';
 import type WriteAttemptRecord from './WriteAttemptRecord.ts';
-import type WritePublicationProbe from './WritePublicationProbe.ts';
+import { PUBLICATION_PROBE_READS, type default as WritePublicationProbe } from './WritePublicationProbe.ts';
+import WriteReadBudget from './WriteReadBudget.ts';
 
 /** How old an unarmed attempt must be before a sweep assumes its owner is gone. A live owner that loses this race only refuses. */
 export const UNARMED_ATTEMPT_GRACE_MS = 60 * 60 * 1000;
@@ -29,14 +30,20 @@ export const UNARMED_ATTEMPT_GRACE_MS = 60 * 60 * 1000;
  * crashes. A Warp sweeps once in its life; later Warps see the rest.
  */
 export const SWEEP_LIMIT = 64;
+/** Commits one sweep's probes may read: four probes that each find a predecessor out of reach (#1075). */
+export const SWEEP_READ_BUDGET = 4 * PUBLICATION_PROBE_READS;
 const ATTEMPT_UNOWNED_YET = 'attempt-in-progress';
 const PUBLICATION_UNRESOLVED = 'publication-unresolved';
+const PUBLICATION_OUT_OF_REACH = 'publication-walk-exhausted';
 const RECOVERY_UNAVAILABLE = 'retention-unavailable';
 const STALE_PREDECESSOR = 'stale-predecessor';
 const CANCELLED = 'attempt-cancelled';
 const RETENTION_EXHAUSTED = 'retention-capacity-exhausted';
 /** It was cancelled, or never held a slot: either way it cannot have published. Anything else may clear, so its record stays. */
 const FINISHED_REFUSALS: ReadonlySet<ObservationRefusalReason> = new Set<ObservationRefusalReason>(['cancelled', 'capacity-full']);
+
+/** What a recovery is built from, kept so a sweep can build its budgeted twin. */
+type ConeWriteRecoveryFields = ConstructorParameters<typeof ConeWriteRecovery>[0];
 
 /**
  * Resolves write attempts a process left unfinished (#1051), from what can prove
@@ -45,6 +52,7 @@ const FINISHED_REFUSALS: ReadonlySet<ObservationRefusalReason> = new Set<Observa
  * its writer's next patch shows the attempt can no longer land.
  */
 export default class ConeWriteRecovery {
+  readonly #fields: ConeWriteRecoveryFields;
   readonly #graph: string;
   readonly #custody: ObservationCustodyService;
   readonly #journal: WriteAttemptJournalPort;
@@ -60,6 +68,7 @@ export default class ConeWriteRecovery {
     readonly settlement: ConeWriteSettlement;
     readonly clock: () => number;
   }) {
+    this.#fields = fields;
     this.#graph = fields.graph;
     this.#custody = fields.custody;
     this.#journal = fields.journal;
@@ -71,14 +80,22 @@ export default class ConeWriteRecovery {
 
   /**
    * Resolves what it can of a bounded page of attempts nobody holds a receipt for: a
-   * reported one waits for its owner's `reconcile`, or its only answer would be lost.
-   * A failure on one record, or the listing, only leaves work for a later sweep. It is
+   * reported one waits for its owner's `reconcile`, or its only answer would be lost, or
+   * it is out of a probe's reach and nothing resolves it yet.
+   * A failure on one record, or the listing, only leaves work for a later sweep. So does
+   * a spent read budget: a sweep stops once it could not afford another full probe. It is
    * graph-wide housekeeping run under whichever writer's operation was granted first: it
-   * abandons only unarmed attempts older than the grace period (#1078).
+   * abandons only unarmed attempts older than the grace period, and none whose predecessor
+   * is out of a probe's reach (#1075, #1078).
    */
   async sweep(): Promise<void> {
+    const budget = new WriteReadBudget(SWEEP_READ_BUDGET);
+    const sweeping = new ConeWriteRecovery({ ...this.#fields, probe: this.#probe.within(budget) });
     for (const record of (await this.#listed()).records) {
-      await this.#swept(record);
+      if (!budget.affords(PUBLICATION_PROBE_READS)) {
+        return;
+      }
+      await sweeping.#swept(record);
     }
   }
 
@@ -161,13 +178,23 @@ export default class ConeWriteRecovery {
 
   /**
    * The ledger says nothing armed it, so it never published, unless the ledger lost that
-   * fact: a record or chain naming a commit outranks it. Otherwise only its age says
-   * whether its owner might still try.
+   * fact: a record or chain naming a commit outranks it. A chain that moved further than a
+   * probe reads cannot rule that commit out, so the attempt is kept as out of reach and is
+   * never abandoned (#1075). Otherwise only its age says whether its owner might still try.
    */
   async #recoverUnarmed(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<WriteReceipt> {
-    if (await this.#provesPublication(record)) {
+    if (record.commit !== null) {
       return this.#indeterminate(record, RECOVERY_UNAVAILABLE);
     }
+    const found = await this.#probe.locate(record);
+    if (found.kind === 'exhausted') {
+      return await this.#outOfReach(record);
+    }
+    return found.kind === 'own' ? this.#indeterminate(record, RECOVERY_UNAVAILABLE) : await this.#abandonedOnceStale(record, attempt);
+  }
+
+  /** The chain shows no commit of this attempt, so an attempt older than its grace is abandoned. */
+  async #abandonedOnceStale(record: WriteAttemptRecord, attempt: ObservationAttempt): Promise<WriteReceipt> {
     if (this.#clock() - record.savedAt < UNARMED_ATTEMPT_GRACE_MS) {
       return this.#indeterminate(record, ATTEMPT_UNOWNED_YET);
     }
@@ -175,10 +202,6 @@ export default class ConeWriteRecovery {
     return abandoned instanceof ObservationReconciled
       ? await this.#finishedUnpublished(record, CANCELLED)
       : this.#indeterminate(record, RECOVERY_UNAVAILABLE);
-  }
-
-  async #provesPublication(record: WriteAttemptRecord): Promise<boolean> {
-    return record.commit !== null || (await this.#probe.locate(record)).kind === 'own';
   }
 
   /**
@@ -219,6 +242,9 @@ export default class ConeWriteRecovery {
     if (found.kind === 'other') {
       return await this.#finishedUnpublished(record, STALE_PREDECESSOR);
     }
+    if (found.kind === 'exhausted') {
+      return await this.#outOfReach(record);
+    }
     return found.kind === 'none'
       ? this.#indeterminate(record, PUBLICATION_UNRESOLVED)
       : await this.#settled({ attempt, record, commit: found.commit });
@@ -230,6 +256,22 @@ export default class ConeWriteRecovery {
     return settled === 'settlement-conflict'
       ? this.#indeterminate(published.record, RECOVERY_UNAVAILABLE)
       : await this.#settlement.concluded(published, settled);
+  }
+
+  /**
+   * Its fate is fixed, since its writer's chain has moved on, but it lies further back than a
+   * probe reads. Saved as reported, no later sweep reads for it again. A `reconcile` runs this
+   * same probe, so it gives this same answer: nothing resolves such an attempt yet.
+   */
+  async #outOfReach(record: WriteAttemptRecord): Promise<IndeterminateWriteReceipt> {
+    try {
+      if (!record.reported) {
+        await this.#journal.save(record.asReported(null));
+      }
+    } catch {
+      // The next sweep finds it out of reach again, and tries again to save that.
+    }
+    return this.#indeterminate(record, PUBLICATION_OUT_OF_REACH);
   }
 
   async #forget(record: WriteAttemptRecord): Promise<void> {
