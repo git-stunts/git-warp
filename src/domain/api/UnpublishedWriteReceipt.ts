@@ -11,8 +11,9 @@ export default class UnpublishedWriteReceipt {
    * `write-premise-unavailable`; a failed attempt-journal or custody-support step reads
    * `attempt-journal-unavailable` or `retention-unavailable` (contract section 11 of
    * `docs/plans/optic-only-public-api.md`). A new writer on a graph that already has 4,096 writers
-   * reads `writer-limit-reached`; any writer on a graph that has more reads
-   * `retention-refused-writer-limit` (#1075).
+   * reads `writer-limit-reached` (#1075); writers already in it keep writing (#1197). Any writer
+   * on a clone whose frontier names more writers than `frontierBytes` can record reads
+   * `retention-refused-frontier-limit`.
    */
   readonly cause: string;
   readonly repairHints: readonly RepairHint[];
