@@ -127,6 +127,43 @@ describe('RuntimeHost incremental index through the production boot wiring', () 
     ]);
   });
 
+  it('indexes an edge committed before its target node once a later commit adds the node', async () => {
+    const { runtime, logger } = await openRuntimes('late-endpoint-commit');
+    const first = await runtime.createPatch();
+    // addEdge does not require its endpoints to exist yet.
+    await first.addNode('A').addEdge('A', 'N', 'knows').commit();
+    await runtime.materialize();
+    const builtReceipt = cachedIndexTree(runtime)[RECEIPT_PATH];
+
+    const second = await runtime.createPatch();
+    await second.addNode('N').commit();
+
+    expect(logger.warnings).toEqual([]);
+    expect(builtReceipt).toBeInstanceOf(Uint8Array);
+    expect(cachedIndexTree(runtime)[RECEIPT_PATH]).toEqual(builtReceipt);
+    await expect(runtime.neighbors('A', 'outgoing')).resolves.toEqual([
+      { nodeId: 'N', label: 'knows', direction: 'outgoing' },
+    ]);
+  });
+
+  it('keeps an edge indexed when one local commit removes it and adds it again', async () => {
+    const { runtime, logger } = await openRuntimes('remove-and-add-edge-commit');
+    const first = await runtime.createPatch();
+    await first.addNode('A').addNode('B').addEdge('A', 'B', 'knows').commit();
+    await runtime.materialize();
+    const builtReceipt = cachedIndexTree(runtime)[RECEIPT_PATH];
+
+    const second = await runtime.createPatch();
+    await second.removeEdge('A', 'B', 'knows').addEdge('A', 'B', 'knows').addNode('C').commit();
+
+    expect(logger.warnings).toEqual([]);
+    expect(builtReceipt).toBeInstanceOf(Uint8Array);
+    expect(cachedIndexTree(runtime)[RECEIPT_PATH]).toEqual(builtReceipt);
+    await expect(runtime.neighbors('A', 'outgoing')).resolves.toEqual([
+      { nodeId: 'B', label: 'knows', direction: 'outgoing' },
+    ]);
+  });
+
   it('degrades the index for one materialize when a cached shard is malformed, then rebuilds', async () => {
     const { runtime, peer, logger } = await openRuntimes('malformed-cached-shard');
     const first = await peer.createPatch();

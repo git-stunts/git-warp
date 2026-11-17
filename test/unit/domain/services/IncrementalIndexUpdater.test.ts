@@ -50,6 +50,12 @@ function buildState({ nodes, edges, props }) {
   return state;
 }
 
+/** Removes a node from the state, so the state is the one after the diff that removes it. */
+function removeNode(state: WarpState, nodeId: string): void {
+  const observedDots = [...state.nodeAlive.getDots(nodeId)];
+  applyPatchOp(state, { type: 'NodeRemove', node: nodeId, observedDots }, new EventId(1000, 'w1', 'b'.repeat(40), 0));
+}
+
 /** @param {import('../../../../src/domain/services/JoinReducer.ts').WarpState} state */
 function buildTree(state) {
   return new MaterializedViewService({ codec: defaultCodec }).build(state).tree;
@@ -179,7 +185,7 @@ describe('IncrementalIndexUpdater', () => {
       expect(index3.isAlive('A')).toBe(true);
     });
 
-    it('skips re-add edge restoration when adding a genuinely new node', () => {
+    it('rewrites no edge shard when a new node has no incident alive edge', () => {
       const state1 = buildState({
         nodes: ['A', 'B'],
         edges: [{ from: 'A', to: 'B', label: 'knows' }],
@@ -415,6 +421,7 @@ describe('IncrementalIndexUpdater', () => {
       const tree1 = buildTree(state);
       const index1 = readIndex(tree1);
       const originalGid = index1.getGlobalId('A');
+      removeNode(state, 'A');
 
       const diff = {
         nodesAdded: [],
@@ -454,6 +461,7 @@ describe('IncrementalIndexUpdater', () => {
         props: [],
       });
       const tree1 = buildTree(state);
+      removeNode(state, 'A');
 
       const diff = {
         nodesAdded: [],

@@ -87,12 +87,19 @@ describe('MaterializedViewService', () => {
 
   it('applies a diff through typed shards that the index store encodes', () => {
     const service = new MaterializedViewService({ codec: defaultCodec, indexStore: new MockIndexStorage() });
-    const { tree } = service.build(buildTestState());
+    const state = buildTestState();
+    const { tree } = service.build(state);
+    // The state after the diff: C is removed.
+    applyPatchOp(
+      state,
+      { type: 'NodeRemove', node: 'C', observedDots: [...state.nodeAlive.getDots('C')] },
+      new EventId(100, 'w1', 'b'.repeat(40), 0),
+    );
     const diff = new PatchDiff({
       nodesAdded: [], nodesRemoved: ['C'], edgesAdded: [], edgesRemoved: [], propsChanged: [], nodesCleared: [],
     });
 
-    const result = service.applyDiff({ existingTree: tree, diff, state: buildTestState() });
+    const result = service.applyDiff({ existingTree: tree, diff, state });
 
     expect(result.logicalIndex.isAlive('C')).toBe(false);
     expect(result.tree['labels.cbor']).toBe(tree['labels.cbor']);

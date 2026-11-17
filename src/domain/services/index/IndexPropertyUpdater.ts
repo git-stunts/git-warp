@@ -1,11 +1,16 @@
 /**
  * Index property operations for incremental bitmap index updates.
  *
- * Rewrites the `props_<shard>.cbor` shards a PatchDiff touches so that they
- * hold exactly what a full rebuild would index for the affected nodes. A
- * property whose register is hidden by the node lifecycle rule is dropped:
- * a changed property whose winning register is already hidden, and every
- * property of a cleared node whose register became hidden.
+ * Rewrites the `props_<shard>.cbor` shards a PatchDiff touches. For an alive
+ * node they hold exactly what a full rebuild would index. A property whose
+ * register is hidden by the node lifecycle rule is dropped: a changed
+ * property whose winning register is already hidden, and every property of a
+ * cleared node whose register became hidden.
+ *
+ * A node that is not alive keeps its visible registers here, and a full
+ * rebuild omits them. Readers gate indexed property reads on the alive bitmap,
+ * so the two indexes answer the same, and a later add of the node shows those
+ * registers without a scan of every property in state.
  *
  * @module domain/services/index/IndexPropertyUpdater
  */
