@@ -13,8 +13,8 @@ import type { PropValue } from '../types/PropValue.ts';
 import {
   materializationPropertyShardKey,
   materializationPropertyShardPath,
-  MATERIALIZATION_PROPERTY_SHARD_LIMITS,
 } from './MaterializationPropertyProfile.ts';
+import { INDEX_SHARD_LIMITS } from './IndexShardLimits.ts';
 import { encodeEdgeKey } from '../services/KeyCodec.ts';
 
 /** Reads retained liveness roots without reconstructing a complete WarpState. */
@@ -70,7 +70,7 @@ export default class TrieMaterializationReader extends MaterializationReadPort {
     const encoded = await this.#indexStore.decodeShardAt(
       propertiesRoot,
       path,
-      MATERIALIZATION_PROPERTY_SHARD_LIMITS,
+      INDEX_SHARD_LIMITS,
     );
     if (encoded === null) {
       return null;

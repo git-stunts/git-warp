@@ -18,7 +18,7 @@ import IndexError from '../../errors/IndexError.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import type AssetHandle from '../../storage/AssetHandle.ts';
 import type BundleHandle from '../../storage/BundleHandle.ts';
-import { MATERIALIZATION_INDEX_SHARD_LIMITS } from '../../materialization/MaterializationIndexProfile.ts';
+import { INDEX_SHARD_LIMITS } from '../../materialization/IndexShardLimits.ts';
 import type { IndexShard } from '../../artifacts/IndexShard.ts';
 import type CodecValue from '../../types/codec/CodecValue.ts';
 import {
@@ -104,7 +104,7 @@ export default class LogicalIndexReader {
       const decoded = await this._indexStore.decodeShardAt(
         indexHandle,
         path,
-        MATERIALIZATION_INDEX_SHARD_LIMITS,
+        INDEX_SHARD_LIMITS,
       );
       if (decoded === null) {
         throw new IndexError(`Index shard is missing: ${path}`, {

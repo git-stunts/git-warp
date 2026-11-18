@@ -61,19 +61,37 @@ export function isEdgeShard(path: string): boolean {
 // ── Query helpers ─────────────────────────────────────────────────────────────
 
 /**
- * Expands a bitmap into neighbor entries, pushing into `out`.
+ * Pushes the neighbours that a bitmap names into `out`, in ascending global
+ * id order. The bitmap is never expanded into an array: when it names no
+ * more ids than the index knows nodes, its values are iterated; otherwise
+ * the known nodes are tested for membership. Memory therefore grows with
+ * the smaller of the two, never with a bitmap's cardinality alone.
  */
 function expandBitmap(
   bitmap: RoaringBitmapSubset,
   label: string,
   ctx: { g2n: Map<number, string>; out: NeighborEdge[] },
 ): void {
-  for (const neighborGid of bitmap.toArray()) {
+  for (const neighborGid of neighbourGlobalIds(bitmap, ctx.g2n)) {
     const neighborId = ctx.g2n.get(neighborGid);
     if (neighborId !== undefined) {
       ctx.out.push({ neighborId, label });
     }
   }
+}
+
+/** The known global ids that the bitmap holds, ascending, read from the smaller side. */
+function neighbourGlobalIds(bitmap: RoaringBitmapSubset, g2n: Map<number, string>): Iterable<number> {
+  if (bitmap.size <= g2n.size) {
+    return bitmap;
+  }
+  const held: number[] = [];
+  for (const globalId of g2n.keys()) {
+    if (bitmap.has(globalId)) {
+      held.push(globalId);
+    }
+  }
+  return held.sort((left, right) => left - right);
 }
 
 /**

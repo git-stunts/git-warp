@@ -151,8 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     meta shard) holds more than 2^24 values, which is more than one meta
     shard can address.
   - `E_ROARING_SHARD_TOO_LARGE`: one bitmap has more than 34,086,920 bytes.
-    With the default CBOR codec a stored bitmap cannot reach that size: the
-    codec refuses an index shard file above 5 MiB first, with its own error.
+    A stored bitmap cannot reach that size: an index shard file above the
+    16 MiB index-shard bound is refused first, with its own error.
   - `E_ROARING_SHARD_FORMAT`: a caller asked for a format other than the
     portable format.
 
@@ -162,12 +162,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   refused: the boundary checks a bitmap only when it is read. The byte limit
   applies to one bitmap, not to an index shard file such as
   `fwd_<shard>.cbor` or `shards_*.cbor`. One file holds many bitmaps, and
-  memory still grows with the number of bitmaps in a file. A large edge
-  bitmap can still make an index shard file larger than the 5 MiB that the
-  default codec reads; that limit is older than this change. An in-process
-  read that expands a very large edge bitmap into an array is not bounded by
-  this change; [#1159](https://github.com/git-stunts/git-warp/issues/1159)
-  tracks it. A checkpoint neighbourhood page visits at most 4 × `limit` + 256
+  memory still grows with the number of bitmaps in a file. The index-shard
+  bound and the in-process reads that no longer expand an edge bitmap are
+  [#1159](https://github.com/git-stunts/git-warp/issues/1159) (see Fixed).
+  A checkpoint neighbourhood page visits at most 4 × `limit` + 256
   stored candidates. The budget bounds only stored-candidate visits, not total
   page work. Whole shards are decoded before candidate selection. When a stored
   edge bitmap names many ids that are not live nodes, a page can therefore be
@@ -431,6 +429,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index shard writers and readers share one bound, so no writer stores an
+  index shard file that its reader refuses
+  ([#1159](https://github.com/git-stunts/git-warp/issues/1159)). The bound
+  is 16 MiB and 2,000,000 CBOR items, with depth 34 and 1,000,000 entries in
+  one container. It applies to the logical bitmap index, node lifecycle and
+  node property shards that checkpoints and session materialization retain,
+  to the in-memory view index, and to the legacy commit-DAG reader. The depth
+  holds every property value that the patch codec reads back: a patch is read
+  at depth 32 and adds 3 levels around a value, so a value can be nested 29
+  levels deep, and a property shard adds 5 levels around it. A writer refuses
+  a shard above the bound with `IndexError` `E_INDEX_SHARD_TOO_LARGE` (bytes)
+  or `E_INDEX_SHARD_MALFORMED` (structure). The readers refuse one in two
+  ways:
+  - The index store (`decodeShard`, `decodeShardAt`, `scanShards`,
+    `openShardAt`), which the materialization, property and logical index
+    readers use, and the in-memory view index give the same `IndexError`
+    codes, also when the content-addressed store refuses a page for its size.
+  - The checkpoint neighbourhood reader, and the checkpoint fact reader for
+    node lifecycle shards, decode the bytes themselves at the same bound and
+    give `MessageCodecError` `E_CBOR_DECODE_BOUNDS`. Bytes that they read
+    through `openShardAt` stop there first, with `E_INDEX_SHARD_TOO_LARGE`; a
+    checkpoint shard stored as a direct asset stops with
+    `E_BYTE_COLLECTION_LIMIT`. The fact reader reads meta and property shards
+    through the index store and reports `E_INDEX_SHARD_MALFORMED` there as
+    `QueryError` `E_OPTIC_NO_BOUNDED_BASIS` (reason `checkpoint-shard-invalid`).
+    The legacy `BitmapIndexReader` reports a refused shard as
+    `ShardCorruptionError` (reason `decode_error`) in strict mode, and logs it
+    and reads the shard as empty in lenient mode.
+
+  Before, the writer admitted 16 MiB and every reader decoded with the 5 MiB
+  default bound: two hub nodes whose ids share a shard key, with 654,322
+  neighbours each, gave a checkpoint whose neighbourhood reads failed with
+  `E_CBOR_DECODE_BOUNDS`, and the in-memory view index failed on its next
+  incremental update. Other repository blobs keep the 5 MiB default.
+  Measured decode memory for one file: about 66 MiB of heap for 17.6 MB of
+  bitmap entries (782,385 items), and about 205 MiB for 19.4 MB of 2.58
+  million small items; a file within the bound holds at most 2,000,000
+  items. The property root now has the structure limits of the logical index
+  root: depth 34 in place of 64 (its readers enforced 32, so a value nested
+  more than 27 levels deep was written but not read back), and 1,000,000
+  entries and 2,000,000 items in place of 100,000 and 1,000,000.
+
+  The in-memory view index now refuses at build a shard above the bound. A
+  runtime whose view index holds one marks the index degraded and logs only
+  the warning `index build failed`; its property and neighbour reads then scan
+  the materialized state instead of the index. Before, the view index had no
+  bound at build.
+
+  Rollback: a checkpoint written by this version can hold property shards
+  that readers before it, v20.0.0 included, refuse for the nodes in them. The
+  older readers refuse a shard with more than 100,000 entries in one
+  container (the new bound allows 1,000,000), for example a node with more
+  than 100,000 properties, or with more than 1,000,000 items, with
+  `E_INDEX_SHARD_MALFORMED`. They also decode at
+  5 MiB and depth 32, so they refuse a shard above 5 MiB, or one that holds a
+  value nested more than 27 levels deep, with `E_CBOR_DECODE_BOUNDS`.
+- A neighbour read no longer expands an edge bitmap into an array and a
+  `Set` ([#1159](https://github.com/git-stunts/git-warp/issues/1159)). The
+  in-memory view index (`LogicalIndex.getEdges`) iterates the bitmap, or
+  tests the nodes that the index knows for membership when the bitmap names
+  more ids; the legacy `BitmapIndexReader` tests the nodes of the meta shards
+  it scans; and the incremental purge of a removed node iterates its peers.
+  Memory therefore follows the smaller of the bitmap and the known nodes.
+  Result order is unchanged. Before, an admitted edge bitmap of 2^24 + 65,536
+  values (3,635 bytes) made `BitmapIndexReader` throw an untyped `RangeError`,
+  and one of 2^32 values (925,700 bytes) allocated about 2.5 GiB before it
+  failed; a 1 GiB container killed the process. Measured after the change, a
+  read of that bitmap against a small graph completes with about 155 MiB of
+  resident memory.
+- The Roaring bitmap class that the loader returns no longer extends the
+  library class ([#1159](https://github.com/git-stunts/git-warp/issues/1159)).
+  It wraps one library bitmap and exposes only the declared bitmap members and
+  the two boundary statics (`deserialize`, `deserializeAlive`). Before, every
+  bitmap was a library instance, so its inherited `deserialize` loaded bytes
+  without the shard boundary, including the library's unsafe frozen formats,
+  and statics such as `from` and `fromRange` were reachable. No call site used
+  them.
+- A checkpoint neighbourhood cursor at global id 4,294,967,295 over an edge
+  bitmap that holds every id ends the read
+  ([#1159](https://github.com/git-stunts/git-warp/issues/1159)). roaring-wasm
+  returns a rank modulo 2^32, so the label restarted at its first candidate.
 - A clone that holds more than 4,096 writer chains writes again
   ([#1197](https://github.com/git-stunts/git-warp/issues/1197)). Before, a frontier past
   the writer limit, from first writes that new writers made at the same time or from

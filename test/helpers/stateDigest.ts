@@ -10,9 +10,11 @@
 import { computeStateHash } from '../../src/domain/services/state/StateSerializer.ts';
 import NodeCryptoAdapter from '../../src/infrastructure/adapters/NodeCryptoAdapter.ts';
 import { encode } from '../../src/infrastructure/codecs/CborCodec.ts';
+/** @param {Buffer} b */
+const passThrough = (b) => b;
 
 const crypto = new NodeCryptoAdapter();
-const codec = { encode, decode: (/** @type {Buffer} */ b) => b };
+const codec = { encode, decode: passThrough, decodeWithin: passThrough };
 
 /**
  * Computes a deterministic hex digest of a WarpState state.

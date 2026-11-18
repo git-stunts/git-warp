@@ -11,6 +11,7 @@ import defaultCodec from '../../../../src/infrastructure/codecs/CborCodec.ts';
 import CborIndexShardTree from '../../../../src/infrastructure/adapters/CborIndexShardTree.ts';
 import MockIndexStorage from '../../../helpers/MockIndexStorage.ts';
 import type CodecPort from '../../../../src/ports/CodecPort.ts';
+import type { CodecDecodeBound } from '../../../../src/ports/CodecPort.ts';
 import type { PatchDiff } from '../../../../src/domain/types/PatchDiff.ts';
 import type WarpState from '../../../../src/domain/services/state/WarpState.ts';
 import computeShardKey from '../../../../src/domain/utils/shardKey.ts';
@@ -775,6 +776,9 @@ describe('IncrementalIndexUpdater', () => {
         },
         decode<TDecoded>(bytes: Uint8Array): TDecoded {
           return defaultCodec.decode<TDecoded>(bytes);
+        },
+        decodeWithin<TDecoded>(bytes: Uint8Array, bound: CodecDecodeBound): TDecoded {
+          return defaultCodec.decodeWithin<TDecoded>(bytes, bound);
         },
       };
       const diff = {

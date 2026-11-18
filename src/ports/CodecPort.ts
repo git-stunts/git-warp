@@ -23,11 +23,31 @@ import type CodecValue from '../domain/types/codec/CodecValue.ts';
  * @module ports/CodecPort
  */
 
+/**
+ * The most that one decode may read: the encoded bytes, and the nesting
+ * depth, item count and container entry count of the encoded value.
+ */
+export type CodecDecodeBound = Readonly<{
+  maxBytes: number;
+  structureLimits: Readonly<{
+    maxContainerEntries: number;
+    maxDepth: number;
+    maxItems: number;
+  }>;
+}>;
+
 /** Parameterized structured-codec port. */
 export default abstract class CodecPort {
   /** Encodes a typed value into bytes. */
   abstract encode<TEncoded = CodecValue>(_data: TEncoded): Uint8Array;
 
-  /** Decodes bytes into a typed value. */
+  /** Decodes bytes into a typed value, under the codec's default decode bound. */
   abstract decode<TDecoded = CodecValue>(_bytes: Uint8Array): TDecoded;
+
+  /**
+   * Decodes bytes into a typed value under `bound`, in place of the
+   * codec's default decode bound. An artifact family whose writers admit
+   * more than the default (index shards, #1159) is read with its own bound.
+   */
+  abstract decodeWithin<TDecoded = CodecValue>(_bytes: Uint8Array, _bound: CodecDecodeBound): TDecoded;
 }

@@ -7,6 +7,9 @@ import { neighborhoodCandidateBudget, type NeighborhoodCandidatePosition } from 
 
 export type DecodedNeighborhoodEdgeShard = EdgeShardBuckets;
 
+/** The largest global id: an unsigned 32-bit value. */
+const LAST_GLOBAL_ID = 0xffff_ffff;
+
 export type NeighborhoodLabelRegistry = {
   readonly byId: ReadonlyMap<number, string>;
   readonly byName: ReadonlyMap<string, number>;
@@ -236,8 +239,17 @@ function firstCandidateIndex(
     return bitmap.size;
   }
   return compareText(options.label, after.label) <= 0
-    ? bitmap.rank(after.globalId)
+    ? rankThrough(bitmap, after.globalId)
     : rankBefore(bitmap, after.globalId);
+}
+
+/**
+ * The number of stored values at or below `value`. roaring-wasm returns a
+ * rank modulo 2^32, so for the last global id of a bitmap that holds every
+ * id it would return 0 instead of 2^32; every value is at or below that id.
+ */
+function rankThrough(bitmap: RoaringBitmapSubset, value: number): number {
+  return value === LAST_GLOBAL_ID ? bitmap.size : bitmap.rank(value);
 }
 
 function rankBefore(bitmap: RoaringBitmapSubset, value: number): number {

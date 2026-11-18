@@ -1,9 +1,10 @@
+import { INDEX_SHARD_LIMITS } from '../../materialization/IndexShardLimits.ts';
 import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../storage/BufferedArtifactLimit.ts';
 import IndexError from '../../errors/IndexError.ts';
 import ShardCorruptionError from '../../errors/ShardCorruptionError.ts';
 import ShardLoadError from '../../errors/ShardLoadError.ts';
 import nullLogger from '../../utils/nullLogger.ts';
-import { getRoaringBitmap32 } from '../../utils/roaring.ts';
+import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roaring.ts';
 import { requireCodec } from '../codec/CodecRequirement.ts';
 import type IndexStorePort from '../../../ports/IndexStorePort.ts';
 import type LoggerPort from '../../../ports/LoggerPort.ts';
@@ -23,6 +24,22 @@ function isPlainLoadedShard(value: LoadedShard | null | undefined): value is Loa
     && typeof value === 'object'
     && !Array.isArray(value)
     && Object.getPrototypeOf(value) === Object.prototype;
+}
+
+/** The index of the first bitmap that holds `id`, or -1 when none does. */
+function firstBitmapHolding(bitmaps: readonly RoaringBitmapSubset[], id: number): number {
+  return bitmaps.findIndex((bitmap) => bitmap.has(id));
+}
+
+/** Orders matched shas by the first bitmap that holds each id, then by id, as the bitmaps list them. */
+function orderedByFirstBitmap(
+  matches: ReadonlyArray<readonly [number, string]>,
+  bitmaps: readonly RoaringBitmapSubset[],
+): string[] {
+  return matches
+    .map(([id, sha]) => ({ id, sha, first: firstBitmapHolding(bitmaps, id) }))
+    .sort((left, right) => left.first - right.first || left.id - right.id)
+    .map(({ sha }) => sha);
 }
 
 function isMetaShardPath(path: string): boolean {
@@ -138,33 +155,33 @@ export default class BitmapIndexReader {
   private async _getEdges(sha: string, type: string): Promise<string[]> {
     const prefix = sha.substring(0, 2);
     const shardPath = `shards_${type}_${prefix}.cbor`;
-    const neighborIds = new Set<number>();
+    const neighbourBitmaps: RoaringBitmapSubset[] = [];
     for (const actualPath of this._resolveShardPaths(shardPath)) {
-      const shard = await this._getOrLoadShard(actualPath) as Record<string, Uint8Array>;
-      const bitmapBytes = shard[sha];
-      if (bitmapBytes === undefined || bitmapBytes === null) {
-        continue;
-      }
-      if (!(bitmapBytes instanceof Uint8Array)) {
-        this._handleInvalidBitmapValue(actualPath, sha);
-        continue;
-      }
-      if (bitmapBytes.length === 0) {
-        continue;
-      }
-      const ids = this._deserializeBitmapIds(bitmapBytes, actualPath);
-      for (const id of ids) {
-        neighborIds.add(id);
+      const bitmap = await this._loadNeighbourBitmap(actualPath, sha);
+      if (bitmap !== null) {
+        neighbourBitmaps.push(bitmap);
       }
     }
-    return await this._resolveNeighborShas(neighborIds);
+    return await this._resolveNeighborShas(neighbourBitmaps);
   }
 
-  private _deserializeBitmapIds(bitmapBytes: Uint8Array, shardPath: string): number[] {
+  /** The neighbour bitmap that one edge shard stores for `sha`, or null when it stores none. */
+  private async _loadNeighbourBitmap(shardPath: string, sha: string): Promise<RoaringBitmapSubset | null> {
+    const shard = await this._getOrLoadShard(shardPath) as Record<string, Uint8Array>;
+    const bitmapBytes = shard[sha];
+    if (bitmapBytes === undefined || bitmapBytes === null) {
+      return null;
+    }
+    if (!(bitmapBytes instanceof Uint8Array)) {
+      this._handleInvalidBitmapValue(shardPath, sha);
+      return null;
+    }
+    return bitmapBytes.length === 0 ? null : this._deserializeBitmap(bitmapBytes, shardPath);
+  }
+
+  private _deserializeBitmap(bitmapBytes: Uint8Array, shardPath: string): RoaringBitmapSubset | null {
     try {
-      const RoaringBitmap32 = getRoaringBitmap32();
-      const bitmap = RoaringBitmap32.deserialize(bitmapBytes, true);
-      return bitmap.toArray();
+      return getRoaringBitmap32().deserialize(bitmapBytes, true);
     } catch (err) {
       const handle = this.shardHandles.get(shardPath)?.toString();
       const shardOid = isNonEmptyString(handle) ? handle : shardPath;
@@ -182,11 +199,18 @@ export default class BitmapIndexReader {
         shardPath,
         oid: shardOid,
       });
-      return [];
+      return null;
     }
   }
 
-  private async _resolveNeighborShas(neighborIds: ReadonlySet<number>): Promise<string[]> {
+  /**
+   * Resolves neighbour shas by testing each node of the meta shards, which
+   * this reader scans anyway, for membership in the neighbour bitmaps. No
+   * bitmap is expanded, so memory grows with the neighbours found, never
+   * with a bitmap's cardinality. The order is the order that expanding the
+   * bitmaps gave: by the first bitmap that holds an id, then by id.
+   */
+  private async _resolveNeighborShas(neighbourBitmaps: readonly RoaringBitmapSubset[]): Promise<string[]> {
     const matches = new Map<number, string>();
     for (const [path] of this.shardHandles) {
       if (!isMetaShardPath(path)) {
@@ -194,19 +218,12 @@ export default class BitmapIndexReader {
       }
       const shard = await this._getOrLoadShard(path) as Record<string, number>;
       for (const [sha, id] of Object.entries(shard)) {
-        if (neighborIds.has(id)) {
+        if (typeof id === 'number' && firstBitmapHolding(neighbourBitmaps, id) >= 0) {
           matches.set(id, sha);
         }
       }
     }
-    const result: string[] = [];
-    for (const id of neighborIds) {
-      const sha = matches.get(id);
-      if (sha !== undefined) {
-        result.push(sha);
-      }
-    }
-    return result;
+    return orderedByFirstBitmap([...matches], neighbourBitmaps);
   }
 
   private async _getOrLoadShard(path: string): Promise<LoadedShard> {
@@ -228,7 +245,7 @@ export default class BitmapIndexReader {
 
   private _decodeShard(buffer: Uint8Array, path: string, oid: string): LoadedShard {
     try {
-      const data = requireCodec(this._codec, 'BitmapIndexReader').decode<LoadedShard>(buffer);
+      const data = requireCodec(this._codec, 'BitmapIndexReader').decodeWithin<LoadedShard>(buffer, INDEX_SHARD_LIMITS);
       if (!isPlainLoadedShard(data)) {
         return this._handleInvalidShardShape(path, oid, 'shard_not_object');
       }

@@ -315,10 +315,16 @@ describe('CheckpointShardFactReader manifest-backed routing', () => {
     expect(indexStore.decodedShardHandles).toEqual([]);
   });
 
-  // Oracle: the neighbourhood has exactly one live neighbour. The stored
-  // bitmap also names the 65,536 global ids of one full run container, none
-  // of which is a node, so the first page ends on its candidate budget.
-  it('ends a page on its candidate budget and reaches the live neighbour through the cursors', async () => {
+  // Oracle: the neighbourhood has exactly one live neighbour, whose global id
+  // is above every stored dead candidate. The stored bitmap also names the
+  // global ids 0 to dead - 1, none of which is a node, so the first page ends
+  // on its candidate budget, and the pages number ceil(candidates / budget):
+  // the last page visits the live neighbour, and no page follows it, also
+  // when the candidate count is an exact multiple of the budget (#1159).
+  it.each([
+    ['one full run container', 65_536],
+    ['an exact multiple of the budget', 2 * neighborhoodCandidateBudget(DEFAULT_NEIGHBORHOOD_PAGE_SIZE) - 1],
+  ])('ends a page on its candidate budget and reaches the live neighbour through the cursors over %s', async (_name, dead) => {
     const indexStore = new MockIndexStorage();
     const sourceMetaPath = `meta_${computeShardKey(NODE_ID)}.cbor`;
     const neighborMetaPath = `meta_${computeShardKey(NEIGHBOR_ID)}.cbor`;
@@ -327,7 +333,7 @@ describe('CheckpointShardFactReader manifest-backed routing', () => {
     const Bitmap = getRoaringBitmap32();
     const [owner, neighbours] = Object.entries(stored['0'] ?? {})[0] ?? ['', new Uint8Array(0)];
     const padded = Bitmap.deserialize(neighbours, true);
-    padded.orInPlace(Bitmap.deserialize(encodePortableShard(fullRunContainers(1)), true));
+    padded.orInPlace(Bitmap.deserialize(encodePortableShard([{ kind: 'run', key: 0, runs: [[0, dead - 1]] }]), true));
     const basis = manifestBasis({
       livenessRoots: new Map([
         [sourceMetaPath, await indexStore.writeBlob(metaShardBytes(NODE_ID))],
@@ -353,7 +359,8 @@ describe('CheckpointShardFactReader manifest-backed routing', () => {
     expect(computeShardKey(NEIGHBOR_ID)).not.toBe('00');
     expect(pages[0]).toMatchObject({ edges: [], resumeCursors: [] });
     expect(pages[0]?.cursor).toEqual(expect.any(String));
-    expect(pages.length).toBe(Math.ceil((padded.size + 1) / neighborhoodCandidateBudget(DEFAULT_NEIGHBORHOOD_PAGE_SIZE)));
+    expect(padded.size).toBe(dead + 1);
+    expect(pages.length).toBe(Math.ceil(padded.size / neighborhoodCandidateBudget(DEFAULT_NEIGHBORHOOD_PAGE_SIZE)));
     expect(pages.flatMap((page) => page.edges)).toEqual([
       { direction: 'out', neighborId: NEIGHBOR_ID, label: EDGE_LABEL },
     ]);

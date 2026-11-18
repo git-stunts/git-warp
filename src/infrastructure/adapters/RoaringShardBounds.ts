@@ -28,8 +28,9 @@ const BYTES_PER_VALUE = 2;
  * 4096 values, and a run container is kept only when it is smaller. Each of
  * the 65536 possible containers adds a key, a cardinality and an offset (8
  * bytes), and the run-flag bitmap adds 8192 bytes at most. The bound is
- * above every index shard file that the codecs read (5 MiB with the default
- * codec), so on those paths the codec refuses a larger file first.
+ * above every index shard file that writers and readers admit (16 MiB,
+ * `INDEX_SHARD_LIMITS`), so on those paths the shard bound refuses a larger
+ * file first.
  */
 const MAX_BYTES = PORTABLE_PREFIX_BYTES + RUN_FLAG_BYTES + CONTAINER_METADATA_BYTES
   + BYTES_PER_VALUE * MAX_ALIVE_CARDINALITY;

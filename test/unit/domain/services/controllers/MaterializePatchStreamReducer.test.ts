@@ -247,6 +247,10 @@ class TestCodec extends CodecPort {
   decode<TDecoded = CodecValue>(_bytes: Uint8Array): TDecoded {
     throw new Error('decode is not used by stream materialization witness');
   }
+
+  decodeWithin<TDecoded = CodecValue>(bytes: Uint8Array): TDecoded {
+    return this.decode<TDecoded>(bytes);
+  }
 }
 
 class TestCrypto extends CryptoPort {

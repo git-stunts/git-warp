@@ -6,7 +6,7 @@ import {
   type CborStructureLimits,
 } from '../../src/infrastructure/adapters/BoundedCborValidation.ts';
 import defaultCodec from '../../src/infrastructure/codecs/CborCodec.ts';
-import CodecPort from '../../src/ports/CodecPort.ts';
+import CodecPort, { type CodecDecodeBound } from '../../src/ports/CodecPort.ts';
 
 export const V18_CHECKPOINT_MAX_DECODE_BYTES = 64 * 1024 * 1024;
 
@@ -35,17 +35,21 @@ export class V18CheckpointMigrationCodec extends CodecPort {
   }
 
   override decode<TDecoded = unknown>(buffer: Uint8Array): TDecoded {
-    if (buffer.byteLength > this.#maxDecodeBytes) {
+    return this.decodeWithin<TDecoded>(buffer, {
+      maxBytes: this.#maxDecodeBytes,
+      structureLimits: V18_CHECKPOINT_STRUCTURE_LIMITS,
+    });
+  }
+
+  /** Decodes under an explicit bound in place of the migration bound. */
+  override decodeWithin<TDecoded = unknown>(buffer: Uint8Array, bound: CodecDecodeBound): TDecoded {
+    if (buffer.byteLength > bound.maxBytes) {
       throw decodeError(
         `encoded byte length ${String(buffer.byteLength)} exceeds migration limit `
-          + String(this.#maxDecodeBytes),
+          + String(bound.maxBytes),
       );
     }
-    validateGenericBoundedCbor(
-      buffer,
-      V18_CHECKPOINT_STRUCTURE_LIMITS,
-      decodeError,
-    );
+    validateGenericBoundedCbor(buffer, bound.structureLimits, decodeError);
     return cborDecode(buffer) as TDecoded;
   }
 }

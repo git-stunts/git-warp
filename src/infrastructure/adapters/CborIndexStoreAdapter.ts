@@ -1,4 +1,3 @@
-import { MAX_BUFFERED_ARTIFACT_BYTES } from '../../domain/storage/BufferedArtifactLimit.ts';
 import type {
   BundleCapability,
   BundleMemberReference,
@@ -11,6 +10,7 @@ import IndexStorePort, {
 } from '../../ports/IndexStorePort.ts';
 import type AssetStoragePort from '../../ports/AssetStoragePort.ts';
 import type CodecPort from '../../ports/CodecPort.ts';
+import type { CodecDecodeBound } from '../../ports/CodecPort.ts';
 import type CodecValue from '../../domain/types/codec/CodecValue.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
 import WarpStream from '../../domain/stream/WarpStream.ts';
@@ -23,10 +23,11 @@ import type { IndexShard } from '../../domain/artifacts/IndexShard.ts';
 import AssetHandle from '../../domain/storage/AssetHandle.ts';
 import type BundleHandle from '../../domain/storage/BundleHandle.ts';
 import IndexError from '../../domain/errors/IndexError.ts';
-import { collectAsyncIterable } from '../../domain/utils/streamUtils.ts';
+import { INDEX_SHARD_LIMITS } from '../../domain/materialization/IndexShardLimits.ts';
 import computeShardKey from '../../domain/utils/shardKey.ts';
 import { materializationPropertyShardKey } from '../../domain/materialization/MaterializationPropertyProfile.ts';
-import { validateBoundedCbor } from './BoundedCborValidation.ts';
+import { decodeIndexShard, indexShardBoundWithin, indexShardTooLarge } from './IndexShardBound.ts';
+import { readGitCasErrorCode, readGitCasObservedBytes } from './GitCasErrorCode.ts';
 import { decodeRoutedPropertyShardArtifact } from '../../domain/services/index/PropertyIndexReader.ts';
 import { writeCborIndexShards } from './CborIndexShardWriter.ts';
 import CborIndexShardTree from './CborIndexShardTree.ts';
@@ -173,9 +174,8 @@ export class CborIndexStoreAdapter extends IndexStorePort {
         if (shard === null) {
           continue;
         }
-        const bytes = await collectAsyncIterable(adapter._assets.open(handle), MAX_BUFFERED_ARTIFACT_BYTES);
-        const data = adapter._codec.decode(bytes);
-        yield shard(data);
+        const bytes = await collectBoundedShard(adapter._assets.open(handle), INDEX_SHARD_LIMITS.maxBytes);
+        yield shard(decodeIndexShard(adapter._codec, { path: member.path, bytes }, INDEX_SHARD_LIMITS));
       }
     })());
   }
@@ -244,7 +244,7 @@ export class CborIndexStoreAdapter extends IndexStorePort {
       assets: this._assets,
       indexHandle,
       path,
-      maxBytes: optionalPositiveInteger(options.maxBytes, 'maxBytes'),
+      maxBytes: indexShardBoundWithin({ maxBytes: optionalPositiveInteger(options.maxBytes, 'maxBytes') }).maxBytes,
     });
   }
 
@@ -252,12 +252,9 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     shardHandle: AssetHandle,
     options: IndexShardDecodeOptions = {},
   ): Promise<TDecoded> {
-    const maxBytes = optionalPositiveInteger(options.maxBytes, 'maxBytes');
-    const bytes = maxBytes === undefined
-      ? await collectAsyncIterable(this._assets.open(shardHandle), MAX_BUFFERED_ARTIFACT_BYTES)
-      : await collectBoundedShard(this._assets.open(shardHandle), maxBytes);
-    validateRequestedStructure(bytes, options);
-    return this._codec.decode<TDecoded>(bytes);
+    const bound = requestedBound(options);
+    const bytes = await collectBoundedShard(this._assets.open(shardHandle), bound.maxBytes);
+    return decodeIndexShard<TDecoded>(this._codec, { path: shardHandle.toString(), bytes }, bound);
   }
 
   override async decodeShardAt<TDecoded extends CodecValue = CodecValue>(
@@ -272,16 +269,15 @@ export class CborIndexStoreAdapter extends IndexStorePort {
     if (member === null) {
       return null;
     }
-    const maxBytes = optionalPositiveInteger(options.maxBytes, 'maxBytes');
+    const bound = requestedBound(options);
     const bytes = await readMemberBytes({
       member,
       path,
-      maxBytes,
+      maxBytes: bound.maxBytes,
       cas: this._cas,
       assets: this._assets,
     });
-    validateRequestedStructure(bytes, options);
-    return this._codec.decode<TDecoded>(bytes);
+    return decodeIndexShard<TDecoded>(this._codec, { path, bytes }, bound);
   }
 
   override openShardTree(tree: EncodedIndexTree): IndexShardTreePort {
@@ -294,7 +290,7 @@ async function* streamShardAt(args: {
   assets: AssetStoragePort;
   indexHandle: BundleHandle;
   path: string;
-  maxBytes: number | undefined;
+  maxBytes: number;
 }): AsyncIterable<Uint8Array> {
   const member = await args.cas.bundles.getMemberReference({
     handle: args.indexHandle.toString(),
@@ -304,10 +300,7 @@ async function* streamShardAt(args: {
     throw missingBundleMember(args.path);
   }
   if (member.handle.kind === 'page') {
-    yield await args.cas.pages.get({
-      handle: member.handle.toString(),
-      ...(args.maxBytes === undefined ? {} : { maxBytes: args.maxBytes }),
-    });
+    yield await readShardPage(args.cas, member.handle.toString(), args);
     return;
   }
   yield* streamAssetShard({
@@ -320,15 +313,15 @@ async function* streamShardAt(args: {
 async function* streamAssetShard(args: {
   assets: AssetStoragePort;
   handle: AssetHandle;
-  maxBytes: number | undefined;
+  maxBytes: number;
 }): AsyncIterable<Uint8Array> {
   let chunkCount = 0;
   let total = 0;
   for await (const chunk of args.assets.open(args.handle)) {
     chunkCount += 1;
     requireShardChunkCount(chunkCount);
-    if (args.maxBytes !== undefined && chunk.byteLength > args.maxBytes - total) {
-      throw shardTooLarge(total + chunk.byteLength, args.maxBytes);
+    if (chunk.byteLength > args.maxBytes - total) {
+      throw indexShardTooLarge(total + chunk.byteLength, args.maxBytes);
     }
     total += chunk.byteLength;
     yield chunk;
@@ -338,23 +331,40 @@ async function* streamAssetShard(args: {
 async function readMemberBytes(args: {
   member: BundleMemberReference;
   path: string;
-  maxBytes: number | undefined;
+  maxBytes: number;
   cas: GitCasIndexFacade;
   assets: AssetStoragePort;
 }): Promise<Uint8Array> {
   if (args.member.handle.kind === 'page') {
-    return await args.cas.pages.get({
-      handle: args.member.handle.toString(),
-      ...(args.maxBytes === undefined ? {} : { maxBytes: args.maxBytes }),
-    });
+    return await readShardPage(args.cas, args.member.handle.toString(), args);
   }
   if (args.member.handle.kind !== 'asset') {
     throw invalidBundleMember(args.path, args.member.handle.kind);
   }
-  const source = args.assets.open(new AssetHandle(args.member.handle.toString()));
-  return args.maxBytes === undefined
-    ? await collectAsyncIterable(source, MAX_BUFFERED_ARTIFACT_BYTES)
-    : await collectBoundedShard(source, args.maxBytes);
+  return await collectBoundedShard(args.assets.open(new AssetHandle(args.member.handle.toString())), args.maxBytes);
+}
+
+/** Reads one page member; a page above `maxBytes` is refused as any index shard above its bound is. */
+async function readShardPage(
+  cas: GitCasIndexFacade,
+  handle: string,
+  bound: Readonly<{ path: string; maxBytes: number }>,
+): Promise<Uint8Array> {
+  try {
+    return await cas.pages.get({ handle, maxBytes: bound.maxBytes });
+  } catch (error) {
+    throw readGitCasErrorCode(error) === 'PAGE_TOO_LARGE'
+      ? indexShardTooLarge(readGitCasObservedBytes(error), bound.maxBytes, bound.path)
+      : error;
+  }
+}
+
+/** The index-shard bound, tightened by a caller's limits. */
+function requestedBound(options: IndexShardDecodeOptions): CodecDecodeBound {
+  return indexShardBoundWithin({
+    maxBytes: optionalPositiveInteger(options.maxBytes, 'maxBytes'),
+    structureLimits: optionalCborStructureLimits(options.structureLimits),
+  });
 }
 
 async function collectBoundedShard(
@@ -381,7 +391,7 @@ function appendBoundedShardChunk(
     return bounds.total;
   }
   if (chunk.byteLength > bounds.maxBytes - bounds.total) {
-    throw shardTooLarge(bounds.total + chunk.byteLength, bounds.maxBytes);
+    throw indexShardTooLarge(bounds.total + chunk.byteLength, bounds.maxBytes);
   }
   chunks.push(chunk);
   return bounds.total + chunk.byteLength;
@@ -408,23 +418,6 @@ function requireShardChunkCount(actual: number): void {
       context: { actual, maximum },
     });
   }
-}
-
-function validateRequestedStructure(
-  bytes: Uint8Array,
-  options: IndexShardDecodeOptions,
-): void {
-  const limits = optionalCborStructureLimits(options.structureLimits);
-  if (limits !== undefined) {
-    validateBoundedCbor(bytes, limits);
-  }
-}
-
-function shardTooLarge(actual: number, maximum: number): IndexError {
-  return new IndexError('Index shard exceeds the configured maximum', {
-    code: 'E_INDEX_SHARD_TOO_LARGE',
-    context: { actual, maximum },
-  });
 }
 
 function requireAssetMember(path: string, kind: string, token: string): AssetHandle {

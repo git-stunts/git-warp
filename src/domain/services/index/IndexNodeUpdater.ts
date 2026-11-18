@@ -9,7 +9,7 @@
  */
 
 import computeShardKey from '../../utils/shardKey.ts';
-import { getRoaringBitmap32 } from '../../utils/roaring.ts';
+import { getRoaringBitmap32, type RoaringBitmapSubset } from '../../utils/roaring.ts';
 import ShardIdOverflowError from '../../errors/ShardIdOverflowError.ts';
 import type { WorkingMetaShard, EdgeShardData } from './types.ts';
 
@@ -139,25 +139,25 @@ export default class IndexNodeUpdater {
   }
 
   /**
-   * Clears the dead node's row in one bucket and returns the peer globalIds it held.
+   * Clears the dead node's row in one bucket and returns the bitmap of the
+   * peer globalIds it held. The caller iterates the bitmap, so the peers are
+   * never expanded into an array.
    */
   private _clearRowAndCollectPeers(
     rows: Record<string, Uint8Array>,
     gidStr: string,
     row: Uint8Array,
-  ): number[] {
+  ): RoaringBitmapSubset {
     const RoaringBitmap32 = getRoaringBitmap32();
-    const bm = RoaringBitmap32.deserialize(row, true);
-    const peers = bm.toArray();
-    bm.clear();
-    rows[gidStr] = bm.serialize(true);
+    const peers = RoaringBitmap32.deserialize(row, true);
+    rows[gidStr] = new RoaringBitmap32().serialize(true);
     return peers;
   }
 
   /**
    * Removes deadGid from each peer's bitmap in the opposite direction.
    */
-  private _removePeerReferences(deadGid: number, peers: number[], opts: {
+  private _removePeerReferences(deadGid: number, peers: Iterable<number>, opts: {
     bucket: string;
     peerCache: Map<string, EdgeShardData>;
     peerDir: string;

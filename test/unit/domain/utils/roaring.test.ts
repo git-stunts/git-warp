@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { encodePortableShard } from '../../../helpers/PortableRoaringShardFixture.ts';
 import type {
+  RoaringBitmap32Constructor,
   RoaringLibraryConstructor,
   RoaringBitmapSubset,
 } from '../../../../src/domain/utils/roaring.ts';
@@ -86,6 +88,20 @@ function createBitmapConstructor(options: {
   return BitmapCtor;
 }
 
+/** One valid portable bitmap: the loaded class inspects it, then hands it to the library. */
+const ONE_VALUE = encodePortableShard([{ kind: 'array', key: 0, values: [1] }]);
+
+/**
+ * Whether the loaded class reads bytes through `library`, that is, whether
+ * the loader chose it. The loaded class wraps the library class instead of
+ * extending it (#1159 D5), so the prototype does not name the library.
+ */
+function readsThrough(loaded: RoaringBitmap32Constructor, library: RoaringLibraryConstructor): boolean {
+  const deserialize = vi.spyOn(library, 'deserialize');
+  loaded.deserialize(ONE_VALUE, true);
+  return deserialize.mock.calls.length === 1;
+}
+
 beforeEach(() => {
   vi.resetModules();
 });
@@ -138,7 +154,7 @@ describe('initRoaring', () => {
       default: { RoaringBitmap32: innerBitmap },
     });
 
-    expect(Object.getPrototypeOf(getRoaringBitmap32())).toBe(innerBitmap);
+    expect(readsThrough(getRoaringBitmap32(), innerBitmap)).toBe(true);
   });
 
   it('falls through require failure into the WASM fallback', async () => {
@@ -181,7 +197,7 @@ describe('initRoaring', () => {
     expect(roaringMod.getNativeRoaringAvailable()).toBe(false);
     await roaringMod.initRoaring({ RoaringBitmap32: injectedBitmap });
 
-    expect(Object.getPrototypeOf(roaringMod.getRoaringBitmap32())).toBe(injectedBitmap);
+    expect(readsThrough(roaringMod.getRoaringBitmap32(), injectedBitmap)).toBe(true);
     expect(roaringMod.getNativeRoaringAvailable()).toBe(false);
   });
 
@@ -192,7 +208,7 @@ describe('initRoaring', () => {
     await roaringMod.initRoaring({ RoaringBitmap32: bitmap });
     await expect(roaringMod.initRoaring()).resolves.toBeUndefined();
 
-    expect(Object.getPrototypeOf(roaringMod.getRoaringBitmap32())).toBe(bitmap);
+    expect(readsThrough(roaringMod.getRoaringBitmap32(), bitmap)).toBe(true);
   });
 });
 

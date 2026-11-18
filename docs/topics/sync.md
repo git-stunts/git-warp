@@ -227,10 +227,32 @@ in one container. These measurements describe that corpus, not every possible
 repository. The tag-focused fixture check finds no new tag refusals in released
 fixture blobs; it does not prove that every previously accepted blob still decodes.
 
+Index shards, the files of the bitmap, node lifecycle and property indexes that
+checkpoints and materialization retain, have one wider bound of their own that
+their writers and readers share
+([#1159](https://github.com/git-stunts/git-warp/issues/1159)): 16 MiB
+(16,777,216 bytes), 2,000,000 total items and depth 34, with the same container
+entry and tag checks. The depth holds every property value that a patch can
+carry: a patch is read at depth 32 and adds 3 levels around a property value,
+and a property shard adds 5 levels around it (`IndexShardLimits.ts` derives
+the depth from these constants). A writer refuses a shard above the bound
+with `E_INDEX_SHARD_TOO_LARGE` above the byte limit and
+`E_INDEX_SHARD_MALFORMED` above a structure limit. The index store and the
+in-memory view index refuse one with the same codes. The checkpoint
+neighbourhood reader, and the checkpoint fact reader for node lifecycle
+shards, decode shard bytes themselves at the same bound and refuse one with
+`E_CBOR_DECODE_BOUNDS`. The fact reader reads meta and property shards through
+the index store and reports `E_INDEX_SHARD_MALFORMED` there as `QueryError`
+`E_OPTIC_NO_BOUNDED_BASIS` (reason `checkpoint-shard-invalid`). The legacy
+`BitmapIndexReader` reports a refused shard as `ShardCorruptionError` (reason
+`decode_error`) in strict mode, and logs it and reads the shard as empty in
+lenient mode. Measured decode memory for one file: about
+66 MiB of heap for 17.6 MB of bitmap entries (782,385 items), and about
+205 MiB for 19.4 MB of 2.58 million small items. A file within the bound holds
+at most 2,000,000 items.
+
 A structural preflight refusal from the shared decoder has code
-`E_CBOR_DECODE_BOUNDS` and a `reason` in its context. Index-shard readers that
-request strict structure limits retain their `E_INDEX_SHARD_MALFORMED` preflight
-error boundary. Preserve the offending object and
+`E_CBOR_DECODE_BOUNDS` and a `reason` in its context. Preserve the offending object and
 its identity when diagnosing a refusal; do not remove the checks to read it.
 HTTP JSON body limits are separate from these repository-blob limits.
 

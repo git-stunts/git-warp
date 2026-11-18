@@ -194,7 +194,8 @@ describe('RoaringLoaderAdapter', () => {
     const Bounded = adapter.getRoaringBitmap32();
 
     expect(new Bounded([3, 1]).toArray()).toEqual([1, 3]);
-    expect(new Bounded()).toBeInstanceOf(bitmap);
+    // The bounded class wraps the library class instead of extending it (#1159 D5).
+    expect(new Bounded()).not.toBeInstanceOf(bitmap);
     expect(adapter.getNativeRoaringAvailable()).toBe(true);
   });
 
