@@ -367,9 +367,10 @@ script, read from the workflow file, against the generated body. The local test
 therefore accepts the same reference forms as the hosted check: `#123`,
 `GH-123`, `git-stunts/git-warp#123` and
 `https://github.com/git-stunts/git-warp/issues/123`. The test runs only that
-script. It refuses a workflow whose job has another shape, such as a second
-step, another shell command or another step setting, so a change to the
-workflow fails the local test until the test models it.
+script. It refuses a workflow with a YAML error, or whose job has another
+shape, such as a second step, another shell command, or another job or step
+setting such as `if`. A change to the workflow therefore fails the local test
+until the test models it.
 
 ## Automatic Tagging
 

@@ -8,7 +8,8 @@ const REPOSITORY = 'git-stunts/git-warp';
 const OWN_NUMBER = 99_999;
 const ISSUE = 804;
 const WORKFLOW = '.github/workflows/pr-issue-reference.yml';
-const STEPS = Object.freeze(['jobs', 'require-issue-reference', 'steps']);
+const JOB = Object.freeze(['jobs', 'require-issue-reference']);
+const STEPS = Object.freeze([...JOB, 'steps']);
 const POLICY_STEP = Object.freeze([...STEPS, 0]);
 const SHAPE_REFUSAL = 'no longer has the shape that the harness models';
 const hosted = HostedIssueReferencePolicy.fromWorkflow();
@@ -44,6 +45,14 @@ const UNMODELLED_EDITS: readonly (readonly [string, (document: Document) => void
   }],
   ['the policy step runs under another shell', (document) => {
     document.setIn([...POLICY_STEP, 'shell'], 'sh');
+  }],
+  ['the job gains a condition', (document) => {
+    // GitHub skips a job whose `if` is false and reports the check as skipped, not failed.
+    document.setIn([...JOB, 'if'], false);
+  }],
+  ['the job steps are not a list', (document) => {
+    // A mapping that holds the real step, so a harness that reads mappings as steps would accept it.
+    document.setIn([...STEPS], document.createNode({ policy: document.getIn([...POLICY_STEP]) }));
   }],
 ];
 
@@ -114,6 +123,13 @@ describe('hosted policy harness', () => {
 
   it.each(UNMODELLED_EDITS)('fails closed when %s', (_case, edit) => {
     expect(() => HostedIssueReferencePolicy.fromWorkflow(editedWorkflow(edit))).toThrow(SHAPE_REFUSAL);
+  });
+
+  it('fails closed when the workflow has a YAML error, such as a second top-level jobs key', () => {
+    // The yaml parser records the duplicate key as an error and still returns a document.
+    const duplicated = `${readFileSync(WORKFLOW, 'utf8')}\njobs:\n  other:\n    runs-on: ubuntu-latest\n    steps:\n      - run: exit 1\n`;
+
+    expect(() => HostedIssueReferencePolicy.fromWorkflow(duplicated)).toThrow(SHAPE_REFUSAL);
   });
 
   it('accepts the checked-in workflow after a YAML round trip, so only the edits cause those refusals', () => {

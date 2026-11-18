@@ -3,17 +3,19 @@
 // The script comes from .github/workflows/pr-issue-reference.yml and runs in a
 // fresh vm context. Its webhook event, GitHub API, console and exit are stubs.
 // The harness models only a job whose one bash step runs that script and nothing
-// else. It refuses any other job shape, so a workflow edit that the harness
-// cannot run fails the local tests instead of passing them.
+// else. It refuses any other job shape, and any YAML error, so a workflow edit
+// that the harness cannot run fails the local tests instead of passing them.
 import { EventEmitter } from 'node:events';
 import { readFileSync } from 'node:fs';
 import { setImmediate as nextTurn } from 'node:timers/promises';
 import { createContext, runInContext } from 'node:vm';
-import { isMap, isSeq, parseDocument, type Document } from 'yaml';
+import { isMap, isSeq, parseDocument, type Document, type YAMLMap } from 'yaml';
 
 const WORKFLOW = '.github/workflows/pr-issue-reference.yml';
-const POLICY_STEPS = Object.freeze(['jobs', 'require-issue-reference', 'steps']);
-// The settings of the one policy step, sorted. Another setting, such as `if` or `continue-on-error`, is not modelled.
+const POLICY_JOB = Object.freeze(['jobs', 'require-issue-reference']);
+// The settings of the policy job and of its one step, sorted. Another setting, such as `if` or
+// `continue-on-error`, changes when the job runs or what its result means, so it is not modelled.
+const POLICY_JOB_SETTINGS = 'runs-on,steps';
 const POLICY_STEP_SETTINGS = 'env,name,run,shell';
 // The whole run block: strict mode, a blank line, then the Node program and nothing else. No `m` flag.
 const POLICY_RUN = /^set -euo pipefail\n\nnode <<'NODE'\n(?<program>[\s\S]*)\nNODE\n?$/u;
@@ -39,13 +41,19 @@ type HostedGlobals = Readonly<{
   console: Readonly<{ log: (...values: readonly ConsoleValue[]) => void; error: (...values: readonly ConsoleValue[]) => void }>;
 }>;
 
+/** The sorted setting names of a YAML mapping. */
+function settingsOf(map: YAMLMap): string {
+  return map.items.map((pair) => String(pair.key)).sort().join(',');
+}
+
 /** The Node program when the job has exactly the modelled shape; otherwise undefined. */
 function policyProgram(document: Document): string | undefined {
-  const steps = document.getIn(POLICY_STEPS);
+  const job = document.getIn(POLICY_JOB);
+  if (!isMap(job) || settingsOf(job) !== POLICY_JOB_SETTINGS) return undefined;
+  const steps = job.get('steps');
   const step = isSeq(steps) && steps.items.length === 1 ? steps.items[0] : undefined;
   if (!isMap(step) || step.get('shell') !== 'bash') return undefined;
-  const settings = step.items.map((pair) => String(pair.key)).sort().join(',');
-  return settings === POLICY_STEP_SETTINGS ? POLICY_RUN.exec(String(step.get('run')))?.groups?.['program'] : undefined;
+  return settingsOf(step) === POLICY_STEP_SETTINGS ? POLICY_RUN.exec(String(step.get('run')))?.groups?.['program'] : undefined;
 }
 
 /** One hosted-policy run: its exit code, the numbers it looked up, and its console lines, in order. */
@@ -157,12 +165,15 @@ export default class HostedIssueReferencePolicy {
 
   /** Reads the policy script from the hosted workflow. Fails closed when the job has a shape that the harness does not model. */
   static fromWorkflow(workflow: string = readFileSync(WORKFLOW, 'utf8')): HostedIssueReferencePolicy {
-    const program = policyProgram(parseDocument(workflow));
+    // The yaml parser records errors, such as a duplicate key, and still returns a document.
+    const document = parseDocument(workflow);
+    const program = document.errors.length === 0 ? policyProgram(document) : undefined;
     if (program === undefined) {
       throw new Error(
-        `${WORKFLOW} no longer has the shape that the harness models: one bash step with the settings ` +
-        `${POLICY_STEP_SETTINGS}, whose run block is set -euo pipefail and the node <<'NODE' program only. ` +
-        'Model the new shape in test/helpers/HostedIssueReferencePolicy.ts.',
+        `${WORKFLOW} no longer has the shape that the harness models: YAML without errors, and a job with the ` +
+        `settings ${POLICY_JOB_SETTINGS} and one bash step with the settings ${POLICY_STEP_SETTINGS}, whose run ` +
+        "block is set -euo pipefail and the node <<'NODE' program only. Model the new shape in " +
+        'test/helpers/HostedIssueReferencePolicy.ts.',
       );
     }
     return new HostedIssueReferencePolicy(program);
