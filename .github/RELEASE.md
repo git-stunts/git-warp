@@ -367,11 +367,12 @@ script, read from the workflow file, against the generated body. The local test
 therefore accepts the same reference forms as the hosted check: `#123`,
 `GH-123`, `git-stunts/git-warp#123` and
 `https://github.com/git-stunts/git-warp/issues/123`. The test runs only that
-script. It refuses a workflow with a YAML error, or whose job has another
-shape, such as a second step, another shell command, another job or step
-setting such as `if`, or another step environment variable such as
-`NODE_OPTIONS`. A change to the workflow therefore fails the local test until
-the test models it.
+script. It refuses a workflow with a YAML error, and it checks the policy job
+`require-issue-reference`: the job's settings, its one step's settings, that
+step's `env`, and the step's run block. A change there, such as a job `if`, a
+second step, `NODE_OPTIONS` in the `env`, or another shell command, fails the
+local test until the test models it. The test does not check the top-level
+keys of the workflow, such as `on` and `permissions`, or any other job.
 
 ## Automatic Tagging
 
