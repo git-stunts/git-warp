@@ -369,12 +369,16 @@ therefore accepts the same reference forms as the hosted check: `#123`,
 `https://github.com/git-stunts/git-warp/issues/123`. The test runs only that
 script. It refuses a workflow with a YAML error, and it checks the policy job
 `require-issue-reference`: the names of the job's settings, the names of its
-one step's settings, that step's `shell` and `env` values, and the step's run
-block. A change there, such as a job `if`, a second step, `NODE_OPTIONS` in the
-`env`, or another shell command, fails the local test until the test models
-it. The test does not check other setting values, such as the value of
-`runs-on`, the top-level keys of the workflow, such as `on` and `permissions`,
-or any other job.
+one step's settings, that step's `shell` and `env` values, and the shell
+wrapper of the step's run block (`set -euo pipefail` and the `node <<'NODE'`
+heredoc, with no other line). A change to those, such as a job `if`, a second
+step, `NODE_OPTIONS` in the `env`, or another shell command, fails the local
+test until the test models it. The test does not refuse a change to the Node
+program inside the heredoc: it runs the changed program against its test
+cases, so such a change fails the test only when it changes a tested outcome.
+The test does not check other setting values, such as the value of `runs-on`,
+the top-level keys of the workflow, such as `on` and `permissions`, or any
+other job.
 
 ## Automatic Tagging
 
