@@ -85,7 +85,7 @@ describe('development-tool audit lock', () => {
       readonly scripts: Readonly<Record<string, string>>;
     };
 
-    expect(packageJson.scripts['audit:locked']).toBe('npm audit --audit-level=low');
+    expect(packageJson.scripts['audit:locked']).toBe('node scripts/dependency-audit/check-locked-audit.ts');
     expect(ci).toContain('type-firewall-audit:');
     expect(ci).toContain('- type-firewall-audit');
     expect(ci).toContain("test \"${{ needs['type-firewall-audit'].result }}\" = \"success\"");

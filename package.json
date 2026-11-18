@@ -86,7 +86,7 @@
     "access": "public"
   },
   "scripts": {
-    "audit:locked": "npm audit --audit-level=low",
+    "audit:locked": "node scripts/dependency-audit/check-locked-audit.ts",
     "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.publish.json --declaration false --removeComments && tsc -p tsconfig.publish.json --emitDeclarationOnly && node --input-type=module -e \"import prune from './scripts/package-payload/PrunePrivateDeclarations.ts'; prune('dist'); await (await import('./scripts/package-payload/PrunePrivateJavaScript.ts')).default('.');\"",
     "build:maintainer": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.maintainer.json",
     "generate:vocabulary-ir": "node scripts/GenerateV19VocabularyIr.ts",

@@ -368,8 +368,11 @@ and rerun the release workflow or the failed job.
 - zero open issues in prior release milestones.
 
 `scripts/release-preflight.sh` wraps the guard with lint, Markdown, link, type,
-coverage, npm pack, JSR dry-run, packed-artifact smoke, and the full locked
-runtime/development dependency audit.
+coverage, npm pack, JSR dry-run, packed-artifact smoke, and the locked
+dependency audit. That audit allows no exception in the published tree; a
+development-only advisory passes only under an unexpired entry in
+`policy/audit-exceptions.json` (see
+[Locked dependency audit](../docs/operations/dependency-audit.md)).
 
 Release preflight owns validation and runs each expensive gate once. Its
 declaration-surface check builds `dist`; validation-only `npm pack` calls then

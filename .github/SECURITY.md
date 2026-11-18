@@ -313,7 +313,7 @@ closes first.
 | **Authorization** | None for sync: any valid sync key reads every writer's patches, and the sync server accepts no writes. `allowedWriters` only refuses a requester that reports an unlisted writer (see Writer Authorization) | Role-based access control, per-node ACLs, per-writer read or write limits |
 | **Transport** | Body signing, tamper detection | TLS termination (delegated to reverse proxy) |
 | **Availability** | Body size limits, the peer admission limit before authentication, the per-key rate limit (required on hosts that are not local), streaming for large graphs | DDoS protection and a global bound on traffic from many addresses ([#1164](https://github.com/git-stunts/git-warp/issues/1164)); provide these at a reverse proxy or firewall |
-| **Supply chain** | `npm audit` in CI, pinned dependencies via lockfile | Runtime SCA scanning, SBOM generation |
+| **Supply chain** | `npm audit` in CI at severity low: the published tree with no exceptions, and the full lock with reviewed development-only exceptions that expire within 30 days ([locked dependency audit](../docs/operations/dependency-audit.md)); pinned dependencies via lockfile | Runtime SCA scanning, SBOM generation |
 
 ## Writer Authorization
 

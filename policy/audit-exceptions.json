@@ -1,0 +1,12 @@
+{
+  "exceptions": [
+    {
+      "advisory": "GHSA-fc5q-39xc-vjpf",
+      "package": "picomatch",
+      "reason": "dev-only (vite/vitest/eslint/markdownlint toolchain), no patched picomatch version; `npm ls picomatch --omit=dev` is empty",
+      "added": "2026-11-17",
+      "expires": "2026-12-17",
+      "owner": "git-stunts/git-warp#1194"
+    }
+  ]
+}
