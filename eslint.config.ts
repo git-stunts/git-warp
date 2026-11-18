@@ -62,6 +62,8 @@ export default tseslint.config(
       "!scripts/source-reachability/**",
       "!scripts/determinism",
       "!scripts/determinism/**",
+      "!scripts/dependency-audit",
+      "!scripts/dependency-audit/**",
       ".claude/**",
       ".obsidian/**",
       "test/type-check/**",
@@ -115,14 +117,15 @@ export default tseslint.config(
     },
   },
 
-  // Package-payload, public-surface, source-reachability and determinism code execute merge/release law, so they
-  // receive the normal typed structural caps instead of the global maintainer-script exclusion.
+  // Package-payload, public-surface, source-reachability, determinism and dependency-audit code execute
+  // merge/release law, so they receive the normal typed structural caps instead of the global maintainer-script exclusion.
   {
     files: [
       "scripts/package-payload/**/*.ts",
       "scripts/public-surface/**/*.ts",
       "scripts/source-reachability/**/*.ts",
       "scripts/determinism/**/*.ts",
+      "scripts/dependency-audit/**/*.ts",
     ],
     languageOptions: {
       ecmaVersion: 2022,
@@ -164,6 +167,16 @@ export default tseslint.config(
         allowNumber: true,
         allowRegExp: false,
       }],
+    },
+  },
+
+  // The dependency-audit ports declare function types. The core rule reports their parameter
+  // names as unused, so this directory uses the TypeScript-aware rule, as src/ does.
+  {
+    files: ["scripts/dependency-audit/**/*.ts"],
+    rules: {
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     },
   },
 

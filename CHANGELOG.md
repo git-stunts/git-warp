@@ -874,6 +874,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unpacked bytes and 1,750 entries. These are local regression alarms, not registry limits;
   they were raised so normal feature growth stops tripping them (#1193).
 
+### Tooling
+
+- **This weakens the locked dependency audit.** `npm run audit:locked` (CI job
+  `type-firewall-audit`, and the release preflight) now runs
+  `scripts/dependency-audit/check-locked-audit.ts` instead of `npm audit --audit-level=low`.
+  The published tree (`npm audit --omit=dev`) is still audited at severity low with no
+  exceptions. A development-only advisory can pass while an entry in
+  `policy/audit-exceptions.json` lists it: the entry names the GHSA advisory, the package, a
+  reason, the day it was added, an expiry at most 30 days later, and the issue that owns its
+  removal. The gate fails when an advisory reaches the published tree, a development advisory
+  has no entry, an entry has expired or has a window longer than 30 days, the registry
+  publishes a version of the package outside the advisory's range, or an entry matches no
+  advisory. It prints one row for each advisory and entry. The first entry is picomatch
+  [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf), which reaches the
+  lock only through development tools and has no patched version; it expires on 2026-12-17.
+  See [Locked dependency audit](docs/operations/dependency-audit.md#development-dependency-exceptions).
+
 ## [20.0.0] - 2026-10-03
 
 This major release provides the observed-remove membership / node-wide LWW
