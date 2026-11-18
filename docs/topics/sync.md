@@ -284,6 +284,10 @@ request gets the same response. The limit applies to bytes, not to time:
 `timeoutMs` stops when the response headers arrive, so it does not limit the
 body read.
 
+The limit bounds the bytes that the client reads. Peak memory while the client
+decodes an accepted response can be several times the response size, so size
+the process heap for the largest response that you accept.
+
 ### Basis for the limit
 
 A sync server sends every patch that the request frontier does not have in one
@@ -312,6 +316,10 @@ decodes the body as one string. The 512 MiB limit is at that ceiling, so it
 refuses no response of ASCII JSON that a Node client can decode. Text outside
 ASCII takes two or three bytes for each UTF-16 code unit, so such a response can
 pass the limit before it reaches the string ceiling.
+
+This basis is the Node 22 string limit. Bun has a higher ceiling: on Bun 1.2 a
+string holds at most 2,147,483,647 code units, about 2 GiB. On Bun, the 512 MiB
+limit is therefore stricter than the runtime needs.
 
 A lower limit refuses honest syncs of large histories. For example, 64 MiB holds
 about 8,600 patches with short values, or about 1,800 patches with 1 KiB values.

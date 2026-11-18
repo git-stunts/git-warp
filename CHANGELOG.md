@@ -468,16 +468,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   response of any size ([#1135](https://github.com/git-stunts/git-warp/issues/1135)).
   v21.0.0 has no public HTTP sync route; see the
   [v21 migration guide](docs/migrations/v21/README.md#http-sync-authentication).
-  Before, the client read the whole body with `response.json()` and no byte limit, so
-  a faulty or hostile peer could make it hold any amount of data in memory. The client
-  now reads at most
-  512 MiB (536,870,912 bytes, `DEFAULT_MAX_SYNC_RESPONSE_BYTES`) and refuses a larger
-  response before it parses it: from a decimal `Content-Length` over the limit, or when
-  the streamed body passes the limit, because the header can be absent or wrong. The
-  refusal is a `SyncError` with code `E_SYNC_RESPONSE_TOO_LARGE`, and `syncWith` does
-  not retry it. No option changes the limit. It is at the JavaScript string limit that
-  already bounded a response, so it refuses no response of ASCII JSON that a Node client
-  could decode before. See
+  Before, the client read the whole body with `response.json()`, with no limit on the
+  bytes that it read. The client now reads at most 512 MiB (536,870,912 bytes,
+  `DEFAULT_MAX_SYNC_RESPONSE_BYTES`) and refuses a larger response before it parses it:
+  from a decimal `Content-Length` over the limit, or when the streamed body passes the
+  limit, because the header can be absent or wrong. The refusal is a `SyncError` with
+  code `E_SYNC_RESPONSE_TOO_LARGE`, and `syncWith` does not retry it. No option changes
+  the limit. The limit bounds the bytes that the client reads, not the memory that it
+  uses: decoding an accepted response can take several times the response size. The
+  limit is at the Node 22 JavaScript string limit that already bounded a response, so it
+  refuses no response of ASCII JSON that a Node client could decode before. See
   [Sync: HTTP sync response limit](docs/topics/sync.md#http-sync-response-limit) for the
   measured basis.
 - Refuse a `NodeRemove` without `node`, or an `EdgeRemove` without `from`,
