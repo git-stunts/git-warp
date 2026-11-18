@@ -62,6 +62,8 @@ export default tseslint.config(
       "!scripts/source-reachability/**",
       "!scripts/determinism",
       "!scripts/determinism/**",
+      "!scripts/release-pr",
+      "!scripts/release-pr/**",
       ".claude/**",
       ".obsidian/**",
       "test/type-check/**",
@@ -115,14 +117,15 @@ export default tseslint.config(
     },
   },
 
-  // Package-payload, public-surface, source-reachability and determinism code execute merge/release law, so they
-  // receive the normal typed structural caps instead of the global maintainer-script exclusion.
+  // Package-payload, public-surface, source-reachability, determinism and release-PR code execute merge/release
+  // law, so they receive the normal typed structural caps instead of the global maintainer-script exclusion.
   {
     files: [
       "scripts/package-payload/**/*.ts",
       "scripts/public-surface/**/*.ts",
       "scripts/source-reachability/**/*.ts",
       "scripts/determinism/**/*.ts",
+      "scripts/release-pr/**/*.ts",
     ],
     languageOptions: {
       ecmaVersion: 2022,

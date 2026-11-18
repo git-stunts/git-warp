@@ -350,6 +350,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Release maintainers open the release-prep PR with a body from
+  `scripts/release-pr/ComposeReleasePullRequest.ts`. The helper requires the exact number
+  of the release goalpost issue (`--goalpost 804`) and writes `Goalpost: #804`, so the
+  required `PR Issue Reference` check passes when the PR opens. The body has no closing
+  keyword, so the merge leaves the goalpost open. A unit test runs the hosted check's own
+  script against the generated body. Ordinary PRs do not change
+  ([#804](https://github.com/git-stunts/git-warp/issues/804)).
 - `Warp.open(address, access, { logger })` accepts an optional `LoggerPort`, now exported from
   the package root with the `LogFields`, `LogFieldValue` and `WarpOpenOptions` types. The `warn`
   removal policy reports to it, and a logger that throws or rejects cannot affect a write. Without a
