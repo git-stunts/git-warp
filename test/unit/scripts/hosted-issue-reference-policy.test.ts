@@ -1,15 +1,51 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { parseDocument, type Document } from 'yaml';
 
 import HostedIssueReferencePolicy from '../../helpers/HostedIssueReferencePolicy.ts';
 
 const REPOSITORY = 'git-stunts/git-warp';
 const OWN_NUMBER = 99_999;
 const ISSUE = 804;
+const WORKFLOW = '.github/workflows/pr-issue-reference.yml';
+const STEPS = Object.freeze(['jobs', 'require-issue-reference', 'steps']);
+const POLICY_STEP = Object.freeze([...STEPS, 0]);
+const SHAPE_REFUSAL = 'no longer has the shape that the harness models';
 const hosted = HostedIssueReferencePolicy.fromWorkflow();
 
 function pullRequest(body: string, number = OWN_NUMBER) {
   return { number, title: 'Release v21.0.0', body };
 }
+
+/** The checked-in workflow after one edit, written back out as YAML text. */
+function editedWorkflow(edit: (document: Document) => void): string {
+  const document = parseDocument(readFileSync(WORKFLOW, 'utf8'));
+  edit(document);
+  return String(document);
+}
+
+function policyRun(document: Document): string {
+  return String(document.getIn([...POLICY_STEP, 'run']));
+}
+
+// Each edit changes what the hosted job does outside the Node program, which the harness cannot run.
+const UNMODELLED_EDITS: readonly (readonly [string, (document: Document) => void])[] = [
+  ['a shell line runs after the policy script', (document) => {
+    document.setIn([...POLICY_STEP, 'run'], `${policyRun(document)}exit 1\n`);
+  }],
+  ['a shell line runs before the policy script', (document) => {
+    document.setIn([...POLICY_STEP, 'run'], `exit 1\n${policyRun(document)}`);
+  }],
+  ['the job gains a second step', (document) => {
+    document.addIn([...STEPS], document.createNode({ name: 'extra', shell: 'bash', run: 'exit 1\n' }));
+  }],
+  ['the policy step gains a setting', (document) => {
+    document.setIn([...POLICY_STEP, 'continue-on-error'], true);
+  }],
+  ['the policy step runs under another shell', (document) => {
+    document.setIn([...POLICY_STEP, 'shell'], 'sh');
+  }],
+];
 
 describe('hosted PR Issue Reference policy, run locally', () => {
   // Oracle: the hosted script's refusal names its accepted forms:
@@ -73,8 +109,16 @@ describe('hosted policy harness', () => {
   });
 
   it('fails closed when the workflow no longer holds the policy script', () => {
-    expect(() => HostedIssueReferencePolicy.fromWorkflow('jobs: {}\n'))
-      .toThrow("has no node <<'NODE' policy script in its first step");
+    expect(() => HostedIssueReferencePolicy.fromWorkflow('jobs: {}\n')).toThrow(SHAPE_REFUSAL);
+  });
+
+  it.each(UNMODELLED_EDITS)('fails closed when %s', (_case, edit) => {
+    expect(() => HostedIssueReferencePolicy.fromWorkflow(editedWorkflow(edit))).toThrow(SHAPE_REFUSAL);
+  });
+
+  it('accepts the checked-in workflow after a YAML round trip, so only the edits cause those refusals', () => {
+    expect(HostedIssueReferencePolicy.fromWorkflow(editedWorkflow(() => undefined)))
+      .toBeInstanceOf(HostedIssueReferencePolicy);
   });
 
   it('fails closed when the script never exits', async () => {

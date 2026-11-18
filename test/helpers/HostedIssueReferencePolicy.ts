@@ -2,15 +2,21 @@
 // accepts exactly the reference forms that the required GitHub check accepts.
 // The script comes from .github/workflows/pr-issue-reference.yml and runs in a
 // fresh vm context. Its webhook event, GitHub API, console and exit are stubs.
+// The harness models only a job whose one bash step runs that script and nothing
+// else. It refuses any other job shape, so a workflow edit that the harness
+// cannot run fails the local tests instead of passing them.
 import { EventEmitter } from 'node:events';
 import { readFileSync } from 'node:fs';
 import { setImmediate as nextTurn } from 'node:timers/promises';
 import { createContext, runInContext } from 'node:vm';
-import { parseDocument } from 'yaml';
+import { isMap, isSeq, parseDocument, type Document } from 'yaml';
 
 const WORKFLOW = '.github/workflows/pr-issue-reference.yml';
-const POLICY_STEP = Object.freeze(['jobs', 'require-issue-reference', 'steps', 0, 'run']);
-const NODE_HEREDOC = /^node <<'NODE'\n(?<program>[\s\S]*?)\nNODE$/mu;
+const POLICY_STEPS = Object.freeze(['jobs', 'require-issue-reference', 'steps']);
+// The settings of the one policy step, sorted. Another setting, such as `if` or `continue-on-error`, is not modelled.
+const POLICY_STEP_SETTINGS = 'env,name,run,shell';
+// The whole run block: strict mode, a blank line, then the Node program and nothing else. No `m` flag.
+const POLICY_RUN = /^set -euo pipefail\n\nnode <<'NODE'\n(?<program>[\s\S]*)\nNODE\n?$/u;
 const HTTP_OK = 200;
 const HTTP_NOT_FOUND = 404;
 
@@ -32,6 +38,15 @@ type HostedGlobals = Readonly<{
   process: Readonly<{ env: Readonly<Record<string, string>>; exit: (code: number) => void }>;
   console: Readonly<{ log: (...values: readonly ConsoleValue[]) => void; error: (...values: readonly ConsoleValue[]) => void }>;
 }>;
+
+/** The Node program when the job has exactly the modelled shape; otherwise undefined. */
+function policyProgram(document: Document): string | undefined {
+  const steps = document.getIn(POLICY_STEPS);
+  const step = isSeq(steps) && steps.items.length === 1 ? steps.items[0] : undefined;
+  if (!isMap(step) || step.get('shell') !== 'bash') return undefined;
+  const settings = step.items.map((pair) => String(pair.key)).sort().join(',');
+  return settings === POLICY_STEP_SETTINGS ? POLICY_RUN.exec(String(step.get('run')))?.groups?.['program'] : undefined;
+}
 
 /** One hosted-policy run: its exit code, the numbers it looked up, and its console lines, in order. */
 export class HostedPolicyVerdict {
@@ -140,11 +155,16 @@ export default class HostedIssueReferencePolicy {
     Object.freeze(this);
   }
 
-  /** Reads the policy script from the first step of the hosted workflow. Fails closed when it moved. */
+  /** Reads the policy script from the hosted workflow. Fails closed when the job has a shape that the harness does not model. */
   static fromWorkflow(workflow: string = readFileSync(WORKFLOW, 'utf8')): HostedIssueReferencePolicy {
-    const run = parseDocument(workflow).getIn(POLICY_STEP);
-    const program = typeof run === 'string' ? NODE_HEREDOC.exec(run)?.groups?.['program'] : undefined;
-    if (program === undefined) throw new Error(`${WORKFLOW} has no node <<'NODE' policy script in its first step`);
+    const program = policyProgram(parseDocument(workflow));
+    if (program === undefined) {
+      throw new Error(
+        `${WORKFLOW} no longer has the shape that the harness models: one bash step with the settings ` +
+        `${POLICY_STEP_SETTINGS}, whose run block is set -euo pipefail and the node <<'NODE' program only. ` +
+        'Model the new shape in test/helpers/HostedIssueReferencePolicy.ts.',
+      );
+    }
     return new HostedIssueReferencePolicy(program);
   }
 
