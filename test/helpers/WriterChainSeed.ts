@@ -16,12 +16,14 @@ import GitCasAssetStorageAdapter from '../../src/infrastructure/adapters/GitCasA
 import GitTimelineHistoryAdapter from '../../src/infrastructure/adapters/GitTimelineHistoryAdapter.ts';
 import codec from '../../src/infrastructure/codecs/CborCodec.ts';
 import * as fixture from './WarpWriteFixture.ts';
+import { importPool, PoolChainPattern, type PoolWriter } from './WriterPoolImport.ts';
 
 /**
  * Real writer chains in bulk for the writer-frontier tests (#1197): one Warp write per
  * writer would cost a full custody retention each, so chains are appended straight
- * through the patch journal, as another clone's writes arrive. Repositories made here
- * are removed by {@link disposeWriterChainSeeds}.
+ * through the patch journal, as another clone's writes arrive. The pool of thousands is
+ * imported in one `git fast-import` from one chain the journal appended
+ * ({@link appendPool}). Repositories made here are removed by {@link disposeWriterChainSeeds}.
  */
 const scratch: string[] = [];
 
@@ -38,7 +40,12 @@ export function nodeOf(writer: string): string {
   return `node-of-${writer}`;
 }
 
-/** Appends one root patch for each writer to its chain; `extra` adds ops after its node. */
+/** The root patch a seeded chain holds: the writer adds its own node, then `extra`. */
+function rootPatch(writer: string, extra: readonly PatchOp[] = []): Patch {
+  return new Patch({ writer, lamport: 1, context: {}, ops: [new NodeAdd(nodeOf(writer), new Dot(writer, 1)), ...extra] });
+}
+
+/** Appends one root patch for each writer to its chain through the patch journal; `extra` adds ops after its node. */
 export async function appendChains(path: string, writers: readonly string[], extra: (writer: string) => readonly PatchOp[] = () => []): Promise<void> {
   const plumbing = await Plumbing.createDefault({ cwd: path });
   const history = new GitTimelineHistoryAdapter({ plumbing });
@@ -46,8 +53,7 @@ export async function appendChains(path: string, writers: readonly string[], ext
     const cas = ContentAddressableStore.createCbor({ plumbing, applicationRefPrefixes: ['refs/warp/'] });
     const journal = new CborPatchJournalAdapter({ assetStorage: new GitCasAssetStorageAdapter({ cas }), cas, codec, commitReader: history, graph: fixture.GRAPH });
     for (const writer of writers) {
-      const patch = new Patch({ writer, lamport: 1, context: {}, ops: [new NodeAdd(nodeOf(writer), new Dot(writer, 1)), ...extra(writer)] });
-      await journal.appendPatch({ patch, graph: fixture.GRAPH, writer, targetRef: buildWriterRef(fixture.GRAPH, writer), expectedHead: null, parent: null, attachments: [] });
+      await journal.appendPatch({ patch: rootPatch(writer, extra(writer)), graph: fixture.GRAPH, writer, targetRef: buildWriterRef(fixture.GRAPH, writer), expectedHead: null, parent: null, attachments: [] });
     }
   } finally {
     await history.close();
@@ -55,8 +61,30 @@ export async function appendChains(path: string, writers: readonly string[], ext
 }
 
 /**
+ * The chains {@link appendChains} appends for `pool`, every writer ID as long as the first, at
+ * a cost in Git processes that does not grow with the pool: the journal appends the first
+ * writer's chain in a scratch repository, and one `git fast-import` writes every chain from it.
+ */
+export async function appendPool(path: string, pool: readonly string[]): Promise<void> {
+  const writers = pool.map((writer): PoolWriter => ({ ref: buildWriterRef(fixture.GRAPH, writer), writer, patch: codec.encode(rootPatch(writer)) }));
+  const [first] = writers;
+  if (first === undefined) {
+    return;
+  }
+  const patternRepository = await scratchDirectory('writer-pool-pattern-');
+  fixture.git(patternRepository, ['init', '--quiet', `--object-format=${fixture.git(path, ['rev-parse', '--show-object-format'])}`]);
+  await appendChains(patternRepository, [first.writer]);
+  importPool(path, new PoolChainPattern(patternRepository, first), writers);
+}
+
+/**
  * A repository whose only writer chains are the existing writer's and `pool`'s, every one
- * folded: the existing writer writes before and after the pool arrives.
+ * folded and checkpointed. The existing writer writes; the pool arrives as the receive
+ * recipe of `docs/topics/sync.md` brings other clones' chains, whose repair step records a
+ * checkpoint; and the existing writer writes again, which folds the pool. Without that
+ * checkpoint each write and each reading first checks every writer's head for retired
+ * patches, two more Git processes for each writer chain: at 4,095 writer chains a write
+ * started about 12,550 Git processes, and starts about 4,360 with it (#1197 fixture cost).
  */
 export async function seedRepository(pool: readonly string[]): Promise<string> {
   const path = await scratchDirectory('writer-chain-seed-');
@@ -66,7 +94,8 @@ export async function seedRepository(pool: readonly string[]): Promise<string> {
   const first = await fixture.openSwept(path);
   fixture.retained(await first.as(EXISTING_WRITER).execute(intent.node.add({ subject: 'seed' })));
   await first.close();
-  await appendChains(path, pool);
+  await appendPool(path, pool);
+  await fixture.checkpointed(path);
   const folding = await fixture.open(path);
   fixture.retained(await folding.as(EXISTING_WRITER).execute(intent.node.add({ subject: 'pool-folded' })));
   await folding.close();

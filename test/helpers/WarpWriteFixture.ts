@@ -194,6 +194,14 @@ export async function materialized(path: string): Promise<{ nodes: string[]; edg
   });
 }
 
+/** Materializes every writer chain and records a checkpoint, as `git warp repair --action materialization` does. */
+export async function checkpointed(path: string): Promise<void> {
+  await withReader(path, async (reader) => {
+    await reader.materialize();
+    await reader.createCheckpoint();
+  });
+}
+
 export async function nodeProperties(path: string, nodeId: string): ReturnType<RuntimeHostProduct['getNodeProps']> {
   return await withReader(path, async (reader) => {
     await reader.materialize();
