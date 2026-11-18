@@ -17,6 +17,9 @@ const POLICY_JOB = Object.freeze(['jobs', 'require-issue-reference']);
 // `continue-on-error`, changes when the job runs or what its result means, so it is not modelled.
 const POLICY_JOB_SETTINGS = 'runs-on,steps';
 const POLICY_STEP_SETTINGS = 'env,name,run,shell';
+// The step environment: the token binding only. Another variable, such as NODE_OPTIONS, changes how Node runs.
+const POLICY_ENVIRONMENT = 'GITHUB_TOKEN';
+const POLICY_TOKEN = '${{ github.token }}';
 // The whole run block: strict mode, a blank line, then the Node program and nothing else. No `m` flag.
 const POLICY_RUN = /^set -euo pipefail\n\nnode <<'NODE'\n(?<program>[\s\S]*)\nNODE\n?$/u;
 const HTTP_OK = 200;
@@ -46,13 +49,19 @@ function settingsOf(map: YAMLMap): string {
   return map.items.map((pair) => String(pair.key)).sort().join(',');
 }
 
+/** Whether the step environment is exactly the token binding. */
+function hasModelledEnvironment(step: YAMLMap): boolean {
+  const env = step.get('env');
+  return isMap(env) && settingsOf(env) === POLICY_ENVIRONMENT && env.get('GITHUB_TOKEN') === POLICY_TOKEN;
+}
+
 /** The Node program when the job has exactly the modelled shape; otherwise undefined. */
 function policyProgram(document: Document): string | undefined {
   const job = document.getIn(POLICY_JOB);
   if (!isMap(job) || settingsOf(job) !== POLICY_JOB_SETTINGS) return undefined;
   const steps = job.get('steps');
   const step = isSeq(steps) && steps.items.length === 1 ? steps.items[0] : undefined;
-  if (!isMap(step) || step.get('shell') !== 'bash') return undefined;
+  if (!isMap(step) || step.get('shell') !== 'bash' || !hasModelledEnvironment(step)) return undefined;
   return settingsOf(step) === POLICY_STEP_SETTINGS ? POLICY_RUN.exec(String(step.get('run')))?.groups?.['program'] : undefined;
 }
 
@@ -171,8 +180,9 @@ export default class HostedIssueReferencePolicy {
     if (program === undefined) {
       throw new Error(
         `${WORKFLOW} no longer has the shape that the harness models: YAML without errors, and a job with the ` +
-        `settings ${POLICY_JOB_SETTINGS} and one bash step with the settings ${POLICY_STEP_SETTINGS}, whose run ` +
-        "block is set -euo pipefail and the node <<'NODE' program only. Model the new shape in " +
+        `settings ${POLICY_JOB_SETTINGS} and one bash step with the settings ${POLICY_STEP_SETTINGS}, whose env ` +
+        `is ${POLICY_ENVIRONMENT}: ${POLICY_TOKEN} only, and whose run block is set -euo pipefail and the ` +
+        "node <<'NODE' program only. Model the new shape in " +
         'test/helpers/HostedIssueReferencePolicy.ts.',
       );
     }

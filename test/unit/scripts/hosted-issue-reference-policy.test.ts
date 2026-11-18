@@ -46,6 +46,16 @@ const UNMODELLED_EDITS: readonly (readonly [string, (document: Document) => void
   ['the policy step runs under another shell', (document) => {
     document.setIn([...POLICY_STEP, 'shell'], 'sh');
   }],
+  ['the policy step gains an environment variable', (document) => {
+    // Node 22 refuses `-p` in NODE_OPTIONS before the policy script runs.
+    document.setIn([...POLICY_STEP, 'env', 'NODE_OPTIONS'], '-p');
+  }],
+  ['the policy step binds another token', (document) => {
+    document.setIn([...POLICY_STEP, 'env', 'GITHUB_TOKEN'], '${{ secrets.OTHER_TOKEN }}');
+  }],
+  ['the policy step environment is not a mapping', (document) => {
+    document.setIn([...POLICY_STEP, 'env'], 'GITHUB_TOKEN=unset');
+  }],
   ['the job gains a condition', (document) => {
     // GitHub skips a job whose `if` is false and reports the check as skipped, not failed.
     document.setIn([...JOB, 'if'], false);
