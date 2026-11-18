@@ -45,10 +45,16 @@ const CASE_TIMEOUT_MS = 240_000;
  * checkpoint it read each head three times, about 12,550 (#1197 fixture cost).
  */
 const WRITE_PROCESS_BOUND = Math.floor(1.5 * (LIMIT - 1));
+/**
+ * Git processes the seed may start: 10 for each writer chain. It starts about 8.2 today (33,608
+ * for 4,095 chains); appending the pool through the journal, one chain at a time, adds 28,660.
+ */
+const SEED_PROCESS_BOUND = 10 * (LIMIT - 1);
 /** Removing the seed and its copies, thousands of objects each, outlasts the default hook timeout on a CI runner. */
 const CLEANUP_TIMEOUT_MS = 120_000;
 
 let seed = '';
+let seedProcesses = 0;
 
 /** Opens the lane's cone basis as the write path composes it, runs `read` on it, and releases it. */
 async function withLaneBasis<T>(path: string, read: (basis: ConeLaneBasis, store: GitConeRecordStoreAdapter) => Promise<T>): Promise<T> {
@@ -135,7 +141,9 @@ async function heldOrSettled(latch: CallLatch, write: Promise<WriteReceipt>): Pr
 }
 
 beforeAll(async () => {
-  seed = await seeds.seedRepository(POOL);
+  seedProcesses = await gitProcesses(async () => {
+    seed = await seeds.seedRepository(POOL);
+  });
 }, SEED_TIMEOUT_MS);
 
 afterAll(async () => {
@@ -147,6 +155,12 @@ it('seeds one writer chain fewer than the limit, every one folded', async () => 
   expect([seeds.writerChains(seed), await foldedWriters(seed)]).toEqual([LIMIT - 1, LIMIT - 1]);
 }, CASE_TIMEOUT_MS);
 
+it(`keeps the seed to at most ${SEED_PROCESS_BOUND} Git processes (#1197 fixture cost)`, () => {
+  expect(seedProcesses, `Git processes to seed ${LIMIT - 1} writer chains`).toBeLessThanOrEqual(SEED_PROCESS_BOUND);
+  // A floor, so a counter that misses Git starts cannot pass: the seed's checkpoint reads every writer ref.
+  expect(seedProcesses, 'Git processes the counter saw while seeding').toBeGreaterThanOrEqual(LIMIT - 1);
+});
+
 it(`keeps one write on a copy of the seed to at most ${WRITE_PROCESS_BOUND} Git processes (#1197 fixture cost)`, async () => {
   const path = await seeds.copyOf(seed);
   let written = '';
@@ -157,6 +171,8 @@ it(`keeps one write on a copy of the seed to at most ${WRITE_PROCESS_BOUND} Git 
 
   expect(written).toBe('retained');
   expect(processes, `Git processes for one write at ${LIMIT - 1} writer chains`).toBeLessThanOrEqual(WRITE_PROCESS_BOUND);
+  // A floor, so a counter that misses Git starts cannot pass: the write reads every writer's head once.
+  expect(processes, 'Git processes the counter saw for one write').toBeGreaterThanOrEqual(LIMIT - 1);
 }, CASE_TIMEOUT_MS);
 
 describe('the edge: exactly 4,096 writer chains (#1197)', () => {

@@ -27,7 +27,11 @@ export async function withEnvironment(variables: Readonly<Record<string, string>
   }
 }
 
-/** The Git processes `run` starts. */
+/**
+ * The Git processes `run` starts. Every caller measures work that must start Git, so a count
+ * of 0 means the counter is blind (Git ran without finding it on PATH), not that the work was
+ * free: that throws instead of returning a count that would pass any upper bound.
+ */
 export async function gitProcesses(run: () => Promise<void>): Promise<number> {
   const shim = mkdtempSync(join(tmpdir(), 'git-process-count-'));
   try {
@@ -36,7 +40,11 @@ export async function gitProcesses(run: () => Promise<void>): Promise<number> {
     writeFileSync(join(shim, 'git'), `#!/bin/sh\nprintf . >>'${starts}'\nexec '${realGit}' "$@"\n`);
     chmodSync(join(shim, 'git'), 0o755);
     await withEnvironment({ PATH: `${shim}:${process.env['PATH'] ?? ''}` }, run);
-    return existsSync(starts) ? readFileSync(starts, 'utf8').length : 0;
+    const counted = existsSync(starts) ? readFileSync(starts, 'utf8').length : 0;
+    if (counted === 0) {
+      throw new Error('The Git process counter saw no Git process start; Git ran without finding the counter on PATH, so the count measures nothing');
+    }
+    return counted;
   } finally {
     rmSync(shim, { recursive: true, force: true });
   }

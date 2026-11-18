@@ -65,6 +65,8 @@ it(`seeds ${POOL.length} pool writer chains with as many Git processes as 2, and
   const whole = await gitProcesses(async () => await seeds.appendPool(path, POOL));
 
   expect(whole, `Git processes to seed ${POOL.length} writer chains`).toBeLessThanOrEqual(POOL_PROCESS_BOUND);
+  // A floor, so a counter that misses Git starts cannot pass: the import starts at least one Git process.
+  expect(two, 'Git processes the counter saw for 2 writer chains').toBeGreaterThan(0);
   expect(whole, 'Git processes to seed 2 writer chains').toBe(two);
   expect(seeds.writerChains(path)).toBe(POOL.length);
 }, CASE_TIMEOUT_MS);
