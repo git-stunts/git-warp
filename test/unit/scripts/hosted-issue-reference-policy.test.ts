@@ -29,6 +29,16 @@ function policyRun(document: Document): string {
   return String(document.getIn([...POLICY_STEP, 'run']));
 }
 
+const RUN_WRAPPER_START = "set -euo pipefail\n\nnode <<'NODE'\n";
+const RUN_WRAPPER_END = '\nNODE\n';
+
+/** Replaces the Node program inside the unchanged shell wrapper of the policy step. */
+function editProgram(document: Document, edit: (program: string) => string): void {
+  const run = policyRun(document);
+  const program = run.slice(RUN_WRAPPER_START.length, run.length - RUN_WRAPPER_END.length);
+  document.setIn([...POLICY_STEP, 'run'], `${RUN_WRAPPER_START}${edit(program)}${RUN_WRAPPER_END}`);
+}
+
 // Each edit changes what the hosted job does outside the Node program, which the harness cannot run.
 const UNMODELLED_EDITS: readonly (readonly [string, (document: Document) => void])[] = [
   ['a shell line runs after the policy script', (document) => {
@@ -63,6 +73,13 @@ const UNMODELLED_EDITS: readonly (readonly [string, (document: Document) => void
   ['the job steps are not a list', (document) => {
     // A mapping that holds the real step, so a harness that reads mappings as steps would accept it.
     document.setIn([...STEPS], document.createNode({ policy: document.getIn([...POLICY_STEP]) }));
+  }],
+  // Bash ends a <<'NODE' heredoc at the first line that is exactly NODE and runs the lines after it as shell.
+  ['the program holds a NODE line, so bash runs the rest as shell', (document) => {
+    editProgram(document, (program) => `var NODE;\n${program}\nNODE\nfalse`);
+  }],
+  ['the program holds a NODE line inside a comment', (document) => {
+    editProgram(document, (program) => `${program}\n/*\nNODE\n*/`);
   }],
 ];
 
@@ -145,6 +162,14 @@ describe('hosted policy harness', () => {
   it('accepts the checked-in workflow after a YAML round trip, so only the edits cause those refusals', () => {
     expect(HostedIssueReferencePolicy.fromWorkflow(editedWorkflow(() => undefined)))
       .toBeInstanceOf(HostedIssueReferencePolicy);
+  });
+
+  it('accepts a changed program whose lines only mention NODE, which bash does not treat as the heredoc end', () => {
+    const workflow = editedWorkflow((document) => {
+      editProgram(document, (program) => `// NODE ends the heredoc only on a line of its own.\n${program}`);
+    });
+
+    expect(HostedIssueReferencePolicy.fromWorkflow(workflow)).toBeInstanceOf(HostedIssueReferencePolicy);
   });
 
   it('fails closed when the script never exits', async () => {

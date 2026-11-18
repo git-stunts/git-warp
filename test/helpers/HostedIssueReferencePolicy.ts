@@ -22,6 +22,9 @@ const POLICY_ENVIRONMENT = 'GITHUB_TOKEN';
 const POLICY_TOKEN = '${{ github.token }}';
 // The whole run block: strict mode, a blank line, then the Node program and nothing else. No `m` flag.
 const POLICY_RUN = /^set -euo pipefail\n\nnode <<'NODE'\n(?<program>[\s\S]*)\nNODE\n?$/u;
+// Bash ends a <<'NODE' heredoc at the first line that is exactly NODE and runs any later line as shell,
+// while POLICY_RUN reads to the last such line. A program with such a line is therefore not modelled.
+const HEREDOC_END_LINE = /^NODE$/mu;
 const HTTP_OK = 200;
 const HTTP_NOT_FOUND = 404;
 
@@ -62,7 +65,8 @@ function policyProgram(document: Document): string | undefined {
   const steps = job.get('steps');
   const step = isSeq(steps) && steps.items.length === 1 ? steps.items[0] : undefined;
   if (!isMap(step) || step.get('shell') !== 'bash' || !hasModelledEnvironment(step)) return undefined;
-  return settingsOf(step) === POLICY_STEP_SETTINGS ? POLICY_RUN.exec(String(step.get('run')))?.groups?.['program'] : undefined;
+  const program = settingsOf(step) === POLICY_STEP_SETTINGS ? POLICY_RUN.exec(String(step.get('run')))?.groups?.['program'] : undefined;
+  return program === undefined || HEREDOC_END_LINE.test(program) ? undefined : program;
 }
 
 /** One hosted-policy run: its exit code, the numbers it looked up, and its console lines, in order. */
