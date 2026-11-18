@@ -48,13 +48,30 @@ describe('ComposeReleasePullRequest.ts', () => {
   });
 });
 
-describe('release runbook', () => {
-  it('opens the release PR with the body that this command writes for the goalpost', () => {
-    const command = [...readFileSync('.github/RELEASE.md', 'utf8').matchAll(/^```bash\n[\s\S]*?^```$/gmu)]
-      .map((match) => match[0])
-      .find((block) => block.includes('gh pr create'));
+const RUNBOOK = '.github/RELEASE.md';
 
-    expect(command, '.github/RELEASE.md has a bash block that runs gh pr create').toBeTypeOf('string');
+/** The runbook's first bash block that holds the command, or undefined. */
+function runbookBlock(command: string): string | undefined {
+  return [...readFileSync(RUNBOOK, 'utf8').matchAll(/^```bash\n[\s\S]*?^```$/gmu)]
+    .map((match) => match[0])
+    .find((block) => block.includes(command));
+}
+
+describe('release runbook', () => {
+  it('confirms the goalpost with plain text, which reads the same on a terminal and in a pipe', () => {
+    // gh prints a --jq string result as raw text; it indents and colours JSON on a terminal.
+    const confirm = runbookBlock('gh api');
+
+    expect(confirm, `${RUNBOOK} has a bash block that runs gh api`).toBeTypeOf('string');
+    expect(confirm).toContain(`--jq 'if .pull_request then "pull request" else "\\(.state) issue" end'`);
+    expect(readFileSync(RUNBOOK, 'utf8')).toContain('It must print `open issue`.');
+    expect(readFileSync(RUNBOOK, 'utf8')).not.toMatch(/"state":\s*"open"/u);
+  });
+
+  it('opens the release PR with the body that this command writes for the goalpost', () => {
+    const command = runbookBlock('gh pr create');
+
+    expect(command, `${RUNBOOK} has a bash block that runs gh pr create`).toBeTypeOf('string');
     expect(command).toContain(
       'body=$(node scripts/release-pr/ComposeReleasePullRequest.ts --tag "v$VERSION" --goalpost "$GOALPOST") &&',
     );

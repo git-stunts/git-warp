@@ -318,11 +318,13 @@ that the number is an open issue and not a pull request:
 ```bash
 GOALPOST="${GOALPOST:?set GOALPOST to the goalpost issue number}"
 gh api "repos/git-stunts/git-warp/issues/$GOALPOST" \
-  --jq '{number, state, title, is_pull_request: (.pull_request != null)}'
+  --jq 'if .pull_request then "pull request" else "\(.state) issue" end'
 ```
 
-The output must show `"state":"open"` and `"is_pull_request":false`. Then open
-the PR from the release-prep branch:
+It must print `open issue`. It prints `closed issue` for a closed issue and
+`pull request` for a pull request; do not use those numbers. For a number that
+does not exist, `gh` fails with `HTTP 404`. Then open the PR from the
+release-prep branch:
 
 ```bash
 GOALPOST="${GOALPOST:?set GOALPOST to the goalpost issue number}"
