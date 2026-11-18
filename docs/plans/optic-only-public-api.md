@@ -669,8 +669,9 @@ list, and each such envelope also counts as unavailable (decided 2026-11-17 on #
   `PUBLICATION_REF_UPDATE_FAILED` around a failed git process or a listed failure at
   the support step, an error a fast-import writer creates above the support host, a
   construction ref that holds no object id, and an error the adapter cannot identify.
-  A rejection at the journal step has saved and reserved nothing. Before a rejection
-  while support is built or checked, the write cancels its reservation; if the cancel
+  A rejection at the journal step has reserved nothing; a record whose save landed
+  before the failure is finished by the recovery sweep. Before a rejection while
+  support is built or checked, the write cancels its reservation; if the cancel
   itself fails, the call still rejects with the original failure. Once custody confirms
   the cancel, the slot is free, and the write releases the construction ref and
   removes the attempt record, each best effort. A cancel that custody cannot confirm,
