@@ -232,19 +232,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`write-basis-unavailable`, `write-premise-unavailable`) and does not reject.
   At those steps, invalid input, a throwing access port, defects, broken
   invariants and repository corruption reject, and a store failure that the
-  adapter cannot identify as transient rejects. The attempt-journal and
-  custody-support steps still turn any failure into `attempt-journal-unavailable`
-  or `retention-unavailable` until #1109 classifies them by type. Corrupt patch
+  adapter cannot identify as transient rejects. #1109 classifies the
+  attempt-journal and custody-support steps the same way (next entry). Corrupt patch
   history met while reading the premise rejects as `WriteHistoryCorruptError`
   instead of a missing-basis refusal. Every failure of the patch feed or the
-  writer's runtime host now rejects too, transient or not, until #1109 classifies
-  them, and so does an error the fast-import writer creates above the store host;
-  on unreleased `main` such a failure returned `write-basis-unavailable`. A held
+  writer's runtime host now rejects too, transient or not, and so does an error the
+  fast-import writer creates above the store host; on unreleased `main` such a failure
+  returned `write-basis-unavailable`. The patch feed and the runtime host are not
+  classified by type yet. A held
   lock during fast-import still gives `write-basis-unavailable`. A git-cas `GIT_OBJECT_NOT_FOUND` read through the
   history adapter is now typed as `PersistenceError` `E_MISSING_OBJECT`, so on the
   checkpoint-shard read it becomes `E_OPTIC_NO_BOUNDED_BASIS`
   (`checkpoint-shard-unavailable`)
   ([#1079](https://github.com/git-stunts/git-warp/issues/1079)).
+- `AuthoredWarp.execute()` classifies the attempt-journal and custody-support steps by
+  type, as #1079 classified the basis-open and premise-read steps
+  ([#1109](https://github.com/git-stunts/git-warp/issues/1109)). The write-attempt
+  journal, when it saves a record, and the observation support adapter type a failure a
+  retry can clear as `WriteAttemptJournalUnavailableError` or
+  `ObservationSupportUnavailableError`, which still gives `attempt-journal-unavailable`
+  or `retention-unavailable`. That covers the shared list (`PersistenceError`
+  `E_REF_IO`, `GitRepositoryLockedError`) as it reaches the journal or the support host,
+  and a real held ref lock at either step: at the journal, the history adapter's retry
+  wrapper `OperationPolicyExhaustedError` whose typed `cause` is on the list; at
+  support, a git-cas `CasError` with code `PUBLICATION_REF_UPDATE_FAILED` whose
+  `meta.originalError` is a `GitProtocolError` or on the list. Every other failure at
+  those steps now rejects. On unreleased `main` each of these gave
+  `attempt-journal-unavailable` or `retention-unavailable` instead:
+
+  - a defect (`TypeError`, `RangeError`) or a thrown non-error;
+  - corruption, such as `PersistenceError` `E_MISSING_OBJECT`, and every git-cas code
+    other than the one above, integrity errors included;
+  - a retry wrapper around a defect or corruption, and an exhausted retry whose last
+    attempt failed with something not on the list, such as `resource temporarily
+    unavailable` from a failed spawn: the journal reads only the last attempt's cause;
+  - the journal's retry policy timing out (`OperationPolicyTimeoutError`);
+  - `PUBLICATION_REF_UPDATE_FAILED` around a defect, a non-error, another class or no
+    original error, and a bare `GitProtocolError`;
+  - an error a fast-import writer creates above the support host. The frontier-anchor
+    writer (`GitFastImportCommitWriter`, which runs on every write whose frontier gained a
+    head) and the support-page writer (`GitFastImportTreeWriter`) re-type an exit-128
+    failure, for example a permission failure, as `PersistenceError` `E_REF_IO`, and that
+    error rejects;
+  - a construction ref that holds no object id;
+  - an error neither adapter can identify.
+
+  A rejection at the journal step has reserved nothing. Before a rejection while support
+  is built, the write cancels its reservation; if the cancel itself fails, the call still
+  rejects with the original failure. Once custody confirms the cancel, the slot is free,
+  and the write releases the support construction ref and removes its attempt record,
+  each best effort. If custody cannot confirm the cancel, or the removal fails, the
+  record stays and the recovery sweep finishes the attempt, so attempt records and
+  retention slots stay accounted for. The construction ref
+  (`refs/warp-local/<graph>/observations/construction/<id>`) can stay behind, however,
+  when its release meets a held ref lock or the cancel acknowledgement is lost, because
+  the recovery sweep does not release it. `main` leaves it the same way through the
+  sweep. On unreleased `main` a failure while support was built gave
+  `retention-unavailable` and left the record and the reserved slot for the sweep. A
+  `retention-unavailable` from unavailable support, a held construction ref lock
+  included, keeps the attempt record and its reserved slot until the recovery sweep
+  finishes the attempt. A failure of the custody ledger itself still gives
+  `retention-unavailable`, whatever its type.
 - Generated writer ids, default strand names, fork names, index-verification
   seeds, and sync request nonces now come from the runtime's injected entropy
   source instead of host crypto globals. Their formats and validation are

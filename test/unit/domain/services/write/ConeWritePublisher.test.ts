@@ -1,19 +1,27 @@
 import { describe, expect, it, vi } from 'vitest';
+import { GitRepositoryLockedError } from '@git-stunts/plumbing/errors';
 import IndeterminateWriteReceipt from '../../../../../src/domain/api/IndeterminateWriteReceipt.ts';
 import UnpublishedWriteReceipt from '../../../../../src/domain/api/UnpublishedWriteReceipt.ts';
+import ObservationSupportUnavailableError from '../../../../../src/domain/errors/ObservationSupportUnavailableError.ts';
+import PersistenceError from '../../../../../src/domain/errors/PersistenceError.ts';
+import WriteAttemptJournalUnavailableError from '../../../../../src/domain/errors/WriteAttemptJournalUnavailableError.ts';
 import WriterError from '../../../../../src/domain/errors/WriterError.ts';
 import ObservationAdmitted from '../../../../../src/domain/services/custody/ObservationAdmitted.ts';
-import type ObservationAttempt from '../../../../../src/domain/services/custody/ObservationAttempt.ts';
+import ObservationAttempt from '../../../../../src/domain/services/custody/ObservationAttempt.ts';
 import ObservationAttemptId from '../../../../../src/domain/services/custody/ObservationAttemptId.ts';
 import ObservationBindings from '../../../../../src/domain/services/custody/ObservationBindings.ts';
 import ObservationBudget from '../../../../../src/domain/services/custody/ObservationBudget.ts';
+import ObservationCustodyIdentity from '../../../../../src/domain/services/custody/ObservationCustodyIdentity.ts';
 import type ObservationCustodyService from '../../../../../src/domain/services/custody/ObservationCustodyService.ts';
 import ObservationDependencyClaim from '../../../../../src/domain/services/custody/ObservationDependencyClaim.ts';
 import ObservationDigest from '../../../../../src/domain/services/custody/ObservationDigest.ts';
+import ObservationIndeterminate from '../../../../../src/domain/services/custody/ObservationIndeterminate.ts';
 import ObservationKnownUnpublished from '../../../../../src/domain/services/custody/ObservationKnownUnpublished.ts';
+import ObservationPreparation from '../../../../../src/domain/services/custody/ObservationPreparation.ts';
 import ObservationPrepared from '../../../../../src/domain/services/custody/ObservationPrepared.ts';
 import ObservationPublicationPermission from '../../../../../src/domain/services/custody/ObservationPublicationPermission.ts';
 import ObservationQuestion from '../../../../../src/domain/services/custody/ObservationQuestion.ts';
+import ObservationReconcileOnly from '../../../../../src/domain/services/custody/ObservationReconcileOnly.ts';
 import ObservationRefused from '../../../../../src/domain/services/custody/ObservationRefused.ts';
 import ObservationUnretained from '../../../../../src/domain/services/custody/ObservationUnretained.ts';
 import ObservationWritePremise from '../../../../../src/domain/services/custody/ObservationWritePremise.ts';
@@ -38,10 +46,11 @@ type Stubs = {
   readonly commit?: () => Promise<object>;
   readonly probe?: Partial<Record<'proves' | 'locate', () => Promise<boolean | object>>>;
   readonly save?: () => Promise<void>;
+  readonly remove?: () => Promise<void>;
 };
 
 function publisherOf(stubs: Stubs): { readonly publisher: ConeWritePublisher; readonly lowered: LoweredConeWrite; readonly remove: ReturnType<typeof vi.fn> } {
-  const remove = vi.fn(() => Promise.resolve());
+  const remove = vi.fn(stubs.remove ?? (() => Promise.resolve()));
   const attempt = { identity: {} } as ObservationAttempt;
   const custody = {
     resume: () => Promise.resolve(new ObservationAdmitted(attempt, 'reserved')),
@@ -75,16 +84,114 @@ function conflict(): WriterError {
 
 const NOT_REVOKED = (): Promise<null> => Promise.resolve(null);
 
+/** A held ref lock, as the history adapter types it: a retry can clear it (#1079). */
+const REF_IO = new PersistenceError('Ref I/O error: refs/warp-local/g/write-attempts/a', PersistenceError.E_REF_IO);
+const JOURNAL_UNAVAILABLE = new WriteAttemptJournalUnavailableError('update a record ref', REF_IO);
+const LOCKED = new GitRepositoryLockedError('Git command failed: repository is locked', 'ExecutionOrchestrator.orchestrate', { code: 128, stderr: 'fatal: Unable to create index.lock' });
+const SUPPORT_UNAVAILABLE = new ObservationSupportUnavailableError('read a ref', LOCKED);
+
+/** The attempt the publisher's first id names, as custody would build it. */
+const ATTEMPT_ID = new ObservationAttemptId('a'.repeat(32));
+const RESERVED_ATTEMPT = new ObservationAttempt({
+  preparation: new ObservationPreparation(ATTEMPT_ID, BINDINGS),
+  identity: new ObservationCustodyIdentity(ATTEMPT_ID, new ObservationDigest('d'.repeat(64))),
+  bytes: Uint8Array.of(1),
+});
+
+/** Failures that no adapter typed as unavailable (#1109): defects, a thrown non-error and corruption. Each must reject. */
+const UNTYPED: ReadonlyArray<readonly [string, Error | string]> = [
+  ['a TypeError', new TypeError("Cannot read properties of undefined (reading 'oid')")],
+  ['a RangeError', new RangeError('Invalid array length')],
+  ['a thrown non-error', 'not an error'],
+  ['corruption', new PersistenceError('Missing Git object', PersistenceError.E_MISSING_OBJECT)],
+];
+
 describe('ConeWritePublisher before permission', () => {
-  it('reports unpublished when the record cannot be saved, having reserved nothing', async () => {
+  it('reports unpublished when the journal is unavailable, having reserved nothing', async () => {
     const resume = vi.fn(() => Promise.reject(new Error('not reached')));
-    const { publisher, lowered } = publisherOf({ save: () => Promise.reject(new Error('disk full')), custody: { resume } });
+    const { publisher, lowered } = publisherOf({ save: () => Promise.reject(JOURNAL_UNAVAILABLE), custody: { resume } });
 
     const receipt = await publisher.publish(lowered, NOT_REVOKED);
 
     expect(receipt).toBeInstanceOf(UnpublishedWriteReceipt);
     expect(receipt instanceof UnpublishedWriteReceipt ? receipt.cause : '').toBe('attempt-journal-unavailable');
     expect(resume).not.toHaveBeenCalled();
+  });
+
+  it.each(UNTYPED)('rejects a journal save that fails with %s, having reserved nothing', async (_name, failure) => {
+    const resume = vi.fn(() => Promise.reject(new Error('not reached')));
+    const { publisher, lowered } = publisherOf({ save: () => Promise.reject(failure), custody: { resume } });
+
+    await expect(publisher.publish(lowered, NOT_REVOKED)).rejects.toBe(failure);
+    expect(resume).not.toHaveBeenCalled();
+  });
+
+  it.each(UNTYPED)('rejects a preparation that fails with %s, and cancels and forgets the attempt it reserved', async (_name, failure) => {
+    const cancel = vi.fn(() => Promise.resolve(new ObservationKnownUnpublished(RESERVED_ATTEMPT)));
+    const { publisher, lowered, remove } = publisherOf({ custody: { prepare: () => Promise.reject(failure), cancel } });
+
+    await expect(publisher.publish(lowered, NOT_REVOKED)).rejects.toBe(failure);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(remove).toHaveBeenCalledOnce();
+  });
+
+  it('still rejects with the preparation failure when removing the cancelled record fails, leaving it for the sweep', async () => {
+    const failure = new RangeError('Invalid array length');
+    const cancel = vi.fn(() => Promise.resolve(new ObservationKnownUnpublished(RESERVED_ATTEMPT)));
+    const { publisher, lowered, remove } = publisherOf({
+      custody: { prepare: () => Promise.reject(failure), cancel },
+      remove: () => Promise.reject(REF_IO),
+    });
+
+    await expect(publisher.publish(lowered, NOT_REVOKED)).rejects.toBe(failure);
+    expect(remove).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['indeterminate', new ObservationIndeterminate('cancellation', REF_IO)],
+    ['refused', new ObservationRefused('contention')],
+    ['reconcile-only', new ObservationReconcileOnly(RESERVED_ATTEMPT)],
+  ])('keeps the record of a rejected preparation whose cancel is %s, since it may still hold a slot', async (_name, outcome) => {
+    const failure = new RangeError('Invalid array length');
+    const cancel = vi.fn(() => Promise.resolve(outcome));
+    const { publisher, lowered, remove } = publisherOf({ custody: { prepare: () => Promise.reject(failure), cancel } });
+
+    await expect(publisher.publish(lowered, NOT_REVOKED)).rejects.toBe(failure);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('still rejects with the preparation failure when cancelling the attempt throws, and keeps the record', async () => {
+    const failure = new RangeError('Invalid array length');
+    const cancel = vi.fn(() => Promise.reject(new Error('cancel went away')));
+    const { publisher, lowered, remove } = publisherOf({ custody: { prepare: () => Promise.reject(failure), cancel } });
+
+    await expect(publisher.publish(lowered, NOT_REVOKED)).rejects.toBe(failure);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('still rejects with the access port failure when cancelling the attempt throws, and keeps the record', async () => {
+    const failure = new RangeError('boundary went away');
+    const cancel = vi.fn(() => Promise.reject(new Error('cancel went away')));
+    const { publisher, lowered, remove } = publisherOf({ custody: { cancel } });
+
+    await expect(publisher.publish(lowered, () => Promise.reject(failure))).rejects.toBe(failure);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('reports retention-unavailable for unavailable support, and keeps the record for the sweep', async () => {
+    const cancel = vi.fn(() => Promise.reject(new Error('not reached')));
+    const { publisher, lowered, remove } = publisherOf({
+      custody: { prepare: () => Promise.resolve(new ObservationIndeterminate('preparation', SUPPORT_UNAVAILABLE)), cancel },
+    });
+
+    const receipt = await publisher.publish(lowered, NOT_REVOKED);
+
+    expect(receipt instanceof UnpublishedWriteReceipt ? receipt.cause : '').toBe('retention-unavailable');
+    expect(cancel).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
   });
 
   it('cancels and forgets an attempt whose preparation is refused', async () => {

@@ -1,6 +1,7 @@
 import { setImmediate } from 'node:timers';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ObservationCustodyError from '../../../../../src/domain/errors/ObservationCustodyError.ts';
+import ObservationSupportUnavailableError from '../../../../../src/domain/errors/ObservationSupportUnavailableError.ts';
 import CustodyAcknowledged from '../../../../../src/domain/services/custody/CustodyAcknowledged.ts';
 import CustodyEvidence from '../../../../../src/domain/services/custody/CustodyEvidence.ts';
 import CustodyIndeterminate from '../../../../../src/domain/services/custody/CustodyIndeterminate.ts';
@@ -52,6 +53,8 @@ const COMMIT = '34'.repeat(20);
 const custodyCodec = new ObservationCustodyCborCodec(codec);
 const crypto = new NodeCryptoAdapter();
 const failure = new Error('store unavailable');
+/** Support failures become outcomes only when the support adapter typed them unavailable (#1109). */
+const unavailable = new ObservationSupportUnavailableError('read a ref', failure);
 
 class FixedAttempts extends ObservationAttemptSourcePort {
   override next(): ObservationAttemptId {
@@ -192,10 +195,8 @@ describe('ObservationCustodyService', () => {
       expect(await service.prepare(attempt, sources())).toEqual(new ObservationRefused('frontier-limit'));
       support.retention = async () => await Promise.resolve(new ObservationSupportCancelled());
       expect(await service.prepare(attempt, sources())).toEqual(new ObservationRefused('cancelled'));
-      support.retention = async () => await Promise.reject(failure);
-      expect(await service.prepare(attempt, sources())).toEqual(new ObservationIndeterminate('preparation', failure));
-      support.retention = async () => await Promise.reject(new Error('later'));
-      expect(await service.prepare(attempt, sources())).toBeInstanceOf(ObservationIndeterminate);
+      support.retention = async () => await Promise.reject(unavailable);
+      expect(await service.prepare(attempt, sources())).toEqual(new ObservationIndeterminate('preparation', unavailable));
 
       support = new ScriptedSupport();
       const fresh = new ObservationCustodyService({
@@ -206,14 +207,6 @@ describe('ObservationCustodyService', () => {
       expect(support.releases).toBe(0);
       custody.prepared = new CustodyIndeterminate(failure);
       expect(await fresh.prepare(attempt, sources())).toEqual(new ObservationIndeterminate('preparation', failure));
-    });
-
-    it('reports a non-Error builder rejection as indeterminate', async () => {
-      const attempt = await readAttempt();
-      support.retention = async () => await Promise.reject('text failure');
-      const outcome = await service.prepare(attempt, sources());
-      expect(outcome).toBeInstanceOf(ObservationIndeterminate);
-      expect(outcome).toMatchObject({ step: 'preparation', cause: { code: 'E_OBSERVATION_CUSTODY_INVALID' } });
     });
 
     it('recovers a past preparation from evidence, never rebuilding', async () => {
@@ -448,10 +441,8 @@ describe('ObservationCustodyService', () => {
       expect(await service.prepare(attempt, sources())).toEqual(new ObservationRefused('work-limit'));
       expect(custody.pages).toHaveLength(0);
       support.fault = null;
-      const verify = vi.spyOn(support, 'verify').mockRejectedValueOnce(failure);
-      expect(await service.prepare(attempt, sources())).toEqual(new ObservationIndeterminate('preparation', failure));
-      verify.mockRejectedValueOnce('text failure');
-      expect(await service.prepare(attempt, sources())).toBeInstanceOf(ObservationIndeterminate);
+      const verify = vi.spyOn(support, 'verify').mockRejectedValueOnce(unavailable);
+      expect(await service.prepare(attempt, sources())).toEqual(new ObservationIndeterminate('preparation', unavailable));
       verify.mockRestore();
       expect(custody.pages).toHaveLength(0);
     });
@@ -521,9 +512,9 @@ describe('ObservationCustodyService', () => {
         setImmediate(resolve);
       });
       const cancelling = service.cancel(attempt);
-      reject(failure);
+      reject(unavailable);
       expect(await cancelling).toBeInstanceOf(ObservationKnownUnpublished);
-      expect(await preparing).toEqual(new ObservationIndeterminate('preparation', failure));
+      expect(await preparing).toEqual(new ObservationIndeterminate('preparation', unavailable));
     });
 
     it('stops owned work before reconciling', async () => {

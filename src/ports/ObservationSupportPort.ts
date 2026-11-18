@@ -14,6 +14,9 @@ export type ObservationSupportOutcome = ObservationSupportRetained | Observation
  * object id is not a reachability edge: writer history needs commit parents,
  * and content needs tree or blob edges. Writer heads come from the frontier
  * stored in the basis, never from the caller. All work is explicitly bounded.
+ *
+ * A host failure a retry can clear throws `ObservationSupportUnavailableError` (#1109). Any
+ * other failure, such as corruption or a defect, passes through, and preparation rejects.
  */
 export default abstract class ObservationSupportPort {
   /** Builds the attempt's edges from its original sources, resuming any verified construction. */

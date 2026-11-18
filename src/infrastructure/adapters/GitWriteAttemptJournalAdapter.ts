@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import type ObservationAttemptId from '../../domain/services/custody/ObservationAttemptId.ts';
 import AdapterValidationError from '../../domain/errors/AdapterValidationError.ts';
+import OperationPolicyExhaustedError from '../../domain/errors/OperationPolicyExhaustedError.ts';
 import UnsupportedWriteAttemptLayoutError from '../../domain/errors/UnsupportedWriteAttemptLayoutError.ts';
 import WarpError from '../../domain/errors/WarpError.ts';
+import WriteAttemptJournalUnavailableError from '../../domain/errors/WriteAttemptJournalUnavailableError.ts';
 import ObservationDecodeFailure from '../../domain/services/custody/ObservationDecodeFailure.ts';
 import WriteOccurrence from '../../domain/api/WriteOccurrence.ts';
 import WriteRace from '../../domain/api/WriteRace.ts';
@@ -12,6 +14,7 @@ import { buildWriteAttemptRef, buildWriteAttemptsPrefix } from '../../domain/uti
 import type CodecPort from '../../ports/CodecPort.ts';
 import type ObservationCustodyCodecPort from '../../ports/ObservationCustodyCodecPort.ts';
 import WriteAttemptJournalPort from '../../ports/WriteAttemptJournalPort.ts';
+import { isTransientGitFailure } from './GitTransientFailure.ts';
 
 /**
  * 2: saves `races` (#1072). A well-formed record in any other layout is refused by its ref,
@@ -92,8 +95,14 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
     this.#custodyCodec = fields.custodyCodec;
   }
 
+  /**
+   * A host failure a retry can clear throws `WriteAttemptJournalUnavailableError` with that
+   * failure as its cause (#1109): one on the shared list (`isTransientGitFailure`), or the
+   * history adapter's retry wrapper around one. Any other failure, a defect in encoding or a
+   * retry wrapper around a defect or corruption included, passes through as it is.
+   */
   override async save(record: WriteAttemptRecord): Promise<void> {
-    const oid = await this.#history.writeBlob(this.#codec.encode({
+    const bytes = this.#codec.encode({
       version: RECORD_VERSION,
       preparation: this.#custodyCodec.encodePreparation(record.preparation),
       admission: record.admission,
@@ -102,8 +111,9 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
       savedAt: record.savedAt,
       reported: record.reported,
       commit: record.commit,
-    }));
-    await this.#history.updateRef(buildWriteAttemptRef(this.#graph, record.attemptId.value), oid);
+    });
+    const oid = await journalCall('write a record', async () => await this.#history.writeBlob(bytes));
+    await journalCall('update a record ref', async () => { await this.#history.updateRef(buildWriteAttemptRef(this.#graph, record.attemptId.value), oid); });
   }
 
   override async read(attemptId: ObservationAttemptId): Promise<WriteAttemptRecord | null> {
@@ -209,6 +219,31 @@ export default class GitWriteAttemptJournalAdapter extends WriteAttemptJournalPo
       return refusedRecord(error);
     }
   }
+}
+
+/** One host call of a save, its failure classified as `GitConeStoreHost` classifies the cone store's (#1079). */
+async function journalCall<T>(operation: string, call: () => Promise<T>): Promise<T> {
+  try {
+    return await call();
+  } catch (error) {
+    throw journalFailure(operation, error);
+  }
+}
+
+function journalFailure(operation: string, error: unknown): Error {
+  if (!(error instanceof Error)) {
+    return new WarpError(`The write-attempt journal host threw a non-error value while trying to ${operation}`, 'E_WRITE_ATTEMPT_JOURNAL_HOST_DEFECT');
+  }
+  return isJournalTransient(error) ? new WriteAttemptJournalUnavailableError(operation, error) : error;
+}
+
+/**
+ * The shared list, or the history adapter's retry wrapper whose typed cause is on it (#1109
+ * decision D1): a held lock on the record ref outlasts the ref update's retries, so it
+ * arrives as `OperationPolicyExhaustedError` around `GitRepositoryLockedError`.
+ */
+function isJournalTransient(error: Error): boolean {
+  return isTransientGitFailure(error) || (error instanceof OperationPolicyExhaustedError && isTransientGitFailure(error.cause));
 }
 
 /** Sorts one listed blob into the page: a record, an other-layout ref, or nothing. */

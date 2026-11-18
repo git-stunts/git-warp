@@ -5,6 +5,7 @@ import IndeterminateWriteReceipt from '../../api/IndeterminateWriteReceipt.ts';
 import type { RepairHint } from '../../api/ReceiptSupport.ts';
 import UnpublishedWriteReceipt from '../../api/UnpublishedWriteReceipt.ts';
 import UnretainedWriteReceipt from '../../api/UnretainedWriteReceipt.ts';
+import WriteAttemptJournalUnavailableError from '../../errors/WriteAttemptJournalUnavailableError.ts';
 import type { PatchCommitResult } from '../../types/PatchCommitResult.ts';
 import ObservationAdmitted from '../custody/ObservationAdmitted.ts';
 import type ObservationAttempt from '../custody/ObservationAttempt.ts';
@@ -114,11 +115,12 @@ export default class ConeWritePublisher {
   }
 
   async #armed(record: WriteAttemptRecord, attempt: ObservationAttempt, revocation: () => Promise<string | null>): Promise<ObservationPublicationPermission | UnpublishedWriteReceipt> {
-    const prepared = await contended(async () => await this.#custody.prepare(attempt, { dependencies: NO_DEPENDENCIES() }));
+    const reserved = { record, attempt };
+    const prepared = await this.#stoppedOnThrow(reserved, async () => await contended(async () => await this.#custody.prepare(attempt, { dependencies: NO_DEPENDENCIES() })));
     if (!(prepared instanceof ObservationPrepared)) {
       return await this.#notPermitted(record, { step: prepared, attempt });
     }
-    const revoked = await this.#revocationChecked({ record, attempt, revocation });
+    const revoked = await this.#stoppedOnThrow(reserved, revocation);
     if (revoked !== null) {
       return await this.#revoked(record, attempt, revoked);
     }
@@ -126,17 +128,30 @@ export default class ConeWritePublisher {
     return armed instanceof ObservationPublicationPermission ? armed : await this.#notPermitted(record, { step: armed, attempt });
   }
 
-  /** An access port that throws here stops the attempt, rather than leave it charged until a sweep. */
-  async #revocationChecked(run: {
-    readonly record: WriteAttemptRecord;
-    readonly attempt: ObservationAttempt;
-    readonly revocation: () => Promise<string | null>;
-  }): Promise<string | null> {
+  /**
+   * A reserved attempt whose step throws is stopped before the call rejects, rather than left
+   * charged until a sweep: an access port that throws, or preparation that meets a defect or
+   * corruption while it builds support (#1109). A cancel custody cannot confirm keeps the record.
+   * The call rejects with the step's own failure, even when stopping fails too.
+   */
+  async #stoppedOnThrow<T>(reserved: { readonly record: WriteAttemptRecord; readonly attempt: ObservationAttempt }, step: () => Promise<T>): Promise<T> {
     try {
-      return await run.revocation();
+      return await step();
     } catch (error) {
-      await this.#stop(run.record, run.attempt);
+      await this.#stopBeforeRejecting(reserved);
       throw error;
+    }
+  }
+
+  /**
+   * A stop that fails keeps the record, so the sweep finishes the attempt. Its failure is not
+   * attached to the step's: that error may be a non-error, or carry its own `cause` already.
+   */
+  async #stopBeforeRejecting(reserved: { readonly record: WriteAttemptRecord; readonly attempt: ObservationAttempt }): Promise<void> {
+    try {
+      await this.#stop(reserved.record, reserved.attempt);
+    } catch {
+      // The caller sees the step's failure. The record stays for the sweep.
     }
   }
 
@@ -161,13 +176,20 @@ export default class ConeWritePublisher {
     }
   }
 
-  /** Nothing is reserved until the record is durable, so an attempt that fails here has no trace to recover. */
+  /**
+   * Nothing is reserved until the record is durable, so an attempt that fails here has no trace
+   * to recover. Only a journal the adapter typed as unavailable gives a receipt (#1109); a defect,
+   * a broken invariant or corruption rejects.
+   */
   async #saved(record: WriteAttemptRecord): Promise<boolean> {
     try {
       await this.#journal.save(record);
       return true;
-    } catch {
-      return false;
+    } catch (error) {
+      if (error instanceof WriteAttemptJournalUnavailableError) {
+        return false;
+      }
+      throw error;
     }
   }
 
