@@ -27,7 +27,7 @@ const FORBIDDEN_ROOT_SUBSTRATE_EXPORTS = Object.freeze([
   'WarpWorldlineOpticBasis',
   'ProjectionHandle',
   'WorldlineOptic',
-  'Optic',
+  // `Optic` is absent: v21 exports the observer-bound Optic from the root (#1052).
   'Patch',
   'PatchBuilder',
   'PatchCommitter',

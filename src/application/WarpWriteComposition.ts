@@ -5,6 +5,7 @@ import ConeLaneBasis from '../domain/services/cone/ConeLaneBasis.ts';
 import ContentStagingAuthority from '../domain/services/ContentStagingAuthority.ts';
 import ObservationCustodyService from '../domain/services/custody/ObservationCustodyService.ts';
 import ObservationSupportLimits from '../domain/services/custody/ObservationSupportLimits.ts';
+import ConeReadExecutor from '../domain/services/read/ConeReadExecutor.ts';
 import ConeWriteExecutor from '../domain/services/write/ConeWriteExecutor.ts';
 import ConeWriteLowering from '../domain/services/write/ConeWriteLowering.ts';
 import ConeWritePublisher from '../domain/services/write/ConeWritePublisher.ts';
@@ -76,6 +77,7 @@ export function overrideWarpComposition(access: WarpAccessPort, overrides: WarpC
 /** What a Warp drives. */
 export type WarpWrites = {
   readonly executor: ConeWriteExecutor;
+  readonly reads: ConeReadExecutor;
   /**
    * Opens the write path if no granted operation has yet, which marks the substrate, installs
    * the retention policy and sweeps unfinished attempts, then returns its custody.
@@ -122,9 +124,11 @@ function composeOverStorage(run: {
   const hosts = writerHosts({ graph, storage, ports, logger });
   const content = new ContentStagingAuthority();
   const opened = onFirstUse(async () => await openPath({ graph, git, ports, overrides, storage, content, hosts }));
+  const readCone = onFirstUse(async () => await openCone({ graph, git, ports, storage }));
   return {
     openCustody: async () => (await opened()).custody,
     executor: new ConeWriteExecutor({ graph, access, path: async () => (await opened()).path }),
+    reads: new ConeReadExecutor({ graph, access, cone: async () => (await readCone()).basis, ...(logger === undefined ? {} : { logger }) }),
     stage: async (writer, staged) => await content.stage({ assetStorage: (await hosts(writer))._assetStorage, content: staged.content, metadata: staged.metadata, slug: `${graph}/${writer}` }),
     close: async () => await storage.close(),
   };

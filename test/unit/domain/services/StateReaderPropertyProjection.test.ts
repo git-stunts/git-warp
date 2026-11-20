@@ -9,6 +9,7 @@ import {
 import type { QueryReadHost } from '../../../../src/domain/services/controllers/ReadGraphHost.ts';
 import {
   createSnapshotORSet,
+  createSnapshotPropValue,
   createSnapshotVersionVector,
   createSnapshotWarpState,
 } from '../../../../src/domain/services/ImmutableSnapshot.ts';
@@ -105,6 +106,19 @@ describe('StateReader property projection routing', () => {
     );
   });
 
+  it('hydrates snapshot byte and array property values into the same reader values', () => {
+    const value = createSnapshotPropValue(['label', new Uint8Array([7, 8]), [new Uint8Array([9])]]);
+
+    const props = createStateReader(snapshotWithPropertyValue(value)).getNodeProps('node:1');
+
+    expect(props).toEqual({ payload: value });
+  });
+
+  it('rejects a reader source that is neither live nor snapshot state', () => {
+    // @ts-expect-error The runtime boundary must reject an unrecognized state source.
+    expect(() => createStateReader({ nodeAlive: null })).toThrow(/WarpState or SnapshotWarpState/);
+  });
+
   it('rejects cyclic snapshot property values during reader hydration', () => {
     const cyclic = {};
     Object.defineProperty(cyclic, 'self', {
@@ -150,6 +164,35 @@ describe('StateReader property projection routing', () => {
     expect(() => createStateReader(snapshotWithPropertyValue(payload))).toThrow(
       /Snapshot property value/,
     );
+  });
+});
+
+describe('StateReader property bags keep every stored key as a property (#1052, Safety Review F7)', () => {
+  it('reads a stored node property named __proto__ as an own property, without changing the bag prototype', () => {
+    const state = WarpState.empty();
+    addLiveNode(state, 'node:1', 1);
+    setPropFromReg(state, encodePropKey('node:1', '__proto__'), register(2, { polluted: true }));
+    setPropFromReg(state, encodePropKey('node:1', 'status'), register(3, 'ready'));
+
+    const props = createStateReader(state).getNodeProps('node:1') ?? Object.freeze({});
+
+    expect(Object.keys(props).sort()).toEqual(['__proto__', 'status']);
+    expect(Object.hasOwn(props, '__proto__')).toBe(true);
+    expect(Reflect.getPrototypeOf(props)).toBe(Object.prototype);
+    expect('polluted' in props).toBe(false);
+  });
+
+  it('reads a stored edge property named __proto__ as an own property', () => {
+    const state = WarpState.empty();
+    addLiveNode(state, 'node:1', 1);
+    addLiveNode(state, 'node:2', 2);
+    addLiveEdge(state, 'node:1', 'node:2', 'rel', 3);
+    setPropFromReg(state, encodeEdgePropKey('node:1', 'node:2', 'rel', '__proto__'), register(4, 'kept'));
+
+    const reader = createStateReader(state);
+
+    expect(reader.getEdgeProps('node:1', 'node:2', 'rel')).toEqual(Object.fromEntries([['__proto__', 'kept']]));
+    expect(reader.getEdges()[0]?.props).toEqual(Object.fromEntries([['__proto__', 'kept']]));
   });
 });
 

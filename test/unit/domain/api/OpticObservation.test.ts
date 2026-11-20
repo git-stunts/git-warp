@@ -1,0 +1,186 @@
+import { describe, expect, it } from 'vitest';
+import OpticObservation, { type OpticExecution } from '../../../../src/domain/api/OpticObservation.ts';
+import OpticReading from '../../../../src/domain/api/OpticReading.ts';
+import OpticReceipt from '../../../../src/domain/api/OpticReceipt.ts';
+import OpticError from '../../../../src/domain/errors/OpticError.ts';
+
+describe('OpticObservation', () => {
+  function makeReceipt(status: 'completed' | 'cancelled' | 'failed' = 'completed', cause: string | null = status === 'completed' ? null : status): OpticReceipt {
+    return new OpticReceipt({
+      status,
+      graph: 'graph-1',
+      observer: 'audit:agent-1',
+      purpose: 'audit:investigation/v1',
+      question: 'node.property/v1',
+      cause,
+      records: 1,
+    });
+  }
+
+  function makeExecution(readingsList: OpticReading[]): OpticExecution {
+    return {
+      async *readings() {
+        for (const r of readingsList) {
+          yield r;
+        }
+        return makeReceipt('completed');
+      },
+      cancelled() {
+        return makeReceipt('cancelled');
+      },
+      failed(cause: string) {
+        return makeReceipt('failed', cause);
+      },
+    };
+  }
+
+  it('is frozen upon construction', () => {
+    const obs = new OpticObservation(makeExecution([]));
+    expect(Object.isFrozen(obs)).toBe(true);
+  });
+
+  it('yields readings and settles receipt upon iteration completion', async () => {
+    const reading = new OpticReading({
+      subject: 'node-1',
+      key: 'title',
+      present: true,
+      value: 'hello',
+    });
+    const obs = new OpticObservation(makeExecution([reading]));
+    const collected: OpticReading[] = [];
+    for await (const r of obs) {
+      collected.push(r);
+    }
+    expect(collected).toEqual([reading]);
+    const receipt = await obs.receipt;
+    expect(receipt.status).toBe('completed');
+  });
+
+  it('drains readings automatically when only receipt is awaited', async () => {
+    const reading = new OpticReading({
+      subject: 'node-1',
+      key: null,
+      present: true,
+      value: null,
+    });
+    const obs = new OpticObservation(makeExecution([reading]));
+    const receipt = await obs.receipt;
+    expect(receipt.status).toBe('completed');
+  });
+
+  it('cancels observation when cancel() is explicitly called', async () => {
+    const obs = new OpticObservation(makeExecution([]));
+    const receipt = await obs.cancel();
+    expect(receipt.status).toBe('cancelled');
+    expect(await obs.receipt).toBe(receipt);
+  });
+
+  it('settles a failed receipt when readings() throws an unexpected error during iteration or receipt drain', async () => {
+    const failingExecution: OpticExecution = {
+      // eslint-disable-next-line require-yield -- Throws before yielding
+      async *readings() {
+        await Promise.resolve();
+        throw new Error('storage-io-error');
+      },
+      cancelled() {
+        return makeReceipt('cancelled');
+      },
+      failed(cause: string) {
+        return makeReceipt('failed', cause);
+      },
+    };
+    const obs1 = new OpticObservation(failingExecution);
+    await expect(async () => {
+      for await (const _r of obs1) {
+        // should throw
+      }
+    }).rejects.toThrow('storage-io-error');
+    const receipt1 = await obs1.receipt;
+    expect(receipt1.status).toBe('failed');
+    expect(receipt1.cause).toBe('observation-failed');
+
+    const obs2 = new OpticObservation(failingExecution);
+    const receipt2 = await obs2.receipt;
+    expect(receipt2.status).toBe('failed');
+    expect(receipt2.cause).toBe('observation-failed');
+  });
+
+  it('cancels when its iterator is closed before the first next(), so the receipt settles', async () => {
+    const obs = new OpticObservation(makeExecution([new OpticReading({ subject: 'node-1', key: null, present: true, value: null })]));
+    const iterator = obs[Symbol.asyncIterator]();
+
+    expect(await iterator.return?.()).toEqual({ done: true, value: undefined });
+
+    // An already settled receipt wins the race; an unsettled one loses to the resolved marker.
+    expect(await Promise.race([obs.receipt, Promise.resolve('still pending')])).toMatchObject({ status: 'cancelled', cause: 'cancelled' });
+    expect(await iterator.next()).toEqual({ done: true, value: undefined });
+  });
+
+  function defective(thrown: () => never, reported: Error[]): OpticExecution {
+    return {
+      // eslint-disable-next-line require-yield -- Throws before yielding
+      async *readings() {
+        await Promise.resolve();
+        thrown();
+      },
+      cancelled() {
+        return makeReceipt('cancelled');
+      },
+      failed(cause: string) {
+        return makeReceipt('failed', cause);
+      },
+      reportDefect(error: Error) {
+        reported.push(error);
+      },
+    };
+  }
+
+  it('reports a defect on a read nobody iterates, which its failed receipt alone would lose', async () => {
+    const defect = new Error('storage-io-error');
+    const reported: Error[] = [];
+    const obs = new OpticObservation(defective(() => { throw defect; }, reported));
+
+    expect(await obs.receipt).toMatchObject({ status: 'failed', cause: 'observation-failed' });
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toBe(defect);
+  });
+
+  it('leaves a defect on an iterated read to its consumer, without reporting it', async () => {
+    const defect = new Error('storage-io-error');
+    const reported: Error[] = [];
+    const obs = new OpticObservation(defective(() => { throw defect; }, reported));
+
+    await expect(async () => {
+      for await (const _r of obs) {
+        // the defect reaches this consumer
+      }
+    }).rejects.toBe(defect);
+    expect(await obs.receipt).toMatchObject({ status: 'failed', cause: 'observation-failed' });
+    expect(reported).toEqual([]);
+  });
+
+  it('reports a thrown value that is not an Error as an OpticError defect', async () => {
+    const reported: Error[] = [];
+    // A JavaScript dependency can throw a value that is not an Error.
+    const obs = new OpticObservation(defective(() => { throw 'not an error'; }, reported));
+
+    expect(await obs.receipt).toMatchObject({ status: 'failed', cause: 'observation-failed' });
+    expect(reported).toEqual([expect.objectContaining({ name: 'OpticError', code: 'E_OBSERVATION_DEFECT' })]);
+  });
+
+  it('refuses multiple consumers with OpticError (E_OBSERVATION_CONSUMED)', async () => {
+    const obs = new OpticObservation(makeExecution([]));
+    const iterator = obs[Symbol.asyncIterator]();
+    await iterator.next();
+
+    expect(() => obs[Symbol.asyncIterator]()).toThrow(OpticError);
+    try {
+      obs[Symbol.asyncIterator]();
+    } catch (err) {
+      expect(err).toBeInstanceOf(OpticError);
+      if (err instanceof OpticError) {
+        expect(err.code).toBe('E_OBSERVATION_CONSUMED');
+      }
+    }
+  });
+});

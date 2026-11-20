@@ -10,10 +10,12 @@ import {
   Warp,
   WarpAccessDenied,
   WarpAccessPort,
+  ReadBudget,
   WarpAddress,
+  WarpReadGrant,
   WarpWriteGrant,
 } from '../../index.ts';
-import type { WriteReceipt, WarpOpenOptions, WarpWriteRequest } from '../../index.ts';
+import type { WriteReceipt, WarpOpenOptions, WarpReadRequest, WarpWriteRequest } from '../../index.ts';
 import { getDefaultRuntimeHostNodePorts } from '../../src/application/RuntimeHostNodeDefaults.ts';
 import { resolveWarpStorage } from '../../src/application/WarpStorageRegistry.ts';
 import { composeWarpWrites, overrideWarpComposition, type WarpCompositionOverrides, type WarpWrites } from '../../src/application/WarpWriteComposition.ts';
@@ -38,6 +40,12 @@ export class TestAccess extends WarpAccessPort {
   constructor(denied: Iterable<string> = []) {
     super();
     this.denied = new Set(denied);
+  }
+
+  override authorizeRead(request: WarpReadRequest): Promise<WarpReadGrant | WarpAccessDenied> {
+    return Promise.resolve(this.denied.has(request.observer.subject)
+      ? new WarpAccessDenied('this observer may not read')
+      : new WarpReadGrant({ authority: `test:${request.observer.toString()}`, budget: request.budget ?? ReadBudget.of({ records: 64, bytes: 4096, work: 64 }) }));
   }
 
   override authorizeWrite(request: WarpWriteRequest): Promise<WarpWriteGrant | WarpAccessDenied> {
@@ -227,4 +235,3 @@ export function boundRaces(core: ObservationReceiptCore): string {
   const start = text.indexOf('"races":');
   return start === -1 ? 'no races bound' : text.slice(start + '"races":'.length, text.indexOf(',"version":', start));
 }
-

@@ -1,4 +1,6 @@
-import type WarpAccessDenied from '../domain/api/WarpAccessDenied.ts';
+import WarpAccessDenied from '../domain/api/WarpAccessDenied.ts';
+import type WarpReadGrant from '../domain/api/WarpReadGrant.ts';
+import type WarpReadRequest from '../domain/api/WarpReadRequest.ts';
 import type WarpWriteGrant from '../domain/api/WarpWriteGrant.ts';
 import type WarpWriteRequest from '../domain/api/WarpWriteRequest.ts';
 
@@ -8,8 +10,12 @@ import type WarpWriteRequest from '../domain/api/WarpWriteRequest.ts';
  * credential, so an implementation must not authorize one merely by matching it, and a
  * request names no caller: capture the caller when constructing the port. It is asked
  * twice for a write that reaches publication, and with no intents before `reconcile` and `stage`.
- * #1052 adds the read decisions.
  */
 export default abstract class WarpAccessPort {
   abstract authorizeWrite(_request: WarpWriteRequest): Promise<WarpWriteGrant | WarpAccessDenied>;
+
+  /** Decides one read before anything is read. A port that doesn't override this refuses all reads. */
+  authorizeRead(_request: WarpReadRequest): Promise<WarpReadGrant | WarpAccessDenied> {
+    return Promise.resolve(new WarpAccessDenied('this access boundary permits no reads'));
+  }
 }

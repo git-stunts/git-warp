@@ -350,6 +350,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Observer-bound Optic reads of node presence and node properties
+  ([#1052](https://github.com/git-stunts/git-warp/issues/1052)). `warp.forObserver(observer)`
+  returns an `ObservedWarp` for an `ObserverIdentity`, and
+  `Optic(view).forPurpose(purpose).node(subject)` or `.node(subject).prop(key)` builds an
+  `OpticQuery`. Its `read()` returns an `OpticObservation` that streams `OpticReading` values
+  and settles to one `OpticReceipt`, whose status is an `OpticReceiptStatus`: `completed`,
+  `cancelled`, `refused`, `failed` or `budget-exhausted`. A completed receipt has no
+  `Coordinate` yet. `Warp.close()` cancels the reads it holds and waits for reads that are
+  starting.
+  The injected port decides each read before anything is read, through the new
+  `WarpAccessPort.authorizeRead(request)`. Its `WarpReadRequest` names the graph, observer,
+  `Purpose`, question, subject, key and requested `ReadBudget`, so a port can allow one
+  subject or property and refuse another. It returns a `WarpReadGrant` or a
+  `WarpAccessDenied`. The default `authorizeRead` refuses every read, so an existing port
+  must override it to allow reads.
+  A read reads the subject's record only, and does no repair, checkpoint, fork or
+  whole-state fallback. A reading larger than the granted `bytes` limit ends the read with
+  `budget-exhausted`. The `work` limit is validated but not enforced yet.
+  A granted read can write refs. On a graph that has no refs under `refs/warp/<graph>/`, it
+  writes the substrate marker `refs/warp/<graph>/substrate-version`. When writer patches are
+  not yet folded into the read cone, it folds them and moves `refs/warp/<graph>/cone/head`.
+  The write path writes the same refs. A refused read writes nothing.
+  The package root adds the values `Optic`, `ObserverIdentity`, `Purpose`, `ReadBudget`,
+  `WarpReadGrant` and `OpticReceipt`, and the types `ObservedWarp`, `OpticQuery`,
+  `WarpReadRequest`, `OpticReceiptStatus`, `OpticObservation` and `OpticReading`.
 - `Warp.open(address, access, { logger })` accepts an optional `LoggerPort`, now exported from
   the package root with the `LogFields`, `LogFieldValue` and `WarpOpenOptions` types. The `warn`
   removal policy reports to it, and a logger that throws or rejects cannot affect a write. Without a
@@ -375,8 +400,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `RetainedWriteReceipt`, `UnretainedWriteReceipt`, `UnpublishedWriteReceipt` or
   `IndeterminateWriteReceipt`; only the retained one has a `Coordinate`.
   `AuthoredWarp.reconcile` asks again after an indeterminate or unretained write, and
-  `AuthoredWarp.stage` stages text. `Warp` has no reads until
-  [#1052](https://github.com/git-stunts/git-warp/issues/1052)
+  `AuthoredWarp.stage` stages text
   ([#1051](https://github.com/git-stunts/git-warp/issues/1051)).
 - Add the private causal-cone engine foundation: validated records, incremental
   folding and ingest, admission indexes, concurrency/plurality, scoped bases,

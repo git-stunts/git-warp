@@ -5,9 +5,9 @@
  *
  * Write intents. Observe lanes. Keep receipts.
  *
- * `Warp` writes: `warp.as(writer).execute(intent)` returns a `WriteReceipt`. `Runtime`
- * keeps only the legacy read path (`Runtime.open()`, `runtime.lane()`, `Lane.observe`)
- * until #1052 replaces it with the Optic read. Generated SDKs provide validated
+ * `Warp` writes and bounded Optic reads form the new application surface. `Runtime`
+ * keeps the legacy read path until the remaining #1052 queries replace it. Generated
+ * SDKs provide validated
  * Intent and Observer values; formal optics and diagnostics remain on named
  * expert subpaths.
  */
@@ -16,6 +16,18 @@ export { default as Runtime } from './src/application/Runtime.ts';
 export { default as Warp } from './src/application/Warp.ts';
 export type { default as AuthoredWarp } from './src/application/AuthoredWarp.ts';
 export { default as WarpAddress } from './src/application/WarpAddress.ts';
+export { default as Optic } from './src/application/Optic.ts';
+export type { default as OpticQuery } from './src/application/OpticQuery.ts';
+export type { default as ObservedWarp } from './src/application/ObservedWarp.ts';
+export { default as ObserverIdentity } from './src/domain/api/ObserverIdentity.ts';
+export { default as Purpose } from './src/domain/api/Purpose.ts';
+export { default as ReadBudget } from './src/domain/api/ReadBudget.ts';
+export { default as WarpReadGrant } from './src/domain/api/WarpReadGrant.ts';
+export type { default as WarpReadRequest } from './src/domain/api/WarpReadRequest.ts';
+export { default as OpticReceipt } from './src/domain/api/OpticReceipt.ts';
+export type { OpticReceiptStatus } from './src/domain/api/OpticReceipt.ts';
+export type { default as OpticObservation } from './src/domain/api/OpticObservation.ts';
+export type { default as OpticReading } from './src/domain/api/OpticReading.ts';
 export { default as GitStorage } from './src/application/GitStorage.ts';
 export { default as WarpAccessPort } from './src/ports/WarpAccessPort.ts';
 export { default as WarpWriteGrant } from './src/domain/api/WarpWriteGrant.ts';

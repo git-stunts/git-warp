@@ -1,7 +1,8 @@
-/** v21 root consumer contract -- compile-only. Writes go through Warp; reads keep the legacy Runtime path until #1052. */
+/** v21 root consumer contract -- compile-only. Writes go through Warp; Optic reads node presence and properties, and generated Observers keep the legacy Runtime path until the rest of #1052. */
 
 import {
   GitStorage,
+  Optic,
   RetainedWriteReceipt,
   Runtime,
   Warp,
@@ -14,9 +15,13 @@ import {
   type Evidence,
   type Intent,
   type Lane,
+  type ObservedWarp,
   type Observation,
   type ObservationReceipt,
   type Observer,
+  type OpticObservation,
+  type OpticReceipt,
+  type Purpose,
   type Reading,
   type Receipt,
   type RuntimeOpenOptions,
@@ -133,3 +138,14 @@ async function readContent(lane: Lane): Promise<void> {
 
 void stageContent;
 void readContent;
+
+/** Optic reads (#1052): a view runs no question itself, so every read passes the builder's checks. */
+async function readOptic(view: ObservedWarp, purpose: Purpose): Promise<void> {
+  const observation: OpticObservation = await Optic(view).forPurpose(purpose).node('user:alice').prop('role').read();
+  const receipt: OpticReceipt = await observation.receipt;
+  void receipt;
+  // @ts-expect-error ObservedWarp has no run(); read through Optic(view).
+  await view.run({ purpose, budget: null, question: { subject: '', key: null } });
+}
+
+void readOptic;
